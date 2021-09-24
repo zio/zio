@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 
 package zio.test
 
-import zio.internal.Executor
-import zio.{Runtime, URIO, ZIO}
+import zio.{Executor, Runtime, URIO, ZIO}
 
 import scala.concurrent.ExecutionContext
 

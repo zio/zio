@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,19 +21,19 @@ import zio.test.environment._
 
 private[test] abstract class PlatformSpecific {
   type TestEnvironment =
-    Annotations
-      with Live
-      with Sized
-      with TestClock
-      with TestConfig
-      with TestConsole
-      with TestRandom
-      with TestSystem
+    Has[Annotations]
+      with Has[Live]
+      with Has[Sized]
+      with Has[TestClock]
+      with Has[TestConfig]
+      with Has[TestConsole]
+      with Has[TestRandom]
+      with Has[TestSystem]
       with ZEnv
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
-      ZLayer.requires[TestEnvironment]
+      ZLayer.environment[TestEnvironment]
     val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
       Annotations.live ++
         Live.default ++

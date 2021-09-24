@@ -1,8 +1,24 @@
+/*
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.internal
 
 import zio.Fiber.Dump
 import zio.Fiber.Status.{Done, Finishing, Running, Suspended}
-import zio.{Fiber, UIO, ZIO}
+import zio.{Fiber, FiberId, UIO, ZIO}
 
 private[zio] object FiberRenderer {
 
@@ -39,16 +55,14 @@ private[zio] object FiberRenderer {
       (s"${millis}ms")
     val waitMsg = dump.status match {
       case Suspended(_, _, _, blockingOn, _) =>
-        if (blockingOn.nonEmpty)
-          "waiting on " + blockingOn.map(id => s"#${id.seqNumber}").mkString(", ")
-        else ""
+        if (blockingOn ne FiberId.None) "waiting on " + s"#${blockingOn.seqNumber}" else ""
       case _ => ""
     }
     val statMsg = renderStatus(dump.status)
 
     s"""
-       |${name}#${dump.fiberId.seqNumber} (${lifeMsg}) ${waitMsg}
-       |   Status: ${statMsg}
+       |$name#${dump.fiberId.seqNumber} ($lifeMsg) $waitMsg
+       |   Status: $statMsg
        |${dump.trace.fold("")(_.prettyPrint)}
        |""".stripMargin
   }
@@ -74,7 +88,7 @@ private[zio] object FiberRenderer {
     def go(t: Dump, prefix: String): String = {
       val nameStr   = t.fiberName.fold("")(n => "\"" + n + "\" ")
       val statusMsg = renderStatus(t.status)
-      s"${prefix}+---${nameStr}#${t.fiberId.seqNumber} Status: $statusMsg\n"
+      s"$prefix+---$nameStr#${t.fiberId.seqNumber} Status: $statusMsg\n"
     }
 
     go(tree, "")

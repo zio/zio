@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,4 +19,10 @@ package zio
 private[zio] trait ChunkFactory {
   def apply[A](as: A*): Chunk[A]
   def fill[A](n: Int)(elem: => A): Chunk[A]
+
+  /**
+   * Extracts the elements from a `Chunk`.
+   */
+  def unapplySeq[A](chunk: Chunk[A]): Some[Chunk[A]] =
+    Some(chunk)
 }

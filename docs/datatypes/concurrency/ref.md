@@ -28,7 +28,6 @@ The `Ref` has lots of operations. Here we are going to introduce the most import
 
 ```scala mdoc:invisible
 import zio._
-import zio.console._
 ```
 
 ```scala
@@ -82,7 +81,7 @@ As the `make` and `get` methods of `Ref` are effectful, we can chain them togeth
 ```scala mdoc:silent
 Ref.make("initial")
    .flatMap(_.get)
-   .flatMap(current => putStrLn(s"current value of ref: $current"))
+   .flatMap(current => Console.printLine(s"current value of ref: $current"))
 ```
 
 We can use syntactic sugar representation of flatMap series with for-comprehension:
@@ -117,9 +116,9 @@ def update(f: A => A): IO[E, Unit]
 Assume we have a counter, we can increase its value with the `update` method:
 
 ```scala mdoc:silent:nest
-val counterInital = 0
+val counterInitial = 0
 for {
-  counterRef <- Ref.make(counterInital)
+  counterRef <- Ref.make(counterInitial)
   _          <- counterRef.update(_ + 1)
   value <- counterRef.get
 } yield assert(value == 1)
@@ -134,7 +133,6 @@ The following snippet is not concurrent safe:
 ```scala mdoc:silent:nest
 // Unsafe State Management
 object UnsafeCountRequests extends zio.App {
-  import zio.console._
 
   def request(counter: Ref[Int]) = for {
     current <- counter.get
@@ -147,7 +145,7 @@ object UnsafeCountRequests extends zio.App {
       ref <- Ref.make(initial)
       _ <- request(ref) zipPar request(ref)
       rn <- ref.get
-      _ <- putStrLn(s"total requests performed: $rn")
+      _ <- Console.printLine(s"total requests performed: $rn")
     } yield ()
 
   override def run(args: List[String]) = program.exitCode
@@ -159,13 +157,12 @@ The above snippet doesn't behave deterministically. This program sometimes print
 ```scala mdoc:silent:nest
 // Unsafe State Management
 object CountRequests extends zio.App {
-  import zio.console._
 
-  def request(counter: Ref[Int]): ZIO[Console, Nothing, Unit] = {
+  def request(counter: Ref[Int]): ZIO[Has[Console], Nothing, Unit] = {
     for {
       _ <- counter.update(_ + 1)
       reqNumber <- counter.get
-      _ <- putStrLn(s"request number: $reqNumber")
+      _ <- Console.printLine(s"request number: $reqNumber").orDie
     } yield ()
   }
 
@@ -175,7 +172,7 @@ object CountRequests extends zio.App {
       ref <- Ref.make(initial)
       _ <- request(ref) zipPar request(ref)
       rn <- ref.get
-      _ <- putStrLn(s"total requests performed: $rn")
+      _ <- Console.printLine(s"total requests performed: $rn").orDie
     } yield ()
 
   override def run(args: List[String]) = program.exitCode
@@ -212,7 +209,7 @@ def request(counter: Ref[Int]) = {
   for {
     _  <- counter.update(_ + 1)
     rn <- counter.get
-    _  <- putStrLn(s"request number received: $rn")
+    _  <- Console.printLine(s"request number received: $rn")
   } yield ()
 }
 ```
@@ -223,7 +220,7 @@ What happens if between running the update and get, another update in another fi
 def request(counter: Ref[Int]) = {
   for {
     rn <- counter.modify(c => (c + 1, c + 1))
-    _  <- putStrLn(s"request number received: $rn")
+    _  <- Console.printLine(s"request number received: $rn")
   } yield ()
 }
 ```
@@ -232,7 +229,7 @@ def request(counter: Ref[Int]) = {
 For Java programmers, we can think of `Ref` as an AtomicReference. Java has a `java.util.concurrent.atomic` package and that package contains `AtomicReference`, `AtomicLong`, `AtomicBoolean` and so forth. We can think of `Ref` as being an `AtomicReference`. It has roughly the same power, the same guarantees, and the same limitations. It packages it up in a higher-level context and of course, makes it ZIO friendly. 
  
 ## Ref vs. State Monad
-Basically `Ref` allows us to have all the power of State Monad inside ZIO. State Monad lacks two important futures that we use in real-life application development:
+Basically `Ref` allows us to have all the power of State Monad inside ZIO. State Monad lacks two important features that we use in real-life application development:
 
 1. Concurrency Support
 2. Error Handling
@@ -309,19 +306,16 @@ object S {
 }
 ```
 
-Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yiihaa:
+Let's rock these crocodile boots we found the other day at the market and test our semaphore at the night club, yee-haw:
 
 ```scala mdoc:silent
-import zio.duration.Duration
-import zio.clock._
-import zio.console._
-import zio.random._
+import zio.Console._
 
 val party = for {
   dancefloor <- S(10)
   dancers <- ZIO.foreachPar(1 to 100) { i =>
-    dancefloor.P *> nextDouble.map(d => Duration.fromNanos((d * 1000000).round)).flatMap { d =>
-      putStrLn(s"${i} checking my boots") *> sleep(d) *> putStrLn(s"${i} dancing like it's 99")
+    dancefloor.P *> Random.nextDouble.map(d => Duration.fromNanos((d * 1000000).round)).flatMap { d =>
+      printLine(s"${i} checking my boots") *> ZIO.sleep(d) *> printLine(s"${i} dancing like it's 99")
     } *> dancefloor.V
   }
 } yield ()

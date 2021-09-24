@@ -10,14 +10,14 @@ ZIO provides a variety of combinators to handle errors such as `orElse`, `catchA
 Code | Rewrite 
 --- | ---
 `uio <> zio` | `uio`
-`uio.bimap(f, g)` |  `uio.map(g)`
 `uio.catchAll(f)` | `uio`
 `uio.catchSome(pf)` | `uio`
 `uio.either` | `uio`*
 `uio.eventually` | `uio`
 `uio.flatMapError(f)` | `uio`
 `uio.fold(f, g)` | `uio.map(g)`
-`uio.foldM(f, g)` | `uio.flatMap(g)`
+`uio.foldZIO(f, g)` | `uio.flatMap(g)`
+`uio.mapBoth(f, g)` |  `uio.map(g)`
 `uio.mapError(f)` | `uio`
 `uio.option` | `uio`*
 `uio.orDie` | `uio`
@@ -45,13 +45,13 @@ Code | Rewrite
 Code | Rewrite 
 --- | ---
 `umanaged <> zmanaged` | `umanaged`
-`umanaged.bimap(f, g)` | `umanaged.map(g)`
 `umanaged.catchAll(f)` | `umanaged`
 `umanaged.catchSome(pf)` | `umanaged`
 `umanaged.either` | `umanaged`*
 `umanaged.flatMapError(f)` | `umanaged`
 `umanaged.fold(f, g)` | `umanaged.map(f)`
-`umanaged.foldM(f, g)` | `umanaged.flatMap(g)`
+`umanaged.foldManaged(f, g)` | `umanaged.flatMap(g)`
+`umanaged.mapBoth(f, g)` | `umanaged.map(g)`
 `umanaged.mapError(f)` | `umanaged`
 `umanaged.option` | `umanaged`*
 `umanaged.orDie` | `umanaged`
@@ -69,9 +69,9 @@ Code | Rewrite
 
 Code | Rewrite 
 --- | ---
-`ustream.bimap(f, g)` | `ustream.map(g)`
 `ustream.catchAll(f)` | `ustream`
 `ustream.either` | `ustream`*
+`ustream.mapBoth(f, g)` | `ustream.map(g)`
 `ustream.mapError(f)` | `ustream`
 `ustream.orElse(zstream)` | `ustream`
 

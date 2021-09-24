@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ private[mock] object MockState {
 
   def checkUnmetExpectations[R <: Has[_]](state: MockState[R]): ZIO[Any, Nothing, Any] =
     state.expectationRef.get
-      .filterOrElse[Any, Nothing, Any](_.state >= ExpectationState.Satisfied) { expectation =>
+      .filterOrElseWith[Any, Nothing, Any](_.state >= ExpectationState.Satisfied) { expectation =>
         ZIO.die(MockException.UnsatisfiedExpectationsException(expectation))
       }
 }

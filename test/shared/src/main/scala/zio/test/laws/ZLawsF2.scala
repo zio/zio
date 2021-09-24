@@ -1,7 +1,23 @@
+/*
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.test.laws
 
 import zio.test.{Gen, TestConfig, TestResult, check}
-import zio.{URIO, ZIO}
+import zio.{Has, URIO, ZIO}
 
 object ZLawsF2 {
 
@@ -15,7 +31,7 @@ object ZLawsF2 {
      * function to construct a generator of `F[A,B]` values given a generator of
      * `B` values.
      */
-    def run[R1 <: R with TestConfig, F[-_, +_]: CapsF, A: CapsLeft, B: CapsRight](
+    def run[R1 <: R with Has[TestConfig], F[-_, +_]: CapsF, A: CapsLeft, B: CapsRight](
       genF: GenF2[R1, F],
       gen: Gen[R1, B]
     ): ZIO[R1, Nothing, TestResult]
@@ -37,7 +53,7 @@ object ZLawsF2 {
       right: Divariant[CapsBothF, CapsLeft, CapsRight, R]
     ) extends Divariant[CapsBothF, CapsLeft, CapsRight, R] {
 
-      override final def run[R1 <: R with TestConfig, F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
+      override final def run[R1 <: R with Has[TestConfig], F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
         genF: GenF2[R1, F],
         gen: Gen[R1, B]
       ): ZIO[R1, Nothing, TestResult] = {
@@ -60,7 +76,7 @@ object ZLawsF2 {
         g: A1 => A2
       ): TestResult
 
-      final def run[R <: TestConfig, F[-_, +_]: CapsBothF, A: Caps, B: Caps, A1: Caps, A2: Caps](
+      final def run[R <: Has[TestConfig], F[-_, +_]: CapsBothF, A: Caps, B: Caps, A1: Caps, A2: Caps](
         genF: GenF2[R, F],
         genB: Gen[R, B],
         genA1: Gen[R, A1],
@@ -80,7 +96,7 @@ object ZLawsF2 {
         extends Divariant[CapsBothF, CapsLeft, CapsRight, Any] { self =>
       def apply[F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](fa: F[A, B]): TestResult
 
-      final def run[R <: TestConfig, F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
+      final def run[R <: Has[TestConfig], F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
         genF: GenF2[R, F],
         gen: Gen[R, B]
       ): URIO[R, TestResult] =

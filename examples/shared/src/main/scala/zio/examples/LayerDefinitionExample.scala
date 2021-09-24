@@ -1,28 +1,31 @@
 package zio.examples
 import zio._
-import zio.console.Console
 
-object LayerDefinitionExample extends App {
+object LayerDefinitionExample extends ZIOAppDefault {
   trait Foo {
     def bar: UIO[Unit]
   }
 
   object Foo {
-    val live: URLayer[Console with Has[String] with Has[Int], Has[Foo]] =
+    val live: URLayer[Has[Console] with Has[String] with Has[Int], Has[Foo]] =
       (FooLive.apply _).toLayer
 
-    case class FooLive(console: Console.Service, string: String, int: Int) extends Foo {
-      override def bar: UIO[Unit] = console.putStrLn(s"$string and $int")
+    case class FooLive(console: Console, string: String, int: Int) extends Foo {
+      override def bar: UIO[Unit] = console.printLine(s"$string and $int").orDie
     }
   }
 
-  override def run(args: List[String]): URIO[ZEnv, ExitCode] = {
-    val liveLayer: ULayer[Has[Foo]] =
-      (Console.live ++ ZLayer.succeed("Hello") ++ ZLayer.succeed(3)) >>> Foo.live
+  override def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {
 
-    ZIO
-      .accessM[Has[Foo]](_.get.bar)
-      .provideLayer(liveLayer)
-      .exitCode
+    val program: ZIO[Has[Foo], Nothing, Unit] = ZIO.serviceWith[Foo](_.bar)
+
+    program
+      .inject(
+        Console.live,
+        ZLayer.succeed("Hello"),
+        ZLayer.succeed(3),
+        Foo.live
+      )
   }
+
 }

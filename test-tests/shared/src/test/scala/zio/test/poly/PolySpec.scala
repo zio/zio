@@ -1,8 +1,8 @@
 package zio.test.poly
 
-import zio.random._
 import zio.test.Assertion._
 import zio.test._
+import zio.{Has, Random}
 
 import scala.annotation.tailrec
 
@@ -24,25 +24,25 @@ object PolySpec extends DefaultRunnableSpec {
     case x                         => x
   }
 
-  def genValue(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+  def genValue(t: GenPoly): Gen[Has[Random] with Has[Sized], Expr[t.T]] =
     t.genT.map(Value(_))
 
-  def genMapping(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+  def genMapping(t: GenPoly): Gen[Has[Random] with Has[Sized], Expr[t.T]] =
     Gen.suspend {
       GenPoly.genPoly.flatMap { t0 =>
         genExpr(t0).flatMap { expr =>
-          val genFunction: Gen[Random with Sized, t0.T => t.T] = Gen.function(t.genT)
-          val genExpr1: Gen[Random with Sized, Expr[t.T]]      = genFunction.map(f => Mapping(expr, f))
+          val genFunction: Gen[Has[Random] with Has[Sized], t0.T => t.T] = Gen.function(t.genT)
+          val genExpr1: Gen[Has[Random] with Has[Sized], Expr[t.T]]      = genFunction.map(f => Mapping(expr, f))
           genExpr1
         }
       }
     }
 
-  def genExpr(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+  def genExpr(t: GenPoly): Gen[Has[Random] with Has[Sized], Expr[t.T]] =
     Gen.oneOf(genMapping(t), genValue(t))
 
   def spec: ZSpec[Environment, Failure] = suite("PolySpec")(
-    testM("map fusion") {
+    test("map fusion") {
       check(GenPoly.genPoly.flatMap(genExpr(_)))(expr => assert(eval(fuse(expr)))(equalTo(eval(expr))))
     }
   )

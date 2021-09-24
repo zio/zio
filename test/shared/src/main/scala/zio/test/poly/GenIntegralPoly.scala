@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package zio.test.poly
 
-import zio.random.Random
 import zio.test.{Gen, Sized}
+import zio.{Has, Random}
 
 /**
  * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and
@@ -33,7 +33,7 @@ object GenIntegralPoly {
    * Constructs an instance of `GenIntegralPoly` using the specified `Gen`
    * and `Integral` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Random with Sized, A], num: Integral[A]): GenIntegralPoly =
+  def apply[A](gen: Gen[Has[Random] with Has[Sized], A], num: Integral[A]): GenIntegralPoly =
     new GenIntegralPoly {
       type T = A
       val genT = gen
@@ -44,20 +44,20 @@ object GenIntegralPoly {
    * Provides evidence that instances of `Gen` and `Integral` exist for bytes.
    */
   val byte: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyByte, Numeric.ByteIsIntegral)
+    GenIntegralPoly(Gen.byte, Numeric.ByteIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for
    * characters.
    */
   val char: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyChar, Numeric.CharIsIntegral)
+    GenIntegralPoly(Gen.char, Numeric.CharIsIntegral)
 
   /**
    * A generator of polymorphic values constrainted to have an `Integral`
    * instance.
    */
-  lazy val genIntegralPoly: Gen[Random, GenIntegralPoly] =
+  lazy val genIntegralPoly: Gen[Has[Random], GenIntegralPoly] =
     Gen.elements(byte, char, int, long, short)
 
   /**
@@ -65,17 +65,17 @@ object GenIntegralPoly {
    * integers.
    */
   val int: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyInt, Numeric.IntIsIntegral)
+    GenIntegralPoly(Gen.int, Numeric.IntIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for longs.
    */
   val long: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyLong, Numeric.LongIsIntegral)
+    GenIntegralPoly(Gen.long, Numeric.LongIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for shorts.
    */
   val short: GenIntegralPoly =
-    GenIntegralPoly(Gen.anyShort, Numeric.ShortIsIntegral)
+    GenIntegralPoly(Gen.short, Numeric.ShortIsIntegral)
 }

@@ -146,7 +146,8 @@ val withJoin =
 val withoutJoin =
   for {
     fiberRef <- FiberRef.make[Int](0)
-    fiber    <- fiberRef.set(10)
+    fiber    <- fiberRef.set(10).fork
+    _        <- fiber.inheritRefs
     v        <- fiberRef.get
   } yield assert(v == 10)
 ```

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 package zio.test.mock
 
-import zio.internal.Executor
 import zio.stream.{ZSink, ZStream}
 import zio.test.TestPlatform
-import zio.{Has, Runtime, Tag, ULayer, URIO, URLayer, ZIO}
+import zio.{Executor, Has, Runtime, Tag, ULayer, URIO, URLayer, ZIO}
 
 /**
  * A `Mock[R]` represents a mockable environment `R`.
@@ -38,7 +37,7 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
       if (!TestPlatform.isJS) runtime
       else
         runtime.withExecutor {
-          val ec = runtime.platform.executor.asEC
+          val ec = runtime.runtimeConfig.executor.asExecutionContext
           Executor.fromExecutionContext(Int.MaxValue)(ec)
         }
     }

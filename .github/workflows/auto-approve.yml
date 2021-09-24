@@ -7,7 +7,7 @@ jobs:
   auto-approve:
     runs-on: ubuntu-20.04
     steps:
-      - uses: hmarr/auto-approve-action@v2.0.0
-        if: github.actor == 'scala-steward'
+      - uses: hmarr/auto-approve-action@v2.1.0
+        if: github.actor == 'scala-steward' || github.actor == 'renovate[bot]'
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package zio.test.poly
 
-import zio.random.Random
 import zio.test.{Gen, Sized}
+import zio.{Has, Random}
 
 import scala.annotation.tailrec
 
@@ -35,7 +35,7 @@ object GenOrderingPoly {
    * Constructs an instance of `GenOrderingPoly` using the specified `Gen` and
    * `Ordering` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Random with Sized, A], ord: Ordering[A]): GenOrderingPoly =
+  def apply[A](gen: Gen[Has[Random] with Has[Sized], A], ord: Ordering[A]): GenOrderingPoly =
     new GenOrderingPoly {
       type T = A
       val genT = gen
@@ -74,7 +74,7 @@ object GenOrderingPoly {
   val float: GenOrderingPoly =
     GenNumericPoly.float
 
-  lazy val genOrderingPoly: Gen[Random, GenOrderingPoly] = {
+  lazy val genOrderingPoly: Gen[Has[Random], GenOrderingPoly] = {
     val primitives = Gen.elements(
       boolean,
       byte,
@@ -135,7 +135,7 @@ object GenOrderingPoly {
    * strings.
    */
   val string: GenOrderingPoly =
-    GenOrderingPoly(Gen.anyString, Ordering.String)
+    GenOrderingPoly(Gen.string, Ordering.String)
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,18 @@ import java.util.concurrent.atomic.AtomicReference
  */
 sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
+  protected def atomic: ZTRef.Atomic[_]
+
+  /**
+   * Retrieves the value of the `ZTRef`.
+   */
+  def get: STM[EB, B]
+
+  /**
+   * Sets the value of the `ZTRef`.
+   */
+  def set(a: A): STM[EA, Unit]
+
   /**
    * Folds over the error and value types of the `ZTRef`. This is a highly
    * polymorphic method that is capable of arbitrarily transforming the error
@@ -68,16 +80,6 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
     ca: C => B => Either[EC, A],
     bd: B => Either[ED, D]
   ): ZTRef[EC, ED, C, D]
-
-  /**
-   * Retrieves the value of the `ZTRef`.
-   */
-  def get: STM[EB, B]
-
-  /**
-   * Sets the value of the `ZTRef`.
-   */
-  def set(a: A): STM[EA, Unit]
 
   /**
    * Maps and filters the `get` value of the `ZTRef` with the specified partial
@@ -138,6 +140,49 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
     fold(identity, Some(_), Right(_), b => if (f(b)) Right(b) else Left(None))
 
   /**
+   * Folds over the error and value types of the `ZTRef`, allowing access to
+   * the state in transforming the `set` value. This is a more powerful version
+   * of `fold` but requires unifying the error types.
+   */
+  def foldAllSTM[EC, ED, C, D](
+    ea: EA => EC,
+    eb: EB => ED,
+    ec: EB => EC,
+    ca: C => B => STM[EC, A],
+    bd: B => STM[ED, D]
+  ): ZTRef[EC, ED, C, D] =
+    new ZTRef.ZTRefSTM[EC, ED, C, D] {
+      def atomic: ZTRef.Atomic[_] =
+        self.atomic
+      def get: STM[ED, D] =
+        self.get.foldSTM(e => STM.fail(eb(e)), bd)
+      def set(c: C): STM[EC, Unit] =
+        self.get.mapError(ec).flatMap(b => ca(c)(b)).flatMap(a => self.set(a).mapError(ea))
+    }
+
+  /**
+   * Folds over the error and value types of the `ZTRef`. This is a highly
+   * polymorphic method that is capable of arbitrarily transforming the error
+   * and value types of the `ZTRef`. For most use cases one of the more
+   * specific combinators implemented in terms of `fold` will be more ergonomic
+   * but this method is extremely useful for implementing new combinators.
+   */
+  def foldSTM[EC, ED, C, D](
+    ea: EA => EC,
+    eb: EB => ED,
+    ca: C => STM[EC, A],
+    bd: B => STM[ED, D]
+  ): ZTRef[EC, ED, C, D] =
+    new ZTRef.ZTRefSTM[EC, ED, C, D] {
+      def atomic: ZTRef.Atomic[_] =
+        self.atomic
+      def get: STM[ED, D] =
+        self.get.foldSTM(e => STM.fail(eb(e)), bd)
+      def set(c: C): STM[EC, Unit] =
+        ca(c).flatMap(a => self.set(a).mapError(ea))
+    }
+
+  /**
    * Transforms the `get` value of the `ZTRef` with the specified function.
    */
   final def map[C](f: B => C): ZTRef[EA, EB, A, C] =
@@ -167,8 +212,6 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
   private[stm] def unsafeSet(journal: Journal, a: A): Unit =
     atomic.getOrMakeEntry(journal).unsafeSet(a)
-
-  protected def atomic: ZTRef.Atomic[_]
 }
 
 object ZTRef {
@@ -207,39 +250,36 @@ object ZTRef {
       }
 
     def get: USTM[A] =
-      new ZSTM((journal, _, _, _) => {
-        val entry = getOrMakeEntry(journal)
-        TExit.Succeed(entry.unsafeGet[A])
-      })
+      ZSTM.Effect((journal, _, _) => getOrMakeEntry(journal).unsafeGet[A])
 
     def set(a: A): USTM[Unit] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect { (journal, _, _) =>
         val entry = getOrMakeEntry(journal)
         entry.unsafeSet(a)
-        TExit.unit
-      })
+        ()
+      }
 
     /**
      * Sets the value of the `ZTRef` and returns the old value.
      */
     def getAndSet(a: A): USTM[A] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect { (journal, _, _) =>
         val entry    = getOrMakeEntry(journal)
         val oldValue = entry.unsafeGet[A]
         entry.unsafeSet(a)
-        TExit.Succeed(oldValue)
-      })
+        oldValue
+      }
 
     /**
      * Updates the value of the variable and returns the old value.
      */
     def getAndUpdate(f: A => A): USTM[A] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect { (journal, _, _) =>
         val entry    = getOrMakeEntry(journal)
         val oldValue = entry.unsafeGet[A]
         entry.unsafeSet(f(oldValue))
-        TExit.Succeed(oldValue)
-      })
+        oldValue
+      }
 
     /**
      * Updates some values of the variable but leaves others alone, returning the
@@ -253,12 +293,12 @@ object ZTRef {
      * value.
      */
     def modify[B](f: A => (B, A)): USTM[B] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect { (journal, _, _) =>
         val entry                = getOrMakeEntry(journal)
         val (retValue, newValue) = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
-        TExit.Succeed(retValue)
-      })
+        retValue
+      }
 
     /**
      * Updates the value of the variable, returning a function of the specified
@@ -274,23 +314,23 @@ object ZTRef {
      * Updates the value of the variable.
      */
     def update(f: A => A): USTM[Unit] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect { (journal, _, _) =>
         val entry    = getOrMakeEntry(journal)
         val newValue = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
-        TExit.unit
-      })
+        ()
+      }
 
     /**
      * Updates the value of the variable and returns the new value.
      */
     def updateAndGet(f: A => A): USTM[A] =
-      new ZSTM((journal, _, _, _) => {
+      ZSTM.Effect { (journal, _, _) =>
         val entry    = getOrMakeEntry(journal)
         val newValue = f(entry.unsafeGet[A])
         entry.unsafeSet(newValue)
-        TExit.Succeed(newValue)
-      })
+        newValue
+      }
 
     /**
      * Updates some values of the variable but leaves others alone.
@@ -433,6 +473,32 @@ object ZTRef {
       }.absolve
   }
 
+  private abstract class ZTRefSTM[+EA, +EB, -A, +B] extends ZTRef[EA, EB, A, B] {
+
+    protected def atomic: Atomic[_]
+
+    def get: STM[EB, B]
+
+    def set(a: A): STM[EA, Unit]
+
+    final def fold[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => Either[EC, A],
+      bd: B => Either[ED, D]
+    ): ZTRef[EC, ED, C, D] =
+      foldSTM(ea, eb, c => STM.fromEither(ca(c)), b => STM.fromEither(bd(b)))
+
+    final def foldAll[EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ec: EB => EC,
+      ca: C => (B => Either[EC, A]),
+      bd: B => Either[ED, D]
+    ): ZTRef[EC, ED, C, D] =
+      foldAllSTM(ea, eb, ec, c => b => STM.fromEither(ca(c)(b)), b => STM.fromEither(bd(b)))
+  }
+
   implicit class UnifiedSyntax[E, A](private val self: ETRef[E, A]) extends AnyVal {
     def getAndSet(a: A): STM[E, A] =
       self match {
@@ -485,6 +551,8 @@ object ZTRef {
               }
             }
           }.absolve
+        case zTRefSTM: ZTRefSTM[E, E, A, A] =>
+          zTRefSTM.get.flatMap(a => f(a) match { case (b, a) => zTRefSTM.set(a).as(b) })
       }
 
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): STM[E, B] =
@@ -535,14 +603,14 @@ object ZTRef {
    * Makes a new `ZTRef` that is initialized to the specified value.
    */
   def make[A](a: => A): USTM[TRef[A]] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val value     = a
       val versioned = new Versioned(value)
       val todo      = new AtomicReference[Map[TxnId, Todo]](Map())
       val tref      = new Atomic(versioned, todo)
       journal.put(tref, Entry(tref, true))
-      TExit.Succeed(tref)
-    })
+      tref
+    }
 
   /**
    * A convenience method that makes a `ZTRef` and immediately commits the

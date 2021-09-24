@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy both.
    *
    * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.getStrLn(value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.readLine(value("foo"))
    * }}
    */
   def and[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
@@ -70,7 +70,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy both sequentially.
    *
    * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.getStrLn(value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.readLine(value("foo"))
    * }}
    */
   def andThen[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
@@ -108,7 +108,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy one of them.
    *
    * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.getStrLn(value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.readLine(value("foo"))
    * }}
    */
   def or[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
@@ -177,7 +177,12 @@ object Expectation {
   private[test] object And {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): And[R] =
-      And(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
+      And(
+        children.asInstanceOf[List[Expectation[R]]],
+        if (children.forall(_.state == Satisfied)) Satisfied else Unsatisfied,
+        List.empty,
+        Mock.Composed(compose)
+      )
 
     object Items {
 
@@ -223,7 +228,12 @@ object Expectation {
   private[test] object Chain {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Chain[R] =
-      Chain(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
+      Chain(
+        children.asInstanceOf[List[Expectation[R]]],
+        if (children.forall(_.state == Satisfied)) Satisfied else Unsatisfied,
+        List.empty,
+        Mock.Composed(compose)
+      )
 
     object Items {
 
@@ -254,7 +264,12 @@ object Expectation {
   private[test] object Or {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Or[R] =
-      Or(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
+      Or(
+        children.asInstanceOf[List[Expectation[R]]],
+        if (children.exists(_.state == Satisfied)) Satisfied else Unsatisfied,
+        List.empty,
+        Mock.Composed(compose)
+      )
 
     object Items {
 
@@ -328,9 +343,9 @@ object Expectation {
    * Implicitly converts Expectation to ZLayer mock environment.
    */
   implicit def toLayer[R <: Has[_]: Tag](trunk: Expectation[R]): ULayer[R] =
-    ZLayer.fromManagedMany(
+    ZLayer(
       for {
-        state <- Managed.make(MockState.make(trunk))(MockState.checkUnmetExpectations)
+        state <- Managed.acquireReleaseWith(MockState.make(trunk))(MockState.checkUnmetExpectations)
         env   <- (ProxyFactory.mockProxy(state) >>> trunk.mock.compose).build
       } yield env
     )

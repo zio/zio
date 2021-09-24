@@ -14,7 +14,7 @@ import zio.Task
 import java.util.Random
 
 object API {
-  def makeRequest = Task.effect {
+  def makeRequest = Task.attempt {
     if (new Random().nextInt(10) < 7) "some value" else throw new Exception("hi")
   }
 }
@@ -36,7 +36,7 @@ The above schedule retries immediately after failing.
 Typically, you will want to space out your requests a bit to give the endpoint a chance to stabilize.
 There are many rates which you can use such as `spaced`, `exponential`, `fibonacci`, `forever`. For simplicity, we will retry the request every second.
 ```scala mdoc:silent
-import zio.duration.durationInt
+import zio.durationInt
 import zio.Schedule
 
 Schedule.spaced(1.second)
@@ -50,33 +50,31 @@ def schedule = Schedule.recurs(4) && Schedule.spaced(1.second)
 
 For monitoring purposes, you may also want to log attempts. While this logic can be placed in the request itself, it's more scalable to add that logic to the schedule so it can be reused.
 ```scala mdoc:silent
-import zio.console.putStrLn
+import zio.Console.printLine
 import zio.Schedule
 import zio.Schedule.Decision
 
 object ScheduleUtil {
   def schedule[A] = Schedule.spaced(1.second) && Schedule.recurs(4).onDecision({
-    case Decision.Done(_)                 => putStrLn(s"done trying")
-    case Decision.Continue(attempt, _, _) => putStrLn(s"attempt #$attempt")
+    case (_, _, Decision.Done)              => printLine(s"done trying").orDie
+    case (_, attempt, Decision.Continue(_)) => printLine(s"attempt #$attempt").orDie
   })
 }
 ```
 You've now created a retry strategy that will attempt an effect every second for a maximum of 5 attempts while logging each attempt. The usage of the schedule would look like this:
 ```scala mdoc:silent
 import zio._
-import zio.duration._
-import zio.console._
-import zio.clock._
+import zio.Console._
 import ScheduleUtil._
 import API._
 
 object ScheduleApp extends scala.App {
 
-  implicit val rt: Runtime[Clock with Console] = Runtime.default
+  implicit val rt: Runtime[Has[Clock] with Has[Console]] = Runtime.default
 
-  rt.unsafeRun(makeRequest.retry(schedule).foldM(
-    ex => putStrLn("Exception Failed"),
-    v => putStrLn(s"Succeeded with $v"))
+  rt.unsafeRun(makeRequest.retry(schedule).foldZIO(
+    ex => printLine("Exception Failed"),
+    v => printLine(s"Succeeded with $v"))
   )
 }
 ```

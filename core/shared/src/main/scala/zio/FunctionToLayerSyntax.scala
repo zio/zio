@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio
 
 trait FunctionToLayerOps {
@@ -13,7 +29,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer: URLayer[Any, Has[A]] =
+    def toLayer[A1 >: A: Tag]: URLayer[Any, Has[A1]] =
       UIO(self()).toLayer
   }
 
@@ -29,7 +45,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer: URLayer[Has[A], Has[B]] =
+    def toLayer[B1 >: B: Tag]: URLayer[Has[A], Has[B1]] =
       ZIO.service[A].map(self).toLayer
   }
 
@@ -45,7 +61,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer: URLayer[Has[A] with Has[B], Has[C]] = {
+    def toLayer[C1 >: C: Tag]: URLayer[Has[A] with Has[B], Has[C1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]

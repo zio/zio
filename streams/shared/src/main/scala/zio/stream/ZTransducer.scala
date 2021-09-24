@@ -1,3 +1,19 @@
+/*
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.stream
 
 import zio._
@@ -61,8 +77,15 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   /**
    * Effectually transforms the inputs of this transducer
    */
+  @deprecated("use contramapZIO", "2.0.0")
   final def contramapM[R1 <: R, E1 >: E, J](f: J => ZIO[R1, E1, I]): ZTransducer[R1, E1, J, O] =
-    ZTransducer[R1, E1, J, O](self.push.map(push => is => ZIO.foreach(is)(_.mapM(f)).flatMap(push)))
+    contramapZIO(f)
+
+  /**
+   * Effectually transforms the inputs of this transducer
+   */
+  final def contramapZIO[R1 <: R, E1 >: E, J](f: J => ZIO[R1, E1, I]): ZTransducer[R1, E1, J, O] =
+    ZTransducer[R1, E1, J, O](self.push.map(push => is => ZIO.foreach(is)(_.mapZIO(f)).flatMap(push)))
 
   /**
    * Filters the outputs of this transducer.
@@ -79,8 +102,15 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   /**
    * Effectually filters the inputs of this transducer.
    */
+  @deprecated("use filterInputZIO", "2.0.0")
   final def filterInputM[R1 <: R, E1 >: E, I1 <: I](p: I1 => ZIO[R1, E1, Boolean]): ZTransducer[R1, E1, I1, O] =
-    ZTransducer[R1, E1, I1, O](self.push.map(push => is => ZIO.foreach(is)(_.filterM(p)).flatMap(push)))
+    filterInputZIO(p)
+
+  /**
+   * Effectually filters the inputs of this transducer.
+   */
+  final def filterInputZIO[R1 <: R, E1 >: E, I1 <: I](p: I1 => ZIO[R1, E1, Boolean]): ZTransducer[R1, E1, I1, O] =
+    ZTransducer[R1, E1, I1, O](self.push.map(push => is => ZIO.foreach(is)(_.filterZIO(p)).flatMap(push)))
 
   /**
    * Transforms the outputs of this transducer.
@@ -99,7 +129,16 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   /**
    * Effectfully transforms the chunks emitted by this transducer.
    */
+  @deprecated("use mapChunksZIO", "2.0.0")
   final def mapChunksM[R1 <: R, E1 >: E, O2](
+    f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
+  ): ZTransducer[R1, E1, I, O2] =
+    mapChunksZIO(f)
+
+  /**
+   * Effectfully transforms the chunks emitted by this transducer.
+   */
+  final def mapChunksZIO[R1 <: R, E1 >: E, O2](
     f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
   ): ZTransducer[R1, E1, I, O2] =
     ZTransducer {
@@ -115,8 +154,15 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   /**
    * Effectually transforms the outputs of this transducer
    */
+  @deprecated("use mapZIO", "2.0.0")
   final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
-    ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
+    mapZIO(f)
+
+  /**
+   * Effectually transforms the outputs of this transducer
+   */
+  final def mapZIO[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
+    ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapZIO(f))))
 }
 
 object ZTransducer extends ZTransducerPlatformSpecificConstructors {
@@ -150,7 +196,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       val toCollect = Math.max(0, n)
 
       ZManaged.scope.flatMap { scope =>
-        ZRefM.makeManaged(State.initial).map { stateRef =>
+        Ref.Synchronized.makeManaged(State.initial).map { stateRef =>
           {
             case None =>
               stateRef.getAndSet(State.initial).flatMap {
@@ -160,7 +206,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
                   f(data).push.use(_(None))
               }
             case Some(data) =>
-              stateRef.modify {
+              stateRef.modifyZIO {
                 case s @ State.Emitting(_, push) =>
                   push(Some(data)).map((_, s))
                 case s @ State.Collecting(collected) =>
@@ -249,8 +295,15 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
+  @deprecated("use collectAllWhileZIO", "2.0.0")
   def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
-    foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
+    collectAllWhileZIO(p)
+
+  /**
+   * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
+   */
+  def collectAllWhileZIO[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
+    foldZIO[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
       p(a).map(if (_) (a :: as, true) else (as, false))
     }.map(_._1.reverse).filter(_.nonEmpty)
 
@@ -287,7 +340,15 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Creates a transducer that starts consuming values as soon as one fails
    * the effectful predicate `p`.
    */
+  @deprecated("use dropWhileZIO", "2.0.0")
   def dropWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, I] =
+    dropWhileZIO(p)
+
+  /**
+   * Creates a transducer that starts consuming values as soon as one fails
+   * the effectful predicate `p`.
+   */
+  def dropWhileZIO[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, I] =
     ZTransducer {
       for {
         dropping <- ZRef.makeManaged(true)
@@ -297,7 +358,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
             case Some(is) =>
               dropping.get.flatMap {
                 case false => UIO(is -> false)
-                case true  => is.dropWhileM(p).map(is1 => is1 -> is1.isEmpty)
+                case true  => is.dropWhileZIO(p).map(is1 => is1 -> is1.isEmpty)
               }.flatMap { case (is, pt) => dropping.set(pt) as is }
           }
         }
@@ -352,40 +413,23 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Creates a transducer by effectfully folding over a structure of type `O`. The transducer will
    * fold the inputs until the stream ends, resulting in a stream with one element.
    */
+  @deprecated("use foldLeftZIO", "2.0.0")
   def foldLeftM[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldM(z)(_ => true)(f)
+    foldLeftZIO(z)(f)
+
+  /**
+   * Creates a transducer by effectfully folding over a structure of type `O`. The transducer will
+   * fold the inputs until the stream ends, resulting in a stream with one element.
+   */
+  def foldLeftZIO[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    foldZIO(z)(_ => true)(f)
 
   /**
    * Creates a sink by effectfully folding over a structure of type `S`.
    */
+  @deprecated("use foldZIO", "2.0.0")
   def foldM[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    ZTransducer {
-      val initial = Some(z)
-
-      def go(in: Chunk[I], state: O, progress: Boolean): ZIO[R, E, (Chunk[O], O, Boolean)] =
-        in.foldM[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) { case ((os0, state, _), i) =>
-          f(state, i).map { o =>
-            if (contFn(o))
-              (os0, o, true)
-            else
-              (os0 :+ o, z, false)
-          }
-        }
-
-      ZRef.makeManaged[Option[O]](initial).map { state =>
-        {
-          case Some(in) =>
-            state.get.flatMap(s => go(in, s.getOrElse(z), s.nonEmpty)).flatMap { case (os, s, progress) =>
-              if (progress)
-                state.set(Some(s)) *> Push.emit(os)
-              else
-                state.set(None) *> Push.emit(os)
-            }
-          case None =>
-            state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(Chunk.single(_)))
-        }
-      }
-    }
+    foldZIO(z)(contFn)(f)
 
   /**
    * Creates a transducer that folds elements of type `I` into a structure
@@ -404,8 +448,18 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    *
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
+  @deprecated("use foldUntilZIO", "2.0.0")
   def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldM[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
+    foldUntilZIO(z, max)(f)
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `O` until `max` elements have been folded.
+   *
+   * Like [[foldWeightedM]], but with a constant cost function of 1.
+   */
+  def foldUntilZIO[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    foldZIO[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
       f(o, i).map((_, count + 1))
     }.map(_._1)
 
@@ -433,8 +487,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Stream(1, 5, 1)
    *  .aggregate(
    *    ZTransducer
-   *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
-   *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
+   *      .foldWeightedDecompose(List[Int]())((_, i: Int) => i.toLong, 4,
+   *        (i: Int) => if (i > 1) Chunk(i - 1, 1) else Chunk(i)) { (acc, el) =>
    *        el :: acc
    *      }
    *      .map(_.reverse)
@@ -513,14 +567,22 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * of type `S`, until `max` worth of elements (determined by the `costFn`) have
    * been folded.
    *
-   * @note Elements that have an individual cost larger than `max` will
-   * force the transducer to cross the `max` cost. See [[foldWeightedDecomposeM]]
-   * for a variant that can handle these cases.
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `S` aggregate to cross `max` into smaller elements. Be vigilant with
+   * this function, it has to generate "simpler" values or the fold may never end.
+   * A value is considered indivisible if `decompose` yields the empty chunk or a
+   * single-valued chunk. In these cases, there is no other choice than to yield
+   * a value that will cross the threshold.
+   *
+   * See [[foldWeightedDecompose]] for an example.
    */
-  def foldWeightedM[R, E, I, O](
-    z: O
-  )(costFn: (O, I) => ZIO[R, E, Long], max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldWeightedDecomposeM(z)(costFn, max, (i: I) => UIO.succeedNow(Chunk.single(i)))(f)
+  @deprecated("use foldWeightedDecomposeZIO", "2.0.0")
+  def foldWeightedDecomposeM[R, E, I, O](z: O)(
+    costFn: (O, I) => ZIO[R, E, Long],
+    max: Long,
+    decompose: I => ZIO[R, E, Chunk[I]]
+  )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    foldWeightedDecomposeZIO(z)(costFn, max, decompose)(f)
 
   /**
    * Creates a transducer that effectfully folds elements of type `I` into a structure
@@ -536,7 +598,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    *
    * See [[foldWeightedDecompose]] for an example.
    */
-  def foldWeightedDecomposeM[R, E, I, O](z: O)(
+  def foldWeightedDecomposeZIO[R, E, I, O](z: O)(
     costFn: (O, I) => ZIO[R, E, Long],
     max: Long,
     decompose: I => ZIO[R, E, Chunk[I]]
@@ -552,7 +614,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         state: FoldWeightedState,
         dirty: Boolean
       ): ZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)] =
-        in.foldM[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, dirty)) { case ((os, state, _), i) =>
+        in.foldZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, dirty)) { case ((os, state, _), i) =>
           costFn(state.result, i).flatMap { cost =>
             val total = cost + state.cost
             if (total > max)
@@ -590,10 +652,72 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * force the transducer to cross the `max` cost. See [[foldWeightedDecomposeM]]
+   * for a variant that can handle these cases.
+   */
+  @deprecated("use foldWeightedZIO", "2.0.0")
+  def foldWeightedM[R, E, I, O](
+    z: O
+  )(costFn: (O, I) => ZIO[R, E, Long], max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    foldWeightedZIO(z)(costFn, max)(f)
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * force the transducer to cross the `max` cost. See [[foldWeightedDecomposeM]]
+   * for a variant that can handle these cases.
+   */
+  def foldWeightedZIO[R, E, I, O](
+    z: O
+  )(costFn: (O, I) => ZIO[R, E, Long], max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    foldWeightedDecomposeZIO(z)(costFn, max, (i: I) => UIO.succeedNow(Chunk.single(i)))(f)
+
+  /**
+   * Creates a sink by effectfully folding over a structure of type `S`.
+   */
+  def foldZIO[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    ZTransducer {
+      val initial = Some(z)
+
+      def go(in: Chunk[I], state: O, progress: Boolean): ZIO[R, E, (Chunk[O], O, Boolean)] =
+        in.foldZIO[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) { case ((os0, state, _), i) =>
+          f(state, i).map { o =>
+            if (contFn(o))
+              (os0, o, true)
+            else
+              (os0 :+ o, z, false)
+          }
+        }
+
+      ZRef.makeManaged[Option[O]](initial).map { state =>
+        {
+          case Some(in) =>
+            state.get.flatMap(s => go(in, s.getOrElse(z), s.nonEmpty)).flatMap { case (os, s, progress) =>
+              if (progress)
+                state.set(Some(s)) *> Push.emit(os)
+              else
+                state.set(None) *> Push.emit(os)
+            }
+          case None =>
+            state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(Chunk.single(_)))
+        }
+      }
+    }
+
+  /**
    * Creates a transducer that always evaluates the specified effect.
    */
+  @deprecated("use fromZIO", "2.0.0")
   def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZTransducer[R, E, Any, A] =
-    ZTransducer(Managed.succeed((_: Any) => zio.map(Chunk.single(_))))
+    fromZIO(zio)
 
   /**
    * Creates a transducer that purely transforms incoming values.
@@ -604,14 +728,27 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Creates a transducer that effectfully transforms incoming values.
    */
+  @deprecated("use fromFunctionZIO", "2.0.0")
   def fromFunctionM[R, E, I, O](f: I => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    identity.mapM(f(_))
+    fromFunctionZIO(f)
+
+  /**
+   * Creates a transducer that effectfully transforms incoming values.
+   */
+  def fromFunctionZIO[R, E, I, O](f: I => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+    identity.mapZIO(f(_))
 
   /**
    * Creates a transducer from a chunk processing function.
    */
   def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]]): ZTransducer[R, E, I, O] =
     ZTransducer(Managed.succeed(push))
+
+  /**
+   * Creates a transducer that always evaluates the specified effect.
+   */
+  def fromZIO[R, E, A](zio: ZIO[R, E, A]): ZTransducer[R, E, Any, A] =
+    ZTransducer(Managed.succeed((_: Any) => zio.map(Chunk.single(_))))
 
   /**
    * Creates a transducer that returns the first element of the stream, if it exists.
@@ -789,6 +926,18 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         }
       }
     }
+
+  /**
+   * Creates a transducer produced from an effect.
+   */
+  def unwrap[R, E, I, O](zio: ZIO[R, E, ZTransducer[R, E, I, O]]): ZTransducer[R, E, I, O] =
+    unwrapManaged(zio.toManaged)
+
+  /**
+   * Creates a transducer produced from a managed effect.
+   */
+  def unwrapManaged[R, E, I, O](managed: ZManaged[R, E, ZTransducer[R, E, I, O]]): ZTransducer[R, E, I, O] =
+    ZTransducer(managed.fold(e => ZTransducer.fail(e), Predef.identity).flatMap(_.push))
 
   /**
    * Decodes chunks of Unicode bytes into strings.

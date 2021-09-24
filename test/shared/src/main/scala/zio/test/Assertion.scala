@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -208,13 +208,20 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an exception to have a certain message.
    */
   def hasMessage(message: Assertion[String]): Assertion[Throwable] =
-    Assertion.assertionRec("hasMessage")(param(message))(message)(th => Some(th.getMessage))
+    Assertion.assertionRec("hasMessage")(param(message))(message)(th => Some(th.getMessage()))
+
+  /**
+   * Makes a new assertion that requires an exception to have certain
+   * suppressed exceptions.
+   */
+  def hasSuppressed(cause: Assertion[Iterable[Throwable]]): Assertion[Throwable] =
+    Assertion.assertionRec("hasSuppressed")(param(cause))(cause)(th => Some(th.getSuppressed))
 
   /**
    * Makes a new assertion that requires an exception to have a certain cause.
    */
   def hasThrowableCause(cause: Assertion[Throwable]): Assertion[Throwable] =
-    Assertion.assertionRec("hasThrowableCause")(param(cause))(cause)(th => Some(th.getCause))
+    Assertion.assertionRec("hasThrowableCause")(param(cause))(cause)(th => Some(th.getCause()))
 
   /**
    * Makes a new assertion that requires a given string to end with the specified suffix.
@@ -469,7 +476,7 @@ object Assertion extends AssertionVariants {
    * assertion.
    */
   def isFailure(assertion: Assertion[Throwable]): Assertion[Try[Any]] =
-    Assertion.assertionRec("isSuccess")(param(assertion))(assertion) {
+    Assertion.assertionRec("isFailure")(param(assertion))(assertion) {
       case Failure(a) => Some(a)
       case Success(_) => None
     }
@@ -499,8 +506,17 @@ object Assertion extends AssertionVariants {
    */
   def isInterrupted: Assertion[Exit[Any, Any]] =
     Assertion.assertion("isInterrupted")() {
-      case Exit.Failure(cause) => cause.interrupted
+      case Exit.Failure(cause) => cause.isInterrupted
       case _                   => false
+    }
+
+  /**
+   * Makes a new assertion that requires an exit value to be interrupted.
+   */
+  def isJustInterrupted: Assertion[Exit[Any, Any]] =
+    Assertion.assertion("isJustInterrupted")() {
+      case Exit.Failure(Cause.Interrupt(_)) => true
+      case _                                => false
     }
 
   /**
@@ -574,6 +590,66 @@ object Assertion extends AssertionVariants {
    */
   def isPositive[A](implicit num: Numeric[A]): Assertion[A] =
     isGreaterThan(num.zero)
+
+  /**
+   * Makes a new assertions that requires a double value is not a number (NaN).
+   */
+  def isNaNDouble: Assertion[Double] =
+    Assertion.assertion("isNaNDouble")()(_.isNaN)
+
+  /**
+   * Makes a new assertions that requires a float value is not a number (NaN).
+   */
+  def isNaNFloat: Assertion[Float] =
+    Assertion.assertion("isNaNFloat")()(_.isNaN)
+
+  /**
+   * Makes a new assertions that requires a double value is positive infinity.
+   */
+  def isPosInfinityDouble: Assertion[Double] =
+    Assertion.assertion("isPosInfinityDouble")()(_.isPosInfinity)
+
+  /**
+   * Makes a new assertions that requires a float value is positive infinity.
+   */
+  def isPosInfinityFloat: Assertion[Float] =
+    Assertion.assertion("isPosInfinityFloat")()(_.isPosInfinity)
+
+  /**
+   * Makes a new assertions that requires a double value is negative infinity.
+   */
+  def isNegInfinityDouble: Assertion[Double] =
+    Assertion.assertion("isNegInfinityDouble")()(_.isNegInfinity)
+
+  /**
+   * Makes a new assertions that requires a float value is negative infinity.
+   */
+  def isNegInfinityFloat: Assertion[Float] =
+    Assertion.assertion("isNegInfinityFloat")()(_.isNegInfinity)
+
+  /**
+   * Makes a new assertions that requires a double value is finite.
+   */
+  def isFiniteDouble: Assertion[Double] =
+    Assertion.assertion("isFiniteDouble")()(_.abs <= Double.MaxValue)
+
+  /**
+   * Makes a new assertions that requires a float value is finite.
+   */
+  def isFiniteFloat: Assertion[Float] =
+    Assertion.assertion("isFiniteFloat")()(_.abs <= Float.MaxValue)
+
+  /**
+   * Makes a new assertions that requires a double value is infinite.
+   */
+  def isInfiniteDouble: Assertion[Double] =
+    Assertion.assertion("isInfiniteDouble")()(_.isInfinite)
+
+  /**
+   * Makes a new assertions that requires a float value is infinite.
+   */
+  def isInfiniteFloat: Assertion[Float] =
+    Assertion.assertion("isInfiniteFloat")()(_.isInfinite)
 
   /**
    * Makes a new assertion that requires a Right value satisfying a specified

@@ -28,8 +28,17 @@
       "datatypes/core/io",
       "datatypes/core/exit",
       "datatypes/core/cause",
-      "datatypes/core/runtime",
-      "datatypes/core/zlayer"
+      "datatypes/core/runtime"
+    ],
+    "Contextual Types": [
+      "datatypes/contextual/index",
+      "datatypes/contextual/has",
+      "datatypes/contextual/zlayer",
+      "datatypes/contextual/rlayer",
+      "datatypes/contextual/ulayer",
+      "datatypes/contextual/layer",
+      "datatypes/contextual/urlayer",
+      "datatypes/contextual/tasklayer"
     ],
     "Fiber Primitives": [
       "datatypes/fiber/index",
@@ -40,13 +49,14 @@
     ],
     "Concurrency Primitives": [
       "datatypes/concurrency/index",
-      "datatypes/concurrency/promise",
-      "datatypes/concurrency/semaphore",
       "datatypes/concurrency/zref",
       "datatypes/concurrency/ref",
-      "datatypes/concurrency/zrefm",
-      "datatypes/concurrency/refm",
-      "datatypes/concurrency/queue"
+      "datatypes/concurrency/zrefsynchronized",
+      "datatypes/concurrency/refsynchronized",
+      "datatypes/concurrency/promise",
+      "datatypes/concurrency/queue",
+      "datatypes/concurrency/hub",
+      "datatypes/concurrency/semaphore"
     ],
     "STM": [
       "datatypes/stm/index",
@@ -63,19 +73,29 @@
     ],
     "Resource Safety": [
       "datatypes/resource/index",
-      "datatypes/resource/managed"
+      "datatypes/resource/zmanaged",
+      "datatypes/resource/managed",
+      "datatypes/resource/task-managed",
+      "datatypes/resource/rmanaged",
+      "datatypes/resource/umanaged",
+      "datatypes/resource/urmanaged"
     ],
-    "Runtime": [],
     "Streaming": [
       "datatypes/stream/index",
+      "datatypes/stream/zstream",
       "datatypes/stream/stream",
-      "datatypes/stream/sink"
+      "datatypes/stream/ustream",
+      "datatypes/stream/ztransducer",
+      "datatypes/stream/transducer",
+      "datatypes/stream/zsink",
+      "datatypes/stream/sink",
+      "datatypes/stream/subscription-ref"
     ],
     "Miscellaneous": [
       "datatypes/misc/index",
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
-      "datatypes/module/has"
+      "datatypes/misc/supervisor"
     ]
   },
   "services-sidebar": {
@@ -86,20 +106,6 @@
       "services/random",
       "services/blocking",
       "services/system"
-    ]
-  },
-  "interop-sidebar": {
-    "Interop": [
-      "interop/interop_index",
-      "interop/interop_catseffect",
-      "interop/interop_future",
-      "interop/interop_java",
-      "interop/interop_javascript",
-      "interop/interop_monix",
-      "interop/interop_scalaz7x",
-      "interop/interop_scalaz_8",
-      "interop/interop_reactivestreams",
-      "interop/interop_twitter"
     ]
   },
   "usecases-sidebar": {
@@ -116,16 +122,28 @@
     ]
   },
   "howto-sidebar": {
+    "Overview": ["howto/index"],
     "How to": [
-      "howto/howto_index",
-      "howto/howto_use_layers",
-      "howto/howto_test_assertions",
-      "howto/howto_test_effects",
-      "howto/howto_mock_services",
-      "howto/howto_handle_errors",
-      "howto/howto_access_system_information",
-      "howto/howto_macros",
-      "howto/migrating_from_monix"
+      "howto/use-test-assertions",
+      "howto/test-effects",
+      "howto/mock-services",
+      "howto/handle-errors",
+      "howto/access-system-information",
+      "howto/use-zio-macros"
+    ],
+    "Interop": [
+      "howto/interop/with-cats-effect",
+      "howto/interop/with-future",
+      "howto/interop/with-java",
+      "howto/interop/with-javascript",
+      "howto/interop/with-monix",
+      "howto/interop/with-scalaz-7x",
+      "howto/interop/with-reactive-streams",
+      "howto/interop/with-twitter",
+      "howto/interop/with-guava"
+    ],
+    "Migrate": [
+      "howto/migrate/from-monix"
     ]
   },
   "resources-sidebar": {
@@ -133,19 +151,19 @@
       "resources/index"
     ],
     "Learning": [
-      "resources/learning/index",
       "resources/learning/articles",
-      "resources/learning/talks",
+      "resources/learning/videos",
       "resources/learning/cookbooks",
       "resources/learning/cheatsheets",
       "resources/learning/sampleprojects",
       "resources/learning/poweredbyzio"
     ],
     "Ecosystem": [
-      "resources/ecosystem/index",
       "resources/ecosystem/officials",
-      "resources/ecosystem/directsupport",
-      "resources/ecosystem/tools"
+      "resources/ecosystem/community",
+      "resources/ecosystem/compatible",
+      "resources/ecosystem/tools",
+      "resources/ecosystem/templates"
     ]
   },
   "about-sidebar": {

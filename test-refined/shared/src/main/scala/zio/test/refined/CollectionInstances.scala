@@ -1,31 +1,46 @@
+/*
+ * Copyright 2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.test.refined
 
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection.{NonEmpty, Size}
-import zio.random.Random
 import zio.test.Gen.{listOfN, vectorOfN}
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
-import zio.{Chunk, NonEmptyChunk}
+import zio.{Chunk, Has, NonEmptyChunk, Random}
 
 object collection extends CollectionInstances
 
 trait CollectionInstances {
 
-  def nonEmptyChunkRefinedGen[R <: Random with Sized, T](implicit
+  def nonEmptyChunkRefinedGen[R <: Has[Random] with Has[Sized], T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[NonEmptyChunk[T], NonEmpty]] =
     Gen.chunkOf1(genT).map(Refined.unsafeApply)
 
-  def nonEmptyListRefinedGen[R <: Random with Sized, T](implicit
+  def nonEmptyListRefinedGen[R <: Has[Random] with Has[Sized], T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[List[T], NonEmpty]] = Gen.listOf1(genT).map(Refined.unsafeApply)
 
-  def nonEmptyVectorRefinedGen[R <: Random with Sized, T](implicit
+  def nonEmptyVectorRefinedGen[R <: Has[Random] with Has[Sized], T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[Vector[T], NonEmpty]] = Gen.vectorOf1(genT).map(Refined.unsafeApply)
 
-  def sizedChunkRefinedGen[R <: Random with Sized, T, P](implicit
+  def sizedChunkRefinedGen[R <: Has[Random] with Has[Sized], T, P](implicit
     genT: Gen[R, T],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[Chunk[T], Size[P]]] =
@@ -33,7 +48,7 @@ trait CollectionInstances {
       Gen.chunkOfN(n.value)(genT)
     }.map(r => Refined.unsafeApply(r))
 
-  def listSizeRefinedGen[R <: Random with Sized, T, P](implicit
+  def listSizeRefinedGen[R <: Has[Random] with Has[Sized], T, P](implicit
     genT: Gen[R, T],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[List[T], Size[P]]] =
@@ -41,7 +56,7 @@ trait CollectionInstances {
       listOfN(n.value)(genT)
     }.map(Refined.unsafeApply)
 
-  def vectorSizeRefinedGen[R <: Random with Sized, T, P](implicit
+  def vectorSizeRefinedGen[R <: Has[Random] with Has[Sized], T, P](implicit
     genT: Gen[R, T],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[Vector[T], Size[P]]] = sizeGen.flatMap { n =>

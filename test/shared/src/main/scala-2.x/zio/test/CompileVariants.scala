@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,14 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
+  def assertTrue(expr: Boolean, exprs: Boolean*): Assert = macro SmartAssertMacros.assert_impl
+  def assertTrue(expr: Boolean): Assert = macro SmartAssertMacros.assertOne_impl
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
   def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
+//  def assert(expr: Boolean): TestResult = assert[Boolean](expr)(Assertion.isTrue)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
@@ -63,7 +70,9 @@ trait CompileVariants {
  */
 object CompileVariants {
 
-  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
+  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(
+    assertion: Assertion[A]
+  ): TestResult =
     zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
 
   def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)(

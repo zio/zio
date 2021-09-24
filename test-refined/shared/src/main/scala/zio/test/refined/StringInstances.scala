@@ -1,52 +1,69 @@
+/*
+ * Copyright 2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.test.refined
 
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.{EndsWith, StartsWith, Uuid}
 import shapeless.Witness
-import zio.random.Random
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
+import zio.{Has, Random}
 
 object string extends StringInstances
 
 trait StringInstances {
 
-  def endsWithStringGen[R <: Random with Sized, S <: String](implicit
+  def endsWithStringGen[R <: Has[Random] with Has[Sized], S <: String](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char]
   ): Gen[R, Refined[String, EndsWith[S]]] = Gen.string(charGen).map(v => Refined.unsafeApply(v + ws.value))
 
-  def endsWithString1Gen[R <: Random with Sized, S <: String](implicit
+  def endsWithString1Gen[R <: Has[Random] with Has[Sized], S <: String](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char]
   ): Gen[R, Refined[String, EndsWith[S]]] =
     Gen.string1(charGen).map(v => Refined.unsafeApply(v + ws.value)) //Only String can call `+` since scala 2.13.0.
 
-  def endsWithStringNGen[R <: Random with Sized, S <: String, P](implicit
+  def endsWithStringNGen[R <: Has[Random] with Has[Sized], S <: String, P](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[String, EndsWith[S]]] =
     sizeGen.flatMap(s => Gen.stringN(s.value)(charGen).map(v => Refined.unsafeApply(v + ws.value)))
 
-  def startsWithStringGen[R <: Random with Sized, S <: String](implicit
+  def startsWithStringGen[R <: Has[Random] with Has[Sized], S <: String](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char]
   ): Gen[R, Refined[String, StartsWith[S]]] = Gen.string(charGen).map(v => Refined.unsafeApply(ws.value + v))
 
-  def startsWithString1Gen[R <: Random with Sized, S <: String](implicit
+  def startsWithString1Gen[R <: Has[Random] with Has[Sized], S <: String](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char]
   ): Gen[R, Refined[String, StartsWith[S]]] = Gen.string1(charGen).map(v => Refined.unsafeApply(ws.value + v))
 
-  def startsWithStringNGen[R <: Random with Sized, S <: String, P](implicit
+  def startsWithStringNGen[R <: Has[Random] with Has[Sized], S <: String, P](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[String, StartsWith[S]]] =
     sizeGen.flatMap(s => Gen.stringN(s.value)(charGen).map(v => Refined.unsafeApply(ws.value + v)))
 
-  val uuidStringGen: Gen[Random, Refined[String, Uuid]] = Gen.anyUUID.map(value => Refined.unsafeApply(value.toString))
+  val uuidStringGen: Gen[Has[Random], Refined[String, Uuid]] =
+    Gen.uuid.map(value => Refined.unsafeApply(value.toString))
 
   implicit val uuidStringDeriveGen: DeriveGen[Refined[String, Uuid]] =
     DeriveGen.instance(uuidStringGen)

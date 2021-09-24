@@ -1,22 +1,21 @@
 package zio.internal
 
-import zio.ZIOBaseSpec
-import zio.random.Random
 import zio.test.Assertion.equalTo
 import zio.test.{Gen, ZSpec, assert, checkAll}
+import zio.{Has, Random, ZIOBaseSpec}
 
 import scala.util.Random.nextInt
 
 object StackBoolSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("StackBoolSpec")(
-    testM("Size tracking") {
+    test("Size tracking") {
       checkAll(gen)(list => assert(StackBool.fromIterable(list).size.toInt)(equalTo(list.length)))
     },
-    testM("From/to list identity") {
+    test("From/to list identity") {
       checkAll(gen)(list => assert(StackBool.fromIterable(list).toList)(equalTo(list)))
     },
-    testM("Push/pop example") {
+    test("Push/pop example") {
       checkAll(gen) { list =>
         val stack = StackBool()
 
@@ -27,7 +26,7 @@ object StackBoolSpec extends ZIOBaseSpec {
         }
       }
     },
-    testM("Peek/pop identity") {
+    test("Peek/pop identity") {
       checkAll(gen) { list =>
         val stack = StackBool()
 
@@ -48,5 +47,5 @@ object StackBoolSpec extends ZIOBaseSpec {
     }
   )
 
-  val gen: Gen[Random, List[Boolean]] = Gen.listOfN(nextInt(200))(Gen.boolean)
+  val gen: Gen[Has[Random], List[Boolean]] = Gen.listOfN(nextInt(200))(Gen.boolean)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -107,6 +107,9 @@ trait ChunkLike[+A]
    */
   override final def map[B](f: A => B): Chunk[B] =
     mapChunk(f)
+
+  override final def updated[A1 >: A](index: Int, elem: A1): Chunk[A1] =
+    update(index, elem)
 
   /**
    * Zips this chunk with the index of every element.

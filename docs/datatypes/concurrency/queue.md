@@ -107,23 +107,23 @@ val polled: UIO[Option[Int]] = for {
 You can consume multiple items at once with `takeUpTo`. If the queue doesn't have enough items to return, it will return all the items without waiting for more offers.
 
 ```scala mdoc:silent
-val taken: UIO[List[Int]] = for {
+val taken: UIO[Chunk[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
-  list  <- queue.takeUpTo(5)
-} yield list
+  chunk  <- queue.takeUpTo(5)
+} yield chunk
 ```
 
-Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty list if the queue is empty).
+Similarly, you can get all items at once with `takeAll`. It also returns without waiting (an empty collection if the queue is empty).
 
 ```scala mdoc:silent
-val all: UIO[List[Int]] = for {
+val all: UIO[Chunk[Int]] = for {
   queue <- Queue.bounded[Int](100)
   _ <- queue.offer(10)
   _ <- queue.offer(20)
-  list  <- queue.takeAll
-} yield list
+  chunk  <- queue.takeAll
+} yield chunk
 ```
 
 ## Shutting Down a Queue
@@ -181,37 +181,36 @@ val mapped: UIO[String] =
   } yield s
 ```
 
-### ZQueue#mapM
+### ZQueue#mapZIO
 
 We may also use an effectful function to map the output. For example,
 we could annotate each element with the timestamp at which it was dequeued:
 
 ```scala mdoc:silent
 import java.util.concurrent.TimeUnit
-import zio.clock._
 
-val currentTimeMillis = currentTime(TimeUnit.MILLISECONDS)
+val currentTimeMillis = Clock.currentTime(TimeUnit.MILLISECONDS)
 
-val annotatedOut: UIO[ZQueue[Any, Clock, Nothing, Nothing, String, (Long, String)]] =
+val annotatedOut: UIO[ZQueue[Any, Has[Clock], Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[String](3)
-    mapped = queue.mapM { el =>
+    mapped = queue.mapZIO { el =>
       currentTimeMillis.map((_, el))
     }
   } yield mapped
 ```
 
-### ZQueue#contramapM
+### ZQueue#contramapZIO
 
-Similarly to `mapM`, we can also apply an effectful function to
+Similarly to `mapZIO`, we can also apply an effectful function to
 elements as they are enqueued. This queue will annotate the elements
 with their enqueue timestamp:
 
 ```scala mdoc:silent
-val annotatedIn: UIO[ZQueue[Clock, Any, Nothing, Nothing, String, (Long, String)]] =
+val annotatedIn: UIO[ZQueue[Has[Clock], Any, Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
-    mapped = queue.contramapM { el: String =>
+    mapped = queue.contramapZIO { el: String =>
       currentTimeMillis.map((_, el))
     }
   } yield mapped
@@ -221,41 +220,21 @@ This queue has the same type as the previous one, but the timestamp is
 attached to the elements when they are enqueued. This is reflected in
 the type of the environment required by the queue for enqueueing.
 
-To complete this example, we could combine this queue with `mapM` to
+To complete this example, we could combine this queue with `mapZIO` to
 compute the time that the elements stayed in the queue:
 
 ```scala mdoc:silent
-import zio.duration._
-
-val timeQueued: UIO[ZQueue[Clock, Clock, Nothing, Nothing, String, (Duration, String)]] =
+val timeQueued: UIO[ZQueue[Has[Clock], Has[Clock], Nothing, Nothing, String, (Duration, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
-    enqueueTimestamps = queue.contramapM { el: String =>
+    enqueueTimestamps = queue.contramapZIO { el: String =>
       currentTimeMillis.map((_, el))
     }
-    durations = enqueueTimestamps.mapM { case (enqueueTs, el) =>
+    durations = enqueueTimestamps.mapZIO { case (enqueueTs, el) =>
       currentTimeMillis
         .map(dequeueTs => ((dequeueTs - enqueueTs).millis, el))
     }
   } yield durations
-```
-
-### ZQueue#bothWith
-
-We may also compose two queues together into a single queue that
-broadcasts offers and takes from both of the queues:
-
-```scala mdoc:silent
-val fromComposedQueues: UIO[(Int, String)] = 
-  for {
-    q1       <- Queue.bounded[Int](3)
-    q2       <- Queue.bounded[Int](3)
-    q2Mapped =  q2.map(_.toString)
-    both     =  q1.bothWith(q2Mapped)((_, _))
-    _        <- both.offer(1)
-    iAndS    <- both.take
-    (i, s)   =  iAndS
-  } yield (i, s)
 ```
 
 ## Additional Resources

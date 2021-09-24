@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package zio.test
 import scala.{Console => SConsole}
 
 private[test] object ConsoleUtils {
+  def underlined(s: String): String =
+    SConsole.UNDERLINED + s + SConsole.RESET
 
   def green(s: String): String =
     SConsole.GREEN + s + SConsole.RESET
@@ -32,7 +34,18 @@ private[test] object ConsoleUtils {
   def blue(s: String): String =
     SConsole.BLUE + s + SConsole.RESET
 
+  def magenta(s: String): String =
+    SConsole.MAGENTA + s + SConsole.RESET
+
   def cyan(s: String): String =
     SConsole.CYAN + s + SConsole.RESET
 
+  def dim(s: String): String =
+    "\u001b[2m" + s + SConsole.RESET
+
+  def bold(s: String): String =
+    SConsole.BOLD + s + SConsole.RESET
+
+  def ansi(ansiColor: String, s: String): String =
+    ansiColor + s + SConsole.RESET
 }

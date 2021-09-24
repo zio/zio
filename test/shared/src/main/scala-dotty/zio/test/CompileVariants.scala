@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ trait CompileVariants {
    * exception if specified string cannot be parsed or is not a known value at
    * compile time.
    */
-  inline final def typeCheck(inline code: String): UIO[Either[String, Unit]] =
+  inline def typeCheck(inline code: String): UIO[Either[String, Unit]] =
     try {
       if (typeChecks(code)) UIO.succeedNow(Right(()))
       else UIO.succeedNow(Left(errorMessage))
@@ -44,16 +44,24 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  private[test] def assertImpl[A](value: => A, expression: Option[String] = None, sourceLocation: Option[String] = None)
-                                 (assertion: Assertion[A]): TestResult
+  private[test] def assertImpl[A](
+    value: => A,
+    expression: Option[String] = None,
+    sourceLocation: Option[String] = None
+  )(
+    assertion: Assertion[A]
+  ): TestResult
+
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)
                                             (assertion: AssertionM[A]): ZIO[R, E, TestResult]
 
+  inline def assertTrue(inline exprs: => Boolean*): Assert = ${SmartAssertMacros.smartAssert('exprs)}
 
-  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = 
+    ${Macros.assert_impl('value)('assertion)}
 
   inline def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] = ${Macros.assertM_impl('effect)('assertion)}
 
@@ -68,6 +76,11 @@ trait CompileVariants {
 object CompileVariants {
 
   def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
+    zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
+
+  def smartAssertProxy[A](value: => A, expression: String, sourceLocation: String)(
+    assertion: Assertion[A]
+  ): TestResult =
     zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
 
   def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,10 @@
 package zio
 
 object Ref extends Serializable {
+  private[zio] type Atomic[A] = ZRef.Atomic[A]
+
+  type Synchronized[A] = ZRef.Synchronized[Any, Any, Nothing, Nothing, A, A]
+  val Synchronized: ZRef.Synchronized.type = ZRef.Synchronized
 
   /**
    * @see [[zio.ZRef.make]]
@@ -30,6 +34,9 @@ object Ref extends Serializable {
   def makeManaged[A](a: A): UManaged[Ref[A]] =
     ZRef.makeManaged(a)
 
-  private[zio] def unsafeMake[A](a: A): Ref[A] =
+  /**
+   * @see [[zio.ZRef.unsafeMake]]
+   */
+  private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
     ZRef.unsafeMake(a)
 }

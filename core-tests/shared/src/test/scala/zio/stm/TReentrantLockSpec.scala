@@ -1,26 +1,9 @@
-/*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package zio.stm
 
-import zio.duration._
+import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, timeout}
 import zio.test._
-import zio.{Exit, Promise, Ref, Schedule, ZIO}
 
 object TReentrantLockSpec extends DefaultRunnableSpec {
   def pollSchedule[E, A]: Schedule[Any, Option[Exit[E, A]], Option[Exit[E, A]]] =
@@ -28,19 +11,19 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
       Schedule.identity[Option[Exit[E, A]]]).whileOutput(_.isEmpty)
 
   override def spec: ZSpec[Environment, Failure] = suite("StmReentrantLock")(
-    testM("1 read lock") {
+    test("1 read lock") {
       for {
         lock  <- TReentrantLock.make.commit
         count <- lock.readLock.use(count => ZIO.succeed(count))
       } yield assert(count)(equalTo(1))
     },
-    testM("2 read locks from same fiber") {
+    test("2 read locks from same fiber") {
       for {
         lock  <- TReentrantLock.make.commit
         count <- lock.readLock.use(_ => lock.readLock.use(count => ZIO.succeed(count)))
       } yield assert(count)(equalTo(2))
     },
-    testM("2 read locks from different fibers") {
+    test("2 read locks from different fibers") {
       for {
         lock    <- TReentrantLock.make.commit
         rlatch  <- Promise.make[Nothing, Unit]
@@ -53,7 +36,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         count   <- reader2.join
       } yield assert(count)(equalTo(1))
     } @@ timeout(10.seconds),
-    testM("1 write lock then 1 read lock, different fibers") {
+    test("1 write lock then 1 read lock, different fibers") {
       for {
         lock   <- TReentrantLock.make.commit
         rlatch <- Promise.make[Nothing, Unit]
@@ -71,7 +54,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         assert(option)(isNone) &&
         assert(1)(equalTo(rcount))
     } @@ timeout(10.seconds) @@ flaky,
-    testM("1 write lock then 1 write lock, different fibers") {
+    test("1 write lock then 1 write lock, different fibers") {
       for {
         lock   <- TReentrantLock.make.commit
         rlatch <- Promise.make[Nothing, Unit]
@@ -89,7 +72,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         assert(option)(isNone) &&
         assert(1)(equalTo(rcount))
     } @@ timeout(10.seconds) @@ flaky,
-    testM("write lock followed by read lock from same fiber") {
+    test("write lock followed by read lock from same fiber") {
       for {
         lock <- TReentrantLock.make.commit
         ref  <- Ref.make(0)
@@ -98,7 +81,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         wcount <- ref.get
       } yield assert(rcount)(equalTo(1)) && assert(wcount)(equalTo(1))
     },
-    testM("upgrade read lock to write lock from same fiber") {
+    test("upgrade read lock to write lock from same fiber") {
       for {
         lock <- TReentrantLock.make.commit
         ref  <- Ref.make(0)
@@ -107,7 +90,7 @@ object TReentrantLockSpec extends DefaultRunnableSpec {
         wcount <- ref.get
       } yield assert(rcount)(equalTo(1)) && assert(wcount)(equalTo(1))
     },
-    testM("read to writer upgrade with other readers") {
+    test("read to writer upgrade with other readers") {
       for {
         lock   <- TReentrantLock.make.commit
         rlatch <- Promise.make[Nothing, Unit]

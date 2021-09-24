@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,17 @@
 
 package zio.stream
 
-import zio.{RefM, UIO}
+import zio._
 
 /**
- * A `SubscriptionRef[A]` contains a `RefM[A]` and a `Stream` that will emit
- * every change to the `RefM`.
+ * A `SubscriptionRef[A]` contains a `Ref.Synchronized` with a value of type
+ * `A` and a `ZStream` that can be subscribed to in order to receive the
+ * current value as well as all changes to the value.
  */
-final class SubscriptionRef[A] private (val ref: RefM[A], val changes: Stream[Nothing, A])
+final class SubscriptionRef[A] private (
+  val ref: ZRef.Synchronized[Any, Any, Nothing, Nothing, A, A],
+  val changes: Stream[Nothing, A]
+)
 
 object SubscriptionRef {
 
@@ -30,7 +34,17 @@ object SubscriptionRef {
    * Creates a new `SubscriptionRef` with the specified value.
    */
   def make[A](a: A): UIO[SubscriptionRef[A]] =
-    RefM.dequeueRef(a).map { case (ref, queue) =>
-      new SubscriptionRef(ref, ZStream.fromQueue(queue))
-    }
+    for {
+      ref <- Ref.Synchronized.make(a)
+      hub <- Hub.unbounded[A]
+      changes = ZStream.unwrapManaged {
+                  ZManaged {
+                    ref.modifyZIO { a =>
+                      ZIO.succeedNow(a).zipWith(hub.subscribe.zio) { case (a, (finalizer, queue)) =>
+                        ((finalizer, ZStream(a) ++ ZStream.fromQueue(queue)), a)
+                      }
+                    }.uninterruptible
+                  }
+                }
+    } yield new SubscriptionRef(ref.tapInput(hub.publish), changes)
 }

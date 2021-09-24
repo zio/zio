@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package zio
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.{CanAwait, ExecutionContext, Future}
 import scala.util.Try
 
@@ -36,11 +36,11 @@ abstract class CancelableFuture[+A](val future: Future[A]) extends Future[A] wit
   final def value: Option[Try[A]] =
     future.value
 
-  final def ready(atMost: Duration)(implicit permit: CanAwait): this.type = {
+  final def ready(atMost: ScalaDuration)(implicit permit: CanAwait): this.type = {
     future.ready(atMost)(permit)
     this
   }
 
-  final def result(atMost: Duration)(implicit permit: CanAwait): A =
+  final def result(atMost: ScalaDuration)(implicit permit: CanAwait): A =
     future.result(atMost)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -141,6 +141,12 @@ private[zio] trait ChunkLike[+A]
    */
   override final def size: Int =
     length
+
+  override final def updated[B >: A, That](index: Int, elem: B)(implicit
+    bf: scala.collection.generic.CanBuildFrom[zio.Chunk[A], B, That]
+  ): That =
+    if (isChunkCanBuildFrom[A, B, That](bf)) update(index, elem).asInstanceOf[That]
+    else super.updated(index, elem)
 
   /**
    * The implementation of `flatMap` for `Chunk`.
