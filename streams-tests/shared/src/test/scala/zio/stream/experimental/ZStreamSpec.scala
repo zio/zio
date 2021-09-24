@@ -882,6 +882,9 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         res2 <- (s.runCollect.map(_.collect { case Some(x) => x }))
         //       } yield assert(res1)(equalTo(res2))
         //     }),
+        test("collectType") {
+          assertM(ZStream(cat1, dog, cat2).collectType[Cat].runCollect)(equalTo(Chunk(cat1, cat2)))
+        },
         suite("collectWhile")(
           test("collectWhile") {
             assertM(ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile { case Some(v) =>
@@ -4333,4 +4336,12 @@ object ZStreamSpec extends ZIOBaseSpec {
                           }
       testResult <- assertion(chunkCoordination)
     } yield testResult
+
+  sealed trait Animal
+  case class Dog(name: String) extends Animal
+  case class Cat(name: String) extends Animal
+
+  val dog: Animal = Dog("dog1")
+  val cat1: Cat   = Cat("cat1")
+  val cat2: Cat   = Cat("cat2")
 }
