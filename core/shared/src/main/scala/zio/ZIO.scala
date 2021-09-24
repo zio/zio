@@ -4670,9 +4670,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * layer, leaving all remaining environmental requirements to be provided
    * later.
    */
-  def provideSomeLayer[R0, R <: Has[_]: Tag, R1 <: Has[_], E, E1 >: E, A](layer: ZLayer[R0, E, R])(
+  def provideSomeLayer[R0, R: Tag, R1, E, E1 >: E, A](layer: ZLayer[R0, E, R])(
     zio: ZIO[R with R1, E1, A]
-  ): ZIO[R0 with R1, E1, A] =
+  )(implicit union: Has.Union[R0 with R1, R]): ZIO[R0 with R1, E1, A] =
     zio.provideSomeLayer[R0 with R1](layer)
 
   /**
