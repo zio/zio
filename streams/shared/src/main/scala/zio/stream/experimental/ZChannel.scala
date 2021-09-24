@@ -1248,7 +1248,7 @@ object ZChannel {
                              .catchAllCause(
                                Cause.flipCauseEither[OutErr, OutDone](_) match {
                                  case Left(cause) =>
-                                   queue.offer(ZIO.halt(cause.map(Left(_)))) *> errorSignal.succeed(()).unit
+                                   queue.offer(ZIO.failCause(cause.map(Left(_)))) *> errorSignal.succeed(()).unit
                                  case Right(outDone) =>
                                    lastDone.update {
                                      case Some(lastDone) => Some(f(lastDone, outDone))
@@ -1257,10 +1257,10 @@ object ZChannel {
                                }
                              )
           _ <- pull
-                 .foldCauseM(
+                 .foldCauseZIO(
                    Cause.flipCauseEither[OutErr, OutDone](_) match {
                      case Left(cause) =>
-                       getChildren.flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.halt(cause.map(Left(_)))).as(false)
+                       getChildren.flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.failCause(cause.map(Left(_)))).as(false)
                      case Right(outDone) =>
                        errorSignal.await.raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
                          leftDone = (_, permitAcquisition) =>
@@ -1308,7 +1308,7 @@ object ZChannel {
           queue.take.flatten.foldCause(
             Cause.flipCauseEither[OutErr, OutDone](_) match {
               case Right(outDone) => end(outDone)
-              case Left(cause)    => halt(cause)
+              case Left(cause)    => failCause(cause)
             },
             outElem => write(outElem) *> consumer
           )
