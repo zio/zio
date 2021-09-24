@@ -2949,18 +2949,29 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(isEmpty)
           }
         ),
-        testM("timeoutError") {
-          assertM(
-            ZStream
-              .range(0, 5)
-              .tap(_ => ZIO.sleep(Duration.Infinity))
-              .timeoutError(false)(Duration.Zero)
-              .runDrain
-              .map(_ => true)
-              .either
-              .map(_.merge)
-          )(isFalse)
-        },
+        suite("timeoutError")(
+          testM("succeed") {
+            assertM(
+              ZStream
+                .range(0, 5)
+                .tap(_ => ZIO.sleep(Duration.Infinity))
+                .timeoutError(false)(Duration.Zero)
+                .runDrain
+                .map(_ => true)
+                .either
+                .map(_.merge)
+            )(isFalse)
+          },
+          testM("fail") {
+            for {
+              error <- ZStream
+                         .fail("OriginalError")
+                         .timeoutError("TimeoutError")(15.minutes)
+                         .runDrain
+                         .flip
+            } yield assertTrue(error == "OriginalError")
+          }
+        ),
         testM("timeoutErrorCause") {
           val throwable = new Exception("BOOM")
           assertM(
