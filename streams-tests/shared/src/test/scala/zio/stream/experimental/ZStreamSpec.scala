@@ -882,7 +882,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         res2 <- (s.runCollect.map(_.collect { case Some(x) => x }))
         //       } yield assert(res1)(equalTo(res2))
         //     }),
-        testM("collectType") {
+        test("collectType") {
           assertM(ZStream(cat1, dog, cat2).collectType[Cat].runCollect)(equalTo(Chunk(cat1, cat2)))
         },
         suite("collectWhile")(
