@@ -1380,7 +1380,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                             (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.die(ex))
-                        ).flatMapPar(2)(identity).runDrain.run
+                        ).flatMapPar(2)(identity).runDrain.exit
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
           },
@@ -1514,7 +1514,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                             (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.die(ex))
-                        ).flatMapParSwitch(2)(identity).runDrain.run
+                        ).flatMapParSwitch(2)(identity).runDrain.exit
               cancelled <- substreamCancelled.get
             } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
           },
