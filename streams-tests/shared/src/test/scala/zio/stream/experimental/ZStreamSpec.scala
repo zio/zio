@@ -3395,7 +3395,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           val genExecutionStrategy =
             Gen.elements(ExecutionStrategy.Parallel, ExecutionStrategy.Sequential)
           val genSortedByKey = for {
-            map    <- Gen.mapOf(Gen.int(1, 50), Gen.int(1, 50))
+            map    <- Gen.mapOf(Gen.int(1, 20), Gen.int(1, 20))
             chunk   = Chunk.fromIterable(map).sorted
             chunks <- splitChunks(Chunk(chunk))
           } yield chunks
