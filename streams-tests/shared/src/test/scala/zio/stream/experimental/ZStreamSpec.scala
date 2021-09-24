@@ -5,7 +5,7 @@ import zio._
 import zio.stm.TQueue
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, ignore, nonFlaky, scala2Only, timeout}
+import zio.test.TestAspect.{flaky, ignore, nonFlaky, samples, scala2Only, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -3395,7 +3395,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           val genExecutionStrategy =
             Gen.elements(ExecutionStrategy.Parallel, ExecutionStrategy.Sequential)
           val genSortedByKey = for {
-            map    <- Gen.mapOf(Gen.int(1, 20), Gen.int(1, 20))
+            map    <- Gen.mapOf(Gen.int(1, 100), Gen.int(1, 100))
             chunk   = Chunk.fromIterable(map).sorted
             chunks <- splitChunks(Chunk(chunk))
           } yield chunks
@@ -3410,7 +3410,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             }.sorted
             assertM(actual.runCollect)(equalTo(expected))
           }
-        },
+        } @@ samples(25),
         suite("zipWith")(
           test("zip doesn't pull too much when one of the streams is done") {
             val l = ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5)) ++ ZStream.fail(
