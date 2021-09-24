@@ -1404,11 +1404,14 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("finalizer ordering") {
             for {
               execution <- Ref.make[List[String]](Nil)
-              inner = ZStream
-                        .acquireReleaseWith(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
+              inner =
+                ZStream
+                  .acquireReleaseWith(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
               _ <-
                 ZStream
-                  .acquireReleaseWith(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
+                  .acquireReleaseWith(execution.update("OuterAcquire" :: _).as(inner))(_ =>
+                    execution.update("OuterRelease" :: _)
+                  )
                   .flatMapPar(2)(identity)
                   .runDrain
               results <- execution.get
@@ -1538,17 +1541,21 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("finalizer ordering") {
             for {
               execution <- Ref.make(List.empty[String])
-              inner      = ZStream.acquireReleaseWith(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
+              inner = ZStream.acquireReleaseWith(execution.update("InnerAcquire" :: _))(_ =>
+                        execution.update("InnerRelease" :: _)
+                      )
               _ <-
                 ZStream
-                  .acquireReleaseWith(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
+                  .acquireReleaseWith(execution.update("OuterAcquire" :: _).as(inner))(_ =>
+                    execution.update("OuterRelease" :: _)
+                  )
                   .flatMapParSwitch(2)(identity)
                   .runDrain
               results <- execution.get
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          } @@ flaky @@ ignore // TODO: fix 
+          } @@ flaky @@ ignore // TODO: fix
         ),
         suite("flattenExitOption")(
           test("happy path") {

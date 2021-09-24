@@ -1260,7 +1260,8 @@ object ZChannel {
                  .foldCauseZIO(
                    Cause.flipCauseEither[OutErr, OutDone](_) match {
                      case Left(cause) =>
-                       getChildren.flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.failCause(cause.map(Left(_)))).as(false)
+                       getChildren
+                         .flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.failCause(cause.map(Left(_)))).as(false)
                      case Right(outDone) =>
                        errorSignal.await.raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
                          leftDone = (_, permitAcquisition) =>
