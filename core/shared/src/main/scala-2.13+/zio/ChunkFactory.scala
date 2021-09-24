@@ -19,4 +19,10 @@ package zio
 private[zio] trait ChunkFactory {
   def apply[A](as: A*): Chunk[A]
   def fill[A](n: Int)(elem: => A): Chunk[A]
+
+  /**
+   * Extracts the elements from a `Chunk`.
+   */
+  def unapplySeq[A](chunk: Chunk[A]): Some[Chunk[A]] =
+    Some(chunk)
 }

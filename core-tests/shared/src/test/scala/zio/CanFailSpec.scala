@@ -6,7 +6,7 @@ import zio.test._
 object CanFailSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("CanFailSpec")(
-    testM("useful combinators compile") {
+    test("useful combinators compile") {
       val result = typeCheck {
         """
             import zio._
@@ -17,7 +17,7 @@ object CanFailSpec extends ZIOBaseSpec {
       }
       assertM(result)(isRight(anything))
     },
-    testM("useless combinators don't compile") {
+    test("useless combinators don't compile") {
       val result = typeCheck {
         """
             import zio._

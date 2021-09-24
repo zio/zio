@@ -45,14 +45,14 @@ object GenFractionalPoly {
    * doubles.
    */
   val double: GenFractionalPoly =
-    GenFractionalPoly(Gen.anyDouble, Numeric.DoubleIsFractional)
+    GenFractionalPoly(Gen.double, Numeric.DoubleIsFractional)
 
   /**
    * Provides evidence that instances of `Gen` and `Fractional` exist for
    * floats.
    */
   val float: GenFractionalPoly =
-    GenFractionalPoly(Gen.anyFloat, Numeric.FloatIsFractional)
+    GenFractionalPoly(Gen.float, Numeric.FloatIsFractional)
 
   /**
    * A generator of polymorphic values constrainted to have a `Fractional`

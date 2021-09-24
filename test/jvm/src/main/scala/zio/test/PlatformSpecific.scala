@@ -33,7 +33,7 @@ private[test] abstract class PlatformSpecific {
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
-      ZLayer.requires[TestEnvironment]
+      ZLayer.environment[TestEnvironment]
     lazy val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
       Annotations.live ++
         Live.default ++

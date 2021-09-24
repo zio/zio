@@ -16,4 +16,4 @@
 
 package zio.internal
 
-private[internal] abstract class DefaultExecutors
+private[zio] abstract class DefaultExecutors

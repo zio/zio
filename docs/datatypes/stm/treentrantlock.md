@@ -139,8 +139,8 @@ import zio.stm._
 
 val saferProgram: URIO[Has[Console] with Has[Clock], Unit] = for {
   lock <- TReentrantLock.make.commit
-  f1   <- lock.readLock.use_(ZIO.sleep(5.seconds) *> printLine("Powering down").orDie).fork
-  f2   <- lock.readLock.use_(lock.writeLock.use_(printLine("Huzzah, writes are mine").orDie)).fork
+  f1   <- lock.readLock.useDiscard(ZIO.sleep(5.seconds) *> printLine("Powering down").orDie).fork
+  f2   <- lock.readLock.useDiscard(lock.writeLock.useDiscard(printLine("Huzzah, writes are mine").orDie)).fork
   _    <- (f1 zip f2).join
 } yield ()
 ```

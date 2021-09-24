@@ -10,6 +10,9 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
     if (TestPlatform.isJVM) List(TestAspect.timeout(60.seconds))
     else List(TestAspect.sequential, TestAspect.timeout(60.seconds))
 
+  override def runner: TestRunner[Environment, Any] =
+    defaultTestRunner.withRuntimeConfig(_.copy(enableCurrentFiber = true))
+
   sealed trait ZIOTag {
     val value: String
     val subTags: List[ZIOTag] = Nil

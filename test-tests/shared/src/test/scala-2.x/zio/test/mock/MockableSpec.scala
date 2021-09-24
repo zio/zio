@@ -44,7 +44,7 @@ object MockableSpec extends DefaultRunnableSpec {
           Check
         })(anything)
       },
-      testM("fails when applied to object without type arg") {
+      test("fails when applied to object without type arg") {
         assertM(typeCheck {
           """
             @mockable
@@ -52,7 +52,7 @@ object MockableSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to trait") {
+      test("fails when applied to trait") {
         assertM(typeCheck {
           """
             object Module {
@@ -64,7 +64,7 @@ object MockableSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to class") {
+      test("fails when applied to class") {
         assertM(typeCheck {
           """
             object Module {

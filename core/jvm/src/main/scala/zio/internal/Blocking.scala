@@ -4,8 +4,8 @@ import java.util.concurrent.{SynchronousQueue, ThreadPoolExecutor, TimeUnit}
 
 object Blocking {
 
-  val blockingExecutor: Executor =
-    Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
+  val blockingExecutor: zio.Executor =
+    zio.Executor.fromThreadPoolExecutor(_ => Int.MaxValue) {
       val corePoolSize  = 0
       val maxPoolSize   = 1000
       val keepAliveTime = 60000L

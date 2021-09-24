@@ -14,7 +14,7 @@ import zio.Task
 import java.util.Random
 
 object API {
-  def makeRequest = Task.effect {
+  def makeRequest = Task.attempt {
     if (new Random().nextInt(10) < 7) "some value" else throw new Exception("hi")
   }
 }
@@ -56,8 +56,8 @@ import zio.Schedule.Decision
 
 object ScheduleUtil {
   def schedule[A] = Schedule.spaced(1.second) && Schedule.recurs(4).onDecision({
-    case Decision.Done(_)                 => printLine(s"done trying").orDie
-    case Decision.Continue(attempt, _, _) => printLine(s"attempt #$attempt").orDie
+    case (_, _, Decision.Done)              => printLine(s"done trying").orDie
+    case (_, attempt, Decision.Continue(_)) => printLine(s"attempt #$attempt").orDie
   })
 }
 ```
@@ -72,7 +72,7 @@ object ScheduleApp extends scala.App {
 
   implicit val rt: Runtime[Has[Clock] with Has[Console]] = Runtime.default
 
-  rt.unsafeRun(makeRequest.retry(schedule).foldM(
+  rt.unsafeRun(makeRequest.retry(schedule).foldZIO(
     ex => printLine("Exception Failed"),
     v => printLine(s"Succeeded with $v"))
   )

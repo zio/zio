@@ -23,8 +23,12 @@ import java.util.concurrent.{CompletableFuture, CompletionStage}
 
 private[zio] trait TaskPlatformSpecific {
 
+  def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
+    javaz.asyncWithCompletionHandler(op)
+
+  @deprecated("use asyncWithCompletionHandler", "2.0.0")
   def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
-    javaz.effectAsyncWithCompletionHandler(op)
+    asyncWithCompletionHandler(op)
 
   /** Alias for `formCompletionStage` for a concrete implementation of CompletionStage */
   def fromCompletableFuture[A](cs: => CompletableFuture[A]): Task[A] = fromCompletionStage(cs)

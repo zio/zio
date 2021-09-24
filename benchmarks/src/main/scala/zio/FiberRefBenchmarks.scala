@@ -13,7 +13,7 @@ import org.openjdk.jmh.annotations.{
   Threads,
   Warmup
 }
-import zio.IOBenchmarks.verify
+import zio.BenchmarkUtil.verify
 
 import java.util.concurrent.TimeUnit
 
@@ -30,30 +30,30 @@ class FiberRefBenchmarks {
 
   @Benchmark
   def tracedCreateUpdateAndRead(): Unit =
-    createUpdateAndRead(IOBenchmarks.TracedRuntime)
+    createUpdateAndRead(BenchmarkUtil.TracedRuntime)
 
   @Benchmark
   def unTracedCreateUpdateAndRead(): Unit =
-    createUpdateAndRead(IOBenchmarks)
+    createUpdateAndRead(BenchmarkUtil)
 
   @Benchmark
   def unTracedJustYield(): Unit =
-    justYield(IOBenchmarks)
+    justYield(BenchmarkUtil)
 
   @Benchmark
   def unTracedCreateFiberRefsAndYield(): Unit =
-    createFiberRefsAndYield(IOBenchmarks)
+    createFiberRefsAndYield(BenchmarkUtil)
 
   private def justYield(runtime: Runtime[Any]) = runtime.unsafeRun {
     for {
-      _ <- ZIO.foreach_(1.to(n))(_ => ZIO.yieldNow)
+      _ <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
     } yield ()
   }
 
   private def createFiberRefsAndYield(runtime: Runtime[Any]) = runtime.unsafeRun {
     for {
       fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
-      _         <- ZIO.foreach_(1.to(n))(_ => ZIO.yieldNow)
+      _         <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
       values    <- ZIO.foreachPar(fiberRefs)(_.get)
       _         <- verify(values == 1.to(n))(s"Got $values")
     } yield ()

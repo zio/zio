@@ -14,7 +14,7 @@ import zio._
 import zio.Console._
 
 for {
-  successExit <- ZIO.succeed(1).run
+  successExit <- ZIO.succeed(1).exit
   _ <- successExit match {
     case Exit.Success(value) =>
       printLine(s"exited with success value: ${value}")

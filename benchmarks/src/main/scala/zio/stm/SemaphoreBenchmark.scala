@@ -1,12 +1,11 @@
 package zio.stm
 
-import cats.effect.{ContextShift, IO => CIO}
+import cats.effect.{IO => CIO}
 import org.openjdk.jmh.annotations._
-import zio.IOBenchmarks._
+import zio.BenchmarkUtil._
 import zio._
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.ExecutionContext
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -32,12 +31,12 @@ class SemaphoreBenchmark {
   @Benchmark
   def semaphoreCatsContention(): Unit = {
     import cats.effect.Concurrent
-    import cats.effect.concurrent.Semaphore
-    implicit val contextShift: ContextShift[CIO] = CIO.contextShift(ExecutionContext.global)
+    import cats.effect.unsafe.implicits.global
+    import cats.effect.std.Semaphore
 
     (for {
       sem   <- Semaphore(fibers / 2L)(Concurrent[CIO])
-      fiber <- catsForkAll(List.fill(fibers)(catsRepeat(ops)(sem.withPermit(CIO(1)))))
+      fiber <- catsForkAll(List.fill(fibers)(catsRepeat(ops)(sem.permit.use(_ => CIO(1)))))
       _     <- fiber.join
     } yield ()).unsafeRunSync()
   }

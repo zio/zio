@@ -3,47 +3,48 @@ package system
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{Live, live}
+import zio.test.environment.live
 
 import java.io.File
+import zio.test.environment.Live
 
 object SystemSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Has[Live], TestFailure[Throwable], TestSuccess] = suite("SystemSpec")(
+  def spec: Spec[Has[Live] with Has[Annotations], TestFailure[Any], TestSuccess] = suite("SystemSpec")(
     suite("Fetch an environment variable and check that")(
-      testM("If it exists, return a reasonable value") {
+      test("If it exists, return a reasonable value") {
         assertM(live(System.env("PATH")))(isSome(containsString(File.separator + "bin")))
       },
-      testM("If it does not exist, return None") {
+      test("If it does not exist, return None") {
         assertM(live(System.env("QWERTY")))(isNone)
       }
     ),
     suite("Fetch all environment variables and check that")(
-      testM("If it exists, return a reasonable value") {
+      test("If it exists, return a reasonable value") {
         assertM(live(System.envs.map(_.get("PATH"))))(isSome(containsString(File.separator + "bin")))
-      },
-      testM("If it does not exist, return None") {
-        assertM(live(System.envs.map(_.get("QWERTY"))))(isNone)
+      } @@ TestAspect.unix,
+      test("If it does not exist, return None") {
+        assertM(live(System.envs.map(_.get("QWERTY123"))))(isNone)
       }
     ),
     suite("Fetch all VM properties and check that")(
-      testM("If it exists, return a reasonable value") {
+      test("If it exists, return a reasonable value") {
         assertM(live(System.properties.map(_.get("java.vm.name"))))(isSome(containsString("VM")))
       },
-      testM("If it does not exist, return None") {
+      test("If it does not exist, return None") {
         assertM(live(System.properties.map(_.get("qwerty"))))(isNone)
       }
     ),
     suite("Fetch a VM property and check that")(
-      testM("If it exists, return a reasonable value") {
+      test("If it exists, return a reasonable value") {
         assertM(live(System.property("java.vm.name")))(isSome(containsString("VM")))
       },
-      testM("If it does not exist, return None") {
+      test("If it does not exist, return None") {
         assertM(live(System.property("qwerty")))(isNone)
       }
     ),
     suite("Fetch the system's line separator and check that")(
-      testM("it is identical to System.lineSeparator") {
+      test("it is identical to System.lineSeparator") {
         assertM(live(System.lineSeparator))(equalTo(java.lang.System.lineSeparator))
       }
     )

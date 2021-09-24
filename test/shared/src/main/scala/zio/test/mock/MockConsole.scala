@@ -22,10 +22,10 @@ import java.io.IOException
 
 object MockConsole extends Mock[Has[Console]] {
 
-  object Print          extends Effect[String, IOException, Unit]
-  object PrintError     extends Effect[String, IOException, Unit]
-  object PrintLine      extends Effect[String, IOException, Unit]
-  object PrintLineError extends Effect[String, IOException, Unit]
+  object Print          extends Effect[Any, IOException, Unit]
+  object PrintError     extends Effect[Any, IOException, Unit]
+  object PrintLine      extends Effect[Any, IOException, Unit]
+  object PrintLineError extends Effect[Any, IOException, Unit]
   object ReadLine       extends Effect[Unit, IOException, String]
 
   val compose: URLayer[Has[Proxy], Has[Console]] =
@@ -33,10 +33,10 @@ object MockConsole extends Mock[Has[Console]] {
       .service[Proxy]
       .map(proxy =>
         new Console {
-          def print(line: String): IO[IOException, Unit]          = proxy(Print, line)
-          def printError(line: String): IO[IOException, Unit]     = proxy(PrintError, line)
-          def printLine(line: String): IO[IOException, Unit]      = proxy(PrintLine, line)
-          def printLineError(line: String): IO[IOException, Unit] = proxy(PrintLineError, line)
+          def print(line: => Any): IO[IOException, Unit]          = proxy(Print, line)
+          def printError(line: => Any): IO[IOException, Unit]     = proxy(PrintError, line)
+          def printLine(line: => Any): IO[IOException, Unit]      = proxy(PrintLine, line)
+          def printLineError(line: => Any): IO[IOException, Unit] = proxy(PrintLineError, line)
           val readLine: IO[IOException, String]                   = proxy(ReadLine)
         }
       )

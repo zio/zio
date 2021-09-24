@@ -34,21 +34,11 @@ private [zio] object LayerMacroUtils {
     }.asExpr.asInstanceOf[LayerExpr]
   }
 
-  def buildLayerFor[R: Type](layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx: Quotes): LayerExpr = {
-    import quotes.reflect._
-    buildMemoizedLayer(ctx)(ZLayerExprBuilder(ctx)(layers), getRequirements[R](TypeRepr.of[R].show))
-  }
-
   def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
     import quotes.reflect._
     layers match {
-      case Varargs(args) =>
-        args.map {
-          case '{$layer: ZLayer[in, e, out]} =>
-          val inputs = getRequirements[in]("Input for " + layer.show.cyan.bold)
-          val outputs = getRequirements[out]("Output for " + layer.show.cyan.bold)
-          Node(inputs, outputs, layer)
-        }.toList
+      case Varargs(layers) =>
+        getNodes(layers)
 
       case other =>
         report.throwError(
@@ -56,6 +46,17 @@ private [zio] object LayerMacroUtils {
           "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
         )
     }
+  }
+
+
+  def getNodes(layers: Seq[Expr[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
+    import quotes.reflect._
+    layers.map {
+      case '{$layer: ZLayer[in, e, out]} =>
+      val inputs = getRequirements[in]("Input for " + layer.show.cyan.bold)
+      val outputs = getRequirements[out]("Output for " + layer.show.cyan.bold)
+      Node(inputs, outputs, layer)
+    }.toList
   }
 
   def getRequirements[T: Type](description: String)(using ctx: Quotes): List[ctx.reflect.TypeRepr] = {

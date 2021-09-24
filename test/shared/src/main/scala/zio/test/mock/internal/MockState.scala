@@ -37,7 +37,7 @@ private[mock] object MockState {
 
   def checkUnmetExpectations[R <: Has[_]](state: MockState[R]): ZIO[Any, Nothing, Any] =
     state.expectationRef.get
-      .filterOrElse[Any, Nothing, Any](_.state >= ExpectationState.Satisfied) { expectation =>
+      .filterOrElseWith[Any, Nothing, Any](_.state >= ExpectationState.Satisfied) { expectation =>
         ZIO.die(MockException.UnsatisfiedExpectationsException(expectation))
       }
 }

@@ -24,5 +24,5 @@ for {
       blockingOn
     }
     .eventually
-} yield (assert(blockingOn == List(f1.id)))
+} yield (assert(blockingOn == f1.id))
 ```

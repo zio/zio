@@ -89,7 +89,7 @@ object GenUtils {
     gen: Gen[Has[Random] with Has[Sized], ZIO[Has[Random] with Has[Sized], E, A]],
     size: Int = 100
   ): ZIO[Has[Random], Nothing, List[Exit[E, A]]] =
-    provideSize(sample100(gen).flatMap(effects => ZIO.foreach(effects)(_.run)))(size)
+    provideSize(sample100(gen).flatMap(effects => ZIO.foreach(effects)(_.exit)))(size)
 
   def shrink[R, A](gen: Gen[R, A]): URIO[R, A] =
     gen.sample.take(1).flatMap(_.shrinkSearch(_ => true)).take(1000).runLast.map(_.get)

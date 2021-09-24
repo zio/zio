@@ -52,14 +52,10 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
     zio.test.suiteM(label)(specs)
 
   /**
-   * Builds a spec with a single pure test.
+   * Builds a spec with a single test.
    */
-  def test(label: String)(assertion: => TestResult)(implicit loc: SourceLocation): ZSpec[Any, Nothing] =
+  def test[In](label: String)(
+    assertion: => In
+  )(implicit testConstructor: TestConstructor[Nothing, In], sourceLocation: SourceLocation): testConstructor.Out =
     zio.test.test(label)(assertion)
-
-  /**
-   * Builds a spec with a single effectful test.
-   */
-  def testM[R, E](label: String)(assertion: => ZIO[R, E, TestResult])(implicit loc: SourceLocation): ZSpec[R, E] =
-    zio.test.testM(label)(assertion)
 }

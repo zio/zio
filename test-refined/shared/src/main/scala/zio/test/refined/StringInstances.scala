@@ -63,7 +63,7 @@ trait StringInstances {
     sizeGen.flatMap(s => Gen.stringN(s.value)(charGen).map(v => Refined.unsafeApply(ws.value + v)))
 
   val uuidStringGen: Gen[Has[Random], Refined[String, Uuid]] =
-    Gen.anyUUID.map(value => Refined.unsafeApply(value.toString))
+    Gen.uuid.map(value => Refined.unsafeApply(value.toString))
 
   implicit val uuidStringDeriveGen: DeriveGen[Refined[String, Uuid]] =
     DeriveGen.instance(uuidStringGen)
