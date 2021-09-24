@@ -1838,26 +1838,26 @@ object ZIOSpec extends ZIOBaseSpec {
         val zio2: URIO[Has[Random], Unit]                        = zio.provideSomeLayer[Has[Random]](clockLayer)
         assertM(zio2)(anything)
       },
-      testM("companion object method properly infers environment type") {
-        val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
-        val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2                                       = ZIO.provideSomeLayer(clockLayer)(zio)
-        val zio3: URIO[Random, Unit]                   = zio2
+      test("companion object method properly infers environment type") {
+        val clockLayer: ZLayer[Any, Nothing, Has[Clock]]         = Clock.live
+        val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ZIO.unit
+        val zio2                                                 = ZIO.provideSomeLayer(clockLayer)(zio)
+        val zio3: URIO[Has[Random], Unit]                        = zio2
         assertM(zio3)(anything)
       },
-      testM("companion object method properly infers environment type when multiple services are provided") {
-        val clockLayer: ZLayer[Any, Nothing, Clock]                 = Clock.live
-        val consoleLayer: ZLayer[Any, Nothing, Console]             = Console.live
-        val zio: ZIO[Clock with Console with Random, Nothing, Unit] = ZIO.unit
-        val zio2                                                    = ZIO.provideSomeLayer(clockLayer ++ consoleLayer)(zio)
-        val zio3: URIO[Random, Unit]                                = zio2
+      test("companion object method properly infers environment type when multiple services are provided") {
+        val clockLayer: ZLayer[Any, Nothing, Has[Clock]]                           = Clock.live
+        val consoleLayer: ZLayer[Any, Nothing, Has[Console]]                       = Console.live
+        val zio: ZIO[Has[Clock] with Has[Console] with Has[Random], Nothing, Unit] = ZIO.unit
+        val zio2                                                                   = ZIO.provideSomeLayer(clockLayer ++ consoleLayer)(zio)
+        val zio3: URIO[Has[Random], Unit]                                          = zio2
         assertM(zio3)(anything)
       },
-      testM("companion object method properly infers environment type when layer requires input") {
-        val clockLayer: ZLayer[Console, Nothing, Clock] = Clock.live
-        val zio: ZIO[Clock with Random, Nothing, Unit]  = ZIO.unit
-        val zio2                                        = ZIO.provideSomeLayer(clockLayer)(zio)
-        val zio3: URIO[Console with Random, Unit]       = zio2
+      test("companion object method properly infers environment type when layer requires input") {
+        val clockLayer: ZLayer[Has[Console], Nothing, Has[Clock]] = Clock.live
+        val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit]  = ZIO.unit
+        val zio2                                                  = ZIO.provideSomeLayer(clockLayer)(zio)
+        val zio3: URIO[Has[Console] with Has[Random], Unit]       = zio2
         assertM(zio3)(anything)
       }
     ),
