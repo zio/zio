@@ -264,13 +264,13 @@ object MyApp extends zio.App {
 }
 ```
 
-Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOApp` trait which is simpler than the former approach (Note that the `ZApp` and `ManagedApp` are also deprecated, and we should use the `ZIOApp` instead):
+Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOAppDefault` trait which is simpler than the former approach (Note that the `ZApp` and `ManagedApp` are also deprecated, and we should use the `ZIOAppDefault` instead):
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 import zio.ZIOApp
 import zio.Console._
 
-object MyApp extends ZIOApp {
+object MyApp extends ZIOAppDefault {
   def run =
     for {
       arguments <- args
@@ -428,7 +428,7 @@ val logging: URIO[Has[Logging], Logging] = ZIO.access(_.get)
 
 Also, to create accessor methods, we used the following code:
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 def log(line: String): URIO[Has[Logging], Unit] = ZIO.accessM(_.get.log(line))
 ```
 
@@ -452,7 +452,7 @@ import zio._
 
 In ZIO 1.x, we could access multiple services using higher arity service accessors like `ZIO.services` and `ZManaged.services`:
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 for {
   (console, random) <- ZIO.services[Console, Random]
   randomInt         <- random.nextInt
@@ -1379,10 +1379,10 @@ sealed trait ZState[S] {
 
 We can `set`, `get`, and `update` the state which is part of the ZIO environment using `ZIO.setState`, `ZIO.getState`, and `ZIO.updateState` operations:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 import zio._
 
-object ZStateExample extends zio.App {
+object ZStateExample extends zio.ZIOAppDefault {
   final case class MyState(counter: Int)
 
   val app = for {
@@ -1391,10 +1391,7 @@ object ZStateExample extends zio.App {
     _     <- Console.printLine(count)
   } yield count
 
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    app.injectCustom(
-      ZState.makeLayer(MyState(0))
-    ).exitCode
+  def run = app.injectCustom(ZState.makeLayer(MyState(0)))
 }
 ```
 
