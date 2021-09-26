@@ -1398,13 +1398,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Maps each element of this stream to another stream and returns the
    * non-deterministic merge of those streams, executing up to `n` inner streams
-   * concurrently. Up to `outputBuffer` elements of the produced streams may be
+   * concurrently. Up to `bufferSize` elements of the produced streams may be
    * buffered in memory by this operator.
    */
-  def flatMapPar[R1 <: R, E1 >: E, B](n: Long)(f: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
+  def flatMapPar[R1 <: R, E1 >: E, B](n: Int, bufferSize: Int = 16)(f: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
     new ZStream[R1, E1, B](
-      channel.mergeMap[R1, Any, Any, Any, E1, Chunk[B]](n) { as =>
-        as.map(f).map(_.channel).fold(ZChannel.unit)(_ *> _)
+      channel.concatMap(ZChannel.writeChunk(_)).mergeMap[R1, Any, Any, Any, E1, Chunk[B]](n, bufferSize) {
+        f(_).channel
       }
     )
 
@@ -1414,10 +1414,16 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * from an element of the source stream, the oldest executing stream is cancelled. Up to `bufferSize`
    * elements of the produced streams may be buffered in memory by this operator.
    */
-  final def flatMapParSwitch[R1 <: R, E1 >: E, A2](n: Int, bufferSize: Int = 16)(
-    f: A => ZStream[R1, E1, A2]
-  ): ZStream[R1, E1, A2] =
-    ???
+  final def flatMapParSwitch[R1 <: R, E1 >: E, B](n: Int, bufferSize: Int = 16)(
+    f: A => ZStream[R1, E1, B]
+  ): ZStream[R1, E1, B] =
+    new ZStream[R1, E1, B](
+      channel
+        .concatMap(ZChannel.writeChunk(_))
+        .mergeMap[R1, Any, Any, Any, E1, Chunk[B]](n, bufferSize, ZChannel.MergeStrategy.BufferSliding) {
+          f(_).channel
+        }
+    )
 
   /**
    * Flattens this stream-of-streams into a stream made of the concatenation in
@@ -1489,10 +1495,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def flattenPar[R1 <: R, E1 >: E, A1](n: Int, outputBuffer: Int = 16)(implicit
     ev: A <:< ZStream[R1, E1, A1]
-  ): ZStream[R1, E1, A1] = {
-    val _ = outputBuffer
-    flatMapPar[R1, E1, A1](n.toLong)(ev(_))
-  }
+  ): ZStream[R1, E1, A1] =
+    flatMapPar[R1, E1, A1](n, outputBuffer)(ev(_))
 
   /**
    * Like [[flattenPar]], but executes all streams concurrently.
@@ -1783,6 +1787,19 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def interruptAfter(duration: Duration): ZStream[R with Has[Clock], E, A] =
     interruptWhen(Clock.sleep(duration))
+
+  /**
+   * Returns a combined string resulting from concatenating each of the values from the stream
+   */
+  final def mkString: ZIO[R, E, String] =
+    run(ZSink.mkString)
+
+  /**
+   * Returns a combined string resulting from concatenating each of the values from the stream beginning with `before`
+   * interspersed with `middle` and ending with `after`.
+   */
+  final def mkString(before: String, middle: String, after: String): ZIO[R, E, String] =
+    intersperse(before, middle, after).mkString
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending
@@ -2098,7 +2115,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * is not enforced by this combinator, and elements may be reordered.
    */
   final def mapZIOParUnordered[R1 <: R, E1 >: E, A2](n: Int)(f: A => ZIO[R1, E1, A2]): ZStream[R1, E1, A2] =
-    flatMapPar[R1, E1, A2](n.toLong)(a => ZStream.fromZIO(f(a)))
+    flatMapPar[R1, E1, A2](n)(a => ZStream.fromZIO(f(a)))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -3807,6 +3824,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     constructor.make(input)
 
   /**
+   * Creates a stream from an blocking iterator that may throw exceptions.
+   */
+  @deprecated("use blocking(fromIterator())", "2.0.0")
+  def fromBlockingIterator[A](iterator: => Iterator[A]): ZStream[Any, Throwable, A] =
+    blocking(fromIterator(iterator))
+
+  /**
+   * Creates a stream from an blocking Java iterator that may throw exceptions.
+   */
+  @deprecated("use blocking(fromJavaIterator())", "2.0.0")
+  def fromBlockingJavaIterator[A](iter: => java.util.Iterator[A]): ZStream[Any, Throwable, A] =
+    blocking(fromJavaIterator(iter))
+
+  /**
    * Creates a stream from a [[zio.Chunk]] of values
    *
    * @param c a chunk of values
@@ -5006,6 +5037,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      */
     def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZStream[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
+  }
+
+  implicit final class SyntaxOps[-R, +E, O](self: ZStream[R, E, O]) {
+    /*
+     * Collect elements of the given type flowing through the stream, and filters out others.
+     */
+    def collectType[O1 <: O](implicit tag: ClassTag[O1]): ZStream[R, E, O1] =
+      self.collect { case o if tag.runtimeClass.isInstance(o) => o.asInstanceOf[O1] }
   }
 
   private[zio] class Rechunker[A](n: Int) {
