@@ -293,6 +293,7 @@ trait ZIOApp { self =>
 }
 ```
 
+<!---
 ### Compositional Apps
 
 ZIO 2.x introduced compositional apps which enables us to compose applications with different runtime configurations using the `<>` combinator:
@@ -305,7 +306,6 @@ val asyncProfiler, slf4j, loggly, newRelic = RuntimeConfigAspect.identity
 ```scala mdoc:silent:nest
 import zio._
 import zio.Console._
-
 import java.io.IOException
 
 object MyApp1 extends ZIOApp {
@@ -318,20 +318,21 @@ object MyApp1 extends ZIOApp {
 }
 
 object MyApp2 extends ZIOApp {
+
   override def hook: RuntimeConfigAspect =
     asyncProfiler >>> slf4j >>> loggly >>> newRelic
-
+    
   def run =
     for {
       arguments <- args
       _ <- startMyApp(arguments)
     } yield ()
 }
-
 object Main extends ZIOApp.Proxy(MyApp1 <> MyApp2)
 ```
 
 You might notice that in ZIO 2.x, we can `hook` the ZIO runtime configuration to install low-level functionalities like _application logging_, _profiling_, _monitoring_, and other similar foundational pieces of infrastructure.
+-->
 
 ## Fiber
 
