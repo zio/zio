@@ -20,7 +20,7 @@ import zio.stream.{ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.environment._
 
-import scala.collection.immutable.Queue
+import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.language.implicitConversions
 import scala.util.Try
 
@@ -781,7 +781,7 @@ package object test extends CompileVariants {
       outerStream: ZIO[R, Option[Nothing], Chunk[Option[A]]],
       currentOuterChunk: Ref[(Chunk[Option[A]], Int)],
       currentInnerStream: Ref[Option[PullInner]],
-      currentStreams: Ref[Queue[State]],
+      currentStreams: Ref[ScalaQueue[State]],
       innerFinalizers: ZManaged.ReleaseMap
     ): ZIO[R1, Option[Nothing], Chunk[Option[B]]] = {
 
@@ -899,7 +899,7 @@ package object test extends CompileVariants {
         outerStream        <- stream.process
         currentOuterChunk  <- Ref.make[(Chunk[Option[A]], Int)]((Chunk.empty, 0)).toManaged
         currentInnerStream <- Ref.make[Option[PullInner]](None).toManaged
-        currentStreams     <- Ref.make[Queue[State]](Queue(PullOuter)).toManaged
+        currentStreams     <- Ref.make[ScalaQueue[State]](ScalaQueue(PullOuter)).toManaged
         innerFinalizers    <- ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential)
       } yield pull(outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers)
     }
