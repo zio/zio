@@ -780,9 +780,7 @@ val layer = ZLayer.wire[Has[DocRepo] with Has[UserRepo]](
 
 ### Module Pattern
 
-_Module Patternـ is one of the most significant changes in ZIO 2.x. Before discussing changes, let see how did we define services in ZIO 1.x.
-
-Let's try to write a Logging service using _Module Pattern 2.0_:
+The _Module Pattern_ is one of the most important changes in ZIO 2.x. Let's take a look at services in ZIO 1.x before discussing changes. Here is a `Logging` service that uses _Module Pattern 1.0_:
 
 ```scala
 object logging {
