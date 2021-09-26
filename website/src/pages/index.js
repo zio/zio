@@ -102,7 +102,8 @@ function Home() {
   return (
     <Layout
       title={`${siteConfig.title}`}
-      description={`${siteConfig.tagLine}`}>
+      description={`${siteConfig.tagline}`}
+      image='/img/navbar_brand2x.png'>
       <header className={styles.headerContainer}>
         <div className={`container ${styles.headerInnerContainer}`}>
           <img className={styles.headerImage} src="/img/jumbotron_pattern.png" alt={`${siteConfig.title}`} />

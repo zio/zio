@@ -108,6 +108,18 @@ module.exports = {
             }
           ],
         },
+        {
+          items: [
+            {
+              title: 'Deployment support',
+              html: `
+                <a href="https://www.netlify.com">
+                  <img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/>
+                </a>
+              `
+            }
+          ]
+        }
       ],
       copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://v2.docusaurus.io/">Docusaurus v2</a>`,
     },
