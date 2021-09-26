@@ -210,14 +210,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator US-ASCII strings. Shrinks towards the empty string.
    */
-  @deprecated("use ASCIIString", "2.0.0")
+  @deprecated("use asciiString", "2.0.0")
   def anyASCIIString: Gen[Has[Random] with Has[Sized], String] =
     Gen.asciiString
 
   /**
    * A generator of US-ASCII characters. Shrinks toward '0'.
    */
-  @deprecated("use ASCIIChar", "2.0.0")
+  @deprecated("use asciiChar", "2.0.0")
   def anyASCIIChar: Gen[Has[Random], Char] =
     Gen.asciiChar
 
