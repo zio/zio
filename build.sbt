@@ -648,7 +648,7 @@ lazy val docs = project.module
       "io.scalac"                     %% "zio-slick-interop"             % "0.4",
       "com.typesafe.slick"            %% "slick-hikaricp"                % "3.3.3",
       "info.senia"                    %% "zio-test-akka-http"            % "1.0.2",
-      "io.getquill"                   %% "quill-jdbc-zio"                % "3.9.0"
+      "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0"
     )
   )
   .settings(macroDefinitionSettings)
