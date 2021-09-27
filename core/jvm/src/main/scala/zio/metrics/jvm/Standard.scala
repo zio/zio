@@ -8,7 +8,11 @@ import java.lang.reflect.Method
 import java.nio.charset.StandardCharsets
 import scala.util.{Failure, Success, Try}
 
+trait Standard
+
 object Standard extends JvmMetrics {
+  override type Feature = Standard
+  override val featureTag: Tag[Standard] = Tag[Standard]
 
   /** Total user and system CPU time spent in seconds. */
   private val cpuSecondsTotal: Gauge[Long] =
@@ -114,7 +118,7 @@ object Standard extends JvmMetrics {
         }
     }
 
-  override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Unit] =
+  override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Standard] =
     for {
       runtimeMXBean         <- Task(ManagementFactory.getRuntimeMXBean).toManaged
       operatingSystemMXBean <- Task(ManagementFactory.getOperatingSystemMXBean).toManaged
@@ -135,5 +139,5 @@ object Standard extends JvmMetrics {
           .repeat(collectionSchedule)
           .interruptible
           .forkManaged
-    } yield ()
+    } yield new Standard {}
 }

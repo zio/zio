@@ -2,36 +2,48 @@ package zio.metrics.jvm
 
 import zio._
 
-trait DefaultJvmMetrics
-
 /** JVM metrics, compatible with the prometheus-hotspot library */
 object DefaultJvmMetrics {
+
+  /**
+   * While acquired it starts fibers periodically updating the same JVM metrics
+   * as the Prometheus Java client's default exporters
+   */
   val collectDefaultJvmMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Unit] =
-    (
-      BufferPools.collectMetrics <&>
-        ClassLoading.collectMetrics <&>
-        GarbageCollector.collectMetrics <&>
-        MemoryAllocation.collectMetrics <&>
-        MemoryPools.collectMetrics <&>
-        Standard.collectMetrics <&>
-        Thread.collectMetrics <&>
-        VersionInfo.collectMetrics
-    ).unit
+    ZManaged.foreachParDiscard(
+      Seq(
+        BufferPools,
+        ClassLoading,
+        GarbageCollector,
+        MemoryAllocation,
+        MemoryPools,
+        Standard,
+        Thread,
+        VersionInfo
+      )
+    )(_.collectMetrics)
 
   /** Layer that starts collecting the same JVM metrics as the Prometheus Java client's default exporters */
-  val live: ZLayer[Has[Clock] with Has[System], Throwable, Has[DefaultJvmMetrics]] =
-    collectDefaultJvmMetrics.as(new DefaultJvmMetrics {}).toLayer
-}
+  val live: ZLayer[Has[Clock] with Has[System], Throwable, Has[BufferPools] with Has[ClassLoading] with Has[
+    GarbageCollector
+  ] with Has[MemoryAllocation] with Has[MemoryPools] with Has[Standard] with Has[Thread] with Has[VersionInfo]] =
+    BufferPools.live ++
+      ClassLoading.live ++
+      GarbageCollector.live ++
+      MemoryAllocation.live ++
+      MemoryPools.live ++
+      Standard.live ++
+      Thread.live ++
+      VersionInfo.live
 
-/** A ZIO application that collects the same JVM metrics as the Prometheus Java client's default exporters. */
-object DefaultJvmMetricsExporter extends ZIOApp {
-  override val tag: Tag[Environment] = Tag[Has[DefaultJvmMetrics]]
-
-  override type Environment = Has[DefaultJvmMetrics]
-
-  override def layer: ZLayer[Has[ZIOAppArgs], Any, Has[DefaultJvmMetrics]] =
-    Clock.live ++ System.live >>> DefaultJvmMetrics.live
-
-  override def run: ZIO[Has[DefaultJvmMetrics] with Has[ZIOAppArgs], Any, Any] =
-    ZIO.unit
+  /** A ZIO application that collects the same JVM metrics as the Prometheus Java client's default exporters. */
+  val app: ZIOApp =
+    BufferPools.app <>
+      ClassLoading.app <>
+      GarbageCollector.app <>
+      MemoryAllocation.app <>
+      MemoryPools.app <>
+      Standard.app <>
+      Thread.app <>
+      VersionInfo.app
 }

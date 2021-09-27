@@ -9,7 +9,11 @@ import java.lang.management.{ManagementFactory, MemoryMXBean, MemoryPoolMXBean, 
 
 import scala.collection.JavaConverters._
 
+trait MemoryPools
+
 object MemoryPools extends JvmMetrics {
+  override type Feature = MemoryPools
+  override val featureTag: Tag[MemoryPools] = Tag[MemoryPools]
 
   sealed private trait Area { val label: String }
   private case object Heap    extends Area { override val label: String = "heap"    }
@@ -82,7 +86,7 @@ object MemoryPools extends JvmMetrics {
     } yield ()
 
   @silent("JavaConverters")
-  val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
+  val collectMetrics: ZManaged[Has[Clock], Throwable, MemoryPools] =
     for {
       memoryMXBean <- Task(ManagementFactory.getMemoryMXBean).toManaged
       poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList).toManaged
@@ -90,5 +94,5 @@ object MemoryPools extends JvmMetrics {
              .repeat(collectionSchedule)
              .interruptible
              .forkManaged
-    } yield ()
+    } yield new MemoryPools {}
 }

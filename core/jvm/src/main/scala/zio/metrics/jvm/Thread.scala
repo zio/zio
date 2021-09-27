@@ -5,7 +5,11 @@ import zio._
 
 import java.lang.management.{ManagementFactory, ThreadMXBean}
 
+trait Thread
+
 object Thread extends JvmMetrics {
+  override type Feature = Thread
+  override val featureTag: Tag[Thread] = Tag[Thread]
 
   /** Current thread count of a JVM */
   private val threadsCurrent: Gauge[Int] =
@@ -68,10 +72,10 @@ object Thread extends JvmMetrics {
            }
     } yield ()
 
-  override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Unit] =
+  override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Thread] =
     for {
       threadMXBean <- Task(ManagementFactory.getThreadMXBean).toManaged
       _ <-
         reportThreadMetrics(threadMXBean).repeat(collectionSchedule).interruptible.forkManaged
-    } yield ()
+    } yield new Thread {}
 }

@@ -5,8 +5,12 @@ import zio._
 
 import java.lang.management.{ClassLoadingMXBean, ManagementFactory}
 
+trait ClassLoading
+
 /** Exports metrics related to JVM class loading */
 object ClassLoading extends JvmMetrics {
+  override type Feature = ClassLoading
+  override val featureTag: Tag[ClassLoading] = Tag[ClassLoading]
 
   /** The number of classes that are currently loaded in the JVM */
   private val loadedClassCount: Gauge[Int] =
@@ -29,7 +33,7 @@ object ClassLoading extends JvmMetrics {
       _ <- Task(classLoadingMXBean.getUnloadedClassCount) @@ unloadedClassCount
     } yield ()
 
-  val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
+  val collectMetrics: ZManaged[Has[Clock], Throwable, ClassLoading] =
     for {
       classLoadingMXBean <-
         Task(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean])).toManaged
@@ -37,5 +41,5 @@ object ClassLoading extends JvmMetrics {
              .repeat(collectionSchedule)
              .interruptible
              .forkManaged
-    } yield ()
+    } yield new ClassLoading {}
 }

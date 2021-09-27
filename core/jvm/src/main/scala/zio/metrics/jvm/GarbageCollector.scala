@@ -9,8 +9,12 @@ import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
 
 import scala.collection.JavaConverters._
 
+trait GarbageCollector
+
 /** Exports metrics related to the garbage collector */
 object GarbageCollector extends JvmMetrics {
+  override type Feature = GarbageCollector
+  override val featureTag: zio.Tag[GarbageCollector] = Tag[GarbageCollector]
 
   /** Time spent in a given JVM garbage collector in seconds. */
   private def gcCollectionSecondsSum(gc: String): Gauge[Long] =
@@ -31,12 +35,12 @@ object GarbageCollector extends JvmMetrics {
     }
 
   @silent("JavaConverters")
-  val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
+  val collectMetrics: ZManaged[Has[Clock], Throwable, GarbageCollector] =
     for {
       classLoadingMXBean <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList).toManaged
       _ <- reportGarbageCollectionMetrics(classLoadingMXBean)
              .repeat(collectionSchedule)
              .interruptible
              .forkManaged
-    } yield ()
+    } yield new GarbageCollector {}
 }

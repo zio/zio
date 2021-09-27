@@ -12,7 +12,11 @@ import javax.management.{Notification, NotificationEmitter, NotificationListener
 import scala.collection.mutable
 import scala.collection.JavaConverters._
 
+trait MemoryAllocation
+
 object MemoryAllocation extends JvmMetrics {
+  override type Feature = MemoryAllocation
+  override val featureTag: Tag[MemoryAllocation] = Tag[MemoryAllocation]
 
   /** Total bytes allocated in a given JVM memory pool. Only updated after GC, not continuously. */
   private def countAllocations(pool: String): Counter[Long] =
@@ -69,7 +73,7 @@ object MemoryAllocation extends JvmMetrics {
   }
 
   @silent("JavaConverters")
-  override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Unit] =
+  override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, MemoryAllocation] =
     ZManaged
       .acquireReleaseWith(
         for {
@@ -91,5 +95,5 @@ object MemoryAllocation extends JvmMetrics {
           }
           .orDie
       }
-      .unit
+      .as(new MemoryAllocation {})
 }

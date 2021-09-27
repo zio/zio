@@ -8,7 +8,11 @@ import java.lang.management.{BufferPoolMXBean, ManagementFactory}
 
 import scala.collection.JavaConverters._
 
+trait BufferPools
+
 object BufferPools extends JvmMetrics {
+  override type Feature = BufferPools
+  override val featureTag: Tag[BufferPools] = Tag[BufferPools]
 
   /** Used bytes of a given JVM buffer pool. */
   private def bufferPoolUsedBytes(pool: String): ZIOMetric.Gauge[Long] =
@@ -35,7 +39,7 @@ object BufferPools extends JvmMetrics {
     }
 
   @silent("JavaConverters")
-  val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
+  val collectMetrics: ZManaged[Has[Clock], Throwable, BufferPools] =
     for {
       bufferPoolMXBeans <- Task(
                              ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList
@@ -44,5 +48,5 @@ object BufferPools extends JvmMetrics {
              .repeat(collectionSchedule)
              .interruptible
              .forkManaged
-    } yield ()
+    } yield new BufferPools {}
 }
