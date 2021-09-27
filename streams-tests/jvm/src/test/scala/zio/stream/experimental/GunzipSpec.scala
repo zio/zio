@@ -62,7 +62,7 @@ object GunzipSpec extends DefaultRunnableSpec {
         )(fails(anything))
       ),
       test("gunzip what JDK gzipped, nowrap")(
-        checkM(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case (chunk, n, bufferSize) =>
             assertM(for {
               deflated <- ZIO.succeed(jdkGzippedStream(chunk.toArray))

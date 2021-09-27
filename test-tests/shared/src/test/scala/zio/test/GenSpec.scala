@@ -633,7 +633,7 @@ object GenSpec extends ZIOBaseSpec {
     ),
     suite("zipWith")(
       test("left preservation") {
-        checkM(deterministic, deterministic) { (a, b) =>
+        check(deterministic, deterministic) { (a, b) =>
           for {
             left  <- sample(a.zip(b).map(_._1))
             right <- sample(a)
@@ -641,7 +641,7 @@ object GenSpec extends ZIOBaseSpec {
         }
       } @@ scala2Only,
       test("right preservation") {
-        checkM(deterministic, deterministic) { (a, b) =>
+        check(deterministic, deterministic) { (a, b) =>
           for {
             left  <- sample(a.zip(b).map(_._2))
             right <- sample(b)
@@ -649,7 +649,7 @@ object GenSpec extends ZIOBaseSpec {
         }
       } @@ scala2Only,
       test("shrinking") {
-        checkM(random, random) { (a, b) =>
+        check(random, random) { (a, b) =>
           for {
             left  <- shrink(a.zip(b))
             right <- shrink(a.cross(b))
@@ -659,7 +659,7 @@ object GenSpec extends ZIOBaseSpec {
       test("shrink search") {
         val gen      = shrinkable.zip(shrinkable)
         val smallInt = Gen.int(0, 9)
-        checkM(smallInt, smallInt) { (m, n) =>
+        check(smallInt, smallInt) { (m, n) =>
           for {
             result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
           } yield assert(result.reverse.headOption)(isSome(equalTo((m, 0)) || equalTo((0, n))))
