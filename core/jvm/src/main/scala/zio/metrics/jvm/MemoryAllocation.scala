@@ -12,9 +12,7 @@ import javax.management.{Notification, NotificationEmitter, NotificationListener
 import scala.collection.mutable
 import scala.collection.JavaConverters._
 
-trait MemoryAllocation
-
-object MemoryAllocation extends JvmMetrics {
+trait MemoryAllocation extends JvmMetrics {
   override type Feature = MemoryAllocation
   override val featureTag: Tag[MemoryAllocation] = Tag[MemoryAllocation]
 
@@ -95,5 +93,11 @@ object MemoryAllocation extends JvmMetrics {
           }
           .orDie
       }
-      .as(new MemoryAllocation {})
+      .as(this)
+}
+
+object MemoryAllocation extends MemoryAllocation with JvmMetrics.DefaultSchedule {
+  def withSchedule(schedule: Schedule[Any, Any, Unit]): MemoryAllocation = new MemoryAllocation {
+    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+  }
 }

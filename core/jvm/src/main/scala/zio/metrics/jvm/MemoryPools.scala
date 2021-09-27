@@ -9,9 +9,7 @@ import java.lang.management.{ManagementFactory, MemoryMXBean, MemoryPoolMXBean, 
 
 import scala.collection.JavaConverters._
 
-trait MemoryPools
-
-object MemoryPools extends JvmMetrics {
+trait MemoryPools extends JvmMetrics {
   override type Feature = MemoryPools
   override val featureTag: Tag[MemoryPools] = Tag[MemoryPools]
 
@@ -94,5 +92,11 @@ object MemoryPools extends JvmMetrics {
              .repeat(collectionSchedule)
              .interruptible
              .forkManaged
-    } yield new MemoryPools {}
+    } yield this
+}
+
+object MemoryPools extends MemoryPools with JvmMetrics.DefaultSchedule {
+  def withSchedule(schedule: Schedule[Any, Any, Unit]): MemoryPools = new MemoryPools {
+    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+  }
 }

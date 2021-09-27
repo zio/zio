@@ -3,9 +3,7 @@ package zio.metrics.jvm
 import zio.ZIOMetric.Gauge
 import zio._
 
-trait VersionInfo
-
-object VersionInfo extends JvmMetrics {
+trait VersionInfo extends JvmMetrics {
   override type Feature = VersionInfo
   override val featureTag: Tag[VersionInfo] = Tag[VersionInfo]
 
@@ -27,5 +25,11 @@ object VersionInfo extends JvmMetrics {
     } yield ()
 
   override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, VersionInfo] =
-    reportVersions().repeat(collectionSchedule).interruptible.forkManaged.as(new VersionInfo {})
+    reportVersions().repeat(collectionSchedule).interruptible.forkManaged.as(this)
+}
+
+object VersionInfo extends VersionInfo with JvmMetrics.DefaultSchedule {
+  def withSchedule(schedule: Schedule[Any, Any, Unit]): VersionInfo = new VersionInfo {
+    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+  }
 }

@@ -5,9 +5,7 @@ import zio._
 
 import java.lang.management.{ManagementFactory, ThreadMXBean}
 
-trait Thread
-
-object Thread extends JvmMetrics {
+trait Thread extends JvmMetrics {
   override type Feature = Thread
   override val featureTag: Tag[Thread] = Tag[Thread]
 
@@ -77,5 +75,11 @@ object Thread extends JvmMetrics {
       threadMXBean <- Task(ManagementFactory.getThreadMXBean).toManaged
       _ <-
         reportThreadMetrics(threadMXBean).repeat(collectionSchedule).interruptible.forkManaged
-    } yield new Thread {}
+    } yield this
+}
+
+object Thread extends Thread with JvmMetrics.DefaultSchedule {
+  def withSchedule(schedule: Schedule[Any, Any, Unit]): Thread = new Thread {
+    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+  }
 }

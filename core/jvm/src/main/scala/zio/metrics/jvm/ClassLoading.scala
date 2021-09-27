@@ -5,10 +5,7 @@ import zio._
 
 import java.lang.management.{ClassLoadingMXBean, ManagementFactory}
 
-trait ClassLoading
-
-/** Exports metrics related to JVM class loading */
-object ClassLoading extends JvmMetrics {
+trait ClassLoading extends JvmMetrics {
   override type Feature = ClassLoading
   override val featureTag: Tag[ClassLoading] = Tag[ClassLoading]
 
@@ -41,5 +38,12 @@ object ClassLoading extends JvmMetrics {
              .repeat(collectionSchedule)
              .interruptible
              .forkManaged
-    } yield new ClassLoading {}
+    } yield this
+}
+
+/** Exports metrics related to JVM class loading */
+object ClassLoading extends ClassLoading with JvmMetrics.DefaultSchedule {
+  def withSchedule(schedule: Schedule[Any, Any, Unit]): ClassLoading = new ClassLoading {
+    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+  }
 }

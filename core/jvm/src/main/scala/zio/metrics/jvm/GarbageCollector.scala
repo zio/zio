@@ -9,10 +9,7 @@ import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
 
 import scala.collection.JavaConverters._
 
-trait GarbageCollector
-
-/** Exports metrics related to the garbage collector */
-object GarbageCollector extends JvmMetrics {
+trait GarbageCollector extends JvmMetrics {
   override type Feature = GarbageCollector
   override val featureTag: zio.Tag[GarbageCollector] = Tag[GarbageCollector]
 
@@ -42,5 +39,12 @@ object GarbageCollector extends JvmMetrics {
              .repeat(collectionSchedule)
              .interruptible
              .forkManaged
-    } yield new GarbageCollector {}
+    } yield this
+}
+
+/** Exports metrics related to the garbage collector */
+object GarbageCollector extends GarbageCollector with JvmMetrics.DefaultSchedule {
+  def withSchedule(schedule: Schedule[Any, Any, Unit]): GarbageCollector = new GarbageCollector {
+    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+  }
 }

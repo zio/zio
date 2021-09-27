@@ -8,9 +8,7 @@ import java.lang.management.{BufferPoolMXBean, ManagementFactory}
 
 import scala.collection.JavaConverters._
 
-trait BufferPools
-
-object BufferPools extends JvmMetrics {
+trait BufferPools extends JvmMetrics {
   override type Feature = BufferPools
   override val featureTag: Tag[BufferPools] = Tag[BufferPools]
 
@@ -48,5 +46,11 @@ object BufferPools extends JvmMetrics {
              .repeat(collectionSchedule)
              .interruptible
              .forkManaged
-    } yield new BufferPools {}
+    } yield this
+}
+
+object BufferPools extends BufferPools with JvmMetrics.DefaultSchedule {
+  def withSchedule(schedule: Schedule[Any, Any, Unit]): BufferPools = new BufferPools {
+    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+  }
 }

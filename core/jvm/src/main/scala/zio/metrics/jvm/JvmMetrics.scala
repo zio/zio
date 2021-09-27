@@ -3,11 +3,11 @@ package zio.metrics.jvm
 import com.github.ghik.silencer.silent
 import zio._
 
-trait JvmMetrics {
+trait JvmMetrics { self =>
   type Feature
   val featureTag: Tag[Feature]
 
-  protected val collectionSchedule: Schedule[Any, Any, Unit] = Schedule.fixed(10.seconds).unit
+  protected val collectionSchedule: Schedule[Any, Any, Unit]
 
   val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Feature]
 
@@ -24,5 +24,14 @@ trait JvmMetrics {
       Clock.live ++ System.live >+> live
     }
     override def run: ZIO[Environment with Has[ZIOAppArgs], Any, Any] = ZIO.unit
+  }
+}
+
+object JvmMetrics {
+  val defaultSchedule: Schedule[Any, Any, Unit] = Schedule.fixed(10.seconds).unit
+
+  trait DefaultSchedule {
+    self: JvmMetrics =>
+    override protected val collectionSchedule: Schedule[Any, Any, Unit] = defaultSchedule
   }
 }

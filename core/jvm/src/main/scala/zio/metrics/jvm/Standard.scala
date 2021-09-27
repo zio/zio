@@ -8,9 +8,7 @@ import java.lang.reflect.Method
 import java.nio.charset.StandardCharsets
 import scala.util.{Failure, Success, Try}
 
-trait Standard
-
-object Standard extends JvmMetrics {
+trait Standard extends JvmMetrics {
   override type Feature = Standard
   override val featureTag: Tag[Standard] = Tag[Standard]
 
@@ -139,5 +137,11 @@ object Standard extends JvmMetrics {
           .repeat(collectionSchedule)
           .interruptible
           .forkManaged
-    } yield new Standard {}
+    } yield this
+}
+
+object Standard extends Standard with JvmMetrics.DefaultSchedule {
+  def withSchedule(schedule: Schedule[Any, Any, Unit]): Standard = new Standard {
+    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+  }
 }
