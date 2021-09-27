@@ -1,8 +1,12 @@
 package zio.metrics.jvm
 
+import com.github.ghik.silencer.silent
+
 import zio._
 
 import java.lang.management.{BufferPoolMXBean, ManagementFactory}
+
+import scala.collection.JavaConverters._
 
 object BufferPools extends JvmMetrics {
 
@@ -30,11 +34,12 @@ object BufferPools extends JvmMetrics {
       } yield ()
     }
 
+  @silent("JavaConverters")
   val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
     ZManaged.acquireReleaseWith {
       for {
         bufferPoolMXBeans <-
-          Task(fromJavaList(ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean])).toList)
+          Task(ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList)
         fiber <-
           reportBufferPoolMetrics(bufferPoolMXBeans)
             .repeat(collectionSchedule)

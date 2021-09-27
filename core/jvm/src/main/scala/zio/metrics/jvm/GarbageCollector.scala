@@ -1,9 +1,13 @@
 package zio.metrics.jvm
 
+import com.github.ghik.silencer.silent
+
 import zio.ZIOMetric.Gauge
 import zio._
 
 import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
+
+import scala.collection.JavaConverters._
 
 /** Exports metrics related to the garbage collector */
 object GarbageCollector extends JvmMetrics {
@@ -26,10 +30,11 @@ object GarbageCollector extends JvmMetrics {
       } yield ()
     }
 
+  @silent("JavaConverters")
   val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
     ZManaged.acquireReleaseWith {
       for {
-        classLoadingMXBean <- Task(fromJavaList(ManagementFactory.getGarbageCollectorMXBeans).toList)
+        classLoadingMXBean <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList)
         fiber <-
           reportGarbageCollectionMetrics(classLoadingMXBean)
             .repeat(collectionSchedule)

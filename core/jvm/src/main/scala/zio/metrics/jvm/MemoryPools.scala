@@ -1,9 +1,13 @@
 package zio.metrics.jvm
 
+import com.github.ghik.silencer.silent
+
 import zio.ZIOMetric.Gauge
 import zio._
 
 import java.lang.management.{ManagementFactory, MemoryMXBean, MemoryPoolMXBean, MemoryUsage}
+
+import scala.collection.JavaConverters._
 
 object MemoryPools extends JvmMetrics {
 
@@ -77,11 +81,12 @@ object MemoryPools extends JvmMetrics {
            }
     } yield ()
 
+  @silent("JavaConverters")
   val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
     ZManaged.acquireReleaseWith {
       for {
         memoryMXBean <- Task(ManagementFactory.getMemoryMXBean)
-        poolMXBeans  <- Task(fromJavaList(ManagementFactory.getMemoryPoolMXBeans).toList)
+        poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
         fiber <-
           reportMemoryMetrics(memoryMXBean, poolMXBeans)
             .repeat(collectionSchedule)

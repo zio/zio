@@ -1,5 +1,7 @@
 package zio.metrics.jvm
 
+import com.github.ghik.silencer.silent
+
 import com.sun.management.GarbageCollectionNotificationInfo
 import zio._
 import zio.ZIOMetric.Counter
@@ -8,6 +10,7 @@ import java.lang.management.ManagementFactory
 import javax.management.openmbean.CompositeData
 import javax.management.{Notification, NotificationEmitter, NotificationListener}
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 object MemoryAllocation extends JvmMetrics {
 
@@ -18,13 +21,14 @@ object MemoryAllocation extends JvmMetrics {
   private class Listener(runtime: Runtime[Any]) extends NotificationListener {
     private val lastMemoryUsage: mutable.Map[String, Long] = mutable.HashMap.empty
 
+    @silent("JavaConverters")
     override def handleNotification(notification: Notification, handback: Any): Unit = {
       val info =
         GarbageCollectionNotificationInfo.from(notification.getUserData.asInstanceOf[CompositeData])
       val gcInfo              = info.getGcInfo
       val memoryUsageBeforeGc = gcInfo.getMemoryUsageBeforeGc
       val memoryUsageAfterGc  = gcInfo.getMemoryUsageAfterGc
-      for (entry <- fromJavaSet(memoryUsageBeforeGc.entrySet)) {
+      for (entry <- memoryUsageBeforeGc.entrySet.asScala) {
         val memoryPool = entry.getKey
         val before     = entry.getValue.getUsed
         val after      = memoryUsageAfterGc.get(memoryPool).getUsed
@@ -64,13 +68,14 @@ object MemoryAllocation extends JvmMetrics {
     }
   }
 
+  @silent("JavaConverters")
   override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Unit] =
     ZManaged
       .acquireReleaseWith(
         for {
           runtime                 <- ZIO.runtime[Any]
           listener                 = new Listener(runtime)
-          garbageCollectorMXBeans <- Task(fromJavaList(ManagementFactory.getGarbageCollectorMXBeans))
+          garbageCollectorMXBeans <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala)
           _ <- ZIO.foreachDiscard(garbageCollectorMXBeans) {
                  case emitter: NotificationEmitter =>
                    Task(emitter.addNotificationListener(listener, null, null))
