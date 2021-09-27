@@ -115,27 +115,25 @@ object Standard extends JvmMetrics {
     }
 
   override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Unit] =
-    ZManaged.acquireReleaseWith {
-      for {
-        runtimeMXBean         <- Task(ManagementFactory.getRuntimeMXBean)
-        operatingSystemMXBean <- Task(ManagementFactory.getOperatingSystemMXBean)
-        getProcessCpuTime      = new MXReflection("getProcessCpuTime", operatingSystemMXBean)
-        getOpenFileDescriptorCount =
-          new MXReflection("getOpenFileDescriptorCount", operatingSystemMXBean)
-        getMaxFileDescriptorCount =
-          new MXReflection("getMaxFileDescriptorCount", operatingSystemMXBean)
-        isLinux <- Task(operatingSystemMXBean.getName.indexOf("Linux") == 0)
-        fiber <-
-          reportStandardMetrics(
-            runtimeMXBean,
-            getProcessCpuTime,
-            getOpenFileDescriptorCount,
-            getMaxFileDescriptorCount,
-            isLinux
-          )
-            .repeat(collectionSchedule)
-            .interruptible
-            .forkDaemon
-      } yield fiber
-    }(_.interrupt).unit
+    for {
+      runtimeMXBean         <- Task(ManagementFactory.getRuntimeMXBean).toManaged
+      operatingSystemMXBean <- Task(ManagementFactory.getOperatingSystemMXBean).toManaged
+      getProcessCpuTime      = new MXReflection("getProcessCpuTime", operatingSystemMXBean)
+      getOpenFileDescriptorCount =
+        new MXReflection("getOpenFileDescriptorCount", operatingSystemMXBean)
+      getMaxFileDescriptorCount =
+        new MXReflection("getMaxFileDescriptorCount", operatingSystemMXBean)
+      isLinux <- Task(operatingSystemMXBean.getName.indexOf("Linux") == 0).toManaged
+      _ <-
+        reportStandardMetrics(
+          runtimeMXBean,
+          getProcessCpuTime,
+          getOpenFileDescriptorCount,
+          getMaxFileDescriptorCount,
+          isLinux
+        )
+          .repeat(collectionSchedule)
+          .interruptible
+          .forkManaged
+    } yield ()
 }

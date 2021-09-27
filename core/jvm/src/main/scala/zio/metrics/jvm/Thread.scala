@@ -69,11 +69,9 @@ object Thread extends JvmMetrics {
     } yield ()
 
   override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Unit] =
-    ZManaged.acquireReleaseWith {
-      for {
-        threadMXBean <- Task(ManagementFactory.getThreadMXBean)
-        fiber <-
-          reportThreadMetrics(threadMXBean).repeat(collectionSchedule).interruptible.forkDaemon
-      } yield fiber
-    }(_.interrupt).unit
+    for {
+      threadMXBean <- Task(ManagementFactory.getThreadMXBean).toManaged
+      _ <-
+        reportThreadMetrics(threadMXBean).repeat(collectionSchedule).interruptible.forkManaged
+    } yield ()
 }

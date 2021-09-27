@@ -32,14 +32,11 @@ object GarbageCollector extends JvmMetrics {
 
   @silent("JavaConverters")
   val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
-    ZManaged.acquireReleaseWith {
-      for {
-        classLoadingMXBean <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList)
-        fiber <-
-          reportGarbageCollectionMetrics(classLoadingMXBean)
-            .repeat(collectionSchedule)
-            .interruptible
-            .forkDaemon
-      } yield fiber
-    }(_.interrupt).unit
+    for {
+      classLoadingMXBean <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList).toManaged
+      _ <- reportGarbageCollectionMetrics(classLoadingMXBean)
+             .repeat(collectionSchedule)
+             .interruptible
+             .forkManaged
+    } yield ()
 }

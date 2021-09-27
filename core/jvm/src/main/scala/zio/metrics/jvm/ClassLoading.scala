@@ -30,14 +30,12 @@ object ClassLoading extends JvmMetrics {
     } yield ()
 
   val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
-    ZManaged.acquireReleaseWith {
-      for {
-        classLoadingMXBean <-
-          Task(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean]))
-        fiber <- reportClassLoadingMetrics(classLoadingMXBean)
-                   .repeat(collectionSchedule)
-                   .interruptible
-                   .forkDaemon
-      } yield fiber
-    }(_.interrupt).unit
+    for {
+      classLoadingMXBean <-
+        Task(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean])).toManaged
+      _ <- reportClassLoadingMetrics(classLoadingMXBean)
+             .repeat(collectionSchedule)
+             .interruptible
+             .forkManaged
+    } yield ()
 }

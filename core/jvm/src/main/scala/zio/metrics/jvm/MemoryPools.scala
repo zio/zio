@@ -83,15 +83,12 @@ object MemoryPools extends JvmMetrics {
 
   @silent("JavaConverters")
   val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
-    ZManaged.acquireReleaseWith {
-      for {
-        memoryMXBean <- Task(ManagementFactory.getMemoryMXBean)
-        poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
-        fiber <-
-          reportMemoryMetrics(memoryMXBean, poolMXBeans)
-            .repeat(collectionSchedule)
-            .interruptible
-            .forkDaemon
-      } yield fiber
-    }(_.interrupt).unit
+    for {
+      memoryMXBean <- Task(ManagementFactory.getMemoryMXBean).toManaged
+      poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList).toManaged
+      _ <- reportMemoryMetrics(memoryMXBean, poolMXBeans)
+             .repeat(collectionSchedule)
+             .interruptible
+             .forkManaged
+    } yield ()
 }

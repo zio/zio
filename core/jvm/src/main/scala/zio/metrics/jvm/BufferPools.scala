@@ -36,15 +36,13 @@ object BufferPools extends JvmMetrics {
 
   @silent("JavaConverters")
   val collectMetrics: ZManaged[Has[Clock], Throwable, Unit] =
-    ZManaged.acquireReleaseWith {
-      for {
-        bufferPoolMXBeans <-
-          Task(ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList)
-        fiber <-
-          reportBufferPoolMetrics(bufferPoolMXBeans)
-            .repeat(collectionSchedule)
-            .interruptible
-            .forkDaemon
-      } yield fiber
-    }(_.interrupt).unit
+    for {
+      bufferPoolMXBeans <- Task(
+                             ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList
+                           ).toManaged
+      _ <- reportBufferPoolMetrics(bufferPoolMXBeans)
+             .repeat(collectionSchedule)
+             .interruptible
+             .forkManaged
+    } yield ()
 }

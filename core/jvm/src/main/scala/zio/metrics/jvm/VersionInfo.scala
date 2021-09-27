@@ -23,9 +23,5 @@ object VersionInfo extends JvmMetrics {
     } yield ()
 
   override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Unit] =
-    ZManaged.acquireReleaseWith {
-      for {
-        fiber <- reportVersions().repeat(collectionSchedule).interruptible.forkDaemon
-      } yield fiber
-    }(_.interrupt).unit
+    reportVersions().repeat(collectionSchedule).interruptible.forkManaged.unit
 }
