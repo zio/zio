@@ -1,6 +1,6 @@
 ---
-id: about_coc
-title:  "ZIO Code of Conduct"
+id: code-of-conduct
+title: "ZIO Code of Conduct"
 ---
 
 We are committed to providing a friendly, safe and welcoming

@@ -220,10 +220,11 @@ module.exports = {
   },
   "about-sidebar": {
     "About": [
-      "about/about_index",
-      "about/about_coding_guidelines",
-      "about/about_contributing",
-      "about/about_coc"
+      "about/index",
+      "about/coding-guidelines",
+      "about/contributing",
+      "about/contributing-to-documentation",
+      "about/code-of-conduct"
     ]
   }
 }
