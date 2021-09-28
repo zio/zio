@@ -27,20 +27,6 @@ object GenUtils {
   def checkShrink[A](gen: Gen[Has[Random] with Has[Sized], A])(a: A): URIO[Has[Random], TestResult] =
     provideSize(alwaysShrinksTo(gen)(a: A))(100)
 
-  def collectUnordered[A](as: Iterable[Option[A]]): List[Map[A, Int]] =
-    as
-      .foldLeft(::(Map.empty[A, Int], Nil)) {
-        case (list, None) =>
-          ::(Map.empty[A, Int], list)
-        case (head :: tail, Some(a)) =>
-          head.get(a) match {
-            case None    => ::(head + (a -> 1), tail)
-            case Some(n) => ::(head + (a -> (n + 1)), tail)
-          }
-      }
-      .tail
-      .reverse
-
   val deterministic: Gen[Has[Random] with Has[Sized], Gen[Any, Int]] =
     Gen.listOf1(Gen.int(-10, 10)).map(as => Gen.fromIterable(as))
 
@@ -58,8 +44,8 @@ object GenUtils {
   def equalSample[A](left: Gen[Has[Random], A], right: Gen[Has[Random], A]): UIO[Boolean] = {
     val testRandom = TestRandom.deterministic
     for {
-      leftSample  <- sample100Unordered(left).provideLayer(testRandom)
-      rightSample <- sample100Unordered(right).provideLayer(testRandom)
+      leftSample  <- sample100(left).provideLayer(testRandom)
+      rightSample <- sample100(right).provideLayer(testRandom)
     } yield leftSample == rightSample
   }
 
@@ -98,13 +84,6 @@ object GenUtils {
 
   def sample100[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
     gen.sample.collectSome.map(_.value).forever.take(100).runCollect.map(_.toList)
-
-  def sample100Unordered[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[Map[A, Int]]] =
-    gen.sample
-      .map(_.map(_.value))
-      .take(100)
-      .runCollect
-      .map(collectUnordered)
 
   def sampleEffect[E, A](
     gen: Gen[Has[Random] with Has[Sized], ZIO[Has[Random] with Has[Sized], E, A]],

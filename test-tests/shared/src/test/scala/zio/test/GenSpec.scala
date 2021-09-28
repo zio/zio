@@ -87,23 +87,23 @@ object GenSpec extends ZIOBaseSpec {
     ),
     suite("monad laws")(
       test("monad left identity") {
-        assertM(equal(Gen.fromIterable(-10 to 10).flatMap(a => Gen.const(a)), Gen.fromIterable(-10 to 10)))(isTrue)
+        assertM(equal(smallInt.flatMap(a => Gen.const(a)), smallInt))(isTrue)
       },
       test("monad right identity") {
         val n = 10
 
-        def f(n: Int): Gen[Has[Random], Int] = Gen.fromIterable(-n to n)
+        def f(n: Int): Gen[Has[Random], Int] = Gen.int(-n, n)
 
         assertM(equal(Gen.const(n).flatMap(f), f(n)))(isTrue)
       },
       test("monad associativity") {
-        val fa = Gen.fromIterable(List(0, 1, 2))
+        val fa = Gen.int(0, 2)
 
         def f(p: Int): Gen[Has[Random], (Int, Int)] =
-          Gen.const(p) <*> Gen.fromIterable(List(0, 1, 2, 3))
+          Gen.const(p) <*> Gen.int(0, 3)
 
         def g(p: (Int, Int)): Gen[Has[Random], (Int, Int, Int)] =
-          Gen.const(p).zipWith(Gen.fromIterable(List(0, 1, 2, 3, 4, 5))) { case ((x, y), z) => (x, y, z) }
+          Gen.const(p).zipWith(Gen.int(0, 5)) { case ((x, y), z) => (x, y, z) }
 
         assertM(equal(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g))))(isTrue)
       }
