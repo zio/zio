@@ -9,6 +9,22 @@ Documentation source code can be found in [ZIO's repository on GitHub under the 
 
 Please read the [Contributor Guideline](contributing.md) before contributing to documentation.
 
+## Editing with GitHub Editor
+
+We encourage contributors to use GitHub's editor for making minor changes to existing documents.
+
+1. On each page, there is a button called _Edit this page_, by clicking this button, we will be redirected to the GitHub editor.
+
+2. After editing the page we can check whether our changes have been formatted correctly or not by using the _Preview_ tab.
+
+3. We can scroll to the bottom of the page and write a title and description of the work, and then propose the changes by clicking on _Propose changes_.
+
+4. Our browser will be redirected to a new page titled _Comparing changes_ after clicking the _Propose changes_ button. We can compare our changes proposal and then create a pull request by clicking the _Create pull request_ button.
+
+5. On the new page, we can edit the title and description of our pull request on the new page and finally click _Create pull request_.
+
+6. A pull request has been created. Eventually, our work will be reviewed by the rest of the team.
+
 ## Editing Documentation Locally
 
 First, we need to clone the ZIO project on our machine:
