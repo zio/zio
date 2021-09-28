@@ -97,18 +97,18 @@ object ZSinkSpec extends ZIOBaseSpec {
               .runCollect
           )(equalTo(Chunk(3, 4, 5, 1, 2, 3, 4, 5)))
         ),
-        suite("dropWhileM")(
+        suite("dropWhileZIO")(
           test("happy path")(
             assertM(
               ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
-                .dropWhileM(x => UIO(x < 3))
+                .dropWhileZIO(x => UIO(x < 3))
                 .runCollect
             )(equalTo(Chunk(3, 4, 5, 1, 2, 3, 4, 5)))
           ),
           test("error")(
             assertM {
               (ZStream(1, 2, 3) ++ ZStream.fail("Aie") ++ ZStream(5, 1, 2, 3, 4, 5))
-                .pipeThrough(ZSink.dropWhileM[Any, String, Int](x => UIO(x < 3)))
+                .pipeThrough(ZSink.dropWhileZIO[Any, String, Int](x => UIO(x < 3)))
                 .either
                 .runCollect
             }(equalTo(Chunk(Right(3), Left("Aie"))))
