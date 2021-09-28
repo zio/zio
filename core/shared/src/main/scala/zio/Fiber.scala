@@ -232,7 +232,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       final def getRef[A](ref: FiberRef[A]): UIO[A] =
         for {
           first  <- self.getRef(ref)
-          second <- self.getRef(ref)
+          second <- that.getRef(ref)
         } yield if (first == ref.initial) second else first
 
       final def interruptAs(id: Fiber.Id): UIO[Exit[E1, A1]] =
