@@ -3,6 +3,12 @@ id: contributing-to-documentation
 title: "Contributing to The ZIO Documentation"
 ---
 
+The ZIO documentation is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us to improve the documentation.
+
+Documentation source code can be found in [ZIO's repository on GitHub under the `docs` directory](https://github.com/zio/zio/tree/master/docs).
+
+Please read the [Contributor Guideline](contributing.md) before contributing to documentation.
+
 ## Editing Documentation Locally
 
 First, we need to clone the ZIO project on our machine:
