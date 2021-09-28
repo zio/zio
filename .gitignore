@@ -28,7 +28,7 @@ website/node_modules
 website/.docusaurus
 website/build
 website/docs
-website/static/api
+website/static/api*
 website/versioned_docs
 website/i18n/en.json
 website/yarn.lock
