@@ -2631,7 +2631,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Uncurried version. Doesn't offer curried syntax and has worse type-inference
    * characteristics, but guarantees no extra allocations of intermediate
-   * [[zio.ZIO.BracketExitAcquire]] and [[zio.ZIO.BracketExitRelease]] objects.
+   * [[zio.ZIO.AcquireExit]] and [[zio.ZIO.ReleaseExit]] objects.
    */
   def acquireReleaseExitWith[R, E, A, B](
     acquire: => ZIO[R, E, A],
@@ -2939,7 +2939,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Uncurried version. Doesn't offer curried syntax and has worse type-inference
    * characteristics, but guarantees no extra allocations of intermediate
-   * [[zio.ZIO.BracketExitAcquire]] and [[zio.ZIO.BracketExitRelease]] objects.
+   * [[zio.ZIO.AcquireExit]] and [[zio.ZIO.ReleaseExit]] objects.
    */
   @deprecated("use acquireReleaseExitWith", "2.0.0")
   def bracketExit[R, E, A, B](
