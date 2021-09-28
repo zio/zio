@@ -648,6 +648,10 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = nextInstr(())
 
+                  case ZIO.Tags.FiberRefWith =>
+                    val zio = curZio.asInstanceOf[ZIO.FiberRefWith[Any, Any, Any, Any]]
+                    curZio = zio.f(getFiberRefValue(zio.fiberRef))
+
                   case ZIO.Tags.RaceWith =>
                     val zio = curZio.asInstanceOf[ZIO.RaceWith[Any, Any, Any, Any, Any, Any, Any]]
                     curZio = raceWithImpl(zio).asInstanceOf[Erased]

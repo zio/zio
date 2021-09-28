@@ -171,6 +171,13 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
     fold(identity, Some(_), Right(_), b => if (f(b)) Right(b) else Left(None))
 
   /**
+   * Gets the value associated with the current fiber and uses it to run the
+   * specified effect.
+   */
+  def getWith[R, EC >: EB, C](f: B => ZIO[R, EC, C]): ZIO[R, EC, C] =
+    get.flatMap(f)
+
+  /**
    * Transforms the `get` value of the `ZFiberRef` with the specified function.
    */
   def map[C](f: B => C): ZFiberRef[EA, EB, A, C] =
@@ -286,6 +293,9 @@ object ZFiberRef {
         val result = pf.applyOrElse[A, A](v, identity)
         (v, result)
       }
+
+    override def getWith[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, B] =
+      new ZIO.FiberRefWith(self, f)
 
     def initialValue: Either[Nothing, A] = Right(initial)
 
