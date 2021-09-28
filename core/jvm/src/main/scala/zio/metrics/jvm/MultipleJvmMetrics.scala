@@ -4,7 +4,7 @@ import zio.{Clock, Has, NonEmptyChunk, System, ZIOApp, ZManaged}
 
 /** Base trait for managing multiple JvmMetrics collectors together */
 trait MultipleJvmMetrics {
-  protected val collectors: NonEmptyChunk[JvmMetrics]
+  protected def collectors: NonEmptyChunk[JvmMetrics]
 
   /**
    * While acquired it starts fibers periodically updating the same JVM metrics
