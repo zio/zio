@@ -15,13 +15,23 @@ We encourage contributors to use GitHub's editor for making minor changes to exi
 
 1. On each page, there is a button called _Edit this page_, by clicking this button, we will be redirected to the GitHub editor.
 
+![Edit this page](/img/assets/edit-this-page.png)
+
 2. After editing the page we can check whether our changes have been formatted correctly or not by using the _Preview_ tab.
+
+![GitHub Editor](/img/assets/github-editor.png)
 
 3. We can scroll to the bottom of the page and write a title and description of the work, and then propose the changes by clicking on _Propose changes_.
 
+![Propose changes](/img/assets/propose-changes.png)
+
 4. Our browser will be redirected to a new page titled _Comparing changes_ after clicking the _Propose changes_ button. We can compare our changes proposal and then create a pull request by clicking the _Create pull request_ button.
 
+![Open a pull request](/img/assets/comparing-changes.png)
+
 5. On the new page, we can edit the title and description of our pull request on the new page and finally click _Create pull request_.
+
+![Open a pull request](/img/assets/open-a-pull-request.png)
 
 6. A pull request has been created. Eventually, our work will be reviewed by the rest of the team.
 
