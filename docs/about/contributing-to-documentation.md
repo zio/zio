@@ -5,8 +5,6 @@ title: "Contributing to The ZIO Documentation"
 
 The ZIO documentation is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us to improve the documentation.
 
-Documentation source code can be found in [ZIO's repository on GitHub under the `docs` directory](https://github.com/zio/zio/tree/master/docs).
-
 Please read the [Contributor Guideline](contributing.md) before contributing to documentation.
 
 ## Editing with GitHub Editor
@@ -37,14 +35,18 @@ We encourage contributors to use GitHub's editor for making minor changes to exi
 
 ## Editing Documentation Locally
 
-First, we need to clone the ZIO project on our machine:
+ZIO contributors are encouraged to use this approach for introducing new documentation pages, or when we have lots of improvements on code snippets since we can compile check all changes locally before committing and sending a pull request to the project:
+
+1. First, we need to clone the ZIO project on our machine:
 
 ```bash
 git clone git@github.com:zio/zio.git
 cd zio
 ```
 
-To generate documentation site from type-checked markdowns we can use the following command:
+2. The documentation source code can be found in the `docs` directory and they are all in Markdown format. Now we can begin improving the existing documentation or adding new documentation.
+
+3. To generate documentation site from type-checked markdowns we can use the following command:
 
 ```bash
 sbt docs/mdoc
@@ -59,7 +61,7 @@ sbt
 sbt:docs> docs/mdoc --watch
 ```
 
-And finally, by the following command serve the microsite locally:
+4. Finally, by the following command we can serve the microsite locally:
 
 ```bash
 cd website
