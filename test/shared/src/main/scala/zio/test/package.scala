@@ -584,8 +584,15 @@ package object test extends CompileVariants {
   /**
    * Builds a suite containing a number of other specs.
    */
-  def suite[In](label: String)(specs: In*)(implicit suiteConstructor: SuiteConstructor[In]): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
-    Spec.labeled(label, if (specs.length == 0) Spec.empty else if (specs.length == 1) suiteConstructor(specs.head) else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec))))
+  def suite[In](label: String)(specs: In*)(implicit
+    suiteConstructor: SuiteConstructor[In]
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
+    Spec.labeled(
+      label,
+      if (specs.length == 0) Spec.empty
+      else if (specs.length == 1) suiteConstructor(specs.head)
+      else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
+    )
 
   /**
    * Builds an effectual suite containing a number of other specs.
