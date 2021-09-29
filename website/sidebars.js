@@ -58,7 +58,6 @@ module.exports = {
                 "services/console",
                 "services/clock",
                 "services/random",
-                "services/blocking",
                 "services/system"
             ]
         }
