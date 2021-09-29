@@ -7,6 +7,12 @@ The ZIO documentation is provided by a worldwide community, just like the projec
 
 Please read the [Contributor Guideline](contributing.md) before contributing to documentation.
 
+## Toolchain
+
+1. The documentation is written in [Markdown](https://en.wikipedia.org/wiki/Markdown) format.
+2. During the build process of the microsite, we use [mdoc](https://scalameta.org/mdoc/) to type-check code snippets in Markdown.
+3. Our site generator is [Docusaurus](https://docusaurus.io/).
+
 ## Editing with GitHub Editor
 
 We encourage contributors to use GitHub's editor for making minor changes to existing documents.
