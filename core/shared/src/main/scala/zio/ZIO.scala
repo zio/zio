@@ -215,20 +215,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Shorthand for the curried version of `ZIO.acquireReleaseWith`.
    */
-  final def acquireReleaseWith: ZIO.BracketAcquire[R, E, A] =
+  final def acquireReleaseWith: ZIO.Acquire[R, E, A] =
     ZIO.acquireReleaseWith(self)
 
   /**
    * A less powerful variant of `acquireReleaseWith` where the resource
    * acquired by this effect is not needed.
    */
-  final def acquireRelease[R1 <: R, E1 >: E]: ZIO.BracketAcquire_[R1, E1] =
-    new ZIO.BracketAcquire_(self)
+  final def acquireRelease[R1 <: R, E1 >: E]: ZIO.AcquireDiscard[R1, E1] =
+    new ZIO.AcquireDiscard(self)
 
   /**
    * Uncurried version. Doesn't offer curried syntax and has worse
    * type-inference characteristics, but it doesn't allocate intermediate
-   * [[zio.ZIO.BracketAcquire_]] and [[zio.ZIO.BracketRelease_]] objects.
+   * [[zio.ZIO.AcquireDiscard]] and [[zio.ZIO.ReleaseDiscard]] objects.
    */
   final def acquireRelease[R1 <: R, E1 >: E, B](
     release: => URIO[R1, Any],
@@ -248,7 +248,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Shorthand for the curried version of `ZIO.acquireReleaseExitWith`.
    */
-  final def acquireReleaseExitWith: ZIO.BracketExitAcquire[R, E, A] =
+  final def acquireReleaseExitWith: ZIO.AcquireExit[R, E, A] =
     ZIO.acquireReleaseExitWith(self)
 
   /**
@@ -342,7 +342,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Shorthand for the curried version of `ZIO.bracket`.
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
-  final def bracket: ZIO.BracketAcquire[R, E, A] =
+  final def bracket: ZIO.Acquire[R, E, A] =
     acquireReleaseWith
 
   /**
@@ -350,13 +350,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect is not needed.
    */
   @deprecated("use acquireRelease", "2.0.0")
-  final def bracket_[R1 <: R, E1 >: E]: ZIO.BracketAcquire_[R1, E1] =
+  final def bracket_[R1 <: R, E1 >: E]: ZIO.AcquireDiscard[R1, E1] =
     acquireRelease
 
   /**
    * Uncurried version. Doesn't offer curried syntax and has worse
    * type-inference characteristics, but it doesn't allocate intermediate
-   * [[zio.ZIO.BracketAcquire_]] and [[zio.ZIO.BracketRelease_]] objects.
+   * [[zio.ZIO.AcquireDiscard]] and [[zio.ZIO.ReleaseDiscard]] objects.
    */
   @deprecated("use acquireRelease", "2.0.0")
   final def bracket_[R1 <: R, E1 >: E, B](
@@ -379,7 +379,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Shorthand for the curried version of `ZIO.bracketExit`.
    */
   @deprecated("use acquireReleaseExitWith", "2.0.0")
-  final def bracketExit: ZIO.BracketExitAcquire[R, E, A] =
+  final def bracketExit: ZIO.AcquireExit[R, E, A] =
     acquireReleaseExitWith
 
   /**
@@ -2623,13 +2623,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * }
    * }}}
    */
-  def acquireReleaseWith[R, E, A](acquire: => ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A] =
-    new ZIO.BracketAcquire[R, E, A](() => acquire)
+  def acquireReleaseWith[R, E, A](acquire: => ZIO[R, E, A]): ZIO.Acquire[R, E, A] =
+    new ZIO.Acquire[R, E, A](() => acquire)
 
   /**
    * Uncurried version. Doesn't offer curried syntax and have worse type-inference
    * characteristics, but guarantees no extra allocations of intermediate
-   * [[zio.ZIO.BracketAcquire]] and [[zio.ZIO.BracketRelease]] objects.
+   * [[zio.ZIO.Acquire]] and [[zio.ZIO.Release]] objects.
    */
   def acquireReleaseWith[R, E, A, B](
     acquire: => ZIO[R, E, A],
@@ -2645,13 +2645,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * succeeds. If `use` fails, then after release, the returned effect will fail
    * with the same error.
    */
-  def acquireReleaseExitWith[R, E, A](acquire: => ZIO[R, E, A]): ZIO.BracketExitAcquire[R, E, A] =
-    new ZIO.BracketExitAcquire(() => acquire)
+  def acquireReleaseExitWith[R, E, A](acquire: => ZIO[R, E, A]): ZIO.AcquireExit[R, E, A] =
+    new ZIO.AcquireExit(() => acquire)
 
   /**
    * Uncurried version. Doesn't offer curried syntax and has worse type-inference
    * characteristics, but guarantees no extra allocations of intermediate
-   * [[zio.ZIO.BracketExitAcquire]] and [[zio.ZIO.BracketExitRelease]] objects.
+   * [[zio.ZIO.AcquireExit]] and [[zio.ZIO.ReleaseExit]] objects.
    */
   def acquireReleaseExitWith[R, E, A, B](
     acquire: => ZIO[R, E, A],
@@ -2724,7 +2724,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   ): ZIO[R, E, A] =
-    new EffectAsync(register, () => blockingOn)
+    new Async(register, () => blockingOn)
 
   /**
    * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
@@ -2929,13 +2929,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * }}}
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
-  def bracket[R, E, A](acquire: => ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A] =
+  def bracket[R, E, A](acquire: => ZIO[R, E, A]): ZIO.Acquire[R, E, A] =
     acquireReleaseWith(acquire)
 
   /**
    * Uncurried version. Doesn't offer curried syntax and have worse type-inference
    * characteristics, but guarantees no extra allocations of intermediate
-   * [[zio.ZIO.BracketAcquire]] and [[zio.ZIO.BracketRelease]] objects.
+   * [[zio.ZIO.Acquire]] and [[zio.ZIO.Release]] objects.
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
   def bracket[R, E, A, B](
@@ -2953,13 +2953,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * with the same error.
    */
   @deprecated("use acquireReleaseExitWith", "2.0.0")
-  def bracketExit[R, E, A](acquire: => ZIO[R, E, A]): ZIO.BracketExitAcquire[R, E, A] =
+  def bracketExit[R, E, A](acquire: => ZIO[R, E, A]): ZIO.AcquireExit[R, E, A] =
     acquireReleaseExitWith(acquire)
 
   /**
    * Uncurried version. Doesn't offer curried syntax and has worse type-inference
    * characteristics, but guarantees no extra allocations of intermediate
-   * [[zio.ZIO.BracketExitAcquire]] and [[zio.ZIO.BracketExitRelease]] objects.
+   * [[zio.ZIO.AcquireExit]] and [[zio.ZIO.ReleaseExit]] objects.
    */
   @deprecated("use acquireReleaseExitWith", "2.0.0")
   def bracketExit[R, E, A, B](
@@ -4862,7 +4862,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect that models success with the specified value.
    */
   def succeed[A](a: => A): UIO[A] =
-    new ZIO.EffectTotal(() => a)
+    new ZIO.Succeed(() => a)
 
   /**
    * Returns a synchronous effect that does blocking and succeeds with the
@@ -4876,7 +4876,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * underlying RuntimeConfig and fiber id.
    */
   def succeedWith[A](f: (RuntimeConfig, FiberId) => A): UIO[A] =
-    new ZIO.EffectWith(f)
+    new ZIO.SucceedWith(f)
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require effects.
@@ -5363,33 +5363,33 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       (self map f) raceFirst (ZIO.sleep(duration).interruptible as b())
   }
 
-  final class BracketAcquire_[-R, +E](private val acquire: ZIO[R, E, Any]) extends AnyVal {
+  final class AcquireDiscard[-R, +E](private val acquire: ZIO[R, E, Any]) extends AnyVal {
     def apply[R1 <: R](
       release: => URIO[R1, Any]
-    ): BracketRelease_[R1, E] =
-      new BracketRelease_(acquire, release)
+    ): ReleaseDiscard[R1, E] =
+      new ReleaseDiscard(acquire, release)
   }
-  final class BracketRelease_[-R, +E](acquire: ZIO[R, E, Any], release: URIO[R, Any]) {
+  final class ReleaseDiscard[-R, +E](acquire: ZIO[R, E, Any], release: URIO[R, Any]) {
     def apply[R1 <: R, E1 >: E, B](use: => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.acquireReleaseWith(acquire, (_: Any) => release, (_: Any) => use)
   }
 
-  final class BracketAcquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
-    def apply[R1](release: A => URIO[R1, Any]): BracketRelease[R with R1, E, A] =
-      new BracketRelease[R with R1, E, A](acquire, release)
+  final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
+    def apply[R1](release: A => URIO[R1, Any]): Release[R with R1, E, A] =
+      new Release[R with R1, E, A](acquire, release)
   }
-  final class BracketRelease[-R, +E, +A](acquire: () => ZIO[R, E, A], release: A => URIO[R, Any]) {
+  final class Release[-R, +E, +A](acquire: () => ZIO[R, E, A], release: A => URIO[R, Any]) {
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
       ZIO.acquireReleaseWith(acquire(), release, use)
   }
 
-  final class BracketExitAcquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
+  final class AcquireExit[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, B](
       release: (A, Exit[E1, B]) => URIO[R1, Any]
-    ): BracketExitRelease[R1, E, E1, A, B] =
-      new BracketExitRelease(acquire, release)
+    ): ReleaseExit[R1, E, E1, A, B] =
+      new ReleaseExit(acquire, release)
   }
-  final class BracketExitRelease[-R, +E, E1, +A, B](
+  final class ReleaseExit[-R, +E, E1, +A, B](
     acquire: () => ZIO[R, E, A],
     release: (A, Exit[E1, B]) => URIO[R, Any]
   ) {
@@ -5471,13 +5471,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class MapFn[R, E, A, B](override val underlying: A => B) extends ZIOFn1[A, ZIO[R, E, B]] {
     def apply(a: A): ZIO[R, E, B] =
-      new ZIO.Succeed(underlying(a))
+      new ZIO.SucceedNow(underlying(a))
   }
 
   final class ConstZIOFn[R, E, A, B](override val underlying: () => B) extends ZIOFn1[A, ZIO[R, E, B]] {
     def apply(a: A): ZIO[R, E, B] = {
       val _ = a
-      new ZIO.Succeed(underlying())
+      new ZIO.SucceedNow(underlying())
     }
   }
 
@@ -5502,7 +5502,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class SucceedFn[R, E, A](override val underlying: AnyRef) extends ZIOFn1[A, ZIO[R, E, A]] {
-    def apply(a: A): ZIO[R, E, A] = new ZIO.Succeed(a)
+    def apply(a: A): ZIO[R, E, A] = new ZIO.SucceedNow(a)
   }
 
   final class MapErrorFn[R, E, E2, A](override val underlying: E => E2) extends ZIOFn1[Cause[E], ZIO[R, E2, Nothing]] {
@@ -5887,15 +5887,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] object Tags {
     final val FlatMap           = 0
-    final val Succeed           = 1
+    final val SucceedNow        = 1
     final val Fail              = 3
     final val Fold              = 4
     final val Ensuring          = 5
-    final val EffectTotal       = 6
-    final val EffectWith        = 7
+    final val Succeed           = 6
+    final val SucceedWith       = 7
     final val Suspend           = 8
     final val SuspendWith       = 9
-    final val EffectAsync       = 10
+    final val Async             = 10
     final val InterruptStatus   = 11
     final val CheckInterrupt    = 12
     final val Fork              = 13
@@ -5928,16 +5928,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.FlatMap
   }
 
-  private[zio] final class Succeed[A](val value: A) extends UIO[A] {
+  private[zio] final class SucceedNow[A](val value: A) extends UIO[A] {
+    override def tag = Tags.SucceedNow
+  }
+
+  private[zio] final class Succeed[A](val effect: () => A) extends UIO[A] {
     override def tag = Tags.Succeed
   }
 
-  private[zio] final class EffectTotal[A](val effect: () => A) extends UIO[A] {
-    override def tag = Tags.EffectTotal
-  }
-
-  private[zio] final class EffectWith[A](val effect: (RuntimeConfig, FiberId) => A) extends UIO[A] {
-    override def tag = Tags.EffectWith
+  private[zio] final class SucceedWith[A](val effect: (RuntimeConfig, FiberId) => A) extends UIO[A] {
+    override def tag = Tags.SucceedWith
   }
 
   private[zio] final class Suspend[R, E, A](val make: () => ZIO[R, E, A]) extends ZIO[R, E, A] {
@@ -5949,11 +5949,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.SuspendWith
   }
 
-  private[zio] final class EffectAsync[R, E, A](
+  private[zio] final class Async[R, E, A](
     val register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
     val blockingOn: () => FiberId
   ) extends ZIO[R, E, A] {
-    override def tag = Tags.EffectAsync
+    override def tag = Tags.Async
   }
 
   private[zio] final class Fold[R, E, E2, A, B](
@@ -6112,7 +6112,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] val someInfo    = Some(LogLevel.Info)
   private[zio] val someDebug   = Some(LogLevel.Debug)
 
-  private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.Succeed(a)
+  private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.SucceedNow(a)
 
   private def collectAllParUnboundedDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]]): ZIO[R, E, Unit] =
     foreachParUnboundedDiscard(as)(ZIO.identityFn)

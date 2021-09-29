@@ -5,7 +5,7 @@ import zio._
 import zio.stm.TQueue
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, nonFlaky, scala2Only, timeout}
+import zio.test.TestAspect.{flaky, ignore, nonFlaky, samples, scala2Only, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -882,6 +882,9 @@ object ZStreamSpec extends ZIOBaseSpec {
         //         res2 <- (s.runCollect.map(_.collect { case Some(x) => x }))
         //       } yield assert(res1)(equalTo(res2))
         //     }),
+        test("collectType") {
+          assertM(ZStream(cat1, dog, cat2).collectType[Cat].runCollect)(equalTo(Chunk(cat1, cat2)))
+        },
         suite("collectWhile")(
           test("collectWhile") {
             assertM(ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhile { case Some(v) =>
@@ -1290,266 +1293,273 @@ object ZStreamSpec extends ZIOBaseSpec {
           //         } yield assert(result)(equalTo(List(1, 2)))
           //       }
         ),
-        //     suite("flatMapPar")(
-        //       test("guarantee ordering")(checkM(tinyListOf(Gen.int)) { (m: List[Int]) =>
-        //         for {
-        //           flatMap    <- ZStream.fromIterable(m).flatMap(i => ZStream(i, i)).runCollect
-        //           flatMapPar <- ZStream.fromIterable(m).flatMapPar(1)(i => ZStream(i, i)).runCollect
-        //         } yield assert(flatMap)(equalTo(flatMapPar))
-        //       }),
-        //       test("consistent with flatMap")(
-        //         checkM(Gen.int(1, Int.MaxValue), tinyListOf(Gen.int)) { (n, m) =>
-        //           for {
-        //             flatMap <- ZStream
-        //                          .fromIterable(m)
-        //                          .flatMap(i => ZStream(i, i))
-        //                          .runCollect
-        //                          .map(_.toSet)
-        //             flatMapPar <- ZStream
-        //                             .fromIterable(m)
-        //                             .flatMapPar(n)(i => ZStream(i, i))
-        //                             .runCollect
-        //                             .map(_.toSet)
-        //           } yield assert(n)(isGreaterThan(0)) implies assert(flatMap)(equalTo(flatMapPar))
-        //         }
-        //       ),
-        //       test("short circuiting") {
-        //         assertM(
-        //           ZStream
-        //             .mergeAll(2)(
-        //               ZStream.never,
-        //               ZStream(1)
-        //             )
-        //             .take(1)
-        //             .runCollect
-        //         )(equalTo(Chunk(1)))
-        //       },
-        //       test("interruption propagation") {
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           fiber <- ZStream(())
-        //                      .flatMapPar(1)(_ =>
-        //                        ZStream.fromZIO(
-        //                          (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                        )
-        //                      )
-        //                      .runDrain
-        //                      .fork
-        //           _         <- latch.await
-        //           _         <- fiber.interrupt
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue)
-        //       },
-        //       test("inner errors interrupt all fibers") {
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           result <- ZStream(
-        //                       ZStream.fromZIO(
-        //                         (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                       ),
-        //                       ZStream.fromZIO(latch.await *> ZIO.fail("Ouch"))
-        //                     ).flatMapPar(2)(identity).runDrain.either
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-        //       },
-        //       test("outer errors interrupt all fibers") {
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.fail("Ouch")))
-        //                       .flatMapPar(2) { _ =>
-        //                         ZStream.fromZIO(
-        //                           (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                         )
-        //                       }
-        //                       .runDrain
-        //                       .either
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-        //       } @@ nonFlaky,
-        //       test("inner defects interrupt all fibers") {
-        //         val ex = new RuntimeException("Ouch")
+        suite("flatMapPar")(
+          test("guarantee ordering")(checkM(tinyListOf(Gen.int)) { (m: List[Int]) =>
+            for {
+              flatMap    <- ZStream.fromIterable(m).flatMap(i => ZStream(i, i)).runCollect
+              flatMapPar <- ZStream.fromIterable(m).flatMapPar(1)(i => ZStream(i, i)).runCollect
+            } yield assert(flatMap)(equalTo(flatMapPar))
+          }),
+          test("consistent with flatMap")(
+            checkM(Gen.int(1, 10000), tinyListOf(Gen.int)) { (n, m) =>
+              for {
+                flatMap <- ZStream
+                             .fromIterable(m)
+                             .flatMap(i => ZStream(i, i))
+                             .runCollect
+                             .map(_.toSet)
+                flatMapPar <- ZStream
+                                .fromIterable(m)
+                                .flatMapPar(n)(i => ZStream(i, i))
+                                .runCollect
+                                .map(_.toSet)
+              } yield assert(n)(isGreaterThan(0)) implies assert(flatMap)(equalTo(flatMapPar))
+            }
+          ),
+          test("short circuiting") {
+            assertM(
+              ZStream
+                .mergeAll(2)(
+                  ZStream.never,
+                  ZStream(1)
+                )
+                .take(1)
+                .runCollect
+            )(equalTo(Chunk(1)))
+          },
+          test("interruption propagation") {
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              fiber <- ZStream(())
+                         .flatMapPar(1)(_ =>
+                           ZStream.fromZIO(
+                             (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                           )
+                         )
+                         .runDrain
+                         .fork
+              _         <- latch.await
+              _         <- fiber.interrupt
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue)
+          },
+          test("inner errors interrupt all fibers") {
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              result <- ZStream(
+                          ZStream.fromZIO(
+                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                          ),
+                          ZStream.fromZIO(latch.await *> ZIO.fail("Ouch"))
+                        ).flatMapPar(2)(identity).runDrain.either
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
+          } @@ nonFlaky,
+          test("outer errors interrupt all fibers") {
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.fail("Ouch")))
+                          .flatMapPar(2) { _ =>
+                            ZStream.fromZIO(
+                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            )
+                          }
+                          .runDrain
+                          .either
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
+          } @@ nonFlaky,
+          test("inner defects interrupt all fibers") {
+            val ex = new RuntimeException("Ouch")
 
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           result <- ZStream(
-        //                       ZStream.fromZIO(
-        //                         (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                       ),
-        //                       ZStream.fromZIO(latch.await *> ZIO.die(ex))
-        //                     ).flatMapPar(2)(identity).runDrain.run
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-        //       },
-        //       test("outer defects interrupt all fibers") {
-        //         val ex = new RuntimeException()
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              result <- ZStream(
+                          ZStream.fromZIO(
+                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                          ),
+                          ZStream.fromZIO(latch.await *> ZIO.die(ex))
+                        ).flatMapPar(2)(identity).runDrain.exit
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
+          },
+          test("outer defects interrupt all fibers") {
+            val ex = new RuntimeException()
 
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.die(ex)))
-        //                       .flatMapPar(2) { _ =>
-        //                         ZStream.fromZIO(
-        //                           (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                         )
-        //                       }
-        //                       .runDrain
-        //                       .run
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-        //       } @@ nonFlaky,
-        //       test("finalizer ordering") {
-        //         for {
-        //           execution <- Ref.make[List[String]](Nil)
-        //           inner = ZStream
-        //                     .acquireReleaseWith(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
-        //           _ <-
-        //             ZStream
-        //               .acquireReleaseWith(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
-        //               .flatMapPar(2)(identity)
-        //               .runDrain
-        //           results <- execution.get
-        //         } yield assert(results)(
-        //           equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
-        //         )
-        //       }
-        //     ),
-        //     suite("flatMapParSwitch")(
-        //       test("guarantee ordering no parallelism") {
-        //         for {
-        //           lastExecuted <- Ref.make(false)
-        //           semaphore    <- Semaphore.make(1)
-        //           _ <- ZStream(1, 2, 3, 4)
-        //                  .flatMapParSwitch(1) { i =>
-        //                    if (i > 3)
-        //                      ZStream
-        //                        .acquireReleaseWith(UIO.unit)(_ => lastExecuted.set(true))
-        //                        .flatMap(_ => ZStream.empty)
-        //                    else ZStream.managed(semaphore.withPermitManaged).flatMap(_ => ZStream.never)
-        //                  }
-        //                  .runDrain
-        //           result <- semaphore.withPermit(lastExecuted.get)
-        //         } yield assert(result)(isTrue)
-        //       },
-        //       test("guarantee ordering with parallelism") {
-        //         for {
-        //           lastExecuted <- Ref.make(0)
-        //           semaphore    <- Semaphore.make(4)
-        //           _ <- ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
-        //                  .flatMapParSwitch(4) { i =>
-        //                    if (i > 8)
-        //                      ZStream
-        //                        .acquireReleaseWith(UIO.unit)(_ => lastExecuted.update(_ + 1))
-        //                        .flatMap(_ => ZStream.empty)
-        //                    else ZStream.managed(semaphore.withPermitManaged).flatMap(_ => ZStream.never)
-        //                  }
-        //                  .runDrain
-        //           result <- semaphore.withPermits(4)(lastExecuted.get)
-        //         } yield assert(result)(equalTo(4))
-        //       },
-        //       test("short circuiting") {
-        //         assertM(
-        //           ZStream(ZStream.never, ZStream(1))
-        //             .flatMapParSwitch(2)(identity)
-        //             .take(1)
-        //             .runCollect
-        //         )(equalTo(Chunk(1)))
-        //       },
-        //       test("interruption propagation") {
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           fiber <- ZStream(())
-        //                      .flatMapParSwitch(1)(_ =>
-        //                        ZStream.fromZIO(
-        //                          (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                        )
-        //                      )
-        //                      .runCollect
-        //                      .fork
-        //           _         <- latch.await
-        //           _         <- fiber.interrupt
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue)
-        //       } @@ flaky,
-        //       test("inner errors interrupt all fibers") {
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           result <- ZStream(
-        //                       ZStream.fromZIO(
-        //                         (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                       ),
-        //                       ZStream.fromZIO(latch.await *> IO.fail("Ouch"))
-        //                     ).flatMapParSwitch(2)(identity).runDrain.either
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-        //       } @@ flaky,
-        //       test("outer errors interrupt all fibers") {
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> IO.fail("Ouch")))
-        //                       .flatMapParSwitch(2) { _ =>
-        //                         ZStream.fromZIO(
-        //                           (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                         )
-        //                       }
-        //                       .runDrain
-        //                       .either
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
-        //       } @@ nonFlaky,
-        //       test("inner defects interrupt all fibers") {
-        //         val ex = new RuntimeException("Ouch")
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.die(ex)))
+                          .flatMapPar(2) { _ =>
+                            ZStream.fromZIO(
+                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            )
+                          }
+                          .runDrain
+                          .exit
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
+          } @@ nonFlaky,
+          test("finalizer ordering") {
+            for {
+              execution <- Ref.make[List[String]](Nil)
+              inner =
+                ZStream
+                  .acquireReleaseWith(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
+              _ <-
+                ZStream
+                  .acquireReleaseWith(execution.update("OuterAcquire" :: _).as(inner))(_ =>
+                    execution.update("OuterRelease" :: _)
+                  )
+                  .flatMapPar(2)(identity)
+                  .runDrain
+              results <- execution.get
+            } yield assert(results)(
+              equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
+            )
+          } @@ flaky @@ ignore // TODO: fix
+        ),
+        suite("flatMapParSwitch")(
+          test("guarantee ordering no parallelism") {
+            for {
+              lastExecuted <- Ref.make(false)
+              semaphore    <- Semaphore.make(1)
+              _ <- ZStream(1, 2, 3, 4)
+                     .flatMapParSwitch(1) { i =>
+                       if (i > 3)
+                         ZStream
+                           .acquireReleaseWith(UIO.unit)(_ => lastExecuted.set(true))
+                           .flatMap(_ => ZStream.empty)
+                       else ZStream.managed(semaphore.withPermitManaged).flatMap(_ => ZStream.never)
+                     }
+                     .runDrain
+              result <- semaphore.withPermit(lastExecuted.get)
+            } yield assert(result)(isTrue)
+          },
+          test("guarantee ordering with parallelism") {
+            for {
+              lastExecuted <- Ref.make(0)
+              semaphore    <- Semaphore.make(4)
+              _ <- ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+                     .flatMapParSwitch(4) { i =>
+                       if (i > 8)
+                         ZStream
+                           .acquireReleaseWith(UIO.unit)(_ => lastExecuted.update(_ + 1))
+                           .flatMap(_ => ZStream.empty)
+                       else ZStream.managed(semaphore.withPermitManaged).flatMap(_ => ZStream.never)
+                     }
+                     .runDrain
+              result <- semaphore.withPermits(4)(lastExecuted.get)
+            } yield assert(result)(equalTo(4))
+          },
+          test("short circuiting") {
+            assertM(
+              ZStream(ZStream.never, ZStream(1))
+                .flatMapParSwitch(2)(identity)
+                .take(1)
+                .runCollect
+            )(equalTo(Chunk(1)))
+          },
+          test("interruption propagation") {
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              fiber <- ZStream(())
+                         .flatMapParSwitch(1)(_ =>
+                           ZStream.fromZIO(
+                             (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                           )
+                         )
+                         .runCollect
+                         .fork
+              _         <- latch.await
+              _         <- fiber.interrupt
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue)
+          } @@ flaky,
+          test("inner errors interrupt all fibers") {
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              result <- ZStream(
+                          ZStream.fromZIO(
+                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                          ),
+                          ZStream.fromZIO(latch.await *> IO.fail("Ouch"))
+                        ).flatMapParSwitch(2)(identity).runDrain.either
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
+          } @@ flaky,
+          test("outer errors interrupt all fibers") {
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> IO.fail("Ouch")))
+                          .flatMapParSwitch(2) { _ =>
+                            ZStream.fromZIO(
+                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            )
+                          }
+                          .runDrain
+                          .either
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue) && assert(result)(isLeft(equalTo("Ouch")))
+          } @@ nonFlaky,
+          test("inner defects interrupt all fibers") {
+            val ex = new RuntimeException("Ouch")
 
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           result <- ZStream(
-        //                       ZStream.fromZIO(
-        //                         (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                       ),
-        //                       ZStream.fromZIO(latch.await *> ZIO.die(ex))
-        //                     ).flatMapParSwitch(2)(identity).runDrain.run
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-        //       },
-        //       test("outer defects interrupt all fibers") {
-        //         val ex = new RuntimeException()
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              result <- ZStream(
+                          ZStream.fromZIO(
+                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                          ),
+                          ZStream.fromZIO(latch.await *> ZIO.die(ex))
+                        ).flatMapParSwitch(2)(identity).runDrain.exit
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
+          },
+          test("outer defects interrupt all fibers") {
+            val ex = new RuntimeException()
 
-        //         for {
-        //           substreamCancelled <- Ref.make[Boolean](false)
-        //           latch              <- Promise.make[Nothing, Unit]
-        //           result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.die(ex)))
-        //                       .flatMapParSwitch(2) { _ =>
-        //                         ZStream.fromZIO(
-        //                           (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
-        //                         )
-        //                       }
-        //                       .runDrain
-        //                       .run
-        //           cancelled <- substreamCancelled.get
-        //         } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
-        //       } @@ nonFlaky,
-        //       test("finalizer ordering") {
-        //         for {
-        //           execution <- Ref.make(List.empty[String])
-        //           inner      = ZStream.acquireReleaseWith(execution.update("InnerAcquire" :: _))(_ => execution.update("InnerRelease" :: _))
-        //           _ <-
-        //             ZStream
-        //               .acquireReleaseWith(execution.update("OuterAcquire" :: _).as(inner))(_ => execution.update("OuterRelease" :: _))
-        //               .flatMapParSwitch(2)(identity)
-        //               .runDrain
-        //           results <- execution.get
-        //         } yield assert(results)(
-        //           equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
-        //         )
-        //       }
-        //     ),
+            for {
+              substreamCancelled <- Ref.make[Boolean](false)
+              latch              <- Promise.make[Nothing, Unit]
+              result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.die(ex)))
+                          .flatMapParSwitch(2) { _ =>
+                            ZStream.fromZIO(
+                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            )
+                          }
+                          .runDrain
+                          .exit
+              cancelled <- substreamCancelled.get
+            } yield assert(cancelled)(isTrue) && assert(result)(dies(equalTo(ex)))
+          } @@ nonFlaky,
+          test("finalizer ordering") {
+            for {
+              execution <- Ref.make(List.empty[String])
+              inner = ZStream.acquireReleaseWith(execution.update("InnerAcquire" :: _))(_ =>
+                        execution.update("InnerRelease" :: _)
+                      )
+              _ <-
+                ZStream
+                  .acquireReleaseWith(execution.update("OuterAcquire" :: _).as(inner))(_ =>
+                    execution.update("OuterRelease" :: _)
+                  )
+                  .flatMapParSwitch(2)(identity)
+                  .runDrain
+              results <- execution.get
+            } yield assert(results)(
+              equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
+            )
+          } @@ flaky @@ ignore // TODO: fix
+        ),
         suite("flattenExitOption")(
           test("happy path") {
             assertM(
@@ -3403,7 +3413,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             }.sorted
             assertM(actual.runCollect)(equalTo(expected))
           }
-        },
+        } @@ samples(25),
         suite("zipWith")(
           test("zip doesn't pull too much when one of the streams is done") {
             val l = ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5)) ++ ZStream.fail(
@@ -3941,6 +3951,11 @@ object ZStreamSpec extends ZIOBaseSpec {
           def lazyIt = l.iterator
           assertM(ZStream.fromIteratorSucceed(lazyIt).runCollect)(equalTo(l))
         }),
+        test("fromBlockingIterator") {
+          checkM(Gen.small(Gen.chunkOfN(_)(Gen.int))) { chunk =>
+            assertM(ZStream.blocking(ZStream.fromIterator(chunk.iterator)).runCollect)(equalTo(chunk))
+          }
+        },
         // suite("fromIteratorManaged")(
         //   test("is safe to pull again after success") {
         //     for {
@@ -4321,4 +4336,12 @@ object ZStreamSpec extends ZIOBaseSpec {
                           }
       testResult <- assertion(chunkCoordination)
     } yield testResult
+
+  sealed trait Animal
+  case class Dog(name: String) extends Animal
+  case class Cat(name: String) extends Animal
+
+  val dog: Animal = Dog("dog1")
+  val cat1: Cat   = Cat("cat1")
+  val cat2: Cat   = Cat("cat2")
 }

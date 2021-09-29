@@ -60,7 +60,7 @@ trait FunctionVariants {
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
     Gen.fromZIO {
-      gen.sample.forever.process.use { pull =>
+      gen.sample.forever.collectSome.process.use { pull =>
         for {
           lock    <- Semaphore.make(1)
           bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)

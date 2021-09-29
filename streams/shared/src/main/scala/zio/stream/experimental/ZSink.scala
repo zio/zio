@@ -2,6 +2,7 @@ package zio.stream.experimental
 
 import zio._
 
+import java.nio.charset.{Charset, StandardCharsets}
 import java.util.concurrent.atomic.AtomicReference
 
 class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Chunk[In], Any, OutErr, Chunk[L], Z])
@@ -615,7 +616,11 @@ object ZSink {
     new ZSink(loop)
   }
 
-  def dropWhileM[R, InErr, In](p: In => ZIO[R, InErr, Boolean]): ZSink[R, InErr, In, InErr, In, Any] = {
+  @deprecated("use dropWhileZIO", "2.0.0")
+  def dropWhileM[R, InErr, In](p: In => ZIO[R, InErr, Boolean]): ZSink[R, InErr, In, InErr, In, Any] =
+    dropWhileZIO(p)
+
+  def dropWhileZIO[R, InErr, In](p: In => ZIO[R, InErr, Boolean]): ZSink[R, InErr, In, InErr, In, Any] = {
     lazy val loop: ZChannel[R, InErr, Chunk[In], Any, InErr, Chunk[In], Any] = ZChannel.readWith(
       (in: Chunk[In]) =>
         ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
@@ -1200,6 +1205,11 @@ object ZSink {
       case (None, in)       => Some(in)
     }
 
+  val iso_8859_1Decode: ZSink[Any, Nothing, Byte, Nothing, Nothing, Option[String]] =
+    foldChunks[Nothing, Byte, Option[String]](Option.empty[String])(_ => true)((_, is) =>
+      Some(new String(is.toArray, StandardCharsets.ISO_8859_1))
+    )
+
   /**
    * Creates a sink containing the last value.
    */
@@ -1273,6 +1283,22 @@ object ZSink {
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
   }
 
+  def utfDecode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
+    def prepend(bytes: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Any, Err, Chunk[Byte], Any] =
+      ZChannel.write(bytes) *> ZChannel.identity[Err, Chunk[Byte], Any]
+
+    ZSink.take[Err, Byte](4).flatMap { bytes =>
+      bytes.toList match {
+        case 0 :: 0 :: -2 :: -1 :: Nil if Charset.isSupported("UTF-32BE") => utf32BEDecode
+        case -2 :: -1 :: 0 :: 0 :: Nil if Charset.isSupported("UTF-32LE") => utf32LEDecode
+        case -17 :: -69 :: -65 :: x1 :: Nil                               => new ZSink(prepend(Chunk(x1)) >>> utf8Decode.channel)
+        case -2 :: -1 :: x1 :: x2 :: Nil                                  => new ZSink(prepend(Chunk(x1, x2)) >>> utf16BEDecode.channel)
+        case -1 :: -2 :: x1 :: x2 :: Nil                                  => new ZSink(prepend(Chunk(x1, x2)) >>> utf16LEDecode.channel)
+        case _                                                            => utf8Decode
+      }
+    }
+  }
+
   def utf8Decode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
     def is2ByteSequenceStart(b: Byte) = (b & 0xe0) == 0xc0
     def is3ByteSequenceStart(b: Byte) = (b & 0xf0) == 0xe0
@@ -1320,8 +1346,8 @@ object ZSink {
           val (toConvert, newLeftovers) = concat.splitAt(computeSplit(concat))
 
           if (toConvert.isEmpty) channel(newLeftovers.materialize)
-          else if (newLeftovers.isEmpty) ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
-          else ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+          else if (newLeftovers.isEmpty) ZChannel.end(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
+          else ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
         },
         (err: Err) => ZChannel.fail(err),
         (_: Any) =>
@@ -1332,14 +1358,90 @@ object ZSink {
             if (toConvert.isEmpty)
               // Upstream has ended and all we read was an incomplete chunk, so we fallback to the
               // String constructor behavior.
-              ZChannel.end(Some(new String(newLeftovers.toArray[Byte], "UTF-8")))
+              ZChannel.end(Some(new String(newLeftovers.toArray[Byte], StandardCharsets.UTF_8)))
             else if (newLeftovers.nonEmpty)
-              ZChannel.write(newLeftovers.materialize).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+              ZChannel
+                .write(newLeftovers.materialize)
+                .as(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
             else
-              ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+              ZChannel.end(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
           }
       )
 
     new ZSink(channel(Chunk.empty))
+  }
+
+  def utf16Decode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    ZSink.take[Err, Byte](2).flatMap { bytes =>
+      bytes.toList match {
+        case -2 :: -1 :: Nil =>
+          utf16BEDecode
+        case -1 :: -2 :: Nil =>
+          utf16LEDecode
+        case _ =>
+          new ZSink(ZChannel.write(bytes) >>> utf16BEDecode.channel)
+      }
+    }
+
+  def utf16BEDecode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    utfFixedLengthDecode(StandardCharsets.UTF_16BE, 2)
+
+  def utf16LEDecode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    utfFixedLengthDecode(StandardCharsets.UTF_16LE, 2)
+
+  def utf32Decode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    ZSink.take[Err, Byte](4).flatMap { bytes =>
+      bytes.toList match {
+        case 0 :: 0 :: -2 :: -1 :: Nil =>
+          utf32BEDecode
+        case -1 :: -2 :: 0 :: 0 :: Nil =>
+          utf32LEDecode
+        case _ =>
+          new ZSink(ZChannel.write(bytes) >>> utf32BEDecode.channel)
+      }
+    }
+
+  def utf32BEDecode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    utfFixedLengthDecode(Charset.forName("UTF-32BE"), 4)
+
+  def utf32LEDecode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    utfFixedLengthDecode[Err](Charset.forName("UTF-32LE"), 4)
+
+  private def utfFixedLengthDecode[Err](charset: Charset, width: Int) = {
+    def reader(buffer: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Any, Err, Chunk[Byte], Option[String]] =
+      ZChannel.readWith(
+        (in: Chunk[Byte]) => {
+          val data      = buffer ++ in
+          val remainder = data.length % width
+          if (remainder == 0) {
+            val decoded = new String(data.toArray, charset)
+            ZChannel.end(Some(decoded))
+          } else if (data.length > width) {
+            val (fullChunk, rest) = data.splitAt(data.length - remainder)
+            val decoded           = new String(fullChunk.toArray, charset)
+            ZChannel.write(rest) *> ZChannel.end(Some(decoded))
+          } else {
+            reader(data.materialize)
+          }
+        },
+        (err: Err) => ZChannel.fail(err),
+        (_: Any) =>
+          if (buffer.isEmpty) ZChannel.end(None)
+          else ZChannel.end(Some(new String(buffer.toArray, charset)))
+      )
+
+    new ZSink(reader(Chunk.empty))
+  }
+
+  def usASCIIDecode[Err]: ZSink[Any, Err, Byte, Err, Nothing, Option[String]] = {
+    lazy val reader: ZChannel[Any, Err, Chunk[Byte], Any, Err, Nothing, Option[String]] = ZChannel.readWith(
+      (in: Chunk[Byte]) =>
+        if (in.nonEmpty) ZChannel.end(Some(new String(in.toArray, StandardCharsets.US_ASCII)))
+        else reader,
+      (err: Err) => ZChannel.fail(err),
+      (_: Any) => ZChannel.end(None)
+    )
+
+    new ZSink(reader)
   }
 }
