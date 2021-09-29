@@ -17,30 +17,32 @@
 package zio.test
 
 import zio.stream.ZStream
-import zio.{Cause, Exit, ZIO, Zippable}
+import zio.{ZIO, Zippable}
 
 /**
  * A sample is a single observation from a random variable, together with a
  * tree of "shrinkings" used for minimization of "large" failures.
  */
-final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
+final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Option[Sample[R, A]]]) { self =>
 
   /**
    * A symbolic alias for `zip`.
    */
+  @deprecated("use <*>", "2.0.0")
   def <&>[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
     self.zip(that)
 
   /**
-   * A symbolic alias for `cross`.
+   * A symbolic alias for `zip`.
    */
   def <*>[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
-    self.cross(that)
+    self.zip(that)
 
   /**
    * Composes this sample with the specified sample to create a cartesian
    * product of values and shrinkings.
    */
+  @deprecated("use zip", "2.0.0")
   def cross[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
     self.crossWith(that)(zippable.zip(_, _))
 
@@ -48,6 +50,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
    * Composes this sample with the specified sample to create a cartesian
    * product of values and shrinkings with the specified function.
    */
+  @deprecated("use zipWith", "2.0.0")
   def crossWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 
@@ -56,20 +59,20 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
    * not meet the specified predicate and recursively filtering the shrink
    * tree.
    */
-  def filter(f: A => Boolean): ZStream[R, Nothing, Sample[R, A]] =
-    if (f(value)) ZStream(Sample(value, shrink.flatMap(_.filter(f))))
-    else shrink.flatMap(_.filter(f))
+  def filter(f: A => Boolean): ZStream[R, Nothing, Option[Sample[R, A]]] =
+    if (f(value)) ZStream(Some(Sample(value, shrink.flatMap(_.map(_.filter(f)).getOrElse(ZStream.empty)))))
+    else shrink.flatMap(_.map(_.filter(f)).getOrElse(ZStream.empty))
 
   def flatMap[R1 <: R, B](f: A => Sample[R1, B]): Sample[R1, B] = {
     val sample = f(value)
-    Sample(sample.value, sample.shrink ++ shrink.map(_.flatMap(f)))
+    Sample(sample.value, mergeStream(sample.shrink, shrink.map(_.map(_.flatMap(f)))))
   }
 
   def foreach[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): ZIO[R1, Nothing, Sample[R1, B]] =
-    f(value).map(Sample(_, shrink.mapZIO(_.foreach(f))))
+    f(value).map(Sample(_, shrink.mapZIO(ZIO.foreach(_)(_.foreach(f)))))
 
   def map[B](f: A => B): Sample[R, B] =
-    Sample(f(value), shrink.map(_.map(f)))
+    Sample(f(value), shrink.map(_.map(_.map(f))))
 
   /**
    * Converts the shrink tree into a stream of shrinkings by recursively
@@ -81,63 +84,23 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     if (!f(value))
       ZStream(value)
     else
-      ZStream(value) ++ shrink.takeUntil(v => f(v.value)).flatMap(_.shrinkSearch(f))
+      ZStream(value) ++ shrink
+        .takeUntil(v => v.fold(false)(v => f(v.value)))
+        .flatMap(_.map(_.shrinkSearch(f)).getOrElse(ZStream.empty))
 
   /**
-   * Zips two samples together pairwise.
+   * Composes this sample with the specified sample to create a cartesian
+   * product of values and shrinkings.
    */
   def zip[R1 <: R, B](that: Sample[R1, B])(implicit zippable: Zippable[A, B]): Sample[R1, zippable.Out] =
     self.zipWith(that)(zippable.zip(_, _))
 
   /**
-   * Zips two samples together pairwise with the specified function.
+   * Composes this sample with the specified sample to create a cartesian
+   * product of values and shrinkings with the specified function.
    */
-  def zipWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] = {
-    type State = (Boolean, Boolean, Option[Sample[R, A]], Option[Sample[R1, B]])
-    val value = f(self.value, that.value)
-    val shrink = self.shrink
-      .combine[R1, Nothing, State, Sample[R1, B], Sample[R1, C]](that.shrink)((false, false, None, None)) {
-        case ((leftDone, rightDone, s1, s2), left, right) =>
-          left.exit.zipWith(right.exit) {
-            case (Exit.Success(l), Exit.Success(r)) =>
-              Exit.succeed((zipWith(r)(f), (leftDone, rightDone, Some(l), Some(r))))
-
-            case (Exit.Success(l), Exit.Failure(cause)) =>
-              Cause.flipCauseOption(cause) match {
-                case Some(c) => Exit.failCause(c)
-                case None =>
-                  s2 match {
-                    case Some(r) => Exit.succeed((l.zipWith(r)(f), (leftDone, rightDone, Some(l), s2)))
-                    case None    => Exit.succeed((l.map(f(_, that.value)), (leftDone, true, Some(l), s2)))
-                  }
-              }
-
-            case (Exit.Failure(cause), Exit.Success(r)) =>
-              Cause.flipCauseOption(cause) match {
-                case Some(c) => Exit.failCause(c)
-                case None =>
-                  s1 match {
-                    case Some(l) => Exit.succeed((l.zipWith(r)(f), (leftDone, rightDone, s1, Some(r))))
-                    case None    => Exit.succeed((r.map(f(self.value, _)), (true, rightDone, s1, Some(r))))
-                  }
-              }
-
-            case (Exit.Failure(causeL), Exit.Failure(causeR)) =>
-              (Cause.flipCauseOption(causeL), Cause.flipCauseOption(causeR)) match {
-                case (None, None) =>
-                  (leftDone, rightDone, s1, s2) match {
-                    case (false, _, _, Some(r)) => Exit.succeed((r.map(f(self.value, _)), (true, rightDone, s1, s2)))
-                    case (_, false, Some(l), _) => Exit.succeed((l.map(f(_, that.value)), (leftDone, true, None, s2)))
-                    case _                      => Exit.fail(None)
-                  }
-                case (Some(cl), Some(cr)) => Exit.failCause(Cause.Both(cl, cr))
-                case (_, Some(c))         => Exit.failCause(c)
-                case (Some(c), _)         => Exit.failCause(c)
-              }
-          }
-      }
-    Sample(value, shrink)
-  }
+  def zipWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C): Sample[R1, C] =
+    self.flatMap(a => that.map(b => f(a, b)))
 }
 
 object Sample {
@@ -176,6 +139,6 @@ object Sample {
 
   def unfold[R, A, S](s: S)(f: S => (A, ZStream[R, Nothing, S])): Sample[R, A] = {
     val (value, shrink) = f(s)
-    Sample(value, shrink.map(unfold(_)(f)))
+    Sample(value, shrink.map(s => Some(unfold(s)(f))).intersperse(None))
   }
 }
