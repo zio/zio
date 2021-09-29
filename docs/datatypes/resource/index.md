@@ -193,9 +193,9 @@ def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
 
 This is where the `ZManaged` provides us a composable and flexible way of allocating resources.  They can be composed with any `ZIO` effect by converting them using the `ZIO#toManaged` operator.
 
-`ZManaged` has several type aliases, each of which is useful for a specific workflow:
+[`ZManaged`](zmanaged.md) has several type aliases, each of which is useful for a specific workflow:
 
-- **[Managed](managed.md)**— `Managed[E, A]` is a type alias for `Managed[Any, E, A]`.
+- **[Managed](managed.md)**— `Managed[E, A]` is a type alias for `ZManaged[Any, E, A]`.
 - **[TaskManaged](task-managed.md)**— `TaskManaged[A]` is a type alias for `ZManaged[Any, Throwable, A]`.
 - **[RManaged](rmanaged.md)**— `RManaged[R, A]` is a type alias for `ZManaged[R, Throwable, A]`.
 - **[UManaged](umanaged.md)**— `UManaged[A]` is a type alias for `ZManaged[Any, Nothing, A]`.
