@@ -49,6 +49,18 @@ module.exports = {
                 "datatypes/contextual/urlayer",
                 "datatypes/contextual/tasklayer"
             ]
+        },
+        {
+            type: "category",
+            label: "Built-in Services",
+            items: [
+                "services/index",
+                "services/console",
+                "services/clock",
+                "services/random",
+                "services/blocking",
+                "services/system"
+            ]
         }
     ],
     "Concurrency": [
@@ -150,16 +162,6 @@ module.exports = {
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
       "datatypes/misc/supervisor"
-    ]
-  },
-  "services-sidebar": {
-    "Services": [
-      "services/index",
-      "services/console",
-      "services/clock",
-      "services/random",
-      "services/blocking",
-      "services/system"
     ]
   },
   "usecases-sidebar": {

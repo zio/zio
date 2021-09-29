@@ -251,7 +251,7 @@ for {
 
 ### Interrupting Blocking Operations
 
-The `zio.blocking.effectBlocking` is interruptible by default, but its interruption will not translate to the JVM thread interruption. Instead, we can use `zio.blocking.effectBlockingInterruptible` method. By using `effectBlockingInterruptible` method if that effect is interrupted, it will translate the ZIO interruption to the JVM thread interruption. ZIO has a comprehensive guide about blocking operation at [blocking service](../../services/blocking.md) page.
+The `zio.blocking.effectBlocking` is interruptible by default, but its interruption will not translate to the JVM thread interruption. Instead, we can use `zio.blocking.effectBlockingInterruptible` method. By using `effectBlockingInterruptible` method if that effect is interrupted, it will translate the ZIO interruption to the JVM thread interruption. ZIO has a comprehensive guide about blocking operation at [blocking service](../contextual/services/blocking.md) page.
 
 ### Automatic Interruption
 
