@@ -157,6 +157,21 @@ module.exports = {
         },
         "datatypes/stream/subscription-ref"
     ],
+      "Metrics": [
+          "datatypes/metrics/index",
+          {
+              type: "category",
+              label: "Metric Types",
+              items: [
+                  "datatypes/metrics/counter",
+                  "datatypes/metrics/gauge",
+                  "datatypes/metrics/histogram",
+                  "datatypes/metrics/summary",
+                  "datatypes/metrics/setcount"
+              ]
+          },
+          "datatypes/metrics/metriclabel"
+      ],
     "Miscellaneous": [
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
