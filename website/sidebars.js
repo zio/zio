@@ -54,11 +54,11 @@ module.exports = {
             type: "category",
             label: "Built-in Services",
             items: [
-                "services/index",
-                "services/console",
-                "services/clock",
-                "services/random",
-                "services/system"
+                "datatypes/contextual/services/index",
+                "datatypes/contextual/services/console",
+                "datatypes/contextual/services/clock",
+                "datatypes/contextual/services/random",
+                "datatypes/contextual/services/system"
             ]
         }
     ],
