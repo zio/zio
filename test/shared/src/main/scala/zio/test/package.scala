@@ -20,6 +20,7 @@ import zio.stream.{ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.environment._
 
+import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.language.implicitConversions
 import scala.util.Try
 
@@ -434,7 +435,7 @@ package object test extends CompileVariants {
   def checkAllM[R <: Has[TestConfig], R1 <: R, E, A](
     rv: Gen[R, A]
   )(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
-    checkStream(rv.sample)(test)
+    checkStream(rv.sample.collectSome)(test)
 
   /**
    * A version of `checkAllM` that accepts two random variables.
@@ -508,7 +509,7 @@ package object test extends CompileVariants {
   def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
-    checkStreamPar(rv.sample, parallelism)(test)
+    checkStreamPar(rv.sample.collectSome, parallelism)(test)
 
   /**
    * A version of `checkAllMPar` that accepts two random variables.
@@ -715,12 +716,20 @@ package object test extends CompileVariants {
   /**
    * Builds a suite containing a number of other specs.
    */
-  def suite[R, E, T](label: String)(specs: Spec[R, E, T]*): Spec[R, E, T] =
-    Spec.labeled(label, Spec.multiple(Chunk.fromIterable(specs)))
+  def suite[In](label: String)(specs: In*)(implicit
+    suiteConstructor: SuiteConstructor[In]
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
+    Spec.labeled(
+      label,
+      if (specs.length == 0) Spec.empty
+      else if (specs.length == 1) suiteConstructor(specs.head)
+      else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
+    )
 
   /**
    * Builds an effectual suite containing a number of other specs.
    */
+  @deprecated("use suite", "2.0.0")
   def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Spec[R, E, T] =
     Spec.labeled(label, Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).toManaged))
 
@@ -799,7 +808,7 @@ package object test extends CompileVariants {
       @deprecated("use checkN", "2.0.0")
       def apply[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A])(
         test: A => ZIO[R1, E, TestResult]
-      ): ZIO[R1, E, TestResult] = checkStream(rv.sample.forever.take(n.toLong))(test)
+      ): ZIO[R1, E, TestResult] = checkStream(rv.sample.forever.collectSome.take(n.toLong))(test)
       @deprecated("use checkN", "2.0.0")
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => ZIO[R1, E, TestResult]
@@ -906,4 +915,159 @@ package object test extends CompileVariants {
           .catchAll(ZStream.succeed(_))
       }
     }
+
+  /**
+   * An implementation of `ZStream#flatMap` that supports breadth first search.
+   */
+  private[test] def flatMapStream[R, R1 <: R, A, B](
+    stream: ZStream[R, Nothing, Option[A]]
+  )(f: A => ZStream[R1, Nothing, Option[B]]): ZStream[R1, Nothing, Option[B]] = {
+
+    sealed trait State
+
+    case object PullOuter extends State
+    case class PullInner(
+      stream: ZIO[R1, Option[Nothing], Chunk[Option[B]]],
+      chunk: Chunk[Option[B]],
+      index: Int,
+      finalizer: ZManaged.Finalizer
+    ) extends State
+
+    def pull(
+      outerDone: Ref[Boolean],
+      outerStream: ZIO[R, Option[Nothing], Chunk[Option[A]]],
+      currentOuterChunk: Ref[(Chunk[Option[A]], Int)],
+      currentInnerStream: Ref[Option[PullInner]],
+      currentStreams: Ref[ScalaQueue[State]],
+      innerFinalizers: ZManaged.ReleaseMap
+    ): ZIO[R1, Option[Nothing], Chunk[Option[B]]] = {
+
+      def pullNonEmpty[R, E, A](pull: ZIO[R, Option[E], Chunk[A]]): ZIO[R, Option[E], Chunk[A]] =
+        pull.flatMap(as => if (as.nonEmpty) ZIO.succeed(as) else pullNonEmpty(pull))
+
+      def pullOuter(
+        outerStream: ZIO[R, Option[Nothing], Chunk[Option[A]]],
+        outerChunk: Chunk[Option[A]],
+        outerChunkIndex: Int
+      ): ZIO[R1, Option[Nothing], (Option[A], Chunk[Option[A]], Int)] =
+        if (outerChunkIndex < outerChunk.size)
+          ZIO.succeedNow((outerChunk(outerChunkIndex), outerChunk, outerChunkIndex + 1))
+        else
+          pullNonEmpty(outerStream).map(chunk => (chunk(0), chunk, 1))
+
+      def openInner(a: A): ZIO[R1, Nothing, (ZIO[R1, Option[Nothing], Chunk[Option[B]]], ZManaged.Finalizer)] =
+        ZIO.uninterruptibleMask { restore =>
+          for {
+            releaseMap <- ZManaged.ReleaseMap.make
+            pull       <- restore(f(a).process.zio.provideSome[R1]((_, releaseMap)).map(_._2))
+            finalizer  <- innerFinalizers.add(releaseMap.releaseAll(_, ExecutionStrategy.Sequential))
+          } yield (pull, finalizer)
+        }
+
+      def pullInner(
+        innerStream: ZIO[R1, Option[Nothing], Chunk[Option[B]]],
+        innerChunk: Chunk[Option[B]],
+        innerChunkIndex: Int
+      ): ZIO[R1, Option[Nothing], (Option[B], Chunk[Option[B]], Int)] =
+        if (innerChunkIndex < innerChunk.size)
+          ZIO.succeedNow((innerChunk(innerChunkIndex), innerChunk, innerChunkIndex + 1))
+        else
+          pullNonEmpty(innerStream).map(chunk => (chunk(0), chunk, 1))
+
+      currentInnerStream.get.flatMap {
+        case None =>
+          currentStreams.get.map(_.headOption).flatMap {
+            case None =>
+              ZIO.fail(None)
+            case Some(PullInner(innerStream, chunk, index, innerFinalizer)) =>
+              currentInnerStream.set(Some(PullInner(innerStream, chunk, index, innerFinalizer))) *>
+                currentStreams.update(_.tail) *>
+                pull(outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers)
+            case Some(PullOuter) =>
+              outerDone.get.flatMap { done =>
+                if (done)
+                  currentStreams.get.flatMap { queue =>
+                    if (queue.size == 1) ZIO.fail(None)
+                    else {
+                      currentStreams.update(_.tail.enqueue(PullOuter)) *>
+                        ZIO.succeedNow(Chunk(None))
+                    }
+                  }
+                else
+                  currentOuterChunk.get.flatMap { case (outerChunk, outerChunkIndex) =>
+                    pullOuter(outerStream, outerChunk, outerChunkIndex).foldZIO(
+                      _ =>
+                        outerDone.set(true) *>
+                          pull(
+                            outerDone,
+                            outerStream,
+                            currentOuterChunk,
+                            currentInnerStream,
+                            currentStreams,
+                            innerFinalizers
+                          ),
+                      {
+                        case (Some(a), outerChunk, outerChunkIndex) =>
+                          openInner(a).flatMap { case (innerStream, innerFinalizer) =>
+                            currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
+                              currentInnerStream.set(Some(PullInner(innerStream, Chunk.empty, 0, innerFinalizer))) *>
+                              pull(
+                                outerDone,
+                                outerStream,
+                                currentOuterChunk,
+                                currentInnerStream,
+                                currentStreams,
+                                innerFinalizers
+                              )
+                          }
+                        case (None, outerChunk, outerChunkIndex) =>
+                          currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
+                            currentStreams.update(_.tail.enqueue(PullOuter)) *>
+                            ZIO.succeedNow(Chunk(None))
+                      }
+                    )
+                  }
+              }
+          }
+        case Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer)) =>
+          pullInner(innerStream, innerChunk, innerChunkIndex).foldZIO(
+            _ =>
+              innerFinalizer(Exit.unit) *>
+                currentInnerStream.set(None) *>
+                pull(outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers),
+            {
+              case (None, innerChunk, innerChunkIndex) =>
+                currentInnerStream.set(None) *>
+                  currentStreams.update(
+                    _.enqueue(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))
+                  ) *>
+                  pull(outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers)
+              case (Some(b), innerChunk, innerChunkIndex) =>
+                currentInnerStream.set(Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))) *>
+                  ZIO.succeedNow(Chunk(Some(b)))
+            }
+          )
+      }
+    }
+
+    ZStream {
+      for {
+        outerDone          <- Ref.make(false).toManaged
+        outerStream        <- stream.process
+        currentOuterChunk  <- Ref.make[(Chunk[Option[A]], Int)]((Chunk.empty, 0)).toManaged
+        currentInnerStream <- Ref.make[Option[PullInner]](None).toManaged
+        currentStreams     <- Ref.make[ScalaQueue[State]](ScalaQueue(PullOuter)).toManaged
+        innerFinalizers    <- ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential)
+      } yield pull(outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers)
+    }
+  }
+
+  /**
+   * An implementation of `ZStream#merge` that supports breadth first search.
+   */
+  private[test] def mergeStream[R, A](
+    left: ZStream[R, Nothing, Option[A]],
+    right: ZStream[R, Nothing, Option[A]]
+  ): ZStream[R, Nothing, Option[A]] =
+    flatMapStream(ZStream(Some(left), Some(right)))(identity)
 }

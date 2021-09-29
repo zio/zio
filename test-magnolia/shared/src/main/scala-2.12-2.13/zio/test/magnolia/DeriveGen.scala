@@ -212,7 +212,7 @@ object DeriveGen {
   type Typeclass[T] = DeriveGen[T]
 
   def combine[T](caseClass: CaseClass[Typeclass, T]): Typeclass[T] =
-    instance(Gen.suspend(Gen.zipAll(caseClass.parameters.map(_.typeclass.derive)).map(caseClass.rawConstruct)))
+    instance(Gen.suspend(Gen.collectAll(caseClass.parameters.map(_.typeclass.derive)).map(caseClass.rawConstruct)))
 
   def dispatch[T](sealedTrait: SealedTrait[Typeclass, T]): Typeclass[T] =
     instance(Gen.suspend(Gen.oneOf(sealedTrait.subtypes.map(_.typeclass.derive): _*)))

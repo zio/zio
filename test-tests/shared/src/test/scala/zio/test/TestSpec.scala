@@ -65,6 +65,14 @@ object TestSpec extends ZIOBaseSpec {
       for {
         message <- STM.succeed("Hello from an STM transaction!")
       } yield assert(message)(anything)
+    },
+    suite("suites can be effectual") {
+      ZIO.succeed {
+        Chunk(
+          test("a test in an effectual suite")(assertCompletes),
+          test("another test in an effectual suite")(assertCompletes)
+        )
+      }
     }
   )
 }

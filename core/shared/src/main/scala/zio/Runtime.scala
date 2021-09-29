@@ -155,8 +155,8 @@ trait Runtime[+R] {
                 }
               }
 
-            case ZIO.Tags.Succeed =>
-              val zio = curZio.asInstanceOf[ZIO.Succeed[A]]
+            case ZIO.Tags.SucceedNow =>
+              val zio = curZio.asInstanceOf[ZIO.SucceedNow[A]]
 
               if (x1 ne null) {
                 val k = x1
@@ -171,8 +171,8 @@ trait Runtime[+R] {
 
               done = Exit.failCause(zio.fill(() => null))
 
-            case ZIO.Tags.EffectTotal =>
-              val zio = curZio.asInstanceOf[ZIO.EffectTotal[A]]
+            case ZIO.Tags.Succeed =>
+              val zio = curZio.asInstanceOf[ZIO.Succeed[A]]
 
               if (x1 ne null) {
                 val k = x1

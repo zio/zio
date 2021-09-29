@@ -4,7 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.GenUtils._
-import zio.test.TestAspect.{nonFlaky, scala2Only, setSeed}
+import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test.{check => Check, checkN => CheckN}
 
 import java.time.{Duration => _, _}
@@ -631,53 +631,14 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(smallInt.zipWith(smallInt)(_ + _))(-20)
       }
     ),
-    suite("zipWith")(
-      test("left preservation") {
-        check(deterministic, deterministic) { (a, b) =>
-          for {
-            left  <- sample(a.zip(b).map(_._1))
-            right <- sample(a)
-          } yield assert(left)(startsWith(right))
-        }
-      } @@ scala2Only,
-      test("right preservation") {
-        check(deterministic, deterministic) { (a, b) =>
-          for {
-            left  <- sample(a.zip(b).map(_._2))
-            right <- sample(b)
-          } yield assert(left)(startsWith(right))
-        }
-      } @@ scala2Only,
-      test("shrinking") {
-        check(random, random) { (a, b) =>
-          for {
-            left  <- shrink(a.zip(b))
-            right <- shrink(a.cross(b))
-          } yield assert(left)(equalTo(right))
-        }
-      },
-      test("shrink search") {
-        val gen      = shrinkable.zip(shrinkable)
-        val smallInt = Gen.int(0, 9)
-        check(smallInt, smallInt) { (m, n) =>
-          for {
-            result <- shrinkWith(gen) { case (x, y) => x < m && y < n }
-          } yield assert(result.reverse.headOption)(isSome(equalTo((m, 0)) || equalTo((0, n))))
-        }
-      },
-      test("determinism") {
-        val gen = Gen.int <&> Gen.int
-        assertM(gen.runHead)(isSome(equalTo((-1170105035, 234785527))))
-      } @@ setSeed(42) @@ nonFlaky
-    ),
     test("fromIterable constructs deterministic generators") {
-      val expected   = List.range(1, 6).flatMap(x => List.range(1, 6).map(y => x + y))
+      val expected   = List(2, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 10)
       val exhaustive = Gen.fromIterable(1 until 6)
-      val actual     = exhaustive.crossWith(exhaustive)(_ + _)
+      val actual     = exhaustive.zipWith(exhaustive)(_ + _)
       checkFinite(actual)(equalTo(expected))
     } @@ scala2Only, //todo fix when #2232 is resolved
     test("size can be modified locally") {
-      val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
+      val getSize = Gen.size.sample.collectSome.map(_.value).runCollect.map(_.head)
       val result = for {
         x <- Sized.withSize(200)(getSize)
         y <- getSize
@@ -708,8 +669,8 @@ object GenSpec extends ZIOBaseSpec {
     test("runHead") {
       assertM(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },
-    test("crossAll") {
-      val gen = Gen.crossAll(
+    test("collectAll") {
+      val gen = Gen.collectAll(
         List(
           Gen.fromIterable(List(1, 2)),
           Gen.fromIterable(List(3)),
@@ -722,23 +683,6 @@ object GenSpec extends ZIOBaseSpec {
             List(1, 3, 4),
             List(1, 3, 5),
             List(2, 3, 4),
-            List(2, 3, 5)
-          )
-        )
-      )
-    },
-    test("zipAll") {
-      val gen = Gen.zipAll(
-        List(
-          Gen.fromIterable(List(1, 2)),
-          Gen.fromIterable(List(3)),
-          Gen.fromIterable(List(4, 5))
-        )
-      )
-      assertM(gen.runCollect)(
-        equalTo(
-          List(
-            List(1, 3, 4),
             List(2, 3, 5)
           )
         )
