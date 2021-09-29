@@ -198,7 +198,8 @@ module.exports = {
       "howto/interop/with-guava"
     ],
     "Migrate": [
-      "howto/migrate/from-monix"
+      "howto/migrate/from-monix",
+      "howto/migrate/zio-2.x-migration-guide"
     ]
   },
   "resources-sidebar": {
