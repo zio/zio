@@ -249,7 +249,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("samples sets the number of sufficient samples to the specified value") {
       for {
         ref   <- Ref.make(0)
-        _     <- checkM(Gen.int.noShrink)(_ => assertM(ref.update(_ + 1))(anything))
+        _     <- check(Gen.int.noShrink)(_ => assertM(ref.update(_ + 1))(anything))
         value <- ref.get
       } yield assert(value)(equalTo(42))
     } @@ samples(42),
@@ -272,7 +272,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("shrinks sets the maximum number of shrinkings to the specified value") {
       for {
         ref   <- Ref.make(0)
-        _     <- checkM(Gen.int)(_ => assertM(ref.update(_ + 1))(nothing))
+        _     <- check(Gen.int)(_ => assertM(ref.update(_ + 1))(nothing))
         value <- ref.get
       } yield assert(value)(equalTo(1))
     } @@ shrinks(0),

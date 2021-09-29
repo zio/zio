@@ -276,7 +276,7 @@ object ZQueueSpec extends ZIOBaseSpec {
         } yield assert(res)(hasSize(isGreaterThanEqualTo(5)))
       },
       test("returns elements in the correct order") {
-        checkM(Gen.chunkOf(Gen.int(-10, 10))) { as =>
+        check(Gen.chunkOf(Gen.int(-10, 10))) { as =>
           for {
             queue <- Queue.bounded[Int](100)
             f     <- ZIO.foreach(as)(queue.offer).fork
@@ -844,7 +844,7 @@ object ZQueueSpec extends ZIOBaseSpec {
       } yield assertCompletes
     } @@ jvm(nonFlaky),
     test("many to many") {
-      checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+      check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
         for {
           queue    <- Queue.bounded[Int](n)
           offerors <- ZIO.foreach(as)(a => queue.offer(a).fork)

@@ -3,7 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.{Gen, ZSpec, assert, assertM, checkM}
+import zio.test.{Gen, ZSpec, assert, assertM, check}
 
 import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
 import java.net.InetSocketAddress
@@ -34,12 +34,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                         .runCollect
           } yield assert(result)(equalTo(Chunk.empty))
         },
-        test("asyncMaybe Some")(checkM(Gen.chunkOf(Gen.int)) { chunk =>
+        test("asyncMaybe Some")(check(Gen.chunkOf(Gen.int)) { chunk =>
           val s = ZStream.asyncMaybe[Any, Throwable, Int](_ => Some(ZStream.fromIterable(chunk)))
 
           assertM(s.runCollect.map(_.take(chunk.size)))(equalTo(chunk))
         }),
-        test("asyncMaybe None")(checkM(Gen.chunkOf(Gen.int)) { chunk =>
+        test("asyncMaybe None")(check(Gen.chunkOf(Gen.int)) { chunk =>
           val s = ZStream.asyncMaybe[Any, Throwable, Int] { k =>
             global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
             None
@@ -70,7 +70,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         }
       ),
       suite("asyncZIO")(
-        test("asyncZIO")(checkM(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
+        test("asyncZIO")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
           for {
             latch <- Promise.make[Nothing, Unit]
             fiber <- ZStream
@@ -120,7 +120,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         }
       ),
       suite("asyncManaged")(
-        test("asyncManaged")(checkM(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
+        test("asyncManaged")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
           for {
             latch <- Promise.make[Nothing, Unit]
             fiber <- ZStream
@@ -186,7 +186,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             result <- cancelled.get
           } yield assert(result)(isTrue)
         },
-        test("asyncInterrupt Right")(checkM(Gen.chunkOf(Gen.int)) { chunk =>
+        test("asyncInterrupt Right")(check(Gen.chunkOf(Gen.int)) { chunk =>
           val s = ZStream.asyncInterrupt[Any, Throwable, Int](_ => Right(ZStream.fromIterable(chunk)))
 
           assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
@@ -298,7 +298,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         }
       ),
       suite("fromSocketServer")(
-        test("read data")(checkM(Gen.string.filter(_.nonEmpty)) { message =>
+        test("read data")(check(Gen.string.filter(_.nonEmpty)) { message =>
           for {
             refOut <- Ref.make("")
 
@@ -322,7 +322,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             _ <- server.interrupt
           } yield assert(receive)(equalTo(message))
         }),
-        test("write data")(checkM(Gen.string.filter(_.nonEmpty)) { message =>
+        test("write data")(check(Gen.string.filter(_.nonEmpty)) { message =>
           (for {
             refOut <- Ref.make("")
 
@@ -351,7 +351,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       ),
       suite("fromOutputStreamWriter")(
         test("reads what is written") {
-          checkM(Gen.listOf(Gen.chunkOf(Gen.byte)), Gen.int(1, 10)) { (bytess, chunkSize) =>
+          check(Gen.listOf(Gen.chunkOf(Gen.byte)), Gen.int(1, 10)) { (bytess, chunkSize) =>
             val write    = (out: OutputStream) => for (bytes <- bytess) out.write(bytes.toArray)
             val expected = bytess.foldLeft[Chunk[Byte]](Chunk.empty)(_ ++ _)
             ZStream.fromOutputStreamWriter(write, chunkSize).runCollect.map(assert(_)(equalTo(expected)))

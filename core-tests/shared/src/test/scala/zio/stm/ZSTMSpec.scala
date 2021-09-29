@@ -150,7 +150,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(STM.fail(-1).flatMapError(s => STM.succeed(s"log: $s")).commit.exit)(fails(equalTo("log: -1")))
       } @@ zioTag(errors),
       test("flatten") {
-        checkM(Gen.alphaNumericString) { str =>
+        check(Gen.alphaNumericString) { str =>
           val tx =
             for {
               flatten1 <- STM.succeed(STM.succeed(str)).flatten
@@ -186,19 +186,19 @@ object ZSTMSpec extends ZIOBaseSpec {
       } @@ zioTag(errors),
       suite("foldLeft")(
         test("with a successful step function sums the list properly") {
-          checkM(Gen.listOf(Gen.int)) { l =>
+          check(Gen.listOf(Gen.int)) { l =>
             val tx = STM.foldLeft(l)(0)((acc, el) => STM.succeed(acc + el))
             assertM(tx.commit)(equalTo(l.sum))
           }
         },
         test("with a failing step function returns a failed transaction") {
-          checkM(Gen.listOf1(Gen.int)) { l =>
+          check(Gen.listOf1(Gen.int)) { l =>
             val tx = STM.foldLeft(l)(0)((_, _) => STM.fail("fail"))
             assertM(tx.commit.exit)(fails(equalTo("fail")))
           }
         },
         test("run sequentially from left to right") {
-          checkM(Gen.listOf1(Gen.int)) { l =>
+          check(Gen.listOf1(Gen.int)) { l =>
             val tx = STM.foldLeft(l)(List.empty[Int])((acc, el) => STM.succeed(el :: acc))
             assertM(tx.commit)(equalTo(l.reverse))
           }
@@ -206,19 +206,19 @@ object ZSTMSpec extends ZIOBaseSpec {
       ),
       suite("foldRight")(
         test("with a successful step function sums the list properly") {
-          checkM(Gen.listOf(Gen.int)) { l =>
+          check(Gen.listOf(Gen.int)) { l =>
             val tx = STM.foldRight(l)(0)((el, acc) => STM.succeed(acc + el))
             assertM(tx.commit)(equalTo(l.sum))
           }
         },
         test("with a failing step function returns a failed transaction") {
-          checkM(Gen.listOf1(Gen.int)) { l =>
+          check(Gen.listOf1(Gen.int)) { l =>
             val tx = STM.foldRight(l)(0)((_, _) => STM.fail("fail"))
             assertM(tx.commit.exit)(fails(equalTo("fail")))
           }
         },
         test("run sequentially from right to left") {
-          checkM(Gen.listOf1(Gen.int)) { l =>
+          check(Gen.listOf1(Gen.int)) { l =>
             val tx = STM.foldRight(l)(List.empty[Int])((el, acc) => STM.succeed(el :: acc))
             assertM(tx.commit)(equalTo(l))
           }

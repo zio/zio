@@ -36,7 +36,7 @@ object StreamSpec extends ZIOBaseSpec {
           } yield assert(actual.take(4))(equalTo(expected))
         },
         test("is consistent with ZStream#flatMap") {
-          checkM(genStream, genIntStreamFunction) { (stream, f) =>
+          check(genStream, genIntStreamFunction) { (stream, f) =>
             val left  = flatMapStream(stream.filter(_.isDefined))(a => f(a).filter(_.isDefined))
             val right = stream.collectSome.flatMap(a => f(a).collectSome).map(Some(_))
             assertEqualStream(left, right)
@@ -44,21 +44,21 @@ object StreamSpec extends ZIOBaseSpec {
         },
         suite("laws")(
           test("left identity") {
-            checkM(genStream) { stream =>
+            check(genStream) { stream =>
               val left  = flatMapStream(stream)(a => ZStream(Some(a)))
               val right = stream
               assertEqualStream(left, right)
             }
           },
           test("right identity") {
-            checkM(Gen.int, genIntStreamFunction) { (a, f) =>
+            check(Gen.int, genIntStreamFunction) { (a, f) =>
               val left  = flatMapStream(ZStream(Some(a)))(f)
               val right = f(a)
               assertEqualStream(left, right)
             }
           },
           test("associativity") {
-            checkM(Gen.int, genIntStreamFunction, genIntStreamFunction) { (a, f, g) =>
+            check(Gen.int, genIntStreamFunction, genIntStreamFunction) { (a, f, g) =>
               val left  = flatMapStream(flatMapStream(ZStream(Some(a)))(f))(g)
               val right = flatMapStream(ZStream(Some(a)))(a => flatMapStream(f(a))(g))
               assertEqualStream(left, right)
