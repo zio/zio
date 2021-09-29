@@ -42,41 +42,6 @@ val readLine: ZIO[Has[Console], IOException, String] =
 
 `ZIO` can be _interpreted_ by the ZIO runtime system into effectful interactions with the external world. Ideally, this occurs at a single time, in our application's `main` function. The `App` class provides this functionality automatically.
 
-## Table of Content
-
-- [Creation](#creation)
-  * [Success Values](#success-values)
-  * [Failure Values](#failure-values)
-  * [From Values](#from-values)
-    + [Option](#option)
-    + [Either](#either)
-    + [Try](#try)
-    + [Future](#future)
-    + [Promise](#promise)
-    + [Fiber](#fiber)
-  * [From Side-Effects](#from-side-effects)
-    + [Synchronous](#synchronous)
-      - [Blocking Synchronous Side-Effects](#blocking-synchronous-side-effects)
-    + [Asynchronous](#asynchronous)
-  * [Creating Suspended Effects](#creating-suspended-effects)
-- [Mapping](#mapping)
-  * [map](#map)
-  * [mapError](#maperror)
-  * [mapEffect](#mapeffect)
-- [Zipping](#zipping)
-  * [zipLeft and zipRight](#zipleft-and-zipright)
-- [Chaining](#chaining)
-- [Parallelism](#parallelism)
-  * [Racing](#racing)
-- [Timeout](#timeout)
-- [Resource Management](#resource-management)
-  * [Finalizing](#finalizing)
-    + [Asynchronous Try / Finally](#asynchronous-try--finally)
-    + [Unstoppable Finalizers](#unstoppable-finalizers)
-  * [AcquireRelease](#acquirerelease)
-- [Unswallowed Exceptions](#unswallowed-exceptions)
-
-
 ## Creation
 
 In this section we explore some of the common ways to create ZIO effects from values, from common Scala types, and from both synchronous and asynchronous side-effects. Here is the summary list of them:
