@@ -57,13 +57,13 @@ object ZSinkSpec extends ZIOBaseSpec {
         }
       ),
       test("head")(
-        checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
+        check(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
           val headOpt = ZStream.fromChunks(chunks: _*).run(ZSink.head[Int])
           assertM(headOpt)(equalTo(chunks.flatMap(_.toSeq).headOption))
         }
       ),
       test("last")(
-        checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
+        check(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
           val lastOpt = ZStream.fromChunks(chunks: _*).run(ZSink.last[Int])
           assertM(lastOpt)(equalTo(chunks.flatMap(_.toSeq).lastOption))
         }
@@ -92,7 +92,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         }
       ),
       test("foldLeft")(
-        checkM(
+        check(
           Gen.small(pureStreamGen(Gen.int, _)),
           Gen.function2(Gen.string),
           Gen.string
@@ -131,7 +131,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       suite("foldZIO")(
         test("foldZIO") {
           val ioGen = successes(Gen.string)
-          checkM(Gen.small(pureStreamGen(Gen.int, _)), Gen.function2(ioGen), ioGen) { (s, f, z) =>
+          check(Gen.small(pureStreamGen(Gen.int, _)), Gen.function2(ioGen), ioGen) { (s, f, z) =>
             for {
               sinkResult <- z.flatMap(z => s.run(ZSink.foldLeftZIO(z)(f)))
               foldResult <- s.fold(List[Int]())((acc, el) => el :: acc)
@@ -176,7 +176,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       ),
       suite("fromQueue")(
         test("enqueues all elements") {
-          checkM(pureStreamOfInts) { stream =>
+          check(pureStreamOfInts) { stream =>
             for {
               queue          <- ZQueue.unbounded[Int]
               streamElements <- stream.run(ZSink.fromQueue(queue) <&> ZSink.collectAll)
@@ -204,7 +204,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       ),
       suite("fromQueueWithShutdown")(
         test("enqueues all elements and shuts down the queue when the stream completes") {
-          checkM(Gen.chunkOfBounded(1, 5)(Gen.int)) { elements =>
+          check(Gen.chunkOfBounded(1, 5)(Gen.int)) { elements =>
             for {
               sourceQueue         <- ZQueue.unbounded[Int]
               targetQueue         <- ZQueue.unbounded[Int]
@@ -245,14 +245,14 @@ object ZSinkSpec extends ZIOBaseSpec {
     ),
     suite("Combinators")(
       test("raceBoth") {
-        checkM(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
+        check(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
           val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
           sinkRaceLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
         }
       },
       suite("zipWithPar")(
         test("coherence") {
-          checkM(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
+          check(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
             val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
             SinkUtils
               .zipParLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
@@ -293,7 +293,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         test("with leftovers") {
           val headAndCount: ZSink[Any, Nothing, Int, Int, (Option[Int], Long)] =
             ZSink.head[Int].flatMap(h => ZSink.count.map(cnt => (h, cnt)))
-          checkM(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
+          check(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
             ZStream.fromChunks(chunks: _*).run(headAndCount).map {
               case (head, count) => {
                 assert(head)(equalTo(chunks.flatten.headOption)) &&
@@ -304,7 +304,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         }
       ),
       test("take")(
-        checkM(Gen.chunkOf(Gen.small(Gen.chunkOfN(_)(Gen.int))), Gen.int) { (chunks, n) =>
+        check(Gen.chunkOf(Gen.small(Gen.chunkOfN(_)(Gen.int))), Gen.int) { (chunks, n) =>
           ZStream
             .fromChunks(chunks: _*)
             .peel(ZSink.take[Int](n))
