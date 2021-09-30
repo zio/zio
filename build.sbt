@@ -583,7 +583,7 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                % "2.11.0" % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
       "io.7mind.izumi"     %% "logstage-core"             % "1.0.8",
-      "org.jsoup"           % "jsoup"                     % "1.14.2" % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.14.3" % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"                   % "scalajs-compiler"              % scalaJSVersion cross CrossVersion.full,
