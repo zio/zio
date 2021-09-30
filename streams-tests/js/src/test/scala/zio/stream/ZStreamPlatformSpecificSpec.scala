@@ -10,7 +10,7 @@ import scala.concurrent.Future
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("ZStream JS")(
-    test("async")(checkM(Gen.chunkOf(Gen.int)) { chunk =>
+    test("async")(check(Gen.chunkOf(Gen.int)) { chunk =>
       val s = ZStream.async[Any, Throwable, Int](k => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
 
       assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
@@ -26,12 +26,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                       .runCollect
         } yield assert(result)(equalTo(Chunk.empty))
       },
-      test("asyncMaybe Some")(checkM(Gen.chunkOf(Gen.int)) { chunk =>
+      test("asyncMaybe Some")(check(Gen.chunkOf(Gen.int)) { chunk =>
         val s = ZStream.asyncMaybe[Any, Throwable, Int](_ => Some(ZStream.fromIterable(chunk)))
 
         assertM(s.runCollect.map(_.take(chunk.size)))(equalTo(chunk))
       }),
-      test("asyncMaybe None")(checkM(Gen.chunkOf(Gen.int)) { chunk =>
+      test("asyncMaybe None")(check(Gen.chunkOf(Gen.int)) { chunk =>
         val s = ZStream.asyncMaybe[Any, Throwable, Int] { k =>
           chunk.foreach(a => k(Task.succeed(Chunk.single(a))))
           None
@@ -62,7 +62,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       }
     ),
     suite("asyncZIO")(
-      test("asyncZIO")(checkM(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
+      test("asyncZIO")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
         for {
           latch <- Promise.make[Nothing, Unit]
           fiber <- ZStream
@@ -111,7 +111,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       }
     ),
     suite("asyncManaged")(
-      test("asyncManaged")(checkM(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
+      test("asyncManaged")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
         for {
           latch <- Promise.make[Nothing, Unit]
           fiber <- ZStream
@@ -177,7 +177,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           result <- cancelled.get
         } yield assert(result)(isTrue)
       },
-      test("asyncInterrupt Right")(checkM(Gen.chunkOf(Gen.int)) { chunk =>
+      test("asyncInterrupt Right")(check(Gen.chunkOf(Gen.int)) { chunk =>
         val s = ZStream.asyncInterrupt[Any, Throwable, Int](_ => Right(ZStream.fromIterable(chunk)))
 
         assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))

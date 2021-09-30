@@ -42,12 +42,15 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
   /**
    * Builds a suite containing a number of other specs.
    */
-  def suite[R, E, T](label: String)(specs: Spec[R, E, T]*): Spec[R, E, T] =
+  def suite[In](label: String)(specs: In*)(implicit
+    suiteConstructor: SuiteConstructor[In]
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
     zio.test.suite(label)(specs: _*)
 
   /**
    * Builds an effectual suite containing a number of other specs.
    */
+  @deprecated("use suite", "2.0.0")
   def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Spec[R, E, T] =
     zio.test.suiteM(label)(specs)
 

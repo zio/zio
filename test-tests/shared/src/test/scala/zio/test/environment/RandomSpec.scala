@@ -69,7 +69,7 @@ object RandomSpec extends ZIOBaseSpec {
       } yield assert(value)(equalTo(-1157408321)) && assert(value2)(equalTo(758500184))
     } @@ nonFlaky,
     test("getting the seed and setting the seed is an identity") {
-      checkM(Gen.long) { seed =>
+      check(Gen.long) { seed =>
         for {
           _        <- TestRandom.setSeed(seed)
           newSeed  <- TestRandom.getSeed
@@ -85,7 +85,7 @@ object RandomSpec extends ZIOBaseSpec {
   def checkClear[A, B <: Has[Random]](generate: SRandom => A)(feed: (ZRandom, List[A]) => UIO[Unit])(
     clear: ZRandom => UIO[Unit]
   )(extract: ZRandom => UIO[A]): URIO[Has[Random] with Has[TestConfig], TestResult] =
-    checkM(Gen.long) { seed =>
+    check(Gen.long) { seed =>
       for {
         sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
@@ -101,7 +101,7 @@ object RandomSpec extends ZIOBaseSpec {
   def checkFeed[A, B >: Has[Random]](generate: SRandom => A)(
     feed: (ZRandom, List[A]) => UIO[Unit]
   )(extract: ZRandom => UIO[A]): URIO[Has[Random] with Has[TestConfig], TestResult] =
-    checkM(Gen.long) { seed =>
+    check(Gen.long) { seed =>
       for {
         sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
@@ -126,7 +126,7 @@ object RandomSpec extends ZIOBaseSpec {
   def forAllEqual[A](
     f: ZRandom => UIO[A]
   )(g: SRandom => A): URIO[Has[Random] with Has[TestConfig], TestResult] =
-    checkM(Gen.long) { seed =>
+    check(Gen.long) { seed =>
       for {
         sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
@@ -137,7 +137,7 @@ object RandomSpec extends ZIOBaseSpec {
     }
 
   def forAllEqualBytes: URIO[Has[Random] with Has[TestConfig], TestResult] =
-    checkM(Gen.long) { seed =>
+    check(Gen.long) { seed =>
       for {
         sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
@@ -151,7 +151,7 @@ object RandomSpec extends ZIOBaseSpec {
     }
 
   def forAllEqualGaussian: URIO[Has[Random] with Has[TestConfig], TestResult] =
-    checkM(Gen.long) { seed =>
+    check(Gen.long) { seed =>
       for {
         sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
@@ -164,7 +164,7 @@ object RandomSpec extends ZIOBaseSpec {
   def forAllEqualN[A](
     f: (ZRandom, Int) => UIO[A]
   )(g: (SRandom, Int) => A): URIO[Has[Random] with Has[TestConfig], TestResult] =
-    checkM(Gen.long, Gen.int(1, 100)) { (seed, size) =>
+    check(Gen.long, Gen.int(1, 100)) { (seed, size) =>
       for {
         sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
@@ -177,7 +177,7 @@ object RandomSpec extends ZIOBaseSpec {
   def forAllEqualShuffle(
     f: (ZRandom, List[Int]) => UIO[List[Int]]
   )(g: (SRandom, List[Int]) => List[Int]): ZIO[Has[Random] with Has[Sized] with Has[TestConfig], Nothing, TestResult] =
-    checkM(Gen.long, Gen.listOf(Gen.int)) { (seed, testList) =>
+    check(Gen.long, Gen.listOf(Gen.int)) { (seed, testList) =>
       for {
         sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
@@ -192,7 +192,7 @@ object RandomSpec extends ZIOBaseSpec {
   ): URIO[Has[Random] with Has[TestConfig], TestResult] = {
     val num = implicitly[Numeric[A]]
     import num._
-    checkM(gen.map(num.abs(_))) { upper =>
+    check(gen.map(num.abs(_))) { upper =>
       for {
         testRandom <- ZIO.environment[Has[Random]].map(_.get[Random])
         nextRandom <- next(testRandom, upper)
@@ -209,7 +209,7 @@ object RandomSpec extends ZIOBaseSpec {
       value1 <- gen
       value2 <- gen if (value1 != value2)
     } yield if (value2 > value1) (value1, value2) else (value2, value1)
-    checkM(genMinMax) { case (min, max) =>
+    check(genMinMax) { case (min, max) =>
       for {
         testRandom <- ZIO.environment[Has[Random]].map(_.get[Random])
         nextRandom <- between(testRandom, min, max)
