@@ -3401,6 +3401,17 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(3)
                 .runCollect
             )(equalTo(Chunk(1, 1, 1)))
+          },
+          testM("preserves partial ordering of stream elements") {
+            val genSortedStream = for {
+              chunk  <- Gen.chunkOf(Gen.int(1, 100)).map(_.sorted)
+              chunks <- splitChunks(Chunk(chunk))
+            } yield ZStream.fromChunks(chunks: _*)
+            checkM(genSortedStream, genSortedStream) { (left, right) =>
+              for {
+                out <- left.zipWithLatest(right)(_ + _).runCollect
+              } yield assert(out)(isSorted)
+            }
           }
         ),
         suite("zipWithNext")(
