@@ -13,7 +13,7 @@ object THubSpec extends ZIOBaseSpec {
     suite("THubSpec")(
       suite("sequential publishers and subscribers")(
         test("with one publisher and one subscriber") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -31,7 +31,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("with one publisher and two subscribers") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -62,7 +62,7 @@ object THubSpec extends ZIOBaseSpec {
       ),
       suite("concurrent publishers and subscribers")(
         test("one to one") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise <- Promise.make[Nothing, Unit]
               hub     <- THub.bounded[Int](n).commit
@@ -77,7 +77,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("one to many") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -100,7 +100,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("many to many") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -128,7 +128,7 @@ object THubSpec extends ZIOBaseSpec {
       ),
       suite("back pressure")(
         test("one to one") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise <- Promise.make[Nothing, Unit]
               hub     <- THub.bounded[Int](n).commit
@@ -143,7 +143,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("one to many") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -166,7 +166,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("many to many") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -194,7 +194,7 @@ object THubSpec extends ZIOBaseSpec {
       ),
       suite("dropping")(
         test("one to one") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise <- Promise.make[Nothing, Unit]
               hub     <- THub.dropping[Int](n).commit
@@ -209,7 +209,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("one to many") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -232,7 +232,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("many to many") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -260,7 +260,7 @@ object THubSpec extends ZIOBaseSpec {
       ),
       suite("sliding")(
         test("one to one") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise <- Promise.make[Nothing, Unit]
               hub     <- THub.sliding[Int](n).commit
@@ -276,7 +276,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("one to many") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -299,7 +299,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("many to many") {
-          checkM(smallInt, Gen.listOf(smallInt)) { (n, as) =>
+          check(smallInt, Gen.listOf(smallInt)) { (n, as) =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -327,7 +327,7 @@ object THubSpec extends ZIOBaseSpec {
       ),
       suite("unbounded")(
         test("one to one") {
-          checkM(Gen.listOf(smallInt)) { as =>
+          check(Gen.listOf(smallInt)) { as =>
             for {
               promise <- Promise.make[Nothing, Unit]
               hub     <- THub.unbounded[Int].commit
@@ -342,7 +342,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("one to many") {
-          checkM(Gen.listOf(smallInt)) { as =>
+          check(Gen.listOf(smallInt)) { as =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]
@@ -365,7 +365,7 @@ object THubSpec extends ZIOBaseSpec {
           }
         },
         test("many to many") {
-          checkM(Gen.listOf(smallInt)) { as =>
+          check(Gen.listOf(smallInt)) { as =>
             for {
               promise1 <- Promise.make[Nothing, Unit]
               promise2 <- Promise.make[Nothing, Unit]

@@ -1106,8 +1106,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * @see [[dropWhile]]
    */
+  @deprecated("use dropWhileZIO", "2.0.0")
   final def dropWhileM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] =
-    pipeThrough(ZSink.dropWhileM[R1, E1, A](f))
+    dropWhileZIO(f)
 
   /**
    * Drops all elements of the stream until the specified predicate evaluates
@@ -1115,6 +1116,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def dropUntil(pred: A => Boolean): ZStream[R, E, A] =
     dropWhile(!pred(_)).drop(1)
+
+  /**
+   * Drops all elements of the stream for as long as the specified predicate
+   * produces an effect that evalutates to `true`
+   *
+   * @see [[dropWhile]]
+   */
+  final def dropWhileZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean]): ZStream[R1, E1, A] =
+    pipeThrough(ZSink.dropWhileZIO[R1, E1, A](f))
 
   /**
    * Returns a stream whose failures and successes have been lifted into an
@@ -1237,6 +1247,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * @param cont function which defines the early termination condition
    */
+  @deprecated("use runFoldWhileZIO", "2.0.0")
   final def runFoldWhileM[R1 <: R, E1 >: E, S](s: S)(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S]): ZIO[R1, E1, S] =
     runFoldWhileZIO[R1, E1, S](s)(cont)(f)
 

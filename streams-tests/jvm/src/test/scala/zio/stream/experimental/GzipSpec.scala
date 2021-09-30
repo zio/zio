@@ -8,7 +8,7 @@ object GzipSpec extends DefaultRunnableSpec {
   override def spec: ZSpec[Environment, Failure] =
     suite("GzipSpec")(
       test("JDK gunzips what was gzipped")(
-        checkM(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
+        check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case (input, n, bufferSize) =>
             assertM(for {
               gzipped <- (ZStream.fromIterable(input).rechunk(n).channel >>> Gzip.makeGzipper(bufferSize)).runCollect

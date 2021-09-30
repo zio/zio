@@ -8,7 +8,7 @@ title: "Ref.Synchronized"
 >
 > Almost all of `Ref.Synchronized` operations are the same as `Ref`. We suggest reading [`Ref`](ref.md) at first if you are not familiar with `Ref`.
 
-Let's explain how we can update a shared state effectfully with `Ref.Synchronized`. The `update` method and all other related methods get an effectful operation and then run they run these effects to change the shared state. This is the main difference between `Ref.Synchronized` and `Ref`. 
+Let's explain how we can update a shared state effectfully with `Ref.Synchronized`. The `update` method and all other related methods get an effectful operation, and then they run these effects to change the shared state. This is the main difference between `Ref.Synchronized` and `Ref`. 
 
 In the following example, we should pass in `updateEffect` to it which is the description of an update operation. So `Ref.Synchronized` is going to update the `ref` by running the `updateEffect`:
 

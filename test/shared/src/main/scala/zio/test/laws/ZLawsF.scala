@@ -16,7 +16,7 @@
 
 package zio.test.laws
 
-import zio.test.{Gen, TestConfig, TestResult, check, checkM}
+import zio.test.{Gen, TestConfig, TestResult, check}
 import zio.{Has, URIO, ZIO}
 
 /**
@@ -115,7 +115,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       ): ZIO[R1, Nothing, TestResult] =
-        checkM(genF(gen))(apply(_).map(_.map(_.label(label))))
+        check(genF(gen))(apply(_).map(_.map(_.label(label))))
     }
 
     /**
@@ -139,7 +139,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       ): ZIO[R1, Nothing, TestResult] =
-        checkM(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
     }
 
     /**
@@ -163,7 +163,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       ): ZIO[R1, Nothing, TestResult] =
-        checkM(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
     }
   }
 
@@ -240,7 +240,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       ): ZIO[R1, Nothing, TestResult] =
-        checkM(genF(gen))(apply(_).map(_.map(_.label(label))))
+        check(genF(gen))(apply(_).map(_.map(_.label(label))))
     }
 
     /**
@@ -264,7 +264,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       ): ZIO[R1, Nothing, TestResult] =
-        checkM(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
     }
 
     /**
@@ -288,7 +288,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       ): ZIO[R1, Nothing, TestResult] =
-        checkM(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
     }
   }
 
@@ -348,7 +348,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       ): ZIO[R1, Nothing, TestResult] =
-        checkM(genF(gen))(apply(_).map(_.map(_.label(label))))
+        check(genF(gen))(apply(_).map(_.map(_.label(label))))
     }
 
     /**
@@ -369,7 +369,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       ): ZIO[R1, Nothing, TestResult] =
-        checkM(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
     }
 
     /**
@@ -390,7 +390,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       ): ZIO[R1, Nothing, TestResult] =
-        checkM(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
     }
   }
 }

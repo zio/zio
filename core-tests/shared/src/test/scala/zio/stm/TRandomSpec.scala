@@ -2,7 +2,7 @@ package zio.stm
 
 import zio.stm.TRandom._
 import zio.test.Assertion.{isGreaterThanEqualTo, isLessThan}
-import zio.test.{Gen, ZSpec, assert, checkM}
+import zio.test.{Gen, ZSpec, assert, check}
 import zio.{Has, Random, ZIOBaseSpec}
 
 object TRandomSpec extends ZIOBaseSpec {
@@ -15,7 +15,7 @@ object TRandomSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("TRandomSpec")(
     test("nextDoubleBetween generates doubles in specified range") {
-      checkM(genDoubles) { case (min, max) =>
+      check(genDoubles) { case (min, max) =>
         for {
           n <- nextDoubleBetween(min, max).commit
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
@@ -23,7 +23,7 @@ object TRandomSpec extends ZIOBaseSpec {
       }
     },
     test("nextFloatBetween generates floats in specified range") {
-      checkM(genFloats) { case (min, max) =>
+      check(genFloats) { case (min, max) =>
         for {
           n <- nextFloatBetween(min, max).commit
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
@@ -31,7 +31,7 @@ object TRandomSpec extends ZIOBaseSpec {
       }
     },
     test("nextIntBetween generates integers in specified range") {
-      checkM(genInts) { case (min, max) =>
+      check(genInts) { case (min, max) =>
         for {
           n <- nextIntBetween(min, max).commit
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
@@ -39,7 +39,7 @@ object TRandomSpec extends ZIOBaseSpec {
       }
     },
     test("nextLongBetween generates longs in specified range") {
-      checkM(genLongs) { case (min, max) =>
+      check(genLongs) { case (min, max) =>
         for {
           n <- nextLongBetween(min, max).commit
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
