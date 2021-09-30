@@ -3065,18 +3065,29 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(isEmpty)
           }
         ),
-        test("timeoutFail") {
-          assertM(
-            ZStream
-              .range(0, 5)
-              .tap(_ => ZIO.sleep(Duration.Infinity))
-              .timeoutFail(false)(Duration.Zero)
-              .runDrain
-              .map(_ => true)
-              .either
-              .map(_.merge)
-          )(isFalse)
-        },
+        suite("timeoutFail")(
+          test("succeed") {
+            assertM(
+              ZStream
+                .range(0, 5)
+                .tap(_ => ZIO.sleep(Duration.Infinity))
+                .timeoutFail(false)(Duration.Zero)
+                .runDrain
+                .map(_ => true)
+                .either
+                .map(_.merge)
+            )(isFalse)
+          },
+          test("fail") {
+            for {
+              error <- ZStream
+                         .fail("OriginalError")
+                         .timeoutFail("TimeoutError")(15.minutes)
+                         .runDrain
+                         .flip
+            } yield assertTrue(error == "OriginalError")
+          }
+        ),
         test("timeoutFailCause") {
           val throwable = new Exception("BOOM")
           assertM(
@@ -3240,7 +3251,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         test("toIterator") {
           (for {
-            counter  <- Ref.make(0).toManaged //Increment and get the value
+            counter <- Ref.make(0).toManaged //Increment and get the value
             effect    = counter.updateAndGet(_ + 1)
             iterator <- ZStream.repeatZIO(effect).toIterator
             n         = 2000
@@ -3526,7 +3537,18 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(3)
                 .runCollect
             )(equalTo(Chunk(1, 1, 1)))
-          } @@ TestAspect.ignore
+          } @@ TestAspect.ignore,
+          test("preserves partial ordering of stream elements") {
+            val genSortedStream = for {
+              chunk  <- Gen.chunkOf(Gen.int(1, 100)).map(_.sorted)
+              chunks <- splitChunks(Chunk(chunk))
+            } yield ZStream.fromChunks(chunks: _*)
+            check(genSortedStream, genSortedStream) { (left, right) =>
+              for {
+                out <- left.zipWithLatest(right)(_ + _).runCollect
+              } yield assert(out)(isSorted)
+            }
+          }
         ),
         suite("zipWithNext")(
           test("should zip with next element for a single chunk") {

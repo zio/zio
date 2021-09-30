@@ -259,6 +259,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
   val instant: ZIO[Has[Clock], Nothing, java.time.Instant] =
     ZIO.serviceWith(_.instant)
 
+  val localDateTime: ZIO[Has[Clock], Nothing, java.time.LocalDateTime] =
+    ZIO.serviceWith(_.localDateTime)
+
   /**
    * Returns the system nano time, which is not relative to any date.
    */

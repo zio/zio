@@ -4926,8 +4926,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def failCause[E](c: Cause[E]): IO[Option[E], Nothing]                         = IO.failCause(c).mapError(Some(_))
     @deprecated("use failCause", "2.0.0")
     def halt[E](c: Cause[E]): IO[Option[E], Nothing] = failCause(c)
-    def empty[A]: IO[Nothing, Chunk[A]]              = UIO(Chunk.empty)
-    val end: IO[Option[Nothing], Nothing]            = IO.fail(None)
+    def empty[A]: IO[Nothing, Chunk[A]]   = UIO(Chunk.empty)
+    val end: IO[Option[Nothing], Nothing] = IO.fail(None)
   }
 
   @deprecated("use zio.stream.Take instead", "1.0.0")
