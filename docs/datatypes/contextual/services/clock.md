@@ -30,4 +30,4 @@ def printTimeForever: ZIO[Has[Console] with Has[Clock], Throwable, Nothing] =
     ZIO.sleep(1.seconds) *> printTimeForever
 ```
 
-For scheduling purposes like retry and repeats, ZIO has a great data type called [Schedule](../datatypes/misc/schedule.md). 
+For scheduling purposes like retry and repeats, ZIO has a great data type called [Schedule](../../misc/schedule.md). 

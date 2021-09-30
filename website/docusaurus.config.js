@@ -29,7 +29,6 @@ module.exports = {
       items: [
         { to: 'overview/overview_index', label: 'Overview', position: 'right' },
         { to: 'datatypes/index', label: 'Data Types', position: 'right' },
-        { to: 'services/index', label: 'Services', position: 'right' },
         { to: 'usecases/usecases_index', label: 'Use Cases', position: 'right' },
         { to: 'howto/index', label: 'How to', position: 'right' },
         { to: 'resources/index', label: 'Resources', position: 'right' },
@@ -111,7 +110,6 @@ module.exports = {
         {
           items: [
             {
-              title: 'Deployment support',
               html: `
                 <a href="https://www.netlify.com">
                   <img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/>

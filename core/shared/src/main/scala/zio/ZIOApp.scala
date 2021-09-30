@@ -79,7 +79,7 @@ trait ZIOApp { self =>
   /**
    * Invokes the main app. Designed primarily for testing.
    */
-  final def invoke(args: Chunk[String]): ZIO[ZEnv, Nothing, ExitCode] =
+  final def invoke(args: Chunk[String]): ZIO[ZEnv, Any, Any] =
     ZIO.runtime[ZEnv].flatMap { runtime =>
       val newRuntime = runtime.mapRuntimeConfig(hook)
 
@@ -87,7 +87,7 @@ trait ZIOApp { self =>
         ZLayer.environment[ZEnv] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
           layer +!+ ZLayer.environment[ZEnv with Has[ZIOAppArgs]]
 
-      newRuntime.run(run.provideLayer(newLayer)).exitCode
+      newRuntime.run(run.provideLayer(newLayer))
     }
 
   /**

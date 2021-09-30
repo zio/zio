@@ -103,7 +103,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         },
         test("IterableLike#grouped equivalence") {
-          checkM(
+          check(
             Gen
               .int(0, 10)
               .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.int)))),
@@ -373,7 +373,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       ),
       suite("splitLines")(
         test("preserves data")(
-          checkM(weirdStringGenForSplitLines) { lines =>
+          check(weirdStringGenForSplitLines) { lines =>
             val data = lines.mkString("\n")
 
             ZTransducer.splitLines.push.use { push =>
@@ -386,7 +386,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         ),
         test("preserves data in chunks") {
-          checkM(weirdStringGenForSplitLines) { xs =>
+          check(weirdStringGenForSplitLines) { xs =>
             val data = Chunk.fromIterable(xs.sliding(2, 2).toList.map(_.mkString("\n")))
             testSplitLines(Seq(data))
           }
@@ -411,7 +411,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         }
       ),
       suite("splitOn")(
-        test("preserves data")(checkM(Gen.chunkOf(Gen.string.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
+        test("preserves data")(check(Gen.chunkOf(Gen.string.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
           val data   = lines.mkString("|")
           val parser = ZTransducer.splitOn("|")
           assertM(run(parser, List(Chunk.single(data))))(equalTo(lines))
@@ -457,7 +457,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
             equalTo(Chunk(0, 0, 0, 1, 0))
           )
         },
-        test("preserves data")(checkM(Gen.chunkOf(Gen.byte.filter(_ != 0.toByte))) { bytes =>
+        test("preserves data")(check(Gen.chunkOf(Gen.byte.filter(_ != 0.toByte))) { bytes =>
           val splitSequence = Chunk[Byte](0, 1)
           val data          = bytes.flatMap(_ +: splitSequence)
           val parser        = ZTransducer.splitOnChunk(splitSequence)
@@ -510,7 +510,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         }
       ),
       suite("utf8DecodeChunk")(
-        test("regular strings")(checkM(Gen.string) { s =>
+        test("regular strings")(check(Gen.string) { s =>
           ZTransducer.utf8Decode.push.use { push =>
             for {
               part1 <- push(Some(Chunk.fromArray(s.getBytes("UTF-8"))))
@@ -562,7 +562,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         },
         test("handle byte order mark") {
-          checkM(Gen.string) { s =>
+          check(Gen.string) { s =>
             ZTransducer.utf8Decode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk[Byte](-17, -69, -65) ++ Chunk.fromArray(s.getBytes("UTF-8"))))
@@ -573,7 +573,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
         }
       ),
       suite("iso_8859_1")(
-        test("ISO-8859-1 strings")(checkM(Gen.iso_8859_1) { s =>
+        test("ISO-8859-1 strings")(check(Gen.iso_8859_1) { s =>
           ZTransducer.iso_8859_1Decode.push.use { push =>
             for {
               part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.ISO_8859_1))))
@@ -584,7 +584,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       ),
       suite("branchAfter")(
         test("switches transducers") {
-          checkM(Gen.chunkOf(Gen.int)) { data =>
+          check(Gen.chunkOf(Gen.int)) { data =>
             val test =
               ZStream
                 .fromChunk(0 +: data)
@@ -601,7 +601,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         },
         test("finalizes transducers") {
-          checkM(Gen.chunkOf(Gen.int)) { data =>
+          check(Gen.chunkOf(Gen.int)) { data =>
             val test =
               Ref.make(0).flatMap { ref =>
                 ZStream
@@ -629,7 +629,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         },
         test("finalizes transducers - inner transducer fails") {
-          checkM(Gen.chunkOf(Gen.int)) { data =>
+          check(Gen.chunkOf(Gen.int)) { data =>
             val test =
               Ref.make(0).flatMap { ref =>
                 ZStream
@@ -663,7 +663,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
               n    <- Gen.int.filter(_ > data.length)
             } yield (data, n)
 
-          checkM(gen) { case (data, n) =>
+          check(gen) { case (data, n) =>
             val test =
               ZStream
                 .fromChunk(data)
@@ -677,7 +677,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       ),
       suite("utf16BEDecode")(
         test("regular strings") {
-          checkM(Gen.string) { s =>
+          check(Gen.string) { s =>
             ZTransducer.utf16BEDecode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
@@ -689,7 +689,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       ),
       suite("utf16FEDecode")(
         test("regular strings") {
-          checkM(Gen.string) { s =>
+          check(Gen.string) { s =>
             ZTransducer.utf16LEDecode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE))))
@@ -701,7 +701,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       ),
       suite("utf16Decode")(
         test("regular strings") {
-          checkM(Gen.string) { s =>
+          check(Gen.string) { s =>
             ZTransducer.utf16Decode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16))))
@@ -711,7 +711,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         },
         test("no magic sequence - parse as big endian") {
-          checkM(Gen.string.filter(_.nonEmpty)) { s =>
+          check(Gen.string.filter(_.nonEmpty)) { s =>
             ZTransducer.utf16Decode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
@@ -721,7 +721,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         },
         test("big endian") {
-          checkM(Gen.string) { s =>
+          check(Gen.string) { s =>
             ZTransducer.utf16Decode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk[Byte](-2, -1) ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE))))
@@ -731,7 +731,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
           }
         },
         test("little endian") {
-          checkM(Gen.string) { s =>
+          check(Gen.string) { s =>
             ZTransducer.utf16Decode.push.use { push =>
               for {
                 part1 <- push(Some(Chunk[Byte](-1, -2) ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE))))
@@ -743,7 +743,7 @@ object ZTransducerSpec extends ZIOBaseSpec {
       ),
       suite("usASCII")(
         test("US-ASCII strings") {
-          checkM(Gen.chunkOf(Gen.asciiString)) { chunk =>
+          check(Gen.chunkOf(Gen.asciiString)) { chunk =>
             val s = chunk.mkString("")
             ZTransducer.usASCIIDecode.push.use { push =>
               for {

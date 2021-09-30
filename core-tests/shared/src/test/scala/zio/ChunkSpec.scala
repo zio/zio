@@ -80,7 +80,7 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       test("buffer used") {
-        checkM(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           val effect   = ZIO.succeed(bs.foldLeft(as)(_ :+ _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
           val expected = as ++ bs
@@ -136,7 +136,7 @@ object ChunkSpec extends ZIOBaseSpec {
         }
       },
       test("buffer used") {
-        checkM(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
+        check(Gen.chunkOf(Gen.int), Gen.chunkOf(Gen.int)) { (as, bs) =>
           val effect   = ZIO.succeed(as.foldRight(bs)(_ +: _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
           val expected = as ++ bs
@@ -266,7 +266,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("mapAccumZIO")(
       test("mapAccumZIO happy path") {
-        checkM(smallChunks(Gen.int), smallChunks(Gen.int), Gen.int, Gen.function2(Gen.int <*> Gen.int)) {
+        check(smallChunks(Gen.int), smallChunks(Gen.int), Gen.int, Gen.function2(Gen.int <*> Gen.int)) {
           (left, right, s, f) =>
             val actual = (left ++ right).mapAccumZIO[Any, Nothing, Int, Int](s)((s, a) => UIO.succeed(f(s, a)))
             val expected = (left ++ right).foldLeft[(Int, Chunk[Int])]((s, Chunk.empty)) { case ((s0, bs), a) =>
@@ -285,7 +285,7 @@ object ChunkSpec extends ZIOBaseSpec {
       check(smallChunks(intGen), fn)((c, f) => assert(c.map(f).toList)(equalTo(c.toList.map(f))))
     },
     suite("mapZIO")(
-      test("mapZIO happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, f) =>
+      test("mapZIO happy path")(check(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, f) =>
         chunk.mapZIO(s => UIO.succeed(f(s))).map(assert(_)(equalTo(chunk.map(f))))
       }),
       test("mapZIO error") {
@@ -325,7 +325,7 @@ object ChunkSpec extends ZIOBaseSpec {
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.find(p))(equalTo(chunk.toList.find(p))))
     },
     suite("findZIO")(
-      test("findZIO happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
+      test("findZIO happy path")(check(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
         chunk.findZIO(s => UIO.succeed(p(s))).map(assert(_)(equalTo(chunk.find(p))))
       }),
       test("findZIO error") {
@@ -337,7 +337,7 @@ object ChunkSpec extends ZIOBaseSpec {
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.filter(p).toList)(equalTo(chunk.toList.filter(p))))
     },
     suite("filterZIO")(
-      test("filterZIO happy path")(checkM(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
+      test("filterZIO happy path")(check(mediumChunks(intGen), Gen.function(Gen.boolean)) { (chunk, p) =>
         chunk.filterZIO(s => UIO.succeed(p(s))).map(assert(_)(equalTo(chunk.filter(p))))
       }),
       test("filterZIO error") {
@@ -420,7 +420,7 @@ object ChunkSpec extends ZIOBaseSpec {
       },
       test("collectZIO chunk") {
         val pfGen = Gen.partialFunction[Has[Random] with Has[Sized], Int, UIO[Int]](Gen.successes(intGen))
-        checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
+        check(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
             result   <- c.collectZIO(pf).map(_.toList)
             expected <- UIO.collectAll(c.toList.collect(pf))
@@ -448,7 +448,7 @@ object ChunkSpec extends ZIOBaseSpec {
       },
       test("collectWhileZIO chunk") {
         val pfGen = Gen.partialFunction[Has[Random] with Has[Sized], Int, UIO[Int]](Gen.successes(intGen))
-        checkM(mediumChunks(intGen), pfGen) { (c, pf) =>
+        check(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
             result   <- c.collectWhileZIO(pf).map(_.toList)
             expected <- UIO.foreach(c.toList.takeWhile(pf.isDefinedAt))(pf.apply)
