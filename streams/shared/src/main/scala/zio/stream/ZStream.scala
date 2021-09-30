@@ -3392,29 +3392,25 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                     (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
                   )
                 }.flatMap { case (l, r, leftFirst) =>
-                  ZStream.fromEffect(Ref.make(l(l.size - 1)) <*> Ref.make(r(r.size - 1))).flatMap {
-                    case (latestLeft, latestRight) =>
-                      ZStream.fromChunk(
-                        if (leftFirst) r.map(f(l(l.size - 1), _))
-                        else l.map(f(_, r(r.size - 1)))
-                      ) ++
-                        ZStream
-                          .repeatEffectOption(
-                            left.tap(chunk => latestLeft.set(chunk(chunk.size - 1))) <*> latestRight.get
-                          )
-                          .mergeWith(
-                            ZStream.repeatEffectOption(
-                              right.tap(chunk => latestRight.set(chunk(chunk.size - 1))) <*> latestLeft.get
-                            )
-                          )(
-                            { case (leftChunk, rightLatest) =>
-                              leftChunk.map(f(_, rightLatest))
-                            },
-                            { case (rightChunk, leftLatest) =>
-                              rightChunk.map(f(leftLatest, _))
+                  ZStream.fromEffect(Ref.make(l(l.size - 1) -> r(r.size - 1))).flatMap { latest =>
+                    ZStream.fromChunk(
+                      if (leftFirst) r.map(f(l(l.size - 1), _))
+                      else l.map(f(_, r(r.size - 1)))
+                    ) ++
+                      ZStream
+                        .repeatEffectOption(left)
+                        .mergeEither(ZStream.repeatEffectOption(right))
+                        .mapM {
+                          case Left(leftChunk) =>
+                            latest.modify { case (_, rightLatest) =>
+                              (leftChunk.map(f(_, rightLatest)), (leftChunk(leftChunk.size - 1), rightLatest))
                             }
-                          )
-                          .flatMap(ZStream.fromChunk(_))
+                          case Right(rightChunk) =>
+                            latest.modify { case (leftLatest, _) =>
+                              (rightChunk.map(f(leftLatest, _)), (leftLatest, rightChunk(rightChunk.size - 1)))
+                            }
+                        }
+                        .flatMap(ZStream.fromChunk(_))
                   }
                 }).process
 
