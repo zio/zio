@@ -1,5 +1,5 @@
 ---
-id: about_coding_guidelines
+id: coding-guidelines
 title:  "ZIO Coding Guidelines"
 ---
 
