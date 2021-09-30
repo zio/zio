@@ -103,6 +103,9 @@ package object clock {
   val instant: ZIO[Clock, Nothing, java.time.Instant] =
     ZIO.accessM(_.get.instant)
 
+  val localDateTime: ZIO[Clock, DateTimeException, java.time.LocalDateTime] =
+    ZIO.accessM(_.get.localDateTime)
+
   /**
    * Returns the system nano time, which is not relative to any date.
    */
