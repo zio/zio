@@ -11,6 +11,6 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
         .provide(runtime.environment)
         .tapErrorCause(ZIO.logErrorCause(_))
         .exitCode
-        .flatMap(exit)
+        .tap(exit)
     }
 }
