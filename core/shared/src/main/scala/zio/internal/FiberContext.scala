@@ -376,15 +376,15 @@ private[zio] final class FiberContext[E, A](
                     // anything that is 1-hop away. This eliminates heap usage for the
                     // happy path.
                     (nested.tag: @switch) match {
-                      case ZIO.Tags.Succeed =>
-                        val io2 = nested.asInstanceOf[ZIO.Succeed[Any]]
+                      case ZIO.Tags.SucceedNow =>
+                        val io2 = nested.asInstanceOf[ZIO.SucceedNow[Any]]
 
                         if (traceExec && inTracingRegion) addTrace(k)
 
                         curZio = k(io2.value)
 
-                      case ZIO.Tags.EffectTotal =>
-                        val io2    = nested.asInstanceOf[ZIO.EffectTotal[Any]]
+                      case ZIO.Tags.Succeed =>
+                        val io2    = nested.asInstanceOf[ZIO.Succeed[Any]]
                         val effect = io2.effect
 
                         val kTrace = fastPathTrace(k, effect)
@@ -398,8 +398,8 @@ private[zio] final class FiberContext[E, A](
 
                         curZio = k(value)
 
-                      case ZIO.Tags.EffectWith =>
-                        val io2    = nested.asInstanceOf[ZIO.EffectWith[Any]]
+                      case ZIO.Tags.SucceedWith =>
+                        val io2    = nested.asInstanceOf[ZIO.SucceedWith[Any]]
                         val effect = io2.effect
 
                         val kTrace = fastPathTrace(k, effect)
@@ -424,23 +424,23 @@ private[zio] final class FiberContext[E, A](
                         pushContinuation(k)
                     }
 
-                  case ZIO.Tags.Succeed =>
-                    val zio = curZio.asInstanceOf[ZIO.Succeed[Any]]
+                  case ZIO.Tags.SucceedNow =>
+                    val zio = curZio.asInstanceOf[ZIO.SucceedNow[Any]]
 
                     val value = zio.value
 
                     curZio = nextInstr(value)
 
-                  case ZIO.Tags.EffectTotal =>
-                    val zio    = curZio.asInstanceOf[ZIO.EffectTotal[Any]]
+                  case ZIO.Tags.Succeed =>
+                    val zio    = curZio.asInstanceOf[ZIO.Succeed[Any]]
                     val effect = zio.effect
 
                     if (traceEffects && inTracingRegion) addTrace(effect)
 
                     curZio = nextInstr(effect())
 
-                  case ZIO.Tags.EffectWith =>
-                    val zio    = curZio.asInstanceOf[ZIO.EffectWith[Any]]
+                  case ZIO.Tags.SucceedWith =>
+                    val zio    = curZio.asInstanceOf[ZIO.SucceedWith[Any]]
                     val effect = zio.effect
 
                     if (traceEffects && inTracingRegion) addTrace(effect)
@@ -536,8 +536,8 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = zio.k(TracingStatus.fromBoolean(inTracingRegion))
 
-                  case ZIO.Tags.EffectAsync =>
-                    val zio = curZio.asInstanceOf[ZIO.EffectAsync[Any, Any, Any]]
+                  case ZIO.Tags.Async =>
+                    val zio = curZio.asInstanceOf[ZIO.Async[Any, Any, Any]]
 
                     val epoch = asyncEpoch
                     asyncEpoch = epoch + 1

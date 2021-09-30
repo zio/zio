@@ -9,7 +9,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Failure] =
     suite("ZChannel simulated checks")(
       test("done channel")(
-        checkM(gen) { sim =>
+        check(gen) { sim =>
           for {
             channelResult <- sim.asDoneChannel.run.exit
             effectResult  <- sim.asEffect.exit
@@ -17,7 +17,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
         }
       ),
       test("out channel")(
-        checkM(gen) { sim =>
+        check(gen) { sim =>
           for {
             channelResult <- sim.asOutChannel.runCollect.map(_._1).exit
             effectResult  <- sim.asEffect.exit.map(_.map(Chunk.single))
