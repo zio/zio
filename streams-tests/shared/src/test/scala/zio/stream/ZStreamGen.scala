@@ -58,10 +58,7 @@ object ZStreamGen extends GenZIO {
       else Chunk.empty
     }
 
-  def splitChunks[A](chunks: Chunk[Chunk[A]]): Gen[Has[Random] with Has[Sized], Chunk[Chunk[A]]] =
-    Gen.sized(splitChunksN(_)(chunks))
-
-  def splitChunksN[A](n: Int)(chunks: Chunk[Chunk[A]]): Gen[Has[Random], Chunk[Chunk[A]]] = {
+  def splitChunks[A](chunks: Chunk[Chunk[A]]): Gen[Has[Random] with Has[Sized], Chunk[Chunk[A]]] = {
 
     def split(chunks: Chunk[Chunk[A]]): Gen[Has[Random], Chunk[Chunk[A]]] =
       for {
@@ -72,7 +69,9 @@ object ZStreamGen extends GenZIO {
         split  = chunks.take(i) ++ Chunk(l) ++ Chunk(r) ++ chunks.drop(i + 1)
       } yield split
 
-    if (n == 0) Gen.const(chunks)
-    else split(chunks).flatMap(splitChunksN(n - 1))
+    Gen.oneOf(
+      Gen.const(chunks),
+      split(chunks).flatMap(splitChunks)
+    )
   }
 }
