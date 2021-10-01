@@ -64,7 +64,7 @@ object ZStreamGen extends GenZIO {
       for {
         i     <- Gen.int(0, chunks.length - 1 max 0)
         chunk  = chunks(i)
-        j     <- Gen.int(0, chunks.length - 1 max 0)
+        j     <- Gen.int(0, chunk.length - 1 max 0)
         (l, r) = chunk.splitAt(j)
         split  = chunks.take(i) ++ Chunk(l) ++ Chunk(r) ++ chunks.drop(i + 1)
       } yield split
