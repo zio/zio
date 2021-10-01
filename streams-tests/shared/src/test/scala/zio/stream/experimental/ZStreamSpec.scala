@@ -3548,7 +3548,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 out <- left.zipWithLatest(right)(_ + _).runCollect
               } yield assert(out)(isSorted)
             }
-          }
+          } @@ samples(25),
         ),
         suite("zipWithNext")(
           test("should zip with next element for a single chunk") {
