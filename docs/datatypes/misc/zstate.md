@@ -77,3 +77,44 @@ val myApp: ZIO[Has[Console] with Has[ZState[MyState]], IOException, Int] =
     _ <- Console.printLine(s"Current state: $state")
   } yield state
 ```
+
+An important note about `ZState` is that it is on top of the `FiberRef` data type. So it will inherit its behavior from the `FiberRef`.
+
+For example, when a fiber is going to join to its parent fiber, its state will be merged with its parent state:
+
+```scala mdoc:compile-only
+import zio._
+
+case class MyState(counter: Int)
+
+object ZStateExample extends ZIOAppDefault {
+  val myApp = for {
+    _ <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 1))
+    fiber <-
+      (for {
+        _ <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 1))
+        state <- ZIO.getState[MyState]
+        _ <- Console.printLine(s"Current state inside the forked fiber: $state")
+      } yield ()).fork
+    _ <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 5))
+    state1 <- ZIO.getState[MyState]
+    _ <- Console.printLine(s"Current state before merging the fiber: $state1")
+    _ <- fiber.join
+    state2 <- ZIO.getState[MyState]
+    _ <- Console.printLine(s"The final state: $state2")
+  } yield ()
+
+  def run =
+    myApp.injectCustom(
+      ZState.makeLayer(MyState(0))
+    )
+}
+```
+
+The output of running this snippet code would be as below:
+
+```
+Current state before merging the fiber: MyState(6)
+Current state inside the forked fiber: MyState(2)
+The final state: MyState(2)
+```
