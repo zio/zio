@@ -642,7 +642,7 @@ lazy val docs = project.module
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
       "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
-      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.3.14",
+      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.3.15",
       "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0",
       "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0",
       "io.scalac"                     %% "zio-slick-interop"             % "0.4",
