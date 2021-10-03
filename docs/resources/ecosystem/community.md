@@ -563,7 +563,7 @@ Tamer is a completely customizable source connector that produces to Kafka. It s
 
 Depending on the source you have at hand you can add the correct dependency in your `build.sbt`:
 
-```scala
+```scala mdoc scala:compile-only
 libraryDependencies += "io.laserdisc" %% "tamer-db"                % version
 libraryDependencies += "io.laserdisc" %% "tamer-oci-objectstorage" % version
 libraryDependencies += "io.laserdisc" %% "tamer-rest"              % version
