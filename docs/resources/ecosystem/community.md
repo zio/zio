@@ -551,6 +551,51 @@ object CircuitBreakerExample extends zio.App {
 }
 ```
 
+## Tamer
+
+[Tamer](https://github.com/laserdisc-io/tamer) is a multi-functional Kafka connector for producing data based on [ZIO Kafka](https://github.com/zio/zio-kafka).
+
+### Introduction
+
+Tamer is a completely customizable source connector that produces to Kafka. It ships with preconfigured modules for SQL, cloud storage and REST API, but you can provide your own functions and Tamer will take care of the rest.
+
+### Installation
+
+Depending on the source you have at hand you can add the correct dependency in your `build.sbt`:
+
+```scala
+libraryDependencies += "io.laserdisc" %% "tamer-db"                % version
+libraryDependencies += "io.laserdisc" %% "tamer-oci-objectstorage" % version
+libraryDependencies += "io.laserdisc" %% "tamer-rest"              % version
+libraryDependencies += "io.laserdisc" %% "tamer-s3"                % version
+```
+
+### Example
+
+Let's say you have a inventory DB that's compatible with [Doobie](https://github.com/tpolecat/doobie), you can get all of your items with [just a few lines of code](example/src/main/scala/tamer/db/DatabaseSimple.scala):
+
+```scala
+package tamer
+package db
+
+import java.time.Instant
+
+import doobie.implicits.legacy.instant._
+import doobie.syntax.string._
+import zio._
+import zio.duration._
+
+object DatabaseSimple extends App {
+  val program: ZIO[ZEnv, TamerError, Unit] = DbSetup
+    .tumbling(window =>
+      sql"""SELECT id, name, description, modified_at FROM users WHERE modified_at > ${window.from} AND modified_at <= ${window.to}""".query[Row]
+    )(recordKey = (_, v) => v.id, from = Instant.parse("2020-01-01T00:00:00.00Z"), tumblingStep = 5.days)
+    .runWith(tamer.db.dbLayerFromEnvironment ++ tamer.kafkaConfigFromEnvironment)
+
+  override final def run(args: List[String]): URIO[ZEnv, ExitCode] = program.exitCode
+}
+```
+
 ## TranzactIO
 
 [TranzactIO](https://github.com/gaelrenoux/tranzactio) is a ZIO wrapper for some Scala database access libraries, currently for [Doobie](https://github.com/tpolecat/doobie) and [Anorm](https://github.com/playframework/anorm).
