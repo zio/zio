@@ -574,7 +574,7 @@ libraryDependencies += "io.laserdisc" %% "tamer-s3"                % version
 
 Let's say you have a inventory DB that's compatible with [Doobie](https://github.com/tpolecat/doobie), you can get all of your items with [just a few lines of code](example/src/main/scala/tamer/db/DatabaseSimple.scala):
 
-```scala mdoc scala:compile-only
+```scala mdoc:compile-only
 package tamer
 package db
 
