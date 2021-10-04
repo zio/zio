@@ -18,6 +18,7 @@ The `TRandom` service is the same as the `Random` service. There are no differen
 When we use operations of the `TRandom` service, they add `Has[TRandom]` dependency on our `STM` data type. After committing all the transactions, we can `inject`/`provide` a `TRandom` implementation into our effect:
 
 ```scala mdoc:invisible
+import zio.stm.TRandom
 val myApp = TRandom.nextInt.commit
 ```
 
