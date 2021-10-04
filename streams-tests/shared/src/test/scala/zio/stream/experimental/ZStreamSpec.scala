@@ -3941,7 +3941,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.fromZIOOption(fa).runCollect)(equalTo(Chunk()))
           }
         ),
-         suite("fromInputStream")( // TODO: enabled by #5175
+         suite("fromInputStream")(
            test("example 1") {
              val chunkSize = ZStream.DefaultChunkSize
              val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
