@@ -3,9 +3,9 @@ id: treentrantlock
 title: "TReentrantLock"
 ---
 
-A TReentrantLock allows safe concurrent access to some mutable state efficiently, allowing multiple fibers to read the 
+A `TReentrantLock` allows safe concurrent access to some mutable state efficiently, allowing multiple fibers to read the 
 state (because that is safe to do) but only one fiber to modify the state (to prevent data corruption). Also, even though 
-the TReentrantLock is implemented using STM; reads and writes can be committed, allowing this to be used as a building 
+the `TReentrantLock` is implemented using `STM`; reads and writes can be committed, allowing this to be used as a building 
 block for solutions that expose purely ZIO effects and internally allow locking on more than one piece of state in a 
 simple and composable way (thanks to STM).
 
