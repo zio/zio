@@ -1110,16 +1110,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Ensuring", "Release", "Use", "Acquire")))
         },
-        //     test("ensuringFirst") {
-        //       for {
-        //         log <- Ref.make[List[String]](Nil)
-        //         _ <- (for {
-        //                _ <- ZStream.acquireReleaseWith(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-        //                _ <- ZStream.fromZIO(log.update("Use" :: _))
-        //              } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
-        //         execution <- log.get
-        //       } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
-        //     },
         test("filter")(check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
