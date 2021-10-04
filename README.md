@@ -72,6 +72,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [DHL Parcel The Netherlands](https://www.werkenbijdhl.nl/it)
 * [Doomoolmori](https://doomoolmori.com/)
 * [Dow Jones](https://www.dowjones.com)
+* [DPG recruitment](https://www.dpgrecruitment.nl)
 * [Dream11](https://dream11.com)
 * [Deutsche Telekom IoT GmbH](https://iot.telekom.com/en)
 * [eBay](https://www.ebay.com)

@@ -9,7 +9,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Failure] = suite("TSemaphore")(
     suite("factories")(
       test("make") {
-        checkM(Gen.long(1L, Int.MaxValue)) { expected =>
+        check(Gen.long(1L, Int.MaxValue)) { expected =>
           val actual = for {
             sem <- TSemaphore.make(expected)
             cap <- sem.available
@@ -21,7 +21,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
     ),
     suite("acquire and release")(
       test("acquiring and releasing a permit should not change the availability") {
-        checkM(Gen.long(1L, Int.MaxValue)) { expected =>
+        check(Gen.long(1L, Int.MaxValue)) { expected =>
           val actual = for {
             sem <- TSemaphore.make(expected)
             _   <- sem.acquire *> sem.release
@@ -31,7 +31,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
         }
       },
       test("used capacity must be equal to the # of acquires minus # of releases") {
-        checkM(usedCapacityGen) { case (capacity, acquire, release) =>
+        check(usedCapacityGen) { case (capacity, acquire, release) =>
           val actual = for {
             sem <- TSemaphore.make(capacity)
             _   <- repeat(sem.acquire)(acquire) *> repeat(sem.release)(release)
@@ -43,7 +43,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
         }
       },
       test("acquireN/releaseN(n) is acquire/release repeated N times") {
-        checkM(Gen.long(1, 100)) { capacity =>
+        check(Gen.long(1, 100)) { capacity =>
           def acquireRelease(
             sem: TSemaphore
           )(acq: Long => STM[Nothing, Unit])(rel: Long => STM[Nothing, Unit]): STM[Nothing, (Long, Long)] =

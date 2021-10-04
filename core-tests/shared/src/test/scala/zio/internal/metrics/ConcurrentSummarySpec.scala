@@ -25,7 +25,7 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
         )
       },
       test("single observe works with arbitrary maxSize") {
-        checkM(Gen.int(0, 100000)) { maxSize =>
+        check(Gen.int(0, 100000)) { maxSize =>
           val summary = ConcurrentSummary.manual(maxSize, maxAge = 10.seconds, err = 0.0, quantiles = Chunk.empty)
           val observe = Clock.instant.flatMap(now => ZIO.attempt(summary.observe(11.0, now)))
 
@@ -76,9 +76,9 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
         val getSnapshot        = Clock.instant.flatMap(now => ZIO.attempt(summary.snapshot(now)))
 
         for {
-          _        <- observe(1.0) // old
-          _        <- TestClock.adjust(300.millis)
-          _        <- observe(2.0) // old
+          _ <- observe(1.0) // old
+          _ <- TestClock.adjust(300.millis)
+          _ <- observe(2.0) // old
           _        <- TestClock.adjust(300.millis)
           _        <- observe(3.0)
           _        <- TestClock.adjust(300.millis)
@@ -106,9 +106,9 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
         val getSnapshot        = Clock.instant.flatMap(now => ZIO.attempt(summary.snapshot(now)))
 
         for {
-          _        <- observe(1.0) // old
-          _        <- TestClock.adjust(300.millis)
-          _        <- observe(2.0) // old
+          _ <- observe(1.0) // old
+          _ <- TestClock.adjust(300.millis)
+          _ <- observe(2.0) // old
           _        <- TestClock.adjust(300.millis)
           _        <- observe(3.0)
           _        <- TestClock.adjust(300.millis)

@@ -21,7 +21,7 @@ import zio.metrics._
 
 /**
  * A `SetCount` represents the number of occurrences of specified values.
- * You can think of a dry vpimy as like a set of counters associated with
+ * You can think of a SetCount as like a set of counters associated with
  * each value except that new counters will automatically be created when new
  * values are observed. This could be used to track the frequency of
  * different types of failures, for example.

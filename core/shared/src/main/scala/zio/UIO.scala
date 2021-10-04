@@ -31,7 +31,7 @@ object UIO {
   /**
    * @see See acquireReleaseWith [[zio.ZIO]]
    */
-  def acquireReleaseWith[A](acquire: => UIO[A]): ZIO.BracketAcquire[Any, Nothing, A] =
+  def acquireReleaseWith[A](acquire: => UIO[A]): ZIO.Acquire[Any, Nothing, A] =
     ZIO.acquireReleaseWith(acquire)
 
   /**
@@ -43,7 +43,7 @@ object UIO {
   /**
    * @see See acquireReleaseExitWith [[zio.ZIO]]
    */
-  def acquireReleaseExitWith[A](acquire: => UIO[A]): ZIO.BracketExitAcquire[Any, Nothing, A] =
+  def acquireReleaseExitWith[A](acquire: => UIO[A]): ZIO.AcquireExit[Any, Nothing, A] =
     ZIO.acquireReleaseExitWith(acquire)
 
   /**
@@ -114,7 +114,7 @@ object UIO {
    * @see See bracket [[zio.ZIO]]
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
-  def bracket[A](acquire: => UIO[A]): ZIO.BracketAcquire[Any, Nothing, A] =
+  def bracket[A](acquire: => UIO[A]): ZIO.Acquire[Any, Nothing, A] =
     ZIO.bracket(acquire)
 
   /**
@@ -128,7 +128,7 @@ object UIO {
    * @see See bracketExit [[zio.ZIO]]
    */
   @deprecated("use acquireReleaseExitWith", "2.0.0")
-  def bracketExit[A](acquire: => UIO[A]): ZIO.BracketExitAcquire[Any, Nothing, A] =
+  def bracketExit[A](acquire: => UIO[A]): ZIO.AcquireExit[Any, Nothing, A] =
     ZIO.bracketExit(acquire)
 
   /**

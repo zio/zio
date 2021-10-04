@@ -7,8 +7,8 @@ import zio.{Chunk, Random, Ref, ZIO}
 object CheckSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("CheckSpec")(
-    test("checkM is polymorphic in error type") {
-      checkM(Gen.int(1, 100)) { n =>
+    test("check is polymorphic in error type") {
+      check(Gen.int(1, 100)) { n =>
         for {
           _ <- ZIO.attempt(())
           r <- Random.nextIntBounded(n)
@@ -16,14 +16,14 @@ object CheckSpec extends ZIOBaseSpec {
       }
     },
     test("effectual properties can be tested") {
-      checkM(Gen.int(1, 100)) { n =>
+      check(Gen.int(1, 100)) { n =>
         for {
           r <- Random.nextIntBounded(n)
         } yield assert(r)(isLessThan(n))
       }
     },
-    test("error in checkM is test failure") {
-      checkM(Gen.int(1, 100)) { n =>
+    test("error in check is test failure") {
+      check(Gen.int(1, 100)) { n =>
         for {
           _ <- ZIO.fail("fail")
           r <- Random.nextIntBounded(n)
@@ -37,7 +37,7 @@ object CheckSpec extends ZIOBaseSpec {
       val gen = Gen.listOfN(10)(Gen.int(-10, 10))
       for {
         ref <- Ref.make(0)
-        _ <- checkM(gen <*> gen) { _ =>
+        _ <- check(gen <*> gen) { _ =>
                for {
                  _ <- ref.update(_ + 1)
                  p <- Random.nextIntBounded(10).map(_ != 0)
@@ -77,8 +77,8 @@ object CheckSpec extends ZIOBaseSpec {
         nonEmpty ==> sorted
       }
     },
-    test("checkM effect type is correctly inferred") {
-      checkM(Gen.unit) { _ =>
+    test("check effect type is correctly inferred") {
+      check(Gen.unit) { _ =>
         for {
           _ <- Random.nextInt
         } yield assertCompletes

@@ -2,6 +2,7 @@ package zio.test
 
 import zio._
 import zio.Clock._
+import zio.stm.STM
 import zio.test.environment._
 import zio.test.Assertion._
 import zio.test.TestAspect.{failing, timeout}
@@ -52,6 +53,26 @@ object TestSpec extends ZIOBaseSpec {
         _       <- (promise.succeed(()) *> Live.live(ZIO.sleep(20.seconds))).uninterruptible.fork
         _       <- promise.await
       } yield assertCompletes
-    } @@ timeout(10.seconds)
+    } @@ timeout(10.seconds),
+    test("managed effects can be tested") {
+      for {
+        ref   <- Ref.make(false).toManaged
+        _     <- ZManaged.acquireRelease(ref.set(true))(ref.set(false))
+        value <- ref.get.toManaged
+      } yield assert(value)(isTrue)
+    },
+    test("transactional effects can be tested") {
+      for {
+        message <- STM.succeed("Hello from an STM transaction!")
+      } yield assert(message)(anything)
+    },
+    suite("suites can be effectual") {
+      ZIO.succeed {
+        Chunk(
+          test("a test in an effectual suite")(assertCompletes),
+          test("another test in an effectual suite")(assertCompletes)
+        )
+      }
+    }
   )
 }

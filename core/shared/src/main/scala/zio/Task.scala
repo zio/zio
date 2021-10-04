@@ -32,7 +32,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See acquireReleaseWith [[zio.ZIO]]
    */
-  def acquireReleaseWith[A](acquire: => Task[A]): ZIO.BracketAcquire[Any, Throwable, A] =
+  def acquireReleaseWith[A](acquire: => Task[A]): ZIO.Acquire[Any, Throwable, A] =
     ZIO.acquireReleaseWith(acquire)
 
   /**
@@ -44,7 +44,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See acquireReleaseExitWith [[zio.ZIO]]
    */
-  def acquireReleaseExitWith[A](acquire: => Task[A]): ZIO.BracketExitAcquire[Any, Throwable, A] =
+  def acquireReleaseExitWith[A](acquire: => Task[A]): ZIO.AcquireExit[Any, Throwable, A] =
     ZIO.acquireReleaseExitWith(acquire)
 
   /**
@@ -139,7 +139,7 @@ object Task extends TaskPlatformSpecific {
    * @see See bracket [[zio.ZIO]]
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
-  def bracket[A](acquire: => Task[A]): ZIO.BracketAcquire[Any, Throwable, A] =
+  def bracket[A](acquire: => Task[A]): ZIO.Acquire[Any, Throwable, A] =
     ZIO.bracket(acquire)
 
   /**
@@ -153,7 +153,7 @@ object Task extends TaskPlatformSpecific {
    * @see See bracketExit [[zio.ZIO]]
    */
   @deprecated("use acquireReleaseExitWith", "2.0.0")
-  def bracketExit[A](acquire: => Task[A]): ZIO.BracketExitAcquire[Any, Throwable, A] =
+  def bracketExit[A](acquire: => Task[A]): ZIO.AcquireExit[Any, Throwable, A] =
     ZIO.bracketExit(acquire)
 
   /**

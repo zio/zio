@@ -64,8 +64,8 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("acquireReleaseAttemptWith")(
       test("Invokes cleanups in reverse order of acquisition.") {
-        var effects = List[Int]()
-        def acquire(x: Int): Int = { effects = x :: effects; x }
+        var effects               = List[Int]()
+        def acquire(x: Int): Int  = { effects = x :: effects; x }
         def release(x: Int): Unit = effects = x :: effects
 
         val res     = (x: Int) => ZManaged.acquireReleaseAttemptWith(acquire(x))(release)
@@ -355,7 +355,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         testAcquirePar(4, res => ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res))
       },
       test("Maintains finalizer ordering in inner ZManaged values") {
-        checkM(Gen.int(5, 100))(l => testParallelNestedFinalizerOrdering(l, ZManaged.foreachPar(_)(identity)))
+        check(Gen.int(5, 100))(l => testParallelNestedFinalizerOrdering(l, ZManaged.foreachPar(_)(identity)))
       }
     ),
     suite("foreachParN")(
@@ -376,7 +376,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         testAcquirePar(2, res => ZManaged.foreachParN(2)(List(1, 2, 3, 4))(_ => res))
       },
       test("Maintains finalizer ordering in inner ZManaged values") {
-        checkM(Gen.int(4, 10), Gen.int(5, 100)) { (n, l) =>
+        check(Gen.int(4, 10), Gen.int(5, 100)) { (n, l) =>
           testParallelNestedFinalizerOrdering(l, ZManaged.foreachParN(n)(_)(identity))
         }
       }
@@ -1426,7 +1426,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("flatten")(
       test("Returns the same as ZManaged.flatten") {
-        checkM(Gen.string(Gen.alphaNumericChar)) { str =>
+        check(Gen.string(Gen.alphaNumericChar)) { str =>
           val test = for {
             flatten1 <- ZManaged.succeed(ZManaged.succeed(str)).flatten
             flatten2 <- ZManaged.flatten(ZManaged.succeed(ZManaged.succeed(str)))
@@ -1437,7 +1437,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("absolve")(
       test("Returns the same as ZManaged.absolve") {
-        checkM(Gen.string(Gen.alphaNumericChar)) { str =>
+        check(Gen.string(Gen.alphaNumericChar)) { str =>
           val managedEither: ZManaged[Any, Nothing, Either[Nothing, String]] = ZManaged.succeed(Right(str))
           val test = for {
             abs1 <- managedEither.absolve
