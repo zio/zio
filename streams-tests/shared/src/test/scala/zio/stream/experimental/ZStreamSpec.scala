@@ -762,7 +762,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- s1.catchAllCause(_ => s2).runCollect.exit
               result <- fins.get
             } yield assert(result)(equalTo(List("s2", "s1")))
-          }
+          },
 //          test("releases all resources by the time the failover stream has started") {
 //            for {
 //              fins <- Ref.make(Chunk[Int]())
@@ -773,18 +773,18 @@ object ZStreamSpec extends ZIOBaseSpec {
 //              result <- s.drain.catchAllCause(_ => ZStream.fromZIO(fins.get)).runCollect
 //            } yield assert(result.flatten)(equalTo(Chunk(1, 2, 3)))
 //          },
-//          test("propagates the right Exit value to the failing stream (#3609)") {
-//            for {
-//              ref <- Ref.make[Exit[Any, Any]](Exit.unit)
-//              _ <- ZStream
-//                     .acquireReleaseExitWith(UIO.unit)((_, exit) => ref.set(exit))
-//                     .flatMap(_ => ZStream.fail("boom"))
-//                     .either
-//                     .runDrain
-//                     .run
-//              result <- ref.get
-//            } yield assert(result)(fails(equalTo("boom")))
-//          }
+          test("propagates the right Exit value to the failing stream (#3609)") {
+            for {
+              ref <- Ref.make[Exit[Any, Any]](Exit.unit)
+              _ <- ZStream
+                     .acquireReleaseExitWith(UIO.unit)((_, exit) => ref.set(exit))
+                     .flatMap(_ => ZStream.fail("boom"))
+                     .either
+                     .runDrain
+                     .exit
+              result <- ref.get
+            } yield assert(result)(fails(equalTo("boom")))
+          }
         ),
         //     suite("catchSome")(
         //       test("recovery from some errors") {
@@ -1199,7 +1199,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 rightStream <- m.flatMap(x => f(x).flatMap(g)).runCollect
               } yield assert(leftStream)(equalTo(rightStream))
             }
-          } @@ TestAspect.jvmOnly // Too slow on Scala.js
+          } @@ TestAspect.jvmOnly, // Too slow on Scala.js
           //       test("inner finalizers") {
           //         for {
           //           effects <- Ref.make(List[Int]())
@@ -1258,21 +1258,21 @@ object ZStreamSpec extends ZIOBaseSpec {
           //           )
           //         )
           //       },
-          //       test("exit signal") {
-          //         for {
-          //           ref <- Ref.make(false)
-          //           inner = ZStream
-          //                     .acquireReleaseExitWith(UIO.unit)((_, e) =>
-          //                       e match {
-          //                         case Exit.Failure(_) => ref.set(true)
-          //                         case Exit.Success(_) => UIO.unit
-          //                       }
-          //                     )
-          //                     .flatMap(_ => ZStream.fail("Ouch"))
-          //           _   <- ZStream.succeed(()).flatMap(_ => inner).runDrain.either.unit
-          //           fin <- ref.get
-          //         } yield assert(fin)(isTrue)
-          //       },
+          test("exit signal") {
+            for {
+              ref <- Ref.make(false)
+              inner = ZStream
+                        .acquireReleaseExitWith(ZIO.unit) { (_, e) =>
+                          e match {
+                            case Exit.Failure(_) => ref.set(true)
+                            case Exit.Success(_) => UIO.unit
+                          }
+                        }
+                        .flatMap(_ => ZStream.fail("Ouch"))
+              _   <- ZStream.succeed(()).flatMap(_ => inner).runDrain.either.unit
+              fin <- ref.get
+            } yield assert(fin)(isTrue)
+          }
           //       test("finalizers are registered in the proper order") {
           //         for {
           //           fins <- Ref.make(List[Int]())
