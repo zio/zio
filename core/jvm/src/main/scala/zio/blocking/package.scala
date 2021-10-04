@@ -58,7 +58,7 @@ package object blocking {
        * If the returned `ZIO` is interrupted, the blocked thread running the
        * synchronous effect will be interrupted via the cancel effect.
        */
-      def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): Task[A] =
+      def effectBlockingCancelable[R, A](effect: => A)(cancel: URIO[R, Any]): RIO[R, A] =
         blocking(ZIO.effect(effect)).fork.flatMap(_.join).onInterrupt(cancel)
 
       /**
@@ -189,7 +189,7 @@ package object blocking {
    * If the returned `ZIO` is interrupted, the blocked thread running the
    * synchronous effect will be interrupted via the cancel effect.
    */
-  def effectBlockingCancelable[A](effect: => A)(cancel: UIO[Unit]): RIO[Blocking, A] =
+  def effectBlockingCancelable[R <: Blocking, A](effect: => A)(cancel: URIO[R, Any]): RIO[R, A] =
     ZIO.accessM(_.get.effectBlockingCancelable(effect)(cancel))
 
   /**
