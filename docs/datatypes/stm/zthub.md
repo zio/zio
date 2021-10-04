@@ -10,9 +10,7 @@ A `ZTHub` is an asynchronous message hub like `ZHub` but it can participate in S
 
 The fundamental operators on a `ZTHub` are `publish` and `subscribe`:
 
-```scala mdoc
-import zio._
-
+```scala
 trait ZTHub[-RA, -RB, +EA, +EB, -A, +B] {
   def publish(a: A): ZSTM[RA, EA, Boolean]
   def subscribe: USTM[ZTDequeue[RB, EB, B]]
