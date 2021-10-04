@@ -188,6 +188,17 @@ Everything done within a transaction to other transactions looks like it happens
 
 
 ## STM Data Types
+
+Like the `ZIO` data type, the `ZSTM` has some type aliases as follows:
+
+```scala
+type RSTM[-R, +A]  = ZSTM[R, Throwable, A]
+type URSTM[-R, +A] = ZSTM[R, Nothing, A]
+type STM[+E, +A]   = ZSTM[Any, E, A]
+type USTM[+A]      = ZSTM[Any, Nothing, A]
+type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
+```
+
 There are a variety of transactional data structures that can take part in an STM transaction:
 
 - **[TArray](tarray.md)** - A `TArray[A]` is an array of mutable references that can participate in transactions.
