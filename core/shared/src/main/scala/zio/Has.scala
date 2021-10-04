@@ -35,9 +35,15 @@ final class Has[A] private (
     case _            => false
   }
 
+  @deprecated("Use CombineEnv or CombineEnvIntersection", "2.0.0")
+  type Union[R1, R2] = CombineEnvIntersection[R1, R2]
+
+  @deprecated("Use CombineEnv or CombineEnvIntersection", "2.0.0")
+  type UnionAll[R1, R2] = CombineEnvIntersection[R1, R2]
+
   override def hashCode: Int = map.hashCode
 
-  override def toString: String = map.mkString("Map(", ",\n", ")")
+  override def toString: String = map.mkString("Has(Map(", ",\n", "))")
 
   /**
    * The size of the environment, which is the number of services contained
@@ -73,88 +79,6 @@ object Has {
       }
   }
 
-  @implicitNotFound(
-    "The ZLayer operator you are trying to use needs to combine multiple " +
-      "services. While services cannot directly be combined, they can be " +
-      "combined if first wrapped in the Has data type. Before you use this " +
-      "operator, you must ensure the service produced by your layer is " +
-      "wrapped in Has."
-  )
-  abstract class Union[R, R1] {
-    def union(r: R, r1: R1): R with R1
-  }
-  object Union extends LowPriorityUnionImplicits {
-    implicit def HasHasUnion[R <: Has[_], R1 <: Has[_]: Tag]: Union[R, R1] =
-      new Union[R, R1] {
-        def union(r: R, r1: R1): R with R1 =
-          r.union[R1](r1)
-      }
-  }
-  abstract class LowPriorityUnionImplicits {
-    implicit def HasAnyUnion[R <: Has[_]]: Union[R, Any] =
-      new Union[R, Any] {
-        def union(r: R, r1: Any): R = {
-          val _ = r1
-          r
-        }
-      }
-    implicit def AnyHasUnion[R1 <: Has[_]]: Union[Any, R1] =
-      new Union[Any, R1] {
-        def union(r: Any, r1: R1): R1 = {
-          val _ = r
-          r1
-        }
-      }
-    implicit val AnyAnyUnion: Union[Any, Any] =
-      new Union[Any, Any] {
-        def union(r: Any, r1: Any): Any = {
-          val _ = (r, r1)
-          ()
-        }
-      }
-  }
-
-  @implicitNotFound(
-    "The ZLayer operator you are trying to use needs to combine multiple " +
-      "services. While services cannot directly be combined, they can be " +
-      "combined if first wrapped in the Has data type. Before you use this " +
-      "operator, you must ensure the service produced by your layer is " +
-      "wrapped in Has."
-  )
-  abstract class UnionAll[R, R1] {
-    def unionAll(r: R, r1: R1): R with R1
-  }
-  object UnionAll extends LowPriorityUnionAllImplicits {
-    implicit def HasHasUnionAll[R <: Has[_], R1 <: Has[_]: Tag]: UnionAll[R, R1] =
-      new UnionAll[R, R1] {
-        def unionAll(r: R, r1: R1): R with R1 =
-          r.unionAll[R1](r1)
-      }
-  }
-  abstract class LowPriorityUnionAllImplicits {
-   implicit def HasAnyUnionAll[R <: Has[_]]: UnionAll[R, Any] =
-      new UnionAll[R, Any] {
-        def unionAll(r: R, r1: Any): R = {
-          val _ = r1
-          r
-        }
-      }
-    implicit def AnyHasUnionAll[R1 <: Has[_]]: UnionAll[Any, R1] =
-      new UnionAll[Any, R1] {
-        def unionAll(r: Any, r1: R1): R1 = {
-          val _ = r
-          r1
-        }
-      }
-    implicit val AnyAnyUnionAll: UnionAll[Any, Any] =
-      new UnionAll[Any, Any] {
-        def unionAll(r: Any, r1: Any): Any = {
-          val _ = (r, r1)
-          ()
-        }
-      }
-  }
-
   implicit final class HasSyntax[Self <: Has[_]](private val self: Self) extends AnyVal {
 
     def ++[B <: Has[_]: Tag](that: B): Self with B = self.union[B](that)
@@ -163,7 +87,7 @@ object Has {
      * Adds a service to the environment.
      */
     def add[B](b: B)(implicit tagged: Tag[B]): Self with Has[B] =
-      new Has(self.map + (taggedTagType(tagged) -> b)).asInstanceOf[Self with Has[B]]
+      new Has(self.map + (taggedTagType(tagged) -> b)).asInstanceOf[Self with Has[B]]    
 
     /**
      * Retrieves a service from the environment.
@@ -205,7 +129,7 @@ object Has {
      * Combines this environment with the specified environment.
      */
     def union[B <: Has[_]: Tag](that: B): Self with B =
-      self.unionAll[B](that.prune)
+      self.union[B](that.prune)
 
     /**
      * Combines this environment with the specified environment. In the event
@@ -668,6 +592,13 @@ object Has {
     v: V
   ): Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P] with Has[Q] with Has[R] with Has[S] with Has[T] with Has[U] with Has[V] =
     Has(a).add(b).add(c).add(d).add(e).add(f).add(g).add(h).add(i).add(j).add(k).add(l).add(m).add(n).add(o).add(p).add(q).add(r).add(s).add(t).add(u).add(v)
+
+  def combine[L, R](l: L, r: R)(implicit ev: CombineEnv[L, R]): ev.Out = 
+    ev.combine(l, r)
+
+  lazy val hasClock: Has[Clock] = ???
+
+  def result[L <: Has[_], R](l: L, r: R): Int = combine(l, r)
 
   /**
    * Modifies an environment in a scoped way.
