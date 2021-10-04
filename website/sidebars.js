@@ -102,7 +102,6 @@ module.exports = {
                 "datatypes/stm/index",
                 "datatypes/stm/stm",
                 "datatypes/stm/tarray",
-                "datatypes/stm/thub",
                 "datatypes/stm/trandom",
                 "datatypes/stm/tset",
                 "datatypes/stm/tmap",
@@ -111,7 +110,8 @@ module.exports = {
                 "datatypes/stm/tpromise",
                 "datatypes/stm/tqueue",
                 "datatypes/stm/treentrantlock",
-                "datatypes/stm/tsemaphore"
+                "datatypes/stm/tsemaphore",
+                "datatypes/stm/zthub",
             ]
         },
     ],
