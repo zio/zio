@@ -2187,7 +2187,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("mapConcatM")(
           test("mapConcatM happy path") {
-            checkM(pureStreamOfInts, Gen.function(Gen.listOf(Gen.int))) { (s, f) =>
+            check(pureStreamOfInts, Gen.function(Gen.listOf(Gen.int))) { (s, f) =>
               for {
                 res1 <- s.mapConcatZIO(b => UIO.succeedNow(f(b))).runCollect
                 res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
@@ -3945,18 +3945,18 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           }
         ),
-        test("fromIterable")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
+        test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyL = l
           assertM(ZStream.fromIterable(lazyL).runCollect)(equalTo(l))
         }),
-        test("fromIterableZIO")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
+        test("fromIterableZIO")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           assertM(ZStream.fromIterableZIO(UIO(l)).runCollect)(equalTo(l))
         }),
-        test("fromIterator")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
+        test("fromIterator")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyIt = l.iterator
           assertM(ZStream.fromIterator(lazyIt).runCollect)(equalTo(l))
         }),
-        test("fromIteratorSucceed")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
+        test("fromIteratorSucceed")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyIt = l.iterator
           assertM(ZStream.fromIteratorSucceed(lazyIt).runCollect)(equalTo(l))
         }),
