@@ -43,24 +43,6 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    */
   def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any]
 
-  implicit def tag: Tag[Environment]
-
-  type Environment <: Has[_]
-
-  /**
-   * A layer that manages the acquisition and release of services necessary for
-   * the application to run.
-   */
-  def layer: ZLayer[Has[ZIOAppArgs], Any, Environment]
-
-  /**
-   * The main function of the application, which can access the command-line arguments through
-   * the `args` helper method of this class. If the provided effect fails for any reason, the
-   * cause will be logged, and the exit code of the application will be non-zero. Otherwise,
-   * the exit code of the application will be zero.
-   */
-  def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any]
-
   /**
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application that
    * executes the logic of both applications.
