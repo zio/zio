@@ -45,8 +45,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.UnionAll[ROut1, ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-    self.zipWithPar(that)(ev.unionAll)
+  )(implicit ev: CombineEnv[ROut1, ROut2]): ZLayer[RIn with RIn2, E1, ev.Out] =
+    self.zipWithPar(that)(ev.combine(_, _))
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -54,8 +54,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.Union[ROut1, ROut2], tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
-    self.zipWithPar(that)(ev.union)
+  )(implicit ev: CombineEnv[ROut1, ROut2], tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ev.Out] =
+    self.zipWithPar(that)(ev.combine(_, _))
 
   /**
    * A symbolic alias for `zipPar`.
@@ -78,23 +78,23 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
-    ZLayer.ZipWith(self, self >>> that, ev.union)
+  )(implicit ev: CombineEnv[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ev.Out] =
+    ZLayer.ZipWith(self, self >>> that, (l: ROut1, r: ROut2) => ev.combine(l, r))
 
   /**
    * Feeds the output services of this layer into the input of the specified
    * layer, resulting in a new layer with the inputs of this layer, and the
    * outputs of the specified layer.
    */
-  final def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    fold(ZLayer.fromFunctionManyZIO { case (_, cause) => ZIO.failCause(cause) }, that)
+  final def >>>[E1 >: E, RIn2, ROut2](that: ZLayer[RIn2, E1, ROut2])(implicit ev: ExtractEnv[ROut, RIn2]): ZLayer[RIn, E1, ROut2] =
+    fold(ZLayer.fromFunctionManyZIO { case (_, cause) => ZIO.failCause(cause) }, ev.toLayer >>> that)
 
   /**
    * A named alias for `++`.
    */
   final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+  )(implicit ev: CombineEnv[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ev.Out] =
     self.++[E1, RIn2, ROut1, ROut2](that)
 
   /**
@@ -102,7 +102,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+  )(implicit ev: CombineEnv[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ev.Out] =
     self.>+>[E1, RIn2, ROut1, ROut2](that)
 
   /**
@@ -257,8 +257,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * A named alias for `>>>`.
    */
-  final def to[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
-    self >>> that
+  final def to[E1 >: E, RIn2, ROut2](that: ZLayer[RIn2, E1, ROut2])(implicit ev: ExtractEnv[ROut, RIn2]): ZLayer[RIn, E1, ROut2] =
+    self >>> ev.toLayer >>> that
 
   /**
    * Converts a layer that requires no services into a managed runtime, which
@@ -4414,10 +4414,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Returns a new layer that produces the outputs of this layer but also
      * passes through the inputs to this layer.
      */
-    def passthrough(implicit ev: Has.Union[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
+    def passthrough(implicit ev: CombineEnvIntersection[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
       ZLayer.environment[RIn] ++ self
   }
-
   implicit final class ZLayerProjectOps[R, E, A](private val self: ZLayer[R, E, Has[A]]) extends AnyVal {
 
     /**
@@ -4425,7 +4424,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * specified function
      */
     def project[B: Tag](f: A => B)(implicit tag: Tag[A]): ZLayer[R, E, Has[B]] =
-      self >>> ZLayer.fromFunction(r => f(r.get))
+      self >>> ZLayer.fromFunction((r: Has[A]) => f(r.get))
   }
 
   /**

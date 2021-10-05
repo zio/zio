@@ -15,6 +15,11 @@ object HasSpec extends ZIOBaseSpec {
   val cat2: Cat     = new Cat { override val toString = "cat2" }
   val bunny1: Bunny = new Bunny { override val toString = "bunny1" }
 
+  val any: Any = () 
+
+  val hasDog1: Has[Dog] = Has(dog1)
+  val hasCat1: Has[Cat] = Has(cat1)
+
   trait IList[+A]
 
   val dogs1: IList[Dog]      = new IList[Dog] { override val toString = "dogs1" }
@@ -33,6 +38,49 @@ object HasSpec extends ZIOBaseSpec {
   val bunnyHotel1: PetHotel[Bunny]   = new PetHotel[Bunny] { override val toString = "bunnyHotel1" }
 
   def spec: ZSpec[Environment, Failure] = suite("HasSpec")(
+    suite("Has.combine compilation")(
+      test("any/any") {
+        final case class Capture[A](a: A)
+
+        def isAny[A](a: A)(implicit ev: A =:= Capture[Any]) = {
+          assertTrue(a != null)
+        }
+
+        val combined = Capture(Has.combine(any, any))
+
+        isAny(combined)
+      },
+      test("has/Any") {
+        val combined: Has[Cat] = Has.combine(hasCat1, any)
+
+        assertTrue(combined != null)
+      },
+      test("Any/Has") {
+        val combined: Has[Cat] = Has.combine(any, hasCat1)
+
+        assertTrue(combined != null)
+      },
+      test("has/Int") {
+        val combined: Has[Cat] with Has[Int] = Has.combine(hasCat1, 42)
+
+        assertTrue(combined != null)
+      },
+      test("Int/has") {
+        val combined: Has[Cat] with Has[Int] = Has.combine(42, hasCat1)
+
+        assertTrue(combined != null)
+      },
+      test("has/has") {
+        val combined: Has[Cat] with Has[Dog] = Has.combine(hasCat1, hasDog1)
+
+        assertTrue(combined != null)
+      },
+      test("int/String") {
+        val combined: Has[Int] with Has[String] = Has.combine(42, "foo")
+
+        assertTrue(combined != null)
+      }
+    ),
     suite("monomorphic types")(
       test("Modules sharing common parent are independent") {
         val hasBoth = Has(dog1).add[Cat](cat1)
