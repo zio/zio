@@ -1909,7 +1909,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 s1      = ZStream.fromChunkQueue(queue1)
                 s2      = ZStream.fromChunkQueue(queue2)
                 s3      = s1.zipWithLatest(s2)((_, _)).interruptWhen(ZIO.never).take(3)
-                values <- s3.runDrain
+                _      <- s3.runDrain
               } yield assertCompletes
             } @@ nonFlaky
           ) @@ zioTag(interruption)
