@@ -32,7 +32,7 @@ module.exports = {
         { to: 'usecases/usecases_index', label: 'Use Cases', position: 'right' },
         { to: 'howto/index', label: 'How to', position: 'right' },
         { to: 'resources/index', label: 'Resources', position: 'right' },
-        { to: 'about/about_index', label: 'About', position: 'right' },
+        { to: 'about/index', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
@@ -42,7 +42,10 @@ module.exports = {
     },
     algolia: {
       apiKey: '0c94b59071da7001757d08ab43d9e033',
-      indexName: 'zio'
+      indexName: 'zio',
+      // This keeps the search in the pages of the version the user is currently browsing 
+      // see https://docusaurus.io/docs/search
+      contextualSearch: true
     },
     footer: {
       style: 'dark',

@@ -64,8 +64,8 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("acquireReleaseAttemptWith")(
       test("Invokes cleanups in reverse order of acquisition.") {
-        var effects = List[Int]()
-        def acquire(x: Int): Int = { effects = x :: effects; x }
+        var effects               = List[Int]()
+        def acquire(x: Int): Int  = { effects = x :: effects; x }
         def release(x: Int): Unit = effects = x :: effects
 
         val res     = (x: Int) => ZManaged.acquireReleaseAttemptWith(acquire(x))(release)

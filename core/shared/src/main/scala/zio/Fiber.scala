@@ -240,7 +240,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] =
         for {
           first  <- self.getRef(ref)
-          second <- self.getRef(ref)
+          second <- that.getRef(ref)
         } yield if (first == ref.initial) second else first
 
       final def interruptAs(id: FiberId): UIO[Exit[E1, A1]] =
@@ -306,7 +306,7 @@ sealed abstract class Fiber[+E, +A] { self =>
 
       for {
         runtime <- ZIO.runtime[Any]
-        _       <- completeFuture.forkDaemon // Cannot afford to NOT complete the promise, no matter what, so we fork daemon
+        _ <- completeFuture.forkDaemon // Cannot afford to NOT complete the promise, no matter what, so we fork daemon
       } yield new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] =
           runtime.unsafeRunToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapError(f)))

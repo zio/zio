@@ -1,11 +1,17 @@
 /* Styles for the header block */
 
 .headerContainer { 
+  width: 100%;
   background-color: #000000;
 }
 
-.headerInnerContainer {
+.headerRelative { 
   position: relative;
+  width: 100%;
+}
+
+.headerInnerContainer {
+  z-index: 0;
 }
 
 .headerDetailContainer { 
@@ -34,7 +40,7 @@
 
 .headerButton:hover {
   color: white;
-  background-color: #404040;
+  background-color: #0030A0;
   text-decoration: none;
 }
 
@@ -94,4 +100,52 @@
   display: block; 
   margin: auto;
   object-fit: contain;
+}
+
+/* Styles for the news letter subscription */
+
+.newsInnerContainer { 
+  position: absolute;
+  right: 0;
+  z-index: 10;
+}
+
+.newsFormContainer { 
+  padding-right: 50px;
+}
+
+/* How to style the label for the subscribe form */
+.newsLabel {
+  text-align: left;
+  font-weight: 300;
+  color: #b0b0b0;
+  font-size: medium;
+}
+
+/* How to style the group of the input field and the button */
+.newsSubscribe {
+  display: flex;
+}
+
+.newsInput { 
+  padding: 3px;
+}
+
+.newsButton { 
+  display: inline-block;
+  color: white;
+  background-color: transparent;
+  border: white;
+  border-width: 1px;
+  border-style: solid;
+  padding: 5px;
+  border-radius: 3px;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.newsButton:hover {
+  color: white;
+  background-color: #0030A0;
+  text-decoration: none;
 }

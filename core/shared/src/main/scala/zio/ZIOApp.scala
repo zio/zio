@@ -22,8 +22,8 @@ import zio.internal._
  * applications. For a simpler version that uses the default ZIO environment
  * see `ZIOAppDefault`.
  */
-trait ZIOApp { self =>
-  @volatile private var shuttingDown = false
+trait ZIOApp extends ZIOAppPlatformSpecific { self =>
+  @volatile private[zio] var shuttingDown = false
 
   implicit def tag: Tag[Environment]
 
@@ -88,37 +88,6 @@ trait ZIOApp { self =>
           layer +!+ ZLayer.environment[ZEnv with Has[ZIOAppArgs]]
 
       newRuntime.run(run.provideLayer(newLayer))
-    }
-
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  final def main(args0: Array[String]): Unit =
-    runtime.unsafeRun {
-      (for {
-        fiber <- invoke(Chunk.fromIterable(args0)).provide(runtime.environment).fork
-        _ <-
-          IO.succeed(Platform.addShutdownHook { () =>
-            shuttingDown = true
-
-            if (FiberContext.fatal.get) {
-              println(
-                "**** WARNING ****\n" +
-                  "Catastrophic JVM error encountered. " +
-                  "Application not safely interrupted. " +
-                  "Resources may be leaked. " +
-                  "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
-              )
-            } else {
-              try runtime.unsafeRunSync(fiber.interrupt)
-              catch { case _: Throwable => }
-            }
-
-            ()
-          })
-        result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_)).exitCode
-        _      <- exit(result)
-      } yield ())
     }
 
   def runtime: Runtime[ZEnv] = Runtime.default
