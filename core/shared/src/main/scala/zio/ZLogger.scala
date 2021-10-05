@@ -128,6 +128,21 @@ object ZLogger {
     sb.toString()
   }
 
+  /**
+   * A logger that does nothing in response to logging events.
+   */
+  val none: ZLogger[Unit] = new ZLogger[Unit] {
+    def apply(
+      trace: ZTraceElement,
+      fiberId: FiberId,
+      logLevel: LogLevel,
+      message: () => String,
+      context: Map[FiberRef.Runtime[_], AnyRef],
+      spans: List[LogSpan]
+    ): Unit =
+      ()
+  }
+
   private def appendQuoted(label: String, sb: StringBuilder): StringBuilder = {
     if (label.indexOf(" ") < 0) sb.append(label)
     else sb.append("\"").append(label).append("\"")
