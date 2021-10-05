@@ -1151,11 +1151,12 @@ object ZChannel {
   def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: ZManaged[Env, OutErr, A])(
     use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    acquireReleaseWith[Env, InErr, InElem, InDone, OutErr, ReleaseMap, OutElem, OutDone](ReleaseMap.make)(
-      _.releaseAll(
-        Exit.unit, // FIXME: BracketOut should be BracketOutExit
-        ExecutionStrategy.Sequential
-      )
+    acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, ReleaseMap, OutElem, OutDone](ReleaseMap.make)(
+      (releaseMap, exit) =>
+        releaseMap.releaseAll(
+          exit,
+          ExecutionStrategy.Sequential
+        )
     ) { releaseMap =>
       fromZIO[Env, OutErr, A](
         m.zio
@@ -1166,9 +1167,9 @@ object ZChannel {
     }
 
   def managedOut[R, E, A](m: ZManaged[R, E, A]): ZChannel[R, Any, Any, Any, E, A, Any] =
-    acquireReleaseOutWith(ReleaseMap.make)(
-      _.releaseAll(
-        Exit.unit, // FIXME: BracketOut should be BracketOutExit
+    acquireReleaseOutExitWith(ReleaseMap.make)((releaseMap, exit) =>
+      releaseMap.releaseAll(
+        exit,
         ExecutionStrategy.Sequential
       )
     ).concatMap { releaseMap =>

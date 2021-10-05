@@ -785,7 +785,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .exit
               result <- ref.get
             } yield assert(result)(fails(equalTo("boom")))
-          } @@ ignore // TODO: fix
+          }
         ),
         suite("catchSome")(
           test("recovery from some errors") {
@@ -1108,16 +1108,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Ensuring", "Release", "Use", "Acquire")))
         },
-        test("ensuringFirst") {
-          for {
-            log <- Ref.make[List[String]](Nil)
-            _ <- (for {
-                   _ <- ZStream.acquireReleaseWith(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-                   _ <- ZStream.fromZIO(log.update("Use" :: _))
-                 } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
-            execution <- log.get
-          } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
-        } @@ ignore, // TODO: not implemented yet
         test("filter")(check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
@@ -1269,7 +1259,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _   <- ZStream.succeed(()).flatMap(_ => inner).runDrain.either.unit
               fin <- ref.get
             } yield assert(fin)(isTrue)
-          } @@ ignore // TODO: investigate/fix
+          }
 //          test("finalizers are registered in the proper order") { // TODO: implement without .process
 //            for {
 //              fins <- Ref.make(List[Int]())
@@ -3941,20 +3931,20 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.fromZIOOption(fa).runCollect)(equalTo(Chunk()))
           }
         ),
-         suite("fromInputStream")(
-           test("example 1") {
-             val chunkSize = ZStream.DefaultChunkSize
-             val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
-             def is        = new ByteArrayInputStream(data)
-             ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
-           },
-           test("example 2") {
-             check(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
-               val is = new ByteArrayInputStream(bytes.toArray)
-               ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
-             }
-           }
-         ),
+        suite("fromInputStream")(
+          test("example 1") {
+            val chunkSize = ZStream.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            def is        = new ByteArrayInputStream(data)
+            ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
+          },
+          test("example 2") {
+            check(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
+              val is = new ByteArrayInputStream(bytes.toArray)
+              ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
+            }
+          }
+        ),
         test("fromIterable")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyL = l
           assertM(ZStream.fromIterable(lazyL).runCollect)(equalTo(l))
