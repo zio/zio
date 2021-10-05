@@ -9,7 +9,8 @@ rm -Rf website/docs
 rm -Rf website/versioned_docs
 
 # Checkout latest released version of 1.x 
-git checkout origin/master
+git checkout refs/tags/v1.0.12
+git clean -df 
 sbt docs/mdoc docs/unidoc
 
 mkdir -p website/versioned_docs/version-1.x
