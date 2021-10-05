@@ -1911,7 +1911,7 @@ object ZSTM {
     def completeTodos[E, A](exit: Exit[E, A], journal: Journal, runtimeConfig: RuntimeConfig): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
-      if (todos.size > 0) runtimeConfig.executor.submitOrThrow(() => execTodos(todos))
+      if (todos.size > 0) runtimeConfig.executor.unsafeSubmitOrThrow(() => execTodos(todos))
 
       TryCommit.Done(exit)
     }

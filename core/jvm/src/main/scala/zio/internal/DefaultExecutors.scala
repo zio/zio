@@ -48,11 +48,11 @@ private[zio] abstract class DefaultExecutors {
         def dequeuedCount: Long = enqueuedCount - size.toLong
       }
 
-      def metrics = Some(metrics0)
+      def unsafeMetrics = Some(metrics0)
 
       def yieldOpCount = yieldOpCount0(metrics0)
 
-      def submit(runnable: Runnable): Boolean =
+      def unsafeSubmit(runnable: Runnable): Boolean =
         try {
           es.execute(runnable)
 

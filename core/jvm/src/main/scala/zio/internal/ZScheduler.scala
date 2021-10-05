@@ -160,7 +160,7 @@ private final class ZScheduler(val yieldOpCount: Int) extends zio.Executor {
   }
   workers.foreach(_.start())
 
-  def metrics: Option[ExecutionMetrics] = {
+  def unsafeMetrics: Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
       def capacity: Int =
         Int.MaxValue
@@ -209,7 +209,7 @@ private final class ZScheduler(val yieldOpCount: Int) extends zio.Executor {
     Some(metrics)
   }
 
-  def submit(runnable: Runnable): Boolean = {
+  def unsafeSubmit(runnable: Runnable): Boolean = {
     val currentThread = Thread.currentThread
     var notify        = false
     if (currentThread.isInstanceOf[ZScheduler.Worker]) {
