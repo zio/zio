@@ -76,9 +76,9 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
         val getSnapshot        = Clock.instant.flatMap(now => ZIO.attempt(summary.snapshot(now)))
 
         for {
-          _        <- observe(1.0) // old
-          _        <- TestClock.adjust(300.millis)
-          _        <- observe(2.0) // old
+          _ <- observe(1.0) // old
+          _ <- TestClock.adjust(300.millis)
+          _ <- observe(2.0) // old
           _        <- TestClock.adjust(300.millis)
           _        <- observe(3.0)
           _        <- TestClock.adjust(300.millis)
@@ -106,9 +106,9 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
         val getSnapshot        = Clock.instant.flatMap(now => ZIO.attempt(summary.snapshot(now)))
 
         for {
-          _        <- observe(1.0) // old
-          _        <- TestClock.adjust(300.millis)
-          _        <- observe(2.0) // old
+          _ <- observe(1.0) // old
+          _ <- TestClock.adjust(300.millis)
+          _ <- observe(2.0) // old
           _        <- TestClock.adjust(300.millis)
           _        <- observe(3.0)
           _        <- TestClock.adjust(300.millis)

@@ -126,7 +126,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
     ): ZChannel[Any, Err, Any, Res, Err, Nothing, Res] = ch
     override def asOutChannel(
       ch: ZChannel[Any, Err, Any, Res, Err, Res, Any]
-    ): ZChannel[Any, Err, Any, Res, Err, Res, Any]       = ch
+    ): ZChannel[Any, Err, Any, Res, Err, Res, Any] = ch
     override def asEffect(f: IO[Err, Res]): IO[Err, Res] = f
 
     override def writeOutChannelString(sb: StringBuilder): Unit = {}

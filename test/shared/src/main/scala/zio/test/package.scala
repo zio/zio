@@ -970,11 +970,34 @@ package object test extends CompileVariants {
         innerStream: ZIO[R1, Option[Nothing], Chunk[Option[B]]],
         innerChunk: Chunk[Option[B]],
         innerChunkIndex: Int
-      ): ZIO[R1, Option[Nothing], (Option[B], Chunk[Option[B]], Int)] =
+      ): ZIO[R1, Option[Nothing], (Option[Chunk[Option[B]]], Chunk[Option[B]], Int)] =
         if (innerChunkIndex < innerChunk.size)
-          ZIO.succeedNow((innerChunk(innerChunkIndex), innerChunk, innerChunkIndex + 1))
+          ZIO.succeedNow(takeInner(innerChunk, innerChunkIndex))
         else
-          pullNonEmpty(innerStream).map(chunk => (chunk(0), chunk, 1))
+          pullNonEmpty(innerStream).map(takeInner(_, 0))
+
+      def takeInner(
+        innerChunk: Chunk[Option[B]],
+        innerChunkIndex: Int
+      ): (Option[Chunk[Option[B]]], Chunk[Option[B]], Int) =
+        if (innerChunk(innerChunkIndex).isEmpty) {
+          (None, innerChunk, innerChunkIndex + 1)
+        } else {
+          val builder  = ChunkBuilder.make[Option[B]]()
+          val length   = innerChunk.length
+          var continue = true
+          var i        = innerChunkIndex
+          while (continue && i != length) {
+            val b = innerChunk(i)
+            if (b.isDefined) {
+              builder += b
+              i += 1
+            } else {
+              continue = false
+            }
+          }
+          (Some(builder.result()), innerChunk, i)
+        }
 
       currentInnerStream.get.flatMap {
         case None =>
@@ -989,11 +1012,11 @@ package object test extends CompileVariants {
               outerDone.get.flatMap { done =>
                 if (done)
                   currentStreams.get.flatMap { queue =>
-                    if (queue.size == 1) ZIO.fail(None)
-                    else {
+                    if (queue.size == 1)
+                      ZIO.fail(None)
+                    else
                       currentStreams.update(_.tail.enqueue(PullOuter)) *>
                         ZIO.succeedNow(Chunk(None))
-                    }
                   }
                 else
                   currentOuterChunk.get.flatMap { case (outerChunk, outerChunkIndex) =>
@@ -1044,9 +1067,9 @@ package object test extends CompileVariants {
                     _.enqueue(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))
                   ) *>
                   pull(outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers)
-              case (Some(b), innerChunk, innerChunkIndex) =>
+              case (Some(bs), innerChunk, innerChunkIndex) =>
                 currentInnerStream.set(Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))) *>
-                  ZIO.succeedNow(Chunk(Some(b)))
+                  ZIO.succeedNow(bs)
             }
           )
       }

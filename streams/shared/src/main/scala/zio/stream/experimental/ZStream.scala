@@ -1143,12 +1143,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(channel.ensuring(fin))
 
   /**
-   * Executes the provided finalizer before this stream's finalizers run.
-   */
-  final def ensuringFirst[R1 <: R](fin: ZIO[R1, Nothing, Any]): ZStream[R1, E, A] =
-    ???
-
-  /**
    * Filters the elements emitted by this stream using the provided function.
    */
   final def filter(f: A => Boolean): ZStream[R, E, A] =
@@ -3879,7 +3873,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * The hub will be shut down once the stream is closed.
    */
   def fromChunkHubWithShutdown[R, E, O](hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
-    fromChunkHub(hub).ensuringFirst(hub.shutdown)
+    fromChunkHub(hub).ensuring(hub.shutdown)
 
   /**
    * Creates a stream from a subscription to a hub in the context of a managed
@@ -3891,7 +3885,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromChunkHubManagedWithShutdown[R, E, O](
     hub: ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
   ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
-    fromChunkHubManaged(hub).map(_.ensuringFirst(hub.shutdown))
+    fromChunkHubManaged(hub).map(_.ensuring(hub.shutdown))
 
   /**
    * Creates a stream from a queue of values
@@ -3911,7 +3905,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a queue of values. The queue will be shutdown once the stream is closed.
    */
   def fromChunkQueueWithShutdown[R, E, O](queue: ZQueue[Nothing, R, Any, E, Nothing, Chunk[O]]): ZStream[R, E, O] =
-    fromChunkQueue(queue).ensuringFirst(queue.shutdown)
+    fromChunkQueue(queue).ensuring(queue.shutdown)
 
   /**
    * Creates a stream from an arbitrary number of chunks.
@@ -3962,7 +3956,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     hub: ZHub[Nothing, R, Any, E, Nothing, A],
     maxChunkSize: Int = DefaultChunkSize
   ): ZStream[R, E, A] =
-    fromHub(hub, maxChunkSize).ensuringFirst(hub.shutdown)
+    fromHub(hub, maxChunkSize).ensuring(hub.shutdown)
 
   /**
    * Creates a stream from a subscription to a hub in the context of a managed
@@ -3975,7 +3969,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     hub: ZHub[Nothing, R, Any, E, Nothing, A],
     maxChunkSize: Int = DefaultChunkSize
   ): ZManaged[Any, Nothing, ZStream[R, E, A]] =
-    fromHubManaged(hub, maxChunkSize).map(_.ensuringFirst(hub.shutdown))
+    fromHubManaged(hub, maxChunkSize).map(_.ensuring(hub.shutdown))
 
   /**
    * Creates a stream from an iterable collection of values
@@ -4154,7 +4148,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     queue: ZQueue[Nothing, R, Any, E, Nothing, O],
     maxChunkSize: Int = DefaultChunkSize
   ): ZStream[R, E, O] =
-    fromQueue(queue, maxChunkSize).ensuringFirst(queue.shutdown)
+    fromQueue(queue, maxChunkSize).ensuring(queue.shutdown)
 
   /**
    * Creates a stream from a [[zio.Schedule]] that does not require any further
@@ -4926,8 +4920,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def failCause[E](c: Cause[E]): IO[Option[E], Nothing]                         = IO.failCause(c).mapError(Some(_))
     @deprecated("use failCause", "2.0.0")
     def halt[E](c: Cause[E]): IO[Option[E], Nothing] = failCause(c)
-    def empty[A]: IO[Nothing, Chunk[A]]              = UIO(Chunk.empty)
-    val end: IO[Option[Nothing], Nothing]            = IO.fail(None)
+    def empty[A]: IO[Nothing, Chunk[A]]   = UIO(Chunk.empty)
+    val end: IO[Option[Nothing], Nothing] = IO.fail(None)
   }
 
   @deprecated("use zio.stream.Take instead", "1.0.0")
