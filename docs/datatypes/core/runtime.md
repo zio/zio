@@ -70,14 +70,14 @@ object MyApp extends zio.ZIOAppDefault {
 }
 ```
 
-ZIO has a service that contains command-line arguments of an application called `ZIOAppArgs`. We can access command-line arguments using `ZIO.service[ZIOAppArgs]` :
+ZIO has a service that contains command-line arguments of an application called `ZIOAppArgs`. We can access command-line arguments using built-in `args` method which is a helper method for `ZIO.service[ZIOAppArgs].map(_.args)`:
 
 ```scala mdoc:compile-only
 
 import zio._
 object HelloApp extends ZIOAppDefault {
   def run = for {
-    args <- ZIO.service[ZIOAppArgs].map(_.args)
+    args <- args
     _ <-
       if (args.isEmpty)
         Console.printLine("Please provide your name as an argument")
