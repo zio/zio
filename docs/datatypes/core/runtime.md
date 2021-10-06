@@ -64,9 +64,26 @@ def myAppLogic =
 
 Now we can run that effect using `run` entry point:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 object MyApp extends zio.ZIOAppDefault {
   def run = myAppLogic
+}
+```
+
+ZIO has a service that contains command-line arguments of an application called `ZIOAppArgs`. We can access command-line arguments using `ZIO.service[ZIOAppArgs]` :
+
+```scala mdoc:compile-only
+
+import zio._
+object HelloApp extends ZIOAppDefault {
+  def run = for {
+    args <- ZIO.service[ZIOAppArgs].map(_.args)
+    _ <-
+      if (args.isEmpty)
+        Console.printLine("Please provide your name as an argument")
+      else
+        Console.printLine(s"Hello, ${args.head}!")
+  } yield ()
 }
 ```
 
