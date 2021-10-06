@@ -43,22 +43,13 @@ Runtime Systems have a lot of responsibilities:
 
 ## Running a ZIO Effect
 
-There are two ways to run ZIO effect:
-1. **Using `zio.App` entry point**
-2. **Using `unsafeRun` method directly**
+There are two common ways to run ZIO effect:
+1. **The `ZIOAppDefault` trait**
+2. **The `Runtime#unsafeRun` method**
 
-### Using zio.App
+### Using `ZIOAppDefault` Trait
 
-In most cases we use this method to run our ZIO effect. `zio.App` has a `run` function which is the main entry point for running a ZIO application on the JVM:
-
-```scala
-package zio
-trait App {
-  def run(args: List[String]): URIO[ZEnv, ExitCode]
-}
-```
-
-Assume we have written an effect using ZIO:
+In most cases we use this method to run our ZIO effect. `ZIOAppDefault` has a `run` function which is the main entry point for running a ZIO application on the JVM. Assume we have written an effect using ZIO:
 
 ```scala mdoc:silent
 import zio.Console
@@ -74,13 +65,12 @@ def myAppLogic =
 Now we can run that effect using `run` entry point:
 
 ```scala mdoc:silent
-object MyApp extends zio.App {
-  final def run(args: List[String]) =
-    myAppLogic.exitCode
+object MyApp extends zio.ZIOAppDefault {
+  def run = myAppLogic
 }
 ```
 
-### Using unsafeRun
+### Using `Runtime#unsafeRun` Method
 
 Another way to execute ZIO effect is to feed the ZIO effect to the `unsafeRun` method of Runtime system:
 
