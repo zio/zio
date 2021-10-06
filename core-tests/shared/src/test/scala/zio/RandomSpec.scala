@@ -52,7 +52,7 @@ object RandomSpec extends ZIOBaseSpec {
       }
     },
     testM("scalaRandom") {
-      val layer = ZLayer.fromEffect(ZIO.succeed(new scala.util.Random)) >>> Random.scalaRandom
+      val layer  = ZLayer.fromEffect(ZIO.succeed(new scala.util.Random)) >>> Random.scalaRandom
       val sample = ZIO.replicateM(5)((random.setSeed(91) *> random.nextInt).provideSomeLayer(layer.fresh))
       for {
         values <- ZIO.collectAllPar(ZIO.replicate(5)(sample))
