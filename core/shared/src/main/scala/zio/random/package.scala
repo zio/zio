@@ -100,14 +100,14 @@ package object random {
     val live: Layer[Nothing, Random] =
       ZLayer.succeed(Service.live)
 
-  /**
-   * Constructs a `Random` service from a `scala.util.Random`.
-   */
-  val scalaRandom: ZLayer[Has[scala.util.Random], Nothing, Random] = {
-    for {
-      random <- ZIO.service[scala.util.Random]
-    } yield Service.RandomScala(random)
-  }.toLayer
+    /**
+     * Constructs a `Random` service from a `scala.util.Random`.
+     */
+    val scalaRandom: ZLayer[Has[scala.util.Random], Nothing, Random] = {
+      for {
+        random <- ZIO.service[scala.util.Random]
+      } yield Service.RandomScala(random)
+    }.toLayer
 
     private[zio] def nextDoubleBetweenWith(minInclusive: Double, maxExclusive: Double)(
       nextDouble: UIO[Double]
