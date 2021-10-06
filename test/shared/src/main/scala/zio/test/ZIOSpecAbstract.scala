@@ -52,7 +52,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   protected def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
     for {
       args     <- ZIO.service[ZIOAppArgs]
-      testArgs  = TestArgs.parse(args.args.toArray)
+      testArgs  = TestArgs.parse(args.getArgs.toArray)
       exitCode <- runSpec(spec, testArgs)
       _        <- doExit(exitCode)
     } yield ()
