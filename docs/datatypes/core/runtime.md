@@ -91,7 +91,7 @@ object HelloApp extends ZIOAppDefault {
 
 Another way to execute ZIO effect is to feed the ZIO effect to the `unsafeRun` method of Runtime system:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 object RunZIOEffectUsingUnsafeRun extends scala.App {
   zio.Runtime.default.unsafeRun(
     myAppLogic
@@ -123,7 +123,7 @@ type ZEnv = Clock with Console with System with Random with Blocking
 
 We can easily access the default `Runtime` to run an effect:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 object MainApp extends scala.App {
   val runtime = Runtime.default
   runtime.unsafeRun(myAppLogic)

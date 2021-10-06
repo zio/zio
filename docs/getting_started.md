@@ -25,15 +25,15 @@ println(s"""```""")
 
 ## Main
 
-Your application can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
+Your application can extend `ZIOAppDefault`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
 import zio.Console._
 
-object MyApp extends zio.App {
+object MyApp extends ZIOAppDefault {
 
-  def run(args: List[String]) =
-    myAppLogic.exitCode
+  def run = myAppLogic
 
   val myAppLogic =
     for {

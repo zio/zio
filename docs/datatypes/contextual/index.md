@@ -29,16 +29,15 @@ val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live)
 
 Finally, to run our application we can put our `mainApp` inside the `run` method:
 
-```scala mdoc:silent:nest
-import zio.{ExitCode, ZEnv, ZIO}
+```scala mdoc:compile-only
+import zio._
 import zio.Console._
 
-object MainApp extends zio.App {
+object MainApp extends ZIOAppDefault {
   val effect: ZIO[Has[Console], Nothing, Unit] = printLine("Hello, World!").orDie
   val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live)
 
-  override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] = 
-    mainApp.exitCode
+  def run = mainApp
 }
 ```
 
@@ -58,19 +57,18 @@ val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live ++ Rando
 
 We don't need to provide live layers for built-in services (don't worry, we will discuss layers later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
+import zio._
 import zio.Console._
 import zio.Random._
-import zio.{ExitCode, ZEnv, ZIO}
 
-object MainApp extends zio.App {
+object MainApp extends ZIOAppDefault {
+  def run = effect
+  
   val effect: ZIO[Has[Console] with Has[Random], Nothing, Unit] = for {
     r <- nextInt
     _ <- printLine(s"random number: $r").orDie
   } yield ()
-
-  override def run(args: List[String]): ZIO[ZEnv, Nothing, ExitCode] =
-    effect.exitCode
 }
 ```
 
@@ -270,15 +268,14 @@ object logging {
 
 This is how ZIO services are created. Let's use the `Logging` service in our application:
 
-```scala mdoc:silent:nest
-object LoggingExample extends zio.App {
+```scala mdoc:compile-only
+object LoggingExample extends ZIOAppDefault {
   import zio.RIO
   import logging._
  
   private val app: RIO[Logging, Unit] = log("Hello, World!") 
 
-  override def run(args: List[String]) = 
-    app.provideLayer(Logging.live).exitCode
+  def run = app.provideLayer(Logging.live)
 }
 ```
 
