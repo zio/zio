@@ -1,5 +1,6 @@
 package zio
 
+import zio.ZIOAspect.disableLogging
 import zio.test._
 import zio.test.TestAspect._
 
@@ -95,6 +96,12 @@ object LoggingSpec extends ZIOBaseSpec {
           output <- logOutput
           _      <- ZIO.debug(output(0).call(ZLogger.defaultFormatter))
         } yield assertTrue(true)
+      },
+      test("none") {
+        for {
+          _      <- ZIO.log("It's alive!") @@ disableLogging
+          output <- logOutput
+        } yield assertTrue(output.length == 0)
       }
     ) @@ sequential @@ after(clearOutput)
 }
