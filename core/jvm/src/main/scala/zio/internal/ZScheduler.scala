@@ -211,6 +211,30 @@ private final class ZScheduler(val yieldOpCount: Int) extends zio.Executor {
 
   def submit(runnable: Runnable): Boolean = {
     val currentThread = Thread.currentThread
+    if (currentThread.isInstanceOf[ZScheduler.Worker]) {
+      val worker = currentThread.asInstanceOf[ZScheduler.Worker]
+      if (!worker.localQueue.offer(runnable)) {
+        globalQueue.offerAll(worker.localQueue.pollUpTo(128) :+ runnable)
+      }
+    } else {
+      globalQueue.offer(runnable)
+    }
+    val currentState     = state.get
+    val currentActive    = (currentState & 0xffff0000) >> 16
+    val currentSearching = currentState & 0xffff
+    if (currentActive != poolSize && currentSearching == 0) {
+      val worker = idle.poll(null)
+      if (worker ne null) {
+        state.getAndAdd(0x10001)
+        worker.active = true
+        LockSupport.unpark(worker)
+      }
+    }
+    true
+  }
+
+  override def submitAndYield(runnable: Runnable): Boolean = {
+    val currentThread = Thread.currentThread
     var notify        = false
     if (currentThread.isInstanceOf[ZScheduler.Worker]) {
       val worker = currentThread.asInstanceOf[ZScheduler.Worker]

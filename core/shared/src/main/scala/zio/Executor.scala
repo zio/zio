@@ -28,11 +28,6 @@ import scala.concurrent.ExecutionContext
 abstract class Executor extends ExecutorPlatformSpecific { self =>
 
   /**
-   * The number of operations a fiber should run before yielding.
-   */
-  def yieldOpCount: Int
-
-  /**
    * Current sampled execution metrics, if available.
    */
   def metrics: Option[ExecutionMetrics]
@@ -43,10 +38,9 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   def submit(runnable: Runnable): Boolean
 
   /**
-   * Submits an effect for execution or throws.
+   * The number of operations a fiber should run before yielding.
    */
-  final def submitOrThrow(runnable: Runnable): Unit =
-    if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
+  def yieldOpCount: Int
 
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
@@ -75,6 +69,25 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
       if (submit(command)) ()
       else throw new java.util.concurrent.RejectedExecutionException
 
+  /**
+   * Submits an effect for execution and signals that the current fiber is
+   * ready to yield.
+   */
+  def submitAndYield(runnable: Runnable): Boolean =
+    submit(runnable)
+
+  /**
+   * Submits an effect for execution and signals that the current fiber is
+   * ready to yield or throws.
+   */
+  final def submitAndYieldOrThrow(runnable: Runnable): Unit =
+    if (!submitAndYield(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
+
+  /**
+   * Submits an effect for execution or throws.
+   */
+  final def submitOrThrow(runnable: Runnable): Unit =
+    if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
 }
 
 object Executor extends DefaultExecutors with Serializable {
