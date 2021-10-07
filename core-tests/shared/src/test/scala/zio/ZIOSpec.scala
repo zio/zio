@@ -231,6 +231,22 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(d)(not(equalTo(e)))
       }
     ),
+    suite("catchNonFatal")(
+      testM("recovers from NonFatal") {
+        val s   = "division by zero"
+        val zio = ZIO.fail(new IllegalArgumentException(s))
+        for {
+          result <- zio.catchNonFatal(e => ZIO.succeed(e.getMessage)).run
+        } yield assert(result)(succeeds(equalTo(s)))
+      },
+      testM("dies if fatal") {
+        val e   = new OutOfMemoryError
+        val zio = ZIO.fail(e)
+        for {
+          result <- zio.catchNonFatal(e => ZIO.succeed(e.getMessage)).run
+        } yield assert(result)(dies(equalTo(e)))
+      }
+    ),
     suite("catchAllDefect")(
       testM("recovers from all defects") {
         val s   = "division by zero"

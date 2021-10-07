@@ -26,6 +26,7 @@ import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /**
@@ -397,6 +398,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def catchAllDefect[R1 <: R, E1 >: E, A1 >: A](h: Throwable => ZIO[R1, E1, A1]): ZIO[R1, E1, A1] =
     catchSomeDefect { case t => h(t) }
+
+  /**
+   * Recovers from all NonFatal Throwables.
+   *
+   * {{{
+   * openFile("data.json").catchNonFatal(_ => openFile("backup.json"))
+   * }}}
+   */
+  final def catchNonFatal[R1 <: R, E2, A1 >: A](
+    h: E => ZIO[R1, E2, A1]
+  )(implicit ev1: CanFail[E], ev2: E <:< Throwable): ZIO[R1, E2, A1] = {
+    def hh(e: E) = if (NonFatal(e)) h(e) else ZIO.die(e)
+    self.foldM[R1, E2, A1](hh, new ZIO.SucceedFn(hh _))
+  }
 
   /**
    * Recovers from some or all of the error cases.
