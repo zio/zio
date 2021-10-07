@@ -43,56 +43,18 @@ Runtime Systems have a lot of responsibilities:
 
 ## Running a ZIO Effect
 
-There are two common ways to run ZIO effect:
-1. **The `ZIOAppDefault` trait**
-2. **The `Runtime#unsafeRun` method**
+There are two common ways to run a ZIO effect. Most of the time, we use the [`ZIOAppDefault`](zioapp.md) trait. There are, however, some advanced use cases for which we need to directly feed a ZIO effect into the runtime system's `unsafeRun` method:
 
-### Using `ZIOAppDefault` Trait
+```scala mdoc:compile-only
+import zio._
 
-In most cases we use this method to run our ZIO effect. `ZIOAppDefault` has a `run` function which is the main entry point for running a ZIO application on the JVM. Assume we have written an effect using ZIO:
-
-```scala mdoc:silent
-import zio.Console
-
-def myAppLogic =
-  for {
+object RunZIOEffectUsingUnsafeRun extends scala.App {
+  val myAppLogic = for {
     _ <- Console.printLine("Hello! What is your name?")
     n <- Console.readLine
     _ <- Console.printLine("Hello, " + n + ", good to meet you!")
   } yield ()
-```
 
-Now we can run that effect using `run` entry point:
-
-```scala mdoc:compile-only
-object MyApp extends zio.ZIOAppDefault {
-  def run = myAppLogic
-}
-```
-
-ZIO has a service that contains command-line arguments of an application called `ZIOAppArgs`. We can access command-line arguments using built-in `args` method which is a helper method for `ZIO.service[ZIOAppArgs].map(_.args)`:
-
-```scala mdoc:compile-only
-
-import zio._
-object HelloApp extends ZIOAppDefault {
-  def run = for {
-    args <- args
-    _ <-
-      if (args.isEmpty)
-        Console.printLine("Please provide your name as an argument")
-      else
-        Console.printLine(s"Hello, ${args.head}!")
-  } yield ()
-}
-```
-
-### Using `Runtime#unsafeRun` Method
-
-Another way to execute ZIO effect is to feed the ZIO effect to the `unsafeRun` method of Runtime system:
-
-```scala mdoc:compile-only
-object RunZIOEffectUsingUnsafeRun extends scala.App {
   zio.Runtime.default.unsafeRun(
     myAppLogic
   )
@@ -125,6 +87,7 @@ We can easily access the default `Runtime` to run an effect:
 
 ```scala mdoc:compile-only
 object MainApp extends scala.App {
+  val myAppLogic = ZIO.succeed(???)
   val runtime = Runtime.default
   runtime.unsafeRun(myAppLogic)
 }
