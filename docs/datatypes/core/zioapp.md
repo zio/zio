@@ -97,6 +97,8 @@ object MyApp extends ZIOAppDefault {
 }
 ```
 
+A detailed explanation of the `RuntimeConfigAspect` can be found on the [runtime](runtime.md#runtimeconfig-aspect) page.
+
 ## Composing ZIO Applications
 
 To compose ZIO application, we can use `<>` operator:
