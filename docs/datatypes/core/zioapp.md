@@ -43,6 +43,29 @@ object HelloApp extends ZIOAppDefault {
 }
 ```
 
+## Installing Low-level Functionalities
+
+We can hook into the ZIO runtime configuration to install low-level functionalities into the ZIO application, such as _logging_, _profiling_, _tracing configurations_, and other similar foundational pieces of infrastructure.
+
+In the following example, we disabled application tracing in order to improve application performance:
+
+```scala mdoc:invisible
+import zio._
+val myAppLogic = ZIO.succeed(???)
+```
+
+```scala mdoc:compile-only
+import zio._
+import zio.internal.Tracing
+
+object MyApp extends ZIOAppDefault {
+  override def hook: RuntimeConfigAspect =
+    RuntimeConfigAspect.setTracing(Tracing.enabled)
+
+  def run = myAppLogic
+}
+```
+
 ## Composing ZIO Applications
 
 To compose ZIO application, we can use `<>` operator:
