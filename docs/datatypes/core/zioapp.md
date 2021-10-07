@@ -110,8 +110,12 @@ val asyncProfiler, slf4j, loggly, newRelic = RuntimeConfigAspect.identity
 
 ```scala mdoc:compile-only
 import zio._
+import zio.internal.Tracing
 
 object MyApp1 extends ZIOAppDefault {
+  override def hook: RuntimeConfigAspect =
+    RuntimeConfigAspect.setTracing(Tracing.disabled)
+    
   def run = ZIO.succeed(???)
 }
 
@@ -127,4 +131,4 @@ object Main extends ZIOAppDefault {
 }
 ```
 
-The `<>` operator combines the two layers of applications, composes their hooks (which are `RuntimeConfigAspect`), and then runs the two applications in parallel.
+The `<>` operator combines the two layers of applications, composes their hooks, and then runs the two applications in parallel.
