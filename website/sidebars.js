@@ -31,9 +31,10 @@ module.exports = {
                 "datatypes/core/zio/io",
             ]
         },
+        "datatypes/core/zioapp",
+        "datatypes/core/runtime",
         "datatypes/core/exit",
-        "datatypes/core/cause",
-        "datatypes/core/runtime"
+        "datatypes/core/cause"
     ],
     "Contextual Types": [
         "datatypes/contextual/index",
