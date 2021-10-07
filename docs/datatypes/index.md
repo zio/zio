@@ -22,9 +22,10 @@ ZIO contains a few data types that can help you solve complex problems in asynch
    + **[Task](core/zio/task.md)** — A `Task[A]` is a type alias for `ZIO[Any, Throwable, A]`.
    + **[RIO](core/zio/rio.md)** — A `RIO[R, A]` is a type alias for `ZIO[R, Throwable, A]`.
    + **[IO](core/zio/io.md)** — An `IO[E, A]` is a type alias for `ZIO[Any, E, A]`.
+ - **[ZIOApp](core/zioapp.md)** — The `ZIOApp` and the `ZIOAppDefault` are entry points for ZIO applications.
+ - **[Runtime](core/runtime.md)** — A `Runtime[R]` is capable of executing tasks within an environment `R`.
  - **[Exit](core/exit.md)** — An `Exit[E, A]` describes the result of executing an `IO` value.
  - **[Cause](core/cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
- - **[Runtime](core/runtime.md)** — A `Runtime[R]` is capable of executing tasks within an environment `R`.
 
 ## Contextual Data Types
 - **[Has](contextual/has.md)** — The trait `Has[A]` is used with the [ZIO environment](contextual/index.md#zio-environment) to express an effect's dependency on a service of type `A`. 
