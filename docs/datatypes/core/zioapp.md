@@ -43,16 +43,47 @@ object HelloApp extends ZIOAppDefault {
 }
 ```
 
-## Installing Low-level Functionalities
+## Customized Runtime
 
-We can hook into the ZIO runtime configuration to install low-level functionalities into the ZIO application, such as _logging_, _profiling_, _tracing configurations_, and other similar foundational pieces of infrastructure.
-
-In the following example, we disabled application tracing in order to improve application performance:
+In the ZIO app, by overriding the `runtime` we can map the current runtime to a newly customized one. Let's try customizing it by introducing our own executor:
 
 ```scala mdoc:invisible
 import zio._
 val myAppLogic = ZIO.succeed(???)
 ```
+
+```scala mdoc:compile-only
+import zio._
+import zio.Executor
+import java.util.concurrent.{LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+
+object CustomizedRuntimeZIOApp extends ZIOAppDefault {
+  override val runtime = Runtime.default.mapRuntimeConfig(
+    _.copy(
+      executor =
+        Executor.fromThreadPoolExecutor(_ => 1024)(
+          new ThreadPoolExecutor(
+            5,
+            10,
+            5000,
+            TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue[Runnable]()
+          )
+        )
+    )
+  )
+
+  def run = myAppLogic
+}
+```
+
+A detailed explanation of the ZIO runtime system can be found on the [runtime](runtime.md) page.
+
+## Installing Low-level Functionalities
+
+We can hook into the ZIO runtime configuration to install low-level functionalities into the ZIO application, such as _logging_, _profiling_, _tracing configurations_, and other similar foundational pieces of infrastructure.
+
+In the following example, we disabled application tracing in order to improve application performance:
 
 ```scala mdoc:compile-only
 import zio._
