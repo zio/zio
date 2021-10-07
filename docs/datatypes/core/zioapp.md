@@ -8,6 +8,8 @@ provides us the ability to compose multiple ZIO applications.
 
 There is another simpler version of `ZIOApp` called `ZIOAppDefault`. We usually use `ZIOAppDefault` which uses the default ZIO environment (`ZEnv`).
 
+## Running a ZIO effect
+
 The `ZIOAppDefault` has a `run` function, which is the main entry point for running a ZIO application on the JVM:
 
 ```scala mdoc:compile-only
@@ -23,10 +25,11 @@ object MyApp extends ZIOAppDefault {
 }
 ```
 
+## Accessing Command-line Arguments
+
 ZIO has a service that contains command-line arguments of an application called `ZIOAppArgs`. We can access command-line arguments using built-in `getArgs` method, which is a helper method:
 
 ```scala mdoc:compile-only
-
 import zio._
 object HelloApp extends ZIOAppDefault {
   def run = for {
@@ -39,3 +42,33 @@ object HelloApp extends ZIOAppDefault {
   } yield ()
 }
 ```
+
+## Composing ZIO Applications
+
+To compose ZIO application, we can use `<>` operator:
+
+```scala mdoc:invisible
+import zio._
+val asyncProfiler, slf4j, loggly, newRelic = RuntimeConfigAspect.identity
+```
+
+```scala mdoc:compile-only
+import zio._
+
+object MyApp1 extends ZIOAppDefault {
+  def run = ZIO.succeed(???)
+}
+
+object MyApp2 extends ZIOAppDefault {
+  override def hook: RuntimeConfigAspect =
+    asyncProfiler >>> slf4j >>> loggly >>> newRelic
+
+  def run = ZIO.succeed(???)
+}
+
+object Main extends ZIOAppDefault {
+  def run = (MyApp1 <> MyApp2).invoke(Chunk.empty)
+}
+```
+
+The `<>` operator combines the two layers of applications, composes their hooks (which are `RuntimeConfigAspect`), and then runs the two applications in parallel.
