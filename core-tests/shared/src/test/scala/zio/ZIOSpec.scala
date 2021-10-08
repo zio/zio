@@ -245,7 +245,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           result <- zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).run
         } yield assert(result)(dies(equalTo(e)))
-      }
+      } @@ jvmOnly // no fatal exceptions in JS
     ),
     suite("catchAllDefect")(
       testM("recovers from all defects") {
