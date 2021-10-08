@@ -4260,6 +4260,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].
      */
     def toManaged: ZManaged[R, E, A] = ZManaged.fromAutoCloseable(io)
+
+    /**
+     * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].
+     */
+    def toManagedAuto: ZManaged[R, E, A] =
+      ZManaged.fromAutoCloseable(io)
   }
 
   implicit final class ZioRefineToOrDieOps[R, E <: Throwable, A](private val self: ZIO[R, E, A]) extends AnyVal {
