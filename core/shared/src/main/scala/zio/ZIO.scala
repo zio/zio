@@ -26,7 +26,6 @@ import scala.annotation.implicitNotFound
 import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /**
@@ -406,10 +405,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * openFile("data.json").catchNonFatal(_ => openFile("backup.json"))
    * }}}
    */
-  final def catchNonFatal[R1 <: R, E2, A1 >: A](
+  final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
     h: E => ZIO[R1, E2, A1]
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable): ZIO[R1, E2, A1] = {
-    def hh(e: E) = if (NonFatal(e)) h(e) else ZIO.die(e)
+
+    def hh(e: E) = ZIO.runtime[Any].flatMap(runtime => if (runtime.platform.fatal(e)) ZIO.die(e) else h(e))
     self.foldM[R1, E2, A1](hh, new ZIO.SucceedFn(hh _))
   }
 
