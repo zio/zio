@@ -1,24 +1,18 @@
 package zio.internal.stacktracer
 
 object Tracer {
+  trait Traced extends Any
 
-  /**
-   * This implicit is always in scope and will generate a new ZTraceElement any time one is
-   * implicitly required (or the method is explicitly called)
-   *
-   * This can be disabled by importing
-   * `import zio.stacktracer.TracingImplicits.disableAutoTrace``
-   */
-  implicit def autoTrace: Tracer.instance.Type = macro Macros.autoTraceImpl
+  implicit def autoTrace: instance.Type with zio.internal.stacktracer.Tracer.Traced = macro Macros.autoTraceImpl
 
   /**
    * Explicitly generate a new trace
    */
-  def newTrace: Tracer.instance.Type = macro Macros.newTraceImpl
+  def newTrace: Tracer.instance.Type with zio.internal.stacktracer.Tracer.Traced = macro Macros.newTraceImpl
 
   val instance: Tracer = new Tracer {
     type Type = String
-    val empty = ""
+    val empty: Type with Traced = "".asInstanceOf[Type with Traced]
     def unapply(trace: Type): Option[(String, String, Int, Int)] = {
       val regex = """(.*?)\((.*?),(.*?),(.*?)\)""".r
       trace match {
@@ -34,6 +28,6 @@ object Tracer {
 
 sealed trait Tracer {
   type Type <: AnyRef
-  val empty: Type
+  val empty: Type with Tracer.Traced
   def unapply(trace: Type): Option[(String, String, Int, Int)]
 }

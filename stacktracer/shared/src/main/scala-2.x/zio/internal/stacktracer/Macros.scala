@@ -30,9 +30,9 @@ object Macros {
     createTrace(location, file, line, column)
   }
 
-  def newTraceImpl(c: blackbox.Context): c.Expr[Tracer.instance.Type] = traceExpr(traceInfo(c), c)
+  def newTraceImpl(c: blackbox.Context): c.Expr[Tracer.instance.Type with zio.internal.stacktracer.Tracer.Traced] = traceExpr(traceInfo(c), c)
 
-  def autoTraceImpl(c: whitebox.Context): c.Expr[Tracer.instance.Type] = {
+  def autoTraceImpl(c: whitebox.Context): c.Expr[Tracer.instance.Type with zio.internal.stacktracer.Tracer.Traced] = {
     import c.universe._
 
     val disableAutoTrace =
@@ -68,10 +68,10 @@ object Macros {
 
   }
 
-  private def traceExpr(trace: String, c: blackbox.Context): c.Expr[Tracer.instance.Type] = {
+  private def traceExpr(trace: String, c: blackbox.Context): c.Expr[Tracer.instance.Type with Tracer.Traced] = {
     import c.universe._
-    c.Expr[Tracer.instance.Type](
-      q"""$trace.asInstanceOf[_root_.zio.internal.stacktracer.Tracer.instance.Type]"""
+    c.Expr[Tracer.instance.Type with Tracer.Traced](
+      q"""$trace.asInstanceOf[_root_.zio.internal.stacktracer.Tracer.instance.Type with _root_.zio.internal.stacktracer.Tracer.Traced]"""
     )
   }
 }

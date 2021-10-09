@@ -85,7 +85,7 @@ package object zio
 
   type HasMany[K, A] = Has[Map[K, A]]
 
-  type ZTraceElement = Tracer.instance.Type
+  type ZTraceElement = Tracer.instance.Type with Tracer.Traced
   object ZTraceElement {
     val empty = Tracer.instance.empty
     object SourceLocation {
