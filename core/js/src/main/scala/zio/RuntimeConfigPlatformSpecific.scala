@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.{Tracing, TracingConfig}
 
 import scala.concurrent.ExecutionContext
