@@ -244,8 +244,7 @@ We can enable or disable execution tracing or configure its setting. Execution t
 Users often turn off tracing in critical areas of their application. Also, when we are doing benchmark operation, it is better to create a `Runtime` without tracing capability:
 
 ```scala mdoc:silent:nest
-import zio.internal.Tracing
-import zio.internal.tracing.TracingConfig
+import zio.internal.tracing.{Tracing, TracingConfig}
 
 val rt1 = Runtime.default.mapRuntimeConfig(_.copy(tracing = Tracing.disabled))
 val rt2 = Runtime.default.mapRuntimeConfig(_.copy(tracing = Tracing.enabledWith(TracingConfig.stackOnly)))
