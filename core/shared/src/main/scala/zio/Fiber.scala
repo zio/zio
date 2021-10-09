@@ -641,11 +641,11 @@ object Fiber extends FiberPlatformSpecific {
    */
   def done[E, A](exit: => Exit[E, A]): Fiber.Synthetic[E, A] =
     new Fiber.Synthetic[E, A] {
-      final def await(implicit trace: ZTraceElement): UIO[Exit[E, A]]                    = IO.succeedNow(exit)
-      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A]                              = UIO(ref.initial)
-      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] = IO.succeedNow(exit)
-      final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]                    = IO.unit
-      final def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]]             = IO.succeedNow(Some(exit))
+      final def await(implicit trace: ZTraceElement): UIO[Exit[E, A]]                      = IO.succeedNow(exit)
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
+      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]]   = IO.succeedNow(exit)
+      final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]                      = IO.unit
+      final def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]]               = IO.succeedNow(Some(exit))
     }
 
   /**
@@ -784,7 +784,7 @@ object Fiber extends FiberPlatformSpecific {
   val never: Fiber.Synthetic[Nothing, Nothing] =
     new Fiber.Synthetic[Nothing, Nothing] {
       def await(implicit trace: ZTraceElement): UIO[Exit[Nothing, Nothing]]                    = IO.never
-      def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A]                                          = UIO(ref.initial)
+      def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A]           = UIO(ref.initial)
       def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Nothing, Nothing]] = IO.never
       def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]                                = IO.unit
       def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeedNow(None)

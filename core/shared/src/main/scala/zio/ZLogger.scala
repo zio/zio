@@ -116,10 +116,10 @@ object ZLogger {
         appendQuoted(file, sb)
 
         sb.append(" line=")
-           .append(line)
+          .append(line)
 
-         sb.append(" column=")
-           .append(column)
+        sb.append(" column=")
+          .append(column)
 
       case _ =>
     }
