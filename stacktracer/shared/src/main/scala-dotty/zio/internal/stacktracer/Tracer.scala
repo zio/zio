@@ -38,4 +38,5 @@ object Tracer {
 sealed trait Tracer {
   type Type <: AnyRef
   val empty: Type
+  def unapply(trace: Type): Option[(String, String, Int, Int)]
 }
