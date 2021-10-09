@@ -1,6 +1,7 @@
 package zio.internal.stacktracer
 
 object Tracer {
+  type Traced = Any
 
   /**
    * This implicit is always in scope and will generate a new ZTraceElement any time one is
