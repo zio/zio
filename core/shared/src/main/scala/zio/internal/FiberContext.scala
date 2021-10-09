@@ -828,7 +828,7 @@ private[zio] final class FiberContext[E, A](
     }
   }
 
-  def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO {
+  def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO {
     val oldValue = fiberRefLocals.get.get(ref).asInstanceOf[Option[A]]
 
     oldValue.getOrElse(ref.initial)
