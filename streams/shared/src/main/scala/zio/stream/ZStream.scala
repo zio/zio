@@ -353,7 +353,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Maps the success values of this stream to the specified constant value.
    */
   def as[O2](o2: => O2): ZStream[R, E, O2] =
-    map(new ZIO.ConstFn(() => o2))
+    map(_ => o2)
 
   /**
    * Returns a stream whose failure and success channels have been mapped by

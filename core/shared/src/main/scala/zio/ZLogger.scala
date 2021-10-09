@@ -1,7 +1,5 @@
 package zio
 
-import zio.internal.stacktracer._
-
 trait ZLogger[+A] { self =>
   def apply(
     trace: ZTraceElement,
@@ -107,23 +105,9 @@ object ZLogger {
       }
     }
 
-    trace match {
-      case ZTraceElement.NoLocation(_) =>
+    sb.append(" trace=")
 
-      case ZTraceElement.SourceLocation(file, clazz, method, line) =>
-        sb.append(" file=")
-
-        appendQuoted(file, sb)
-
-        sb.append(" line=")
-          .append(line)
-          .append(" class=")
-
-        appendQuoted(clazz, sb)
-
-        sb.append(" method=")
-          .append(method)
-    }
+    appendQuoted(trace.toString, sb)
 
     sb.toString()
   }

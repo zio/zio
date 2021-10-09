@@ -16,9 +16,8 @@
 
 package zio
 
-import zio.internal.stacktracer.{Tracer, ZTraceElement}
-import zio.internal.tracing.TracingConfig
-import zio.internal.Tracing
+import zio.internal.stacktracer.Tracer
+import zio.internal.tracing.{Tracing, TracingConfig}
 
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js.Dynamic.{global => jsglobal}
@@ -93,7 +92,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       throw t
     }
 
-    val tracing = Tracing(Tracer.Empty, TracingConfig.disabled)
+    val tracing = Tracing(TracingConfig.enabled)
 
     val supervisor = Supervisor.none
 

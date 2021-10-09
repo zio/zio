@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import zio.internal.stacktracer.Tracer
+
 package object zio
     extends BuildFromCompat
     with EitherCompat
@@ -82,4 +84,9 @@ package object zio
   type Semaphore = stm.TSemaphore
 
   type HasMany[K, A] = Has[Map[K, A]]
+
+  type ZTraceElement = Tracer.instance.Type
+  object ZTraceElement {
+    val empty = Tracer.instance.empty
+  }
 }

@@ -25,9 +25,9 @@ private[zio] trait FiberPlatformSpecific {
     lazy val cs: CompletionStage[A] = thunk
 
     new Fiber.Synthetic.Internal[Throwable, A] {
-      override def await: UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).exit
+      override def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).exit
 
-      override def poll: UIO[Option[Exit[Throwable, A]]] =
+      override def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Throwable, A]]] =
         UIO.suspendSucceed {
           val cf = cs.toCompletableFuture
           if (cf.isDone) {
@@ -42,9 +42,10 @@ private[zio] trait FiberPlatformSpecific {
 
       final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
 
-      final def interruptAs(id: FiberId): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+        join.fold(Exit.fail, Exit.succeed)
 
-      final def inheritRefs: UIO[Unit] = IO.unit
+      final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = IO.unit
     }
   }
 
@@ -53,10 +54,10 @@ private[zio] trait FiberPlatformSpecific {
     lazy val ftr: Future[A] = thunk
 
     new Fiber.Synthetic.Internal[Throwable, A] {
-      def await: UIO[Exit[Throwable, A]] =
+      def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
         ZIO.fromFutureJava(ftr).exit
 
-      def poll: UIO[Option[Exit[Throwable, A]]] =
+      def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Throwable, A]]] =
         UIO.suspendSucceed {
           if (ftr.isDone) {
             Task
@@ -70,9 +71,10 @@ private[zio] trait FiberPlatformSpecific {
 
       def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
 
-      def interruptAs(id: FiberId): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+      def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+        join.fold(Exit.fail, Exit.succeed)
 
-      def inheritRefs: UIO[Unit] = UIO.unit
+      def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = UIO.unit
     }
   }
 }

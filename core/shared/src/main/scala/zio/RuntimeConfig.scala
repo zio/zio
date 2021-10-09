@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.Tracing
+import zio.internal.tracing.Tracing
 
 /**
  * A `RuntimeConfig` provides the minimum capabilities necessary to bootstrap
