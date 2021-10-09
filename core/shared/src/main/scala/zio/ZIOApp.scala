@@ -100,10 +100,14 @@ object ZIOApp {
    */
   class Proxy(val app: ZIOApp) extends ZIOApp {
     type Environment = app.Environment
-    override final def hook = app.hook
-    final def layer         = app.layer
-    override final def run  = app.run
-    implicit final def tag  = app.tag
+    override final def hook: RuntimeConfigAspect =
+      app.hook
+    final def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
+      app.layer
+    override final def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any] =
+      app.run
+    implicit final def tag: Tag[Environment] =
+      app.tag
   }
 
   /**
