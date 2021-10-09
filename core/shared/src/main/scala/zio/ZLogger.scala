@@ -105,9 +105,24 @@ object ZLogger {
       }
     }
 
-    sb.append(" trace=")
+    trace match {
+      case ZTraceElement.SourceLocation(location, file, line, column) =>
+        sb.append(" location=")
 
-    appendQuoted(trace.toString, sb)
+        appendQuoted(location, sb)
+
+        sb.append(" file=")
+
+        appendQuoted(file, sb)
+
+        sb.append(" line=")
+           .append(line)
+
+         sb.append(" column=")
+           .append(column)
+
+      case _ =>
+    }
 
     sb.toString()
   }

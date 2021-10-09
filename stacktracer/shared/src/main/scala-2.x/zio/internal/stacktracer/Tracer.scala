@@ -19,6 +19,13 @@ object Tracer {
   val instance: Tracer = new Tracer {
     type Type = String
     val empty = ""
+    def unapply(trace: Type): Option[(String, String, Int, Int)] = {
+      val regex = """(.*?)\((.*?),(.*?),(.*?)\)""".r
+      trace match {
+        case regex(location, file, line, column) => Some((location, file, line.toInt, column.toInt))
+        case _                                   => None
+      }
+    }
   }
 
   private[internal] def createTrace(location: String, file: String, line: Int, column: Int): String =
@@ -28,4 +35,5 @@ object Tracer {
 sealed trait Tracer {
   type Type <: AnyRef
   val empty: Type
+  def unapply(trace: Type): Option[(String, String, Int, Int)]
 }
