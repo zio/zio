@@ -30,7 +30,8 @@ object Macros {
     createTrace(location, file, line, column)
   }
 
-  def newTraceImpl(c: blackbox.Context): c.Expr[Tracer.instance.Type with zio.internal.stacktracer.Tracer.Traced] = traceExpr(traceInfo(c), c)
+  def newTraceImpl(c: blackbox.Context): c.Expr[Tracer.instance.Type with zio.internal.stacktracer.Tracer.Traced] =
+    traceExpr(traceInfo(c), c)
 
   def autoTraceImpl(c: whitebox.Context): c.Expr[Tracer.instance.Type with zio.internal.stacktracer.Tracer.Traced] = {
     import c.universe._
