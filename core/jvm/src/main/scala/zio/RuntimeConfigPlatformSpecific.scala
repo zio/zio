@@ -16,10 +16,8 @@
 
 package zio
 
-import zio.internal.stacktracer.Tracer
-import zio.internal.stacktracer.impl.AkkaLineNumbersTracer
-import zio.internal.tracing.TracingConfig
-import zio.internal.{Blocking, Tracing}
+import zio.internal.tracing.{Tracing, TracingConfig}
+import zio.internal.Blocking
 
 import scala.concurrent.ExecutionContext
 
@@ -77,7 +75,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val supervisor = Supervisor.none
 
-    val tracing = Tracing(Tracer.globallyCached(new AkkaLineNumbersTracer), TracingConfig.enabled)
+    val tracing = Tracing(TracingConfig.enabled)
 
     RuntimeConfig(
       blockingExecutor,

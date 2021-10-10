@@ -391,6 +391,7 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
   .enablePlugins(BuildInfoPlugin)
 
