@@ -95,6 +95,22 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
 object ZIOApp {
 
   /**
+   * A class which can be extended by an object to convert a description of a
+   * ZIO application as a value into a runnable application.
+   */
+  class Proxy(val app: ZIOApp) extends ZIOApp {
+    type Environment = app.Environment
+    override final def hook: RuntimeConfigAspect =
+      app.hook
+    final def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
+      app.layer
+    override final def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any] =
+      app.run
+    implicit final def tag: Tag[Environment] =
+      app.tag
+  }
+
+  /**
    * Creates a [[ZIOApp]] from an effect, which can consume the arguments of the program, as well
    * as a hook into the ZIO runtime configuration.
    */
