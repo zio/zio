@@ -1038,14 +1038,14 @@ As we see, the `debug` aspect doesn't change the return type of our effect, but 
 
 To compose multiple aspects, we can use `@@` operator:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
+def download(url: String): ZIO[Any, Throwable, Chunk[Byte]] = ZIO.succeed(???)
+
 ZIO.foreachPar(List("zio.dev", "google.com")) { url =>
   download(url) @@
     ZIOAspect.retry(Schedule.fibonacci(1.seconds)) @@
     ZIOAspect.loggedWith[Chunk[Byte]](file => s"Downloaded $url file with size of ${file.length} bytes")
 }
-
-def download(url: String): ZIO[Any, Throwable, Chunk[Byte]] = ZIO.succeed(???)
 ```
 
 The order of aspect composition matters. Therefore, if we change the order, the behavior may change.
