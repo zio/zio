@@ -7,9 +7,7 @@ import zio.stacktracer.DisableAutoTrace
 
 @silent
 object Macros {
-  private val noImplicitTracing = s"""[${Console.RED}error${Console.RESET}]
-                                     |[${Console.RED}error${Console.RESET}]  Implicit tracing is forbidden here. You must explicitly provide ZTraceElements where needed.
-                                     |""".stripMargin
+
   def traceInfo(c: blackbox.Context): String = {
 
     val location = {
@@ -39,13 +37,13 @@ object Macros {
     val disableAutoTrace =
       c.inferImplicitValue(weakTypeOf[DisableAutoTrace]) != EmptyTree
 
-    val implictTraceInScope =
+    val implicitTraceInScope =
       c.inferImplicitValue(weakTypeOf[Tracer.instance.Type], withMacrosDisabled = true) != EmptyTree
 
     val traceExpression = traceExpr(traceInfo(c), c)
 
     if (!disableAutoTrace) {
-      if (implictTraceInScope)
+      if (implicitTraceInScope)
         c.abort(c.enclosingPosition, "we already have an implicit trace - pass it through")
       else //there's no implicit, so generate one
         traceExpression

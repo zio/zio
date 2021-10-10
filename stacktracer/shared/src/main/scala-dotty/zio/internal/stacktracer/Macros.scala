@@ -8,9 +8,6 @@ import scala.quoted._
 
 @silent
 object Macros {
-  private val noImplicitTracing = s"""[${Console.RED}error${Console.RESET}]
-                                     |[${Console.RED}error${Console.RESET}]  Implicit tracing is forbidden here. You must explicitly provide ZTraceElements where needed.
-                                     |""".stripMargin
 
   def traceInfo(using ctx: Quotes): String = {
 
