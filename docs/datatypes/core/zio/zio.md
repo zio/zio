@@ -1011,3 +1011,41 @@ IO.fail("e1")
     case "e2" => Console.printLine("e2")
   }
 ```
+
+## ZIO Aspect
+
+There are two types of concerns in an application, _core concerns_, and _cross-cutting concerns_. Cross-cutting concerns are shared among different parts of our application. We usually find them scattered and duplicated across our application, or they are tangled up with our primary concerns. This reduces the level of modularity of our programs. 
+
+A cross-cutting concern is more about _how_ we do something than _what_ we are doing. For example, when we are downloading a bunch of files, creating a socket to download each one is the core concern because it is a question of _what_ rather than the _how_, but the following concerns are cross-cutting ones:
+- Downloading files _sequentially_ or in _parallel_
+_ _Retrying_ and _timing out_ the download process
+_ _Logging_ and _monitoring_ the download process
+
+So they don't affect the return type of our workflows, but they add some new aspects or change their behavior.
+
+To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _ aspect-oriented programming_. 
+
+The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `ZIO` effect and convert it into a specialized `ZIO` effect. We can add a new aspect to a `ZIO` effect with `@@` syntax like this:
+
+```scala mdoc:silent:nest
+val myApp: ZIO[Any, Throwable, String] =
+  ZIO("Hello!") @@ ZIOAspect.debug
+```
+
+As we see, the `debug` aspect doesn't change the return type of our effect, but it adds a new debugging aspect to our effect.
+
+`ZIOAspect` is like a transformer of the `ZIO` effect, which takes a `ZIO` effect and converts it to another `ZIO` effect. We can think of a `ZIOAspect` as a function of type `ZIO[R, E, A] => ZIO[R, E, A]`. 
+
+To compose multiple aspects, we can use `@@` operator:
+
+```scala mdoc:silent:nest
+ZIO.foreachPar(List("zio.dev", "google.com")) { url =>
+  download(url) @@
+    ZIOAspect.retry(Schedule.fibonacci(1.seconds)) @@
+    ZIOAspect.loggedWith[Chunk[Byte]](file => s"Downloaded $url file with size of ${file.length} bytes")
+}
+
+def download(url: String): ZIO[Any, Throwable, Chunk[Byte]] = ZIO.succeed(???)
+```
+
+The order of aspect composition matters. Therefore, if we change the order, the behavior may change.
