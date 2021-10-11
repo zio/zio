@@ -66,7 +66,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       else null
     }
 
-    def closeSubexecutors(implicit trace: ZTraceElement) =
+    val closeSubexecutors =
       if (subexecutorStack eq null) null
       else
         subexecutorStack match {
@@ -83,7 +83,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             else fin2.exit
         }
 
-    def closeSelf(implicit trace: ZTraceElement): URIO[Env, Exit[Any, Any]] = {
+    val closeSelf: URIO[Env, Exit[Any, Any]] = {
       val selfFinalizers = popAllFinalizers(ex)
 
       if (selfFinalizers ne null) selfFinalizers.ensuring(UIO(clearInProgressFinalizer()))
