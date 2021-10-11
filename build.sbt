@@ -5,8 +5,6 @@ import sbt.Keys
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-Global / scalacOptions += "-P:silencer:globalFilters=[import zio.stacktracer.TracingImplicits.disableAutoTrace]"
-
 inThisBuild(
   List(
     organization := "dev.zio",
@@ -150,6 +148,14 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.0")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == ScalaDotty)
+        Seq.empty
+      else
+        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
+    }
+  )
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
@@ -226,6 +232,14 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == ScalaDotty)
+        Seq.empty
+      else
+        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
+    }
+  )
 
 lazy val streamsJVM = streams.jvm
   .settings(dottySettings)
@@ -272,6 +286,14 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.1")
         .cross(CrossVersion.for3Use2_13)
     )
+  )
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == ScalaDotty)
+        Seq.empty
+      else
+        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
+    }
   )
 
 lazy val testJVM = test.jvm

@@ -194,7 +194,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * ZTransducer[Int].filter(_ % 2 != 0)
    * }}}
    */
-  def apply[I](implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, I] = identity[I]
+  def apply[I]: ZTransducer[Any, Nothing, I, I] = identity[I](ZTraceElement.empty)
 
   /**
    * Reads the first n values from the stream and uses them to choose the transducer that will be used for the remainder of the stream.
