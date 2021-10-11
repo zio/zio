@@ -1,11 +1,12 @@
 package zio.stream.experimental
 
 import zio._
+import zio.stream.experimental.ZStreamSpec.{suite, test}
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.{Gen, ZSpec, assert, assertM, check}
 
-import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
+import java.io.{ByteArrayInputStream, FileNotFoundException, FileReader, IOException, OutputStream, Reader}
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{Files, NoSuchFileException, Paths}
@@ -371,7 +372,21 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           val write = (out: OutputStream) => { latch.await(); out.write(42); }
           ZStream.fromOutputStreamWriter(write).runDrain.fork.flatMap(_.interrupt).map(assert(_)(isInterrupted))
         }
-      )
+      ),
+      suite("fromInputStream")(
+        test("example 1") {
+          val chunkSize = ZStream.DefaultChunkSize
+          val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+          def is        = new ByteArrayInputStream(data)
+          ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
+        },
+        test("example 2") {
+          check(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
+            val is = new ByteArrayInputStream(bytes.toArray)
+            ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
+          }
+        }
+      ),
     )
   )
 }
