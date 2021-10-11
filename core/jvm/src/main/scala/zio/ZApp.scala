@@ -54,7 +54,8 @@ trait ZApp[R] extends ZBootstrapRuntime[R] {
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   // $COVERAGE-OFF$ Bootstrap to `Unit`
-  final def main(args0: Array[String]): Unit =
+  final def main(args0: Array[String]): Unit = {
+    implicit val trace: ZTraceElement = ZTraceElement.empty
     try sys.exit(
       unsafeRun(
         for {
@@ -79,5 +80,6 @@ trait ZApp[R] extends ZBootstrapRuntime[R] {
       )
     )
     catch { case _: SecurityException => }
+  }
   // $COVERAGE-ON$
 }

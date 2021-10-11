@@ -17,7 +17,7 @@
 package zio.stm
 
 import zio.stm.TReentrantLock._
-import zio.{FiberId, Managed, UManaged}
+import zio.{FiberId, Managed, UManaged, ZTraceElement}
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
@@ -70,7 +70,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
    *
    * See [[writeLock]].
    */
-  lazy val lock: UManaged[Int] = writeLock
+  def lock(implicit trace: ZTraceElement): UManaged[Int] = writeLock
 
   /**
    * Determines if any fiber has a read or write lock.
@@ -81,7 +81,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
   /**
    * Obtains a read lock in a managed context.
    */
-  lazy val readLock: UManaged[Int] =
+  def readLock(implicit trace: ZTraceElement): UManaged[Int] =
     Managed.acquireReleaseWith(acquireRead.commit)(_ => releaseRead.commit)
 
   /**
@@ -131,7 +131,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
   /**
    * Obtains a write lock in a managed context.
    */
-  lazy val writeLock: UManaged[Int] =
+  def writeLock(implicit trace: ZTraceElement): UManaged[Int] =
     Managed.acquireReleaseWith(acquireWrite.commit)(_ => releaseWrite.commit)
 
   /**

@@ -44,17 +44,17 @@ sealed trait ZState[S] {
   /**
    * Gets the current state.
    */
-  def get: UIO[S]
+  def get(implicit trace: ZTraceElement): UIO[S]
 
   /**
    * Sets the state to the specified value.
    */
-  def set(s: S): UIO[Unit]
+  def set(s: S)(implicit trace: ZTraceElement): UIO[Unit]
 
   /**
    * Updates the state with the specified function.
    */
-  def update(f: S => S): UIO[Unit]
+  def update(f: S => S)(implicit trace: ZTraceElement): UIO[Unit]
 }
 
 object ZState {
@@ -62,14 +62,14 @@ object ZState {
   /**
    * Creates an initial state with the specified value.
    */
-  def make[S](s: S): UIO[ZState[S]] =
+  def make[S](s: S)(implicit trace: ZTraceElement): UIO[ZState[S]] =
     FiberRef.make(s).map { fiberRef =>
       new ZState[S] {
-        def get: UIO[S] =
+        def get(implicit trace: ZTraceElement): UIO[S] =
           fiberRef.get
-        def set(s: S): UIO[Unit] =
+        def set(s: S)(implicit trace: ZTraceElement): UIO[Unit] =
           fiberRef.set(s)
-        def update(f: S => S): UIO[Unit] =
+        def update(f: S => S)(implicit trace: ZTraceElement): UIO[Unit] =
           fiberRef.update(f)
       }
     }
@@ -77,6 +77,6 @@ object ZState {
   /**
    * Creates a layer that outputs an initial state with the specified value.
    */
-  def makeLayer[S: Tag](s: S): ZLayer[Any, Nothing, Has[ZState[S]]] =
+  def makeLayer[S: Tag](s: S)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Has[ZState[S]]] =
     make(s).toLayer
 }

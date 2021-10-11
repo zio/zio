@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZManaged.ReleaseMap
 
 /**
@@ -40,7 +42,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * A symbolic alias for `orDie`.
    */
-  final def !(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
+  final def !(implicit ev1: E <:< Throwable, ev2: CanFail[E], trace: ZTraceElement): ZLayer[RIn, Nothing, ROut] =
     self.orDie
 
   final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
@@ -68,7 +70,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   def <>[RIn1 <: RIn, E1, ROut1 >: ROut](
     that: ZLayer[RIn1, E1, ROut1]
-  )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
     self.orElse(that)
 
   /**
@@ -78,7 +80,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2], trace: ZTraceElement): ZLayer[RIn, E1, ROut1 with ROut2] =
     ZLayer.ZipWith(self, self >>> that, ev.union)
 
   /**
@@ -86,7 +88,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * layer, resulting in a new layer with the inputs of this layer, and the
    * outputs of the specified layer.
    */
-  final def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+  final def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2])(implicit trace: ZTraceElement): ZLayer[RIn, E1, ROut2] =
     fold(ZLayer.fromFunctionManyZIO { case (_, cause) => ZIO.failCause(cause) }, that)
 
   /**
@@ -102,13 +104,13 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2], trace: ZTraceElement): ZLayer[RIn, E1, ROut1 with ROut2] =
     self.>+>[E1, RIn2, ROut1, ROut2](that)
 
   /**
    * Builds a layer into a managed value.
    */
-  final def build: ZManaged[RIn, E, ROut] =
+  final def build(implicit trace: ZTraceElement): ZManaged[RIn, E, ROut] =
     for {
       memoMap <- ZLayer.MemoMap.make.toManaged
       run     <- self.scope
@@ -120,7 +122,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def catchAll[RIn1 <: RIn, E1, ROut1 >: ROut](
     handler: ZLayer[(RIn1, E), E1, ROut1]
-  ): ZLayer[RIn1, E1, ROut1] = {
+  )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] = {
     val failureOrDie: ZLayer[(RIn1, Cause[E]), Nothing, (RIn1, E)] =
       ZLayer.fromFunctionManyZIO { case (r, cause) =>
         cause.failureOrCause.fold(
@@ -136,14 +138,15 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def flatMap[RIn1 <: RIn, E1 >: E, ROut2](
     f: ROut => ZLayer[RIn1, E1, ROut2]
-  ): ZLayer[RIn1, E1, ROut2] =
+  )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut2] =
     ZLayer.Flatten(self.map(f))
 
   /**
    * This method can be used to "flatten" nested layers.
    */
   final def flatten[RIn1 <: RIn, E1 >: E, ROut2](implicit
-    ev: ROut <:< ZLayer[RIn1, E1, ROut2]
+    ev: ROut <:< ZLayer[RIn1, E1, ROut2],
+    trace: ZTraceElement
   ): ZLayer[RIn1, E1, ROut2] =
     ZLayer.Flatten(self.map(ev))
 
@@ -174,34 +177,34 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Builds this layer and uses it until it is interrupted. This is useful when
    * your entire application is a layer, such as an HTTP server.
    */
-  final def launch: ZIO[RIn, E, Nothing] =
+  final def launch(implicit trace: ZTraceElement): ZIO[RIn, E, Nothing] =
     build.useForever
 
   /**
    * Returns a new layer whose output is mapped by the specified function.
    */
-  final def map[ROut1](f: ROut => ROut1): ZLayer[RIn, E, ROut1] =
+  final def map[ROut1](f: ROut => ROut1)(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut1] =
     self >>> ZLayer.fromFunctionMany(f)
 
   /**
    * Returns a layer with its error channel mapped using the specified
    * function.
    */
-  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZLayer[RIn, E1, ROut] =
+  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn, E1, ROut] =
     catchAll(ZLayer.second >>> ZLayer.fromFunctionManyZIO(e => ZIO.fail(f(e))))
 
   /**
    * Returns a managed effect that, if evaluated, will return the lazily
    * computed result of this layer.
    */
-  final def memoize: ZManaged[Any, Nothing, ZLayer[RIn, E, ROut]] =
+  final def memoize(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZLayer[RIn, E, ROut]] =
     build.memoize.map(ZLayer(_))
 
   /**
    * Translates effect failure into death of the fiber, making all failures
    * unchecked and not a part of the type of the layer.
    */
-  final def orDie(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
+  final def orDie(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E], trace: ZTraceElement): ZLayer[RIn, Nothing, ROut] =
     catchAll(ZLayer.second >>> ZLayer.fromFunctionManyZIO(e => ZIO.die(ev1(e))))
 
   /**
@@ -210,13 +213,13 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def orElse[RIn1 <: RIn, E1, ROut1 >: ROut](
     that: ZLayer[RIn1, E1, ROut1]
-  )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut1] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
     catchAll(ZLayer.first >>> that)
 
   /**
    * Retries constructing this layer according to the specified schedule.
    */
-  final def retry[RIn1 <: RIn with Has[Clock]](schedule: Schedule[RIn1, E, Any]): ZLayer[RIn1, E, ROut] = {
+  final def retry[RIn1 <: RIn with Has[Clock]](schedule: Schedule[RIn1, E, Any])(implicit trace: ZTraceElement): ZLayer[RIn1, E, ROut] = {
     import Schedule.Decision._
 
     type S = schedule.State
@@ -243,7 +246,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Performs the specified effect if this layer succeeds.
    */
-  final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
+  final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any])(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut] =
     ZLayer.environment <&> self >>> ZLayer.fromFunctionManyZIO { case (in, out) =>
       f(out).provide(in) *> ZIO.succeed(out)
     }
@@ -251,26 +254,26 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Performs the specified effect if this layer fails.
    */
-  final def tapError[RIn1 <: RIn, E1 >: E](f: E => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
+  final def tapError[RIn1 <: RIn, E1 >: E](f: E => ZIO[RIn1, E1, Any])(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut] =
     catchAll(ZLayer.fromFunctionManyZIO { case (r, e) => f(e).provide(r) *> ZIO.fail(e) })
 
   /**
    * A named alias for `>>>`.
    */
-  final def to[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2]): ZLayer[RIn, E1, ROut2] =
+  final def to[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2])(implicit trace: ZTraceElement): ZLayer[RIn, E1, ROut2] =
     self >>> that
 
   /**
    * Converts a layer that requires no services into a managed runtime, which
    * can be used to execute effects.
    */
-  final def toRuntime(runtimeConfig: RuntimeConfig)(implicit ev: Any <:< RIn): Managed[E, Runtime[ROut]] =
+  final def toRuntime(runtimeConfig: RuntimeConfig)(implicit ev: Any <:< RIn, trace: ZTraceElement): Managed[E, Runtime[ROut]] =
     build.provide(ev).map(Runtime(_, runtimeConfig))
 
   /**
    * Updates one of the services output by this layer.
    */
-  final def update[A: Tag](f: A => A)(implicit ev1: Has.IsHas[ROut], ev2: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
+  final def update[A: Tag](f: A => A)(implicit ev1: Has.IsHas[ROut], ev2: ROut <:< Has[A], trace: ZTraceElement): ZLayer[RIn, E, ROut] =
     self >>> ZLayer.fromFunctionMany(ev1.update[ROut, A](_, f))
 
   /**
@@ -300,7 +303,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
       case _               => false
     }
 
-  private final def scope: Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]] =
+  private final def scope(implicit trace: ZTraceElement): Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ROut]] =
     self match {
       case ZLayer.Flatten(self) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).flatMap(memoMap.getOrElseMemoize))
@@ -310,7 +313,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
             .getOrElseMemoize(self)
             .foldCauseManaged(
               e => ZManaged.environment[RIn].flatMap(r => memoMap.getOrElseMemoize(failure).provide((r, e))),
-              r => memoMap.getOrElseMemoize(success).provide(r)(NeedsEnv.needsEnv)
+              r => memoMap.getOrElseMemoize(success).provide(r)(NeedsEnv.needsEnv, trace)
             )
         )
       case ZLayer.Fresh(self) =>
@@ -392,7 +395,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      *
      * }}}
      */
-    val tree: ULayer[Has[Debug]] = ZLayer.succeed(Debug.Tree)
+    val tree: ULayer[Has[Debug]] =
+      ZLayer.succeed[Debug](Debug.Tree)(Tag[Debug], Tracer.newTrace)
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
@@ -425,26 +429,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      *
      * }}}
      */
-    val mermaid: ULayer[Has[Debug]] = ZLayer.succeed(Debug.Mermaid)
+    val mermaid: ULayer[Has[Debug]] =
+      ZLayer.succeed[Debug](Debug.Mermaid)(Tag[Debug], Tracer.newTrace)
   }
 
   /**
    * Constructs a layer that fails with the specified value.
    */
-  def fail[E](e: E): Layer[E, Nothing] =
+  def fail[E](e: E)(implicit trace: ZTraceElement): Layer[E, Nothing] =
     ZLayer(ZManaged.fail(e))
 
   /**
    * A layer that passes along the first element of a tuple.
    */
-  def first[A]: ZLayer[(A, Any), Nothing, A] =
+  def first[A](implicit trace: ZTraceElement): ZLayer[(A, Any), Nothing, A] =
     ZLayer.fromFunctionMany(_._1)
 
   /**
    * Constructs a layer from acquire and release actions. The acquire and
    * release actions will be performed uninterruptibly.
    */
-  def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, Has[A]] =
+  def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit trace: ZTraceElement): ZLayer[R, E, Has[A]] =
     fromManaged(ZManaged.acquireReleaseWith(acquire)(release))
 
   /**
@@ -452,14 +457,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * or more services. The acquire and release actions will be performed
    * uninterruptibly.
    */
-  def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any]): ZLayer[R, E, A] =
+  def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit trace: ZTraceElement): ZLayer[R, E, A] =
     fromManagedMany(ZManaged.acquireReleaseWith(acquire)(release))
 
   /**
    * Constructs a layer from the specified effect.
    */
   @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
+  def fromEffect[R, E, A: Tag](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZLayer[R, E, Has[A]] =
     fromZIO(zio)
 
   /**
@@ -467,13 +472,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * more services.
    */
   @deprecated("use fromZIOMany", "2.0.0")
-  def fromEffectMany[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
+  def fromEffectMany[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZLayer[R, E, A] =
     fromZIOMany(zio)
 
   /**
    * Constructs a layer from the environment using the specified function.
    */
-  def fromFunction[A, B: Tag](f: A => B): ZLayer[A, Nothing, Has[B]] =
+  def fromFunction[A, B: Tag](f: A => B)(implicit trace: ZTraceElement): ZLayer[A, Nothing, Has[B]] =
     fromFunctionZIO(a => ZIO.succeedNow(f(a)))
 
   /**
@@ -481,21 +486,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * function.
    */
   @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[A, E, B: Tag](f: A => IO[E, B]): ZLayer[A, E, Has[B]] =
+  def fromFunctionM[A, E, B: Tag](f: A => IO[E, B])(implicit trace: ZTraceElement): ZLayer[A, E, Has[B]] =
     fromFunctionZIO(f)
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * resourceful function.
    */
-  def fromFunctionManaged[A, E, B: Tag](f: A => ZManaged[Any, E, B]): ZLayer[A, E, Has[B]] =
+  def fromFunctionManaged[A, E, B: Tag](f: A => ZManaged[Any, E, B])(implicit trace: ZTraceElement): ZLayer[A, E, Has[B]] =
     fromManaged(ZManaged.accessManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified function,
    * which must return one or more services.
    */
-  def fromFunctionMany[A, B](f: A => B): ZLayer[A, Nothing, B] =
+  def fromFunctionMany[A, B](f: A => B)(implicit trace: ZTraceElement): ZLayer[A, Nothing, B] =
     fromFunctionManyZIO(a => ZIO.succeedNow(f(a)))
 
   /**
@@ -503,35 +508,35 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * function, which must return one or more services.
    */
   @deprecated("use fromFunctionManyZIO", "2.0.0")
-  def fromFunctionManyM[A, E, B](f: A => IO[E, B]): ZLayer[A, E, B] =
+  def fromFunctionManyM[A, E, B](f: A => IO[E, B])(implicit trace: ZTraceElement): ZLayer[A, E, B] =
     fromFunctionManyZIO(f)
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * resourceful function, which must return one or more services.
    */
-  def fromFunctionManyManaged[A, E, B](f: A => ZManaged[Any, E, B]): ZLayer[A, E, B] =
+  def fromFunctionManyManaged[A, E, B](f: A => ZManaged[Any, E, B])(implicit trace: ZTraceElement): ZLayer[A, E, B] =
     ZLayer(ZManaged.accessManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * function, which must return one or more services.
    */
-  def fromFunctionManyZIO[A, E, B](f: A => IO[E, B]): ZLayer[A, E, B] =
+  def fromFunctionManyZIO[A, E, B](f: A => IO[E, B])(implicit trace: ZTraceElement): ZLayer[A, E, B] =
     fromFunctionManyManaged(a => f(a).toManaged)
 
   /**
    * Constructs a layer from the environment using the specified effectful
    * function.
    */
-  def fromFunctionZIO[A, E, B: Tag](f: A => IO[E, B]): ZLayer[A, E, Has[B]] =
+  def fromFunctionZIO[A, E, B: Tag](f: A => IO[E, B])(implicit trace: ZTraceElement): ZLayer[A, E, Has[B]] =
     fromFunctionManaged(a => f(a).toManaged)
 
   /**
    * Constructs a layer that purely depends on the specified service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromService[A: Tag, B: Tag](f: A => B): ZLayer[Has[A], Nothing, Has[B]] =
+  def fromService[A: Tag, B: Tag](f: A => B)(implicit trace: ZTraceElement): ZLayer[Has[A], Nothing, Has[B]] =
     fromServiceM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
   /**
@@ -540,7 +545,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, B: Tag](
     f: (A0, A1) => B
-  ): ZLayer[Has[A0] with Has[A1], Nothing, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -551,7 +556,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, B: Tag](
     f: (A0, A1, A2) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -562,7 +567,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, B: Tag](
     f: (A0, A1, A2, A3) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -573,7 +578,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -584,7 +589,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], Nothing, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -595,7 +600,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], Nothing, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     layer
   }
@@ -606,7 +611,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -619,7 +624,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -632,7 +637,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -658,7 +663,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -685,7 +690,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -713,7 +718,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -742,7 +747,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -772,7 +777,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, Has[B]] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -803,7 +808,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, Has[
     B
@@ -837,7 +842,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -872,7 +877,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -908,7 +913,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -945,7 +950,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -983,7 +988,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -1022,7 +1027,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -1035,7 +1040,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that effectfully depends on the specified service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceM[A: Tag, R, E, B: Tag](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, Has[B]] =
+  def fromServiceM[A: Tag, R, E, B: Tag](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZLayer[R with Has[A], E, Has[B]] =
     fromServiceManaged(a => f(a).toManaged)
 
   /**
@@ -1044,7 +1049,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -1055,7 +1060,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, R, E, B: Tag](
     f: (A0, A1, A2) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -1066,7 +1071,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -1077,7 +1082,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -1088,7 +1093,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -1099,7 +1104,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -1110,7 +1115,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1123,7 +1128,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1150,7 +1155,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1178,7 +1183,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1207,7 +1212,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1237,7 +1242,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1268,7 +1273,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1300,7 +1305,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1333,7 +1338,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -1369,7 +1374,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -1406,7 +1411,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -1444,7 +1449,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -1483,7 +1488,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -1523,7 +1528,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -1587,7 +1592,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       A20,
       A21
     ) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -1601,7 +1606,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * specified service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceManaged[A: Tag, R, E, B: Tag](f: A => ZManaged[R, E, B]): ZLayer[R with Has[A], E, Has[B]] =
+  def fromServiceManaged[A: Tag, R, E, B: Tag](f: A => ZManaged[R, E, B])(implicit trace: ZTraceElement): ZLayer[R with Has[A], E, Has[B]] =
     fromServiceManyManaged(a => f(a).asService)
 
   /**
@@ -1611,7 +1616,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1623,7 +1628,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, R, E, B: Tag](
     f: (A0, A1, A2) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1635,7 +1640,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1647,7 +1652,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1659,7 +1664,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1671,7 +1676,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
   }
@@ -1683,7 +1688,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1710,7 +1715,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1738,7 +1743,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1767,7 +1772,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1797,7 +1802,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1828,7 +1833,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1860,7 +1865,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1893,7 +1898,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, Has[B]] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1927,7 +1932,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -1964,7 +1969,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -2002,7 +2007,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -2041,7 +2046,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -2081,7 +2086,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -2144,7 +2149,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       A19,
       A20
     ) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -2234,7 +2239,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       A20,
       A21
     ) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -2249,7 +2254,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * a single service see `fromService`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceMany[A: Tag, B](f: A => B): ZLayer[Has[A], Nothing, B] =
+  def fromServiceMany[A: Tag, B](f: A => B)(implicit trace: ZTraceElement): ZLayer[Has[A], Nothing, B] =
     fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
   /**
@@ -2260,7 +2265,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, B](
     f: (A0, A1) => B
-  ): ZLayer[Has[A0] with Has[A1], Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2273,7 +2278,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, B](
     f: (A0, A1, A2) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2286,7 +2291,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, B](
     f: (A0, A1, A2, A3) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2299,7 +2304,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, B](
     f: (A0, A1, A2, A3, A4) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2312,7 +2317,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, B](
     f: (A0, A1, A2, A3, A4, A5) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2325,7 +2330,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     layer
   }
@@ -2338,7 +2343,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2353,7 +2358,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2368,7 +2373,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2396,7 +2401,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2425,7 +2430,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2455,7 +2460,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2486,7 +2491,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2518,7 +2523,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2551,7 +2556,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15], Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2585,7 +2590,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -2622,7 +2627,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -2660,7 +2665,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -2699,7 +2704,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -2739,7 +2744,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -2780,7 +2785,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
-  ): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[A7] with Has[
     A8
   ] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[A15] with Has[
     A16
@@ -2795,7 +2800,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * returns a single service see `fromServiceM`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceManyM[A: Tag, R, E, B](f: A => ZIO[R, E, B]): ZLayer[R with Has[A], E, B] =
+  def fromServiceManyM[A: Tag, R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZLayer[R with Has[A], E, B] =
     fromServiceManyManaged(a => f(a).toManaged)
 
   /**
@@ -2806,7 +2811,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1], E, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -2819,7 +2824,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -2832,7 +2837,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -2845,7 +2850,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -2858,7 +2863,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -2871,7 +2876,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] = {
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
     layer
   }
@@ -2884,7 +2889,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -2899,7 +2904,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -2928,7 +2933,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -2958,7 +2963,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -2989,7 +2994,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -3021,7 +3026,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -3054,7 +3059,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -3088,7 +3093,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -3123,7 +3128,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -3161,7 +3166,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -3200,7 +3205,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -3240,7 +3245,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -3281,7 +3286,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -3323,7 +3328,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -3389,7 +3394,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       A20,
       A21
     ) => ZIO[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -3404,7 +3409,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * common variant that returns a single service see `fromServiceManaged`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceManyManaged[A: Tag, R, E, B](f: A => ZManaged[R, E, B]): ZLayer[R with Has[A], E, B] =
+  def fromServiceManyManaged[A: Tag, R, E, B](f: A => ZManaged[R, E, B])(implicit trace: ZTraceElement): ZLayer[R with Has[A], E, B] =
     ZLayer(ZManaged.accessManaged[R with Has[A]](m => f(m.get[A])))
 
   /**
@@ -3415,7 +3420,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1], E, B] =
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3432,7 +3437,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3450,7 +3455,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, R, E, B](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3469,7 +3474,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3489,7 +3494,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] =
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3510,7 +3515,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] =
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6], E, B] =
     ZLayer {
       for {
         a0 <- ZManaged.environment[Has[A0]].map(_.get[A0])
@@ -3532,7 +3537,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ], E, B] =
     ZLayer {
@@ -3557,7 +3562,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8], E, B] =
     ZLayer {
@@ -3597,7 +3602,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9], E, B] =
     ZLayer {
@@ -3639,7 +3644,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10], E, B] =
     ZLayer {
@@ -3683,7 +3688,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11], E, B] =
     ZLayer {
@@ -3729,7 +3734,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12], E, B] =
     ZLayer {
@@ -3777,7 +3782,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13], E, B] =
     ZLayer {
@@ -3827,7 +3832,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14], E, B] =
     ZLayer {
@@ -3879,7 +3884,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -3935,7 +3940,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -3993,7 +3998,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -4053,7 +4058,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -4115,7 +4120,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -4201,7 +4206,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       A19,
       A20
     ) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -4290,7 +4295,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       A20,
       A21
     ) => ZManaged[R, E, B]
-  ): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
+  )(implicit trace: ZTraceElement): ZLayer[R with Has[A0] with Has[A1] with Has[A2] with Has[A3] with Has[A4] with Has[A5] with Has[A6] with Has[
     A7
   ] with Has[A8] with Has[A9] with Has[A10] with Has[A11] with Has[A12] with Has[A13] with Has[A14] with Has[
     A15
@@ -4326,27 +4331,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from a managed resource.
    */
-  def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A]): ZLayer[R, E, Has[A]] =
+  def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A])(implicit trace: ZTraceElement): ZLayer[R, E, Has[A]] =
     ZLayer(m.map(Has(_)))
 
   /**
    * Constructs a layer from a managed resource, which must return one or more
    * services.
    */
-  def fromManagedMany[R, E, A](m: ZManaged[R, E, A]): ZLayer[R, E, A] =
+  def fromManagedMany[R, E, A](m: ZManaged[R, E, A])(implicit trace: ZTraceElement): ZLayer[R, E, A] =
     ZLayer(m)
 
   /**
    * Constructs a layer from the specified effect.
    */
-  def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A]): ZLayer[R, E, Has[A]] =
+  def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZLayer[R, E, Has[A]] =
     fromZIOMany(zio.map(Has(_)))
 
   /**
    * Constructs a layer from the specified effect, which must return one or
    * more services.
    */
-  def fromZIOMany[R, E, A](zio: ZIO[R, E, A]): ZLayer[R, E, A] =
+  def fromZIOMany[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZLayer[R, E, A] =
     ZLayer(ZManaged.fromZIO(zio))
 
   /**
@@ -4355,7 +4360,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * with respect to the `++` operator when the environment type is `Any`.
    */
   @deprecated("use environment", "2.0.0")
-  def identity[A]: ZLayer[A, Nothing, A] =
+  def identity[A](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
     ZLayer.environment[A]
 
   /**
@@ -4363,33 +4368,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * output.
    */
   @deprecated("use environment", "2.0.0")
-  def requires[A]: ZLayer[A, Nothing, A] =
+  def requires[A](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
     ZLayer.environment[A]
 
   /**
    * Constructs a layer that passes along the specified environment as an
    * output.
    */
-  def environment[A]: ZLayer[A, Nothing, A] =
+  def environment[A](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
     ZLayer(ZManaged.environment[A])
 
   /**
    * A layer that passes along the second element of a tuple.
    */
-  def second[A]: ZLayer[(Any, A), Nothing, A] =
+  def second[A](implicit trace: ZTraceElement): ZLayer[(Any, A), Nothing, A] =
     ZLayer.fromFunctionMany(_._2)
 
   /**
    * Constructs a layer that accesses and returns the specified service from
    * the environment.
    */
-  def service[A]: ZLayer[Has[A], Nothing, Has[A]] =
+  def service[A](implicit trace: ZTraceElement): ZLayer[Has[A], Nothing, Has[A]] =
     ZLayer(ZManaged.environment[Has[A]])
 
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: Tag](a: A): ULayer[Has[A]] =
+  def succeed[A: Tag](a: A)(implicit trace: ZTraceElement): ULayer[Has[A]] =
     ZLayer(ZManaged.succeedNow(Has(a)))
 
   /**
@@ -4414,7 +4419,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Returns a new layer that produces the outputs of this layer but also
      * passes through the inputs to this layer.
      */
-    def passthrough(implicit ev: Has.Union[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
+    def passthrough(implicit ev: Has.Union[RIn, ROut], tag: Tag[ROut], trace: ZTraceElement): ZLayer[RIn, E, RIn with ROut] =
       ZLayer.environment[RIn] ++ self
   }
 
@@ -4424,7 +4429,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Projects out part of one of the layers output by this layer using the
      * specified function
      */
-    def project[B: Tag](f: A => B)(implicit tag: Tag[A]): ZLayer[R, E, Has[B]] =
+    def project[B: Tag](f: A => B)(implicit tag: Tag[A], trace: ZTraceElement): ZLayer[R, E, Has[B]] =
       self >>> ZLayer.fromFunction(r => f(r.get))
   }
 
@@ -4446,7 +4451,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     /**
      * Constructs an empty memo map.
      */
-    def make: UIO[MemoMap] =
+    def make(implicit trace: ZTraceElement): UIO[MemoMap] =
       Ref.Synchronized
         .make[Map[ZLayer[Nothing, Any, Any], (IO[Any, Any], ZManaged.Finalizer)]](Map.empty)
         .map { ref =>

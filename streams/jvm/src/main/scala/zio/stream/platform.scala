@@ -232,7 +232,7 @@ trait ZStreamPlatformSpecificConstructors {
   def asyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
@@ -704,7 +704,7 @@ trait ZStreamPlatformSpecificConstructors {
       : WithOut[InputStreamLike, ZStream[Any, IOException, Byte]] =
       new ZStreamConstructor[InputStreamLike] {
         type Out = ZStream[Any, IOException, Byte]
-        def make(input: => InputStreamLike): ZStream[Any, IOException, Byte] =
+        def make(input: => InputStreamLike)(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
           ZStream.fromInputStream(input)
       }
 
@@ -716,7 +716,9 @@ trait ZStreamPlatformSpecificConstructors {
       : WithOut[ZManaged[R, E, InputStreamLike], ZStream[R, IOException, Byte]] =
       new ZStreamConstructor[ZManaged[R, E, InputStreamLike]] {
         type Out = ZStream[R, IOException, Byte]
-        def make(input: => ZManaged[R, E, InputStreamLike]): ZStream[R, IOException, Byte] =
+        def make(input: => ZManaged[R, E, InputStreamLike])(implicit
+          trace: ZTraceElement
+        ): ZStream[R, IOException, Byte] =
           ZStream.fromInputStreamManaged(input)
       }
 
@@ -728,7 +730,7 @@ trait ZStreamPlatformSpecificConstructors {
       : WithOut[ZIO[R, E, InputStreamLike], ZStream[R, IOException, Byte]] =
       new ZStreamConstructor[ZIO[R, E, InputStreamLike]] {
         type Out = ZStream[R, IOException, Byte]
-        def make(input: => ZIO[R, E, InputStreamLike]): ZStream[R, IOException, Byte] =
+        def make(input: => ZIO[R, E, InputStreamLike])(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
           ZStream.fromInputStreamZIO(input)
       }
 
@@ -740,7 +742,7 @@ trait ZStreamPlatformSpecificConstructors {
       : WithOut[StreamLike[A], ZStream[Any, Throwable, A]] =
       new ZStreamConstructor[StreamLike[A]] {
         type Out = ZStream[Any, Throwable, A]
-        def make(input: => StreamLike[A]): ZStream[Any, Throwable, A] =
+        def make(input: => StreamLike[A])(implicit trace: ZTraceElement): ZStream[Any, Throwable, A] =
           ZStream.fromJavaStream(input)
       }
 
@@ -752,7 +754,7 @@ trait ZStreamPlatformSpecificConstructors {
       : WithOut[ZManaged[R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
       new ZStreamConstructor[ZManaged[R, E, StreamLike[A]]] {
         type Out = ZStream[R, Throwable, A]
-        def make(input: => ZManaged[R, E, StreamLike[A]]): ZStream[R, Throwable, A] =
+        def make(input: => ZManaged[R, E, StreamLike[A]])(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
           ZStream.fromJavaStreamManaged(input)
       }
 
@@ -764,7 +766,7 @@ trait ZStreamPlatformSpecificConstructors {
       : WithOut[ZIO[R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
       new ZStreamConstructor[ZIO[R, E, StreamLike[A]]] {
         type Out = ZStream[R, Throwable, A]
-        def make(input: => ZIO[R, E, StreamLike[A]]): ZStream[R, Throwable, A] =
+        def make(input: => ZIO[R, E, StreamLike[A]])(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
           ZStream.fromJavaStreamZIO(input)
       }
 
@@ -774,7 +776,7 @@ trait ZStreamPlatformSpecificConstructors {
     implicit def ReaderConstructor[ReaderLike <: Reader]: WithOut[ReaderLike, ZStream[Any, IOException, Char]] =
       new ZStreamConstructor[ReaderLike] {
         type Out = ZStream[Any, IOException, Char]
-        def make(input: => ReaderLike): ZStream[Any, IOException, Char] =
+        def make(input: => ReaderLike)(implicit trace: ZTraceElement): ZStream[Any, IOException, Char] =
           ZStream.fromReader(input)
       }
 
@@ -786,7 +788,7 @@ trait ZStreamPlatformSpecificConstructors {
       : WithOut[ZManaged[R, E, ReaderLike], ZStream[R, IOException, Char]] =
       new ZStreamConstructor[ZManaged[R, E, ReaderLike]] {
         type Out = ZStream[R, IOException, Char]
-        def make(input: => ZManaged[R, E, ReaderLike]): ZStream[R, IOException, Char] =
+        def make(input: => ZManaged[R, E, ReaderLike])(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
           ZStream.fromReaderManaged(input)
       }
 
@@ -798,7 +800,7 @@ trait ZStreamPlatformSpecificConstructors {
       : WithOut[ZIO[R, E, ReaderLike], ZStream[R, IOException, Char]] =
       new ZStreamConstructor[ZIO[R, E, ReaderLike]] {
         type Out = ZStream[R, IOException, Char]
-        def make(input: => ZIO[R, E, ReaderLike]): ZStream[R, IOException, Char] =
+        def make(input: => ZIO[R, E, ReaderLike])(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
           ZStream.fromReaderZIO(input)
       }
   }
@@ -912,7 +914,7 @@ trait ZTransducerPlatformSpecificConstructors {
         .acquireReleaseWith(Gzipper.make(bufferSize, level, strategy, flushMode))(gzipper =>
           ZIO.succeed(gzipper.close())
         )
-        .map { gzipper =>
+        .map[Option[Chunk[Byte]] => UIO[Chunk[Byte]]] { gzipper =>
           {
             case None        => gzipper.onNone
             case Some(chunk) => gzipper.onChunk(chunk)
@@ -929,7 +931,7 @@ trait ZTransducerPlatformSpecificConstructors {
     ZTransducer(
       ZManaged
         .acquireReleaseWith(Gunzipper.make(bufferSize))(gunzipper => ZIO.succeed(gunzipper.close()))
-        .map { gunzipper =>
+        .map[Option[Chunk[Byte]] => IO[CompressionException, Chunk[Byte]]] { gunzipper =>
           {
             case None        => gunzipper.onNone
             case Some(chunk) => gunzipper.onChunk(chunk)

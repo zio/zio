@@ -15,6 +15,7 @@ import scala.collection.JavaConverters._
 trait MemoryAllocation extends JvmMetrics {
   override type Feature = MemoryAllocation
   override val featureTag: Tag[MemoryAllocation] = Tag[MemoryAllocation]
+  implicit val trace: ZTraceElement              = ZTraceElement.empty
 
   /** Total bytes allocated in a given JVM memory pool. Only updated after GC, not continuously. */
   private def countAllocations(pool: String): Counter[Long] =
@@ -71,7 +72,9 @@ trait MemoryAllocation extends JvmMetrics {
   }
 
   @silent("JavaConverters")
-  override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, MemoryAllocation] =
+  override def collectMetrics(implicit
+    trace: ZTraceElement
+  ): ZManaged[Has[Clock] with Has[System], Throwable, MemoryAllocation] =
     ZManaged
       .acquireReleaseWith(
         for {
@@ -98,6 +101,6 @@ trait MemoryAllocation extends JvmMetrics {
 
 object MemoryAllocation extends MemoryAllocation with JvmMetrics.DefaultSchedule {
   def withSchedule(schedule: Schedule[Any, Any, Unit]): MemoryAllocation = new MemoryAllocation {
-    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
   }
 }

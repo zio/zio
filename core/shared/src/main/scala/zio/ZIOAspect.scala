@@ -4,7 +4,9 @@ import scala.concurrent.ExecutionContext
 
 trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
 
-  def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE, A >: LowerA <: UpperA](zio: ZIO[R, E, A]): ZIO[R, E, A]
+  def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE, A >: LowerA <: UpperA](zio: ZIO[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, A]
 
   def >>>[
     LowerR1 >: LowerR,
@@ -47,7 +49,7 @@ trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
     new ZIOAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerA1, UpperA1] {
       def apply[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1, A >: LowerA1 <: UpperA1](
         zio: ZIO[R, E, A]
-      ): ZIO[R, E, A] =
+      )(implicit trace: ZTraceElement): ZIO[R, E, A] =
         that(self(zio))
     }
 }
@@ -60,7 +62,7 @@ object ZIOAspect {
    */
   val debug: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.debug
     }
 
@@ -69,7 +71,7 @@ object ZIOAspect {
    */
   val disableLogging: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         ZIO.runtimeConfig.flatMap { runtimeConfig =>
           zio.withRuntimeConfig(runtimeConfig.copy(logger = ZLogger.none))
         }
@@ -79,7 +81,7 @@ object ZIOAspect {
    * As aspect that runs effects on the specified `Executor`.
    */
   @deprecated("use onExecutor", "2.0.0")
-  def lock(executor: Executor): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+  def lock(executor: Executor)(implicit trace: ZTraceElement): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     onExecutor(executor)
 
   /**
@@ -87,7 +89,7 @@ object ZIOAspect {
    */
   val logged: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.tap(value => ZIO.log(String.valueOf(value)))
     }
 
@@ -97,7 +99,7 @@ object ZIOAspect {
    */
   def logged(label: String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      override def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      override def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.tap(value => ZIO.log(label + ": " + String.valueOf(value)))
     }
 
@@ -107,7 +109,7 @@ object ZIOAspect {
    */
   def loggedWith[A](f: A => String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] {
-      override def apply[R, E, A0 <: A](zio: ZIO[R, E, A0]): ZIO[R, E, A0] =
+      override def apply[R, E, A0 <: A](zio: ZIO[R, E, A0])(implicit trace: ZTraceElement): ZIO[R, E, A0] =
         zio.tap(value => ZIO.log(f(value)))
     }
 
@@ -115,7 +117,9 @@ object ZIOAspect {
    * As aspect that runs effects on the specified `ExecutionContext`.
    */
   @deprecated("use onExecutionContext", "2.0.0")
-  def lockExecutionContext(ec: ExecutionContext): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+  def lockExecutionContext(ec: ExecutionContext)(implicit
+    trace: ZTraceElement
+  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     onExecutionContext(ec)
 
   /**
@@ -123,7 +127,7 @@ object ZIOAspect {
    */
   def onExecutionContext(ec: ExecutionContext): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.onExecutionContext(ec)
     }
 
@@ -132,7 +136,7 @@ object ZIOAspect {
    */
   def onExecutor(executor: Executor): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.onExecutor(executor)
     }
 
@@ -141,7 +145,7 @@ object ZIOAspect {
    */
   def retry[R1 <: Has[Clock], E1](schedule: Schedule[R1, E1, Any]): ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] =
     new ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] {
-      def apply[R <: R1, E <: E1, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      def apply[R <: R1, E <: E1, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.retry(schedule)
     }
 
@@ -150,7 +154,7 @@ object ZIOAspect {
    */
   def timeoutFail[E1](e: => E1)(d: Duration): ZIOAspect[Nothing, Has[Clock], E1, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Has[Clock], E1, Any, Nothing, Any] {
-      def apply[R <: Has[Clock], E >: E1, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      def apply[R <: Has[Clock], E >: E1, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.timeoutFail(e)(d)
     }
 
@@ -159,7 +163,7 @@ object ZIOAspect {
    */
   val traced: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.traced
     }
 
@@ -168,7 +172,7 @@ object ZIOAspect {
    */
   val untraced: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.untraced
     }
 }

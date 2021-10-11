@@ -309,7 +309,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     implicit val InputStreamConstructor: WithOut[InputStream, ZStream[Any, IOException, Byte]] =
       new ZStreamConstructor[InputStream] {
         type Out = ZStream[Any, IOException, Byte]
-        def make(input: => InputStream): ZStream[Any, IOException, Byte] =
+        def make(input: => InputStream)(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
           ZStream.fromInputStream(input)
       }
 
@@ -321,7 +321,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
       : WithOut[ZManaged[R, E, InputStream], ZStream[R, IOException, Byte]] =
       new ZStreamConstructor[ZManaged[R, E, InputStream]] {
         type Out = ZStream[R, IOException, Byte]
-        def make(input: => ZManaged[R, E, InputStream]): ZStream[R, IOException, Byte] =
+        def make(input: => ZManaged[R, E, InputStream])(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
           ZStream.fromInputStreamManaged(input)
       }
 
@@ -333,7 +333,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
       : WithOut[ZIO[R, E, InputStream], ZStream[R, IOException, Byte]] =
       new ZStreamConstructor[ZIO[R, E, InputStream]] {
         type Out = ZStream[R, IOException, Byte]
-        def make(input: => ZIO[R, E, InputStream]): ZStream[R, IOException, Byte] =
+        def make(input: => ZIO[R, E, InputStream])(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
           ZStream.fromInputStreamZIO(input)
       }
   }

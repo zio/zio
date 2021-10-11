@@ -19,9 +19,9 @@ package zio
 import java.io.IOException
 
 abstract class ZInputStream {
-  def readN(n: Int): IO[Option[IOException], Chunk[Byte]]
-  def skip(n: Long): IO[IOException, Long]
-  def readAll(bufferSize: Int): IO[Option[IOException], Chunk[Byte]]
+  def readN(n: Int)(implicit trace: ZTraceElement): IO[Option[IOException], Chunk[Byte]]
+  def skip(n: Long)(implicit trace: ZTraceElement): IO[IOException, Long]
+  def readAll(bufferSize: Int)(implicit trace: ZTraceElement): IO[Option[IOException], Chunk[Byte]]
 }
 
 object ZInputStream {
@@ -29,7 +29,7 @@ object ZInputStream {
   def fromInputStream(is: java.io.InputStream): ZInputStream =
     new ZInputStream {
 
-      def readN(n: Int): IO[Option[IOException], Chunk[Byte]] =
+      def readN(n: Int)(implicit trace: ZTraceElement): IO[Option[IOException], Chunk[Byte]] =
         ZIO.attemptBlockingIO {
           val b: Array[Byte] = new Array[Byte](n)
           val count          = is.read(b)
@@ -38,10 +38,10 @@ object ZInputStream {
           Some(e)
         }.flatten
 
-      def skip(n: Long): IO[IOException, Long] =
+      def skip(n: Long)(implicit trace: ZTraceElement): IO[IOException, Long] =
         ZIO.attemptBlockingIO(is.skip(n))
 
-      def readAll(bufferSize: Int): IO[Option[IOException], Chunk[Byte]] =
+      def readAll(bufferSize: Int)(implicit trace: ZTraceElement): IO[Option[IOException], Chunk[Byte]] =
         ZIO.attemptBlockingIO {
           val buffer = new java.io.ByteArrayOutputStream();
           val idata  = new Array[Byte](bufferSize);

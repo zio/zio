@@ -17,7 +17,7 @@
 package zio.stm
 
 import com.github.ghik.silencer.silent
-import zio.UIO
+import zio.{UIO, ZTraceElement}
 import zio.stm.ZSTM.internal._
 
 import java.util.concurrent.atomic.AtomicReference
@@ -616,7 +616,7 @@ object ZTRef {
    * A convenience method that makes a `ZTRef` and immediately commits the
    * transaction to extract the value out.
    */
-  def makeCommit[A](a: => A): UIO[TRef[A]] =
+  def makeCommit[A](a: => A)(implicit trace: ZTraceElement): UIO[TRef[A]] =
     STM.atomically(make(a))
 
   private[stm] def unsafeMake[A](a: A): TRef[A] = {

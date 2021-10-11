@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{UIO, ZIO}
+import zio.{UIO, ZIO, ZTraceElement}
 
 trait CompileVariants {
 
@@ -33,14 +33,14 @@ trait CompileVariants {
     value: => A,
     expression: Option[String] = None,
     sourceLocation: Option[String] = None
-  )(assertion: Assertion[A]): TestResult
+  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
     assertion: AssertionM[A]
-  ): ZIO[R, E, TestResult]
+  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
 
   /**
    * Checks the assertion holds for the given value.

@@ -4,9 +4,9 @@ import zio._
 
 /** JVM metrics, compatible with the prometheus-hotspot library, with configurable schedule */
 trait DefaultJvmMetrics extends MultipleJvmMetrics {
-  protected val collectionSchedule: Schedule[Any, Any, Unit]
+  protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit]
 
-  override protected lazy val collectors: NonEmptyChunk[JvmMetrics] =
+  override protected def collectors(implicit trace: ZTraceElement): NonEmptyChunk[JvmMetrics] =
     NonEmptyChunk(
       BufferPools.withSchedule(collectionSchedule),
       ClassLoading.withSchedule(collectionSchedule),
@@ -35,5 +35,6 @@ trait DefaultJvmMetrics extends MultipleJvmMetrics {
 
 /** JVM metrics, compatible with the prometheus-hotspot library */
 object DefaultJvmMetrics extends DefaultJvmMetrics {
-  override protected val collectionSchedule: Schedule[Any, Any, Unit] = JvmMetrics.defaultSchedule
+  override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] =
+    JvmMetrics.defaultSchedule
 }

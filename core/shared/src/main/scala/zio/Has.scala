@@ -679,7 +679,7 @@ object Has {
   def scoped[A: Tag](f: A => A): Scoped[A] = new Scoped(f)
 
   class Scoped[M: Tag](f: M => M) {
-    def apply[R <: Has[M], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    def apply[R <: Has[M], E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       ZIO.environment[R].flatMap(env => zio.provide(env.update(f)))
   }
 

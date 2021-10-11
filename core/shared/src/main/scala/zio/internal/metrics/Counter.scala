@@ -31,12 +31,12 @@ private[zio] trait Counter {
   /**
    * The current value of the counter.
    */
-  def count: UIO[Double]
+  def count(implicit trace: ZTraceElement): UIO[Double]
 
   /**
    * Increments the counter by the specified amount.
    */
-  def increment(value: Double): UIO[Any]
+  def increment(value: Double)(implicit trace: ZTraceElement): UIO[Any]
 }
 
 private[zio] object Counter {

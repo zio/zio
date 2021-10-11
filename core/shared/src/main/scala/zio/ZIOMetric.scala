@@ -31,7 +31,7 @@ object ZIOMetric {
    */
   def count(name: String, tags: MetricLabel*): Counter[Any] =
     new Counter[Any](name, Chunk.fromIterable(tags)) { self =>
-      def apply[R, E, A1](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(_ => increment)
     }
 
@@ -40,7 +40,7 @@ object ZIOMetric {
    */
   def countValue(name: String, tags: MetricLabel*): Counter[Double] =
     new Counter[Double](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(increment)
     }
 
@@ -49,7 +49,7 @@ object ZIOMetric {
    */
   def countValueWith[A](name: String, tags: MetricLabel*)(f: A => Double): Counter[A] =
     new Counter[A](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(a => increment(f(a)))
     }
 
@@ -59,7 +59,7 @@ object ZIOMetric {
    */
   def countErrors(name: String, tags: MetricLabel*): Counter[Any] =
     new Counter[Any](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tapError(_ => increment)
     }
 
@@ -69,7 +69,7 @@ object ZIOMetric {
    */
   def setGauge(name: String, tags: MetricLabel*): Gauge[Double] =
     new Gauge[Double](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(set)
     }
 
@@ -80,7 +80,7 @@ object ZIOMetric {
    */
   def setGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A] =
     new Gauge[A](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(a => set(f(a)))
     }
 
@@ -90,7 +90,7 @@ object ZIOMetric {
    */
   def adjustGauge(name: String, tags: MetricLabel*): Gauge[Double] =
     new Gauge[Double](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(adjust)
     }
 
@@ -101,7 +101,7 @@ object ZIOMetric {
    */
   def adjustGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A] =
     new Gauge[A](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(a => adjust(f(a)))
     }
 
@@ -113,7 +113,7 @@ object ZIOMetric {
     f: Duration => Double
   ): Histogram[A] =
     new Histogram[A](name, boundaries, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.timedWith(ZIO.succeed(java.lang.System.nanoTime)).flatMap { case (duration, a) =>
           observe(f(duration)).as(a)
         }
@@ -125,7 +125,7 @@ object ZIOMetric {
    */
   def observeHistogram(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram[Double] =
     new Histogram[Double](name, boundaries, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(observe)
     }
 
@@ -138,7 +138,7 @@ object ZIOMetric {
     f: A => Double
   ): Histogram[A] =
     new Histogram[A](name, boundaries, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(a => observe(f(a)))
     }
 
@@ -155,7 +155,7 @@ object ZIOMetric {
     tags: MetricLabel*
   ): Summary[Double] =
     new Summary[Double](name, maxAge, maxSize, error, quantiles, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(observe)
     }
 
@@ -173,7 +173,7 @@ object ZIOMetric {
     tags: MetricLabel*
   )(f: A => Double): Summary[A] =
     new Summary[A](name, maxAge, maxSize, error, quantiles, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(a => observe(f(a)))
     }
 
@@ -183,7 +183,7 @@ object ZIOMetric {
    */
   def occurrences(name: String, setTag: String, tags: MetricLabel*): SetCount[String] =
     new SetCount[String](name, setTag, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: String](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: String](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(observe)
     }
 
@@ -197,7 +197,7 @@ object ZIOMetric {
     f: A => String
   ): SetCount[A] =
     new SetCount[A](name, setTag, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(a => observe(f(a)))
     }
 
@@ -211,14 +211,14 @@ object ZIOMetric {
   abstract class Counter[-A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
     private[this] val counter = internal.metrics.Counter(name, tags)
 
-    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
+    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
     /**
      * Returns a copy of this counter with the specified name and tags.
      */
     final def copy(name: String = name, tags: Chunk[MetricLabel] = tags): Counter[A] =
       new Counter[A](name, tags) {
-        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio)
         override protected lazy val metricType =
           self.metricType
@@ -227,7 +227,7 @@ object ZIOMetric {
     /**
      * Returns the current value of this counter.
      */
-    final def count: UIO[Double] =
+    final def count(implicit trace: ZTraceElement): UIO[Double] =
       counter.count
 
     /**
@@ -248,13 +248,13 @@ object ZIOMetric {
     /**
      * Increments this counter by the specified amount.
      */
-    final def increment(value: Double): UIO[Any] =
+    final def increment(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
       counter.increment(value)
 
     /**
      * Increments this counter by one.
      */
-    final val increment: UIO[Any] =
+    final def increment(implicit trace: ZTraceElement): UIO[Any] =
       counter.increment(1.0)
 
     /**
@@ -274,12 +274,12 @@ object ZIOMetric {
   abstract class Gauge[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
     private[this] val gauge = internal.metrics.Gauge(name, tags)
 
-    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
+    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
     /**
      * Adjusts this gauge by the specified amount.
      */
-    def adjust(value: Double): UIO[Any] =
+    def adjust(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
       gauge.adjust(value)
 
     /**
@@ -287,7 +287,7 @@ object ZIOMetric {
      */
     final def copy(name: String = name, tags: Chunk[MetricLabel] = tags): Gauge[A] =
       new Gauge[A](name, tags) {
-        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio)
         override protected lazy val metricType =
           self.metricType
@@ -311,13 +311,13 @@ object ZIOMetric {
     /**
      * Sets this gauge to the specified value.
      */
-    def set(value: Double): UIO[Any] =
+    def set(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
       gauge.set(value)
 
     /**
      * Returns the current value of this gauge.
      */
-    final def value: UIO[Double] =
+    final def value(implicit trace: ZTraceElement): UIO[Double] =
       gauge.value
 
     /**
@@ -342,19 +342,19 @@ object ZIOMetric {
   ) extends ZIOMetric[A] { self =>
     private[this] val histogram = internal.metrics.Histogram(name, boundaries, tags)
 
-    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
+    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
     /**
      * Returns the current sum and count of values in each bucket of this
      * histogram.
      */
-    val buckets: UIO[Chunk[(Double, Long)]] =
+    def buckets(implicit trace: ZTraceElement): UIO[Chunk[(Double, Long)]] =
       histogram.buckets
 
     /**
      * Returns the current count of values in this histogram.
      */
-    val count: UIO[Long] =
+    def count(implicit trace: ZTraceElement): UIO[Long] =
       histogram.count
 
     /**
@@ -367,7 +367,7 @@ object ZIOMetric {
       tags: Chunk[MetricLabel] = tags
     ): Histogram[A] =
       new Histogram[A](name, boundaries, tags) {
-        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio)
         override protected lazy val metricType =
           self.metricType
@@ -394,13 +394,13 @@ object ZIOMetric {
      * Adds the specified value to the distribution of values represented by
      * this histogram.
      */
-    def observe(value: Double): UIO[Any] =
+    def observe(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
       histogram.observe(value)
 
     /**
      * Returns the current sum of values in this histogram.
      */
-    val sum: UIO[Double] =
+    def sum(implicit trace: ZTraceElement): UIO[Double] =
       histogram.sum
 
     /**
@@ -429,7 +429,7 @@ object ZIOMetric {
   ) extends ZIOMetric[A] { self =>
     private[this] val summary = internal.metrics.Summary(name, maxAge, maxSize, error, quantiles, tags)
 
-    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
+    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
     /**
      * Returns a copy of this summary with the specified name, maximum age,
@@ -444,7 +444,7 @@ object ZIOMetric {
       tags: Chunk[MetricLabel] = tags
     ): Summary[A] =
       new Summary[A](name, maxAge, maxSize, error, quantiles, tags) {
-        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio)
         override protected lazy val metricType =
           self.metricType
@@ -454,7 +454,7 @@ object ZIOMetric {
      * Returns the current count of all the values ever observed by this
      * summary.
      */
-    val count: UIO[Long] =
+    def count(implicit trace: ZTraceElement): UIO[Long] =
       summary.count
 
     /**
@@ -481,19 +481,19 @@ object ZIOMetric {
      * Adds the specified value to the time series represented by this summary,
      * also recording the `Instant` when the value was observed.
      */
-    def observe(value: Double): UIO[Any] =
+    def observe(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
       summary.observe(value)
 
     /**
      * Returns the values corresponding to each quantile in this summary.
      */
-    val quantileValues: UIO[Chunk[(Double, Option[Double])]] =
+    def quantileValues(implicit trace: ZTraceElement): UIO[Chunk[(Double, Option[Double])]] =
       summary.quantileValues
 
     /**
      * Returns the current sum of all the values ever observed by this summary.
      */
-    val sum: UIO[Double] =
+    def sum(implicit trace: ZTraceElement): UIO[Double] =
       summary.sum
 
     /**
@@ -514,7 +514,7 @@ object ZIOMetric {
       extends ZIOMetric[A] { self =>
     private[this] val setCount = internal.metrics.SetCount(name, setTag, tags)
 
-    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1]
+    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
     /**
      * Returns a copy of this set count with the specified name, set tag, and
@@ -526,7 +526,7 @@ object ZIOMetric {
       tags: Chunk[MetricLabel] = tags
     ): SetCount[A] =
       new SetCount[A](name, setTag, tags) {
-        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1]): ZIO[R, E, A1] =
+        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio)
         override protected lazy val metricType =
           self.metricType
@@ -552,14 +552,14 @@ object ZIOMetric {
     /**
      * Increments the counter associated with the specified value by one.
      */
-    def observe(value: String): UIO[Any] =
+    def observe(value: String)(implicit trace: ZTraceElement): UIO[Any] =
       setCount.observe(value)
 
     /**
      * Returns the number of occurences of every value observed by this
      * set count.
      */
-    val occurrences: UIO[Chunk[(String, Long)]] =
+    def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]] =
       setCount.occurrences
 
     /**

@@ -22,7 +22,7 @@ trait GarbageCollector extends JvmMetrics {
 
   private def reportGarbageCollectionMetrics(
     garbageCollectors: List[GarbageCollectorMXBean]
-  ): ZIO[Any, Throwable, Unit] =
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     ZIO.foreachParDiscard(garbageCollectors) { gc =>
       for {
         name <- Task(gc.getName)
@@ -32,7 +32,7 @@ trait GarbageCollector extends JvmMetrics {
     }
 
   @silent("JavaConverters")
-  val collectMetrics: ZManaged[Has[Clock], Throwable, GarbageCollector] =
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock], Throwable, GarbageCollector] =
     for {
       classLoadingMXBean <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList).toManaged
       _ <- reportGarbageCollectionMetrics(classLoadingMXBean)
@@ -45,6 +45,6 @@ trait GarbageCollector extends JvmMetrics {
 /** Exports metrics related to the garbage collector */
 object GarbageCollector extends GarbageCollector with JvmMetrics.DefaultSchedule {
   def withSchedule(schedule: Schedule[Any, Any, Unit]): GarbageCollector = new GarbageCollector {
-    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
   }
 }

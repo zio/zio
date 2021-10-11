@@ -5,6 +5,8 @@ import sbt.Keys
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
+Global / scalacOptions += "-P:silencer:globalFilters=[import zio.stacktracer.TracingImplicits.disableAutoTrace]"
+
 inThisBuild(
   List(
     organization := "dev.zio",

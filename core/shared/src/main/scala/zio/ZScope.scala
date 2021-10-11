@@ -38,21 +38,21 @@ sealed abstract class ZScope[+A] { self =>
    * Returns an effect that will succeed with `true` if the scope is closed,
    * and `false` otherwise.
    */
-  def isClosed: UIO[Boolean]
+  def isClosed(implicit trace: ZTraceElement): UIO[Boolean]
 
   /**
    * Prevents a previously added finalizer from being executed when the scope
    * is closed. The returned effect will succeed with `true` if the finalizer
    * will not be run by this scope, and `false` otherwise.
    */
-  def deny(key: => ZScope.Key): UIO[Boolean] = UIO(unsafeDeny(key))
+  def deny(key: => ZScope.Key)(implicit trace: ZTraceElement): UIO[Boolean] = UIO(unsafeDeny(key))
 
   /**
    * Determines if the scope is empty (has no finalizers) at the instant the
    * effect executes. The returned effect will succeed with `true` if the scope
    * is empty, and `false` otherwise.
    */
-  def isEmpty: UIO[Boolean]
+  def isEmpty(implicit trace: ZTraceElement): UIO[Boolean]
 
   /**
    * Adds a finalizer to the scope. If successful, this ensures that when the
@@ -63,7 +63,9 @@ sealed abstract class ZScope[+A] { self =>
    * was added to the scope or `Left` with the value the scope was closed with
    * if the scope is already closed.
    */
-  def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Either[A, ZScope.Key]]
+  def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong)(implicit
+    trace: ZTraceElement
+  ): UIO[Either[A, ZScope.Key]]
 
   /**
    * Extends the specified scope so that it will not be closed until this
@@ -73,25 +75,27 @@ sealed abstract class ZScope[+A] { self =>
    * Scope extension does not result in changes to the scope contract: open
    * scopes must *always* be closed.
    */
-  final def extend(that: ZScope[Any]): UIO[Boolean] = UIO(unsafeExtend(that))
+  final def extend(that: ZScope[Any])(implicit trace: ZTraceElement): UIO[Boolean] = UIO(unsafeExtend(that))
 
   /**
    * Determines if the scope is open at the moment the effect is executed.
    * Returns an effect that will succeed with `true` if the scope is open,
    * and `false` otherwise.
    */
-  def isOpen: UIO[Boolean] = isClosed.map(!_)
+  def isOpen(implicit trace: ZTraceElement): UIO[Boolean] = isClosed.map(!_)
 
   /**
    * Determines if the scope has been released at the moment the effect is
    * executed executed. A scope can be closed yet unreleased, if it has been
    * extended by another scope which is not yet released.
    */
-  def isReleased: UIO[Boolean]
+  def isReleased(implicit trace: ZTraceElement): UIO[Boolean]
 
   private[zio] def unsafeDeny(key: ZScope.Key): Boolean
-  private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Either[A, ZScope.Key]
-  private[zio] def unsafeExtend(that: ZScope[Any]): Boolean
+  private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode)(implicit
+    trace: ZTraceElement
+  ): Either[A, ZScope.Key]
+  private[zio] def unsafeExtend(that: ZScope[Any])(implicit trace: ZTraceElement): Boolean
 }
 object ZScope {
   sealed abstract class Mode
@@ -125,22 +129,26 @@ object ZScope {
    * global scope will never be executed (nor kept in memory).
    */
   object global extends ZScope[Nothing] {
-    private val unsafeEnsureResult = Right(Key(UIO(true)))
-    private val ensureResult       = UIO(unsafeEnsureResult)
+    private def unsafeEnsureResult(implicit trace: ZTraceElement) = Right(Key(UIO(true)))
+    private def ensureResult(implicit trace: ZTraceElement)       = UIO(unsafeEnsureResult)
 
-    def isClosed: UIO[Boolean] = UIO(false)
+    def isClosed(implicit trace: ZTraceElement): UIO[Boolean] = UIO(false)
 
-    def isEmpty: UIO[Boolean] = UIO(false)
+    def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] = UIO(false)
 
-    def ensure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Either[Nothing, Key]] =
+    def ensure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong)(implicit
+      trace: ZTraceElement
+    ): UIO[Either[Nothing, Key]] =
       ensureResult
 
-    def isReleased: UIO[Boolean] = UIO(false)
+    def isReleased(implicit trace: ZTraceElement): UIO[Boolean] = UIO(false)
 
     private[zio] def unsafeDeny(key: Key): Boolean = true
-    private[zio] def unsafeEnsure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode): Either[Nothing, Key] =
+    private[zio] def unsafeEnsure(finalizer: Nothing => UIO[Any], mode: ZScope.Mode)(implicit
+      trace: ZTraceElement
+    ): Either[Nothing, Key] =
       unsafeEnsureResult
-    private[zio] def unsafeExtend(that: ZScope[Any]): Boolean = that match {
+    private[zio] def unsafeExtend(that: ZScope[Any])(implicit trace: ZTraceElement): Boolean = that match {
       case local: Local[_] => local.unsafeAddRef()
       case _               => true
     }
@@ -156,11 +164,11 @@ object ZScope {
    * An effect that makes a new open scope, which provides not just the scope,
    * but also a way to close the scope.
    */
-  def make[A]: UIO[Open[A]] = UIO(unsafeMake())
+  def make[A](implicit trace: ZTraceElement): UIO[Open[A]] = UIO(unsafeMake())
 
   private[ZScope] final case class OrderedFinalizer(order: Int, finalizer: Any => UIO[Any])
 
-  private[zio] def unsafeMake[A](): Open[A] = {
+  private[zio] def unsafeMake[A]()(implicit trace: ZTraceElement): Open[A] = {
     val nullA: A = null.asInstanceOf[A]
 
     val exitValue = new AtomicReference(nullA)
@@ -209,29 +217,31 @@ object ZScope {
         _strongFinalizers
       }
 
-    def isClosed: UIO[Boolean] = UIO(unsafeIsClosed())
+    def isClosed(implicit trace: ZTraceElement): UIO[Boolean] = UIO(unsafeIsClosed())
 
-    def isEmpty: UIO[Boolean] = UIO(unsafeIsEmpty())
+    def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] = UIO(unsafeIsEmpty())
 
-    def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong): UIO[Either[A, Key]] =
+    def ensure(finalizer: A => UIO[Any], mode: ZScope.Mode = ZScope.Mode.Strong)(implicit
+      trace: ZTraceElement
+    ): UIO[Either[A, Key]] =
       UIO(unsafeEnsure(finalizer, mode))
 
-    def release: UIO[Boolean] = UIO.suspendSucceed {
+    def release(implicit trace: ZTraceElement): UIO[Boolean] = UIO.suspendSucceed {
       val result = unsafeRelease()
 
       if (result eq null) UIO(false) else result as true
     }
 
-    def child: UIO[Either[A, ZScope.Open[A]]] = UIO(unsafeChild())
+    def child(implicit trace: ZTraceElement): UIO[Either[A, ZScope.Open[A]]] = UIO(unsafeChild())
 
-    def isReleased: UIO[Boolean] = UIO(unsafeIsReleased())
+    def isReleased(implicit trace: ZTraceElement): UIO[Boolean] = UIO(unsafeIsReleased())
 
     private[this] def finalizers(mode: ZScope.Mode): Map[Key, OrderedFinalizer] =
       if (mode == ZScope.Mode.Weak) weakFinalizers else strongFinalizers
 
     private[zio] def unsafeIsClosed(): Boolean = Sync(self)(exitValue.get() != null)
 
-    private[zio] def unsafeClose(a0: A): UIO[Any] =
+    private[zio] def unsafeClose(a0: A)(implicit trace: ZTraceElement): UIO[Any] =
       Sync(self) {
         exitValue.compareAndSet(null.asInstanceOf[A], a0)
 
@@ -246,7 +256,9 @@ object ZScope {
           ((_strongFinalizers ne null) && (_strongFinalizers.remove(key) ne null))
       }
 
-    private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode): Either[A, Key] =
+    private[zio] def unsafeEnsure(finalizer: A => UIO[Any], mode: ZScope.Mode)(implicit
+      trace: ZTraceElement
+    ): Either[A, Key] =
       Sync(self) {
         def coerce(f: A => UIO[Any]): Any => UIO[Any] = f.asInstanceOf[Any => UIO[Any]]
 
@@ -275,7 +287,7 @@ object ZScope {
         ((_strongFinalizers eq null) || _strongFinalizers.isEmpty())
       }
 
-    private[zio] def unsafeChild(): Either[A, ZScope.Open[A]] =
+    private[zio] def unsafeChild()(implicit trace: ZTraceElement): Either[A, ZScope.Open[A]] =
       Sync(self) {
         val childScope = unsafeMake[A]()
         unsafeEnsure(a => childScope.close(a), Mode.Strong) match {
@@ -287,7 +299,7 @@ object ZScope {
         }
       }
 
-    private[zio] def unsafeExtend(that: ZScope[Any]): Boolean =
+    private[zio] def unsafeExtend(that: ZScope[Any])(implicit trace: ZTraceElement): Boolean =
       if (self eq that) true
       else
         that match {
@@ -308,7 +320,7 @@ object ZScope {
             }
         }
 
-    private[zio] def unsafeRelease(): UIO[Unit] =
+    private[zio] def unsafeRelease()(implicit trace: ZTraceElement): UIO[Unit] =
       Sync(self) {
         if (references.decrementAndGet() == 0) {
           val weakFinalizersSize   = if (_weakFinalizers eq null) 0 else _weakFinalizers.size()

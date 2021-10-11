@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.{Console, Has, IO, URLayer, ZIO}
+import zio.{Console, Has, IO, URLayer, ZIO, ZTraceElement}
 
 import java.io.IOException
 
@@ -33,11 +33,12 @@ object MockConsole extends Mock[Has[Console]] {
       .service[Proxy]
       .map(proxy =>
         new Console {
-          def print(line: => Any): IO[IOException, Unit]          = proxy(Print, line)
-          def printError(line: => Any): IO[IOException, Unit]     = proxy(PrintError, line)
-          def printLine(line: => Any): IO[IOException, Unit]      = proxy(PrintLine, line)
-          def printLineError(line: => Any): IO[IOException, Unit] = proxy(PrintLineError, line)
-          val readLine: IO[IOException, String]                   = proxy(ReadLine)
+          def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]      = proxy(Print, line)
+          def printError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] = proxy(PrintError, line)
+          def printLine(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]  = proxy(PrintLine, line)
+          def printLineError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+            proxy(PrintLineError, line)
+          def readLine(implicit trace: ZTraceElement): IO[IOException, String] = proxy(ReadLine)
         }
       )
       .toLayer

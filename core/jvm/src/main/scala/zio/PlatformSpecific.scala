@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.internal.stacktracer.Tracer
+
 private[zio] trait PlatformSpecific {
   type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
 
@@ -31,8 +33,9 @@ private[zio] trait PlatformSpecific {
         )
     }
 
-    val any: ZLayer[ZEnv, Nothing, ZEnv] =
-      ZLayer.environment[ZEnv]
+    val any: ZLayer[ZEnv, Nothing, ZEnv] = {
+      ZLayer.environment[ZEnv](Tracer.newTrace)
+    }
 
     val live: Layer[Nothing, ZEnv] =
       Clock.live ++ Console.live ++ System.live ++ Random.live

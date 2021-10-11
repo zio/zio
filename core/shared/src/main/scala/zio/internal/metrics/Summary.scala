@@ -33,23 +33,23 @@ private[zio] trait Summary {
   /**
    * The current count of all the values ever observed by this dsummary.
    */
-  val count: UIO[Long]
+  def count(implicit trace: ZTraceElement): UIO[Long]
 
   /**
    * Adds the specified value to the time series represented by the summary,
    * also recording the Instant when the value was observed
    */
-  def observe(value: Double): UIO[Any]
+  def observe(value: Double)(implicit trace: ZTraceElement): UIO[Any]
 
   /**
    * The values corresponding to each quantile in the summary.
    */
-  val quantileValues: UIO[Chunk[(Double, Option[Double])]]
+  def quantileValues(implicit trace: ZTraceElement): UIO[Chunk[(Double, Option[Double])]]
 
   /**
    * The current sum of all the values ever observed by the summary.
    */
-  val sum: UIO[Double]
+  def sum(implicit trace: ZTraceElement): UIO[Double]
 
 }
 

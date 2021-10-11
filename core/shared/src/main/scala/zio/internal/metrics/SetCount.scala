@@ -31,13 +31,13 @@ private[zio] trait SetCount {
   /**
    * Increments the counter associated with the specified value by one.
    */
-  def observe(word: String): UIO[Any]
+  def observe(word: String)(implicit trace: ZTraceElement): UIO[Any]
 
   /**
    * The number of occurences of every value observed by this
    * set count.
    */
-  def occurrences: UIO[Chunk[(String, Long)]]
+  def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]]
 }
 
 private[zio] object SetCount {

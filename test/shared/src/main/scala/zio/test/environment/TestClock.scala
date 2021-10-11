@@ -84,12 +84,12 @@ import scala.collection.immutable.SortedSet
  * another 60 minutes exactly one more value is placed in the queue.
  */
 trait TestClock extends Restorable {
-  def adjust(duration: Duration): UIO[Unit]
-  def setDateTime(dateTime: OffsetDateTime): UIO[Unit]
-  def setTime(duration: Duration): UIO[Unit]
-  def setTimeZone(zone: ZoneId): UIO[Unit]
-  def sleeps: UIO[List[Duration]]
-  def timeZone: UIO[ZoneId]
+  def adjust(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit]
+  def setDateTime(dateTime: OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit]
+  def setTime(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit]
+  def setTimeZone(zone: ZoneId)(implicit trace: ZTraceElement): UIO[Unit]
+  def sleeps(implicit trace: ZTraceElement): UIO[List[Duration]]
+  def timeZone(implicit trace: ZTraceElement): UIO[ZoneId]
 }
 
 object TestClock extends Serializable {
@@ -108,44 +108,44 @@ object TestClock extends Serializable {
      * effects that were scheduled to occur on or before the new time will be
      * run in order.
      */
-    def adjust(duration: Duration): UIO[Unit] =
+    def adjust(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       warningDone *> run(_ + duration)
 
     /**
      * Returns the current clock time as an `OffsetDateTime`.
      */
-    def currentDateTime: UIO[OffsetDateTime] =
+    def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =
       clockState.get.map(data => toDateTime(data.duration, data.timeZone))
 
     /**
      * Returns the current clock time in the specified time unit.
      */
-    def currentTime(unit: => TimeUnit): UIO[Long] =
+    def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
       clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
 
     /**
      * Returns the current clock time in nanoseconds.
      */
-    val nanoTime: UIO[Long] =
+    def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
       clockState.get.map(_.duration.toNanos)
 
     /**
      * Returns the current clock time as an `Instant`.
      */
-    val instant: UIO[Instant] =
+    def instant(implicit trace: ZTraceElement): UIO[Instant] =
       clockState.get.map(data => toInstant(data.duration))
 
     /**
      * Returns the current clock time as a `LocalDateTime`.
      */
-    val localDateTime: UIO[LocalDateTime] =
+    def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
       clockState.get.map(data => toLocalDateTime(data.duration, data.timeZone))
 
     /**
      * Saves the `TestClock`'s current state in an effect which, when run,
      * will restore the `TestClock` state to the saved state
      */
-    val save: UIO[UIO[Unit]] =
+    def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
       for {
         clockData <- clockState.get
       } yield clockState.set(clockData)
@@ -155,7 +155,7 @@ object TestClock extends Serializable {
      * effects that were scheduled to occur on or before the new time will
      * be run in order.
      */
-    def setDateTime(dateTime: OffsetDateTime): UIO[Unit] =
+    def setDateTime(dateTime: OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit] =
       setTime(fromDateTime(dateTime))
 
     /**
@@ -163,7 +163,7 @@ object TestClock extends Serializable {
      * since the epoch. Any effects that were scheduled to occur on or before
      * the new time will immediately be run in order.
      */
-    def setTime(duration: Duration): UIO[Unit] =
+    def setTime(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       warningDone *> run(_ => duration)
 
     /**
@@ -171,7 +171,7 @@ object TestClock extends Serializable {
      * terms of nanoseconds since the epoch will not be adjusted and no
      * scheduled effects will be run as a result of this method.
      */
-    def setTimeZone(zone: ZoneId): UIO[Unit] =
+    def setTimeZone(zone: ZoneId)(implicit trace: ZTraceElement): UIO[Unit] =
       clockState.update(_.copy(timeZone = zone))
 
     /**
@@ -180,7 +180,7 @@ object TestClock extends Serializable {
      * adjusted to on or after the duration, the fiber will automatically be
      * resumed.
      */
-    def sleep(duration: => Duration): UIO[Unit] =
+    def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       for {
         promise <- Promise.make[Nothing, Unit]
         shouldAwait <- clockState.modify { data =>
@@ -197,13 +197,13 @@ object TestClock extends Serializable {
      * Returns a list of the times at which all queued effects are scheduled
      * to resume.
      */
-    lazy val sleeps: UIO[List[Duration]] =
+    def sleeps(implicit trace: ZTraceElement): UIO[List[Duration]] =
       clockState.get.map(_.sleeps.map(_._1))
 
     /**
      * Returns the time zone.
      */
-    lazy val timeZone: UIO[ZoneId] =
+    def timeZone(implicit trace: ZTraceElement): UIO[ZoneId] =
       clockState.get.map(_.timeZone)
 
     /**

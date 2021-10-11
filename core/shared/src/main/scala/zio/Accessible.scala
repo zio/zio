@@ -43,7 +43,9 @@ import scala.annotation.implicitNotFound
  * }}}
  */
 trait Accessible[R] {
-  def apply[R0, E, A](f: R => ZIO[R0, E, A])(implicit tag: Tag[R], isAny: IsAny[R0]): ZIO[Has[R], E, A] =
+  def apply[R0, E, A](
+    f: R => ZIO[R0, E, A]
+  )(implicit tag: Tag[R], isAny: IsAny[R0], trace: ZTraceElement): ZIO[Has[R], E, A] =
     ZIO.serviceWith[R](f.asInstanceOf[R => ZIO[Any, E, A]])
 }
 

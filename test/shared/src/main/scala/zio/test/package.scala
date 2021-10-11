@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.environment._
@@ -106,7 +107,9 @@ package object test extends CompileVariants {
     /**
      * Builds a test with an effectual assertion.
      */
-    def apply[R, E](label: String, assertion: => ZIO[R, E, TestResult]): ZIO[R, TestFailure[E], TestSuccess] =
+    def apply[R, E](label: String, assertion: => ZIO[R, E, TestResult])(implicit
+      trace: ZTraceElement
+    ): ZIO[R, TestFailure[E], TestSuccess] =
       ZIO
         .suspendSucceed(assertion)
         .overrideForkScope(ZScope.global)
@@ -180,7 +183,7 @@ package object test extends CompileVariants {
     sourceLocation: Option[String] = None
   )(
     assertion: Assertion[A]
-  ): TestResult = {
+  )(implicit trace: ZTraceElement): TestResult = {
     lazy val tryValue = Try(value)
     traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression, sourceLocation)
   }
@@ -188,13 +191,13 @@ package object test extends CompileVariants {
   /**
    * Asserts that the given test was completed.
    */
-  val assertCompletes: TestResult =
+  def assertCompletes(implicit trace: ZTraceElement): TestResult =
     assertImpl(true)(Assertion.isTrue)
 
   /**
    * Asserts that the given test was completed.
    */
-  val assertCompletesM: UIO[TestResult] =
+  def assertCompletesM(implicit trace: ZTraceElement): UIO[TestResult] =
     assertMImpl(UIO.succeedNow(true))(Assertion.isTrue)
 
   /**
@@ -202,7 +205,7 @@ package object test extends CompileVariants {
    */
   override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
     assertion: AssertionM[A]
-  ): ZIO[R, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
     for {
       value        <- effect
       assertResult <- assertion.runM(value).run
@@ -213,7 +216,8 @@ package object test extends CompileVariants {
    * given random variable.
    */
   def check[R <: Has[TestConfig], A, In](rv: Gen[R, A])(test: A => In)(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     TestConfig.samples.flatMap(n =>
       checkStream(rv.sample.forever.collectSome.take(n.toLong))(a => checkConstructor(test(a)))
@@ -225,7 +229,8 @@ package object test extends CompileVariants {
   def check[R <: Has[TestConfig], A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     check(rv1 <*> rv2)(test.tupled)
 
@@ -235,7 +240,8 @@ package object test extends CompileVariants {
   def check[R <: Has[TestConfig], A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     check(rv1 <*> rv2 <*> rv3)(test.tupled)
 
@@ -245,7 +251,8 @@ package object test extends CompileVariants {
   def check[R <: Has[TestConfig], A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     check(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
 
@@ -261,7 +268,8 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F) => TestResult
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
 
@@ -278,7 +286,8 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G) => TestResult
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
@@ -289,7 +298,7 @@ package object test extends CompileVariants {
   @deprecated("use check", "2.0.0")
   def checkM[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A])(
     test: A => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     TestConfig.samples.flatMap(checkNM(_)(rv)(test))
 
   /**
@@ -298,7 +307,7 @@ package object test extends CompileVariants {
   @deprecated("use check", "2.0.0")
   def checkM[R <: Has[TestConfig], R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2)(test.tupled)
 
   /**
@@ -307,7 +316,7 @@ package object test extends CompileVariants {
   @deprecated("use check", "2.0.0")
   def checkM[R <: Has[TestConfig], R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3)(test.tupled)
 
   /**
@@ -321,7 +330,7 @@ package object test extends CompileVariants {
     rv4: Gen[R, D]
   )(
     test: (A, B, C, D) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
 
   /**
@@ -336,7 +345,7 @@ package object test extends CompileVariants {
     rv5: Gen[R, F]
   )(
     test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
 
   /**
@@ -352,7 +361,7 @@ package object test extends CompileVariants {
     rv6: Gen[R, G]
   )(
     test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
@@ -361,7 +370,8 @@ package object test extends CompileVariants {
    * possibilities in a given domain.
    */
   def checkAll[R <: Has[TestConfig], A, In](rv: Gen[R, A])(test: A => In)(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkStream(rv.sample.collectSome)(a => checkConstructor(test(a)))
 
@@ -371,7 +381,8 @@ package object test extends CompileVariants {
   def checkAll[R <: Has[TestConfig], A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAll(rv1 <*> rv2)(test.tupled)
 
@@ -381,7 +392,8 @@ package object test extends CompileVariants {
   def checkAll[R <: Has[TestConfig], A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3)(test.tupled)
 
@@ -391,7 +403,8 @@ package object test extends CompileVariants {
   def checkAll[R <: Has[TestConfig], A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
 
@@ -407,7 +420,8 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
 
@@ -424,7 +438,8 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
@@ -436,7 +451,7 @@ package object test extends CompileVariants {
   @deprecated("use checkAll", "2.0.0")
   def checkAllM[R <: Has[TestConfig], R1 <: R, E, A](
     rv: Gen[R, A]
-  )(test: A => ZIO[R1, E, TestResult]): ZIO[R1, E, TestResult] =
+  )(test: A => ZIO[R1, E, TestResult])(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkStream(rv.sample.collectSome)(test)
 
   /**
@@ -445,7 +460,7 @@ package object test extends CompileVariants {
   @deprecated("use checkAll", "2.0.0")
   def checkAllM[R <: Has[TestConfig], R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2)(test.tupled)
 
   /**
@@ -454,7 +469,7 @@ package object test extends CompileVariants {
   @deprecated("use checkAll", "2.0.0")
   def checkAllM[R <: Has[TestConfig], R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3)(test.tupled)
 
   /**
@@ -468,7 +483,7 @@ package object test extends CompileVariants {
     rv4: Gen[R, D]
   )(
     test: (A, B, C, D) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
 
   /**
@@ -483,7 +498,7 @@ package object test extends CompileVariants {
     rv5: Gen[R, F]
   )(
     test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
 
   /**
@@ -499,7 +514,7 @@ package object test extends CompileVariants {
     rv6: Gen[R, G]
   )(
     test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
@@ -510,7 +525,7 @@ package object test extends CompileVariants {
   @deprecated("use checkPar", "2.0.0")
   def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkStreamPar(rv.sample.collectSome, parallelism)(test)
 
   /**
@@ -519,7 +534,7 @@ package object test extends CompileVariants {
   @deprecated("use checkPar", "2.0.0")
   def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
     test: (A, B) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllMPar(rv1 <*> rv2, parallelism)(test.tupled)
 
   /**
@@ -533,7 +548,7 @@ package object test extends CompileVariants {
     parallelism: Int
   )(
     test: (A, B, C) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllMPar(rv1 <*> rv2 <*> rv3, parallelism)(test.tupled)
 
   /**
@@ -548,7 +563,7 @@ package object test extends CompileVariants {
     parallelism: Int
   )(
     test: (A, B, C, D) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4, parallelism)(test.tupled)
 
   /**
@@ -564,7 +579,7 @@ package object test extends CompileVariants {
     parallelism: Int
   )(
     test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5, parallelism)(test.tupled)
 
   /**
@@ -581,7 +596,7 @@ package object test extends CompileVariants {
     parallelism: Int
   )(
     test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
-  ): ZIO[R1, E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(test.tupled)
 
   /**
@@ -592,7 +607,8 @@ package object test extends CompileVariants {
   def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, In](rv: Gen[R, A], parallelism: Int)(
     test: A => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkStreamPar(rv.sample.collectSome, parallelism)(a => checkConstructor(test(a)))
 
@@ -602,7 +618,8 @@ package object test extends CompileVariants {
   def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
     test: (A, B) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAllPar(rv1 <*> rv2, parallelism)(test.tupled)
 
@@ -617,7 +634,8 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAllPar(rv1 <*> rv2 <*> rv3, parallelism)(test.tupled)
 
@@ -633,7 +651,8 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4, parallelism)(test.tupled)
 
@@ -650,7 +669,8 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5, parallelism)(test.tupled)
 
@@ -668,7 +688,8 @@ package object test extends CompileVariants {
   )(
     test: (A, B, C, D, F, G) => In
   )(implicit
-    checkConstructor: CheckConstructor[R, In]
+    checkConstructor: CheckConstructor[R, In],
+    trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(test.tupled)
 
@@ -696,7 +717,7 @@ package object test extends CompileVariants {
   /**
    * Creates a failed test result with the specified runtime cause.
    */
-  def failed[E](cause: Cause[E]): ZIO[Any, TestFailure[E], Nothing] =
+  def failed[E](cause: Cause[E])(implicit trace: ZTraceElement): ZIO[Any, TestFailure[E], Nothing] =
     ZIO.fail(TestFailure.Runtime(cause))
 
   /**
@@ -732,7 +753,9 @@ package object test extends CompileVariants {
    * Builds an effectual suite containing a number of other specs.
    */
   @deprecated("use suite", "2.0.0")
-  def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]]): Spec[R, E, T] =
+  def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]])(implicit
+    trace: ZTraceElement
+  ): Spec[R, E, T] =
     Spec.labeled(label, Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).toManaged))
 
   /**
@@ -758,25 +781,29 @@ package object test extends CompileVariants {
 
     final class CheckN(private val n: Int) extends AnyVal {
       def apply[R <: Has[TestConfig], A, In](rv: Gen[R, A])(test: A => In)(implicit
-        checkConstructor: CheckConstructor[R, In]
+        checkConstructor: CheckConstructor[R, In],
+        trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkStream(rv.sample.forever.collectSome.take(n.toLong))(a => checkConstructor(test(a)))
       def apply[R <: Has[TestConfig], A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => In
       )(implicit
-        checkConstructor: CheckConstructor[R, In]
+        checkConstructor: CheckConstructor[R, In],
+        trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
       def apply[R <: Has[TestConfig], A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => In
       )(implicit
-        checkConstructor: CheckConstructor[R, In]
+        checkConstructor: CheckConstructor[R, In],
+        trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
       def apply[R <: Has[TestConfig], A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => In
       )(implicit
-        checkConstructor: CheckConstructor[R, In]
+        checkConstructor: CheckConstructor[R, In],
+        trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
       def apply[R <: Has[TestConfig], A, B, C, D, F, In](
@@ -788,7 +815,8 @@ package object test extends CompileVariants {
       )(
         test: (A, B, C, D, F) => In
       )(implicit
-        checkConstructor: CheckConstructor[R, In]
+        checkConstructor: CheckConstructor[R, In],
+        trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
       def apply[R <: Has[TestConfig], A, B, C, D, F, G, In](
@@ -801,7 +829,8 @@ package object test extends CompileVariants {
       )(
         test: (A, B, C, D, F, G) => In
       )(implicit
-        checkConstructor: CheckConstructor[R, In]
+        checkConstructor: CheckConstructor[R, In],
+        trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
     }
@@ -810,16 +839,17 @@ package object test extends CompileVariants {
       @deprecated("use checkN", "2.0.0")
       def apply[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A])(
         test: A => ZIO[R1, E, TestResult]
-      ): ZIO[R1, E, TestResult] = checkStream(rv.sample.forever.collectSome.take(n.toLong))(test)
+      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
+        checkStream(rv.sample.forever.collectSome.take(n.toLong))(test)
       @deprecated("use checkN", "2.0.0")
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => ZIO[R1, E, TestResult]
-      ): ZIO[R1, E, TestResult] =
+      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2)(test.tupled)
       @deprecated("use checkN", "2.0.0")
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => ZIO[R1, E, TestResult]
-      ): ZIO[R1, E, TestResult] =
+      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
       @deprecated("use checkN", "2.0.0")
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C, D](
@@ -829,7 +859,7 @@ package object test extends CompileVariants {
         rv4: Gen[R, D]
       )(
         test: (A, B, C, D) => ZIO[R1, E, TestResult]
-      ): ZIO[R1, E, TestResult] =
+      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
       @deprecated("use checkN", "2.0.0")
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F](
@@ -840,7 +870,7 @@ package object test extends CompileVariants {
         rv5: Gen[R, F]
       )(
         test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
-      ): ZIO[R1, E, TestResult] =
+      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
       @deprecated("use checkN", "2.0.0")
       def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F, G](
@@ -852,14 +882,14 @@ package object test extends CompileVariants {
         rv6: Gen[R, G]
       )(
         test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
-      ): ZIO[R1, E, TestResult] =
+      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
     }
   }
 
   private def checkStream[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]])(
     test: A => ZIO[R1, E, TestResult]
-  ): ZIO[R1 with Has[TestConfig], E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1 with Has[TestConfig], E, TestResult] =
     TestConfig.shrinks.flatMap {
       shrinkStream {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
@@ -874,7 +904,7 @@ package object test extends CompileVariants {
 
   private def shrinkStream[R, R1 <: R, E, A](
     stream: ZStream[R1, Nothing, Sample[R1, Either[E, TestResult]]]
-  )(maxShrinks: Int): ZIO[R1 with Has[TestConfig], E, TestResult] =
+  )(maxShrinks: Int)(implicit trace: ZTraceElement): ZIO[R1 with Has[TestConfig], E, TestResult] =
     stream
       .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
@@ -901,7 +931,7 @@ package object test extends CompileVariants {
 
   private def checkStreamPar[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
-  ): ZIO[R1 with Has[TestConfig], E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1 with Has[TestConfig], E, TestResult] =
     TestConfig.shrinks.flatMap {
       shrinkStream {
         stream.zipWithIndex
@@ -923,7 +953,7 @@ package object test extends CompileVariants {
    */
   private[test] def flatMapStream[R, R1 <: R, A, B](
     stream: ZStream[R, Nothing, Option[A]]
-  )(f: A => ZStream[R1, Nothing, Option[B]]): ZStream[R1, Nothing, Option[B]] = {
+  )(f: A => ZStream[R1, Nothing, Option[B]])(implicit trace: ZTraceElement): ZStream[R1, Nothing, Option[B]] = {
 
     sealed trait State
 
@@ -1093,6 +1123,6 @@ package object test extends CompileVariants {
   private[test] def mergeStream[R, A](
     left: ZStream[R, Nothing, Option[A]],
     right: ZStream[R, Nothing, Option[A]]
-  ): ZStream[R, Nothing, Option[A]] =
+  )(implicit trace: ZTraceElement): ZStream[R, Nothing, Option[A]] =
     flatMapStream(ZStream(Some(left), Some(right)))(identity)
 }

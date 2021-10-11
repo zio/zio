@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.test.Macros.location
-import zio.{UIO, ZIO}
+import zio.{UIO, ZIO, ZTraceElement}
 
 import scala.annotation.tailrec
 import scala.compiletime.testing.typeChecks
@@ -50,13 +50,13 @@ trait CompileVariants {
     sourceLocation: Option[String] = None
   )(
     assertion: Assertion[A]
-  ): TestResult
+  )(implicit trace: ZTraceElement): TestResult
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)
-                                            (assertion: AssertionM[A]): ZIO[R, E, TestResult]
+                                            (assertion: AssertionM[A])(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
 
   inline def assertTrue(inline exprs: => Boolean*): Assert = ${SmartAssertMacros.smartAssert('exprs)}
 

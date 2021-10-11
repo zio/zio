@@ -23,14 +23,14 @@ trait ClassLoading extends JvmMetrics {
 
   private def reportClassLoadingMetrics(
     classLoadingMXBean: ClassLoadingMXBean
-  ): ZIO[Any, Throwable, Unit] =
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
       _ <- Task(classLoadingMXBean.getLoadedClassCount) @@ loadedClassCount
       _ <- Task(classLoadingMXBean.getTotalLoadedClassCount) @@ totalLoadedClassCount
       _ <- Task(classLoadingMXBean.getUnloadedClassCount) @@ unloadedClassCount
     } yield ()
 
-  val collectMetrics: ZManaged[Has[Clock], Throwable, ClassLoading] =
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock], Throwable, ClassLoading] =
     for {
       classLoadingMXBean <-
         Task(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean])).toManaged
@@ -44,6 +44,6 @@ trait ClassLoading extends JvmMetrics {
 /** Exports metrics related to JVM class loading */
 object ClassLoading extends ClassLoading with JvmMetrics.DefaultSchedule {
   def withSchedule(schedule: Schedule[Any, Any, Unit]): ClassLoading = new ClassLoading {
-    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
   }
 }

@@ -16,8 +16,8 @@
 
 package zio.test.environment
 
-import zio.UIO
+import zio.{UIO, ZTraceElement}
 
 trait Restorable extends Serializable {
-  val save: UIO[UIO[Unit]]
+  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]]
 }

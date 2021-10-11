@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.internal.stacktracer.Tracer
 import zio.Schedule.Decision._
 
 import java.lang.{System => JSystem}
@@ -24,19 +25,21 @@ import java.util.concurrent.TimeUnit
 
 trait Clock extends Serializable {
 
-  def currentTime(unit: => TimeUnit): UIO[Long]
+  def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long]
 
-  def currentDateTime: UIO[OffsetDateTime]
+  def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime]
 
-  def instant: UIO[java.time.Instant]
+  def instant(implicit trace: ZTraceElement): UIO[java.time.Instant]
 
-  def localDateTime: UIO[java.time.LocalDateTime]
+  def localDateTime(implicit trace: ZTraceElement): UIO[java.time.LocalDateTime]
 
-  def nanoTime: UIO[Long]
+  def nanoTime(implicit trace: ZTraceElement): UIO[Long]
 
-  def sleep(duration: => Duration): UIO[Unit]
+  def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit]
 
-  final def driver[Env, In, Out](schedule: Schedule[Env, In, Out]): UIO[Schedule.Driver[schedule.State, Env, In, Out]] =
+  final def driver[Env, In, Out](
+    schedule: Schedule[Env, In, Out]
+  )(implicit trace: ZTraceElement): UIO[Schedule.Driver[schedule.State, Env, In, Out]] =
     Ref.make[(Option[Out], schedule.State)]((None, schedule.initial)).map { ref =>
       val next = (in: In) =>
         for {
@@ -62,17 +65,23 @@ trait Clock extends Serializable {
       Schedule.Driver(next, last, reset, state)
     }
 
-  final def repeat[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(schedule: => Schedule[R1, A, B]): ZIO[R1, E, B] =
+  final def repeat[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(schedule: => Schedule[R1, A, B])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E, B] =
     repeatOrElse[R, R1, E, E, A, B](zio)(schedule, (e, _) => ZIO.fail(e))
 
   final def repeatOrElse[R, R1 <: R, E, E2, A, B](
     zio: => ZIO[R, E, A]
-  )(schedule: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B]): ZIO[R1, E2, B] =
+  )(schedule: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E2, B] =
     repeatOrElseEither[R, R1, E, E2, A, B, B](zio)(schedule, orElse).map(_.merge)
 
   final def repeatOrElseEither[R, R1 <: R, E, E2, A, B, C](
     zio0: => ZIO[R, E, A]
-  )(schedule0: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, C]): ZIO[R1, E2, Either[C, B]] =
+  )(schedule0: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, C])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E2, Either[C, B]] =
     ZIO.suspendSucceed {
       val zio      = zio0
       val schedule = schedule0
@@ -98,19 +107,24 @@ trait Clock extends Serializable {
     }
 
   final def retry[R, R1 <: R, E, A, S](zio: => ZIO[R, E, A])(policy: Schedule[R1, E, S])(implicit
-    ev: CanFail[E]
+    ev: CanFail[E],
+    trace: ZTraceElement
   ): ZIO[R1, E, A] =
     retryOrElse(zio)(policy, (e: E, _: S) => ZIO.fail(e))
 
   final def retryOrElse[R, R1 <: R, E, E1, A, A1 >: A, S](
     zio: => ZIO[R, E, A]
-  )(policy: => Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1])(implicit ev: CanFail[E]): ZIO[R1, E1, A1] =
+  )(policy: => Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1])(implicit
+    ev: CanFail[E],
+    trace: ZTraceElement
+  ): ZIO[R1, E1, A1] =
     retryOrElseEither(zio)(policy, orElse).map(_.merge)
 
   final def retryOrElseEither[R, R1 <: R, E, E1, A, B, Out](
     zio0: => ZIO[R, E, A]
   )(schedule0: => Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B])(implicit
-    ev: CanFail[E]
+    ev: CanFail[E],
+    trace: ZTraceElement
   ): ZIO[R1, E1, Either[B, A]] =
     ZIO.suspendSucceed {
       val zio      = zio0
@@ -131,12 +145,14 @@ trait Clock extends Serializable {
       driver(schedule).flatMap(loop(_))
     }
 
-  final def schedule[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(schedule: => Schedule[R1, Any, B]): ZIO[R1, E, B] =
+  final def schedule[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(schedule: => Schedule[R1, Any, B])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E, B] =
     scheduleFrom[R, R1, E, A, Any, B](zio)(())(schedule)
 
   final def scheduleFrom[R, R1 <: R, E, A, A1 >: A, B](
     zio0: => ZIO[R, E, A]
-  )(a: => A1)(schedule0: => Schedule[R1, A1, B]): ZIO[R1, E, B] =
+  )(a: => A1)(schedule0: => Schedule[R1, A1, B])(implicit trace: ZTraceElement): ZIO[R1, E, B] =
     ZIO.suspendSucceed {
       val zio      = zio0
       val schedule = schedule0
@@ -153,27 +169,28 @@ trait Clock extends Serializable {
 object Clock extends ClockPlatformSpecific with Serializable {
 
   val any: ZLayer[Has[Clock], Nothing, Has[Clock]] =
-    ZLayer.service[Clock]
+    ZLayer.service[Clock](Tracer.newTrace)
 
   /**
    * Constructs a `Clock` service from a `java.time.Clock`.
    */
   val javaClock: ZLayer[Has[java.time.Clock], Nothing, Has[Clock]] = {
-    for {
+    implicit val trace = Tracer.newTrace
+    (for {
       clock <- ZIO.service[java.time.Clock]
-    } yield ClockJava(clock)
-  }.toLayer
+    } yield ClockJava(clock)).toLayer
+  }
 
   val live: Layer[Nothing, Has[Clock]] =
-    ZLayer.succeed(ClockLive)
+    ZLayer.succeed[Clock](ClockLive)(Tag[Clock], Tracer.newTrace)
 
   /**
    * An implementation of the `Clock` service backed by a `java.time.Clock`.
    */
   final case class ClockJava(clock: java.time.Clock) extends Clock {
-    def currentDateTime: UIO[OffsetDateTime] =
+    def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =
       ZIO.succeed(OffsetDateTime.now(clock))
-    def currentTime(unit0: => TimeUnit): UIO[Long] =
+    def currentTime(unit0: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
       ZIO.suspendSucceed {
         val unit = unit0
         instant.map { instant =>
@@ -186,13 +203,13 @@ object Clock extends ClockPlatformSpecific with Serializable {
           }
         }
       }
-    def instant: UIO[Instant] =
+    def instant(implicit trace: ZTraceElement): UIO[Instant] =
       ZIO.succeed(clock.instant())
-    def localDateTime: UIO[LocalDateTime] =
+    def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
       ZIO.succeed(LocalDateTime.now(clock))
-    def nanoTime: UIO[Long] =
+    def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
       currentTime(TimeUnit.NANOSECONDS)
-    def sleep(duration: => Duration): UIO[Unit] =
+    def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.asyncInterrupt { cb =>
         val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
         Left(UIO.succeed(canceler()))
@@ -200,7 +217,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   }
 
   object ClockLive extends Clock {
-    def currentTime(unit0: => TimeUnit): UIO[Long] =
+    def currentTime(unit0: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
       ZIO.suspendSucceed {
         val unit = unit0
 
@@ -218,21 +235,21 @@ object Clock extends ClockPlatformSpecific with Serializable {
         }
       }
 
-    val nanoTime: UIO[Long] = IO.succeed(JSystem.nanoTime)
+    def nanoTime(implicit trace: ZTraceElement): UIO[Long] = IO.succeed(JSystem.nanoTime)
 
-    def sleep(duration: => Duration): UIO[Unit] =
+    def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       UIO.asyncInterrupt { cb =>
         val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
         Left(UIO.succeed(canceler()))
       }
 
-    def currentDateTime: UIO[OffsetDateTime] =
+    def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =
       ZIO.succeed(OffsetDateTime.now())
 
-    override def instant: UIO[Instant] =
+    override def instant(implicit trace: ZTraceElement): UIO[Instant] =
       ZIO.succeed(Instant.now())
 
-    override def localDateTime: UIO[LocalDateTime] =
+    override def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
       ZIO.succeed(LocalDateTime.now())
 
   }
@@ -242,30 +259,30 @@ object Clock extends ClockPlatformSpecific with Serializable {
   /**
    * Returns the current time, relative to the Unix epoch.
    */
-  def currentTime(unit: => TimeUnit): URIO[Has[Clock], Long] =
+  def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): URIO[Has[Clock], Long] =
     ZIO.serviceWith(_.currentTime(unit))
 
   /**
    * Get the current time, represented in the current timezone.
    */
-  val currentDateTime: URIO[Has[Clock], OffsetDateTime] =
+  def currentDateTime(implicit trace: ZTraceElement): URIO[Has[Clock], OffsetDateTime] =
     ZIO.serviceWith(_.currentDateTime)
 
   def driver[Env, In, Out](
     schedule: Schedule[Env, In, Out]
-  ): URIO[Has[Clock], Schedule.Driver[schedule.State, Env, In, Out]] =
+  )(implicit trace: ZTraceElement): URIO[Has[Clock], Schedule.Driver[schedule.State, Env, In, Out]] =
     ZIO.serviceWith(_.driver(schedule))
 
-  val instant: ZIO[Has[Clock], Nothing, java.time.Instant] =
+  def instant(implicit trace: ZTraceElement): ZIO[Has[Clock], Nothing, java.time.Instant] =
     ZIO.serviceWith(_.instant)
 
-  val localDateTime: ZIO[Has[Clock], Nothing, java.time.LocalDateTime] =
+  def localDateTime(implicit trace: ZTraceElement): ZIO[Has[Clock], Nothing, java.time.LocalDateTime] =
     ZIO.serviceWith(_.localDateTime)
 
   /**
    * Returns the system nano time, which is not relative to any date.
    */
-  val nanoTime: URIO[Has[Clock], Long] =
+  def nanoTime(implicit trace: ZTraceElement): URIO[Has[Clock], Long] =
     ZIO.serviceWith(_.nanoTime)
 
   /**
@@ -277,7 +294,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
    */
   def repeat[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, A, B]
-  ): ZIO[R1 with Has[Clock], E, B] =
+  )(implicit trace: ZTraceElement): ZIO[R1 with Has[Clock], E, B] =
     ZIO.accessZIO(_.get.repeat(zio)(schedule))
 
   /**
@@ -291,7 +308,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
    */
   final def repeatOrElse[R, R1 <: R, E, E2, A, B](
     zio: => ZIO[R, E, A]
-  )(schedule: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B]): ZIO[R1 with Has[Clock], E2, B] =
+  )(schedule: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1 with Has[Clock], E2, B] =
     ZIO.accessZIO(_.get.repeatOrElse(zio)(schedule, orElse))
 
   /**
@@ -308,7 +327,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   )(
     schedule: => Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
-  ): ZIO[R1 with Has[Clock], E2, Either[C, B]] =
+  )(implicit trace: ZTraceElement): ZIO[R1 with Has[Clock], E2, Either[C, B]] =
     ZIO.accessZIO(_.get.repeatOrElseEither(zio)(schedule, orElse))
 
   /**
@@ -318,7 +337,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * "execute `io` and in case of failure, try again once".
    */
   final def retry[R, R1 <: R, E, A, S](zio: => ZIO[R, E, A])(policy: => Schedule[R1, E, S])(implicit
-    ev: CanFail[E]
+    ev: CanFail[E],
+    trace: ZTraceElement
   ): ZIO[R1 with Has[Clock], E, A] =
     ZIO.accessZIO(_.get.retry(zio)(policy))
 
@@ -330,7 +350,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def retryOrElse[R, R1 <: R, E, E1, A, A1 >: A, S](zio: => ZIO[R, E, A])(
     policy: => Schedule[R1, E, S],
     orElse: (E, S) => ZIO[R1, E1, A1]
-  )(implicit ev: CanFail[E]): ZIO[R1 with Has[Clock], E1, A1] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1 with Has[Clock], E1, A1] =
     ZIO.accessZIO(_.get.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
 
   /**
@@ -341,7 +361,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def retryOrElseEither[R, R1 <: R, E, E1, A, B, Out](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, E, Out],
     orElse: (E, Out) => ZIO[R1, E1, B]
-  )(implicit ev: CanFail[E]): ZIO[R1 with Has[Clock], E1, Either[B, A]] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1 with Has[Clock], E1, Either[B, A]] =
     ZIO.accessZIO(_.get.retryOrElseEither(zio)(schedule, orElse))
 
   /**
@@ -352,7 +372,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
    */
   final def schedule[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, Any, B]
-  ): ZIO[R1 with Has[Clock], E, B] =
+  )(implicit trace: ZTraceElement): ZIO[R1 with Has[Clock], E, B] =
     ZIO.accessZIO(_.get.schedule(zio)(schedule))
 
   /**
@@ -361,13 +381,13 @@ object Clock extends ClockPlatformSpecific with Serializable {
    */
   final def scheduleFrom[R, R1 <: R, E, A, A1 >: A, B](
     zio: => ZIO[R, E, A]
-  )(a: => A1)(schedule: => Schedule[R1, A1, B]): ZIO[R1 with Has[Clock], E, B] =
+  )(a: => A1)(schedule: => Schedule[R1, A1, B])(implicit trace: ZTraceElement): ZIO[R1 with Has[Clock], E, B] =
     ZIO.accessZIO(_.get.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  def sleep(duration: => Duration): URIO[Has[Clock], Unit] =
+  def sleep(duration: => Duration)(implicit trace: ZTraceElement): URIO[Has[Clock], Unit] =
     ZIO.serviceWith(_.sleep(duration))
 
 }
