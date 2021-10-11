@@ -386,7 +386,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
           }
         }
-      ),
+      )
     )
   )
 }
