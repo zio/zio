@@ -16,8 +16,8 @@
 
 package zio
 
-import zio.internal.tracing.ZIOFn
-import zio.internal.{FiberContext, Platform, PlatformConstants, Tracing}
+import zio.internal.tracing.Tracing
+import zio.internal.{FiberContext, Platform}
 
 import scala.concurrent.Future
 
@@ -306,7 +306,7 @@ trait Runtime[+R] {
       false,
       InterruptStatus.Interruptible,
       None,
-      PlatformConstants.tracingSupported,
+      true,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),
       scope
     )
@@ -317,7 +317,7 @@ trait Runtime[+R] {
       context.onDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
     }
 
-    context.nextEffect = ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]])
+    context.nextEffect = zio.asInstanceOf[IO[E, A]]
     context.run()
     context.awaitAsync(k)
 

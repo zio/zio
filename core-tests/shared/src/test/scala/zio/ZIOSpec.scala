@@ -3580,8 +3580,7 @@ object ZIOSpec extends ZIOBaseSpec {
         check(causes) { c =>
           for {
             result <- cause(ZIO.failCause(c).sandbox.mapErrorCause(e => e.untraced).unsandbox)
-          } yield assert(result)(equalTo(c)) &&
-            assert(result.prettyPrint)(equalTo(c.prettyPrint))
+          } yield assert(result)(equalTo(c))
         }
       }
     ),
