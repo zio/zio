@@ -402,7 +402,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Recovers from all NonFatal Throwables.
    *
    * {{{
-   * openFile("data.json").catchNonFatal(_ => openFile("backup.json"))
+   * openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
    * }}}
    */
   final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
