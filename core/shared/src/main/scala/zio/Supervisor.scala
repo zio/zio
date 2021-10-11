@@ -107,7 +107,7 @@ object Supervisor {
       val defects         = new LongAdder()
 
       def value: UIO[RuntimeStats] =
-        UIO.succeedNow(
+        UIO(
           RuntimeStats(
             milliLifetimes.snapshot(),
             secondLifetimes.snapshot(),
