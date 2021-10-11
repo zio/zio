@@ -17,7 +17,6 @@
 package zio
 
 import zio.internal.Platform
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{TracingStatus => TracingS}
 
 import java.io.IOException
@@ -4420,7 +4419,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
-  def infinity(implicit trace: ZTraceElement): URIO[Has[Clock], Nothing] =
+  val infinity: URIO[Has[Clock], Nothing] =
     ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
 
   /**
