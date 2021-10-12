@@ -50,6 +50,13 @@ object RandomSpec extends ZIOBaseSpec {
       check(Gen.fromEffect(Live.live(random.nextUUID))) { uuid =>
         assert(uuid.variant)(equalTo(2))
       }
+    },
+    testM("scalaRandom") {
+      val layer  = ZLayer.fromEffect(ZIO.succeed(new scala.util.Random)) >>> Random.scalaRandom
+      val sample = ZIO.replicateM(5)((random.setSeed(91) *> random.nextInt).provideSomeLayer(layer.fresh))
+      for {
+        values <- ZIO.collectAllPar(ZIO.replicate(5)(sample))
+      } yield assertTrue(values.toSet.size == 1)
     }
   )
 
