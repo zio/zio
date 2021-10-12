@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.io
 import java.io.IOException
 import java.net.{URI, URL}
@@ -28,13 +30,13 @@ private[zio] trait ZManagedPlatformSpecific {
    * as the `acquire` action and shifting back to the original executor as the
    * `release` action.
    */
-  val blocking: ZManaged[Any, Nothing, Unit] =
+  def blocking(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
     ZIO.blockingExecutor.toManaged.flatMap(executor => ZManaged.onExecutor(executor))
 
-  def readFile(path: Path): ZManaged[Any, IOException, ZInputStream] =
+  def readFile(path: Path)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
     readFile(path.toString())
 
-  def readFile(path: String): ZManaged[Any, IOException, ZInputStream] =
+  def readFile(path: String)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
       .acquireReleaseWith(
         ZIO.attemptBlockingIO {
@@ -44,7 +46,7 @@ private[zio] trait ZManagedPlatformSpecific {
       )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def readURL(url: URL): ZManaged[Any, IOException, ZInputStream] =
+  def readURL(url: URL)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
       .acquireReleaseWith(
         ZIO.attemptBlockingIO {
@@ -54,16 +56,16 @@ private[zio] trait ZManagedPlatformSpecific {
       )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def readURL(url: String): ZManaged[Any, IOException, ZInputStream] =
+  def readURL(url: String)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
     ZManaged.fromZIO(ZIO.succeed(new URL(url))).flatMap(readURL)
 
-  def readURI(uri: URI): ZManaged[Any, IOException, ZInputStream] =
+  def readURI(uri: URI)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
     for {
       isAbsolute <- ZManaged.fromZIO(ZIO.attemptBlockingIO(uri.isAbsolute()))
       is         <- if (isAbsolute) readURL(uri.toURL()) else readFile(uri.toString())
     } yield is
 
-  def writeFile(path: String): ZManaged[Any, IOException, ZOutputStream] =
+  def writeFile(path: String)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZOutputStream] =
     ZManaged
       .acquireReleaseWith(
         ZIO.attemptBlockingIO {
@@ -73,7 +75,7 @@ private[zio] trait ZManagedPlatformSpecific {
       )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def writeFile(path: Path): ZManaged[Any, IOException, ZOutputStream] =
+  def writeFile(path: Path)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZOutputStream] =
     writeFile(path.toString())
 
 }

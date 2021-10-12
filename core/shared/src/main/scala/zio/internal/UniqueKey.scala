@@ -16,6 +16,8 @@
 
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * This can be used whenever an arbitrary number of unique keys needs to be generated as
  * this will just use memory location for equality.

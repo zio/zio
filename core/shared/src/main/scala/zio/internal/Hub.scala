@@ -17,6 +17,7 @@
 package zio.internal
 
 import zio.Chunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `Hub[A]` is a concurrent data structure that allows multiple publishers

@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.collection.immutable.{IndexedSeq, IndexedSeqOps, StrictOptimizedSeqOps}
 import scala.collection.{IterableFactoryDefaults, SeqFactory}
 import scala.reflect.ClassTag

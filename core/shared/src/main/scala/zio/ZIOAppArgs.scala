@@ -15,6 +15,8 @@
  */
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * A service that contains command-line arguments of an application.
  */
@@ -22,6 +24,6 @@ final case class ZIOAppArgs(getArgs: Chunk[String])
 
 object ZIOAppArgs {
 
-  val getArgs: ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] =
+  def getArgs(implicit trace: ZTraceElement): ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] =
     ZIO.access(_.get.getArgs)
 }

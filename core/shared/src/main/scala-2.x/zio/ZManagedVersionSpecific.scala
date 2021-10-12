@@ -64,7 +64,7 @@ private final class ProvideSomeLayerManagedPartiallyApplied[R0 <: Has[_], -R, +E
     extends AnyVal {
   def provideLayer[E1 >: E, R1](
     layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZManaged[R0, E1, A] =
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
     self.provideLayer(layer)
 
   def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =

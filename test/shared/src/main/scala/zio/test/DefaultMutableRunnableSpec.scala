@@ -16,7 +16,9 @@
 
 package zio.test
 
-import zio.{Has, ZLayer}
+import zio.{Has, Tag, ZLayer}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * Syntax for writing test like
@@ -35,4 +37,5 @@ import zio.{Has, ZLayer}
  * }}}
  */
 @deprecated("use DefaultRunnableSpec", "2.0.0")
-class DefaultMutableRunnableSpec extends MutableRunnableSpec[Has[Any]](ZLayer.succeed[Any](()), TestAspect.identity)
+class DefaultMutableRunnableSpec
+    extends MutableRunnableSpec[Has[Any]](ZLayer.succeed[Any](())(Tag[Any], Tracer.newTrace), TestAspect.identity)

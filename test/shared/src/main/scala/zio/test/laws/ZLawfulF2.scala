@@ -16,6 +16,8 @@
 
 package zio.test.laws
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 object ZLawfulF2 {
 
   trait Divariant[-CapsBoth[_[-_, +_]], -CapsLeft[_], -CapsRight[_], -R] { self =>

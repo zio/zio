@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.Scheduler
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{DurationSyntax => _}
 
 import java.util.concurrent.TimeUnit

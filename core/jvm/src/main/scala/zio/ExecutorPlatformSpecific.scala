@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.util.concurrent.{AbstractExecutorService, TimeUnit}
 import java.{util => ju}
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
