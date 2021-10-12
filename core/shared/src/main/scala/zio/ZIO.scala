@@ -3770,7 +3770,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def foreachPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
+  )(
+    f: A => ZIO[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
     ZIO.parallelismWith {
       case Some(n) => foreachPar(n)(as)(f)
       case None    => foreachParUnbounded(as)(f)
