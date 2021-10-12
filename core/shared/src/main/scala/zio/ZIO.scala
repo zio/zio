@@ -878,7 +878,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns a new effect that will pass the success value of this effect to the
    * provided callback. If this effect fails, then the failure will be ignored.
    */
-  final def forEach[R1 <: R, E2, B](f: A => ZIO[R1, E2, B]): ZIO[R1, E2, Option[B]] =
+  final def forEachZIO[R1 <: R, E2, B](f: A => ZIO[R1, E2, B]): ZIO[R1, E2, Option[B]] =
     self.foldCauseZIO(_ => ZIO.none, a => f(a).map(Some(_)))
 
   /**
