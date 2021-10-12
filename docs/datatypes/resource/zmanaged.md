@@ -203,7 +203,7 @@ Assume we are going to make a managed resource long-lived. The `ZManaged#useFore
 
 ## Combinators
 
-`ZManaged` like the `ZIO` effect has almost all combinators that we introduced on the [ZIO](../core/zio.md) page. We can use them to create more complicated `ZManaged` ones.
+`ZManaged` like the `ZIO` effect has almost all combinators that we introduced on the [ZIO](../core/zio/zio.md) page. We can use them to create more complicated `ZManaged` ones.
 
 There is also some combinators which specific for `ZManaged`:
 
