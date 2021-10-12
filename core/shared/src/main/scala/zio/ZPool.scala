@@ -132,7 +132,7 @@ object ZPool {
 
     final def get(implicit trace: ZTraceElement): ZManaged[Any, E, A] = {
 
-      /**
+      /*
        * If the attempted item has been invalidated, we have to reallocate and
        * try again. Otherwise, we take the attempted item, whether or not the
        * acquisition attempt was successful.
@@ -149,7 +149,7 @@ object ZPool {
           }
         }
 
-      /**
+      /*
        * If a failure is released, we try to reallocate a new result, rather
        * than putting the failure back into the queue (which would cause a
        * secondary failure). This allows failures to propagate to `get`, but
