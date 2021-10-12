@@ -179,7 +179,8 @@ module.exports = {
     "Miscellaneous": [
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
-      "datatypes/misc/supervisor"
+      "datatypes/misc/supervisor",
+      "datatypes/misc/zstate",
     ]
   },
   "usecases-sidebar": {
