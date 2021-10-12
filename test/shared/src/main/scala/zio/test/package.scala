@@ -757,7 +757,7 @@ package object test extends CompileVariants {
   def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]])(implicit
     trace: ZTraceElement
   ): Spec[R, E, T] =
-    Spec.labeled(label, Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).toManaged))
+    suite(label)(specs)
 
   /**
    * Builds a spec with a single test.
@@ -768,6 +768,15 @@ package object test extends CompileVariants {
     trace: ZTraceElement
   ): testConstructor.Out =
     testConstructor(label)(assertion)
+
+  /**
+   * Builds a spec with a single effectful test.
+   */
+  @deprecated("use test", "2.0.0")
+  def testM[R, E](label: String)(
+    assertion: => ZIO[R, E, TestResult]
+  )(implicit loc: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+    test(label)(assertion)
 
   /**
    * Passes version specific information to the specified function, which will

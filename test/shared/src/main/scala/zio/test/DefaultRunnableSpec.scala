@@ -56,7 +56,7 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
   def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]])(implicit
     trace: ZTraceElement
   ): Spec[R, E, T] =
-    zio.test.suiteM(label)(specs)
+    suite(label)(specs)
 
   /**
    * Builds a spec with a single test.
@@ -69,4 +69,13 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
     trace: ZTraceElement
   ): testConstructor.Out =
     zio.test.test(label)(assertion)
+
+  /**
+   * Builds a spec with a single effectful test.
+   */
+  @deprecated("use test", "2.0.0")
+  def testM[R, E](label: String)(
+    assertion: => ZIO[R, E, TestResult]
+  )(implicit loc: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+    test(label)(assertion)
 }
