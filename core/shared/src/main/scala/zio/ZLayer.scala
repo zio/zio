@@ -16,7 +16,7 @@
 
 package zio
 
-import _root_.zio.ZManaged.ReleaseMap
+import zio.ZManaged.ReleaseMap
 
 /**
  * A `ZLayer[A, E, B]` describes a layer of an application: every layer in an
@@ -45,8 +45,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: CombineEnv[ROut1, ROut2]): ZLayer[RIn with RIn2, E1, ev.Out] =
-    self.zipWithPar(that)(ev.combine(_, _))
+  )(implicit ev: Has.UnionAll[ROut1, ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWithPar(that)(ev.unionAll)
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
@@ -54,8 +54,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: CombineEnv[ROut1, ROut2], tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ev.Out] =
-    self.zipWithPar(that)(ev.combine(_, _))
+  )(implicit ev: Has.Union[ROut1, ROut2], tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWithPar(that)(ev.union)
 
   /**
    * A symbolic alias for `zipPar`.
@@ -78,8 +78,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: CombineEnv[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ev.Out] =
-    ZLayer.ZipWith(self, self >>> that, (r1: ROut, r2: ROut2) => ev.combine(r1, r2))
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
+    ZLayer.ZipWith(self, self >>> that, ev.union)
 
   /**
    * Feeds the output services of this layer into the input of the specified
@@ -94,7 +94,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: CombineEnv[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ev.Out] =
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.++[E1, RIn2, ROut1, ROut2](that)
 
   /**
@@ -102,7 +102,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit ev: CombineEnv[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ev.Out] =
+  )(implicit ev: Has.Union[ROut1, ROut2], tagged: Tag[ROut2]): ZLayer[RIn, E1, ROut1 with ROut2] =
     self.>+>[E1, RIn2, ROut1, ROut2](that)
 
   /**
@@ -4414,7 +4414,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Returns a new layer that produces the outputs of this layer but also
      * passes through the inputs to this layer.
      */
-    def passthrough(implicit ev: CombineEnv[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, ev.Out] =
+    def passthrough(implicit ev: Has.Union[RIn, ROut], tag: Tag[ROut]): ZLayer[RIn, E, RIn with ROut] =
       ZLayer.environment[RIn] ++ self
   }
 

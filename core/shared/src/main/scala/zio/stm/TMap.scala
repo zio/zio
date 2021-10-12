@@ -61,8 +61,8 @@ final class TMap[K, V] private (
     }
 
   /**
-    * Deletes all entries associated with the specified keys.
-    */
+   * Deletes all entries associated with the specified keys.
+   */
   def deleteAll(ks: Iterable[K]): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
       ks.foreach { k =>
@@ -81,45 +81,49 @@ final class TMap[K, V] private (
     }
 
   /**
-    * Finds the key/value pair matching the specified predicate, and uses the 
-    * provided function to extract a value out of it.
-    */
+   * Finds the key/value pair matching the specified predicate, and uses the
+   * provided function to extract a value out of it.
+   */
   def find[A](pf: PartialFunction[(K, V), A]): USTM[Option[A]] =
     findSTM {
       case kv if pf.isDefinedAt(kv) => STM.succeedNow(pf(kv))
+      case _                        => STM.fail(None)
     }
 
   /**
-    * Finds the key/value pair matching the specified predicate, and uses the 
-    * provided effectful function to extract a value out of it.
-    */
+   * Finds the key/value pair matching the specified predicate, and uses the
+   * provided effectful function to extract a value out of it.
+   */
   def findSTM[R, E, A](f: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, Option[A]] =
-    foldSTM[R, E, Option[A]](Option.empty[A]) { 
-      case (None, (k, v)) => 
+    foldSTM[R, E, Option[A]](Option.empty[A]) {
+      case (None, (k, v)) =>
         f(k, v).foldSTM(_.fold[STM[E, Option[A]]](STM.none)(STM.fail(_)), STM.some(_))
       case (other, _) => STM.succeedNow(other)
     }
 
   /**
-    * Finds all the key/value pairs matching the specified predicate, and uses 
-    * the provided function to extract values out them.
-    */
+   * Finds all the key/value pairs matching the specified predicate, and uses
+   * the provided function to extract values out them.
+   */
   def findAll[A](pf: PartialFunction[(K, V), A]): USTM[Chunk[A]] =
     findAllSTM {
       case kv if pf.isDefinedAt(kv) => STM.succeedNow(pf(kv))
+      case _                        => STM.fail(None)
     }
 
   /**
-    * Finds all the key/value pairs matching the specified predicate, and uses 
-    * the provided effectful function to extract values out of them..
-    */
+   * Finds all the key/value pairs matching the specified predicate, and uses
+   * the provided effectful function to extract values out of them..
+   */
   def findAllSTM[R, E, A](pf: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, Chunk[A]] =
-    foldSTM(Chunk.empty: Chunk[A]) {
-      case (acc, kv) => 
-        pf(kv._1, kv._2).foldSTM({
-          case None => STM.succeedNow(acc)
+    foldSTM(Chunk.empty: Chunk[A]) { case (acc, kv) =>
+      pf(kv._1, kv._2).foldSTM(
+        {
+          case None    => STM.succeedNow(acc)
           case Some(e) => STM.fail(e)
-        }, a => STM.succeedNow(acc :+ a))
+        },
+        a => STM.succeedNow(acc :+ a)
+      )
     }
 
   /**
@@ -346,102 +350,108 @@ final class TMap[K, V] private (
    * Takes the first matching value, or retries until there is one.
    */
   def takeFirst[A](pf: PartialFunction[(K, V), A]): USTM[A] =
-    ZSTM.Effect[Any, Nothing, Option[A]] { (journal, _, _) =>
-      var result      = Option.empty[A]
-      val size        = tSize.unsafeGet(journal)
-      val buckets     = tBuckets.unsafeGet(journal)
-      val capacity    = buckets.array.length
-      val isDefinedAt = (t: (K, V)) => pf.isDefinedAt(t)
-      
-      var i = 0
+    ZSTM
+      .Effect[Any, Nothing, Option[A]] { (journal, _, _) =>
+        var result      = Option.empty[A]
+        val size        = tSize.unsafeGet(journal)
+        val buckets     = tBuckets.unsafeGet(journal)
+        val capacity    = buckets.array.length
+        val isDefinedAt = (t: (K, V)) => pf.isDefinedAt(t)
 
-      while (i < capacity && (result == None)) {
-        val bucket    = buckets.array(i).unsafeGet(journal)
-        val recreate  = bucket.exists(isDefinedAt)
+        var i = 0
 
-        if (recreate) {
-          var newBucket = List.empty[(K, V)]
-          val it        = bucket.iterator
-          
-          while (it.hasNext && (result == None)) {
-            val pair = it.next()
-            if (isDefinedAt(pair) && result == None) {
-              result = Some(pf(pair))
-            } else {
-              newBucket = pair :: newBucket
+        while (i < capacity && (result == None)) {
+          val bucket   = buckets.array(i).unsafeGet(journal)
+          val recreate = bucket.exists(isDefinedAt)
+
+          if (recreate) {
+            var newBucket = List.empty[(K, V)]
+            val it        = bucket.iterator
+
+            while (it.hasNext && (result == None)) {
+              val pair = it.next()
+              if (isDefinedAt(pair) && result == None) {
+                result = Some(pf(pair))
+              } else {
+                newBucket = pair :: newBucket
+              }
             }
+            buckets.array(i).unsafeSet(journal, newBucket)
           }
-          buckets.array(i).unsafeSet(journal, newBucket)
+
+          i += 1
         }
 
-        i += 1
+        if (result != None) tSize.unsafeSet(journal, size - 1)
+
+        result
       }
-
-      if (result != None) tSize.unsafeSet(journal, size - 1)
-
-      result
-    }.collect { case Some(value) => value }
+      .collect { case Some(value) => value }
 
   def takeFirstSTM[R, E, A](pf: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, A] =
-    findSTM {
-      case (k, v) => pf(k, v).map(a => k -> a)
-    }.collect { 
-      case Some(value) => value
+    findSTM { case (k, v) =>
+      pf(k, v).map(a => k -> a)
+    }.collect { case Some(value) =>
+      value
     }.flatMap(kv => delete(kv._1).as(kv._2))
 
   /**
    * Takes all matching values, or retries until there is at least one.
    */
   def takeSome[A](pf: PartialFunction[(K, V), A]): USTM[NonEmptyChunk[A]] =
-    ZSTM.Effect[Any, Nothing, Option[NonEmptyChunk[A]]] { (journal, _, _) =>
-      val buckets      = tBuckets.unsafeGet(journal)
-      val capacity     = buckets.array.length
-      val chunkBuilder = ChunkBuilder.make[A]()
-      val isDefinedAt  = (t: (K, V)) => pf.isDefinedAt(t)
+    ZSTM
+      .Effect[Any, Nothing, Option[NonEmptyChunk[A]]] { (journal, _, _) =>
+        val buckets      = tBuckets.unsafeGet(journal)
+        val capacity     = buckets.array.length
+        val chunkBuilder = ChunkBuilder.make[A]()
+        val isDefinedAt  = (t: (K, V)) => pf.isDefinedAt(t)
 
-      var i       = 0
-      var newSize = 0
+        var i       = 0
+        var newSize = 0
 
-      while (i < capacity) {
-        val bucket    = buckets.array(i).unsafeGet(journal)
-        val recreate  = bucket.exists(isDefinedAt)
+        while (i < capacity) {
+          val bucket   = buckets.array(i).unsafeGet(journal)
+          val recreate = bucket.exists(isDefinedAt)
 
-        if (recreate) {
-          var newBucket = List.empty[(K, V)]
+          if (recreate) {
+            var newBucket = List.empty[(K, V)]
 
-          val it = bucket.iterator
-          while (it.hasNext) {
-            val pair = it.next()
-            if (pf.isDefinedAt(pair)) {
-              chunkBuilder += pf(pair)
-            } else {
-              newBucket = pair :: newBucket
-              newSize += 1
+            val it = bucket.iterator
+            while (it.hasNext) {
+              val pair = it.next()
+              if (pf.isDefinedAt(pair)) {
+                chunkBuilder += pf(pair)
+              } else {
+                newBucket = pair :: newBucket
+                newSize += 1
+              }
             }
+
+            buckets.array(i).unsafeSet(journal, newBucket)
+          } else {
+            newSize += bucket.length
           }
 
-          buckets.array(i).unsafeSet(journal, newBucket)
-        } else {
-          newSize += bucket.length
+          i += 1
         }
-        
-        i += 1
+
+        tSize.unsafeSet(journal, newSize)
+
+        NonEmptyChunk.fromChunk(chunkBuilder.result())
       }
-
-      tSize.unsafeSet(journal, newSize)
-
-      NonEmptyChunk.fromChunk(chunkBuilder.result())
-    }.collect { case Some(value) => value }
+      .collect { case Some(value) => value }
 
   /**
    * Takes all matching values, or retries until there is at least one.
    */
   def takeSomeSTM[R, E, A](pf: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, NonEmptyChunk[A]] =
-    findAllSTM {
-      case (k, v) => pf(k, v).map(a => k -> a)
-    }.map(NonEmptyChunk.fromChunk(_)).collect { 
-      case Some(value) => value
-    }.flatMap(both => deleteAll(both.map(_._1)).as(both.map(_._2)))
+    findAllSTM { case (k, v) =>
+      pf(k, v).map(a => k -> a)
+    }.map(NonEmptyChunk.fromChunk(_))
+      .collect { case Some(value) =>
+        value
+      }
+      .flatMap(both => deleteAll(both.map(_._1)).as(both.map(_._2)))
 
   /**
    * Collects all bindings into a list.

@@ -146,6 +146,11 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
     isInterrupted
 
   /**
+   * Determines if the result is a failure.
+   */
+  final def isFailure: Boolean = !isSuccess
+
+  /**
    * Determines if the result is interrupted.
    */
   final def isInterrupted: Boolean = self match {
