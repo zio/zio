@@ -281,6 +281,21 @@ object MockableSpec extends DefaultRunnableSpec {
 
           Check
         })(anything)
+      },
+      test("generates mocks for services that extend a service") {
+        assert({
+          @mockable[MultipleTraitsDefModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[MultipleTraitsDefModule] = ModuleMock
+
+            val Foo: ModuleMock.Method[Int, Throwable, String]    = ModuleMock.Foo
+            val Bar: ModuleMock.Method[String, Throwable, String] = ModuleMock.Bar
+          }
+
+          Check
+        })(anything)
       }
     )
   )

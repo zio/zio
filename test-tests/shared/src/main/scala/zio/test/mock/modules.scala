@@ -132,4 +132,15 @@ object modules {
       def manyParamLists(a: Int)(b: String)(c: Long): ZIO[R, E, A]
     }
   }
+
+  type MultipleTraitsDefModule = Has[MultipleTraitsDefModule.Service]
+  object MultipleTraitsDefModule {
+    trait ServiceA {
+      def foo(i: Int): String
+    }
+
+    trait Service extends ServiceA {
+      def bar(s: String): String
+    }
+  }
 }
