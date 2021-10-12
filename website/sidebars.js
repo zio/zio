@@ -39,6 +39,7 @@ module.exports = {
     "Contextual Types": [
         "datatypes/contextual/index",
         "datatypes/contextual/has",
+        "datatypes/contextual/hasmany",
         {
             type: "category",
             label: "ZIO Layers",
