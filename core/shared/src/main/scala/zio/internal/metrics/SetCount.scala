@@ -18,6 +18,7 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `SetCount` represents the number of occurrences of specified values.

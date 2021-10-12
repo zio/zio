@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 package object stm extends EitherCompat {
 
   type RSTM[-R, +A]  = ZSTM[R, Throwable, A]

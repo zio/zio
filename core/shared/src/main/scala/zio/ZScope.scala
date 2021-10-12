@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.{Platform, Sync}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 import java.util.{Comparator, Map}

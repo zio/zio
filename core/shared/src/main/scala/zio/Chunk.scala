@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec

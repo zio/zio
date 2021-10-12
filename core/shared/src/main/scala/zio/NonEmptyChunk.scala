@@ -17,6 +17,7 @@
 package zio
 
 import zio.NonEmptyChunk._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
 

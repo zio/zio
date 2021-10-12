@@ -17,6 +17,7 @@
 package zio
 
 import zio.interop.javaz
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.nio.channels.CompletionHandler
 import java.util.concurrent.{CompletableFuture, CompletionStage}

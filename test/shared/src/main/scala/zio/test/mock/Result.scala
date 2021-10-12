@@ -17,6 +17,7 @@
 package zio.test.mock
 
 import zio.{IO, UIO}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `Result[-I, +E, +A]` represents the value or failure that will be returned

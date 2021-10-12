@@ -17,8 +17,11 @@
 package zio.test.environment
 
 import zio.{Console, FiberRef, Has, IO, Ref, UIO, URIO, ZIO, ZLayer, ZTraceElement}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.{EOFException, IOException}
+import zio.ZTrace
 
 /**
  * `TestConsole` provides a testable interface for programs interacting with
@@ -191,7 +194,9 @@ object TestConsole extends Serializable {
    * interface. This can be useful for mixing in with implementations of other
    * interfaces.
    */
-  def make(data: Data, debug: Boolean = true): ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] = {
+  def make(data: Data, debug: Boolean = true)(implicit
+    trace: ZTraceElement
+  ): ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] = {
     for {
       live     <- ZIO.service[Live]
       ref      <- Ref.make(data)
@@ -201,26 +206,26 @@ object TestConsole extends Serializable {
   }.toLayerMany
 
   val any: ZLayer[Has[Console] with Has[TestConsole], Nothing, Has[Console] with Has[TestConsole]] =
-    ZLayer.environment[Has[Console] with Has[TestConsole]]
+    ZLayer.environment[Has[Console] with Has[TestConsole]](Tracer.newTrace)
 
   val debug: ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
-    make(Data(Nil, Vector()), true)
+    make(Data(Nil, Vector()), true)(Tracer.newTrace)
 
   val silent: ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
-    make(Data(Nil, Vector()), false)
+    make(Data(Nil, Vector()), false)(Tracer.newTrace)
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the input
    * buffer.
    */
-  val clearInput: URIO[Has[TestConsole], Unit] =
+  def clearInput(implicit trace: ZTraceElement): URIO[Has[TestConsole], Unit] =
     ZIO.accessZIO(_.get.clearInput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the output
    * buffer.
    */
-  val clearOutput: URIO[Has[TestConsole], Unit] =
+  def clearOutput(implicit trace: ZTraceElement): URIO[Has[TestConsole], Unit] =
     ZIO.accessZIO(_.get.clearOutput)
 
   /**
@@ -229,28 +234,28 @@ object TestConsole extends Serializable {
    * console output is rendered to standard output in addition to being
    * written to the output buffer.
    */
-  def debug[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def debug[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.accessZIO(_.get.debug(zio))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the
    * specified sequence of strings to the input buffer.
    */
-  def feedLines(lines: String*): URIO[Has[TestConsole], Unit] =
+  def feedLines(lines: String*)(implicit trace: ZTraceElement): URIO[Has[TestConsole], Unit] =
     ZIO.accessZIO(_.get.feedLines(lines: _*))
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
-  val output: ZIO[Has[TestConsole], Nothing, Vector[String]] =
+  def output(implicit trace: ZTraceElement): ZIO[Has[TestConsole], Nothing, Vector[String]] =
     ZIO.accessZIO(_.get.output)
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the error buffer.
    */
-  val outputErr: ZIO[Has[TestConsole], Nothing, Vector[String]] =
+  def outputErr(implicit trace: ZTraceElement): ZIO[Has[TestConsole], Nothing, Vector[String]] =
     ZIO.accessZIO(_.get.outputErr)
 
   /**
@@ -258,7 +263,7 @@ object TestConsole extends Serializable {
    * console state in an effect which, when run, will restore the
    * `TestConsole` to the saved state.
    */
-  val save: ZIO[Has[TestConsole], Nothing, UIO[Unit]] =
+  def save(implicit trace: ZTraceElement): ZIO[Has[TestConsole], Nothing, UIO[Unit]] =
     ZIO.accessZIO(_.get.save)
 
   /**
@@ -267,7 +272,7 @@ object TestConsole extends Serializable {
    * console output is only written to the output buffer and not rendered to
    * standard output.
    */
-  def silent[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def silent[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.accessZIO(_.get.silent(zio))
 
   /**

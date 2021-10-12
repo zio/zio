@@ -2,6 +2,7 @@ package zio.metrics.jvm
 
 import zio.ZIOMetric.Gauge
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{ClassLoadingMXBean, ManagementFactory}
 

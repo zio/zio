@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio.{BuildFrom, CanFail, FiberId, IO, NonEmptyChunk, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.util.Try
 

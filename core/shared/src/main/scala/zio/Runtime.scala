@@ -18,6 +18,7 @@ package zio
 
 import zio.internal.tracing.Tracing
 import zio.internal.{FiberContext, Platform}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
 

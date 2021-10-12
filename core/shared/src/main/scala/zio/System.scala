@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import com.github.ghik.silencer.silent
 

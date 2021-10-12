@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.mock.Expectation
 import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.test.render.ExecutionResult.ResultType.{Suite, Test}
@@ -33,7 +34,7 @@ object DefaultTestReporter {
   def render[E](
     executedSpec: ExecutedSpec[E],
     includeCause: Boolean
-  ): Seq[ExecutionResult] = {
+  )(implicit trace: ZTraceElement): Seq[ExecutionResult] = {
     def loop(
       executedSpec: ExecutedSpec[E],
       depth: Int,
@@ -129,11 +130,12 @@ object DefaultTestReporter {
     loop(executedSpec, 0, List.empty, List.empty)
   }
 
-  def apply[E](testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer): TestReporter[E] = {
-    (duration: Duration, executedSpec: ExecutedSpec[E]) =>
-      val rendered = testRenderer.render(render(executedSpec, true), testAnnotationRenderer)
-      val stats    = testRenderer.render(logStats(duration, executedSpec) :: Nil, testAnnotationRenderer)
-      TestLogger.logLine((rendered ++ stats).mkString("\n"))
+  def apply[E](testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
+    trace: ZTraceElement
+  ): TestReporter[E] = { (duration: Duration, executedSpec: ExecutedSpec[E]) =>
+    val rendered = testRenderer.render(render(executedSpec, true), testAnnotationRenderer)
+    val stats    = testRenderer.render(logStats(duration, executedSpec) :: Nil, testAnnotationRenderer)
+    TestLogger.logLine((rendered ++ stats).mkString("\n"))
   }
 
   private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): ExecutionResult = {
@@ -174,7 +176,9 @@ object DefaultTestReporter {
       !_
     )
 
-  private def renderRuntimeCause[E](cause: Cause[E], label: String, depth: Int, includeCause: Boolean) = {
+  private def renderRuntimeCause[E](cause: Cause[E], label: String, depth: Int, includeCause: Boolean)(implicit
+    trace: ZTraceElement
+  ) = {
     val failureDetails =
       Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause).flatMap(_.lines)
 
@@ -251,7 +255,7 @@ object DefaultTestReporter {
     if (assertionValue.result.isSuccess) Fragment(" satisfied ")
     else Fragment(" did not satisfy ")
 
-  def renderCause(cause: Cause[Any], offset: Int): Message = {
+  def renderCause(cause: Cause[Any], offset: Int)(implicit trace: ZTraceElement): Message = {
     val defects = cause.defects
     val timeouts = defects.collect { case TestTimeoutException(message) =>
       Message(message)
@@ -284,7 +288,7 @@ object DefaultTestReporter {
     }
   }
 
-  private def renderMockException(exception: MockException): Message =
+  private def renderMockException(exception: MockException)(implicit trace: ZTraceElement): Message =
     exception match {
       case MockException.InvalidCallException(failures) =>
         val header = error(s"- could not find a matching expectation").toLine
@@ -310,7 +314,7 @@ object DefaultTestReporter {
         )
     }
 
-  private def renderUnmatchedExpectations(failedMatches: List[InvalidCall]): Message =
+  private def renderUnmatchedExpectations(failedMatches: List[InvalidCall])(implicit trace: ZTraceElement): Message =
     failedMatches.map {
       case InvalidCall.InvalidArguments(invoked, args, assertion) =>
         val header = error(s"- $invoked called with invalid arguments").toLine

@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 object Ref extends Serializable {
   private[zio] type Atomic[A] = ZRef.Atomic[A]
 

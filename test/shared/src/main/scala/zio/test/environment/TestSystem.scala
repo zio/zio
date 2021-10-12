@@ -17,6 +17,9 @@
 package zio.test.environment
 
 import zio.{Has, IO, Layer, Ref, System, UIO, URIO, ZIO, ZLayer, ZTraceElement}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.ZTrace
 
 /**
  * `TestSystem` supports deterministic testing of effects involving system
@@ -158,11 +161,13 @@ object TestSystem extends Serializable {
    * be useful for providing the required environment to an effect that
    * requires a `Console`, such as with `ZIO#provide`.
    */
-  def live(data: Data): Layer[Nothing, Has[System] with Has[TestSystem]] =
+  def live(data: Data): Layer[Nothing, Has[System] with Has[TestSystem]] = {
+    implicit val trace: ZTraceElement = Tracer.newTrace
     Ref.make(data).map(ref => Has.allOf[System, TestSystem](Test(ref), Test(ref))).toLayerMany
+  }
 
   val any: ZLayer[Has[System] with Has[TestSystem], Nothing, Has[System] with Has[TestSystem]] =
-    ZLayer.environment[Has[System] with Has[TestSystem]]
+    ZLayer.environment[Has[System] with Has[TestSystem]](Tracer.newTrace)
 
   val default: Layer[Nothing, Has[System] with Has[TestSystem]] =
     live(DefaultData)
@@ -171,42 +176,42 @@ object TestSystem extends Serializable {
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of environment variables.
    */
-  def putEnv(name: => String, value: => String): URIO[Has[TestSystem], Unit] =
+  def putEnv(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
     ZIO.accessZIO(_.get.putEnv(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of system properties.
    */
-  def putProperty(name: => String, value: => String): URIO[Has[TestSystem], Unit] =
+  def putProperty(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
     ZIO.accessZIO(_.get.putProperty(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and saves the system state in an effect which, when run,
    * will restore the `TestSystem` to the saved state
    */
-  val save: ZIO[Has[TestSystem], Nothing, UIO[Unit]] =
+  def save(implicit trace: ZTraceElement): ZIO[Has[TestSystem], Nothing, UIO[Unit]] =
     ZIO.accessZIO(_.get.save)
 
   /**
    * Accesses a `TestSystem` instance in the environment and sets the line
    * separator to the specified value.
    */
-  def setLineSeparator(lineSep: => String): URIO[Has[TestSystem], Unit] =
+  def setLineSeparator(lineSep: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
     ZIO.accessZIO(_.get.setLineSeparator(lineSep))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of environment variables.
    */
-  def clearEnv(variable: => String): URIO[Has[TestSystem], Unit] =
+  def clearEnv(variable: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
     ZIO.accessZIO(_.get.clearEnv(variable))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of system properties.
    */
-  def clearProperty(prop: => String): URIO[Has[TestSystem], Unit] =
+  def clearProperty(prop: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
     ZIO.accessZIO(_.get.clearProperty(prop))
 
   /**

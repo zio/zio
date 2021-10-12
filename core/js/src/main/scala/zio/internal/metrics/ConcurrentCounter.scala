@@ -1,5 +1,7 @@
 package zio.internal.metrics
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 private[zio] sealed abstract class ConcurrentCounter {
   def count: Double
   def increment(v: Double): (Double, Double)

@@ -2,6 +2,7 @@ package zio.metrics.jvm
 
 import zio.{Clock, Has, NonEmptyChunk, System, ZIOApp, ZManaged, ZTraceElement}
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /** Base trait for managing multiple JvmMetrics collectors together */
 trait MultipleJvmMetrics {

@@ -1,7 +1,8 @@
 package zio.stream.experimental
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.compression.{CompressionLevel, CompressionStrategy, FlushMode}
-import zio.{Chunk, ZIO, ZManaged}
+import zio.{Chunk, ZIO, ZManaged, ZTraceElement}
 
 import java.util.zip.Deflater
 import java.{util => ju}
@@ -14,7 +15,7 @@ object Deflate {
     level: CompressionLevel = CompressionLevel.DefaultCompression,
     strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
     flushMode: FlushMode = FlushMode.NoFlush
-  ): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+  )(implicit trace: ZTraceElement): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
     ZChannel.managed {
       ZManaged
         .acquireReleaseWith(ZIO.succeed {

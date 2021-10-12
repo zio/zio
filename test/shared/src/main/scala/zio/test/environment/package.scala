@@ -17,6 +17,8 @@
 package zio.test
 
 import zio.{PlatformSpecific => _, _}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * The `environment` package contains testable versions of all the standard ZIO
@@ -71,15 +73,17 @@ import zio.{PlatformSpecific => _, _}
 package object environment extends PlatformSpecific {
   val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironment: Layer[Nothing, TestEnvironment] =
+  val testEnvironment: Layer[Nothing, TestEnvironment] = {
+    implicit val trace = Tracer.newTrace
     ZEnv.live >>> TestEnvironment.live
+  }
 
   /**
    * Provides an effect with the "real" environment as opposed to the test
    * environment. This is useful for performing effects such as timing out
    * tests, accessing the real time, or printing to the real console.
    */
-  def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Has[Live], E, A] =
+  def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Has[Live], E, A] =
     Live.live(zio)
 
   /**
@@ -95,6 +99,6 @@ package object environment extends PlatformSpecific {
    */
   def withLive[R, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R with Has[Live], E1, B] =
+  )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R with Has[Live], E1, B] =
     Live.withLive(zio)(f)
 }

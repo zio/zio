@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoField._
 import java.time.temporal.TemporalAdjusters

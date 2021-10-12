@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio.{UIO, ZIO, ZManaged, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `TSemaphore` is a semaphore that can be composed transactionally. Because

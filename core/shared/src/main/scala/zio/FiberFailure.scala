@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * Represents a failure in a fiber. This could be caused by some non-
  * recoverable error, such as a defect or system error, by some typed error,

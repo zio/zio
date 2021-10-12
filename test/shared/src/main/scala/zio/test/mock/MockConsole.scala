@@ -17,6 +17,8 @@
 package zio.test.mock
 
 import zio.{Console, Has, IO, URLayer, ZIO, ZTraceElement}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 
@@ -28,7 +30,8 @@ object MockConsole extends Mock[Has[Console]] {
   object PrintLineError extends Effect[Any, IOException, Unit]
   object ReadLine       extends Effect[Unit, IOException, String]
 
-  val compose: URLayer[Has[Proxy], Has[Console]] =
+  val compose: URLayer[Has[Proxy], Has[Console]] = {
+    implicit val trace = Tracer.newTrace
     ZIO
       .service[Proxy]
       .map(proxy =>
@@ -42,4 +45,5 @@ object MockConsole extends Mock[Has[Console]] {
         }
       )
       .toLayer
+  }
 }

@@ -16,6 +16,7 @@
 
 package zio.stm
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TReentrantLock._
 import zio.{FiberId, Managed, UManaged, ZTraceElement}
 

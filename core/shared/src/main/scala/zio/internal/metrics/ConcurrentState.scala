@@ -2,6 +2,7 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap

@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 @deprecated("2.0.0", "Use zio.ZIOApp and use the managed inside `run`")
 trait ManagedApp extends BootstrapRuntime { ma =>

@@ -18,6 +18,7 @@ package zio.stm
 
 import zio._
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait TRandom {
   def nextBoolean: STM[Nothing, Boolean]

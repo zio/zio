@@ -1,6 +1,7 @@
 package zio.metrics.jvm
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /** JVM metrics, compatible with the prometheus-hotspot library, with configurable schedule */
 trait DefaultJvmMetrics extends MultipleJvmMetrics {

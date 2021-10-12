@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio.{UIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 object TRef {
 

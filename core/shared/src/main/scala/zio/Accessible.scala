@@ -17,6 +17,7 @@
 package zio
 
 import zio.Accessible.IsAny
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.implicitNotFound
 

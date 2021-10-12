@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.FiberRenderer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 import scala.concurrent.Future

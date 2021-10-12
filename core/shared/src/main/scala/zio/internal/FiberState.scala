@@ -2,6 +2,7 @@ package zio.internal
 
 import zio.Fiber.Status
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 

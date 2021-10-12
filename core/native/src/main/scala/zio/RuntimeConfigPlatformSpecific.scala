@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.tracing.{Tracing, TracingConfig}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
 

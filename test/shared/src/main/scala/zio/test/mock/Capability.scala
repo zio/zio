@@ -16,6 +16,7 @@
 
 package zio.test.mock
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
 import zio.{=!=, Has, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType}
 

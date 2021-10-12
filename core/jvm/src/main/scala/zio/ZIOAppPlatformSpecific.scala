@@ -1,6 +1,7 @@
 package zio
 
 import zio.internal._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait ZIOAppPlatformSpecific { self: ZIOApp =>
 

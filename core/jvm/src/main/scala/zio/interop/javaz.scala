@@ -19,6 +19,7 @@ package zio.interop
 import _root_.java.nio.channels.CompletionHandler
 import _root_.java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage, Future}
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionException
 

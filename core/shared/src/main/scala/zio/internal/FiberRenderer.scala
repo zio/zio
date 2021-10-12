@@ -20,6 +20,7 @@ import zio.Fiber.Dump
 import zio.Fiber.Status.{Done, Finishing, Running, Suspended}
 import zio.{Fiber, FiberId, UIO, ZIO, ZTraceElement}
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] object FiberRenderer {
 

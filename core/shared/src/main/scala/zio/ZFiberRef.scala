@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * A `FiberRef` is ZIO's equivalent of Java's `ThreadLocal`. The value of a
  * `FiberRef` is automatically propagated to child fibers when they are forked

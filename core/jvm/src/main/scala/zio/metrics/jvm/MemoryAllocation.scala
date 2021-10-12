@@ -4,6 +4,7 @@ import com.github.ghik.silencer.silent
 
 import com.sun.management.GarbageCollectionNotificationInfo
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZIOMetric.Counter
 
 import java.lang.management.ManagementFactory

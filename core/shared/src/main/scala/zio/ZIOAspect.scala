@@ -1,5 +1,7 @@
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.concurrent.ExecutionContext
 
 trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>

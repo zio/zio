@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 trait FunctionToLayerOps {
   implicit final class Function0ToLayerSyntax[A: Tag](self: () => A) {
 

@@ -17,6 +17,7 @@
 package zio
 
 import zio.Exit._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicReference, LongAdder}
 import scala.collection.immutable.SortedSet

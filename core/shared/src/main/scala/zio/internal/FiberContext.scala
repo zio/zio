@@ -21,6 +21,7 @@ import zio.ZIO.{FlatMap, TracedCont}
 import zio._
 import zio.internal.FiberContext.FiberRefLocals
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.annotation.{switch, tailrec}

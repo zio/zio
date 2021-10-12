@@ -4,6 +4,7 @@ import com.github.ghik.silencer.silent
 
 import zio.ZIOMetric.Gauge
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
 

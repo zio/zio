@@ -16,6 +16,8 @@
 
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * A variable that can be set a single time. The synchronous,
  * effectful equivalent of `Promise`.

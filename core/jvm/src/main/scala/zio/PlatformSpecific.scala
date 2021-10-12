@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait PlatformSpecific {
   type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]

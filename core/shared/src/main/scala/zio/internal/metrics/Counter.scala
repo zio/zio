@@ -18,6 +18,7 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `Counter` is a metric representing a single numerical value that may be

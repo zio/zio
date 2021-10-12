@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.io
 import java.io.IOException
 import java.net.{URI, URL}

@@ -1,6 +1,7 @@
 package zio.stm
 
 import zio.Chunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 

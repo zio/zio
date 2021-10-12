@@ -740,7 +740,8 @@ package object test extends CompileVariants {
    * Builds a suite containing a number of other specs.
    */
   def suite[In](label: String)(specs: In*)(implicit
-    suiteConstructor: SuiteConstructor[In]
+    suiteConstructor: SuiteConstructor[In],
+    trace: ZTraceElement
   ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
     Spec.labeled(
       label,
@@ -763,7 +764,8 @@ package object test extends CompileVariants {
    */
   def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[Nothing, In],
-    sourceLocation: SourceLocation
+    sourceLocation: SourceLocation,
+    trace: ZTraceElement
   ): testConstructor.Out =
     testConstructor(label)(assertion)
 

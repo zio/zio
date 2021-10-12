@@ -16,6 +16,8 @@
 
 package zio.test.laws
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 trait ZLawful2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
   def laws: ZLaws2[CapsBoth, CapsLeft, CapsRight, R]
   def +[CapsBoth1[x, y] <: CapsBoth[x, y], CapsLeft1[x] <: CapsLeft[x], CapsRight1[x] <: CapsRight[x], R1 <: R](

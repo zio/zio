@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.Platform
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{TracingStatus => TracingS}
 
 import java.io.IOException
@@ -4420,7 +4421,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * collected unless interrupted.
    */
   val infinity: URIO[Has[Clock], Nothing] =
-    ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
+    ZIO
+      .sleep(Duration.fromNanos(Long.MaxValue))(ZTraceElement.empty)
+      .zipRight(ZIO.never(ZTraceElement.empty))(ZTraceElement.empty)
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this

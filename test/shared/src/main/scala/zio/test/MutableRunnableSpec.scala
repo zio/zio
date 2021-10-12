@@ -18,6 +18,8 @@ package zio.test
 
 import izumi.reflect.Tag
 import zio._
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.environment.TestEnvironment
 
 import scala.util.control.NoStackTrace
@@ -68,17 +70,19 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
      */
     final def @@(
       aspect: TestAspect[R with TestEnvironment, R with TestEnvironment, Failure, Failure]
-    ): SuiteBuilder = {
+    )(implicit trace: ZTraceElement): SuiteBuilder = {
       aspects = aspects :+ aspect
       this
     }
 
-    def toSpec: ZSpec[R with TestEnvironment, Any] =
+    def toSpec: ZSpec[R with TestEnvironment, Any] = {
+      implicit val trace = Tracer.newTrace
       aspects.foldLeft(
         zio.test.suite(label)(
           nested.map(_.toSpec): _*
         )
       )((spec, aspect) => spec @@ aspect)
+    }
   }
 
   sealed case class TestBuilder(label: String, var toSpec: ZSpec[R with TestEnvironment, Any]) extends SpecBuilder {
@@ -91,7 +95,7 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
      */
     final def @@(
       aspect: TestAspect[R with TestEnvironment, R with TestEnvironment, Failure, Failure]
-    ): TestBuilder = {
+    )(implicit trace: ZTraceElement): TestBuilder = {
       toSpec = toSpec @@ aspect
       this
     }
@@ -123,7 +127,8 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
    */
   final def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[R with TestEnvironment, In],
-    sourceLocation: SourceLocation
+    sourceLocation: SourceLocation,
+    trace: ZTraceElement
   ): TestBuilder = {
     if (specBuilt)
       throw new InAnotherTestException("Test", label)
@@ -134,6 +139,7 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
   }
 
   final override def spec: ZSpec[Environment, Failure] = {
+    implicit val trace = Tracer.newTrace
     specBuilt = true
     (stack.head @@ aspect).toSpec.provideCustomLayerShared(layer.mapError(TestFailure.fail))
   }
@@ -149,6 +155,6 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]
-  ): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
+  )(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 }

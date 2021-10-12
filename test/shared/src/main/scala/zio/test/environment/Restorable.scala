@@ -17,6 +17,7 @@
 package zio.test.environment
 
 import zio.{UIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait Restorable extends Serializable {
   def save(implicit trace: ZTraceElement): UIO[UIO[Unit]]

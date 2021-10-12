@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Macros.location
 import zio.{UIO, ZIO, ZTraceElement}
 

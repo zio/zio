@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * `ZState[S]` models a value of type `S` that can be read from and written to
  * during the execution of an effect. The idiomatic way to work with `ZState`

@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * A `ZIOMetric` is able to add collection of metrics to a `ZIO` effect without
  * changing its environment or error types. Aspects are the idiomatic way of

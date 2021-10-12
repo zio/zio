@@ -16,6 +16,7 @@
 package zio
 
 import zio.internal._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * An entry point for a ZIO application that allows sharing layers between

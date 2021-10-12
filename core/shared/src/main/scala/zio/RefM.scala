@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 @deprecated("use Ref.Synchronized", "2.0.0")
 object RefM {
 

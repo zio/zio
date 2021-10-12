@@ -15,6 +15,8 @@
  */
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * [[LogLevel]] represents the log level associated with an individual logging
  * operation. Log levels are used both to describe the granularity (or
