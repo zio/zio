@@ -4135,6 +4135,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.GetForkScope(f, trace)
 
   /**
+   * Returns a collection of all `FiberRef` values for the fiber running this
+   * effect.
+   */
+  def getFiberRefs(implicit trace: ZTraceElement): UIO[FiberRefs] =
+    new ZIO.FiberRefGetAll(fiberRefLocals => ZIO.succeedNow(FiberRefs(fiberRefLocals)), trace)
+
+  /**
    * Lifts an Option into a ZIO, if the option is not defined it fails with NoSuchElementException.
    */
   final def getOrFail[A](v: => Option[A]): Task[A] =
@@ -4821,6 +4828,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def scopeWith[R, E, A](f: ZScope[Exit[Any, Any]] => ZIO[R, E, A]): ZIO[R, E, A] =
     descriptorWith(d => f(d.scope))
+
+  /**
+   * Sets the `FiberRef` values for the fiber running this effect to the values
+   * in the specified collection of `FiberRef` values.
+   */
+  def setFiberRefs(fiberRefs: => FiberRefs): UIO[Unit] =
+    ZIO.suspendSucceed(fiberRefs.setAll)
 
   /**
    * Sets a state in the environment to the specified value.

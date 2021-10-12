@@ -37,7 +37,7 @@ private[zio] final class FiberContext[E, A](
   startIStatus: InterruptStatus,
   parentTrace: Option[ZTrace],
   initialTracingStatus: Boolean,
-  var fiberRefLocals: FiberRefLocals,
+  val fiberRefLocals: FiberRefLocals,
   openScope: ZScope.Open[Exit[E, A]]
 ) extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable { self =>
@@ -544,7 +544,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.FiberRefGetAll =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefGetAll[Any, Any, Any]]
 
-                    curZio = nextInstr(zio.make(fiberRefLocals.get))
+                    curZio = zio.make(fiberRefLocals.get)
 
                   case ZIO.Tags.FiberRefModify =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefModify[Any, Any]]
