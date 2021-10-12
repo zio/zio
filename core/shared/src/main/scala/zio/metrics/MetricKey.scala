@@ -17,6 +17,7 @@
 package zio.metrics
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `MetricKey` is a unique key associated with each metric. The key is based

@@ -18,6 +18,7 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `Gauge` is a metric representing a single numerical value that may be set
@@ -31,17 +32,17 @@ private[zio] trait Gauge {
   /**
    * Adjusts the gauge by the specified amount.
    */
-  def adjust(value: Double): UIO[Any]
+  def adjust(value: Double)(implicit trace: ZTraceElement): UIO[Any]
 
   /**
    * Sets the gauge to the specified value.
    */
-  def set(value: Double): UIO[Any]
+  def set(value: Double)(implicit trace: ZTraceElement): UIO[Any]
 
   /**
    * The current value of the gauge.
    */
-  def value: UIO[Double]
+  def value(implicit trace: ZTraceElement): UIO[Double]
 }
 
 private[zio] object Gauge {

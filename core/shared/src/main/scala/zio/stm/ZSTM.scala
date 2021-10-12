@@ -19,6 +19,7 @@ package zio.stm
 import com.github.ghik.silencer.silent
 import zio._
 import zio.internal.{Stack, Sync}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import java.util.{HashMap => MutableMap}
@@ -205,13 +206,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Commits this transaction atomically.
    */
-  def commit: ZIO[R, E, A] = ZSTM.atomically(self)
+  def commit(implicit trace: ZTraceElement): ZIO[R, E, A] = ZSTM.atomically(self)
 
   /**
    * Commits this transaction atomically, regardless of whether the transaction
    * is a success or a failure.
    */
-  def commitEither: ZIO[R, E, A] =
+  def commitEither(implicit trace: ZTraceElement): ZIO[R, E, A] =
     either.commit.absolve
 
   /**
@@ -952,7 +953,7 @@ object ZSTM {
   /**
    * Atomically performs a batch of operations in a single transaction.
    */
-  def atomically[R, E, A](stm: ZSTM[R, E, A]): ZIO[R, E, A] =
+  def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.accessZIO[R] { r =>
       ZIO.suspendSucceedWith { (runtimeConfig, fiberId) =>
         tryCommitSync(runtimeConfig, fiberId, stm, r) match {
@@ -2024,7 +2025,7 @@ object ZSTM {
       r: R
     )(
       k: ZIO[R, E, A] => Any
-    ): Unit = {
+    )(implicit trace: ZTraceElement): Unit = {
       def complete(exit: Exit[E, A]): Unit = { k(ZIO.done(exit)); () }
 
       @tailrec

@@ -1,5 +1,7 @@
 package zio.internal.metrics
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 private[zio] sealed abstract class ConcurrentGauge {
   def get: Double
   def set(v: Double): (Double, Double)

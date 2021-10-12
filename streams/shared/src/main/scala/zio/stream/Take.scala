@@ -17,6 +17,7 @@
 package zio.stream
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of
@@ -28,7 +29,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
   /**
    * Transforms `Take[E, A]` to `ZIO[R, E, B]`.
    */
-  def done[R]: ZIO[R, Option[E], Chunk[A]] =
+  def done[R](implicit trace: ZTraceElement): ZIO[R, Option[E], Chunk[A]] =
     IO.done(exit)
 
   /**
@@ -49,7 +50,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
     end: => ZIO[R, E1, Z],
     error: Cause[E] => ZIO[R, E1, Z],
     value: Chunk[A] => ZIO[R, E1, Z]
-  ): ZIO[R, E1, Z] =
+  )(implicit trace: ZTraceElement): ZIO[R, E1, Z] =
     foldZIO(end, error, value)
 
   /**
@@ -62,7 +63,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
     end: => ZIO[R, E1, Z],
     error: Cause[E] => ZIO[R, E1, Z],
     value: Chunk[A] => ZIO[R, E1, Z]
-  ): ZIO[R, E1, Z] =
+  )(implicit trace: ZTraceElement): ZIO[R, E1, Z] =
     exit.foldZIO(Cause.flipCauseOption(_).fold(end)(error), value)
 
   /**
@@ -92,7 +93,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
   /**
    * Returns an effect that effectfully "peeks" at the success of this take.
    */
-  def tap[R, E1](f: Chunk[A] => ZIO[R, E1, Any]): ZIO[R, E1, Unit] =
+  def tap[R, E1](f: Chunk[A] => ZIO[R, E1, Any])(implicit trace: ZTraceElement): ZIO[R, E1, Unit] =
     exit.foreach(f).unit
 }
 
@@ -127,7 +128,7 @@ object Take {
    * Error from stream when pulling is converted to `Take.halt`. Creates a singleton chunk.
    */
   @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
+  def fromEffect[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): URIO[R, Take[E, A]] =
     fromZIO(zio)
 
   /**
@@ -135,7 +136,7 @@ object Take {
    * the `Take[E, A]`. Error from stream when pulling is converted to
    * `Take.failCause`, end of stream to `Take.end`.
    */
-  def fromPull[R, E, A](pull: ZStream.Pull[R, E, A]): URIO[R, Take[E, A]] =
+  def fromPull[R, E, A](pull: ZStream.Pull[R, E, A])(implicit trace: ZTraceElement): URIO[R, Take[E, A]] =
     pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(failCause), chunk)
 
   /**
@@ -143,7 +144,7 @@ object Take {
    * the `Take[E, A]`. Error from stream when pulling is converted to
    * `Take.failCause`. Creates a singleton chunk.
    */
-  def fromZIO[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
+  def fromZIO[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): URIO[R, Take[E, A]] =
     zio.foldCause(failCause, single)
 
   /**

@@ -16,6 +16,8 @@
 
 package zio.stream.compression
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /** Signals that exception occurred in compression/decompression */
 class CompressionException private (message: String, cause: Exception) extends Exception(message, cause)
 

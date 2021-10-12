@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio.NonEmptyChunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * Transactional set implemented on top of [[TMap]].

@@ -17,6 +17,8 @@
 package zio.test
 
 import zio._
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.environment._
 
 private[test] abstract class PlatformSpecific {
@@ -33,8 +35,9 @@ private[test] abstract class PlatformSpecific {
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
-      ZLayer.environment[TestEnvironment]
-    lazy val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
+      ZLayer.environment[TestEnvironment](Tracer.newTrace)
+    lazy val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
+      implicit val trace = Tracer.newTrace
       Annotations.live ++
         Live.default ++
         Sized.live(100) ++
@@ -43,5 +46,6 @@ private[test] abstract class PlatformSpecific {
         (Live.default >>> TestConsole.debug) ++
         TestRandom.deterministic ++
         TestSystem.default
+    }
   }
 }

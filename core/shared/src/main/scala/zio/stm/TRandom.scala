@@ -17,6 +17,8 @@
 package zio.stm
 
 import zio._
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait TRandom {
   def nextBoolean: STM[Nothing, Boolean]
@@ -42,10 +44,13 @@ trait TRandom {
 
 object TRandom extends Serializable {
 
-  val any: ZLayer[Has[TRandom], Nothing, Has[TRandom]] =
+  val any: ZLayer[Has[TRandom], Nothing, Has[TRandom]] = {
+    implicit val trace = Tracer.newTrace
     ZLayer.service[TRandom]
+  }
 
-  val live: ZLayer[Has[Random], Nothing, Has[TRandom]] =
+  val live: ZLayer[Has[Random], Nothing, Has[TRandom]] = {
+    implicit val trace = Tracer.newTrace
     Random.nextLong.flatMap { init =>
       TRef
         .make(init)
@@ -54,6 +59,7 @@ object TRandom extends Serializable {
         }
         .commit
     }.toLayer
+  }
 
   /**
    * Generates a pseudo-random boolean inside a transaction.

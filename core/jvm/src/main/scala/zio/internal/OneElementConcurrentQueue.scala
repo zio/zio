@@ -16,6 +16,8 @@
 
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.io.Serializable
 import java.util.concurrent.atomic.{AtomicReference, LongAdder}
 

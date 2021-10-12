@@ -16,6 +16,7 @@
 
 package zio.stm
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
 import zio.{Chunk, ChunkBuilder, NonEmptyChunk}
 

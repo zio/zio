@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.{DefaultExecutors, ExecutionMetrics}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent._
 import scala.concurrent.ExecutionContext

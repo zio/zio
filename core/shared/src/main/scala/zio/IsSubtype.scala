@@ -1,5 +1,7 @@
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.annotation.implicitNotFound
 
 @implicitNotFound("This operator requires that the output type be a subtype of ${B} but the actual type was ${A}.")

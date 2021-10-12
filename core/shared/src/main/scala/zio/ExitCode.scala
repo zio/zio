@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 final case class ExitCode(code: Int)
 
 object ExitCode {

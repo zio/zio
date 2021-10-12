@@ -17,6 +17,7 @@
 package zio.metrics
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * `MetricState` represents a snapshot of the current state of a metric as of

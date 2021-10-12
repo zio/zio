@@ -16,6 +16,8 @@
 
 package zio.internal.tracing
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 final case class Tracing(tracingConfig: TracingConfig)
 
 object Tracing {

@@ -1,5 +1,7 @@
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 trait ZLogger[+A] { self =>
   def apply(
     trace: ZTraceElement,

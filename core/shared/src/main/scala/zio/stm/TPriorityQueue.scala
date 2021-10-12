@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio.{Chunk, ChunkBuilder}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.collection.immutable.SortedMap
 

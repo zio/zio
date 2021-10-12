@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * The identity of a Fiber, described by the time it began life, and a
  * monotonically increasing sequence number generated from an atomic counter.

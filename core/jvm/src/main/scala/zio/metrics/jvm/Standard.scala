@@ -2,6 +2,7 @@ package zio.metrics.jvm
 
 import zio.ZIOMetric.Gauge
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{ManagementFactory, PlatformManagedObject, RuntimeMXBean}
 import java.lang.reflect.Method
@@ -42,7 +43,7 @@ trait Standard extends JvmMetrics {
 
     def isAvailable: Boolean = method.isDefined
 
-    def unsafeGet: Task[Long] =
+    def unsafeGet(implicit trace: ZTraceElement): Task[Long] =
       method match {
         case Some(getter) => Task(getter.invoke(obj).asInstanceOf[Long])
         case None =>
@@ -80,7 +81,7 @@ trait Standard extends JvmMetrics {
     getOpenFileDescriptorCount: MXReflection,
     getMaxFileDescriptorCount: MXReflection,
     isLinux: Boolean
-  ): ZIO[Any, Throwable, Unit] =
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
       _ <- (getProcessCPUTime.unsafeGet @@ cpuSecondsTotal).when(getProcessCPUTime.isAvailable)
       _ <- Task(runtimeMXBean.getStartTime) @@ processStartTime
@@ -93,7 +94,7 @@ trait Standard extends JvmMetrics {
       _ <- collectMemoryMetricsLinux().when(isLinux)
     } yield ()
 
-  private def collectMemoryMetricsLinux(): ZIO[Any, Throwable, Unit] =
+  private def collectMemoryMetricsLinux()(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     ZManaged.readFile("/proc/self/status").use { stream =>
       stream
         .readAll(8192)
@@ -116,7 +117,7 @@ trait Standard extends JvmMetrics {
         }
     }
 
-  override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Standard] =
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock] with Has[System], Throwable, Standard] =
     for {
       runtimeMXBean         <- Task(ManagementFactory.getRuntimeMXBean).toManaged
       operatingSystemMXBean <- Task(ManagementFactory.getOperatingSystemMXBean).toManaged
@@ -142,6 +143,6 @@ trait Standard extends JvmMetrics {
 
 object Standard extends Standard with JvmMetrics.DefaultSchedule {
   def withSchedule(schedule: Schedule[Any, Any, Unit]): Standard = new Standard {
-    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
   }
 }
