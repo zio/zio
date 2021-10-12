@@ -59,7 +59,10 @@ object ZPool {
     } yield pool
 
   /**
-   * Makes a new pool of the specified fixed size.
+   * Makes a new pool of the specified fixed size. The pool is returned in a 
+   * `Managed`, which governs the lifetime of the pool. When the pull is 
+   * shutdown because the `Managed` is used, the individual items allocated by 
+   * the pool will be released in some unspecified order.
    */
   def make[E, A](get: ZManaged[Any, E, A], min: Int)(implicit trace: ZTraceElement): UManaged[ZPool[E, A]] =
     make(get, min to min)
