@@ -70,7 +70,7 @@ sealed abstract class ZRef[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     eb: EB => ED,
     ca: C => Either[EC, A],
     bd: B => Either[ED, D]
-  )(implicit trace: ZTraceElement): ZRef[RA, RB, EC, ED, C, D]
+  ): ZRef[RA, RB, EC, ED, C, D]
 
   /**
    * Folds over the error and value types of the `ZRef`, allowing access to
@@ -83,7 +83,7 @@ sealed abstract class ZRef[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     ec: EB => EC,
     ca: C => B => Either[EC, A],
     bd: B => Either[ED, D]
-  )(implicit trace: ZTraceElement): ZRef[RA with RB, RB, EC, ED, C, D]
+  ): ZRef[RA with RB, RB, EC, ED, C, D]
 
   /**
    * Reads the value from the `ZRef`.
@@ -107,27 +107,27 @@ sealed abstract class ZRef[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
    * function, returning a `ZRef` with a `get` value that succeeds with the
    * result of the partial function if it is defined or else fails with `None`.
    */
-  def collect[C](pf: PartialFunction[B, C])(implicit trace: ZTraceElement): ZRef[RA, RB, EA, Option[EB], A, C] =
+  def collect[C](pf: PartialFunction[B, C]): ZRef[RA, RB, EA, Option[EB], A, C] =
     fold(identity, Some(_), Right(_), pf.lift(_).toRight(None))
 
   /**
    * Transforms the `set` value of the `ZRef` with the specified function.
    */
-  def contramap[C](f: C => A)(implicit trace: ZTraceElement): ZRef[RA, RB, EA, EB, C, B] =
+  def contramap[C](f: C => A): ZRef[RA, RB, EA, EB, C, B] =
     contramapEither(c => Right(f(c)))
 
   /**
    * Transforms the `set` value of the `ZRef` with the specified fallible
    * function.
    */
-  def contramapEither[EC >: EA, C](f: C => Either[EC, A])(implicit trace: ZTraceElement): ZRef[RA, RB, EC, EB, C, B] =
+  def contramapEither[EC >: EA, C](f: C => Either[EC, A]): ZRef[RA, RB, EC, EB, C, B] =
     dimapEither(f, Right(_))
 
   /**
    * Transforms both the `set` and `get` values of the `ZRef` with the
    * specified functions.
    */
-  def dimap[C, D](f: C => A, g: B => D)(implicit trace: ZTraceElement): ZRef[RA, RB, EA, EB, C, D] =
+  def dimap[C, D](f: C => A, g: B => D): ZRef[RA, RB, EA, EB, C, D] =
     dimapEither(c => Right(f(c)), b => Right(g(b)))
 
   /**
@@ -137,14 +137,14 @@ sealed abstract class ZRef[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
   def dimapEither[EC >: EA, ED >: EB, C, D](
     f: C => Either[EC, A],
     g: B => Either[ED, D]
-  )(implicit trace: ZTraceElement): ZRef[RA, RB, EC, ED, C, D] =
+  ): ZRef[RA, RB, EC, ED, C, D] =
     fold(identity, identity, f, g)
 
   /**
    * Transforms both the `set` and `get` errors of the `ZRef` with the
    * specified functions.
    */
-  def dimapError[EC, ED](f: EA => EC, g: EB => ED)(implicit trace: ZTraceElement): ZRef[RA, RB, EC, ED, A, B] =
+  def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZRef[RA, RB, EC, ED, A, B] =
     fold(f, g, Right(_), Right(_))
 
   /**
@@ -152,7 +152,7 @@ sealed abstract class ZRef[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
    * returning a `ZRef` with a `set` value that succeeds if the predicate is
    * satisfied or else fails with `None`.
    */
-  def filterInput[A1 <: A](f: A1 => Boolean)(implicit trace: ZTraceElement): ZRef[RA, RB, Option[EA], EB, A1, B] =
+  def filterInput[A1 <: A](f: A1 => Boolean): ZRef[RA, RB, Option[EA], EB, A1, B] =
     fold(Some(_), identity, a => if (f(a)) Right(a) else Left(None), Right(_))
 
   /**
@@ -160,32 +160,32 @@ sealed abstract class ZRef[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
    * returning a `ZRef` with a `get` value that succeeds if the predicate is
    * satisfied or else fails with `None`.
    */
-  def filterOutput(f: B => Boolean)(implicit trace: ZTraceElement): ZRef[RA, RB, EA, Option[EB], A, B] =
+  def filterOutput(f: B => Boolean): ZRef[RA, RB, EA, Option[EB], A, B] =
     fold(identity, Some(_), Right(_), b => if (f(b)) Right(b) else Left(None))
 
   /**
    * Transforms the `get` value of the `ZRef` with the specified function.
    */
-  def map[C](f: B => C)(implicit trace: ZTraceElement): ZRef[RA, RB, EA, EB, A, C] =
+  def map[C](f: B => C): ZRef[RA, RB, EA, EB, A, C] =
     mapEither(b => Right(f(b)))
 
   /**
    * Transforms the `get` value of the `ZRef` with the specified fallible
    * function.
    */
-  def mapEither[EC >: EB, C](f: B => Either[EC, C])(implicit trace: ZTraceElement): ZRef[RA, RB, EA, EC, A, C] =
+  def mapEither[EC >: EB, C](f: B => Either[EC, C]): ZRef[RA, RB, EA, EC, A, C] =
     dimapEither(Right(_), f)
 
   /**
    * Returns a read only view of the `ZRef`.
    */
-  def readOnly(implicit trace: ZTraceElement): ZRef[RA, RB, EA, EB, Nothing, B] =
+  def readOnly: ZRef[RA, RB, EA, EB, Nothing, B] =
     self
 
   /**
    * Returns a write only view of the `ZRef`.
    */
-  def writeOnly(implicit trace: ZTraceElement): ZRef[RA, RB, EA, Unit, A, Nothing] =
+  def writeOnly: ZRef[RA, RB, EA, Unit, A, Nothing] =
     fold(identity, _ => (), Right(_), _ => Left(()))
 }
 
@@ -388,9 +388,7 @@ object ZRef extends Serializable {
      * function, returning a `ZRefM` with a `get` value that succeeds with the
      * result of the partial function if it is defined or else fails with `None`.
      */
-    override final def collect[C](pf: PartialFunction[B, C])(implicit
-      trace: ZTraceElement
-    ): Synchronized[RA, RB, EA, Option[EB], A, C] =
+    override final def collect[C](pf: PartialFunction[B, C]): Synchronized[RA, RB, EA, Option[EB], A, C] =
       collectZIO(pf.andThen(ZIO.succeedNow(_)))
 
     /**
@@ -402,7 +400,7 @@ object ZRef extends Serializable {
     @deprecated("use collectZIO", "2.0.0")
     final def collectM[RC <: RB, EC >: EB, C](
       pf: PartialFunction[B, ZIO[RC, EC, C]]
-    )(implicit trace: ZTraceElement): ZRefM[RA, RC, EA, Option[EC], A, C] =
+    ): ZRefM[RA, RC, EA, Option[EC], A, C] =
       collectZIO(pf)
 
     /**
@@ -413,28 +411,28 @@ object ZRef extends Serializable {
      */
     final def collectZIO[RC <: RB, EC >: EB, C](
       pf: PartialFunction[B, ZIO[RC, EC, C]]
-    )(implicit trace: ZTraceElement): Synchronized[RA, RC, EA, Option[EC], A, C] =
+    ): Synchronized[RA, RC, EA, Option[EC], A, C] =
       foldZIO(
         identity,
         Some(_),
         ZIO.succeedNow,
-        b => pf.andThen(_.asSomeError).applyOrElse[B, ZIO[RC, Option[EC], C]](b, _ => ZIO.fail(None))
+        b =>
+          pf.andThen(_.asSomeError(ZTraceElement.empty))
+            .applyOrElse[B, ZIO[RC, Option[EC], C]](b, _ => ZIO.fail(None)(ZTraceElement.empty))
       )
 
     /**
      * Transforms the `set` value of the `ZRef.Synchronized` with the specified
      * function.
      */
-    override final def contramap[C](f: C => A)(implicit trace: ZTraceElement): Synchronized[RA, RB, EA, EB, C, B] =
+    override final def contramap[C](f: C => A): Synchronized[RA, RB, EA, EB, C, B] =
       contramapZIO(c => ZIO.succeedNow(f(c)))
 
     /**
      * Transforms the `set` value of the `ZRef` with the specified fallible
      * function.
      */
-    override final def contramapEither[EC >: EA, C](f: C => Either[EC, A])(implicit
-      trace: ZTraceElement
-    ): Synchronized[RA, RB, EC, EB, C, B] =
+    override final def contramapEither[EC >: EA, C](f: C => Either[EC, A]): Synchronized[RA, RB, EC, EB, C, B] =
       dimapEither(f, Right(_))
 
     /**
@@ -451,18 +449,14 @@ object ZRef extends Serializable {
      * Transforms the `set` value of the `ZRef.Synchronized` with the specified
      * effectual function.
      */
-    final def contramapZIO[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A])(implicit
-      trace: ZTraceElement
-    ): Synchronized[RC, RB, EC, EB, C, B] =
+    final def contramapZIO[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): Synchronized[RC, RB, EC, EB, C, B] =
       dimapZIO(f, ZIO.succeedNow)
 
     /**
      * Transforms both the `set` and `get` values of the `ZRef.Synchronized`
      * with the specified functions.
      */
-    override final def dimap[C, D](f: C => A, g: B => D)(implicit
-      trace: ZTraceElement
-    ): Synchronized[RA, RB, EA, EB, C, D] =
+    override final def dimap[C, D](f: C => A, g: B => D): Synchronized[RA, RB, EA, EB, C, D] =
       dimapZIO(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
 
     /**
@@ -472,7 +466,7 @@ object ZRef extends Serializable {
     override final def dimapEither[EC >: EA, ED >: EB, C, D](
       f: C => Either[EC, A],
       g: B => Either[ED, D]
-    )(implicit trace: ZTraceElement): Synchronized[RA, RB, EC, ED, C, D] =
+    ): Synchronized[RA, RB, EC, ED, C, D] =
       fold(identity, identity, f, g)
 
     /**
@@ -483,7 +477,7 @@ object ZRef extends Serializable {
     final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
       f: C => ZIO[RC, EC, A],
       g: B => ZIO[RD, ED, D]
-    )(implicit trace: ZTraceElement): ZRefM[RC, RD, EC, ED, C, D] =
+    ): ZRefM[RC, RD, EC, ED, C, D] =
       dimapZIO(f, g)
 
     /**
@@ -493,16 +487,14 @@ object ZRef extends Serializable {
     final def dimapZIO[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
       f: C => ZIO[RC, EC, A],
       g: B => ZIO[RD, ED, D]
-    )(implicit trace: ZTraceElement): Synchronized[RC, RD, EC, ED, C, D] =
+    ): Synchronized[RC, RD, EC, ED, C, D] =
       foldZIO(identity, identity, f, g)
 
     /**
      * Transforms both the `set` and `get` errors of the `ZRef.Synchronized`
      * with the specified functions.
      */
-    override final def dimapError[EC, ED](f: EA => EC, g: EB => ED)(implicit
-      trace: ZTraceElement
-    ): Synchronized[RA, RB, EC, ED, A, B] =
+    override final def dimapError[EC, ED](f: EA => EC, g: EB => ED): Synchronized[RA, RB, EC, ED, A, B] =
       fold(f, g, Right(_), Right(_))
 
     /**
@@ -510,9 +502,7 @@ object ZRef extends Serializable {
      * predicate, returning a `ZRef.Synchronized` with a `set` value that
      * succeeds if the predicate is satisfied or else fails with `None`.
      */
-    override final def filterInput[A1 <: A](f: A1 => Boolean)(implicit
-      trace: ZTraceElement
-    ): Synchronized[RA, RB, Option[EA], EB, A1, B] =
+    override final def filterInput[A1 <: A](f: A1 => Boolean): Synchronized[RA, RB, Option[EA], EB, A1, B] =
       filterInputZIO(a => ZIO.succeedNow(f(a)))
 
     /**
@@ -523,7 +513,7 @@ object ZRef extends Serializable {
     @deprecated("use filterInputZIO", "2.0.0")
     final def filterInputM[RC <: RA, EC >: EA, A1 <: A](
       f: A1 => ZIO[RC, EC, Boolean]
-    )(implicit trace: ZTraceElement): ZRefM[RC, RB, Option[EC], EB, A1, B] =
+    ): ZRefM[RC, RB, Option[EC], EB, A1, B] =
       filterInputZIO(f)
 
     /**
@@ -533,17 +523,23 @@ object ZRef extends Serializable {
      */
     final def filterInputZIO[RC <: RA, EC >: EA, A1 <: A](
       f: A1 => ZIO[RC, EC, Boolean]
-    )(implicit trace: ZTraceElement): Synchronized[RC, RB, Option[EC], EB, A1, B] =
-      foldZIO(Some(_), identity, a => ZIO.ifZIO(f(a).asSomeError)(ZIO.succeedNow(a), ZIO.fail(None)), ZIO.succeedNow)
+    ): Synchronized[RC, RB, Option[EC], EB, A1, B] =
+      foldZIO(
+        Some(_),
+        identity,
+        a =>
+          ZIO.ifZIO(f(a).asSomeError(ZTraceElement.empty))(ZIO.succeedNow(a), ZIO.fail(None)(ZTraceElement.empty))(
+            ZTraceElement.empty
+          ),
+        ZIO.succeedNow
+      )
 
     /**
      * Filters the `get` value of the `ZRef.Synchronized` with the specified
      * predicate, returning a `ZRef.Synchronized` with a `get` value that
      * succeeds if the predicate is satisfied or else fails with `None`.
      */
-    override final def filterOutput(f: B => Boolean)(implicit
-      trace: ZTraceElement
-    ): Synchronized[RA, RB, EA, Option[EB], A, B] =
+    override final def filterOutput(f: B => Boolean): Synchronized[RA, RB, EA, Option[EB], A, B] =
       filterOutputZIO(a => ZIO.succeedNow(f(a)))
 
     /**
@@ -552,9 +548,7 @@ object ZRef extends Serializable {
      * satisfied or else fails with `None`.
      */
     @deprecated("use filterOutputZIO", "2.0.0")
-    final def filterOutputM[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Boolean])(implicit
-      trace: ZTraceElement
-    ): ZRefM[RA, RC, EA, Option[EC], A, B] =
+    final def filterOutputM[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Boolean]): ZRefM[RA, RC, EA, Option[EC], A, B] =
       filterOutputZIO(f)
 
     /**
@@ -564,8 +558,16 @@ object ZRef extends Serializable {
      */
     final def filterOutputZIO[RC <: RB, EC >: EB](
       f: B => ZIO[RC, EC, Boolean]
-    )(implicit trace: ZTraceElement): Synchronized[RA, RC, EA, Option[EC], A, B] =
-      foldZIO(identity, Some(_), ZIO.succeedNow, b => ZIO.ifZIO(f(b).asSomeError)(ZIO.succeedNow(b), ZIO.fail(None)))
+    ): Synchronized[RA, RC, EA, Option[EC], A, B] =
+      foldZIO(
+        identity,
+        Some(_),
+        (a: A) => ZIO.succeedNow(a),
+        b =>
+          ZIO.ifZIO(f(b).asSomeError(ZTraceElement.empty))(ZIO.succeedNow(b), ZIO.fail(None)(ZTraceElement.empty))(
+            ZTraceElement.empty
+          )
+      )
 
     /**
      * Folds over the error and value types of the `ZRef.Synchronized`.
@@ -575,8 +577,8 @@ object ZRef extends Serializable {
       eb: EB => ED,
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
-    )(implicit trace: ZTraceElement): Synchronized[RA, RB, EC, ED, C, D] =
-      foldZIO(ea, eb, c => ZIO.fromEither(ca(c)), b => ZIO.fromEither(bd(b)))
+    ): Synchronized[RA, RB, EC, ED, C, D] =
+      foldZIO(ea, eb, c => ZIO.fromEither(ca(c))(ZTraceElement.empty), b => ZIO.fromEither(bd(b))(ZTraceElement.empty))
 
     /**
      * Folds over the error and value types of the `ZRef.Synchronized`,
@@ -589,8 +591,14 @@ object ZRef extends Serializable {
       ec: EB => EC,
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
-    )(implicit trace: ZTraceElement): Synchronized[RA with RB, RB, EC, ED, C, D] =
-      foldAllZIO(ea, eb, ec, c => b => ZIO.fromEither(ca(c)(b)), b => ZIO.fromEither(bd(b)))
+    ): Synchronized[RA with RB, RB, EC, ED, C, D] =
+      foldAllZIO(
+        ea,
+        eb,
+        ec,
+        c => b => ZIO.fromEither(ca(c)(b))(ZTraceElement.empty),
+        b => ZIO.fromEither(bd(b))(ZTraceElement.empty)
+      )
 
     /**
      * Folds over the error and value types of the `ZRefM`, allowing access to
@@ -689,16 +697,14 @@ object ZRef extends Serializable {
      * Transforms the `get` value of the `ZRef.Synchronized` with the specified
      * function.
      */
-    override final def map[C](f: B => C)(implicit trace: ZTraceElement): Synchronized[RA, RB, EA, EB, A, C] =
+    override final def map[C](f: B => C): Synchronized[RA, RB, EA, EB, A, C] =
       mapZIO(b => ZIO.succeedNow(f(b)))
 
     /**
      * Transforms the `get` value of the `ZRef` with the specified fallible
      * function.
      */
-    override final def mapEither[EC >: EB, C](f: B => Either[EC, C])(implicit
-      trace: ZTraceElement
-    ): Synchronized[RA, RB, EA, EC, A, C] =
+    override final def mapEither[EC >: EB, C](f: B => Either[EC, C]): Synchronized[RA, RB, EA, EC, A, C] =
       dimapEither(Right(_), f)
 
     /**
@@ -715,15 +721,13 @@ object ZRef extends Serializable {
      * Transforms the `get` value of the `ZRef.Synchronized` with the specified
      * effectual function.
      */
-    final def mapZIO[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C])(implicit
-      trace: ZTraceElement
-    ): Synchronized[RA, RC, EA, EC, A, C] =
+    final def mapZIO[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): Synchronized[RA, RC, EA, EC, A, C] =
       dimapZIO(ZIO.succeedNow, f)
 
     /**
      * Returns a read only view of the `ZRef.Synchronized`.
      */
-    override final def readOnly(implicit trace: ZTraceElement): Synchronized[RA, RB, EA, EB, Nothing, B] =
+    override final def readOnly: Synchronized[RA, RB, EA, EB, Nothing, B] =
       self
 
     /**
@@ -761,7 +765,7 @@ object ZRef extends Serializable {
     /**
      * Returns a write only view of the `ZRef.Synchronized`.
      */
-    override final def writeOnly(implicit trace: ZTraceElement): Synchronized[RA, RB, EA, Unit, A, Nothing] =
+    override final def writeOnly: Synchronized[RA, RB, EA, Unit, A, Nothing] =
       fold(identity, _ => (), Right(_), _ => Left(()))
 
     private final def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
@@ -1009,7 +1013,7 @@ object ZRef extends Serializable {
       eb: Nothing => ED,
       ca: C => Either[EC, A],
       bd: A => Either[ED, D]
-    )(implicit trace: ZTraceElement): ZRef[Any, Any, EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
         type S = A
         def getEither(s: S): Either[ED, D] =
@@ -1026,7 +1030,7 @@ object ZRef extends Serializable {
       ec: Nothing => EC,
       ca: C => A => Either[EC, A],
       bd: A => Either[ED, D]
-    )(implicit trace: ZTraceElement): ZRef[Any, Any, EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new DerivedAll[EC, ED, C, D] {
         type S = A
         def getEither(s: S): Either[ED, D] =
@@ -1173,7 +1177,7 @@ object ZRef extends Serializable {
       eb: EB => ED,
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
-    )(implicit trace: ZTraceElement): ZRef[Any, Any, EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new Derived[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
@@ -1190,7 +1194,7 @@ object ZRef extends Serializable {
       ec: EB => EC,
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
-    )(implicit trace: ZTraceElement): ZRef[Any, Any, EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
@@ -1228,7 +1232,7 @@ object ZRef extends Serializable {
       eb: EB => ED,
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
-    )(implicit trace: ZTraceElement): ZRef[Any, Any, EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
@@ -1245,7 +1249,7 @@ object ZRef extends Serializable {
       ec: EB => EC,
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
-    )(implicit trace: ZTraceElement): ZRef[Any, Any, EC, ED, C, D] =
+    ): ZRef[Any, Any, EC, ED, C, D] =
       new DerivedAll[EC, ED, C, D] {
         type S = self.S
         def getEither(s: S): Either[ED, D] =
