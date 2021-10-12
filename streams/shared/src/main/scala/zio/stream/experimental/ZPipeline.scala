@@ -1,6 +1,7 @@
 package zio.stream.experimental
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer. Pipelines accept a stream
@@ -37,7 +38,9 @@ trait ZPipeline[-Env, +Err, -In, +Out] { self =>
     that: ZPipeline[Env1, Err1, Out, Out2]
   ): ZPipeline[Env1, Err1, In, Out2] =
     new ZPipeline[Env1, Err1, In, Out2] {
-      def apply[Env0 <: Env1, Err0 >: Err1](stream: ZStream[Env0, Err0, In]): ZStream[Env0, Err0, Out2] =
+      def apply[Env0 <: Env1, Err0 >: Err1](stream: ZStream[Env0, Err0, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env0, Err0, Out2] =
         that(self(stream))
     }
 
@@ -49,7 +52,9 @@ trait ZPipeline[-Env, +Err, -In, +Out] { self =>
     that: ZPipeline[Env1, Err1, In2, In]
   ): ZPipeline[Env1, Err1, In2, Out] =
     new ZPipeline[Env1, Err1, In2, Out] {
-      def apply[Env0 <: Env1, Err0 >: Err1](stream: ZStream[Env0, Err0, In2]): ZStream[Env0, Err0, Out] =
+      def apply[Env0 <: Env1, Err0 >: Err1](stream: ZStream[Env0, Err0, In2])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env0, Err0, Out] =
         self(that(stream))
     }
 
@@ -61,7 +66,9 @@ trait ZPipeline[-Env, +Err, -In, +Out] { self =>
   ): ZPipeline[Env1, Err1, In, Out2] =
     self >>> that
 
-  def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, Out]
+  def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In])(implicit
+    trace: ZTraceElement
+  ): ZStream[Env1, Err1, Out]
 
   /**
    * A named version of the `<<<` operator.
@@ -92,7 +99,9 @@ object ZPipeline {
    */
   def collect[In, Out](f: PartialFunction[In, Out]): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline[Any, Nothing, In, Out] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, Out] =
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, Out] =
         stream.collect(f)
     }
 
@@ -115,7 +124,9 @@ object ZPipeline {
    */
   def dropUntil[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, In] =
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, In] =
         stream.dropUntil(f)
     }
 
@@ -128,7 +139,9 @@ object ZPipeline {
    */
   def dropWhile[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, In] =
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, In] =
         stream.dropWhile(f)
     }
 
@@ -143,7 +156,9 @@ object ZPipeline {
    */
   def failCause[E](cause: => Cause[E]): ZPipeline[Any, E, Any, Nothing] =
     new ZPipeline[Any, E, Any, Nothing] {
-      def apply[Env1 <: Any, Err1 >: E](stream: ZStream[Env1, Err1, Any]): ZStream[Env1, Err1, Nothing] =
+      def apply[Env1 <: Any, Err1 >: E](stream: ZStream[Env1, Err1, Any])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, Nothing] =
         ZStream.failCause(cause)
     }
 
@@ -152,7 +167,9 @@ object ZPipeline {
    */
   def filter[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, In] =
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, In] =
         stream.filter(f)
     }
 
@@ -188,7 +205,9 @@ object ZPipeline {
    */
   def fold[I, O](out0: O)(contFn: O => Boolean)(f: (O, I) => O): ZPipeline[Any, Nothing, I, O] =
     new ZPipeline[Any, Nothing, I, O] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, I]): ZStream[Env1, Err1, O] =
+      def apply[Env1 <: Any, Err1 >: Nothing](
+        stream: ZStream[Env1, Err1, I]
+      )(implicit trace: ZTraceElement): ZStream[Env1, Err1, O] =
         stream
           .mapAccum(out0) { case (o0, i) =>
             val o = f(o0, i)
@@ -225,7 +244,9 @@ object ZPipeline {
    * Like foldWeightedM, but with a constant cost function of 1.
    */
   @deprecated("use foldUntilZIO", "2.0.0")
-  def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
+  def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O])(implicit
+    trace: ZTraceElement
+  ): ZPipeline[R, E, I, O] =
     foldUntilZIO(z, max)(f)
 
   /**
@@ -234,7 +255,9 @@ object ZPipeline {
    *
    * Like foldWeightedM, but with a constant cost function of 1.
    */
-  def foldUntilZIO[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
+  def foldUntilZIO[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O])(implicit
+    trace: ZTraceElement
+  ): ZPipeline[R, E, I, O] =
     foldZIO[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
       f(o, i).map((_, count + 1))
     } >>> ZPipeline.map(_._1)
@@ -245,7 +268,9 @@ object ZPipeline {
    */
   def foldZIO[R, E, I, O](out0: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
     new ZPipeline[R, E, I, O] {
-      def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, I]): ZStream[Env1, Err1, O] =
+      def apply[Env1 <: R, Err1 >: E](
+        stream: ZStream[Env1, Err1, I]
+      )(implicit trace: ZTraceElement): ZStream[Env1, Err1, O] =
         stream
           .mapAccumZIO(out0) { case (o, i) =>
             f(o, i).map { o =>
@@ -270,7 +295,9 @@ object ZPipeline {
    */
   def fromZIO[R, E, A](zio: ZIO[R, E, A]): ZPipeline[R, E, Any, A] =
     new ZPipeline[R, E, Any, A] {
-      def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, Any]): ZStream[Env1, Err1, A] =
+      def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, Any])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, A] =
         stream.mapZIO(_ => zio)
     }
 
@@ -296,7 +323,9 @@ object ZPipeline {
    */
   def identity[A]: ZPipeline[Any, Nothing, A, A] =
     new ZPipeline[Any, Nothing, A, A] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, A]): ZStream[Env1, Err1, A] =
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, A])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, A] =
         stream
     }
 
@@ -305,7 +334,9 @@ object ZPipeline {
    */
   def map[In, Out](f: In => Out): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline[Any, Nothing, In, Out] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, Out] =
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, Out] =
         stream.map(f)
     }
 
@@ -321,7 +352,9 @@ object ZPipeline {
    */
   def mapZIO[Env0, Err0, In, Out](f: In => ZIO[Env0, Err0, Out]): ZPipeline[Env0, Err0, In, Out] =
     new ZPipeline[Env0, Err0, In, Out] {
-      def apply[Env1 <: Env0, Err1 >: Err0](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, Out] =
+      def apply[Env1 <: Env0, Err1 >: Err0](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, Out] =
         stream.mapZIO(f)
     }
 
@@ -330,7 +363,9 @@ object ZPipeline {
    */
   def succeed[A](a: => A): ZPipeline[Any, Nothing, Any, A] =
     new ZPipeline[Any, Nothing, Any, A] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, Any]): ZStream[Env1, Err1, A] =
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, Any])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, A] =
         ZStream.succeed(a)
     }
 
@@ -339,7 +374,9 @@ object ZPipeline {
    */
   def takeUntil[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, In] =
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, In] =
         stream.takeUntil(f)
     }
 
@@ -348,7 +385,9 @@ object ZPipeline {
    */
   def takeWhile[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, In] =
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, In] =
         stream.takeWhile(f)
     }
 

@@ -15,6 +15,8 @@
  */
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * A service that contains command-line arguments of an application.
  */

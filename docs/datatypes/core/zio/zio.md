@@ -954,11 +954,10 @@ import zio._
 import java.io.{ File, FileInputStream }
 import java.nio.charset.StandardCharsets
 
-object Main extends zio.App {
+object Main extends ZIOAppDefault {
 
   // run my acquire release
-  def run(args: List[String]) =
-    myAcquireRelease.exitCode
+  def run = myAcquireRelease
 
   def closeStream(is: FileInputStream) =
     UIO(is.close())

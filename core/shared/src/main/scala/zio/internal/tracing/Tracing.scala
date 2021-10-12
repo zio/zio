@@ -14,8 +14,18 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio.internal.tracing
 
-private[zio] object PlatformConstants {
-  final val tracingSupported = true
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+final case class Tracing(tracingConfig: TracingConfig)
+
+object Tracing {
+  def enabled: Tracing =
+    Tracing(TracingConfig.enabled)
+
+  def enabledWith(tracingConfig: TracingConfig): Tracing =
+    Tracing(tracingConfig)
+
+  def disabled: Tracing = Tracing(TracingConfig.disabled)
 }

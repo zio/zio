@@ -1,6 +1,7 @@
 package zio.internal.metrics
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] sealed abstract class ConcurrentSummary {
 

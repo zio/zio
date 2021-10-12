@@ -18,6 +18,7 @@ package zio.internal
 
 import com.github.ghik.silencer.silent
 import zio.Chunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicLong

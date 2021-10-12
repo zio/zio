@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 @deprecated("2.0.0", "Use Runtime")
 trait ZBootstrapRuntime[R] extends Runtime[R] {
 

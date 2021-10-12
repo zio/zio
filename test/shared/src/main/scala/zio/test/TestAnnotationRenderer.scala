@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.duration2DurationOps
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestAnnotationRenderer._
 
 /**

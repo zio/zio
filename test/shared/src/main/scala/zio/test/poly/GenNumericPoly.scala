@@ -16,8 +16,9 @@
 
 package zio.test.poly
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.{Has, Random}
+import zio.{Has, Random, ZTraceElement}
 
 /**
  * `GenNumericPoly` provides evidence that instances of `Gen[T]` and
@@ -44,33 +45,33 @@ object GenNumericPoly {
   /**
    * Provides evidence that instances of `Gen` and `Numeric` exist for bytes.
    */
-  val byte: GenNumericPoly =
+  def byte(implicit trace: ZTraceElement): GenNumericPoly =
     GenIntegralPoly.byte
 
   /**
    * Provides evidence that instances of `Gen` and `Numeric` exist for
    * characters.
    */
-  val char: GenNumericPoly =
+  def char(implicit trace: ZTraceElement): GenNumericPoly =
     GenIntegralPoly.char
 
   /**
    * Provides evidence that instances of `Gen` and `Numeric` exist for doubles.
    */
-  val double: GenNumericPoly =
+  def double(implicit trace: ZTraceElement): GenNumericPoly =
     GenFractionalPoly.double
 
   /**
    * Provides evidence that instances of `Gen` and `Numeric` exist for floats.
    */
-  val float: GenNumericPoly =
+  def float(implicit trace: ZTraceElement): GenNumericPoly =
     GenFractionalPoly.float
 
   /**
    * A generator of polymorphic values constrainted to have a `Numeric`
    * instance.
    */
-  lazy val genNumericPoly: Gen[Has[Random], GenNumericPoly] =
+  def genNumericPoly(implicit trace: ZTraceElement): Gen[Has[Random], GenNumericPoly] =
     Gen.elements(
       byte,
       char,
@@ -85,18 +86,18 @@ object GenNumericPoly {
    * Provides evidence that instances of `Gen` and `Numeric` exist for
    * integers.
    */
-  val int: GenNumericPoly =
+  def int(implicit trace: ZTraceElement): GenNumericPoly =
     GenIntegralPoly.int
 
   /**
    * Provides evidence that instances of `Gen` and `Numeric` exist for longs.
    */
-  val long: GenNumericPoly =
+  def long(implicit trace: ZTraceElement): GenNumericPoly =
     GenIntegralPoly.long
 
   /**
    * Provides evidence that instances of `Gen` and `Numeric` exist for shorts.
    */
-  val short: GenNumericPoly =
+  def short(implicit trace: ZTraceElement): GenNumericPoly =
     GenIntegralPoly.long
 }

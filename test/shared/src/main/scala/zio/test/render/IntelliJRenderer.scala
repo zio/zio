@@ -1,4 +1,6 @@
 package zio.test.render
+
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestAnnotationRenderer.LeafRenderer
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Message
