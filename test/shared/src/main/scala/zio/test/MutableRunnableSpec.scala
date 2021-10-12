@@ -133,6 +133,15 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
     builder
   }
 
+  /**
+   * Builds a spec with a single effectful test.
+   */
+  @deprecated("use test", "2.0.0")
+  final def testM(
+    label: String
+  )(assertion: => ZIO[R with TestEnvironment, Failure, TestResult])(implicit loc: SourceLocation): TestBuilder =
+    test(label)(assertion)
+
   final override def spec: ZSpec[Environment, Failure] = {
     specBuilt = true
     (stack.head @@ aspect).toSpec.provideCustomLayerShared(layer.mapError(TestFailure.fail))
