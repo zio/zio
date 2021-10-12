@@ -49,7 +49,7 @@ object ZPool {
     for {
       iterable <- ZManaged.succeed(iterable0)
       source   <- Ref.make(iterable.toList).toManaged
-      get = if (iterable.isEmpty) ZManaged.never
+      get = if (iterable.isEmpty) ZIO.never
             else
               source.modify {
                 case head :: tail => (head, tail)
