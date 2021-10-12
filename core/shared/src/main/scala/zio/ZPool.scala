@@ -45,13 +45,16 @@ object ZPool {
    * associated with items in the pool. If cleanup or release is required,
    * then the `make` constructor should be used instead.
    */
-  def fromIterable[A](iterable: => Iterable[A])(implicit trace: ZTraceElement): UManaged[ZPool[Nothing, A]] =
+  def fromIterable[A](iterable0: => Iterable[A])(implicit trace: ZTraceElement): UManaged[ZPool[Nothing, A]] =
     for {
-      source <- Ref.make(iterable.toList).toManaged
-      get = source.modify { 
-              case head :: tail => (head, tail)
-              case Nil => throw new IllegalArgumentException("No items in list!")
-            }
+      iterable <- ZManaged.succeed(iterable0)
+      source   <- Ref.make(iterable.toList).toManaged
+      get = if (iterable.isEmpty) ZManaged.never
+            else
+              source.modify {
+                case head :: tail => (head, tail)
+                case Nil          => throw new IllegalArgumentException("No items in list!")
+              }
       pool <- ZPool.make(ZManaged.fromZIO(get), iterable.size to iterable.size)
     } yield pool
 
