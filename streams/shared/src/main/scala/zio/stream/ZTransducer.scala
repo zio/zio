@@ -928,6 +928,18 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a transducer produced from an effect.
+   */
+  def unwrap[R, E, I, O](zio: ZIO[R, E, ZTransducer[R, E, I, O]]): ZTransducer[R, E, I, O] =
+    unwrapManaged(zio.toManaged)
+
+  /**
+   * Creates a transducer produced from a managed effect.
+   */
+  def unwrapManaged[R, E, I, O](managed: ZManaged[R, E, ZTransducer[R, E, I, O]]): ZTransducer[R, E, I, O] =
+    ZTransducer(managed.fold(e => ZTransducer.fail(e), Predef.identity).flatMap(_.push))
+
+  /**
    * Decodes chunks of Unicode bytes into strings.
    *
    * Detects byte order marks for UTF-8, UTF-16BE, UTF-16LE, UTF-32BE, UTF-32LE or defaults

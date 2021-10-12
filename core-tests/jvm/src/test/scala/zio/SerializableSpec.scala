@@ -1,7 +1,6 @@
 package zio
 
 import zio.SerializableSpecHelpers._
-import zio.internal.stacktracer.ZTraceElement
 import zio.test.Assertion._
 import zio.test.TestAspect.scala2Only
 import zio.test.environment.Live
@@ -204,16 +203,6 @@ object SerializableSpec extends ZIOBaseSpec {
         managed <- serializeAndBack(ZManaged.acquireReleaseWith(UIO.unit)(_ => UIO.unit))
         result  <- managed.use(_ => UIO.unit)
       } yield assert(result)(equalTo(()))
-    },
-    testSync("ZTrace is serializable") {
-      val trace = ZTrace(
-        FiberId(0L, 0L),
-        List(ZTraceElement.NoLocation("test")),
-        List(ZTraceElement.SourceLocation("file.scala", "Class", "method", 123)),
-        None
-      )
-
-      assert(serializeAndDeserialize(trace))(equalTo(trace))
     },
     test("TracingStatus.Traced is serializable") {
       val traced = TracingStatus.Traced

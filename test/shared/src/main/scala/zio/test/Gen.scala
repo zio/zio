@@ -18,7 +18,7 @@ package zio.test
 
 import zio.Random._
 import zio.stream.{Stream, ZStream}
-import zio.{Chunk, ExecutionStrategy, Has, NonEmptyChunk, Random, UIO, URIO, ZIO, Zippable}
+import zio.{Chunk, Has, NonEmptyChunk, Random, UIO, URIO, ZIO, Zippable}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -29,19 +29,20 @@ import scala.math.Numeric.DoubleIsFractional
  * A `Gen[R, A]` represents a generator of values of type `A`, which requires
  * an environment `R`. Generators may be random or deterministic.
  */
-final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
+final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) { self =>
 
   /**
    * A symbolic alias for `zip`.
    */
+  @deprecated("use <*>", "2.0.0")
   def <&>[R1 <: R, B](that: Gen[R1, B])(implicit zippable: Zippable[A, B]): Gen[R1, zippable.Out] =
-    self.zip(that)
+    self <*> that
 
   /**
-   * A symbolic alias for `cross`.
+   * A symbolic alias for `zip`.
    */
   def <*>[R1 <: R, B](that: Gen[R1, B])(implicit zippable: Zippable[A, B]): Gen[R1, zippable.Out] =
-    self.cross(that)
+    self.zip(that)
 
   /**
    * Maps the values produced by this generator with the specified partial
@@ -56,15 +57,17 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Composes this generator with the specified generator to create a cartesian
    * product of elements.
    */
+  @deprecated("use zip", "2.0.0")
   def cross[R1 <: R, B](that: Gen[R1, B])(implicit zippable: Zippable[A, B]): Gen[R1, zippable.Out] =
-    self.crossWith(that)(zippable.zip(_, _))
+    self.zip(that)
 
   /**
    * Composes this generator with the specified generator to create a cartesian
    * product of elements with the specified function.
    */
+  @deprecated("use zipWith", "2.0.0")
   def crossWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
-    self.flatMap(a => that.map(b => f(a, b)))
+    self.zipWith(that)(f)
 
   /**
    * Filters the values produced by this generator, discarding any values that
@@ -77,9 +80,8 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * val evens: Gen[Has[Random], Int] = Gen.int.map(_ * 2)
    * }}}
    */
-  def filter(f: A => Boolean): Gen[R, A] = Gen {
-    sample.flatMap(sample => if (f(sample.value)) sample.filter(f) else ZStream.empty)
-  }
+  def filter(f: A => Boolean): Gen[R, A] =
+    self.flatMap(a => if (f(a)) Gen.const(a) else Gen.empty)
 
   /**
    * Filters the values produced by this generator, discarding any values that
@@ -90,19 +92,20 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   def withFilter(f: A => Boolean): Gen[R, A] = filter(f)
 
-  def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] = Gen {
-    self.sample.flatMap { sample =>
-      val values  = f(sample.value).sample
-      val shrinks = Gen(sample.shrink).flatMap(f).sample
-      values.map(_.flatMap(Sample(_, shrinks)))
+  def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] =
+    Gen {
+      flatMapStream(self.sample) { sample =>
+        val values  = f(sample.value).sample
+        val shrinks = Gen(sample.shrink).flatMap(f).sample
+        values.map(_.map(_.flatMap(Sample(_, shrinks))))
+      }
     }
-  }
 
   def flatten[R1 <: R, B](implicit ev: A <:< Gen[R1, B]): Gen[R1, B] =
     flatMap(ev)
 
   def map[B](f: A => B): Gen[R, B] =
-    Gen(sample.map(_.map(f)))
+    Gen(sample.map(_.map(_.map(f))))
 
   /**
    * Maps an effectual function over a generator.
@@ -115,7 +118,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Maps an effectual function over a generator.
    */
   def mapZIO[R1 <: R, B](f: A => ZIO[R1, Nothing, B]): Gen[R1, B] =
-    Gen(sample.mapZIO(_.foreach(f)))
+    Gen(sample.mapZIO(ZIO.foreach(_)(_.foreach(f))))
 
   /**
    * Discards the shrinker for this generator.
@@ -130,54 +133,40 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * to generate it.
    */
   def reshrink[R1 <: R, B](f: A => Sample[R1, B]): Gen[R1, B] =
-    Gen(sample.map(sample => f(sample.value)))
+    Gen(sample.map(_.map(sample => f(sample.value))))
 
   /**
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect: ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).runCollect.map(_.toList)
+    sample.collectSome.map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
+    sample.collectSome.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
    */
   def runHead: ZIO[R, Nothing, Option[A]] =
-    sample.map(_.value).runHead
+    sample.collectSome.map(_.value).runHead
 
   /**
-   * Zips two generators together pairwise. The new generator will generate
-   * elements as long as either generator is generating elements, running the
-   * other generator multiple times if necessary.
+   * Composes this generator with the specified generator to create a cartesian
+   * product of elements.
    */
   def zip[R1 <: R, B](that: Gen[R1, B])(implicit zippable: Zippable[A, B]): Gen[R1, zippable.Out] =
     self.zipWith(that)(zippable.zip(_, _))
 
   /**
-   * Zips two generators together pairwise with the specified function. The new
-   * generator will generate elements as long as either generator is generating
-   * elements, running the other generator multiple times if necessary.
+   * Composes this generator with the specified generator to create a cartesian
+   * product of elements with the specified function.
    */
-  def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] = Gen {
-    val left  = self.sample.map(Right(_)) ++ self.sample.map(Left(_)).forever
-    val right = that.sample.map(Right(_)) ++ that.sample.map(Left(_)).forever
-    left
-      .zipAllWithExec(right)(ExecutionStrategy.Sequential)(
-        l => (Some(l), None),
-        r => (None, Some(r))
-      )((l, r) => (Some(l), Some(r)))
-      .collectWhile {
-        case (Some(Right(l)), Some(Right(r))) => l.zipWith(r)(f)
-        case (Some(Right(l)), Some(Left(r)))  => l.zipWith(r)(f)
-        case (Some(Left(l)), Some(Right(r)))  => l.zipWith(r)(f)
-      }
-  }
+  def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C): Gen[R1, C] =
+    self.flatMap(a => that.map(b => f(a, b)))
 }
 
 object Gen extends GenZIO with FunctionVariants with TimeVariants {
@@ -210,14 +199,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator US-ASCII strings. Shrinks towards the empty string.
    */
-  @deprecated("use ASCIIString", "2.0.0")
+  @deprecated("use asciiString", "2.0.0")
   def anyASCIIString: Gen[Has[Random] with Has[Sized], String] =
     Gen.asciiString
 
   /**
    * A generator of US-ASCII characters. Shrinks toward '0'.
    */
-  @deprecated("use ASCIIChar", "2.0.0")
+  @deprecated("use asciiChar", "2.0.0")
   def anyASCIIChar: Gen[Has[Random], Char] =
     Gen.asciiChar
 
@@ -434,6 +423,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     listOfN(n)(g).map(Chunk.fromIterable)
 
   /**
+   * Composes the specified generators to create a cartesian product of
+   * elements with the specified function.
+   */
+  def collectAll[R, A](gens: Iterable[Gen[R, A]]): Gen[R, List[A]] =
+    gens.foldRight[Gen[R, List[A]]](Gen.const(List.empty))(_.zipWith(_)(_ :: _))
+
+  /**
    * Combines the specified deterministic generators to return a new
    * deterministic generator that generates all of the values generated by
    * the specified generators.
@@ -445,7 +441,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A constant generator of the specified value.
    */
   def const[A](a: => A): Gen[Any, A] =
-    Gen(ZStream.succeed(Sample.noShrink(a)))
+    Gen(ZStream.succeed(Some(Sample.noShrink(a))))
 
   /**
    * A constant generator of the specified sample.
@@ -457,8 +453,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * Composes the specified generators to create a cartesian product of
    * elements with the specified function.
    */
+  @deprecated("use collectAll", "2.0.0")
   def crossAll[R, A](gens: Iterable[Gen[R, A]]): Gen[R, List[A]] =
-    gens.foldRight[Gen[R, List[A]]](Gen.const(List.empty))(_.crossWith(_)(_ :: _))
+    collectAll(gens)
 
   /**
    * Composes the specified generators to create a cartesian product of
@@ -551,33 +548,33 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   ): Gen[R, A] =
-    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))).map(Some(_)).intersperse(None))
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
    * generator will not have any shrinking.
    */
   final def fromRandom[A](f: Random => UIO[A]): Gen[Has[Random], A] =
-    Gen(ZStream.fromZIO(ZIO.accessZIO[Has[Random]](r => f(r.get)).map(Sample.noShrink)))
+    fromRandomSample(f(_).map(Sample.noShrink))
 
   /**
    * Constructs a generator from a function that uses randomness to produce a
    * sample.
    */
   final def fromRandomSample[R <: Has[Random], A](f: Random => UIO[Sample[R, A]]): Gen[R, A] =
-    Gen(ZStream.fromZIO(ZIO.accessZIO[Has[Random]](r => f(r.get))))
+    fromZIOSample(ZIO.serviceWith(f))
 
   /**
    * Constructs a generator from an effect that constructs a value.
    */
   def fromZIO[R, A](effect: URIO[R, A]): Gen[R, A] =
-    Gen(ZStream.fromZIO(effect.map(Sample.noShrink)))
+    fromZIOSample(effect.map(Sample.noShrink))
 
   /**
    * Constructs a generator from an effect that constructs a sample.
    */
   def fromZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]]): Gen[R, A] =
-    Gen(ZStream.fromZIO(effect))
+    Gen(ZStream.fromZIO(effect.asSome))
 
   /**
    * A generator of floats. Shrinks toward '0'.
@@ -663,7 +660,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     bounded(min, max)(listOfN(_)(g))
 
   def listOfN[R <: Has[Random], A](n: Int)(g: Gen[R, A]): Gen[R, List[A]] =
-    List.fill(n)(g).foldRight[Gen[R, List[A]]](const(Nil))((a, gen) => a.crossWith(gen)(_ :: _))
+    collectAll(List.fill(n)(g))
 
   /**
    * A generator of longs. Shrinks toward '0'.
@@ -703,7 +700,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of maps of the specified size.
    */
   def mapOfN[R <: Has[Random], A, B](n: Int)(key: Gen[R, A], value: Gen[R, B]): Gen[R, Map[A, B]] =
-    setOfN(n)(key).crossWith(listOfN(n)(value))(_.zip(_).toMap)
+    setOfN(n)(key).zipWith(listOfN(n)(value))(_.zip(_).toMap)
 
   /**
    * A generator of maps whose size falls within the specified bounds.
@@ -963,8 +960,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * generate elements as long as any generator is generating elements, running
    * the other generators multiple times if necessary.
    */
+  @deprecated("use collectAll", "2.0.0")
   def zipAll[R, A](gens: Iterable[Gen[R, A]]): Gen[R, List[A]] =
-    gens.foldRight[Gen[R, List[A]]](Gen.const(List.empty))(_.zipWith(_)(_ :: _))
+    collectAll(gens)
 
   /**
    * Zips the specified generators together pairwise. The new generator will

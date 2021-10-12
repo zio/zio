@@ -4,28 +4,28 @@ import zio.test._
 
 object ZIOAppSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("ZIOAppSpec")(
-    test("fromEffect") {
+    test("fromZIO") {
       for {
         ref <- Ref.make(0)
-        _   <- ZIOApp.fromEffect(ref.update(_ + 1)).invoke(Chunk.empty)
+        _   <- ZIOApp.fromZIO(ref.update(_ + 1)).invoke(Chunk.empty)
         v   <- ref.get
       } yield assertTrue(v == 1)
     },
     test("failure translates into ExitCode.failure") {
       for {
-        code <- ZIOApp.fromEffect(ZIO.fail("Uh oh!")).invoke(Chunk.empty)
+        code <- ZIOApp.fromZIO(ZIO.fail("Uh oh!")).invoke(Chunk.empty).exitCode
       } yield assertTrue(code == ExitCode.failure)
     },
     test("success translates into ExitCode.success") {
       for {
-        code <- ZIOApp.fromEffect(ZIO.succeed("Hurray!")).invoke(Chunk.empty)
+        code <- ZIOApp.fromZIO(ZIO.succeed("Hurray!")).invoke(Chunk.empty).exitCode
       } yield assertTrue(code == ExitCode.success)
     },
     test("composed app logic runs component logic") {
       for {
         ref <- Ref.make(2)
-        app1 = ZIOApp.fromEffect(ref.update(_ + 3))
-        app2 = ZIOApp.fromEffect(ref.update(_ - 5))
+        app1 = ZIOApp.fromZIO(ref.update(_ + 3))
+        app2 = ZIOApp.fromZIO(ref.update(_ - 5))
         _   <- (app1 <> app2).invoke(Chunk.empty)
         v   <- ref.get
       } yield assertTrue(v == 0)
@@ -35,7 +35,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
 
       val logger1 = new ZLogger[Unit] {
         def apply(
-          trace: zio.internal.stacktracer.ZTraceElement,
+          trace: ZTraceElement,
           fiberId: zio.FiberId,
           logLevel: zio.LogLevel,
           message: () => String,
@@ -47,10 +47,10 @@ object ZIOAppSpec extends ZIOBaseSpec {
         }
       }
 
-      val app1 = ZIOApp(ZIO.fail("Uh oh!"), RuntimeConfigAspect.addLogger(logger1))
+      val app1 = ZIOAppDefault(ZIO.fail("Uh oh!"), RuntimeConfigAspect.addLogger(logger1))
 
       for {
-        c <- app1.invoke(Chunk.empty)
+        c <- app1.invoke(Chunk.empty).exitCode
         v <- ZIO.succeed(counter.get())
       } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
     }

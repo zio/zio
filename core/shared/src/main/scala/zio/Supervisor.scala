@@ -80,6 +80,15 @@ object Supervisor {
   import zio.internal._
 
   final case class RuntimeStats(
+    milliLifetimes: Seq[Long],
+    secondLifetimes: Seq[Long],
+    minuteLifetimes: Seq[Long],
+    fiberFailures: Map[_, Long],
+    started: Long,
+    ended: Long,
+    successes: Long,
+    failures: Long,
+    defects: Long
   )
 
   /**
@@ -97,7 +106,20 @@ object Supervisor {
       val failures        = new LongAdder()
       val defects         = new LongAdder()
 
-      def value: UIO[RuntimeStats] = UIO(RuntimeStats())
+      def value: UIO[RuntimeStats] =
+        UIO(
+          RuntimeStats(
+            milliLifetimes.snapshot(),
+            secondLifetimes.snapshot(),
+            minuteLifetimes.snapshot(),
+            fiberFailures.snapshot(),
+            started.sum(),
+            ended.sum(),
+            successes.sum(),
+            failures.sum(),
+            defects.sum()
+          )
+        )
 
       def unsafeOnStart[R, E, A](
         environment: R,

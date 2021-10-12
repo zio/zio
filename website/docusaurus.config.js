@@ -33,7 +33,7 @@ module.exports = {
         { to: 'usecases/usecases_index', label: 'Use Cases', position: 'right' },
         { to: 'howto/index', label: 'How to', position: 'right' },
         { to: 'resources/index', label: 'Resources', position: 'right' },
-        { to: 'about/about_index', label: 'About', position: 'right' },
+        { to: 'about/index', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
@@ -97,11 +97,29 @@ module.exports = {
           title: 'Additional resources',
           items: [
             {
-              label: 'Scaladoc of ZIO',
-              href: 'https://javadoc.io/doc/dev.zio/zio_2.12/'
+              html: `<a href="/api/zio/" target="_blank">Latest Scaladoc of ZIO</a>`
+            },
+            {
+              html: `<a href="/api-1.x/zio/" target="_blank">Scaladoc of ZIO-1.x</a>`
+            },
+            {
+              label: 'Scaladoc on javadoc.io',
+              href: 'https://javadoc.io/doc/dev.zio/'
             }
           ],
         },
+        {
+          items: [
+            {
+              title: 'Deployment support',
+              html: `
+                <a href="https://www.netlify.com">
+                  <img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/>
+                </a>
+              `
+            }
+          ]
+        }
       ],
       copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://v2.docusaurus.io/">Docusaurus v2</a>`,
     },

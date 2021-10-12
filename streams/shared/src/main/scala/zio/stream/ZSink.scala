@@ -1010,9 +1010,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   /**
-   * A sink that depends on another managed value
-   * `resource` will be finalized after the processing.
+   * Creates a single valued sink from a managed resource.
    */
+  @deprecated("use unwrapManaged", "2.0.0")
   def managed[R, E, I, A, L <: I, Z](resource: ZManaged[R, E, A])(fn: A => ZSink[R, E, I, L, Z]): ZSink[R, E, I, I, Z] =
     ZSink(resource.fold[ZSink[R, E, I, I, Z]](err => ZSink.fail[E, I](err), m => fn(m)).flatMap(_.push))
 
@@ -1061,6 +1061,18 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink with timed execution.
    */
   def timed: ZSink[Has[Clock], Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
+
+  /**
+   * Creates a sink produced from an effect.
+   */
+  def unwrap[R, E, I, L <: I, Z](zio: ZIO[R, E, ZSink[R, E, I, L, Z]]): ZSink[R, E, I, I, Z] =
+    unwrapManaged(zio.toManaged)
+
+  /**
+   * Creates a sink produced from a managed effect.
+   */
+  def unwrapManaged[R, E, I, L <: I, Z](managed: ZManaged[R, E, ZSink[R, E, I, L, Z]]): ZSink[R, E, I, I, Z] =
+    ZSink(managed.fold[ZSink[R, E, I, I, Z]](err => ZSink.fail[E, I](err), identity).flatMap(_.push))
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, I, L, Z](f: R => ZSink[R1, E, I, L, Z]): ZSink[R with R1, E, I, L, Z] =

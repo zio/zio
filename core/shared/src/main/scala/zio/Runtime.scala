@@ -16,8 +16,8 @@
 
 package zio
 
-import zio.internal.tracing.ZIOFn
-import zio.internal.{FiberContext, Platform, PlatformConstants, Tracing}
+import zio.internal.tracing.Tracing
+import zio.internal.{FiberContext, Platform}
 
 import scala.concurrent.Future
 
@@ -155,8 +155,8 @@ trait Runtime[+R] {
                 }
               }
 
-            case ZIO.Tags.Succeed =>
-              val zio = curZio.asInstanceOf[ZIO.Succeed[A]]
+            case ZIO.Tags.SucceedNow =>
+              val zio = curZio.asInstanceOf[ZIO.SucceedNow[A]]
 
               if (x1 ne null) {
                 val k = x1
@@ -171,8 +171,8 @@ trait Runtime[+R] {
 
               done = Exit.failCause(zio.fill(() => null))
 
-            case ZIO.Tags.EffectTotal =>
-              val zio = curZio.asInstanceOf[ZIO.EffectTotal[A]]
+            case ZIO.Tags.Succeed =>
+              val zio = curZio.asInstanceOf[ZIO.Succeed[A]]
 
               if (x1 ne null) {
                 val k = x1
@@ -306,7 +306,7 @@ trait Runtime[+R] {
       false,
       InterruptStatus.Interruptible,
       None,
-      PlatformConstants.tracingSupported,
+      true,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),
       scope
     )
@@ -317,7 +317,7 @@ trait Runtime[+R] {
       context.onDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
     }
 
-    context.nextEffect = ZIOFn.recordStackTrace(() => zio)(zio.asInstanceOf[IO[E, A]])
+    context.nextEffect = zio.asInstanceOf[IO[E, A]]
     context.run()
     context.awaitAsync(k)
 

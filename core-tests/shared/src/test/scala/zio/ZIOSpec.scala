@@ -343,7 +343,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("collectFirst")(
       test("collects the first value for which the effectual functions returns Some") {
-        checkM(Gen.listOf(Gen.int), Gen.partialFunction(Gen.int)) { (as, pf) =>
+        check(Gen.listOf(Gen.int), Gen.partialFunction(Gen.int)) { (as, pf) =>
           def f(n: Int): UIO[Option[Int]] = UIO.succeed(pf.lift(n))
           assertM(ZIO.collectFirst(as)(f))(equalTo(as.collectFirst(pf)))
         }
@@ -371,7 +371,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("companion object method consistency")(
       test("absolve") {
-        checkM(Gen.alphaNumericString) { str =>
+        check(Gen.alphaNumericString) { str =>
           val ioEither: UIO[Either[Nothing, String]] = IO.succeed(Right(str))
           for {
             abs1 <- ioEither.absolve
@@ -388,7 +388,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(race1)(equalTo(race2))
       },
       test("flatten") {
-        checkM(Gen.alphaNumericString) { str =>
+        check(Gen.alphaNumericString) { str =>
           for {
             flatten1 <- IO.succeed(IO.succeed(str)).flatten
             flatten2 <- IO.flatten(IO.succeed(IO.succeed(str)))
@@ -537,7 +537,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("exists")(
       test("determines whether any element satisfies the effectual predicate") {
-        checkM(Gen.listOf(Gen.int), Gen.function(Gen.boolean)) { (as, f) =>
+        check(Gen.listOf(Gen.int), Gen.function(Gen.boolean)) { (as, f) =>
           val actual   = IO.exists(as)(a => IO.succeed(f(a)))
           val expected = as.exists(f)
           assertM(actual)(equalTo(expected))
@@ -660,19 +660,19 @@ object ZIOSpec extends ZIOBaseSpec {
     ) @@ zioTag(errors),
     suite("foldLeft")(
       test("with a successful step function sums the list properly") {
-        checkM(Gen.listOf(Gen.int)) { l =>
+        check(Gen.listOf(Gen.int)) { l =>
           val res = IO.foldLeft(l)(0)((acc, el) => IO.succeed(acc + el))
           assertM(res)(equalTo(l.sum))
         }
       },
       test("`with a failing step function returns a failed IO") {
-        checkM(Gen.listOf1(Gen.int)) { l =>
+        check(Gen.listOf1(Gen.int)) { l =>
           val res = IO.foldLeft(l)(0)((_, _) => IO.fail("fail"))
           assertM(res.exit)(fails(equalTo("fail")))
         }
       } @@ zioTag(errors),
       test("run sequentially from left to right") {
-        checkM(Gen.listOf1(Gen.int)) { l =>
+        check(Gen.listOf1(Gen.int)) { l =>
           val res = IO.foldLeft(l)(List.empty[Int])((acc, el) => IO.succeed(el :: acc))
           assertM(res)(equalTo(l.reverse))
         }
@@ -680,19 +680,19 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("foldRight")(
       test("with a successful step function sums the list properly") {
-        checkM(Gen.listOf(Gen.int)) { l =>
+        check(Gen.listOf(Gen.int)) { l =>
           val res = IO.foldRight(l)(0)((el, acc) => IO.succeed(acc + el))
           assertM(res)(equalTo(l.sum))
         }
       },
       test("`with a failing step function returns a failed IO") {
-        checkM(Gen.listOf1(Gen.int)) { l =>
+        check(Gen.listOf1(Gen.int)) { l =>
           val res = IO.foldRight(l)(0)((_, _) => IO.fail("fail"))
           assertM(res.exit)(fails(equalTo("fail")))
         }
       } @@ zioTag(errors),
       test("run sequentially from right to left") {
-        checkM(Gen.listOf1(Gen.int)) { l =>
+        check(Gen.listOf1(Gen.int)) { l =>
           val res = IO.foldRight(l)(List.empty[Int])((el, acc) => IO.succeed(el :: acc))
           assertM(res)(equalTo(l))
         }
@@ -700,7 +700,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("forall")(
       test("determines whether all elements satisfy the effectual predicate") {
-        checkM(Gen.listOf(Gen.int), Gen.function(Gen.boolean)) { (as, f) =>
+        check(Gen.listOf(Gen.int), Gen.function(Gen.boolean)) { (as, f) =>
           val actual   = IO.forall(as)(a => IO.succeed(f(a)))
           val expected = as.forall(f)
           assertM(actual)(equalTo(expected))
@@ -709,7 +709,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("foreach")(
       test("returns the list of results") {
-        checkAllM(functionIOGen, listGen) { (f, list) =>
+        checkAll(functionIOGen, listGen) { (f, list) =>
           val res = IO.foreach(list)(f)
           assertM(res)(isSubtype[List[Int]](anything) && hasSize(equalTo(100)))
         }
@@ -1408,7 +1408,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("mapBoth")(
       test("maps over both error and value channels") {
-        checkM(Gen.int) { i =>
+        check(Gen.int) { i =>
           val res = IO.fail(i).mapBoth(_.toString, identity).either
           assertM(res)(isLeft(equalTo(i.toString)))
         }
@@ -1686,7 +1686,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val causes    = Gen.causes(smallInts, Gen.throwable)
         val successes = Gen.successes(smallInts)
         val exits     = Gen.either(causes, successes).map(_.fold(Exit.failCause, Exit.succeed))
-        checkM(exits, exits, exits) { (exit1, exit2, exit3) =>
+        check(exits, exits, exits) { (exit1, exit2, exit3) =>
           val zio1  = ZIO.done(exit1)
           val zio2  = ZIO.done(exit2)
           val zio3  = ZIO.done(exit3)
@@ -3448,7 +3448,7 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     test("unleft") {
-      checkM(Gen.oneOf(Gen.failures(Gen.int), Gen.successes(Gen.either(Gen.int, Gen.int)))) { zio =>
+      check(Gen.oneOf(Gen.failures(Gen.int), Gen.successes(Gen.either(Gen.int, Gen.int)))) { zio =>
         for {
           actual   <- zio.left.unleft.exit
           expected <- zio.exit
@@ -3557,7 +3557,7 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ) @@ zioTag(errors),
     test("right") {
-      checkM(Gen.oneOf(Gen.failures(Gen.int), Gen.successes(Gen.either(Gen.int, Gen.int)))) { zio =>
+      check(Gen.oneOf(Gen.failures(Gen.int), Gen.successes(Gen.either(Gen.int, Gen.int)))) { zio =>
         for {
           actual   <- zio.right.unright.exit
           expected <- zio.exit
@@ -3577,11 +3577,10 @@ object ZIOSpec extends ZIOBaseSpec {
         val causes = Gen.causes(Gen.string, Gen.throwable)
         def cause[R, E](zio: ZIO[R, E, Nothing]): ZIO[R, Nothing, Cause[E]] =
           zio.foldCauseZIO(ZIO.succeed(_), ZIO.fail)
-        checkM(causes) { c =>
+        check(causes) { c =>
           for {
             result <- cause(ZIO.failCause(c).sandbox.mapErrorCause(e => e.untraced).unsandbox)
-          } yield assert(result)(equalTo(c)) &&
-            assert(result.prettyPrint)(equalTo(c.prettyPrint))
+          } yield assert(result)(equalTo(c))
         }
       }
     ),

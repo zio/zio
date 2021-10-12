@@ -18,31 +18,37 @@ package zio
 import zio.internal._
 
 /**
- * The entry point for a ZIO application.
- *
- * {{{
- * import zio.ZIOApp
- * import zio.Console._
- *
- * object MyApp extends ZIOApp {
- *
- *   def run =
- *     for {
- *       _ <- printLine("Hello! What is your name?")
- *       n <- readLine
- *       _ <- printLine("Hello, " + n + ", good to meet you!")
- *     } yield ()
- * }
- * }}}
+ * An entry point for a ZIO application that allows sharing layers between
+ * applications. For a simpler version that uses the default ZIO environment
+ * see `ZIOAppDefault`.
  */
-trait ZIOApp { self =>
-  @volatile private var shuttingDown = false
+trait ZIOApp extends ZIOAppPlatformSpecific { self =>
+  @volatile private[zio] var shuttingDown = false
+
+  implicit def tag: Tag[Environment]
+
+  type Environment <: Has[_]
+
+  /**
+   * A layer that manages the acquisition and release of services necessary for
+   * the application to run.
+   */
+  def layer: ZLayer[Has[ZIOAppArgs], Any, Environment]
+
+  /**
+   * The main function of the application, which can access the command-line arguments through
+   * the `args` helper method of this class. If the provided effect fails for any reason, the
+   * cause will be logged, and the exit code of the application will be non-zero. Otherwise,
+   * the exit code of the application will be zero.
+   */
+  def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any]
 
   /**
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application that
    * executes the logic of both applications.
    */
-  final def <>(that: ZIOApp): ZIOApp = ZIOApp(self.run.zipPar(that.run), self.hook >>> that.hook)
+  final def <>(that: ZIOApp): ZIOApp =
+    ZIOApp(self.run.zipPar(that.run), self.layer +!+ that.layer, self.hook >>> that.hook)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
@@ -73,73 +79,57 @@ trait ZIOApp { self =>
   /**
    * Invokes the main app. Designed primarily for testing.
    */
-  final def invoke(args: Chunk[String]): ZIO[ZEnv, Nothing, ExitCode] =
+  final def invoke(args: Chunk[String]): ZIO[ZEnv, Any, Any] =
     ZIO.runtime[ZEnv].flatMap { runtime =>
       val newRuntime = runtime.mapRuntimeConfig(hook)
 
-      newRuntime.run(run.provideCustomLayer(ZLayer.succeed(ZIOAppArgs(args)))).exitCode
+      val newLayer =
+        ZLayer.environment[ZEnv] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
+          layer +!+ ZLayer.environment[ZEnv with Has[ZIOAppArgs]]
+
+      newRuntime.run(run.provideLayer(newLayer))
     }
 
-  /**
-   * The Scala main function, intended to be called only by the Scala runtime.
-   */
-  final def main(args0: Array[String]): Unit = {
-    runtime.unsafeRun {
-      (for {
-        fiber <- invoke(Chunk.fromIterable(args0)).provide(runtime.environment).fork
-        _ <-
-          IO.succeed(Platform.addShutdownHook { () =>
-            shuttingDown = true
-
-            if (FiberContext.fatal.get) {
-              println(
-                "**** WARNING ****\n" +
-                  "Catastrophic JVM error encountered. " +
-                  "Application not safely interrupted. " +
-                  "Resources may be leaked. " +
-                  "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
-              )
-            } else {
-              try runtime.unsafeRunSync(fiber.interrupt)
-              catch { case _: Throwable => }
-            }
-
-            ()
-          })
-        result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_)).exitCode
-        _      <- exit(result)
-      } yield ())
-    }
-
-    def runtime: Runtime[ZEnv] = Runtime.default
-  }
-
-  /**
-   * The main function of the application, which can access the command-line arguments through
-   * the `args` helper method of this class. If the provided effect fails for any reason, the
-   * cause will be logged, and the exit code of the application will be non-zero. Otherwise,
-   * the exit code of the application will be zero.
-   */
-  def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]
+  def runtime: Runtime[ZEnv] = Runtime.default
 }
 object ZIOApp {
-  class Proxy(app: ZIOApp) extends ZIOApp {
-    override final def hook = app.hook
-    override final def run  = app.run
+
+  /**
+   * A class which can be extended by an object to convert a description of a
+   * ZIO application as a value into a runnable application.
+   */
+  class Proxy(val app: ZIOApp) extends ZIOApp {
+    type Environment = app.Environment
+    override final def hook: RuntimeConfigAspect =
+      app.hook
+    final def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
+      app.layer
+    override final def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any] =
+      app.run
+    implicit final def tag: Tag[Environment] =
+      app.tag
   }
 
   /**
    * Creates a [[ZIOApp]] from an effect, which can consume the arguments of the program, as well
    * as a hook into the ZIO runtime configuration.
    */
-  def apply(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any], hook0: RuntimeConfigAspect): ZIOApp =
+  def apply[R <: Has[_]](
+    run0: ZIO[R with ZEnv with Has[ZIOAppArgs], Any, Any],
+    layer0: ZLayer[Has[ZIOAppArgs], Any, R],
+    hook0: RuntimeConfigAspect
+  )(implicit tagged: Tag[R]): ZIOApp =
     new ZIOApp {
-      override def hook = hook0
-      def run           = run0
+      type Environment = R
+      def tag: Tag[Environment] = tagged
+      override def hook         = hook0
+      def layer                 = layer0
+      def run                   = run0
     }
 
   /**
    * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's configuration.
    */
-  def fromEffect(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOApp = ZIOApp(run0, RuntimeConfigAspect.identity)
+  def fromZIO(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOApp =
+    ZIOApp(run0, ZLayer.environment, RuntimeConfigAspect.identity)
 }
