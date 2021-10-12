@@ -1,7 +1,5 @@
 package zio
 
-import _root_.zio.internal.stacktracer.ZTraceElement
-
 /*
  * Copyright 2021 John A. De Goes and the ZIO Contributors
  *
@@ -50,8 +48,9 @@ object ZPool {
   def fromIterable[A](iterable: => Iterable[A])(implicit trace: ZTraceElement): UManaged[ZPool[Nothing, A]] =
     for {
       source <- Ref.make(iterable.toList).toManaged
-      get = source.modify { case head :: tail =>
-              (head, tail)
+      get = source.modify { 
+              case head :: tail => (head, tail)
+              case Nil => throw new IllegalArgumentException("No items in list!")
             }
       pool <- ZPool.make(ZManaged.fromZIO(get), iterable.size to iterable.size)
     } yield pool
