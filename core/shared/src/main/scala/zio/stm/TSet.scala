@@ -16,6 +16,7 @@
 
 package zio.stm
 
+import zio.NonEmptyChunk
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -36,10 +37,16 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     tmap.isEmpty
 
   /**
-   * Removes element from set.
+   * Removes a single element from the set.
    */
   def delete(a: A): USTM[Unit] =
     tmap.delete(a)
+
+  /**
+   * Removes elements from the set.
+   */
+  def deleteAll(as: Iterable[A]): USTM[Unit] =
+    tmap.deleteAll(as)
 
   /**
    * Atomically transforms the set into the difference of itself and the
@@ -102,6 +109,35 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * Returns the set's cardinality.
    */
   def size: USTM[Int] = toList.map(_.size)
+
+  /**
+   * Takes the first matching value, or retries until there is one.
+   */
+  def takeFirst[B](pf: PartialFunction[A, B]): USTM[B] =
+    tmap.takeFirst {
+      case (k, _) if pf.isDefinedAt(k) => pf(k)
+    }
+
+  def takeFirstSTM[R, E, B](pf: A => ZSTM[R, Option[E], B]): ZSTM[R, E, B] =
+    tmap.takeFirstSTM { case (k, _) =>
+      pf(k)
+    }
+
+  /**
+   * Takes all matching values, or retries until there is at least one.
+   */
+  def takeSome[B](pf: PartialFunction[A, B]): USTM[NonEmptyChunk[B]] =
+    tmap.takeSome {
+      case (k, _) if pf.isDefinedAt(k) => pf(k)
+    }
+
+  /**
+   * Takes all matching values, or retries until there is at least one.
+   */
+  def takeSomeSTM[R, E, B](pf: A => ZSTM[R, Option[E], B]): ZSTM[R, E, NonEmptyChunk[B]] =
+    tmap.takeSomeSTM { case (k, _) =>
+      pf(k)
+    }
 
   /**
    * Collects all elements into a list.

@@ -922,6 +922,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     foldCauseZIO(c => c.failureOrCause.fold(failure, ZIO.failCause(_)), success)
 
   /**
+   * Returns a new effect that will pass the success value of this effect to the
+   * provided callback. If this effect fails, then the failure will be ignored.
+   */
+  final def forEachZIO[R1 <: R, E2, B](f: A => ZIO[R1, E2, B])(implicit trace: ZTraceElement): ZIO[R1, E2, Option[B]] =
+    self.foldCauseZIO(_ => ZIO.none, a => f(a).map(Some(_)))
+
+  /**
    * Repeats this effect forever (until the first error). For more sophisticated
    * schedules, see the `repeat` method.
    */
@@ -1236,6 +1243,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def once(implicit trace: ZTraceElement): UIO[ZIO[R, E, Unit]] =
     Ref.make(true).map(ref => self.whenZIO(ref.getAndSet(false)).unit)
+
+  final def onDone[R1 <: R](
+    error: E => ZIO[R1, Nothing, Any],
+    success: A => ZIO[R1, Nothing, Any]
+  )(implicit trace: ZTraceElement): ZIO[R1, Nothing, Unit] =
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).foldZIO(e => restore(error(e)), s => restore(success(s))).forkDaemon.unit
+    }
+
+  final def onDoneCause[R1 <: R](
+    error: Cause[E] => ZIO[R1, Nothing, Any],
+    success: A => ZIO[R1, Nothing, Any]
+  )(implicit trace: ZTraceElement): ZIO[R1, Nothing, Unit] =
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).foldCauseZIO(e => restore(error(e)), s => restore(success(s))).forkDaemon.unit
+    }
 
   /**
    * Runs the specified effect if this effect fails, providing the error to the
