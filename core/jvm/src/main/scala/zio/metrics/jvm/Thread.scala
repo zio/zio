@@ -2,6 +2,7 @@ package zio.metrics.jvm
 
 import zio.ZIOMetric.Gauge
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{ManagementFactory, ThreadMXBean}
 
@@ -41,7 +42,7 @@ trait Thread extends JvmMetrics {
 
   private def getThreadStateCounts(
     threadMXBean: ThreadMXBean
-  ): Task[Map[java.lang.Thread.State, Long]] =
+  )(implicit trace: ZTraceElement): Task[Map[java.lang.Thread.State, Long]] =
     for {
       allThreads <- Task(threadMXBean.getThreadInfo(threadMXBean.getAllThreadIds, 0))
       initial     = java.lang.Thread.State.values().map(_ -> 0L).toMap
@@ -52,7 +53,9 @@ trait Thread extends JvmMetrics {
                }
     } yield result
 
-  private def reportThreadMetrics(threadMXBean: ThreadMXBean): ZIO[Any, Throwable, Unit] =
+  private def reportThreadMetrics(
+    threadMXBean: ThreadMXBean
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
       _ <- Task(threadMXBean.getThreadCount) @@ threadsCurrent
       _ <- Task(threadMXBean.getDaemonThreadCount) @@ threadsDaemon
@@ -70,7 +73,7 @@ trait Thread extends JvmMetrics {
            }
     } yield ()
 
-  override val collectMetrics: ZManaged[Has[Clock] with Has[System], Throwable, Thread] =
+  override def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock] with Has[System], Throwable, Thread] =
     for {
       threadMXBean <- Task(ManagementFactory.getThreadMXBean).toManaged
       _ <-
@@ -80,6 +83,6 @@ trait Thread extends JvmMetrics {
 
 object Thread extends Thread with JvmMetrics.DefaultSchedule {
   def withSchedule(schedule: Schedule[Any, Any, Unit]): Thread = new Thread {
-    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
   }
 }

@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 import java.time.{Duration => JavaDuration, Instant, OffsetDateTime}
 import java.util.concurrent.TimeUnit

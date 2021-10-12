@@ -19,12 +19,13 @@ package zio.interop
 import _root_.java.nio.channels.CompletionHandler
 import _root_.java.util.concurrent.{CompletableFuture, CompletionException, CompletionStage, Future}
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionException
 
 private[zio] object javaz {
 
-  def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
+  def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: ZTraceElement): Task[T] =
     Task.suspendSucceedWith[T] { (p, _) =>
       Task.async { k =>
         val handler = new CompletionHandler[T, Any] {
@@ -45,10 +46,14 @@ private[zio] object javaz {
     }
 
   @deprecated("use asyncWithCompletionHandler", "2.0.0")
-  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit
+    trace: ZTraceElement
+  ): Task[T] =
     asyncWithCompletionHandler(op)
 
-  private def catchFromGet(isFatal: Throwable => Boolean): PartialFunction[Throwable, Task[Nothing]] = {
+  private def catchFromGet(
+    isFatal: Throwable => Boolean
+  )(implicit trace: ZTraceElement): PartialFunction[Throwable, Task[Nothing]] = {
     case e: CompletionException =>
       Task.fail(e.getCause)
     case e: ExecutionException =>
@@ -59,12 +64,12 @@ private[zio] object javaz {
       Task.fail(e)
   }
 
-  def unwrapDone[A](isFatal: Throwable => Boolean)(f: Future[A]): Task[A] =
+  def unwrapDone[A](isFatal: Throwable => Boolean)(f: Future[A])(implicit trace: ZTraceElement): Task[A] =
     try {
       Task.succeedNow(f.get())
     } catch catchFromGet(isFatal)
 
-  def fromCompletionStage[A](thunk: => CompletionStage[A]): Task[A] =
+  def fromCompletionStage[A](thunk: => CompletionStage[A])(implicit trace: ZTraceElement): Task[A] =
     Task.attempt(thunk).flatMap { cs =>
       Task.suspendSucceedWith { (p, _) =>
         val cf = cs.toCompletableFuture
@@ -84,7 +89,7 @@ private[zio] object javaz {
     }
 
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-  def fromFutureJava[A](thunk: => Future[A]): Task[A] =
+  def fromFutureJava[A](thunk: => Future[A])(implicit trace: ZTraceElement): Task[A] =
     RIO.attempt(thunk).flatMap { future =>
       RIO.suspendSucceedWith { (p, _) =>
         if (future.isDone) {

@@ -21,6 +21,7 @@ import zio.ZIO.{FlatMap, TracedCont}
 import zio._
 import zio.internal.FiberContext.FiberRefLocals
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.annotation.{switch, tailrec}
@@ -129,7 +130,7 @@ private[zio] final class FiberContext[E, A](
   private[this] class Finalizer(val finalizer: UIO[Any]) extends ErasedTracedCont {
     def apply(v: Any): Erased = {
       disableInterrupt()
-      restoreInterrupt()
+      restoreInterrupt()(finalizer.trace)
       finalizer.map(_ => v)(finalizer.trace)
     }
     override val trace: ZTraceElement = finalizer.trace
@@ -406,7 +407,7 @@ private[zio] final class FiberContext[E, A](
                       // Error not caught, stack is empty:
                       setInterrupting(true)
 
-                      curZio = done(Exit.failCause(fullCause.asInstanceOf[Cause[E]]))
+                      curZio = done(Exit.failCause(fullCause.asInstanceOf[Cause[E]]))(curZio.trace)
                     } else {
                       setInterrupting(false)
 
@@ -440,7 +441,7 @@ private[zio] final class FiberContext[E, A](
                     if (interruptStatus.peekOrElse(true) != boolFlag) {
                       interruptStatus.push(boolFlag)
 
-                      restoreInterrupt()
+                      restoreInterrupt()(curZio.trace)
                     }
 
                     curZio = zio.zio
@@ -512,7 +513,7 @@ private[zio] final class FiberContext[E, A](
                       curZio = ZIO.unit
                     } else {
                       currentLocked = true
-                      curZio = if (executor eq currentExecutor) ZIO.unit else shift(executor)
+                      curZio = if (executor eq currentExecutor) ZIO.unit else shift(executor)(curZio.trace)
                     }
 
                   case ZIO.Tags.Yield =>
@@ -563,7 +564,8 @@ private[zio] final class FiberContext[E, A](
 
                     setFiberRefValue(fiberRef, zio.localValue)
 
-                    curZio = zio.zio.ensuring(ZIO.succeed(setFiberRefValue(fiberRef, oldValue)))
+                    curZio =
+                      zio.zio.ensuring(ZIO.succeed(setFiberRefValue(fiberRef, oldValue))(curZio.trace))(curZio.trace)
 
                   case ZIO.Tags.FiberRefDelete =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefDelete]
@@ -630,7 +632,7 @@ private[zio] final class FiberContext[E, A](
               }
             } else {
               // Fiber was interrupted
-              curZio = ZIO.failCause(clearSuppressedCause())
+              curZio = ZIO.failCause(clearSuppressedCause())(curZio.trace)
 
               // Prevent interruption of interruption:
               setInterrupting(true)
@@ -676,7 +678,7 @@ private[zio] final class FiberContext[E, A](
     if (execTrace.lastOrNull ne trace)
       execTrace.put(trace)
 
-  private[this] def shift(executor: zio.Executor): UIO[Unit] =
+  private[this] def shift(executor: zio.Executor)(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.succeed { currentExecutor = executor } *> ZIO.yieldNow
 
   private[this] def getDescriptor(): Fiber.Descriptor =
@@ -693,7 +695,7 @@ private[zio] final class FiberContext[E, A](
   private[this] def ensure(finalizer: UIO[Any]): Unit =
     stack.push(new Finalizer(finalizer))
 
-  private[this] def restoreInterrupt(): Unit =
+  private[this] def restoreInterrupt()(implicit trace: ZTraceElement): Unit =
     stack.push(new InterruptExit())
 
   /**
@@ -798,7 +800,7 @@ private[zio] final class FiberContext[E, A](
     executor.submitOrThrow(this)
   }
 
-  private[this] def resumeAsync(epoch: Long): Erased => Unit = { zio =>
+  private[this] def resumeAsync(epoch: Long)(implicit trace: ZTraceElement): Erased => Unit = { zio =>
     if (exitAsync(epoch)) evaluateLater(zio)
   }
 

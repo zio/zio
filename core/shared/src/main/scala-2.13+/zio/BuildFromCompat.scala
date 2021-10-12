@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.collection.IterableOps
 
 private[zio] trait BuildFromCompat {

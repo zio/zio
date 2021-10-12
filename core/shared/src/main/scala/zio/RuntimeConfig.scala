@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.tracing.Tracing
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `RuntimeConfig` provides the minimum capabilities necessary to bootstrap

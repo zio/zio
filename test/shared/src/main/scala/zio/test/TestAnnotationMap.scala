@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.collection.immutable.Map
 
 /**

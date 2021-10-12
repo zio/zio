@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.tracing.Tracing
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
     extends (RuntimeConfig => RuntimeConfig) { self =>

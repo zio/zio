@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * `FailureDetails` keeps track of details relevant to failures.
  */

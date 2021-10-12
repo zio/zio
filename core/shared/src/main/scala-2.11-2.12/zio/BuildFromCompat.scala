@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable.Builder
 

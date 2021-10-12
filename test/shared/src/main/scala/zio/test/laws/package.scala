@@ -17,6 +17,8 @@
 package zio.test
 
 import zio.{Has, ZIO}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.ZTraceElement
 
 /**
  * The `laws` package provides functionality for describing laws as values.
@@ -167,7 +169,7 @@ package object laws {
    */
   def checkAllLaws[Caps[_], R <: Has[TestConfig], R1 <: R, A: Caps](
     lawful: ZLawful[Caps, R]
-  )(gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+  )(gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
     lawful.laws.run(gen)
 
   /**
@@ -176,12 +178,15 @@ package object laws {
    */
   def checkAllLaws[CapsBoth[_, _], CapsLeft[_], CapsRight[_], R <: Has[TestConfig], R1 <: R, A: CapsLeft, B: CapsRight](
     lawful: ZLawful2[CapsBoth, CapsLeft, CapsRight, R]
-  )(a: Gen[R1, A], b: Gen[R1, B])(implicit CapsBoth: CapsBoth[A, B]): ZIO[R1, Nothing, TestResult] =
+  )(a: Gen[R1, A], b: Gen[R1, B])(implicit
+    CapsBoth: CapsBoth[A, B],
+    trace: ZTraceElement
+  ): ZIO[R1, Nothing, TestResult] =
     lawful.laws.run(a, b)
 
   def checkAllLaws[CapsF[_[+_]], Caps[_], R <: Has[TestConfig], R1 <: R, F[+_]: CapsF, A: Caps](
     lawful: ZLawfulF.Covariant[CapsF, Caps, R]
-  )(genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+  )(genF: GenF[R1, F], gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
     lawful.laws.run(genF, gen)
 
   /**
@@ -190,7 +195,7 @@ package object laws {
    */
   def checkAllLaws[CapsF[_[-_]], Caps[_], R <: Has[TestConfig], R1 <: R, F[-_]: CapsF, A: Caps](
     lawful: ZLawfulF.Contravariant[CapsF, Caps, R]
-  )(genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+  )(genF: GenF[R1, F], gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
     lawful.laws.run(genF, gen)
 
   /**
@@ -199,6 +204,6 @@ package object laws {
    */
   def checkAllLaws[CapsF[_[_]], Caps[_], R <: Has[TestConfig], R1 <: R, F[_]: CapsF, A: Caps](
     lawful: ZLawfulF.Invariant[CapsF, Caps, R]
-  )(genF: GenF[R1, F], gen: Gen[R1, A]): ZIO[R1, Nothing, TestResult] =
+  )(genF: GenF[R1, F], gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
     lawful.laws.run(genF, gen)
 }

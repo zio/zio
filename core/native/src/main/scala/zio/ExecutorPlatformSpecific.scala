@@ -16,4 +16,6 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 trait ExecutorPlatformSpecific

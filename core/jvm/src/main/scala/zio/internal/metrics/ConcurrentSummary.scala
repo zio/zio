@@ -1,6 +1,7 @@
 package zio.internal.metrics
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReferenceArray, DoubleAdder, LongAdder}
 

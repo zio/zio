@@ -16,24 +16,25 @@
 
 package zio.test
 
-import zio.{Console, Has, UIO, URIO, ZIO, ZLayer}
+import zio.{Console, Has, UIO, URIO, ZIO, ZLayer, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait TestLogger extends Serializable {
-  def logLine(line: String): UIO[Unit]
+  def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit]
 }
 
 object TestLogger {
 
-  def fromConsole: ZLayer[Has[Console], Nothing, Has[TestLogger]] =
+  def fromConsole(implicit trace: ZTraceElement): ZLayer[Has[Console], Nothing, Has[TestLogger]] =
     ZIO
       .service[Console]
       .map { console =>
         new TestLogger {
-          def logLine(line: String): UIO[Unit] = console.printLine(line).orDie
+          def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] = console.printLine(line).orDie
         }
       }
       .toLayer
 
-  def logLine(line: String): URIO[Has[TestLogger], Unit] =
+  def logLine(line: String)(implicit trace: ZTraceElement): URIO[Has[TestLogger], Unit] =
     ZIO.accessZIO(_.get.logLine(line))
 }

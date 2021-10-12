@@ -17,6 +17,7 @@
 package zio.stream.experimental
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `SubscriptionRef[A]` contains a `Ref.Synchronized` with a value of type
@@ -33,7 +34,7 @@ object SubscriptionRef {
   /**
    * Creates a new `SubscriptionRef` with the specified value.
    */
-  def make[A](a: A): UIO[SubscriptionRef[A]] =
+  def make[A](a: A)(implicit trace: ZTraceElement): UIO[SubscriptionRef[A]] =
     for {
       ref <- Ref.Synchronized.make(a)
       hub <- Hub.unbounded[A]
