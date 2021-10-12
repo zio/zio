@@ -17,6 +17,7 @@
 package zio
 
 import zio.Exit._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicReference, LongAdder}
 import scala.collection.immutable.SortedSet
@@ -32,14 +33,14 @@ abstract class Supervisor[+A] { self =>
    * value has been transformed by the specified function.
    */
   def map[B](f: A => B): Supervisor[B] =
-    new Supervisor.ProxySupervisor(value.map(f), self)
+    new Supervisor.ProxySupervisor(trace => value(trace).map(f)(trace), self)
 
   /**
    * Returns an effect that succeeds with the value produced by this
    * supervisor. This value may change over time, reflecting what the
    * supervisor produces as it supervises fibers.
    */
-  def value: UIO[A]
+  def value(implicit trace: ZTraceElement): UIO[A]
 
   /**
    * Returns a new supervisor that performs the function of this supervisor,
@@ -50,7 +51,7 @@ abstract class Supervisor[+A] { self =>
     new Supervisor[(A, B)] {
       lazy val that = that0
 
-      def value = self.value zip that.value
+      def value(implicit trace: ZTraceElement) = self.value zip that.value
 
       def unsafeOnStart[R, E, A](
         environment: R,
@@ -106,7 +107,7 @@ object Supervisor {
       val failures        = new LongAdder()
       val defects         = new LongAdder()
 
-      def value: UIO[RuntimeStats] =
+      def value(implicit trace: ZTraceElement): UIO[RuntimeStats] =
         UIO(
           RuntimeStats(
             milliLifetimes.snapshot(),
@@ -165,13 +166,13 @@ object Supervisor {
    * @param weak Whether or not to track the children in a weak set, if
    *             possible (platform-dependent).
    */
-  def track(weak: Boolean): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] = UIO {
+  def track(weak: Boolean)(implicit trace: ZTraceElement): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] = UIO {
     val set: java.util.Set[Fiber.Runtime[Any, Any]] =
       if (weak) Platform.newWeakSet[Fiber.Runtime[Any, Any]]()
       else new java.util.HashSet[Fiber.Runtime[Any, Any]]()
 
     new Supervisor[Chunk[Fiber.Runtime[Any, Any]]] {
-      def value: UIO[Chunk[Fiber.Runtime[Any, Any]]] =
+      def value(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[Any, Any]]] =
         UIO.succeed(
           Sync(set)(Chunk.fromArray(set.toArray[Fiber.Runtime[Any, Any]](Array[Fiber.Runtime[Any, Any]]())))
         )
@@ -194,20 +195,20 @@ object Supervisor {
   }
 
   @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(value)
+  def fromEffect[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(_ => value)
 
-  def fromZIO[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(value)
+  def fromZIO[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(_ => value)
 
   /**
    * Creates a new supervisor that tracks children in a set.
    */
   def fibersIn(
     ref: AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]
-  ): UIO[Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]] =
+  )(implicit trace: ZTraceElement): UIO[Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]] =
     UIO {
 
       new Supervisor[SortedSet[Fiber.Runtime[Any, Any]]] {
-        def value: UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
+        def value(implicit trace: ZTraceElement): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
           ZIO.succeed(ref.get)
 
         def unsafeOnStart[R, E, A](
@@ -236,10 +237,10 @@ object Supervisor {
   /**
    * A supervisor that doesn't do anything in response to supervision events.
    */
-  val none: Supervisor[Unit] = new ConstSupervisor(ZIO.unit)
+  val none: Supervisor[Unit] = new ConstSupervisor(_ => ZIO.unit)
 
-  private class ConstSupervisor[A](value0: UIO[A]) extends Supervisor[A] {
-    def value = value0
+  private class ConstSupervisor[A](value0: ZTraceElement => UIO[A]) extends Supervisor[A] {
+    def value(implicit trace: ZTraceElement): UIO[A] = value0(trace)
 
     def unsafeOnStart[R, E, A](
       environment: R,
@@ -251,8 +252,8 @@ object Supervisor {
     def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit = ()
   }
 
-  private class ProxySupervisor[A](value0: UIO[A], underlying: Supervisor[Any]) extends Supervisor[A] {
-    def value = value0
+  private class ProxySupervisor[A](value0: ZTraceElement => UIO[A], underlying: Supervisor[Any]) extends Supervisor[A] {
+    def value(implicit trace: ZTraceElement): UIO[A] = value0(trace)
 
     def unsafeOnStart[R, E, A](
       environment: R,

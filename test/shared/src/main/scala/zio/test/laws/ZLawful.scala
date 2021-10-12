@@ -16,6 +16,8 @@
 
 package zio.test.laws
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * `ZLawful[Caps, R]` describes a capability that is expected to satisfy a set
  * of laws. Lawful instances can be combined using `+` to describe a set of

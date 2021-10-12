@@ -16,8 +16,9 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.AssertionM.RenderParam
-import zio.{Cause, Exit, ZIO}
+import zio.{Cause, Exit, ZIO, ZTraceElement}
 
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
@@ -34,7 +35,7 @@ final class Assertion[-A] private (
     with ((=> A) => AssertResult) { self =>
   import zio.test.Assertion.Render._
 
-  def runM: (=> A) => AssertResultM = a => BoolAlgebraM(ZIO.succeed(run(a)))
+  def runM: (=> A) => AssertResultM = a => BoolAlgebraM(ZIO.succeed(run(a))(ZTraceElement.empty))
 
   /**
    * Returns a new assertion that succeeds only if both assertions succeed.
@@ -82,7 +83,7 @@ final class Assertion[-A] private (
   /**
    * Returns the negation of this assertion.
    */
-  override def negate: Assertion[A] =
+  override def negate(implicit trace: ZTraceElement): Assertion[A] =
     Assertion.not(self)
 
   /**

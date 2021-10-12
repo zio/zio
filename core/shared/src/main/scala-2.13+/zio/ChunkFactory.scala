@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 private[zio] trait ChunkFactory {
   def apply[A](as: A*): Chunk[A]
   def fill[A](n: Int)(elem: => A): Chunk[A]

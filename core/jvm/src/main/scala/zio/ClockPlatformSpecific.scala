@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.{NamedThreadFactory, Scheduler}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent._
 

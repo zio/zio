@@ -1,13 +1,14 @@
 package zio.test
 
-import zio.{Chunk, ZIO, ZManaged}
+import zio.{Chunk, ZIO, ZManaged, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
 trait SuiteConstructor[In] {
   type OutEnvironment
   type OutError
   type OutSuccess
-  def apply(spec: In): Spec[OutEnvironment, OutError, OutSuccess]
+  def apply(spec: In)(implicit trace: ZTraceElement): Spec[OutEnvironment, OutError, OutSuccess]
 }
 
 object SuiteConstructor extends SuiteConstructorLowPriority1 {
@@ -24,7 +25,7 @@ object SuiteConstructor extends SuiteConstructorLowPriority1 {
       type OutEnvironment = Any
       type OutError       = Nothing
       type OutSuccess     = Nothing
-      def apply(spec: Nothing): Spec[Any, Nothing, Nothing] =
+      def apply(spec: Nothing)(implicit trace: ZTraceElement): Spec[Any, Nothing, Nothing] =
         Spec.multiple(Chunk.empty)
     }
 }
@@ -36,7 +37,7 @@ trait SuiteConstructorLowPriority1 extends SuiteConstructorLowPriority2 {
       type OutEnvironment = R
       type OutError       = E
       type OutSuccess     = T
-      def apply(spec: Spec[R, E, T]): Spec[R, E, T] =
+      def apply(spec: Spec[R, E, T])(implicit trace: ZTraceElement): Spec[R, E, T] =
         spec
     }
 }
@@ -49,7 +50,7 @@ trait SuiteConstructorLowPriority2 extends SuiteConstructorLowPriority3 {
       type OutEnvironment = R with R1
       type OutError       = E2
       type OutSuccess     = T
-      def apply(specs: ZIO[R, E, Collection[Spec[R1, E1, T]]]): Spec[R with R1, E2, T] =
+      def apply(specs: ZIO[R, E, Collection[Spec[R1, E1, T]]])(implicit trace: ZTraceElement): Spec[R with R1, E2, T] =
         Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).toManaged)
     }
 }
@@ -62,7 +63,9 @@ trait SuiteConstructorLowPriority3 extends SuiteConstructorLowPriority4 {
       type OutEnvironment = R with R1
       type OutError       = E2
       type OutSuccess     = T
-      def apply(specs: ZManaged[R, E, Collection[Spec[R1, E1, T]]]): Spec[R with R1, E2, T] =
+      def apply(specs: ZManaged[R, E, Collection[Spec[R1, E1, T]]])(implicit
+        trace: ZTraceElement
+      ): Spec[R with R1, E2, T] =
         Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))))
     }
 }
@@ -75,7 +78,7 @@ trait SuiteConstructorLowPriority4 {
       type OutEnvironment = R with R1
       type OutError       = E2
       type OutSuccess     = T
-      def apply(specs: ZSTM[R, E, Collection[Spec[R1, E1, T]]]): Spec[R with R1, E2, T] =
+      def apply(specs: ZSTM[R, E, Collection[Spec[R1, E1, T]]])(implicit trace: ZTraceElement): Spec[R with R1, E2, T] =
         Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).commit.toManaged)
     }
 }

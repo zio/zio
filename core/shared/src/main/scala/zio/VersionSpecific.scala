@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import izumi.reflect.macrortti.LightTypeTagRef
 
 private[zio] trait VersionSpecific {

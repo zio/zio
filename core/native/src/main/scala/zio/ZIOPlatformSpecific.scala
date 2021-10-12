@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A]
 
 private[zio] trait ZIOCompanionPlatformSpecific

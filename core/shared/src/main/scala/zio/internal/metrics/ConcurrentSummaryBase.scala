@@ -1,6 +1,7 @@
 package zio.internal.metrics
 
 import zio.Chunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 

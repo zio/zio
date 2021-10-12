@@ -17,6 +17,7 @@
 package zio.internal
 
 import zio.Chunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] final class SingleThreadedRingBuffer[A](capacity: Int) {
   private[this] val array   = new Array[AnyRef](capacity)
