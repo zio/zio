@@ -1981,7 +1981,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Unlike `CollectAllPar_`, this method will use at most `n` fibers.
    */
   @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllParN_[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]])(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
+  def collectAllParN_[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Unit] =
     collectAllParNDiscard(n)(as)
 
   /**
@@ -1991,7 +1993,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Unlike `collectAllParDiscard`, this method will use at most `n` fibers.
    */
   @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllParNDiscard[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]])(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
+  def collectAllParNDiscard[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Unit] =
     foreachParNDiscard(n)(as)(ZIO.identityFn)
 
   /**
@@ -2336,7 +2340,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * For a sequential version of this method, see `foreachDiscard`.
    */
-  def foreachParDiscard[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Any])(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
+  def foreachParDiscard[R, E, A](
+    as: => Iterable[A]
+  )(f: A => ZManaged[R, E, Any])(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
     ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
       val makeInnerMap =
         ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
@@ -2897,7 +2903,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * - commutative: `f(a, b) == f(b, a)`
    * - associative: `f(a, f(b, c)) == f(f(a, b), c)`
    */
-  def mergeAllPar[R, E, A, B](in: => Iterable[ZManaged[R, E, A]])(zero: => B)(f: (B, A) => B)(implicit trace: ZTraceElement): ZManaged[R, E, B] =
+  def mergeAllPar[R, E, A, B](
+    in: => Iterable[ZManaged[R, E, A]]
+  )(zero: => B)(f: (B, A) => B)(implicit trace: ZTraceElement): ZManaged[R, E, B] =
     ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
       ZIO.mergeAllPar(in.map(_.zio.map(_._2)))(zero)(f).provideSome[R]((_, parallelReleaseMap))
     }

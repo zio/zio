@@ -818,7 +818,9 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.foreachParNDiscard]]
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachParNDiscard[A, B](n: => Int)(as: => Iterable[A])(f: A => Task[Any])(implicit trace: ZTraceElement): Task[Unit] =
+  def foreachParNDiscard[A, B](n: => Int)(as: => Iterable[A])(f: A => Task[Any])(implicit
+    trace: ZTraceElement
+  ): Task[Unit] =
     ZIO.foreachParNDiscard(n)(as)(f)
 
   /**
@@ -1124,7 +1126,9 @@ object Task extends TaskPlatformSpecific {
    * @see See [[zio.ZIO.partitionParN]]
    */
   @deprecated("use partitionPar", "2.0.0")
-  def partitionParN[A, B](n: => Int)(in: => Iterable[A])(f: A => Task[B])(implicit trace: ZTraceElement): Task[(Iterable[Throwable], Iterable[B])] =
+  def partitionParN[A, B](n: => Int)(in: => Iterable[A])(f: A => Task[B])(implicit
+    trace: ZTraceElement
+  ): Task[(Iterable[Throwable], Iterable[B])] =
     ZIO.partitionPar(in)(f)
 
   /**

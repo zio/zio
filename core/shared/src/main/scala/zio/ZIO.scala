@@ -3294,7 +3294,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Unlike `collectAllPar_`, this method will use at most `n` fibers.
    */
   @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllParN_[R, E, A](n: => Int)(as: => Iterable[ZIO[R, E, A]])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+  def collectAllParN_[R, E, A](n: => Int)(as: => Iterable[ZIO[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, Unit] =
     collectAllParNDiscard(n)(as)
 
   /**
@@ -3304,7 +3306,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Unlike `collectAllParDiscard`, this method will use at most `n` fibers.
    */
   @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllParNDiscard[R, E, A](n: => Int)(as: => Iterable[ZIO[R, E, A]])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+  def collectAllParNDiscard[R, E, A](n: => Int)(as: => Iterable[ZIO[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, Unit] =
     foreachParDiscard(as)(ZIO.identityFn)
 
   /**
@@ -4071,7 +4075,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * Additionally, interrupts all effects on any failure.
    */
-  def foreachParDiscard[R, E, A](as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+  def foreachParDiscard[R, E, A](
+    as: => Iterable[A]
+  )(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
     ZIO.parallelismWith {
       case Some(n) => foreachParDiscard(n)(as)(f)
       case None    => foreachParUnboundedDiscard(as)(f)
@@ -4086,7 +4092,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   @deprecated("use foreachPar", "2.0.0")
   def foreachParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[A]
-  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
+  )(
+    fn: A => ZIO[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
     foreachPar(as)(fn).withParallelism(n)
 
   /**
@@ -4096,7 +4104,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachParN_[R, E, A](n: => Int)(as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+  def foreachParN_[R, E, A](n: => Int)(as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, Unit] =
     foreachParDiscard(as)(f)
 
   /**
@@ -4106,7 +4116,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Unlike `foreachParDiscard`, this method will use at most up to `n` fibers.
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachParNDiscard[R, E, A](n: => Int)(as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+  def foreachParNDiscard[R, E, A](n: => Int)(as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, Unit] =
     foreachParDiscard(as)(f).withParallelism(n)
 
   /**
@@ -6387,12 +6399,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.SucceedNow(a)
 
-  private def collectAllParUnboundedDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+  private def collectAllParUnboundedDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, Unit] =
     foreachParUnboundedDiscard(as)(ZIO.identityFn)
 
   private def foreachPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](n0: => Int)(
     as: Collection[A]
-  )(fn: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
+  )(
+    fn: A => ZIO[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
     ZIO.suspendSucceed {
       val n = n0
       if (n < 1) ZIO.dieMessage(s"Unexpected nonpositive value `$n` passed to foreachParN.")
@@ -6418,7 +6434,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
     }
 
-  private def foreachParDiscard[R, E, A](n: => Int)(as0: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+  private def foreachParDiscard[R, E, A](
+    n: => Int
+  )(as0: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
     ZIO.suspendSucceed {
       val as   = as0
       val size = as.size
@@ -6441,7 +6459,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private def foreachParUnbounded[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => ZIO[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
+  )(
+    f: A => ZIO[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
     ZIO.suspendSucceed {
       val array = Array.ofDim[AnyRef](as.size)
       val zioFunction: ((A, Int)) => ZIO[R, E, Any] = { case (a, i) =>
@@ -6451,7 +6471,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         succeedNow(bf.fromSpecific(as)(array.asInstanceOf[Array[B]]))
     }
 
-  private def foreachParUnboundedDiscard[R, E, A](as0: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+  private def foreachParUnboundedDiscard[R, E, A](
+    as0: => Iterable[A]
+  )(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
     ZIO.suspendSucceed {
       val as = as0
       if (as.isEmpty) ZIO.unit

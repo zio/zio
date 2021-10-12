@@ -836,14 +836,18 @@ object RIO {
    * @see See [[zio.ZIO.foreachParN_]]
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachParN_[R, A, B](n: => Int)(as: => Iterable[A])(f: A => RIO[R, Any])(implicit trace: ZTraceElement): RIO[R, Unit] =
+  def foreachParN_[R, A, B](n: => Int)(as: => Iterable[A])(f: A => RIO[R, Any])(implicit
+    trace: ZTraceElement
+  ): RIO[R, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachParNDiscard]]
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachParNDiscard[R, A, B](n: => Int)(as: => Iterable[A])(f: A => RIO[R, Any])(implicit trace: ZTraceElement): RIO[R, Unit] =
+  def foreachParNDiscard[R, A, B](n: => Int)(as: => Iterable[A])(f: A => RIO[R, Any])(implicit
+    trace: ZTraceElement
+  ): RIO[R, Unit] =
     ZIO.foreachParNDiscard(n)(as)(f)
 
   /**

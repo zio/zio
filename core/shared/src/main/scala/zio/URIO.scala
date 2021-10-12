@@ -303,7 +303,9 @@ object URIO {
    * @see See [[zio.ZIO.collectAllParNDiscard]]
    */
   @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllParNDiscard[R, A](n: => Int)(as: => Iterable[URIO[R, A]])(implicit trace: ZTraceElement): URIO[R, Unit] =
+  def collectAllParNDiscard[R, A](n: => Int)(as: => Iterable[URIO[R, A]])(implicit
+    trace: ZTraceElement
+  ): URIO[R, Unit] =
     ZIO.collectAllParNDiscard(n)(as)
 
   /**
@@ -760,14 +762,18 @@ object URIO {
    * @see [[zio.ZIO.foreachParN_]]
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachParN_[R, A, B](n: => Int)(as: => Iterable[A])(f: A => URIO[R, Any])(implicit trace: ZTraceElement): URIO[R, Unit] =
+  def foreachParN_[R, A, B](n: => Int)(as: => Iterable[A])(f: A => URIO[R, Any])(implicit
+    trace: ZTraceElement
+  ): URIO[R, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
    * @see [[zio.ZIO.foreachParNDiscard]]
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachParNDiscard[R, A, B](n: => Int)(as: => Iterable[A])(f: A => URIO[R, Any])(implicit trace: ZTraceElement): URIO[R, Unit] =
+  def foreachParNDiscard[R, A, B](n: => Int)(as: => Iterable[A])(f: A => URIO[R, Any])(implicit
+    trace: ZTraceElement
+  ): URIO[R, Unit] =
     ZIO.foreachParNDiscard(n)(as)(f)
 
   /**
