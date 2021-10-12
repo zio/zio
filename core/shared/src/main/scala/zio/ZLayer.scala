@@ -20,6 +20,8 @@ import zio.ZManaged.ReleaseMap
 import zio.duration.Duration
 import zio.internal.Platform
 
+import scala.collection.mutable.Builder
+
 /**
  * A `ZLayer[A, E, B]` describes a layer of an application: every layer in an
  * application requires some services (the input) and produces some services
@@ -349,6 +351,15 @@ object ZLayer {
     Managed(managed)
 
   /**
+    * Gathers up the ZLayers inside of the given collection, and combines them into a single ZLayer containing
+    * an equivalent collection of results.
+    */
+  def collectAll[R, E, A, Collection[+Element] <: Iterable[Element]](
+    in: Collection[ZLayer[R, E, A]]
+  )(implicit bf: BuildFrom[Collection[ZLayer[R, E, A]], A, Collection[A]]): ZLayer[R, E, Collection[A]] =
+    foreach(in)(i => i)
+
+  /**
    * Constructs a layer that fails with the specified value.
    */
   def fail[E](e: E): Layer[E, Nothing] =
@@ -359,6 +370,17 @@ object ZLayer {
    */
   def first[A]: ZLayer[(A, Any), Nothing, A] =
     ZLayer.fromFunctionMany(_._1)
+
+  /**
+    * Applies the function `f` to each element of the `Collection[A]` and
+    * returns the results in a new `Collection[B]`.
+    */
+  def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](
+    in: Collection[A]
+  )(f: A => ZLayer[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZLayer[R, E, Collection[B]] =
+    in.foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeedMany(bf.newBuilder(in)))((io, a) =>
+      io.zipWithPar(f(a))(_ += _)
+    ).map(_.result())
 
   /**
    * Constructs a layer from acquire and release actions. The acquire and
