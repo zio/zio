@@ -1,5 +1,7 @@
 package zio
 
+import _root_.zio.internal.stacktracer.ZTraceElement
+
 /*
  * Copyright 2021 John A. De Goes and the ZIO Contributors
  *
@@ -16,20 +18,26 @@ package zio
  * limitations under the License.
  */
 
+/**
+ * A `ZPool[E, A]` is a pool of items of type `A`, each of which may be
+ * associated with the acquisition and release of resources.
+ */
 trait ZPool[+Error, Item] {
 
   /**
-   * Retrieves an item from the pool in a `Managed` effect. Note that if acquisition fails, then
-   * the returned effect will fail for that same reason. Retrying a failed acquisition attempt
-   * will repeat the acquisition attempt.
+   * Retrieves an item from the pool in a `Managed` effect. Note that if
+   * acquisition fails, then the returned effect will fail for that same
+   * reason. Retrying a failed acquisition attempt will repeat the acquisition
+   * attempt.
    */
-  def get: ZManaged[Any, Error, Item]
+  def get(implicit trace: ZTraceElement): ZManaged[Any, Error, Item]
 
   /**
-   * Invalidates the specified item. This will cause the pool to eventually reallocate the item,
-   * although this reallocation may occur lazily rather than eagerly.
+   * Invalidates the specified item. This will cause the pool to eventually
+   * reallocate the item, although this reallocation may occur lazily rather
+   * than eagerly.
    */
-  def invalidate(item: Item): UIO[Unit]
+  def invalidate(item: Item)(implicit trace: ZTraceElement): UIO[Unit]
 }
 object ZPool {
 
@@ -39,7 +47,7 @@ object ZPool {
    * associated with items in the pool. If cleanup or release is required,
    * then the `make` constructor should be used instead.
    */
-  def fromIterable[A](iterable: => Iterable[A]): UManaged[ZPool[Nothing, A]] =
+  def fromIterable[A](iterable: => Iterable[A])(implicit trace: ZTraceElement): UManaged[ZPool[Nothing, A]] =
     for {
       source <- Ref.make(iterable.toList).toManaged
       get = source.modify { case head :: tail =>
@@ -48,18 +56,25 @@ object ZPool {
       pool <- ZPool.make(ZManaged.fromZIO(get), iterable.size to iterable.size)
     } yield pool
 
-  def make[E, A](get: ZManaged[Any, E, A], min: Int): UManaged[ZPool[E, A]] =
+  /**
+   * Makes a new pool of the specified fixed size.
+   */
+  def make[E, A](get: ZManaged[Any, E, A], min: Int)(implicit trace: ZTraceElement): UManaged[ZPool[E, A]] =
     make(get, min to min)
 
   /**
+   * Makes a new pool with the specified minimum and maximum sizes. The pool is
+   * returned in a `Managed`, which governs the lifetime of the pool. When the
+   * pull is shutdown because the `Managed` is used, the individual items
+   * allocated by the pool will be released in some unspecified order.
    * {{{
    * for {
    *   pool <- ZPool.make(acquireDbConnection, 10 to 20)
-   *   _    <- pool.get.use { connection => useConnection(connection) }
+   *   _    <- pool.use { pool => pool.get.use { connection => useConnection(connection) } }
    * } yield ()
    * }}}
    */
-  def make[E, A](get: ZManaged[Any, E, A], range: Range): UManaged[ZPool[E, A]] =
+  def make[E, A](get: ZManaged[Any, E, A], range: Range)(implicit trace: ZTraceElement): UManaged[ZPool[E, A]] =
     for {
       down  <- Ref.make(false).toManaged
       size  <- Ref.make(0).toManaged
@@ -97,7 +112,7 @@ object ZPool {
      * Triggers a single allocation in the background. Updates the data
      * structures to ensure consistency.
      */
-    private def allocate: UIO[Any] =
+    private def allocate(implicit trace: ZTraceElement): UIO[Any] =
       ZIO.unlessZIO(isShuttingDown.get) {
         ZIO.uninterruptibleMask { restore =>
           (for {
@@ -110,7 +125,7 @@ object ZPool {
         }
       }
 
-    final def get: ZManaged[Any, E, A] = {
+    final def get(implicit trace: ZTraceElement): ZManaged[Any, E, A] = {
 
       /**
        * If the attempted item has been invalidated, we have to reallocate and
@@ -146,7 +161,7 @@ object ZPool {
      * Gets an item from the pool and shuts it down, returning `true` if this
      * was successful, or `false` if the pool was empty.
      */
-    private def getAndShutdown: UIO[Boolean] =
+    private def getAndShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
       size.get.map(_ > 0).tap { more =>
         ZIO.when(more) {
           free.take.flatMap { attempted =>
@@ -160,11 +175,11 @@ object ZPool {
     /**
      * Begins pre-allocating pool entries based on minimum pool size.
      */
-    final def initialize: UIO[Unit] = ZIO.replicateZIODiscard(range.start)(allocate)
+    final def initialize(implicit trace: ZTraceElement): UIO[Unit] = ZIO.replicateZIODiscard(range.start)(allocate)
 
-    final def invalidate(a: A): UIO[Unit] = invalidated.update(_ + a)
+    final def invalidate(a: A)(implicit trace: ZTraceElement): UIO[Unit] = invalidated.update(_ + a)
 
-    final def shutdown: UIO[Unit] =
+    final def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
       isShuttingDown.set(true) *>
         getAndShutdown.repeatWhile(_ == true) *>
         free.shutdown *>

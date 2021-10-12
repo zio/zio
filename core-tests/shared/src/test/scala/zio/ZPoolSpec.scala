@@ -4,33 +4,6 @@ import zio.test._
 import zio.test.environment.Live
 
 object ZPoolSpec extends ZIOBaseSpec {
-  final case class FakeResource(released: Ref[Int])
-
-  def acquire[S](ref: Ref[S], f: S => (Option[String], S)): IO[String, FakeResource] =
-    ref.modify(f).flatMap {
-      case Some(value) => IO.fail(value)
-      case None =>
-        for {
-          released <- Ref.make(0)
-        } yield FakeResource(released)
-    }
-
-  def release(fr: FakeResource): UIO[Any] = fr.released.update(_ + 1)
-
-  def allocate[S](ref: Ref[S], f: S => (Option[String], S)): ZManaged[Any, String, FakeResource] =
-    ZManaged.acquireReleaseWith(acquire(ref, f))(release(_))
-
-  def doTest[R, E, S](n: Int, initial: S)(
-    update: S => (Option[String], S)
-  )(use: (Ref[S], ZPool[String, FakeResource]) => ZIO[R, E, Any])(finish: S => TestResult): ZIO[R, E, TestResult] =
-    for {
-      ref <- Ref.make(initial)
-      _ <- ZPool.make(allocate(ref, update), n).use { pool =>
-             use(ref, pool)
-           }
-      result <- ref.get.map(finish)
-    } yield result
-
   def spec: ZSpec[Environment, Failure] =
     suite("ZPoolSpec") {
       test("preallocates pool items") {
