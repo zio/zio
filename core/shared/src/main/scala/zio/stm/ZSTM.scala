@@ -328,7 +328,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * allows you to use all methods on the error channel, possibly before
    * flipping back.
    */
-  def flip(implicit ev: CanFail[E]): ZSTM[R, A, E] =
+  def flip: ZSTM[R, A, E] =
     foldSTM(ZSTM.succeedNow, ZSTM.fail(_))
 
   /**
