@@ -5,7 +5,7 @@ import zio._
 import zio.stm.TQueue
 import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, ignore, nonFlaky, samples, scala2Only, timeout}
+import zio.test.TestAspect.{flaky, ignore, nonFlaky, scala2Only, timeout}
 import zio.test._
 import zio.test.environment.TestClock
 
@@ -762,7 +762,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- s1.catchAllCause(_ => s2).runCollect.exit
               result <- fins.get
             } yield assert(result)(equalTo(List("s2", "s1")))
-          }
+          },
 //          test("releases all resources by the time the failover stream has started") {
 //            for {
 //              fins <- Ref.make(Chunk[Int]())
@@ -773,18 +773,18 @@ object ZStreamSpec extends ZIOBaseSpec {
 //              result <- s.drain.catchAllCause(_ => ZStream.fromZIO(fins.get)).runCollect
 //            } yield assert(result.flatten)(equalTo(Chunk(1, 2, 3)))
 //          },
-//          test("propagates the right Exit value to the failing stream (#3609)") {
-//            for {
-//              ref <- Ref.make[Exit[Any, Any]](Exit.unit)
-//              _ <- ZStream
-//                     .acquireReleaseExitWith(UIO.unit)((_, exit) => ref.set(exit))
-//                     .flatMap(_ => ZStream.fail("boom"))
-//                     .either
-//                     .runDrain
-//                     .run
-//              result <- ref.get
-//            } yield assert(result)(fails(equalTo("boom")))
-//          }
+          test("propagates the right Exit value to the failing stream (#3609)") {
+            for {
+              ref <- Ref.make[Exit[Any, Any]](Exit.unit)
+              _ <- ZStream
+                     .acquireReleaseExitWith(UIO.unit)((_, exit) => ref.set(exit))
+                     .flatMap(_ => ZStream.fail("boom"))
+                     .either
+                     .runDrain
+                     .exit
+              result <- ref.get
+            } yield assert(result)(fails(equalTo("boom")))
+          }
         ),
         //     suite("catchSome")(
         //       test("recovery from some errors") {
@@ -1110,16 +1110,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Ensuring", "Release", "Use", "Acquire")))
         },
-        //     test("ensuringFirst") {
-        //       for {
-        //         log <- Ref.make[List[String]](Nil)
-        //         _ <- (for {
-        //                _ <- ZStream.acquireReleaseWith(log.update("Acquire" :: _))(_ => log.update("Release" :: _))
-        //                _ <- ZStream.fromZIO(log.update("Use" :: _))
-        //              } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
-        //         execution <- log.get
-        //       } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
-        //     },
         test("filter")(check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
@@ -1199,7 +1189,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 rightStream <- m.flatMap(x => f(x).flatMap(g)).runCollect
               } yield assert(leftStream)(equalTo(rightStream))
             }
-          } @@ TestAspect.jvmOnly // Too slow on Scala.js
+          } @@ TestAspect.jvmOnly, // Too slow on Scala.js
           //       test("inner finalizers") {
           //         for {
           //           effects <- Ref.make(List[Int]())
@@ -1258,21 +1248,21 @@ object ZStreamSpec extends ZIOBaseSpec {
           //           )
           //         )
           //       },
-          //       test("exit signal") {
-          //         for {
-          //           ref <- Ref.make(false)
-          //           inner = ZStream
-          //                     .acquireReleaseExitWith(UIO.unit)((_, e) =>
-          //                       e match {
-          //                         case Exit.Failure(_) => ref.set(true)
-          //                         case Exit.Success(_) => UIO.unit
-          //                       }
-          //                     )
-          //                     .flatMap(_ => ZStream.fail("Ouch"))
-          //           _   <- ZStream.succeed(()).flatMap(_ => inner).runDrain.either.unit
-          //           fin <- ref.get
-          //         } yield assert(fin)(isTrue)
-          //       },
+          test("exit signal") {
+            for {
+              ref <- Ref.make(false)
+              inner = ZStream
+                        .acquireReleaseExitWith(ZIO.unit) { (_, e) =>
+                          e match {
+                            case Exit.Failure(_) => ref.set(true)
+                            case Exit.Success(_) => UIO.unit
+                          }
+                        }
+                        .flatMap(_ => ZStream.fail("Ouch"))
+              _   <- ZStream.succeed(()).flatMap(_ => inner).runDrain.either.unit
+              fin <- ref.get
+            } yield assert(fin)(isTrue)
+          }
           //       test("finalizers are registered in the proper order") {
           //         for {
           //           fins <- Ref.make(List[Int]())
@@ -3065,18 +3055,29 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(isEmpty)
           }
         ),
-        test("timeoutFail") {
-          assertM(
-            ZStream
-              .range(0, 5)
-              .tap(_ => ZIO.sleep(Duration.Infinity))
-              .timeoutFail(false)(Duration.Zero)
-              .runDrain
-              .map(_ => true)
-              .either
-              .map(_.merge)
-          )(isFalse)
-        },
+        suite("timeoutFail")(
+          test("succeed") {
+            assertM(
+              ZStream
+                .range(0, 5)
+                .tap(_ => ZIO.sleep(Duration.Infinity))
+                .timeoutFail(false)(Duration.Zero)
+                .runDrain
+                .map(_ => true)
+                .either
+                .map(_.merge)
+            )(isFalse)
+          },
+          test("fail") {
+            for {
+              error <- ZStream
+                         .fail("OriginalError")
+                         .timeoutFail("TimeoutError")(15.minutes)
+                         .runDrain
+                         .flip
+            } yield assertTrue(error == "OriginalError")
+          }
+        ),
         test("timeoutFailCause") {
           val throwable = new Exception("BOOM")
           assertM(
@@ -3240,7 +3241,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         test("toIterator") {
           (for {
-            counter  <- Ref.make(0).toManaged //Increment and get the value
+            counter <- Ref.make(0).toManaged //Increment and get the value
             effect    = counter.updateAndGet(_ + 1)
             iterator <- ZStream.repeatZIO(effect).toIterator
             n         = 2000
@@ -3413,7 +3414,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             }.sorted
             assertM(actual.runCollect)(equalTo(expected))
           }
-        } @@ samples(25),
+        },
         suite("zipWith")(
           test("zip doesn't pull too much when one of the streams is done") {
             val l = ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5)) ++ ZStream.fail(
@@ -3526,7 +3527,18 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(3)
                 .runCollect
             )(equalTo(Chunk(1, 1, 1)))
-          } @@ TestAspect.ignore
+          } @@ TestAspect.ignore,
+          test("preserves partial ordering of stream elements") {
+            val genSortedStream = for {
+              chunk  <- Gen.chunkOf(Gen.int(1, 100)).map(_.sorted)
+              chunks <- splitChunks(Chunk(chunk))
+            } yield ZStream.fromChunks(chunks: _*)
+            check(genSortedStream, genSortedStream) { (left, right) =>
+              for {
+                out <- left.zipWithLatest(right)(_ + _).runCollect
+              } yield assert(out)(isSorted)
+            }
+          }
         ),
         suite("zipWithNext")(
           test("should zip with next element for a single chunk") {

@@ -718,7 +718,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("recovery from some errors") {
             val s1 = ZStream(1, 2) ++ ZStream.failCause(Cause.Fail("Boom"))
             val s2 = ZStream(3, 4)
-            s1.catchSomeCause { case Cause.Fail("Boom") => s2 }.runCollect
+            s1.catchSomeCause { case c if c.contains(Cause.Fail("Boom")) => s2 }.runCollect
               .map(assert(_)(equalTo(Chunk(1, 2, 3, 4))))
           },
           test("fails stream when partial function does not match") {
@@ -2980,18 +2980,29 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(isEmpty)
           }
         ),
-        test("timeoutError") {
-          assertM(
-            ZStream
-              .range(0, 5)
-              .tap(_ => ZIO.sleep(Duration.Infinity))
-              .timeoutError(false)(Duration.Zero)
-              .runDrain
-              .map(_ => true)
-              .either
-              .map(_.merge)
-          )(isFalse)
-        },
+        suite("timeoutError")(
+          test("succeed") {
+            assertM(
+              ZStream
+                .range(0, 5)
+                .tap(_ => ZIO.sleep(Duration.Infinity))
+                .timeoutError(false)(Duration.Zero)
+                .runDrain
+                .map(_ => true)
+                .either
+                .map(_.merge)
+            )(isFalse)
+          },
+          test("fail") {
+            for {
+              error <- ZStream
+                         .fail("OriginalError")
+                         .timeoutError("TimeoutError")(15.minutes)
+                         .runDrain
+                         .flip
+            } yield assertTrue(error == "OriginalError")
+          }
+        ),
         test("timeoutErrorCause") {
           val throwable = new Exception("BOOM")
           assertM(
@@ -3155,7 +3166,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         test("toIterator") {
           (for {
-            counter  <- Ref.make(0).toManaged //Increment and get the value
+            counter <- Ref.make(0).toManaged //Increment and get the value
             effect    = counter.updateAndGet(_ + 1)
             iterator <- ZStream.repeatZIO(effect).toIterator
             n         = 2000
@@ -3437,6 +3448,17 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(3)
                 .runCollect
             )(equalTo(Chunk(1, 1, 1)))
+          },
+          test("preserves partial ordering of stream elements") {
+            val genSortedStream = for {
+              chunk  <- Gen.chunkOf(Gen.int(1, 100)).map(_.sorted)
+              chunks <- splitChunks(Chunk(chunk))
+            } yield ZStream.fromChunks(chunks: _*)
+            check(genSortedStream, genSortedStream) { (left, right) =>
+              for {
+                out <- left.zipWithLatest(right)(_ + _).runCollect
+              } yield assert(out)(isSorted)
+            }
           }
         ),
         suite("zipWithNext")(

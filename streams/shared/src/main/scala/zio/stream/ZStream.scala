@@ -353,7 +353,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Maps the success values of this stream to the specified constant value.
    */
   def as[O2](o2: => O2): ZStream[R, E, O2] =
-    map(new ZIO.ConstFn(() => o2))
+    map(_ => o2)
 
   /**
    * Returns a stream whose failure and success channels have been mapped by
@@ -815,7 +815,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   ): ZStream[R1, E1, O3] =
     ZStream[R1, E1, O3] {
       for {
-        left  <- self.process.mapZIO(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
+        left <- self.process.mapZIO(BufferedPull.make[R, E, O](_)) // type annotation required for Dotty
         right <- that.process.mapZIO(BufferedPull.make[R1, E1, O2](_))
         pull <- ZStream
                   .unfoldZIO(s)(s => f(s, left.pullElement, right.pullElement).flatMap(ZIO.done(_).unsome))
@@ -3283,9 +3283,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * Fails the stream with given error if it does not produce a value after d duration.
    */
   final def timeoutError[E1 >: E](e: => E1)(d: Duration): ZStream[R with Has[Clock], E1, O] =
-    self
-      .timeoutErrorCause(Cause.empty)(d)
-      .mapErrorCause(_ => Cause.fail(e))
+    self.timeoutTo[R with Has[Clock], E1, O](d)(ZStream.fail(e))
 
   /**
    * Halts the stream with given cause if it does not produce a value after d duration.
@@ -3662,29 +3660,25 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                     (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
                   )
                 }.flatMap { case (l, r, leftFirst) =>
-                  ZStream.fromZIO(Ref.make(l(l.size - 1)) <*> Ref.make(r(r.size - 1))).flatMap {
-                    case (latestLeft, latestRight) =>
-                      ZStream.fromChunk(
-                        if (leftFirst) r.map(f(l(l.size - 1), _))
-                        else l.map(f(_, r(r.size - 1)))
-                      ) ++
-                        ZStream
-                          .repeatZIOOption(
-                            left.tap(chunk => latestLeft.set(chunk(chunk.size - 1))) <*> latestRight.get
-                          )
-                          .mergeWith(
-                            ZStream.repeatZIOOption(
-                              right.tap(chunk => latestRight.set(chunk(chunk.size - 1))) <*> latestLeft.get
-                            )
-                          )(
-                            { case (leftChunk, rightLatest) =>
-                              leftChunk.map(f(_, rightLatest))
-                            },
-                            { case (rightChunk, leftLatest) =>
-                              rightChunk.map(f(leftLatest, _))
+                  ZStream.fromZIO(Ref.make(l(l.size - 1) -> r(r.size - 1))).flatMap { latest =>
+                    ZStream.fromChunk(
+                      if (leftFirst) r.map(f(l(l.size - 1), _))
+                      else l.map(f(_, r(r.size - 1)))
+                    ) ++
+                      ZStream
+                        .repeatZIOOption(left)
+                        .mergeEither(ZStream.repeatZIOOption(right))
+                        .mapZIO {
+                          case Left(leftChunk) =>
+                            latest.modify { case (_, rightLatest) =>
+                              (leftChunk.map(f(_, rightLatest)), (leftChunk(leftChunk.size - 1), rightLatest))
                             }
-                          )
-                          .flatMap(ZStream.fromChunk(_))
+                          case Right(rightChunk) =>
+                            latest.modify { case (leftLatest, _) =>
+                              (rightChunk.map(f(leftLatest, _)), (leftLatest, rightChunk(rightChunk.size - 1)))
+                            }
+                        }
+                        .flatMap(ZStream.fromChunk(_))
                   }
                 }).process
 
@@ -5137,8 +5131,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def failCause[E](c: Cause[E]): IO[Option[E], Nothing]                         = IO.failCause(c).mapError(Some(_))
     @deprecated("use failCause", "2.0.0")
     def halt[E](c: Cause[E]): IO[Option[E], Nothing] = failCause(c)
-    def empty[A]: IO[Nothing, Chunk[A]]              = UIO(Chunk.empty)
-    val end: IO[Option[Nothing], Nothing]            = IO.fail(None)
+    def empty[A]: IO[Nothing, Chunk[A]]   = UIO(Chunk.empty)
+    val end: IO[Option[Nothing], Nothing] = IO.fail(None)
   }
 
   private[zio] case class BufferedPull[R, E, A](

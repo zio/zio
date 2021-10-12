@@ -65,6 +65,17 @@ object ZIOAspect {
     }
 
   /**
+   * An aspect that disables logging for the specified effect.
+   */
+  val disableLogging: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        ZIO.runtimeConfig.flatMap { runtimeConfig =>
+          zio.withRuntimeConfig(runtimeConfig.copy(logger = ZLogger.none))
+        }
+    }
+
+  /**
    * As aspect that runs effects on the specified `Executor`.
    */
   @deprecated("use onExecutor", "2.0.0")

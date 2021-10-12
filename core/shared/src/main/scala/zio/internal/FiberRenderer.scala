@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.Fiber.Dump
 import zio.Fiber.Status.{Done, Finishing, Running, Suspended}
-import zio.{Fiber, FiberId, UIO, ZIO}
+import zio.{Fiber, FiberId, UIO, ZIO, ZTraceElement}
 
 private[zio] object FiberRenderer {
 
@@ -75,7 +75,7 @@ private[zio] object FiberRenderer {
       case Suspended(_, interruptible, epoch, _, asyncTrace) =>
         val in = if (interruptible) "interruptible" else "uninterruptible"
         val ep = s"$epoch asyncs"
-        val as = asyncTrace.map(_.prettyPrint).getOrElse("")
+        val as = asyncTrace.getOrElse(implicitly[ZTraceElement]).toString
         s"Suspended($in, $ep, $as)"
     }
 

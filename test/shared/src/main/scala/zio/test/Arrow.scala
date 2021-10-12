@@ -146,7 +146,7 @@ object Arrow {
     parentSpan: Option[Span],
     code: Option[String],
     location: Option[String]
-  )                                                                     extends Arrow[A, B]
+  ) extends Arrow[A, B]
   case class ArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])        extends Arrow[A, B] {}
   case class AndThen[A, B, C](f: Arrow[A, B], g: Arrow[B, C])           extends Arrow[A, C]
   case class And(left: Arrow[Any, Boolean], right: Arrow[Any, Boolean]) extends Arrow[Any, Boolean]

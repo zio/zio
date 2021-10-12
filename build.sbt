@@ -391,6 +391,7 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
   .settings(stdSettings("zio-stacktracer"))
   .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
   .enablePlugins(BuildInfoPlugin)
 
@@ -555,7 +556,7 @@ lazy val jsdocs = project
   .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
 
-val http4sV     = "0.23.3"
+val http4sV     = "0.23.4"
 val doobieV     = "1.0.0-RC1"
 val catsEffectV = "3.2.9"
 val zioActorsV  = "0.0.9"
@@ -589,7 +590,7 @@ lazy val docs = project.module
       "commons-io"          % "commons-io"                % "2.11.0" % "provided",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
       "io.7mind.izumi"     %% "logstage-core"             % "1.0.8",
-      "org.jsoup"           % "jsoup"                     % "1.14.2" % "provided",
+      "org.jsoup"           % "jsoup"                     % "1.14.3" % "provided",
       "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
       /* to evict 1.3.0 brought in by mdoc-js */
       "org.scala-js"                   % "scalajs-compiler"              % scalaJSVersion cross CrossVersion.full,
@@ -603,7 +604,7 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-config-refined"            % "1.0.10",
       "dev.zio"                       %% "zio-ftp"                       % "0.3.3",
       "dev.zio"                       %% "zio-json"                      % "0.1.5",
-      "dev.zio"                       %% "zio-kafka"                     % "0.16.0",
+      "dev.zio"                       %% "zio-kafka"                     % "0.17.0",
       "dev.zio"                       %% "zio-logging"                   % "0.5.12",
       "dev.zio"                       %% "zio-metrics-prometheus"        % "1.0.12",
       "dev.zio"                       %% "zio-nio"                       % "1.0.0-RC11",
@@ -641,10 +642,10 @@ lazy val docs = project.module
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
       "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
       "nl.vroste"                     %% "zio-amqp"                      % "0.2.2",
-      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.40.1",
-      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.40.1",
-      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.40.1",
-      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.40.1",
+      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.42.5",
+      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.42.5",
+      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.42.5",
+      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.42.5",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
       "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
@@ -653,8 +654,8 @@ lazy val docs = project.module
       "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0",
       "io.scalac"                     %% "zio-slick-interop"             % "0.4",
       "com.typesafe.slick"            %% "slick-hikaricp"                % "3.3.3",
-      "info.senia"                    %% "zio-test-akka-http"            % "1.0.2",
-      "io.getquill"                   %% "quill-jdbc-zio"                % "3.9.0"
+      "info.senia"                    %% "zio-test-akka-http"            % "1.0.3",
+      "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0"
     )
   )
   .settings(macroDefinitionSettings)

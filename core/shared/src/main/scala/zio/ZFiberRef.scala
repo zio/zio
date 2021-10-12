@@ -94,14 +94,14 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
    *
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
-  def locally[R, EC >: EA, C](value: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C]
+  def locally[R, EC >: EA, C](value: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C]
 
   /**
    * Returns a managed effect that sets the value associated with the curent
    * fiber to the specified value as its `acquire` action and restores it to
    * its original value as its `release` action.
    */
-  def locallyManaged(value: A): ZManaged[Any, EA, Unit]
+  def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit]
 
   /**
    * Sets the value associated with the current fiber.
@@ -174,7 +174,7 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * Gets the value associated with the current fiber and uses it to run the
    * specified effect.
    */
-  def getWith[R, EC >: EB, C](f: B => ZIO[R, EC, C]): ZIO[R, EC, C] =
+  def getWith[R, EC >: EB, C](f: B => ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
     get.flatMap(f)
 
   /**
@@ -239,7 +239,8 @@ object ZFiberRef {
   ) extends ZFiberRef[Nothing, Nothing, A, A] { self =>
     type ValueType = A
 
-    def delete: UIO[Unit] = new ZIO.FiberRefDelete(self)
+    def delete(implicit trace: ZTraceElement): UIO[Unit] =
+      new ZIO.FiberRefDelete(self, trace)
 
     def fold[EC, ED, C, D](
       ea: Nothing => EC,
@@ -294,19 +295,19 @@ object ZFiberRef {
         (v, result)
       }
 
-    override def getWith[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, B] =
-      new ZIO.FiberRefWith(self, f)
+    override def getWith[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+      new ZIO.FiberRefWith(self, f, trace)
 
     def initialValue: Either[Nothing, A] = Right(initial)
 
-    def locally[R, EC, C](value: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C] =
-      new ZIO.FiberRefLocally(value, self, use)
+    def locally[R, EC, C](value: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
+      new ZIO.FiberRefLocally(value, self, use, trace)
 
-    def locallyManaged(value: A): ZManaged[Any, Nothing, Unit] =
+    def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
       ZManaged.acquireReleaseWith(get.flatMap(old => set(value).as(old)))(set).unit
 
-    def modify[B](f: A => (B, A)): UIO[B] =
-      new ZIO.FiberRefModify(this, f)
+    def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B] =
+      new ZIO.FiberRefModify(this, f, trace)
 
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] =
       modify { v =>
@@ -431,7 +432,7 @@ object ZFiberRef {
 
     def initialValue: Either[EB, B] = value.initialValue.flatMap(getEither(_))
 
-    def locally[R, EC >: EA, C](a: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C] =
+    def locally[R, EC >: EA, C](a: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
       value.get.flatMap { old =>
         setEither(a).fold(
           e => ZIO.fail(e),
@@ -439,7 +440,7 @@ object ZFiberRef {
         )
       }
 
-    def locallyManaged(a: A): ZManaged[Any, EA, Unit] =
+    def locallyManaged(a: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit] =
       ZManaged.acquireReleaseWith {
         value.get.flatMap { old =>
           setEither(a).fold(
@@ -505,7 +506,7 @@ object ZFiberRef {
     def get: IO[EB, B] =
       value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
 
-    def locally[R, EC >: EA, C](a: A)(use: ZIO[R, EC, C]): ZIO[R, EC, C] =
+    def locally[R, EC >: EA, C](a: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
       value.get.flatMap { old =>
         setEither(a)(old).fold(
           e => ZIO.fail(e),
@@ -513,7 +514,7 @@ object ZFiberRef {
         )
       }
 
-    def locallyManaged(a: A): ZManaged[Any, EA, Unit] =
+    def locallyManaged(a: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit] =
       ZManaged.acquireReleaseWith {
         value.get.flatMap { old =>
           setEither(a)(old).fold(
