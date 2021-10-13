@@ -647,7 +647,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
               case Some((key, aggregated)) =>
                 val newKey = f(i)
                 if (key == newKey) (os0, Some((key, aggregated :+ i)))
-                else (os0.appended((key, aggregated)), Some((newKey, NonEmptyChunk(i))))
+                else (os0 :+ ((key, aggregated)), Some((newKey, NonEmptyChunk(i))))
             }
         }
 
