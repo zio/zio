@@ -7,7 +7,7 @@ These are coding guidelines strictly for ZIO contributors for ZIO projects and
 not general conventions to be applied by the Scala community at large.
 
 Additionally, bear in mind that, although we try to enforce these rules to the 
-best of our ability, both via automated rules (scalafix) and strict reviewing 
+best of our ability, both via automated rules (scalafmt) and strict reviewing 
 processes, it is both possible to find existing code that does not comply to 
 these rules. If that is the case, we would be extremely grateful if you could 
 make a contribution, by providing a fix to said issue.
