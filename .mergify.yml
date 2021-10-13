@@ -17,7 +17,7 @@ pull_request_rules:
   - name: merge Scala Steward's PRs
     conditions:
       - author=scala-steward
-      - "body~=(labels: library-update, semver-minor)|(labels: library-update, semver-patch)|(labels: sbt-plugin-update, semver-minor)|(labels: sbt-plugin-update, semver-patch)|(labels: scalafix-rule-update)|(labels: test-library-update)"
+      - "body~=(labels: library-update, semver-minor)|(labels: library-update, semver-patch)|(labels: sbt-plugin-update, semver-minor)|(labels: sbt-plugin-update, semver-patch)|(labels: test-library-update)"
       - "status-success=license/cla"
       - "status-success=ci"
     actions:
