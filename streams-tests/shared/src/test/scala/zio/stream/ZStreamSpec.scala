@@ -1851,7 +1851,22 @@ object ZStreamSpec extends ZIOBaseSpec {
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
-            } @@ zioTag(errors)
+            } @@ zioTag(errors),
+            testM("preserves scope of inner fibers") {
+              for {
+                promise <- Promise.make[Nothing, Unit]
+                queue1  <- Queue.unbounded[Chunk[Int]]
+                queue2  <- Queue.unbounded[Chunk[Int]]
+                _       <- queue1.offer(Chunk(1))
+                _       <- queue2.offer(Chunk(2))
+                _       <- queue1.offer(Chunk(3)).fork
+                _       <- queue2.offer(Chunk(4)).fork
+                s1       = ZStream.fromChunkQueue(queue1)
+                s2       = ZStream.fromChunkQueue(queue2)
+                s3       = s1.zipWithLatest(s2)((_, _)).interruptWhen(promise.await).take(3)
+                _       <- s3.runDrain
+              } yield assertCompletes
+            } @@ nonFlaky
           ) @@ zioTag(interruption),
           suite("interruptWhen(IO)")(
             testM("interrupts the current element") {
@@ -1882,7 +1897,21 @@ object ZStreamSpec extends ZIOBaseSpec {
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
-            } @@ zioTag(errors)
+            } @@ zioTag(errors),
+            testM("preserves scope of inner fibers") {
+              for {
+                queue1 <- Queue.unbounded[Chunk[Int]]
+                queue2 <- Queue.unbounded[Chunk[Int]]
+                _      <- queue1.offer(Chunk(1))
+                _      <- queue2.offer(Chunk(2))
+                _      <- queue1.offer(Chunk(3)).fork
+                _      <- queue2.offer(Chunk(4)).fork
+                s1      = ZStream.fromChunkQueue(queue1)
+                s2      = ZStream.fromChunkQueue(queue2)
+                s3      = s1.zipWithLatest(s2)((_, _)).interruptWhen(ZIO.never).take(3)
+                _      <- s3.runDrain
+              } yield assertCompletes
+            } @@ nonFlaky
           ) @@ zioTag(interruption)
         ),
         suite("interruptAfter")(
@@ -3135,7 +3164,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         testM("toIterator") {
           (for {
-            counter  <- Ref.make(0).toManaged_ //Increment and get the value
+            counter <- Ref.make(0).toManaged_ //Increment and get the value
             effect    = counter.updateAndGet(_ + 1)
             iterator <- ZStream.repeatEffect(effect).toIterator
             n         = 2000
@@ -3401,6 +3430,17 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(3)
                 .runCollect
             )(equalTo(Chunk(1, 1, 1)))
+          },
+          testM("preserves partial ordering of stream elements") {
+            val genSortedStream = for {
+              chunk  <- Gen.chunkOf(Gen.int(1, 100)).map(_.sorted)
+              chunks <- splitChunks(Chunk(chunk))
+            } yield ZStream.fromChunks(chunks: _*)
+            checkM(genSortedStream, genSortedStream) { (left, right) =>
+              for {
+                out <- left.zipWithLatest(right)(_ + _).runCollect
+              } yield assert(out)(isSorted)
+            }
           }
         ),
         suite("zipWithNext")(
