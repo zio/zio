@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
 package object internal {

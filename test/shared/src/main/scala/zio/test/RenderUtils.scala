@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.{Console => SConsole}
 
 private[test] object ConsoleUtils {

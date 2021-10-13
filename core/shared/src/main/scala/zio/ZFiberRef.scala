@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * A `FiberRef` is ZIO's equivalent of Java's `ThreadLocal`. The value of a
  * `FiberRef` is automatically propagated to child fibers when they are forked
@@ -82,7 +84,7 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * Reads the value associated with the current fiber. Returns initial value if
    * no value was `set` or inherited from parent.
    */
-  def get: IO[EB, B]
+  def get(implicit trace: ZTraceElement): IO[EB, B]
 
   /**
    * Returns the initial value or error.
@@ -99,7 +101,7 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Sets the value associated with the current fiber.
    */
-  def set(value: A): IO[EA, Unit]
+  def set(value: A)(implicit trace: ZTraceElement): IO[EA, Unit]
 
   /**
    * Maps and filters the `get` value of the `ZFiberRef` with the specified
@@ -204,7 +206,7 @@ object ZFiberRef {
     initial: A,
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
-  ): UIO[FiberRef.Runtime[A]] =
+  )(implicit trace: ZTraceElement): UIO[FiberRef.Runtime[A]] =
     ZIO.suspendSucceed {
       val ref = unsafeMake(initial, fork, join)
 
@@ -263,19 +265,19 @@ object ZFiberRef {
 
       }
 
-    def get: IO[Nothing, A] =
+    def get(implicit trace: ZTraceElement): IO[Nothing, A] =
       modify(v => (v, v))
 
-    def getAndSet(a: A): UIO[A] =
+    def getAndSet(a: A)(implicit trace: ZTraceElement): UIO[A] =
       modify(v => (v, a))
 
-    def getAndUpdate(f: A => A): UIO[A] =
+    def getAndUpdate(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
       modify { v =>
         val result = f(v)
         (v, result)
       }
 
-    def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] =
+    def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
       modify { v =>
         val result = pf.applyOrElse[A, A](v, identity)
         (v, result)
@@ -289,35 +291,35 @@ object ZFiberRef {
     def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B] =
       new ZIO.FiberRefModify(this, f, trace)
 
-    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] =
+    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: ZTraceElement): UIO[B] =
       modify { v =>
         pf.applyOrElse[A, (B, A)](v, _ => (default, v))
       }
 
-    def reset: UIO[Unit] = set(initial)
+    def reset(implicit trace: ZTraceElement): UIO[Unit] = set(initial)
 
-    def set(value: A): IO[Nothing, Unit] =
+    def set(value: A)(implicit trace: ZTraceElement): IO[Nothing, Unit] =
       modify(_ => ((), value))
 
-    def update(f: A => A): UIO[Unit] =
+    def update(f: A => A)(implicit trace: ZTraceElement): UIO[Unit] =
       modify { v =>
         val result = f(v)
         ((), result)
       }
 
-    def updateAndGet(f: A => A): UIO[A] =
+    def updateAndGet(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
       modify { v =>
         val result = f(v)
         (result, result)
       }
 
-    def updateSome(pf: PartialFunction[A, A]): UIO[Unit] =
+    def updateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[Unit] =
       modify { v =>
         val result = pf.applyOrElse[A, A](v, identity)
         ((), result)
       }
 
-    def updateSomeAndGet(pf: PartialFunction[A, A]): UIO[A] =
+    def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
       modify { v =>
         val result = pf.applyOrElse[A, A](v, identity)
         (result, result)
@@ -330,7 +332,7 @@ object ZFiberRef {
      * like MDC contexts and the like. The returned `ThreadLocal` will be backed by this `FiberRef` on all threads that are
      * currently managed by ZIO, and behave like an ordinary `ThreadLocal` on all other threads.
      */
-    def unsafeAsThreadLocal: UIO[ThreadLocal[A]] =
+    def unsafeAsThreadLocal(implicit trace: ZTraceElement): UIO[ThreadLocal[A]] =
       ZIO.succeed {
         new ThreadLocal[A] {
           override def get(): A = {
@@ -407,7 +409,7 @@ object ZFiberRef {
           self.value
       }
 
-    def get: IO[EB, B] =
+    def get(implicit trace: ZTraceElement): IO[EB, B] =
       value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
 
     def initialValue: Either[EB, B] = value.initialValue.flatMap(getEither(_))
@@ -420,7 +422,7 @@ object ZFiberRef {
         )
       }
 
-    def set(a: A): IO[EA, Unit] =
+    def set(a: A)(implicit trace: ZTraceElement): IO[EA, Unit] =
       setEither(a).fold(ZIO.fail(_), value.set)
   }
 
@@ -471,7 +473,7 @@ object ZFiberRef {
           self.value
       }
 
-    def get: IO[EB, B] =
+    def get(implicit trace: ZTraceElement): IO[EB, B] =
       value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
 
     def locally[R, EC >: EA, C](a: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
@@ -482,7 +484,7 @@ object ZFiberRef {
         )
       }
 
-    def set(a: A): IO[EA, Unit] =
+    def set(a: A)(implicit trace: ZTraceElement): IO[EA, Unit] =
       value.modify { s =>
         setEither(a)(s) match {
           case Left(e)  => (Left(e), s)
@@ -497,14 +499,14 @@ object ZFiberRef {
      * Atomically sets the value associated with the current fiber and returns
      * the old value.
      */
-    def getAndSet(a: A): IO[E, A] =
+    def getAndSet(a: A)(implicit trace: ZTraceElement): IO[E, A] =
       modify(v => (v, a))
 
     /**
      * Atomically modifies the `FiberRef` with the specified function and returns
      * the old value.
      */
-    def getAndUpdate(f: A => A): IO[E, A] =
+    def getAndUpdate(f: A => A)(implicit trace: ZTraceElement): IO[E, A] =
       modify { v =>
         val result = f(v)
         (v, result)
@@ -515,7 +517,7 @@ object ZFiberRef {
      * returns the old value.
      * If the function is undefined on the current value it doesn't change it.
      */
-    def getAndUpdateSome(pf: PartialFunction[A, A]): IO[E, A] =
+    def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): IO[E, A] =
       modify { v =>
         val result = pf.applyOrElse[A, A](v, identity)
         (v, result)
@@ -526,7 +528,7 @@ object ZFiberRef {
      * a return value for the modification. This is a more powerful version of
      * `update`.
      */
-    def modify[B](f: A => (B, A)): IO[E, B] =
+    def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): IO[E, B] =
       self match {
         case derived: Derived[E, E, A, A] =>
           derived.value.modify { s =>
@@ -563,7 +565,7 @@ object ZFiberRef {
      * otherwise it returns a default value.
      * This is a more powerful version of `updateSome`.
      */
-    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): IO[E, B] =
+    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: ZTraceElement): IO[E, B] =
       modify { v =>
         pf.applyOrElse[A, (B, A)](v, _ => (default, v))
       }
@@ -571,7 +573,7 @@ object ZFiberRef {
     /**
      * Atomically modifies the `FiberRef` with the specified function.
      */
-    def update(f: A => A): IO[E, Unit] =
+    def update(f: A => A)(implicit trace: ZTraceElement): IO[E, Unit] =
       modify { v =>
         val result = f(v)
         ((), result)
@@ -581,7 +583,7 @@ object ZFiberRef {
      * Atomically modifies the `FiberRef` with the specified function and returns
      * the result.
      */
-    def updateAndGet(f: A => A): IO[E, A] =
+    def updateAndGet(f: A => A)(implicit trace: ZTraceElement): IO[E, A] =
       modify { v =>
         val result = f(v)
         (result, result)
@@ -591,7 +593,7 @@ object ZFiberRef {
      * Atomically modifies the `FiberRef` with the specified partial function.
      * If the function is undefined on the current value it doesn't change it.
      */
-    def updateSome(pf: PartialFunction[A, A]): IO[E, Unit] =
+    def updateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): IO[E, Unit] =
       modify { v =>
         val result = pf.applyOrElse[A, A](v, identity)
         ((), result)
@@ -602,7 +604,7 @@ object ZFiberRef {
      * If the function is undefined on the current value it returns the old value
      * without changing it.
      */
-    def updateSomeAndGet(pf: PartialFunction[A, A]): IO[E, A] =
+    def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): IO[E, A] =
       modify { v =>
         val result = pf.applyOrElse[A, A](v, identity)
         (result, result)

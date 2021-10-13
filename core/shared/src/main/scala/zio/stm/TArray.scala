@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio.Chunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * Wraps array of [[TRef]] and adds methods for convenience.

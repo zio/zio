@@ -1,5 +1,6 @@
 package zio.test.diff
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.diff.Diff.DiffOps
 import zio.test.internal.myers.MyersDiff
 import zio.{Chunk, NonEmptyChunk}

@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 private[zio] trait IntersectionTypeCompat {
   type &[+A, +B] = A with B
 }

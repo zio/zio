@@ -16,8 +16,9 @@
 
 package zio.test.poly
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.{Has, Random}
+import zio.{Has, Random, ZTraceElement}
 
 /**
  * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and
@@ -44,20 +45,20 @@ object GenFractionalPoly {
    * Provides evidence that instances of `Gen` and `Fractional` exist for
    * doubles.
    */
-  val double: GenFractionalPoly =
+  def double(implicit trace: ZTraceElement): GenFractionalPoly =
     GenFractionalPoly(Gen.double, Numeric.DoubleIsFractional)
 
   /**
    * Provides evidence that instances of `Gen` and `Fractional` exist for
    * floats.
    */
-  val float: GenFractionalPoly =
+  def float(implicit trace: ZTraceElement): GenFractionalPoly =
     GenFractionalPoly(Gen.float, Numeric.FloatIsFractional)
 
   /**
    * A generator of polymorphic values constrainted to have a `Fractional`
    * instance.
    */
-  val genFractionalPoly: Gen[Has[Random], GenFractionalPoly] =
+  def genFractionalPoly(implicit trace: ZTraceElement): Gen[Has[Random], GenFractionalPoly] =
     Gen.elements(double, float)
 }

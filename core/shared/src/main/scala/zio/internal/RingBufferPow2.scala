@@ -16,6 +16,8 @@
 
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 final class RingBufferPow2[A](val requestedCapacity: Int)
     extends RingBuffer[A](RingBuffer.nextPow2(requestedCapacity)) {
   protected def posToIdx(pos: Long, capacity: Int): Int =
