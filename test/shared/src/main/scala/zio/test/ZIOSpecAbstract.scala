@@ -57,7 +57,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     implicit val trace = Tracer.newTrace
     for {
       args     <- ZIO.service[ZIOAppArgs]
-      testArgs  = TestArgs.parse(args.args.toArray)
+      testArgs  = TestArgs.parse(args.getArgs.toArray)
       exitCode <- runSpec(spec, testArgs)
       _        <- doExit(exitCode)
     } yield ()

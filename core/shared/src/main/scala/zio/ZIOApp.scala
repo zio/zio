@@ -55,8 +55,8 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    * A helper function to obtain access to the command-line arguments of the
    * application. You may use this helper function inside your `run` function.
    */
-  final def args(implicit trace: ZTraceElement): ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] =
-    ZIO.service[ZIOAppArgs].map(_.args)
+  final def getArgs(implicit trace: ZTraceElement): ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] =
+    ZIOAppArgs.getArgs
 
   /**
    * A helper function to exit the application with the specified exit code.

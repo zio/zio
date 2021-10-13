@@ -33,7 +33,7 @@ ZIO has a service that contains command-line arguments of an application called 
 import zio._
 object HelloApp extends ZIOAppDefault {
   def run = for {
-    args <- args
+    args <- getArgs
     _ <-
       if (args.isEmpty)
         Console.printLine("Please provide your name as an argument")

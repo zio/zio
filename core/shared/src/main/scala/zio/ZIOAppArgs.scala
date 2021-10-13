@@ -20,4 +20,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 /**
  * A service that contains command-line arguments of an application.
  */
-final case class ZIOAppArgs(args: Chunk[String])
+final case class ZIOAppArgs(getArgs: Chunk[String])
+
+object ZIOAppArgs {
+
+  def getArgs(implicit trace: ZTraceElement): ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] =
+    ZIO.access(_.get.getArgs)
+}
