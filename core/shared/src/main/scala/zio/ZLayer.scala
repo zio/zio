@@ -359,6 +359,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def apply[RIn, E, ROut](managed: ZManaged[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
     Managed(managed)
 
+  /**
+   * Constructs a layer from an effectual resource.
+   */
+  def apply[RIn, E, ROut](zio: ZIO[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
+    ZLayer(zio.toManaged)
+
   sealed trait Debug
 
   object Debug {

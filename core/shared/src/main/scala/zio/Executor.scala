@@ -29,25 +29,19 @@ import scala.concurrent.ExecutionContext
 abstract class Executor extends ExecutorPlatformSpecific { self =>
 
   /**
-   * The number of operations a fiber should run before yielding.
-   */
-  def yieldOpCount: Int
-
-  /**
    * Current sampled execution metrics, if available.
    */
-  def metrics: Option[ExecutionMetrics]
+  def unsafeMetrics: Option[ExecutionMetrics]
 
   /**
    * Submits an effect for execution.
    */
-  def submit(runnable: Runnable): Boolean
+  def unsafeSubmit(runnable: Runnable): Boolean
 
   /**
-   * Submits an effect for execution or throws.
+   * The number of operations a fiber should run before yielding.
    */
-  final def submitOrThrow(runnable: Runnable): Unit =
-    if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
+  def yieldOpCount: Int
 
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
@@ -62,7 +56,7 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   lazy val asExecutionContext: ExecutionContext =
     new ExecutionContext {
       override def execute(r: Runnable): Unit =
-        if (!submit(r)) throw new RejectedExecutionException("Rejected: " + r.toString)
+        if (!unsafeSubmit(r)) throw new RejectedExecutionException("Rejected: " + r.toString)
 
       override def reportFailure(cause: Throwable): Unit =
         cause.printStackTrace
@@ -73,9 +67,35 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
    */
   lazy val asJava: java.util.concurrent.Executor =
     command =>
-      if (submit(command)) ()
+      if (unsafeSubmit(command)) ()
       else throw new java.util.concurrent.RejectedExecutionException
 
+  /**
+   * Current sampled execution metrics, if available.
+   */
+  @deprecated("use unsafeMetrics", "2.0.0")
+  def metrics: Option[ExecutionMetrics] =
+    unsafeMetrics
+
+  /**
+   * Submits an effect for execution.
+   */
+  @deprecated("use unsafeSubmit", "2.0.0")
+  def submit(runnable: Runnable): Boolean =
+    unsafeSubmit(runnable)
+
+  /**
+   * Submits an effect for execution or throws.
+   */
+  @deprecated("use unsafeSubmitOrThrow", "2.0.0")
+  final def submitOrThrow(runnable: Runnable): Unit =
+    unsafeSubmitOrThrow(runnable)
+
+  /**
+   * Submits an effect for execution or throws.
+   */
+  final def unsafeSubmitOrThrow(runnable: Runnable): Unit =
+    if (!unsafeSubmit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
 }
 
 object Executor extends DefaultExecutors with Serializable {
@@ -89,7 +109,7 @@ object Executor extends DefaultExecutors with Serializable {
     new Executor {
       def yieldOpCount = yieldOpCount0
 
-      def submit(runnable: Runnable): Boolean =
+      def unsafeSubmit(runnable: Runnable): Boolean =
         try {
           ec.execute(runnable)
 
@@ -98,6 +118,6 @@ object Executor extends DefaultExecutors with Serializable {
           case _: RejectedExecutionException => false
         }
 
-      def metrics = None
+      def unsafeMetrics = None
     }
 }

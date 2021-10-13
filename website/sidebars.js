@@ -23,21 +23,23 @@ module.exports = {
             type: "category",
             label: "ZIO Effects",
             items: [
-                "datatypes/core/zio",
-                "datatypes/core/uio",
-                "datatypes/core/urio",
-                "datatypes/core/task",
-                "datatypes/core/rio",
-                "datatypes/core/io",
+                "datatypes/core/zio/zio",
+                "datatypes/core/zio/uio",
+                "datatypes/core/zio/urio",
+                "datatypes/core/zio/task",
+                "datatypes/core/zio/rio",
+                "datatypes/core/zio/io",
             ]
         },
+        "datatypes/core/zioapp",
+        "datatypes/core/runtime",
         "datatypes/core/exit",
-        "datatypes/core/cause",
-        "datatypes/core/runtime"
+        "datatypes/core/cause"
     ],
     "Contextual Types": [
         "datatypes/contextual/index",
         "datatypes/contextual/has",
+        "datatypes/contextual/hasmany",
         {
             type: "category",
             label: "ZIO Layers",
@@ -177,7 +179,8 @@ module.exports = {
     "Miscellaneous": [
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
-      "datatypes/misc/supervisor"
+      "datatypes/misc/supervisor",
+      "datatypes/misc/zstate",
     ]
   },
   "usecases-sidebar": {

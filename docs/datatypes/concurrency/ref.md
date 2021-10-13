@@ -130,9 +130,9 @@ for {
 
 The following snippet is not concurrent safe:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 // Unsafe State Management
-object UnsafeCountRequests extends zio.App {
+object UnsafeCountRequests extends zio.ZIOAppDefault {
 
   def request(counter: Ref[Int]) = for {
     current <- counter.get
@@ -140,7 +140,7 @@ object UnsafeCountRequests extends zio.App {
   } yield ()
 
   private val initial = 0
-  private val program =
+  private val myApp =
     for {
       ref <- Ref.make(initial)
       _ <- request(ref) zipPar request(ref)
@@ -148,15 +148,15 @@ object UnsafeCountRequests extends zio.App {
       _ <- Console.printLine(s"total requests performed: $rn")
     } yield ()
 
-  override def run(args: List[String]) = program.exitCode
+  def run = myApp
 }
 ```
 
 The above snippet doesn't behave deterministically. This program sometimes print 2 and sometime print 1. So let's fix that issue by using `update` which behaves atomically:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 // Unsafe State Management
-object CountRequests extends zio.App {
+object CountRequests extends zio.ZIOAppDefault {
 
   def request(counter: Ref[Int]): ZIO[Has[Console], Nothing, Unit] = {
     for {
@@ -167,7 +167,7 @@ object CountRequests extends zio.App {
   }
 
   private val initial = 0
-  private val program =
+  private val myApp =
     for {
       ref <- Ref.make(initial)
       _ <- request(ref) zipPar request(ref)
@@ -175,7 +175,7 @@ object CountRequests extends zio.App {
       _ <- Console.printLine(s"total requests performed: $rn").orDie
     } yield ()
 
-  override def run(args: List[String]) = program.exitCode
+  def run = myApp
 }
 ```
 

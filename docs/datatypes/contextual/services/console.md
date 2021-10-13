@@ -17,20 +17,20 @@ All functions of the Console service are effectful, this means they are just des
 
 As ZIO data type support monadic operations, we can compose these functions with for-comprehension which helps us to write our program pretty much like an imperative program:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import java.io.IOException
 
 import zio._
 import zio.Console._
 
-object MyHelloApp extends zio.App {
+object MyHelloApp extends ZIOAppDefault {
   val program: ZIO[Has[Console], IOException, Unit] = for {
     _ <- printLine("Hello, what is you name?")
     name <- readLine
     _ <- printLine(s"Hello $name, welcome to ZIO!")
   } yield ()
 
-  override def run(args: List[String]) = program.exitCode
+  def run = program
 }
 ```
 

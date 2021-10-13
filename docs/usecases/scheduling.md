@@ -2,13 +2,16 @@
 id: usecases_scheduling
 title:  "Scheduling"
 ---
+
 For scenarios where an action needs to be performed multiple times, `Schedule` can be used to customize the:
 * number of repetitions
 * rate of repetition
 * effect performed on each repetition
 
 ## Retry strategy for HTTP requests
+
 One potential issue when dealing with a 3rd party API is the unreliability of a given endpoint. Since you have no control over the software, you cannot directly improve the reliability. Here's a mock request that has approximately a 70% chance of succeeding:
+
 ```scala mdoc:silent
 import zio.Task
 import java.util.Random
@@ -49,6 +52,7 @@ def schedule = Schedule.recurs(4) && Schedule.spaced(1.second)
 ```
 
 For monitoring purposes, you may also want to log attempts. While this logic can be placed in the request itself, it's more scalable to add that logic to the schedule so it can be reused.
+
 ```scala mdoc:silent
 import zio.Console.printLine
 import zio.Schedule
@@ -61,18 +65,18 @@ object ScheduleUtil {
   })
 }
 ```
+
 You've now created a retry strategy that will attempt an effect every second for a maximum of 5 attempts while logging each attempt. The usage of the schedule would look like this:
-```scala mdoc:silent
+
+```scala mdoc:compile-only
 import zio._
 import zio.Console._
-import ScheduleUtil._
 import API._
 
 object ScheduleApp extends scala.App {
-
   implicit val rt: Runtime[Has[Clock] with Has[Console]] = Runtime.default
 
-  rt.unsafeRun(makeRequest.retry(schedule).foldZIO(
+  rt.unsafeRun(makeRequest.retry(ScheduleUtil.schedule).foldZIO(
     ex => printLine("Exception Failed"),
     v => printLine(s"Succeeded with $v"))
   )
@@ -80,13 +84,16 @@ object ScheduleApp extends scala.App {
 ```
 
 The output of the above program where the request succeeds in time could be:
+
 ```
 attempt #1
 attempt #2
 attempt #3
 Succeeded with some value
 ```
+
 If the server is completely down with no chance of the request succeeding, the output would look like:
+
 ```
 attempt #1
 attempt #2

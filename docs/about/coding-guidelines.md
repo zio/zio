@@ -114,6 +114,8 @@ This section will attempt to provide some guidelines and examples to document, g
 
 9. Use the `Discard` suffix for variants of methods that discard their results. For example, `foreachDiscard`. The `_` suffix should not be used as it is not idiomatic Scala and
    does not describe what it does.
+
+10. Methods that are necessarily side effecting should be prefixed with `unsafe`, for example `unsafeRun`. This does not apply to methods on internal data types that are inherently imperative in nature, for example `MutableConcurrentQueue`.
    
 ### Type annotations
 
