@@ -92,6 +92,20 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
     unsafeSubmitOrThrow(runnable)
 
   /**
+   * Submits an effect for execution and signals that the current fiber is
+   * ready to yield.
+   */
+  def unsafeSubmitAndYield(runnable: Runnable): Boolean =
+    unsafeSubmit(runnable)
+
+  /**
+   * Submits an effect for execution and signals that the current fiber is
+   * ready to yield or throws.
+   */
+  final def unsafeSubmitAndYieldOrThrow(runnable: Runnable): Unit =
+    if (!unsafeSubmitAndYield(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
+
+  /**
    * Submits an effect for execution or throws.
    */
   final def unsafeSubmitOrThrow(runnable: Runnable): Unit =

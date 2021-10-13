@@ -794,14 +794,16 @@ private[zio] final class FiberContext[E, A](
     } else zio
 
     childContext.nextEffect = childZio
-    executor.unsafeSubmitOrThrow(childContext)
+    if (stack.isEmpty) executor.unsafeSubmitAndYieldOrThrow(childContext)
+    else executor.unsafeSubmitOrThrow(childContext)
 
     childContext
   }
 
   private[this] def evaluateLater(zio: Erased): Unit = {
     nextEffect = zio
-    executor.unsafeSubmitOrThrow(this)
+    if (stack.isEmpty) executor.unsafeSubmitAndYieldOrThrow(this)
+    else executor.unsafeSubmitOrThrow(this)
   }
 
   private[this] def resumeAsync(epoch: Long)(implicit trace: ZTraceElement): Erased => Unit = { zio =>
