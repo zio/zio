@@ -289,7 +289,7 @@ val myAppLogic = ZIO.succeed(???)
 
 ```scala mdoc:compile-only
 import zio._
-import zio.internal.Tracing
+import zio.internal.tracing.Tracing
 
 val loggly  = RuntimeConfigAspect.addLogger(???)
 val zmx     = RuntimeConfigAspect.addSupervisor(???)
