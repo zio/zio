@@ -33,7 +33,7 @@ ZIO has a service that contains command-line arguments of an application called 
 import zio._
 object HelloApp extends ZIOAppDefault {
   def run = for {
-    args <- args
+    args <- getArgs
     _ <-
       if (args.isEmpty)
         Console.printLine("Please provide your name as an argument")
@@ -87,7 +87,7 @@ In the following example, we disabled application tracing in order to improve ap
 
 ```scala mdoc:compile-only
 import zio._
-import zio.internal.Tracing
+import zio.internal.tracing.Tracing
 
 object MyApp extends ZIOAppDefault {
   override def hook: RuntimeConfigAspect =
@@ -110,7 +110,7 @@ val asyncProfiler, slf4j, loggly, newRelic = RuntimeConfigAspect.identity
 
 ```scala mdoc:compile-only
 import zio._
-import zio.internal.Tracing
+import zio.internal.tracing.Tracing
 
 object MyApp1 extends ZIOAppDefault {
   override def hook: RuntimeConfigAspect =
