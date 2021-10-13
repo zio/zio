@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * `FiberRefs` is a data type that represents a collection of `FiberRef`
  * values. This allows safely propagating `FiberRef` values across fiber
@@ -48,7 +50,7 @@ final class FiberRefs private (private val fiberRefLocals: Map[FiberRef.Runtime[
    * Sets the value of each `FiberRef` for the fiber running this effect to
    * the value in this collection of `FiberRef` values.
    */
-  def setAll: UIO[Unit] =
+  def setAll(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.foreachDiscard(fiberRefs) { fiberRef =>
       fiberRef.asInstanceOf[FiberRef.Runtime[Any]].set(getOrDefault(fiberRef))
     }

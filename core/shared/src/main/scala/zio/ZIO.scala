@@ -5098,7 +5098,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Sets the `FiberRef` values for the fiber running this effect to the values
    * in the specified collection of `FiberRef` values.
    */
-  def setFiberRefs(fiberRefs: => FiberRefs): UIO[Unit] =
+  def setFiberRefs(fiberRefs: => FiberRefs)(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.suspendSucceed(fiberRefs.setAll)
 
   /**
