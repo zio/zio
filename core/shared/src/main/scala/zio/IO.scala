@@ -291,6 +291,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
+  @deprecated("use collectAllPar", "2.0.0")
   def collectAllParN[E, A, Collection[+Element] <: Iterable[Element]](
     n: => Int
   )(
@@ -301,13 +302,14 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectAllParN_]]
    */
-  @deprecated("use collectAllParNDiscard", "2.0.0")
+  @deprecated("use collectAllParDiscard", "2.0.0")
   def collectAllParN_[E, A](n: => Int)(as: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.collectAllParN_(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllParNDiscard]]
    */
+  @deprecated("use collectAllParDiscard", "2.0.0")
   def collectAllParNDiscard[E, A](n: => Int)(as: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.collectAllParNDiscard(n)(as)
 
@@ -330,6 +332,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
+  @deprecated("use collectAllSuccessesPar", "2.0.0")
   def collectAllSuccessesParN[E, A, Collection[+Element] <: Iterable[Element]](
     n: => Int
   )(
@@ -360,6 +363,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
+  @deprecated("use collectAllWithPar", "2.0.0")
   def collectAllWithParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[IO[E, A]]
   )(
@@ -396,6 +400,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
+  @deprecated("use collectPar", "2.0.0")
   def collectParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     in: Collection[A]
   )(
@@ -781,6 +786,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
+  @deprecated("use foreachPar", "2.0.0")
   def foreachParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[A]
   )(
@@ -817,7 +823,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  @deprecated("use foreachParNDiscard", "2.0.0")
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParN_[E, A, B](n: => Int)(as: => Iterable[A])(f: A => IO[E, Any])(implicit
     trace: ZTraceElement
   ): IO[E, Unit] =
@@ -826,6 +832,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.foreachParNDiscard]]
    */
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParNDiscard[E, A, B](n: => Int)(as: => Iterable[A])(f: A => IO[E, Any])(implicit
     trace: ZTraceElement
   ): IO[E, Unit] =
@@ -1144,6 +1151,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.partitionParN]]
    */
+  @deprecated("use partitionPar", "2.0.0")
   def partitionParN[E, A, B](
     n: => Int
   )(in: => Iterable[A])(

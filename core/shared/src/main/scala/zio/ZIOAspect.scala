@@ -143,6 +143,26 @@ object ZIOAspect {
     }
 
   /**
+   * As aspect that runs effects with the specified maximum number of fibers
+   * for parallel operators.
+   */
+  def parallel(n: Int): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.withParallelism(n)
+    }
+
+  /**
+   * As aspect that runs effects with an unbounded maximum number of fibers for
+   * parallel operators.
+   */
+  def parallelUnbounded: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.withParallelismUnbounded
+    }
+
+  /**
    * An aspect that retries effects according to the specified schedule.
    */
   def retry[R1 <: Has[Clock], E1](schedule: Schedule[R1, E1, Any]): ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] =

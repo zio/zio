@@ -99,6 +99,13 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
   def locally[R, EC >: EA, C](value: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C]
 
   /**
+   * Returns a managed effect that sets the value associated with the curent
+   * fiber to the specified value as its `acquire` action and restores it to
+   * its original value as its `release` action.
+   */
+  def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit]
+
+  /**
    * Sets the value associated with the current fiber.
    */
   def set(value: A)(implicit trace: ZTraceElement): IO[EA, Unit]
@@ -164,6 +171,13 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
    */
   def filterOutput(f: B => Boolean): ZFiberRef[EA, Option[EB], A, B] =
     fold(identity, Some(_), Right(_), b => if (f(b)) Right(b) else Left(None))
+
+  /**
+   * Gets the value associated with the current fiber and uses it to run the
+   * specified effect.
+   */
+  def getWith[R, EC >: EB, C](f: B => ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
+    get.flatMap(f)
 
   /**
    * Transforms the `get` value of the `ZFiberRef` with the specified function.
@@ -283,10 +297,16 @@ object ZFiberRef {
         (v, result)
       }
 
+    override def getWith[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+      new ZIO.FiberRefWith(self, f, trace)
+
     def initialValue: Either[Nothing, A] = Right(initial)
 
     def locally[R, EC, C](value: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
       new ZIO.FiberRefLocally(value, self, use, trace)
+
+    def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+      ZManaged.acquireReleaseWith(get.flatMap(old => set(value).as(old)))(set).unit
 
     def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B] =
       new ZIO.FiberRefModify(this, f, trace)
@@ -422,6 +442,18 @@ object ZFiberRef {
         )
       }
 
+    def locallyManaged(a: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit] =
+      ZManaged.acquireReleaseWith {
+        value.get.flatMap { old =>
+          setEither(a).fold(
+            e => ZIO.fail(e),
+            s => value.set(s).as(old)
+          )
+        }
+      } {
+        value.set
+      }.unit
+
     def set(a: A)(implicit trace: ZTraceElement): IO[EA, Unit] =
       setEither(a).fold(ZIO.fail(_), value.set)
   }
@@ -483,6 +515,18 @@ object ZFiberRef {
           s => value.set(s).acquireRelease(value.set(old))(use)
         )
       }
+
+    def locallyManaged(a: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit] =
+      ZManaged.acquireReleaseWith {
+        value.get.flatMap { old =>
+          setEither(a)(old).fold(
+            e => ZIO.fail(e),
+            s => value.set(s).as(old)
+          )
+        }
+      } {
+        value.set
+      }.unit
 
     def set(a: A)(implicit trace: ZTraceElement): IO[EA, Unit] =
       value.modify { s =>

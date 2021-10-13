@@ -105,7 +105,7 @@ This section will attempt to provide some guidelines and examples to document, g
 5. Constructors for a data type `X` that are based on another data type `Y` should be placed in the companion object `X` and named `fromY`. 
    For example, `ZIO.fromOption`, `ZStream.fromEffect`;
    
-6. Parallel versions of methods should be named the same, but with a `Par` suffix. Parallel versions with a bound on parallelism should use a `ParN` suffix;
+6. Parallel versions of methods should be named the same, but with a `Par` suffix.
 
 7. `foreach` should be used for operators that effectually iterate over a collection. For example, `ZIO.foreach`.
 

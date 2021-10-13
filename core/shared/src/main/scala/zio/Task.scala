@@ -291,6 +291,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
+  @deprecated("use collectAllPar", "2.0.0")
   def collectAllParN[A, Collection[+Element] <: Iterable[Element]](
     n: => Int
   )(
@@ -301,13 +302,14 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectAllParN_]]
    */
-  @deprecated("use collectAllParNDiscard", "2.0.0")
+  @deprecated("use collectAllParDiscard", "2.0.0")
   def collectAllParN_[A](n: => Int)(as: => Iterable[Task[A]])(implicit trace: ZTraceElement): Task[Unit] =
     ZIO.collectAllParN_(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllParNDiscard]]
    */
+  @deprecated("use collectAllParDiscard", "2.0.0")
   def collectAllParNDiscard[A](n: => Int)(as: => Iterable[Task[A]])(implicit trace: ZTraceElement): Task[Unit] =
     ZIO.collectAllParNDiscard(n)(as)
 
@@ -330,6 +332,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
+  @deprecated("use collectAllSuccessesPar", "2.0.0")
   def collectAllSuccessesParN[A, Collection[+Element] <: Iterable[Element]](
     n: => Int
   )(
@@ -360,6 +363,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
+  @deprecated("use collectAllWithPar", "2.0.0")
   def collectAllWithParN[A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[Task[A]]
   )(
@@ -394,6 +398,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
+  @deprecated("use collectPar", "2.0.0")
   def collectParN[A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     in: Collection[A]
   )(
@@ -768,6 +773,7 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
+  @deprecated("use foreachPar", "2.0.0")
   def foreachParN[A, B, Collection[+Element] <: Iterable[Element]](
     n: => Int
   )(as: Collection[A])(
@@ -804,13 +810,14 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  @deprecated("use foreachParNDiscard", "2.0.0")
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParN_[A, B](n: => Int)(as: => Iterable[A])(f: A => Task[Any])(implicit trace: ZTraceElement): Task[Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachParNDiscard]]
    */
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParNDiscard[A, B](n: => Int)(as: => Iterable[A])(f: A => Task[Any])(implicit
     trace: ZTraceElement
   ): Task[Unit] =
@@ -1118,10 +1125,11 @@ object Task extends TaskPlatformSpecific {
   /**
    * @see See [[zio.ZIO.partitionParN]]
    */
+  @deprecated("use partitionPar", "2.0.0")
   def partitionParN[A, B](n: => Int)(in: => Iterable[A])(f: A => Task[B])(implicit
     trace: ZTraceElement
   ): Task[(Iterable[Throwable], Iterable[B])] =
-    ZIO.partitionParN(n)(in)(f)
+    ZIO.partitionPar(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]

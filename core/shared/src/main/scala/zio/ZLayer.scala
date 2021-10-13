@@ -356,13 +356,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from a managed resource.
    */
-  def apply[RIn, E, ROut](managed: ZManaged[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
+  def apply[RIn, E, ROut](managed: ZManaged[RIn, E, ROut])(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
     Managed(managed)
 
   /**
    * Constructs a layer from an effectual resource.
    */
-  def apply[RIn, E, ROut](zio: ZIO[RIn, E, ROut]): ZLayer[RIn, E, ROut] =
+  def apply[RIn, E, ROut](zio: ZIO[RIn, E, ROut])(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
     ZLayer(zio.toManaged)
 
   sealed trait Debug
@@ -4407,7 +4407,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
-  def succeedMany[A](a: A): ULayer[A] =
+  def succeedMany[A](a: A)(implicit trace: ZTraceElement): ULayer[A] =
     ZLayer(ZManaged.succeedNow(a))
 
   /**
