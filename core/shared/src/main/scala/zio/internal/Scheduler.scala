@@ -18,6 +18,7 @@ package zio.internal
 
 import zio.Duration
 import zio.internal.Scheduler.CancelToken
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 

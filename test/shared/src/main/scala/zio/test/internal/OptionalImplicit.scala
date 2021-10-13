@@ -1,5 +1,7 @@
 package zio.test.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 trait OptionalImplicit[A] {
   def value: Option[A]
 }

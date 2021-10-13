@@ -718,7 +718,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("recovery from some errors") {
             val s1 = ZStream(1, 2) ++ ZStream.failCause(Cause.Fail("Boom"))
             val s2 = ZStream(3, 4)
-            s1.catchSomeCause { case Cause.Fail("Boom") => s2 }.runCollect
+            s1.catchSomeCause { case c if c.contains(Cause.Fail("Boom")) => s2 }.runCollect
               .map(assert(_)(equalTo(Chunk(1, 2, 3, 4))))
           },
           test("fails stream when partial function does not match") {
@@ -2101,7 +2101,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
               for {
                 l <- s.mapZIOPar(8)(f).runCollect
-                r <- IO.foreachParN(8)(data)(f)
+                r <- IO.foreachPar(data)(f).withParallelism(8)
               } yield assert(l.toList)(equalTo(r))
             }
           },

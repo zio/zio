@@ -17,6 +17,7 @@
 package zio.test
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet

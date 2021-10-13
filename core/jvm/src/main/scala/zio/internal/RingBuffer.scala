@@ -17,6 +17,7 @@
 package zio.internal
 
 import zio.internal.MutableQueueFieldsPadding.{headUpdater, tailUpdater}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{Chunk, ChunkBuilder}
 
 import java.util.concurrent.atomic.AtomicLongArray

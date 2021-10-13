@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.annotation.tailrec
 
 sealed abstract class Cause[+E] extends Product with Serializable { self =>

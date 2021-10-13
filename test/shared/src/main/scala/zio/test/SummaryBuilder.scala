@@ -16,11 +16,12 @@
 
 package zio.test
 
-import zio.Chunk
+import zio.{Chunk, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ConsoleRenderer
 
 object SummaryBuilder {
-  def buildSummary[E](executedSpec: ExecutedSpec[E]): Summary = {
+  def buildSummary[E](executedSpec: ExecutedSpec[E])(implicit trace: ZTraceElement): Summary = {
     val success = countTestResults(executedSpec) {
       case Right(TestSuccess.Succeeded(_)) => true
       case _                               => false

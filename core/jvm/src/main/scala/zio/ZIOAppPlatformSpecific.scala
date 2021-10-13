@@ -1,13 +1,15 @@
 package zio
 
 import zio.internal._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait ZIOAppPlatformSpecific { self: ZIOApp =>
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
    */
-  final def main(args0: Array[String]): Unit =
+  final def main(args0: Array[String]): Unit = {
+    implicit val trace: ZTraceElement = ZTraceElement.empty
     runtime.unsafeRun {
       (for {
         fiber <- invoke(Chunk.fromIterable(args0)).provide(runtime.environment).fork
@@ -34,5 +36,6 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
         _      <- exit(result)
       } yield ())
     }
+  }
 
 }

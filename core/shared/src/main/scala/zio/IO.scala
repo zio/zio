@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.Platform
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 import scala.concurrent.ExecutionContext
@@ -27,7 +28,7 @@ object IO {
   /**
    * @see See [[zio.ZIO.absolve]]
    */
-  def absolve[E, A](v: => IO[E, Either[E, A]]): IO[E, A] =
+  def absolve[E, A](v: => IO[E, Either[E, A]])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.absolve(v)
 
   /**
@@ -39,7 +40,9 @@ object IO {
   /**
    * @see See acquireReleaseWith [[zio.ZIO]]
    */
-  def acquireReleaseWith[E, A, B](acquire: => IO[E, A], release: A => UIO[Any], use: A => IO[E, B]): IO[E, B] =
+  def acquireReleaseWith[E, A, B](acquire: => IO[E, A], release: A => UIO[Any], use: A => IO[E, B])(implicit
+    trace: ZTraceElement
+  ): IO[E, B] =
     ZIO.acquireReleaseWith(acquire, release, use)
 
   /**
@@ -55,24 +58,26 @@ object IO {
     acquire: => IO[E, A],
     release: (A, Exit[E, B]) => UIO[Any],
     use: A => IO[E, B]
-  ): IO[E, B] =
+  )(implicit trace: ZTraceElement): IO[E, B] =
     ZIO.acquireReleaseExitWith(acquire, release, use)
 
   /**
    * @see See [[zio.ZIO.allowInterrupt]]
    */
-  def allowInterrupt: UIO[Unit] =
+  def allowInterrupt(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.allowInterrupt
 
   /**
    * @see See [[zio.ZIO.apply]]
    */
-  def apply[A](a: => A): Task[A] = ZIO.apply(a)
+  def apply[A](a: => A)(implicit trace: ZTraceElement): Task[A] = ZIO.apply(a)
 
   /**
    * @see See [[zio.ZIO.async]]
    */
-  def async[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): IO[E, A] =
+  def async[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None)(implicit
+    trace: ZTraceElement
+  ): IO[E, A] =
     ZIO.async(register, blockingOn)
 
   /**
@@ -81,13 +86,13 @@ object IO {
   def asyncInterrupt[E, A](
     register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
     blockingOn: => FiberId = FiberId.None
-  ): IO[E, A] =
+  )(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.asyncInterrupt(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.asyncZIO]]
    */
-  def asyncZIO[E, A](register: (IO[E, A] => Unit) => IO[E, Any]): IO[E, A] =
+  def asyncZIO[E, A](register: (IO[E, A] => Unit) => IO[E, Any])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.asyncZIO(register)
 
   /**
@@ -96,49 +101,49 @@ object IO {
   def asyncMaybe[E, A](
     register: (IO[E, A] => Unit) => Option[IO[E, A]],
     blockingOn: => FiberId = FiberId.None
-  ): IO[E, A] =
+  )(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.asyncMaybe(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.attempt]]
    */
-  def attempt[A](effect: => A): Task[A] =
+  def attempt[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
     ZIO.attempt(effect)
 
   /**
    * @see See [[zio.ZIO.attemptBlocking]]
    */
-  def attemptBlocking[A](effect: => A): Task[A] =
+  def attemptBlocking[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
     ZIO.attemptBlocking(effect)
 
   /**
    * @see See [[zio.ZIO.attemptBlockingCancelable]]
    */
-  def attemptBlockingCancelable[A](effect: => A)(cancel: => UIO[Any]): Task[A] =
+  def attemptBlockingCancelable[A](effect: => A)(cancel: => UIO[Any])(implicit trace: ZTraceElement): Task[A] =
     ZIO.attemptBlockingCancelable(effect)(cancel)
 
   /**
    * @see See [[zio.ZIO.attemptBlockingIO]]
    */
-  def attemptBlockingIO[A](effect: => A): IO[IOException, A] =
+  def attemptBlockingIO[A](effect: => A)(implicit trace: ZTraceElement): IO[IOException, A] =
     ZIO.attemptBlockingIO(effect)
 
   /**
    * @see See [[zio.ZIO.attemptBlockingInterrupt]]
    */
-  def attemptBlockingInterrupt[A](effect: => A): Task[A] =
+  def attemptBlockingInterrupt[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
     ZIO.attemptBlockingInterrupt(effect)
 
   /**
    * @see See [[zio.ZIO.blocking]]
    */
-  def blocking[E, A](zio: => IO[E, A]): IO[E, A] =
+  def blocking[E, A](zio: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.blocking(zio)
 
   /**
    * @see See [[zio.ZIO.blockingExecutor]]
    */
-  def blockingExecutor: UIO[Executor] =
+  def blockingExecutor(implicit trace: ZTraceElement): UIO[Executor] =
     ZIO.blockingExecutor
 
   /**
@@ -152,7 +157,9 @@ object IO {
    * @see See bracket [[zio.ZIO]]
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
-  def bracket[E, A, B](acquire: => IO[E, A], release: A => UIO[Any], use: A => IO[E, B]): IO[E, B] =
+  def bracket[E, A, B](acquire: => IO[E, A], release: A => UIO[Any], use: A => IO[E, B])(implicit
+    trace: ZTraceElement
+  ): IO[E, B] =
     ZIO.bracket(acquire, release, use)
 
   /**
@@ -170,19 +177,19 @@ object IO {
     acquire: => IO[E, A],
     release: (A, Exit[E, B]) => UIO[Any],
     use: A => IO[E, B]
-  ): IO[E, B] =
+  )(implicit trace: ZTraceElement): IO[E, B] =
     ZIO.bracketExit(acquire, release, use)
 
   /**
    * @see See [[zio.ZIO.checkInterruptible]]
    */
-  def checkInterruptible[E, A](f: InterruptStatus => IO[E, A]): IO[E, A] =
+  def checkInterruptible[E, A](f: InterruptStatus => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.checkInterruptible(f)
 
   /**
    * @see See [[zio.ZIO.checkTraced]]
    */
-  def checkTraced[E, A](f: TracingStatus => IO[E, A]): IO[E, A] =
+  def checkTraced[E, A](f: TracingStatus => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.checkTraced(f)
 
   /**
@@ -190,7 +197,9 @@ object IO {
    */
   def collect[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(f: A => IO[Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    f: A => IO[Option[E], B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.collect(in)(f)
 
   /**
@@ -198,7 +207,7 @@ object IO {
    */
   def collect[E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
-  )(f: (Key, Value) => IO[Option[E], (Key2, Value2)]): IO[E, Map[Key2, Value2]] =
+  )(f: (Key, Value) => IO[Option[E], (Key2, Value2)])(implicit trace: ZTraceElement): IO[E, Map[Key2, Value2]] =
     ZIO.collect(map)(f)
 
   /**
@@ -206,38 +215,38 @@ object IO {
    */
   def collectAll[E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[IO[E, A]]
-  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]]): IO[E, Collection[A]] =
+  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]], trace: ZTraceElement): IO[E, Collection[A]] =
     ZIO.collectAll(in)
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Set*]]]
    */
-  def collectAll[E, A](in: Set[IO[E, A]]): IO[E, Set[A]] =
+  def collectAll[E, A](in: Set[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Set[A]] =
     ZIO.collectAll(in)
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:Array*]]]
    */
-  def collectAll[E, A: ClassTag](in: Array[IO[E, A]]): IO[E, Array[A]] =
+  def collectAll[E, A: ClassTag](in: Array[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Array[A]] =
     ZIO.collectAll(in)
 
   /**
    * @see See [[[zio.ZIO.collectAll[R,E,A](in:zio\.NonEmptyChunk*]]]
    */
-  def collectAll[E, A](in: NonEmptyChunk[IO[E, A]]): IO[E, NonEmptyChunk[A]] =
+  def collectAll[E, A](in: NonEmptyChunk[IO[E, A]])(implicit trace: ZTraceElement): IO[E, NonEmptyChunk[A]] =
     ZIO.collectAll(in)
 
   /**
    * @see See [[zio.ZIO.collectAll_]]
    */
   @deprecated("use collectAllDiscard", "2.0.0")
-  def collectAll_[E, A](in: => Iterable[IO[E, A]]): IO[E, Unit] =
+  def collectAll_[E, A](in: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.collectAll_(in)
 
   /**
    * @see See [[zio.ZIO.collectAllDiscard]]
    */
-  def collectAllDiscard[E, A](in: => Iterable[IO[E, A]]): IO[E, Unit] =
+  def collectAllDiscard[E, A](in: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.collectAllDiscard(in)
 
   /**
@@ -245,59 +254,63 @@ object IO {
    */
   def collectAllPar[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[IO[E, A]]
-  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]]): IO[E, Collection[A]] =
+  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]], trace: ZTraceElement): IO[E, Collection[A]] =
     ZIO.collectAllPar(as)
 
   /**
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Set*]]]
    */
-  def collectAllPar[E, A](as: Set[IO[E, A]]): IO[E, Set[A]] =
+  def collectAllPar[E, A](as: Set[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Set[A]] =
     ZIO.collectAllPar(as)
 
   /**
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:Array*]]]
    */
-  def collectAllPar[E, A: ClassTag](as: Array[IO[E, A]]): IO[E, Array[A]] =
+  def collectAllPar[E, A: ClassTag](as: Array[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Array[A]] =
     ZIO.collectAllPar(as)
 
   /**
    * @see See [[[zio.ZIO.collectAllPar[R,E,A](as:zio\.NonEmptyChunk*]]]
    */
-  def collectAllPar[E, A](as: NonEmptyChunk[IO[E, A]]): IO[E, NonEmptyChunk[A]] =
+  def collectAllPar[E, A](as: NonEmptyChunk[IO[E, A]])(implicit trace: ZTraceElement): IO[E, NonEmptyChunk[A]] =
     ZIO.collectAllPar(as)
 
   /**
    * @see See [[zio.ZIO.collectAllPar_]]
    */
   @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllPar_[E, A](in: => Iterable[IO[E, A]]): IO[E, Unit] =
+  def collectAllPar_[E, A](in: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.collectAllPar_(in)
 
   /**
    * @see See [[zio.ZIO.collectAllParDiscard]]
    */
-  def collectAllParDiscard[E, A](in: => Iterable[IO[E, A]]): IO[E, Unit] =
+  def collectAllParDiscard[E, A](in: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.collectAllParDiscard(in)
 
   /**
    * @see See [[zio.ZIO.collectAllParN]]
    */
+  @deprecated("use collectAllPar", "2.0.0")
   def collectAllParN[E, A, Collection[+Element] <: Iterable[Element]](
     n: => Int
-  )(as: Collection[IO[E, A]])(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]]): IO[E, Collection[A]] =
+  )(
+    as: Collection[IO[E, A]]
+  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]], trace: ZTraceElement): IO[E, Collection[A]] =
     ZIO.collectAllParN(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllParN_]]
    */
-  @deprecated("use collectAllParNDiscard", "2.0.0")
-  def collectAllParN_[E, A](n: => Int)(as: => Iterable[IO[E, A]]): IO[E, Unit] =
+  @deprecated("use collectAllParDiscard", "2.0.0")
+  def collectAllParN_[E, A](n: => Int)(as: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.collectAllParN_(n)(as)
 
   /**
    * @see See [[zio.ZIO.collectAllParNDiscard]]
    */
-  def collectAllParNDiscard[E, A](n: => Int)(as: => Iterable[IO[E, A]]): IO[E, Unit] =
+  @deprecated("use collectAllParDiscard", "2.0.0")
+  def collectAllParNDiscard[E, A](n: => Int)(as: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.collectAllParNDiscard(n)(as)
 
   /**
@@ -305,7 +318,7 @@ object IO {
    */
   def collectAllSuccesses[E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[IO[E, A]]
-  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]]): UIO[Collection[A]] =
+  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]], trace: ZTraceElement): UIO[Collection[A]] =
     ZIO.collectAllSuccesses(in)
 
   /**
@@ -313,15 +326,18 @@ object IO {
    */
   def collectAllSuccessesPar[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[IO[E, A]]
-  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]]): UIO[Collection[A]] =
+  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]], trace: ZTraceElement): UIO[Collection[A]] =
     ZIO.collectAllSuccessesPar(as)
 
   /**
    * @see See [[zio.ZIO.collectAllSuccessesParN]]
    */
+  @deprecated("use collectAllSuccessesPar", "2.0.0")
   def collectAllSuccessesParN[E, A, Collection[+Element] <: Iterable[Element]](
     n: => Int
-  )(as: Collection[IO[E, A]])(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]]): UIO[Collection[A]] =
+  )(
+    as: Collection[IO[E, A]]
+  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]], trace: ZTraceElement): UIO[Collection[A]] =
     ZIO.collectAllSuccessesParN(n)(as)
 
   /**
@@ -329,7 +345,9 @@ object IO {
    */
   def collectAllWith[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[IO[E, A]]
-  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[IO[E, A]], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    f: PartialFunction[A, B]
+  )(implicit bf: BuildFrom[Collection[IO[E, A]], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.collectAllWith(in)(f)
 
   /**
@@ -337,21 +355,28 @@ object IO {
    */
   def collectAllWithPar[E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[IO[E, A]]
-  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[IO[E, A]], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    f: PartialFunction[A, B]
+  )(implicit bf: BuildFrom[Collection[IO[E, A]], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.collectAllWithPar(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectAllWithParN]]
    */
+  @deprecated("use collectAllWithPar", "2.0.0")
   def collectAllWithParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[IO[E, A]]
-  )(f: PartialFunction[A, B])(implicit bf: BuildFrom[Collection[IO[E, A]], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    f: PartialFunction[A, B]
+  )(implicit bf: BuildFrom[Collection[IO[E, A]], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.collectAllWithParN(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.collectFirst]]
    */
-  def collectFirst[E, A, B](as: => Iterable[A])(f: A => IO[E, Option[B]]): IO[E, Option[B]] =
+  def collectFirst[E, A, B](as: => Iterable[A])(f: A => IO[E, Option[B]])(implicit
+    trace: ZTraceElement
+  ): IO[E, Option[B]] =
     ZIO.collectFirst(as)(f)
 
   /**
@@ -359,7 +384,9 @@ object IO {
    */
   def collectPar[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(f: A => IO[Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    f: A => IO[Option[E], B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.collectPar(in)(f)
 
   /**
@@ -367,70 +394,75 @@ object IO {
    */
   def collectPar[E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
-  )(f: (Key, Value) => IO[Option[E], (Key2, Value2)]): IO[E, Map[Key2, Value2]] =
+  )(f: (Key, Value) => IO[Option[E], (Key2, Value2)])(implicit trace: ZTraceElement): IO[E, Map[Key2, Value2]] =
     ZIO.collectPar(map)(f)
 
   /**
    * @see See [[zio.ZIO.collectParN]]
    */
+  @deprecated("use collectPar", "2.0.0")
   def collectParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     in: Collection[A]
-  )(f: A => IO[Option[E], B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    f: A => IO[Option[E], B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.collectParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.cond]]
    */
-  def cond[E, A](predicate: => Boolean, result: => A, error: => E): IO[E, A] =
+  def cond[E, A](predicate: => Boolean, result: => A, error: => E)(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.cond(predicate, result, error)
 
   /**
    * @see See [[zio.ZIO.debug]]
    */
-  def debug(value: => Any): UIO[Unit] =
+  def debug(value: => Any)(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.debug(value)
 
   /**
    * @see See [[zio.ZIO.descriptor]]
    */
-  def descriptor: UIO[Fiber.Descriptor] = ZIO.descriptor
+  def descriptor(implicit trace: ZTraceElement): UIO[Fiber.Descriptor] = ZIO.descriptor
 
   /**
    * @see See [[zio.ZIO.descriptorWith]]
    */
-  def descriptorWith[E, A](f: Fiber.Descriptor => IO[E, A]): IO[E, A] =
+  def descriptorWith[E, A](f: Fiber.Descriptor => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.descriptorWith(f)
 
   /**
    * @see See [[zio.ZIO.die]]
    */
-  def die(t: => Throwable): UIO[Nothing] =
+  def die(t: => Throwable)(implicit trace: ZTraceElement): UIO[Nothing] =
     ZIO.die(t)
 
   /**
    * @see See [[zio.ZIO.dieMessage]]
    */
-  def dieMessage(message: => String): UIO[Nothing] =
+  def dieMessage(message: => String)(implicit trace: ZTraceElement): UIO[Nothing] =
     ZIO.dieMessage(message)
 
   /**
    * @see See [[zio.ZIO.done]]
    */
-  def done[E, A](r: => Exit[E, A]): IO[E, A] =
+  def done[E, A](r: => Exit[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.done(r)
 
   /**
    * @see See [[zio.ZIO.effect]]
    */
   @deprecated("use attempt", "2.0.0")
-  def effect[A](effect: => A): Task[A] =
+  def effect[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
     ZIO.effect(effect)
 
   /**
    * @see See [[zio.ZIO.effectAsync]]
    */
   @deprecated("use async", "2.0.0")
-  def effectAsync[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None): IO[E, A] =
+  def effectAsync[E, A](register: (IO[E, A] => Unit) => Any, blockingOn: => FiberId = FiberId.None)(implicit
+    trace: ZTraceElement
+  ): IO[E, A] =
     ZIO.effectAsync(register, blockingOn)
 
   /**
@@ -440,14 +472,14 @@ object IO {
   def effectAsyncInterrupt[E, A](
     register: (IO[E, A] => Unit) => Either[Canceler[Any], IO[E, A]],
     blockingOn: => FiberId = FiberId.None
-  ): IO[E, A] =
+  )(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.effectAsyncInterrupt(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectAsyncM]]
    */
   @deprecated("use asyncZIO", "2.0.0")
-  def effectAsyncM[E, A](register: (IO[E, A] => Unit) => IO[E, Any]): IO[E, A] =
+  def effectAsyncM[E, A](register: (IO[E, A] => Unit) => IO[E, Any])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.effectAsyncM(register)
 
   /**
@@ -457,106 +489,108 @@ object IO {
   def effectAsyncMaybe[E, A](
     register: (IO[E, A] => Unit) => Option[IO[E, A]],
     blockingOn: => FiberId = FiberId.None
-  ): IO[E, A] =
+  )(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.effectAsyncMaybe(register, blockingOn)
 
   /**
    * @see See [[zio.ZIO.effectBlocking]]
    */
   @deprecated("use attemptBlocking", "2.0.0")
-  def effectBlocking[A](effect: => A): Task[A] =
+  def effectBlocking[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
     ZIO.effectBlocking(effect)
 
   /**
    * @see See [[zio.ZIO.effectBlockingCancelable]]
    */
   @deprecated("use attemptBlockingCancelable", "2.0.0")
-  def effectBlockingCancelable[A](effect: => A)(cancel: => UIO[Any]): Task[A] =
+  def effectBlockingCancelable[A](effect: => A)(cancel: => UIO[Any])(implicit trace: ZTraceElement): Task[A] =
     ZIO.effectBlockingCancelable(effect)(cancel)
 
   /**
    * @see See [[zio.ZIO.effectBlockingIO]]
    */
   @deprecated("use attemptBlockingIO", "2.0.0")
-  def effectBlockingIO[A](effect: => A): IO[IOException, A] =
+  def effectBlockingIO[A](effect: => A)(implicit trace: ZTraceElement): IO[IOException, A] =
     ZIO.effectBlockingIO(effect)
 
   /**
    * @see See [[zio.ZIO.effectBlockingInterrupt]]
    */
   @deprecated("use attemptBlockingInterrupt", "2.0.0")
-  def effectBlockingInterrupt[A](effect: => A): Task[A] =
+  def effectBlockingInterrupt[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
     ZIO.effectBlockingInterrupt(effect)
 
   /**
    * @see [[zio.ZIO.effectSuspend]]
    */
   @deprecated("use suspend", "2.0.0")
-  def effectSuspend[A](io: => IO[Throwable, A]): IO[Throwable, A] =
+  def effectSuspend[A](io: => IO[Throwable, A])(implicit trace: ZTraceElement): IO[Throwable, A] =
     ZIO.effectSuspend(io)
 
   /**
    * @see [[zio.ZIO.effectSuspendWith]]
    */
   @deprecated("use suspendWith", "2.0.0")
-  def effectSuspendWith[A](p: (Platform, Fiber.Id) => IO[Throwable, A]): IO[Throwable, A] =
+  def effectSuspendWith[A](p: (Platform, Fiber.Id) => IO[Throwable, A])(implicit
+    trace: ZTraceElement
+  ): IO[Throwable, A] =
     ZIO.effectSuspendWith(p)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotal]]
    */
   @deprecated("use suspendSucceed", "2.0.0")
-  def effectSuspendTotal[E, A](io: => IO[E, A]): IO[E, A] =
+  def effectSuspendTotal[E, A](io: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.effectSuspendTotal(io)
 
   /**
    * @see See [[zio.ZIO.effectSuspendTotalWith]]
    */
   @deprecated("use suspendSucceedWith", "2.0.0")
-  def effectSuspendTotalWith[E, A](p: (Platform, Fiber.Id) => IO[E, A]): IO[E, A] =
+  def effectSuspendTotalWith[E, A](p: (Platform, Fiber.Id) => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.effectSuspendTotalWith(p)
 
   /**
    * @see See [[zio.ZIO.effectTotal]]
    */
   @deprecated("use succeed", "2.0.0")
-  def effectTotal[A](effect: => A): UIO[A] =
+  def effectTotal[A](effect: => A)(implicit trace: ZTraceElement): UIO[A] =
     ZIO.effectTotal(effect)
 
   /**
    * @see See [[zio.ZIO.executor]]
    */
-  def executor: UIO[Executor] =
+  def executor(implicit trace: ZTraceElement): UIO[Executor] =
     ZIO.executor
 
   /**
    * @see See [[zio.ZIO.exists]]
    */
-  def exists[E, A](as: => Iterable[A])(f: A => IO[E, Boolean]): IO[E, Boolean] =
+  def exists[E, A](as: => Iterable[A])(f: A => IO[E, Boolean])(implicit trace: ZTraceElement): IO[E, Boolean] =
     ZIO.exists(as)(f)
 
   /**
    * @see See [[zio.ZIO.fail]]
    */
-  def fail[E](error: => E): IO[E, Nothing] =
+  def fail[E](error: => E)(implicit trace: ZTraceElement): IO[E, Nothing] =
     ZIO.fail(error)
 
   /**
    * @see See [[zio.ZIO.failCause]]
    */
-  def failCause[E](cause: => Cause[E]): IO[E, Nothing] =
+  def failCause[E](cause: => Cause[E])(implicit trace: ZTraceElement): IO[E, Nothing] =
     ZIO.failCause(cause)
 
   /**
    * @see See [[zio.ZIO.failCauseWith]]
    */
-  def failCauseWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
+  def failCauseWith[E](function: (() => ZTrace) => Cause[E])(implicit trace: ZTraceElement): IO[E, Nothing] =
     ZIO.failCauseWith(function)
 
   /**
    * @see [[zio.ZIO.fiberId]]
    */
-  val fiberId: UIO[FiberId] =
+  def fiberId(implicit trace: ZTraceElement): UIO[FiberId] =
     ZIO.fiberId
 
   /**
@@ -564,13 +598,15 @@ object IO {
    */
   def filter[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => IO[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): IO[E, Collection[A]] =
+  )(
+    f: A => IO[E, Boolean]
+  )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: ZTraceElement): IO[E, Collection[A]] =
     ZIO.filter(as)(f)
 
   /**
    * @see [[[zio.ZIO.filter[R,E,A](as:Set*]]]
    */
-  def filter[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+  def filter[E, A](as: Set[A])(f: A => IO[E, Boolean])(implicit trace: ZTraceElement): IO[E, Set[A]] =
     ZIO.filter(as)(f)
 
   /**
@@ -578,13 +614,15 @@ object IO {
    */
   def filterPar[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => IO[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): IO[E, Collection[A]] =
+  )(
+    f: A => IO[E, Boolean]
+  )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: ZTraceElement): IO[E, Collection[A]] =
     ZIO.filterPar(as)(f)
 
   /**
    * @see [[[zio.ZIO.filterPar[R,E,A](as:Set*]]]
    */
-  def filterPar[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+  def filterPar[E, A](as: Set[A])(f: A => IO[E, Boolean])(implicit trace: ZTraceElement): IO[E, Set[A]] =
     ZIO.filterPar(as)(f)
 
   /**
@@ -592,13 +630,15 @@ object IO {
    */
   def filterNot[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => IO[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): IO[E, Collection[A]] =
+  )(
+    f: A => IO[E, Boolean]
+  )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: ZTraceElement): IO[E, Collection[A]] =
     ZIO.filterNot(as)(f)
 
   /**
    * @see [[[zio.ZIO.filterNot[R,E,A](as:Set*]]]
    */
-  def filterNot[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+  def filterNot[E, A](as: Set[A])(f: A => IO[E, Boolean])(implicit trace: ZTraceElement): IO[E, Set[A]] =
     ZIO.filterNot(as)(f)
 
   /**
@@ -606,13 +646,15 @@ object IO {
    */
   def filterNotPar[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(f: A => IO[E, Boolean])(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): IO[E, Collection[A]] =
+  )(
+    f: A => IO[E, Boolean]
+  )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: ZTraceElement): IO[E, Collection[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
    * @see [[[zio.ZIO.filterNotPar[R,E,A](as:Set*]]]
    */
-  def filterNotPar[E, A](as: Set[A])(f: A => IO[E, Boolean]): IO[E, Set[A]] =
+  def filterNotPar[E, A](as: Set[A])(f: A => IO[E, Boolean])(implicit trace: ZTraceElement): IO[E, Set[A]] =
     ZIO.filterNotPar(as)(f)
 
   /**
@@ -621,30 +663,34 @@ object IO {
   def firstSuccessOf[E, A](
     io: => IO[E, A],
     rest: => Iterable[IO[E, A]]
-  ): IO[E, A] = ZIO.firstSuccessOf(io, rest)
+  )(implicit trace: ZTraceElement): IO[E, A] = ZIO.firstSuccessOf(io, rest)
 
   /**
    * @see See [[zio.ZIO.flatten]]
    */
-  def flatten[E, A](io: => IO[E, IO[E, A]]): IO[E, A] =
+  def flatten[E, A](io: => IO[E, IO[E, A]])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.flatten(io)
 
   /**
    * @see See [[zio.ZIO.foldLeft]]
    */
-  def foldLeft[E, S, A](in: => Iterable[A])(zero: => S)(f: (S, A) => IO[E, S]): IO[E, S] =
+  def foldLeft[E, S, A](in: => Iterable[A])(zero: => S)(f: (S, A) => IO[E, S])(implicit
+    trace: ZTraceElement
+  ): IO[E, S] =
     ZIO.foldLeft(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.foldRight]]
    */
-  def foldRight[E, S, A](in: => Iterable[A])(zero: => S)(f: (A, S) => IO[E, S]): IO[E, S] =
+  def foldRight[E, S, A](in: => Iterable[A])(zero: => S)(f: (A, S) => IO[E, S])(implicit
+    trace: ZTraceElement
+  ): IO[E, S] =
     ZIO.foldRight(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.forall]]
    */
-  def forall[E, A](as: => Iterable[A])(f: A => IO[E, Boolean]): IO[E, Boolean] =
+  def forall[E, A](as: => Iterable[A])(f: A => IO[E, Boolean])(implicit trace: ZTraceElement): IO[E, Boolean] =
     ZIO.forall(as)(f)
 
   /**
@@ -652,19 +698,21 @@ object IO {
    */
   def foreach[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(f: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    f: A => IO[E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.foreach(in)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Set*]]]
    */
-  def foreach[E, A, B](in: Set[A])(f: A => IO[E, B]): IO[E, Set[B]] =
+  def foreach[E, A, B](in: Set[A])(f: A => IO[E, B])(implicit trace: ZTraceElement): IO[E, Set[B]] =
     ZIO.foreach(in)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:Array*]]]
    */
-  def foreach[E, A, B: ClassTag](in: Array[A])(f: A => IO[E, B]): IO[E, Array[B]] =
+  def foreach[E, A, B: ClassTag](in: Array[A])(f: A => IO[E, B])(implicit trace: ZTraceElement): IO[E, Array[B]] =
     ZIO.foreach(in)(f)
 
   /**
@@ -672,19 +720,19 @@ object IO {
    */
   def foreach[E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
-  )(f: (Key, Value) => IO[E, (Key2, Value2)]): IO[E, Map[Key2, Value2]] =
+  )(f: (Key, Value) => IO[E, (Key2, Value2)])(implicit trace: ZTraceElement): IO[E, Map[Key2, Value2]] =
     ZIO.foreach(map)(f)
 
   /**
    * @see See [[zio.ZIO.foreach[R,E,A,B](in:Option*]]]
    */
-  def foreach[E, A, B](in: Option[A])(f: A => IO[E, B]): IO[E, Option[B]] =
+  def foreach[E, A, B](in: Option[A])(f: A => IO[E, B])(implicit trace: ZTraceElement): IO[E, Option[B]] =
     ZIO.foreach(in)(f)
 
   /**
    * @see See [[[zio.ZIO.foreach[R,E,A,B](in:zio\.NonEmptyChunk*]]]
    */
-  def foreach[E, A, B](in: NonEmptyChunk[A])(f: A => IO[E, B]): IO[E, NonEmptyChunk[B]] =
+  def foreach[E, A, B](in: NonEmptyChunk[A])(f: A => IO[E, B])(implicit trace: ZTraceElement): IO[E, NonEmptyChunk[B]] =
     ZIO.foreach(in)(f)
 
   /**
@@ -692,7 +740,9 @@ object IO {
    */
   final def foreachExec[E, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
     exec: => ExecutionStrategy
-  )(f: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    f: A => IO[E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.foreachExec(as)(exec)(f)
 
   /**
@@ -700,19 +750,21 @@ object IO {
    */
   def foreachPar[E, A, B, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
-  )(fn: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    fn: A => IO[E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Set*]]]
    */
-  def foreachPar[E, A, B](as: Set[A])(fn: A => IO[E, B]): IO[E, Set[B]] =
+  def foreachPar[E, A, B](as: Set[A])(fn: A => IO[E, B])(implicit trace: ZTraceElement): IO[E, Set[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:Array*]]]
    */
-  def foreachPar[E, A, B: ClassTag](as: Array[A])(fn: A => IO[E, B]): IO[E, Array[B]] =
+  def foreachPar[E, A, B: ClassTag](as: Array[A])(fn: A => IO[E, B])(implicit trace: ZTraceElement): IO[E, Array[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
@@ -720,60 +772,70 @@ object IO {
    */
   def foreachPar[E, Key, Key2, Value, Value2](
     map: Map[Key, Value]
-  )(f: (Key, Value) => IO[E, (Key2, Value2)]): IO[E, Map[Key2, Value2]] =
+  )(f: (Key, Value) => IO[E, (Key2, Value2)])(implicit trace: ZTraceElement): IO[E, Map[Key2, Value2]] =
     ZIO.foreachPar(map)(f)
 
   /**
    * @see See [[[zio.ZIO.foreachPar[R,E,A,B](as:zio\.NonEmptyChunk*]]]
    */
-  def foreachPar[E, A, B](as: NonEmptyChunk[A])(fn: A => IO[E, B]): IO[E, NonEmptyChunk[B]] =
+  def foreachPar[E, A, B](as: NonEmptyChunk[A])(fn: A => IO[E, B])(implicit
+    trace: ZTraceElement
+  ): IO[E, NonEmptyChunk[B]] =
     ZIO.foreachPar(as)(fn)
 
   /**
    * @see See [[zio.ZIO.foreachParN]]
    */
+  @deprecated("use foreachPar", "2.0.0")
   def foreachParN[E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[A]
-  )(fn: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): IO[E, Collection[B]] =
+  )(
+    fn: A => IO[E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): IO[E, Collection[B]] =
     ZIO.foreachParN(n)(as)(fn)
 
   /**
    * @see See [[zio.ZIO.foreach_]]
    */
   @deprecated("use foreachDiscard", "2.0.0")
-  def foreach_[E, A](as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  def foreach_[E, A](as: => Iterable[A])(f: A => IO[E, Any])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.foreach_(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachDiscard]]
    */
-  def foreachDiscard[E, A](as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  def foreachDiscard[E, A](as: => Iterable[A])(f: A => IO[E, Any])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.foreachDiscard(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachPar_]]
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachPar_[E, A, B](as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  def foreachPar_[E, A, B](as: => Iterable[A])(f: A => IO[E, Any])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.foreachPar_(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachParDiscard]]
    */
-  def foreachParDiscard[E, A, B](as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  def foreachParDiscard[E, A, B](as: => Iterable[A])(f: A => IO[E, Any])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.foreachParDiscard(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachParN_]]
    */
-  @deprecated("use foreachParNDiscard", "2.0.0")
-  def foreachParN_[E, A, B](n: => Int)(as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  @deprecated("use foreachParDiscard", "2.0.0")
+  def foreachParN_[E, A, B](n: => Int)(as: => Iterable[A])(f: A => IO[E, Any])(implicit
+    trace: ZTraceElement
+  ): IO[E, Unit] =
     ZIO.foreachParN_(n)(as)(f)
 
   /**
    * @see See [[zio.ZIO.foreachParNDiscard]]
    */
-  def foreachParNDiscard[E, A, B](n: => Int)(as: => Iterable[A])(f: A => IO[E, Any]): IO[E, Unit] =
+  @deprecated("use foreachParDiscard", "2.0.0")
+  def foreachParNDiscard[E, A, B](n: => Int)(as: => Iterable[A])(f: A => IO[E, Any])(implicit
+    trace: ZTraceElement
+  ): IO[E, Unit] =
     ZIO.foreachParNDiscard(n)(as)(f)
 
   /**
@@ -781,97 +843,103 @@ object IO {
    */
   def forkAll[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[IO[E, A]]
-  )(implicit bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]]): UIO[Fiber[E, Collection[A]]] =
+  )(implicit
+    bf: BuildFrom[Collection[IO[E, A]], A, Collection[A]],
+    trace: ZTraceElement
+  ): UIO[Fiber[E, Collection[A]]] =
     ZIO.forkAll(as)
 
   /**
    * @see See [[zio.ZIO.forkAll_]]
    */
   @deprecated("use forkAllDiscard", "2.0.0")
-  def forkAll_[E, A](as: => Iterable[IO[E, A]]): UIO[Unit] =
+  def forkAll_[E, A](as: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.forkAll_(as)
 
   /**
    * @see See [[zio.ZIO.forkAllDiscard]]
    */
-  def forkAllDiscard[E, A](as: => Iterable[IO[E, A]]): UIO[Unit] =
+  def forkAllDiscard[E, A](as: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.forkAllDiscard(as)
 
   /**
    * Constructs a `IO` value of the appropriate type for the specified input.
    */
   def from[Input](input: => Input)(implicit
-    constructor: ZIO.ZIOConstructor[Any, Any, Input]
+    constructor: ZIO.ZIOConstructor[Any, Any, Input],
+    trace: ZTraceElement
   ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
     constructor.make(input)
 
   /**
    * @see See [[zio.ZIO.fromEither]]
    */
-  def fromEither[E, A](v: => Either[E, A]): IO[E, A] =
+  def fromEither[E, A](v: => Either[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.fromEither(v)
 
   /**
    * @see See [[zio.ZIO.fromFiber]]
    */
-  def fromFiber[E, A](fiber: => Fiber[E, A]): IO[E, A] =
+  def fromFiber[E, A](fiber: => Fiber[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.fromFiber(fiber)
 
   /**
    * @see See [[zio.ZIO.fromFiberM]]
    */
   @deprecated("use fromFiberZIO", "2.0.0")
-  def fromFiberM[E, A](fiber: => IO[E, Fiber[E, A]]): IO[E, A] =
+  def fromFiberM[E, A](fiber: => IO[E, Fiber[E, A]])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.fromFiberM(fiber)
 
   /**
    * @see See [[zio.ZIO.fromFiberZIO]]
    */
-  def fromFiberZIO[E, A](fiber: => IO[E, Fiber[E, A]]): IO[E, A] =
+  def fromFiberZIO[E, A](fiber: => IO[E, Fiber[E, A]])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.fromFiberZIO(fiber)
 
   /**
    * @see See [[zio.ZIO.fromFuture]]
    */
-  def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+  def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A])(implicit trace: ZTraceElement): Task[A] =
     ZIO.fromFuture(make)
 
   /**
    * @see See [[zio.ZIO.fromFutureInterrupt]]
    */
-  def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A]): Task[A] =
+  def fromFutureInterrupt[A](make: ExecutionContext => scala.concurrent.Future[A])(implicit
+    trace: ZTraceElement
+  ): Task[A] =
     ZIO.fromFutureInterrupt(make)
 
   /**
    * @see See [[zio.ZIO.fromOption]]
    */
-  def fromOption[A](v: => Option[A]): IO[Option[Nothing], A] =
+  def fromOption[A](v: => Option[A])(implicit trace: ZTraceElement): IO[Option[Nothing], A] =
     ZIO.fromOption(v)
 
   /**
    * @see See [[zio.ZIO.getOrFailUnit]]
    */
-  def getOrFailUnit[A](v: => Option[A]): IO[Unit, A] =
+  def getOrFailUnit[A](v: => Option[A])(implicit trace: ZTraceElement): IO[Unit, A] =
     ZIO.getOrFailUnit(v)
 
   /**
    * @see See [[zio.ZIO.fromTry]]
    */
-  def fromTry[A](value: => scala.util.Try[A]): Task[A] =
+  def fromTry[A](value: => scala.util.Try[A])(implicit trace: ZTraceElement): Task[A] =
     ZIO.fromTry(value)
 
   /**
    * @see See [[zio.ZIO.halt]]
    */
   @deprecated("use failCause", "2.0.0")
-  def halt[E](cause: => Cause[E]): IO[E, Nothing] =
+  def halt[E](cause: => Cause[E])(implicit trace: ZTraceElement): IO[E, Nothing] =
     ZIO.halt(cause)
 
   /**
    * @see See [[zio.ZIO.haltWith]]
    */
   @deprecated("use failCauseWith", "2.0.0")
-  def haltWith[E](function: (() => ZTrace) => Cause[E]): IO[E, Nothing] =
+  def haltWith[E](function: (() => ZTrace) => Cause[E])(implicit trace: ZTraceElement): IO[E, Nothing] =
     ZIO.haltWith(function)
 
   /**
@@ -890,77 +958,85 @@ object IO {
   /**
    * @see See [[zio.ZIO.interrupt]]
    */
-  val interrupt: UIO[Nothing] =
+  def interrupt(implicit trace: ZTraceElement): UIO[Nothing] =
     ZIO.interrupt
 
   /**
    * @see See [[zio.ZIO.interruptAs]]
    */
-  def interruptAs(fiberId: => FiberId): UIO[Nothing] =
+  def interruptAs(fiberId: => FiberId)(implicit trace: ZTraceElement): UIO[Nothing] =
     ZIO.interruptAs(fiberId)
 
   /**
    * @see See [[zio.ZIO.interruptible]]
    */
-  def interruptible[E, A](io: => IO[E, A]): IO[E, A] =
+  def interruptible[E, A](io: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.interruptible(io)
 
   /**
    * @see See [[zio.ZIO.interruptibleMask]]
    */
-  def interruptibleMask[E, A](k: ZIO.InterruptStatusRestore => IO[E, A]): IO[E, A] =
+  def interruptibleMask[E, A](k: ZIO.InterruptStatusRestore => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.interruptibleMask(k)
 
   /**
    * @see See [[zio.ZIO.iterate]]
    */
-  def iterate[E, S](initial: => S)(cont: S => Boolean)(body: S => IO[E, S]): IO[E, S] =
+  def iterate[E, S](initial: => S)(cont: S => Boolean)(body: S => IO[E, S])(implicit trace: ZTraceElement): IO[E, S] =
     ZIO.iterate(initial)(cont)(body)
 
   /**
    *  @see See [[zio.ZIO.left]]
    */
-  def left[E, A](a: => A): IO[E, Either[A, Nothing]] =
+  def left[E, A](a: => A)(implicit trace: ZTraceElement): IO[E, Either[A, Nothing]] =
     ZIO.left(a)
 
   /**
    * @see See [[zio.ZIO.lock]]
    */
   @deprecated("use onExecutor", "2.0.0")
-  def lock[E, A](executor: => Executor)(io: => IO[E, A]): IO[E, A] =
+  def lock[E, A](executor: => Executor)(io: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.onExecutor(executor)(io)
 
   /**
    *  @see See [[zio.ZIO.loop]]
    */
-  def loop[E, A, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, A]): IO[E, List[A]] =
+  def loop[E, A, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, A])(implicit
+    trace: ZTraceElement
+  ): IO[E, List[A]] =
     ZIO.loop(initial)(cont, inc)(body)
 
   /**
    *  @see See [[zio.ZIO.loop_]]
    */
   @deprecated("use loopDiscard", "2.0.0")
-  def loop_[E, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, Any]): IO[E, Unit] =
+  def loop_[E, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, Any])(implicit
+    trace: ZTraceElement
+  ): IO[E, Unit] =
     ZIO.loop_(initial)(cont, inc)(body)
 
   /**
    *  @see See [[zio.ZIO.loopDiscard]]
    */
-  def loopDiscard[E, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, Any]): IO[E, Unit] =
+  def loopDiscard[E, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => IO[E, Any])(implicit
+    trace: ZTraceElement
+  ): IO[E, Unit] =
     ZIO.loopDiscard(initial)(cont, inc)(body)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C]*]]
    */
   @deprecated("use zip", "2.0.0")
-  def mapN[E, A, B, C](io1: => IO[E, A], io2: => IO[E, B])(f: (A, B) => C): IO[E, C] =
+  def mapN[E, A, B, C](io1: => IO[E, A], io2: => IO[E, B])(f: (A, B) => C)(implicit trace: ZTraceElement): IO[E, C] =
     ZIO.mapN(io1, io2)(f)
 
   /**
    *  @see [[zio.ZIO.mapN[R,E,A,B,C,D]*]]
    */
   @deprecated("use zip", "2.0.0")
-  def mapN[E, A, B, C, D](io1: => IO[E, A], io2: => IO[E, B], io3: => IO[E, C])(f: (A, B, C) => D): IO[E, D] =
+  def mapN[E, A, B, C, D](io1: => IO[E, A], io2: => IO[E, B], io3: => IO[E, C])(f: (A, B, C) => D)(implicit
+    trace: ZTraceElement
+  ): IO[E, D] =
     ZIO.mapN(io1, io2, io3)(f)
 
   /**
@@ -969,21 +1045,23 @@ object IO {
   @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C, D, F](io1: => IO[E, A], io2: => IO[E, B], io3: => IO[E, C], io4: => IO[E, D])(
     f: (A, B, C, D) => F
-  ): IO[E, F] =
+  )(implicit trace: ZTraceElement): IO[E, F] =
     ZIO.mapN(io1, io2, io3, io4)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C]*]]
    */
   @deprecated("use zipPar", "2.0.0")
-  def mapParN[E, A, B, C](io1: => IO[E, A], io2: => IO[E, B])(f: (A, B) => C): IO[E, C] =
+  def mapParN[E, A, B, C](io1: => IO[E, A], io2: => IO[E, B])(f: (A, B) => C)(implicit trace: ZTraceElement): IO[E, C] =
     ZIO.mapParN(io1, io2)(f)
 
   /**
    *  @see [[zio.ZIO.mapParN[R,E,A,B,C,D]*]]
    */
   @deprecated("use zipPar", "2.0.0")
-  def mapParN[E, A, B, C, D](io1: => IO[E, A], io2: => IO[E, B], io3: => IO[E, C])(f: (A, B, C) => D): IO[E, D] =
+  def mapParN[E, A, B, C, D](io1: => IO[E, A], io2: => IO[E, B], io3: => IO[E, C])(f: (A, B, C) => D)(implicit
+    trace: ZTraceElement
+  ): IO[E, D] =
     ZIO.mapParN(io1, io2, io3)(f)
 
   /**
@@ -992,31 +1070,35 @@ object IO {
   @deprecated("use zipPar", "2.0.0")
   def mapParN[E, A, B, C, D, F](io1: => IO[E, A], io2: => IO[E, B], io3: => IO[E, C], io4: => IO[E, D])(
     f: (A, B, C, D) => F
-  ): IO[E, F] =
+  )(implicit trace: ZTraceElement): IO[E, F] =
     ZIO.mapParN(io1, io2, io3, io4)(f)
 
   /**
    * @see See [[zio.ZIO.memoize]]
    */
-  def memoize[E, A, B](f: A => IO[E, B]): UIO[A => IO[E, B]] =
+  def memoize[E, A, B](f: A => IO[E, B])(implicit trace: ZTraceElement): UIO[A => IO[E, B]] =
     ZIO.memoize(f)
 
   /**
    * @see See [[zio.ZIO.mergeAll]]
    */
-  def mergeAll[E, A, B](in: => Iterable[IO[E, A]])(zero: => B)(f: (B, A) => B): IO[E, B] =
+  def mergeAll[E, A, B](in: => Iterable[IO[E, A]])(zero: => B)(f: (B, A) => B)(implicit
+    trace: ZTraceElement
+  ): IO[E, B] =
     ZIO.mergeAll(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.mergeAllPar]]
    */
-  def mergeAllPar[E, A, B](in: => Iterable[IO[E, A]])(zero: => B)(f: (B, A) => B): IO[E, B] =
+  def mergeAllPar[E, A, B](in: => Iterable[IO[E, A]])(zero: => B)(f: (B, A) => B)(implicit
+    trace: ZTraceElement
+  ): IO[E, B] =
     ZIO.mergeAllPar(in)(zero)(f)
 
   /**
    * @see See [[zio.ZIO.never]]
    */
-  val never: UIO[Nothing] =
+  def never(implicit trace: ZTraceElement): UIO[Nothing] =
     ZIO.never
 
   /**
@@ -1028,32 +1110,33 @@ object IO {
   /**
    * @see See [[zio.ZIO.noneOrFail]]
    */
-  def noneOrFail[E](o: => Option[E]): IO[E, Unit] =
+  def noneOrFail[E](o: => Option[E])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.noneOrFail(o)
 
   /**
    * @see See [[zio.ZIO.noneOrFailWith]]
    */
-  def noneOrFailWith[E, O](o: => Option[O])(f: O => E): IO[E, Unit] =
+  def noneOrFailWith[E, O](o: => Option[O])(f: O => E)(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.noneOrFailWith(o)(f)
 
   /**
    *  @see See [[zio.ZIO.not]]
    */
-  def not[E](effect: => IO[E, Boolean]): IO[E, Boolean] =
+  def not[E](effect: => IO[E, Boolean])(implicit trace: ZTraceElement): IO[E, Boolean] =
     ZIO.not(effect)
 
   /**
    * @see See [[zio.ZIO.onExecutor]]
    */
-  def onExecutor[E, A](executor: => Executor)(io: IO[E, A]): IO[E, A] =
+  def onExecutor[E, A](executor: => Executor)(io: IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.onExecutor(executor)(io)
 
   /**
    * @see See [[zio.ZIO.partition]]
    */
   def partition[E, A, B](in: => Iterable[A])(f: A => IO[E, B])(implicit
-    ev: CanFail[E]
+    ev: CanFail[E],
+    trace: ZTraceElement
   ): UIO[(Iterable[E], Iterable[B])] =
     ZIO.partition(in)(f)
 
@@ -1062,150 +1145,159 @@ object IO {
    */
   def partitionPar[E, A, B](
     in: => Iterable[A]
-  )(f: A => IO[E, B])(implicit ev: CanFail[E]): UIO[(Iterable[E], Iterable[B])] =
+  )(f: A => IO[E, B])(implicit ev: CanFail[E], trace: ZTraceElement): UIO[(Iterable[E], Iterable[B])] =
     ZIO.partitionPar(in)(f)
 
   /**
    * @see See [[zio.ZIO.partitionParN]]
    */
+  @deprecated("use partitionPar", "2.0.0")
   def partitionParN[E, A, B](
     n: => Int
-  )(in: => Iterable[A])(f: A => IO[E, B])(implicit ev: CanFail[E]): UIO[(Iterable[E], Iterable[B])] =
+  )(in: => Iterable[A])(
+    f: A => IO[E, B]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): UIO[(Iterable[E], Iterable[B])] =
     ZIO.partitionParN(n)(in)(f)
 
   /**
    * @see See [[zio.ZIO.raceAll]]
    */
-  def raceAll[E, A](io: => IO[E, A], ios: => Iterable[IO[E, A]]): IO[E, A] =
+  def raceAll[E, A](io: => IO[E, A], ios: => Iterable[IO[E, A]])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.raceAll(io, ios)
 
   /**
    * @see See [[zio.ZIO.reduceAll]]
    */
-  def reduceAll[E, A](a: => IO[E, A], as: => Iterable[IO[E, A]])(f: (A, A) => A): IO[E, A] =
+  def reduceAll[E, A](a: => IO[E, A], as: => Iterable[IO[E, A]])(f: (A, A) => A)(implicit
+    trace: ZTraceElement
+  ): IO[E, A] =
     ZIO.reduceAll(a, as)(f)
 
   /**
    * @see See [[zio.ZIO.reduceAllPar]]
    */
-  def reduceAllPar[E, A](a: => IO[E, A], as: => Iterable[IO[E, A]])(f: (A, A) => A): IO[E, A] =
+  def reduceAllPar[E, A](a: => IO[E, A], as: => Iterable[IO[E, A]])(f: (A, A) => A)(implicit
+    trace: ZTraceElement
+  ): IO[E, A] =
     ZIO.reduceAllPar(a, as)(f)
 
   /**
    * @see See [[zio.ZIO.replicate]]
    */
-  def replicate[E, A](n: => Int)(effect: => IO[E, A]): Iterable[IO[E, A]] =
+  def replicate[E, A](n: => Int)(effect: => IO[E, A])(implicit trace: ZTraceElement): Iterable[IO[E, A]] =
     ZIO.replicate(n)(effect)
 
   /**
    * @see See [[zio.ZIO.replicateM]]
    */
   @deprecated("use replicateZIO", "2.0.0")
-  def replicateM[E, A](n: => Int)(effect: => IO[E, A]): IO[E, Iterable[A]] =
+  def replicateM[E, A](n: => Int)(effect: => IO[E, A])(implicit trace: ZTraceElement): IO[E, Iterable[A]] =
     ZIO.replicateM(n)(effect)
 
   /**
    * @see See [[zio.ZIO.replicateM_]]
    */
   @deprecated("use replicateZIODiscard", "2.0.0")
-  def replicateM_[E, A](n: => Int)(effect: => IO[E, A]): IO[E, Unit] =
+  def replicateM_[E, A](n: => Int)(effect: => IO[E, A])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.replicateM_(n)(effect)
 
   /**
    * @see See [[zio.ZIO.replicateZIO]]
    */
-  def replicateZIO[E, A](n: => Int)(effect: => IO[E, A]): IO[E, Iterable[A]] =
+  def replicateZIO[E, A](n: => Int)(effect: => IO[E, A])(implicit trace: ZTraceElement): IO[E, Iterable[A]] =
     ZIO.replicateZIO(n)(effect)
 
   /**
    * @see See [[zio.ZIO.replicateZIODiscard]]
    */
-  def replicateZIODiscard[E, A](n: => Int)(effect: => IO[E, A]): IO[E, Unit] =
+  def replicateZIODiscard[E, A](n: => Int)(effect: => IO[E, A])(implicit trace: ZTraceElement): IO[E, Unit] =
     ZIO.replicateZIODiscard(n)(effect)
 
   /**
    * @see See [[zio.ZIO.require]]
    */
   @deprecated("use someOrFail", "2.0.0")
-  def require[E, A](error: => E): IO[E, Option[A]] => IO[E, A] =
+  def require[E, A](error: => E)(implicit trace: ZTraceElement): IO[E, Option[A]] => IO[E, A] =
     ZIO.require[Any, E, A](error)
 
   /**
    * @see See [[zio.ZIO.reserve]]
    */
-  def reserve[E, A, B](reservation: => IO[E, Reservation[Any, E, A]])(use: A => IO[E, B]): IO[E, B] =
+  def reserve[E, A, B](reservation: => IO[E, Reservation[Any, E, A]])(use: A => IO[E, B])(implicit
+    trace: ZTraceElement
+  ): IO[E, B] =
     ZIO.reserve(reservation)(use)
 
   /**
    *  @see [[zio.ZIO.right]]
    */
-  def right[E, B](b: => B): IO[E, Either[Nothing, B]] =
+  def right[E, B](b: => B)(implicit trace: ZTraceElement): IO[E, Either[Nothing, B]] =
     ZIO.right(b)
 
   /**
    * @see See [[zio.ZIO.runtime]]
    */
-  def runtime: UIO[Runtime[Any]] =
+  def runtime(implicit trace: ZTraceElement): UIO[Runtime[Any]] =
     ZIO.runtime
 
   /**
    * @see See [[zio.ZIO.runtimeConfig]]
    */
-  val runtimeConfig: UIO[RuntimeConfig] =
+  def runtimeConfig(implicit trace: ZTraceElement): UIO[RuntimeConfig] =
     ZIO.runtimeConfig
 
   /**
    *  @see [[zio.ZIO.some]]
    */
-  def some[E, A](a: => A): IO[E, Option[A]] =
+  def some[E, A](a: => A)(implicit trace: ZTraceElement): IO[E, Option[A]] =
     ZIO.some(a)
 
   /**
    * @see See [[zio.ZIO.succeed]]
    */
-  def succeed[A](a: => A): UIO[A] =
+  def succeed[A](a: => A)(implicit trace: ZTraceElement): UIO[A] =
     ZIO.succeed(a)
 
   /**
    * @see See [[zio.ZIO.succeedBlocking]]
    */
-  def succeedBlocking[A](a: => A): UIO[A] =
+  def succeedBlocking[A](a: => A)(implicit trace: ZTraceElement): UIO[A] =
     ZIO.succeedBlocking(a)
 
   /**
    * @see [[zio.ZIO.suspend]]
    */
-  def suspend[A](io: => IO[Throwable, A]): IO[Throwable, A] =
+  def suspend[A](io: => IO[Throwable, A])(implicit trace: ZTraceElement): IO[Throwable, A] =
     ZIO.suspend(io)
 
   /**
    * @see [[zio.ZIO.suspendWith]]
    */
-  def suspendWith[A](f: (RuntimeConfig, FiberId) => IO[Throwable, A]): IO[Throwable, A] =
+  def suspendWith[A](f: (RuntimeConfig, FiberId) => IO[Throwable, A])(implicit trace: ZTraceElement): IO[Throwable, A] =
     ZIO.suspendWith(f)
 
   /**
    * @see See [[zio.ZIO.suspendSucceed]]
    */
-  def suspendSucceed[E, A](io: => IO[E, A]): IO[E, A] =
+  def suspendSucceed[E, A](io: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.suspendSucceed(io)
 
   /**
    * @see See [[zio.ZIO.suspendSucceedWith]]
    */
-  def suspendSucceedWith[E, A](f: (RuntimeConfig, FiberId) => IO[E, A]): IO[E, A] =
+  def suspendSucceedWith[E, A](f: (RuntimeConfig, FiberId) => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.suspendSucceedWith(f)
 
   /**
    * @see See [[zio.ZIO.trace]]
    */
-  def trace: UIO[ZTrace] =
+  def trace(implicit trace: ZTraceElement): UIO[ZTrace] =
     ZIO.trace
 
   /**
    * @see See [[zio.ZIO.traced]]
    */
-  def traced[E, A](zio: => IO[E, A]): IO[E, A] =
+  def traced[E, A](zio: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.traced(zio)
 
   /**
@@ -1217,19 +1309,19 @@ object IO {
   /**
    * @see See [[zio.ZIO.uninterruptible]]
    */
-  def uninterruptible[E, A](io: => IO[E, A]): IO[E, A] =
+  def uninterruptible[E, A](io: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.uninterruptible(io)
 
   /**
    * @see See [[zio.ZIO.uninterruptibleMask]]
    */
-  def uninterruptibleMask[E, A](k: ZIO.InterruptStatusRestore => IO[E, A]): IO[E, A] =
+  def uninterruptibleMask[E, A](k: ZIO.InterruptStatusRestore => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.uninterruptibleMask(k)
 
   /**
    * @see See [[zio.ZIO.unless]]
    */
-  def unless[E, A](b: => Boolean)(zio: => IO[E, A]): IO[E, Option[A]] =
+  def unless[E, A](b: => Boolean)(zio: => IO[E, A])(implicit trace: ZTraceElement): IO[E, Option[A]] =
     ZIO.unless(b)(zio)
 
   /**
@@ -1248,13 +1340,13 @@ object IO {
   /**
    * @see See [[zio.ZIO.unsandbox]]
    */
-  def unsandbox[E, A](v: => IO[Cause[E], A]): IO[E, A] =
+  def unsandbox[E, A](v: => IO[Cause[E], A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.unsandbox(v)
 
   /**
    * @see See [[zio.ZIO.untraced]]
    */
-  def untraced[E, A](zio: => IO[E, A]): IO[E, A] =
+  def untraced[E, A](zio: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.untraced(zio)
 
   /**
@@ -1262,7 +1354,11 @@ object IO {
    */
   def validate[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => IO[E, B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): IO[::[E], Collection[B]] =
+  )(implicit
+    bf: BuildFrom[Collection[A], B, Collection[B]],
+    ev: CanFail[E],
+    trace: ZTraceElement
+  ): IO[::[E], Collection[B]] =
     ZIO.validate(in)(f)
 
   /**
@@ -1270,20 +1366,24 @@ object IO {
    */
   def validate[E, A, B](in: NonEmptyChunk[A])(
     f: A => IO[E, B]
-  )(implicit ev: CanFail[E]): IO[::[E], NonEmptyChunk[B]] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): IO[::[E], NonEmptyChunk[B]] =
     ZIO.validate(in)(f)
 
   /**
    * @see See [[zio.ZIO.validate_]]
    */
   @deprecated("use validateDiscard", "2.0.0")
-  def validate_[E, A](in: => Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
+  def validate_[E, A](in: => Iterable[A])(
+    f: A => IO[E, Any]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): IO[::[E], Unit] =
     ZIO.validate_(in)(f)
 
   /**
    * @see See [[zio.ZIO.validateDiscard]]
    */
-  def validateDiscard[E, A](in: => Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
+  def validateDiscard[E, A](in: => Iterable[A])(
+    f: A => IO[E, Any]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): IO[::[E], Unit] =
     ZIO.validateDiscard(in)(f)
 
   /**
@@ -1291,7 +1391,11 @@ object IO {
    */
   def validatePar[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => IO[E, B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], ev: CanFail[E]): IO[::[E], Collection[B]] =
+  )(implicit
+    bf: BuildFrom[Collection[A], B, Collection[B]],
+    ev: CanFail[E],
+    trace: ZTraceElement
+  ): IO[::[E], Collection[B]] =
     ZIO.validatePar(in)(f)
 
   /**
@@ -1299,20 +1403,24 @@ object IO {
    */
   def validatePar[E, A, B](in: NonEmptyChunk[A])(
     f: A => IO[E, B]
-  )(implicit ev: CanFail[E]): IO[::[E], NonEmptyChunk[B]] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): IO[::[E], NonEmptyChunk[B]] =
     ZIO.validatePar(in)(f)
 
   /**
    * @see See [[zio.ZIO.validatePar_]]
    */
   @deprecated("use validateParDiscard", "2.0.0")
-  def validatePar_[E, A](in: => Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
+  def validatePar_[E, A](in: => Iterable[A])(
+    f: A => IO[E, Any]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): IO[::[E], Unit] =
     ZIO.validatePar_(in)(f)
 
   /**
    * @see See [[zio.ZIO.validateParDiscard]]
    */
-  def validateParDiscard[E, A](in: => Iterable[A])(f: A => IO[E, Any])(implicit ev: CanFail[E]): IO[::[E], Unit] =
+  def validateParDiscard[E, A](in: => Iterable[A])(
+    f: A => IO[E, Any]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): IO[::[E], Unit] =
     ZIO.validateParDiscard(in)(f)
 
   /**
@@ -1320,7 +1428,11 @@ object IO {
    */
   def validateFirst[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(f: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], E, Collection[E]], ev: CanFail[E]): IO[Collection[E], B] =
+  )(f: A => IO[E, B])(implicit
+    bf: BuildFrom[Collection[A], E, Collection[E]],
+    ev: CanFail[E],
+    trace: ZTraceElement
+  ): IO[Collection[E], B] =
     ZIO.validateFirst(in)(f)
 
   /**
@@ -1328,32 +1440,40 @@ object IO {
    */
   def validateFirstPar[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
-  )(f: A => IO[E, B])(implicit bf: BuildFrom[Collection[A], E, Collection[E]], ev: CanFail[E]): IO[Collection[E], B] =
+  )(f: A => IO[E, B])(implicit
+    bf: BuildFrom[Collection[A], E, Collection[E]],
+    ev: CanFail[E],
+    trace: ZTraceElement
+  ): IO[Collection[E], B] =
     ZIO.validateFirstPar(in)(f)
 
   /**
    * @see See [[zio.ZIO.when]]
    */
-  def when[E, A](b: => Boolean)(io: => IO[E, A]): IO[E, Option[A]] =
+  def when[E, A](b: => Boolean)(io: => IO[E, A])(implicit trace: ZTraceElement): IO[E, Option[A]] =
     ZIO.when(b)(io)
 
   /**
    * @see See [[zio.ZIO.whenCase]]
    */
-  def whenCase[E, A, B](a: => A)(pf: PartialFunction[A, IO[E, B]]): IO[E, Option[B]] =
+  def whenCase[E, A, B](a: => A)(pf: PartialFunction[A, IO[E, B]])(implicit trace: ZTraceElement): IO[E, Option[B]] =
     ZIO.whenCase(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenCaseM]]
    */
   @deprecated("use whenCaseZIO", "2.0.0")
-  def whenCaseM[E, A, B](a: => IO[E, A])(pf: PartialFunction[A, IO[E, B]]): IO[E, Option[B]] =
+  def whenCaseM[E, A, B](a: => IO[E, A])(pf: PartialFunction[A, IO[E, B]])(implicit
+    trace: ZTraceElement
+  ): IO[E, Option[B]] =
     ZIO.whenCaseM(a)(pf)
 
   /**
    * @see See [[zio.ZIO.whenCaseZIO]]
    */
-  def whenCaseZIO[E, A, B](a: => IO[E, A])(pf: PartialFunction[A, IO[E, B]]): IO[E, Option[B]] =
+  def whenCaseZIO[E, A, B](a: => IO[E, A])(pf: PartialFunction[A, IO[E, B]])(implicit
+    trace: ZTraceElement
+  ): IO[E, Option[B]] =
     ZIO.whenCaseZIO(a)(pf)
 
   /**
@@ -1372,13 +1492,15 @@ object IO {
   /**
    *  @see See [[zio.ZIO.withRuntimeConfig]]
    */
-  def withRuntimeConfig[E, A](runtimeConfig: => RuntimeConfig)(io: => IO[E, A]): IO[E, A] =
+  def withRuntimeConfig[E, A](runtimeConfig: => RuntimeConfig)(io: => IO[E, A])(implicit
+    trace: ZTraceElement
+  ): IO[E, A] =
     ZIO.withRuntimeConfig(runtimeConfig)(io)
 
   /**
    * @see See [[zio.ZIO.yieldNow]]
    */
-  val yieldNow: UIO[Unit] =
+  def yieldNow(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.yieldNow
 
   private[zio] def succeedNow[A](a: A): UIO[A] =

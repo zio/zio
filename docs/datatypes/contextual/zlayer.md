@@ -536,10 +536,10 @@ We can acquire resources asynchronously or in a blocking fashion, and spend some
 
 This application demonstrates a ZIO program with a single dependency on a simple string value:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
 
-object Example extends zio.App {
+object Example extends ZIOAppDefault {
 
   // Define our simple ZIO program
   val zio: ZIO[Has[String], Nothing, Unit] = for {
@@ -552,8 +552,7 @@ object Example extends zio.App {
   val nameLayer: ULayer[Has[String]] = ZLayer.succeed("Adam")
 
   // Run the program, providing the `nameLayer`
-  def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    zio.provideSomeLayer(nameLayer).as(ExitCode.success)
+  def run = zio.provideSomeLayer(nameLayer)
 }
 
 ```
@@ -648,7 +647,7 @@ object ZLayerApp0 extends zio.App {
 
 In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, and `Clock`. The layer provided to the runnable application shows how dependency layers can be combined using `++` into a single combined layer. The combined layer will then be able to produce both of the outputs of the original layers as a single layer:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
 import zio.Clock._
 

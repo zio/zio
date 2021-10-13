@@ -16,14 +16,15 @@
 
 package zio.test
 
-import zio.{ExecutionStrategy, Has, Layer, UIO, ZIO, ZManaged}
+import zio.{ExecutionStrategy, Has, Layer, UIO, ZIO, ZManaged, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
  * environment `R` and may fail with an `E`.
  */
 abstract class TestExecutor[+R, E] {
-  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]]
+  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]]
   def environment: Layer[Nothing, R]
 }
 
@@ -31,7 +32,7 @@ object TestExecutor {
   def default[R <: Has[Annotations], E](
     env: Layer[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
-    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy): UIO[ExecutedSpec[E]] =
+    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]] =
       spec.annotated
         .provideLayer(environment)
         .foreachExec(defExec)(

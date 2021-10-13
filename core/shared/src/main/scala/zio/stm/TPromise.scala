@@ -16,6 +16,8 @@
 
 package zio.stm
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 final class TPromise[E, A] private (val ref: TRef[Option[Either[E, A]]]) extends AnyVal {
   def await: STM[E, A] =
     ref.get.collect { case Some(e) =>
