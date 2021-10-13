@@ -24,12 +24,33 @@ package zio
 final class FiberRefs private (private val fiberRefLocals: Map[FiberRef.Runtime[_], Any]) { self =>
 
   /**
+   * Returns a set of each `FiberRef` in this collection.
+   */
+  def fiberRefs: Set[FiberRef.Runtime[_]] =
+    fiberRefLocals.keySet
+
+  /**
+   * Gets the value of the specified `FiberRef` in this collection of
+   * `FiberRef` values if it exists or `None` otherwise.
+   */
+  def get[A](fiberRef: FiberRef.Runtime[A]): Option[A] =
+    fiberRefLocals.get(fiberRef).map(_.asInstanceOf[A])
+
+  /**
+   * Gets the value of the specified `FiberRef` in this collection of
+   * `FiberRef` values if it exists or the `initial` value of the `FiberRef`
+   * otherwise.
+   */
+  def getOrDefault[A](fiberRef: FiberRef.Runtime[A]): A =
+    get(fiberRef).getOrElse(fiberRef.initial)
+
+  /**
    * Sets the value of each `FiberRef` for the fiber running this effect to
    * the value in this collection of `FiberRef` values.
    */
   def setAll: UIO[Unit] =
-    ZIO.foreachDiscard(fiberRefLocals) { case (fiberRef, value) =>
-      fiberRef.asInstanceOf[FiberRef.Runtime[Any]].set(value)
+    ZIO.foreachDiscard(fiberRefs) { fiberRef =>
+      fiberRef.asInstanceOf[FiberRef.Runtime[Any]].set(getOrDefault(fiberRef))
     }
 }
 
