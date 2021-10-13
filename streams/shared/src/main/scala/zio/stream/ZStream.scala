@@ -1971,7 +1971,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
       for {
         as    <- self.process
         runIO <- (io.asSomeError *> Pull.end).forkManaged
-      } yield runIO.join.disconnect.raceFirst(as)
+      } yield ZIO.transplant(graft => runIO.join.disconnect.raceFirst(graft(as)))
     }
 
   /**
@@ -1989,7 +1989,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
         pull = (done.get <*> p.isDone) flatMap {
                  case (true, _) => Pull.end
                  case (_, true) => asPull
-                 case _         => as.raceFirst(asPull)
+                 case _         => ZIO.transplant(graft => graft(as).raceFirst(asPull))
                }
       } yield pull
     }

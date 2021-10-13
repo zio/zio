@@ -500,6 +500,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     catchSomeDefect { case t => h(t) }
 
   /**
+   * Recovers from all NonFatal Throwables.
+   *
+   * {{{
+   * openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
+   * }}}
+   */
+  final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
+    h: E => ZIO[R1, E2, A1]
+  )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: ZTraceElement): ZIO[R1, E2, A1] = {
+
+    def hh(e: E) = ZIO.runtime[Any].flatMap(runtime => if (runtime.platform.fatal(e)) ZIO.die(e) else h(e))
+    self.foldM[R1, E2, A1](hh, ZIO.succeedNow)
+  }
+
+  /**
    * Recovers from some or all of the error cases.
    *
    * {{{
@@ -2963,7 +2978,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * If the returned `ZIO` is interrupted, the blocked thread running the
    * synchronous effect will be interrupted via the cancel effect.
    */
-  def attemptBlockingCancelable[A](effect: => A)(cancel: => UIO[Any])(implicit trace: ZTraceElement): Task[A] =
+  def attemptBlockingCancelable[R, A](effect: => A)(cancel: => URIO[R, Any])(implicit trace: ZTraceElement): RIO[R, A] =
     blocking(ZIO.attempt(effect)).fork.flatMap(_.join).onInterrupt(cancel)
 
   /**
@@ -3577,7 +3592,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * synchronous effect will be interrupted via the cancel effect.
    */
   @deprecated("use attemptBlockingCancelable", "2.0.0")
-  def effectBlockingCancelable[A](effect: => A)(cancel: => UIO[Any])(implicit trace: ZTraceElement): Task[A] =
+  def effectBlockingCancelable[R, A](effect: => A)(cancel: => URIO[R, Any])(implicit trace: ZTraceElement): RIO[R, A] =
     attemptBlockingCancelable(effect)(cancel)
 
   /**

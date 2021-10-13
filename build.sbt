@@ -24,20 +24,11 @@ inThisBuild(
 )
 
 addCommandAlias("build", "; prepare; testJVM")
-addCommandAlias("prepare", "; fix; fmt")
-addCommandAlias(
-  "fix",
-  "all compile:scalafix test:scalafix; all scalafmtSbt scalafmtAll"
-)
-addCommandAlias(
-  "fixCheck",
-  "; compile:scalafix --check ; test:scalafix --check"
-)
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "check",
-  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile; compile:scalafix --check; test:scalafix --check"
+  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile"
 )
 addCommandAlias(
   "compileJVM",
@@ -481,8 +472,8 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       "junit"                   % "junit"     % "4.13.2" % Test,
       "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.8.2"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.8.2"  % Test,
+      "org.apache.maven"       % "maven-embedder"         % "3.8.3"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.8.3"  % Test,
       "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
@@ -539,10 +530,10 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"        % fs2Version,
         "com.google.code.findbugs"   % "jsr305"          % "3.0.2",
-        "com.twitter"               %% "util-core"       % "21.8.0",
+        "com.twitter"               %% "util-core"       % "21.9.0",
         "com.typesafe.akka"         %% "akka-stream"     % "2.6.16",
         "io.github.timwspence"      %% "cats-stm"        % "0.10.3",
-        "io.projectreactor"          % "reactor-core"    % "3.4.10",
+        "io.projectreactor"          % "reactor-core"    % "3.4.11",
         "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
         "org.jctools"                % "jctools-core"    % "3.3.0",
         "org.ow2.asm"                % "asm"             % "9.2",
@@ -580,7 +571,7 @@ lazy val jsdocs = project
   .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
   .enablePlugins(ScalaJSPlugin)
 
-val http4sV     = "0.23.4"
+val http4sV     = "0.23.6"
 val doobieV     = "1.0.0-RC1"
 val catsEffectV = "3.2.9"
 val zioActorsV  = "0.0.9"
@@ -649,7 +640,7 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-interop-scalaz7x"          % "7.3.3.0",
       "dev.zio"                       %% "zio-interop-reactivestreams"   % "1.3.7",
       "dev.zio"                       %% "zio-interop-twitter"           % "20.10.0.0",
-      "dev.zio"                       %% "zio-zmx"                       % "0.0.8",
+      "dev.zio"                       %% "zio-zmx"                       % "0.0.9",
       "dev.zio"                       %% "zio-query"                     % "0.2.10",
       "org.polynote"                  %% "uzhttp"                        % "0.2.8",
       "org.tpolecat"                  %% "doobie-core"                   % doobieV,
@@ -658,18 +649,18 @@ lazy val docs = project.module
       "org.http4s"                    %% "http4s-blaze-server"           % http4sV,
       "org.http4s"                    %% "http4s-blaze-client"           % http4sV,
       "org.http4s"                    %% "http4s-dsl"                    % http4sV,
-      "com.github.ghostdogpr"         %% "caliban"                       % "1.1.1",
-      "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.1.1",
+      "com.github.ghostdogpr"         %% "caliban"                       % "1.2.0",
+      "com.github.ghostdogpr"         %% "caliban-zio-http"              % "1.2.0",
       "org.scalameta"                 %% "munit"                         % "0.7.29",
       "com.github.poslegm"            %% "munit-zio"                     % "0.0.3",
-      "nl.vroste"                     %% "rezilience"                    % "0.6.2",
+      "nl.vroste"                     %% "rezilience"                    % "0.7.0",
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
       "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
       "nl.vroste"                     %% "zio-amqp"                      % "0.2.2",
-      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.42.5",
-      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.42.5",
-      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.42.5",
-      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.42.5",
+      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.56.1",
+      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.56.1",
+      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.56.1",
+      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.56.1",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
       "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",

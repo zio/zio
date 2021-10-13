@@ -221,6 +221,22 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(d)(not(equalTo(e)))
       }
     ),
+    suite("catchNonFatalOrDie")(
+      test("recovers from NonFatal") {
+        val s   = "division by zero"
+        val zio = ZIO.fail(new IllegalArgumentException(s))
+        for {
+          result <- zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
+        } yield assert(result)(succeeds(equalTo(s)))
+      },
+      test("dies if fatal") {
+        val e   = new OutOfMemoryError
+        val zio = ZIO.fail(e)
+        for {
+          result <- zio.catchNonFatalOrDie(e => ZIO.succeed(e.getMessage)).exit
+        } yield assert(result)(dies(equalTo(e)))
+      } @@ jvmOnly // no fatal exceptions in JS
+    ),
     suite("catchAllDefect")(
       test("recovers from all defects") {
         val s   = "division by zero"

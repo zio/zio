@@ -260,8 +260,10 @@ private[mock] object MockableMacro {
       }
     }
 
+    val ownersToSkip = Set(typeOf[Object], typeOf[Any]).map(_.typeSymbol)
+
     val methods = service.members
-      .filter(member => member.owner == service.typeSymbol && member.name.toTermName != TermName("$init$"))
+      .filter(member => !ownersToSkip.contains(member.owner.asType) && member.name.toTermName != TermName("$init$"))
       .map(symbol => MethodInfo(symbol.asMethod))
       .toList
       .groupBy(_.symbol.name)
