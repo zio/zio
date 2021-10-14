@@ -10,31 +10,58 @@ import scala.quoted._
 object Macros {
 
   def traceInfo(using ctx: Quotes): String = {
+    import quotes.reflect._
 
     val location = {
-      def loop(current: quotes.reflect.Symbol, acc: List[String] = Nil): List[String] = {
+      def loop(current: Symbol, acc: List[String] = Nil): List[String] = {
         val currentName = current.name.toString.trim
         if (currentName != "<root>")
           loop(current.owner, if (currentName == "$anonfun") acc else currentName :: acc)
         else acc
       }
 
-      loop(quotes.reflect.Symbol.spliceOwner).mkString(".")
+      loop(Symbol.spliceOwner).mkString(".")
     }
 
-    val pos    = quotes.reflect.Position.ofMacroExpansion
+    val pos    = Position.ofMacroExpansion
     val file   = pos.sourceFile.jpath.toString
     val line   = pos.startLine
     val column = pos.startColumn
     createTrace(location, file, line, column)
   }
 
-  private def traceExpr(trace: String)(using ctx: Quotes): Expr[Tracer.instance.Type] =
-    Expr(trace).asInstanceOf[Expr[Tracer.instance.Type]]
-
   def newTraceImpl(using ctx: Quotes): Expr[Tracer.instance.Type] =
     traceExpr(traceInfo)
 
-  def autoTraceImpl(using ctx: Quotes): Expr[Tracer.instance.Type] =
-    Expr(Tracer.instance.empty.asInstanceOf[String]).asInstanceOf[Expr[Tracer.instance.Type]]
+  def autoTraceImpl(using ctx: Quotes): Expr[Tracer.instance.Type] = {
+    import quotes.reflect._
+
+    val disableAutoTrace =
+      Expr.summon[DisableAutoTrace].isDefined
+
+    val traceExpression = traceExpr(traceInfo)
+
+    if (!disableAutoTrace) traceExpression
+    else {
+      println(
+        s"""[${Console.RED}error${Console.RESET}] ${traceInfo}
+           |[${Console.RED}error${Console.RESET}]  
+           |[${Console.RED}error${Console.RESET}]  No automatically generated traces are permitted here. Add an implicit parameter
+           |[${Console.RED}error${Console.RESET}]  to pass through a user generated trace or explicitly call `newTrace`
+           |[${Console.RED}error${Console.RESET}]  to force generation of a new trace.
+           |[${Console.RED}error${Console.RESET}]  
+           |[${Console.RED}error${Console.RESET}]  copy/paste:
+           |[${Console.RED}error${Console.RESET}]    (implicit trace: ZTraceElement)  <- no existing implicit parameter list
+           |[${Console.RED}error${Console.RESET}]    , trace: ZTraceElement           <- existing implicit parameter list
+           |[${Console.RED}error${Console.RESET}]    (newTrace)                       <- I know what I'm doing, generate a new trace anyway
+           |[${Console.RED}error${Console.RESET}]    
+           |""".stripMargin
+      )
+      report.throwError("Auto-generated traces are disabled")
+    }
+
+  }
+
+  private def traceExpr(trace: String)(using ctx: Quotes): Expr[Tracer.instance.Type] =
+    Expr(trace).asInstanceOf[Expr[Tracer.instance.Type]]
 }
