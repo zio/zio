@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.stacktracer.Tracer
+import zio.Scheduler
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Schedule.Decision._
 
@@ -35,6 +36,8 @@ trait Clock extends Serializable {
   def localDateTime(implicit trace: ZTraceElement): UIO[java.time.LocalDateTime]
 
   def nanoTime(implicit trace: ZTraceElement): UIO[Long]
+
+  def scheduler(implicit trace: ZTraceElement): UIO[Scheduler]
 
   def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit]
 
@@ -212,9 +215,11 @@ object Clock extends ClockPlatformSpecific with Serializable {
       currentTime(TimeUnit.NANOSECONDS)
     def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+        val canceler = globalScheduler.unsafeSchedule(() => cb(UIO.unit), duration)
         Left(UIO.succeed(canceler()))
       }
+    def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
+      ZIO.succeed(globalScheduler)
   }
 
   object ClockLive extends Clock {
@@ -240,7 +245,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
     def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       UIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+        val canceler = globalScheduler.unsafeSchedule(() => cb(UIO.unit), duration)
         Left(UIO.succeed(canceler()))
       }
 
@@ -252,6 +257,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
     override def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
       ZIO.succeed(LocalDateTime.now())
+
+    def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
+      ZIO.succeed(globalScheduler)
 
   }
 
@@ -384,6 +392,12 @@ object Clock extends ClockPlatformSpecific with Serializable {
     zio: => ZIO[R, E, A]
   )(a: => A1)(schedule: => Schedule[R1, A1, B])(implicit trace: ZTraceElement): ZIO[R1 with Has[Clock], E, B] =
     ZIO.accessZIO(_.get.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
+
+  /**
+   * Returns the scheduler used for scheduling effects.
+   */
+  def scheduler(implicit trace: ZTraceElement): URIO[Has[Clock], Scheduler] =
+    ZIO.serviceWith(_.scheduler)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.

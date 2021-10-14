@@ -97,13 +97,14 @@ trait TestClock extends Restorable {
 object TestClock extends Serializable {
 
   final case class Test(
-    clockState: Ref[TestClock.Data],
+    clockState: Ref.Atomic[TestClock.Data],
     live: Live,
     annotations: Annotations,
     warningState: Ref.Synchronized[TestClock.WarningData],
     suspendedWarningState: Ref.Synchronized[TestClock.SuspendedWarningData]
   ) extends Clock
-      with TestClock {
+      with TestClock
+      with TestClockPlatformSpecific {
 
     /**
      * Increments the current clock time by the specified duration. Any
@@ -371,7 +372,7 @@ object TestClock extends Serializable {
     for {
       live                  <- ZManaged.service[Live]
       annotations           <- ZManaged.service[Annotations]
-      clockState            <- Ref.make(data).toManaged
+      clockState            <- ZIO.succeedNow(Ref.unsafeMake(data)).toManaged
       warningState          <- Ref.Synchronized.make(WarningData.start).toManaged
       suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start).toManaged
       test <-

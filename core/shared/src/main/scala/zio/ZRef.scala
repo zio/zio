@@ -1042,125 +1042,152 @@ object ZRef extends Serializable {
       }
 
     def get(implicit trace: ZTraceElement): UIO[A] =
-      UIO.succeed(value.get)
+      ZIO.succeed(unsafeGet)
 
     def getAndSet(a: A)(implicit trace: ZTraceElement): UIO[A] =
-      UIO.succeed {
-        var loop       = true
-        var current: A = null.asInstanceOf[A]
-        while (loop) {
-          current = value.get
-          loop = !value.compareAndSet(current, a)
-        }
-        current
-      }
+      ZIO.succeed(unsafeGetAndSet(a))
 
     def getAndUpdate(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
-      UIO.succeed {
-        var loop       = true
-        var current: A = null.asInstanceOf[A]
-        while (loop) {
-          current = value.get
-          val next = f(current)
-          loop = !value.compareAndSet(current, next)
-        }
-        current
-      }
+      ZIO.succeed(unsafeGetAndUpdate(f))
 
     def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
-      UIO.succeed {
-        var loop       = true
-        var current: A = null.asInstanceOf[A]
-        while (loop) {
-          current = value.get
-          val next = pf.applyOrElse(current, (_: A) => current)
-          loop = !value.compareAndSet(current, next)
-        }
-        current
-      }
+      ZIO.succeed(unsafeGetAndUpdateSome(pf))
 
     def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B] =
-      UIO.succeed {
-        var loop = true
-        var b: B = null.asInstanceOf[B]
-        while (loop) {
-          val current = value.get
-          val tuple   = f(current)
-          b = tuple._1
-          loop = !value.compareAndSet(current, tuple._2)
-        }
-        b
-      }
+      ZIO.succeed(unsafeModify(f))
 
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: ZTraceElement): UIO[B] =
-      UIO.succeed {
-        var loop = true
-        var b: B = null.asInstanceOf[B]
-        while (loop) {
-          val current = value.get
-          val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
-          b = tuple._1
-          loop = !value.compareAndSet(current, tuple._2)
-        }
-        b
-      }
+      ZIO.succeed(unsafeModifySome(default)(pf))
 
     def set(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
-      UIO.succeed(value.set(a))
+      ZIO.succeed(unsafeSet(a))
 
     def setAsync(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
-      UIO.succeed(value.lazySet(a))
+      ZIO.succeed(unsafeSetAsync(a))
 
     override def toString: String =
       s"Ref(${value.get})"
 
-    def update(f: A => A)(implicit trace: ZTraceElement): UIO[Unit] =
-      UIO.succeed {
-        var loop    = true
-        var next: A = null.asInstanceOf[A]
-        while (loop) {
-          val current = value.get
-          next = f(current)
-          loop = !value.compareAndSet(current, next)
-        }
-        ()
+    def unsafeGet: A =
+      value.get
+
+    def unsafeGetAndSet(a: A): A = {
+      var loop       = true
+      var current: A = null.asInstanceOf[A]
+      while (loop) {
+        current = value.get
+        loop = !value.compareAndSet(current, a)
       }
+      current
+    }
+
+    def unsafeGetAndUpdate(f: A => A): A = {
+      var loop       = true
+      var current: A = null.asInstanceOf[A]
+      while (loop) {
+        current = value.get
+        val next = f(current)
+        loop = !value.compareAndSet(current, next)
+      }
+      current
+    }
+
+    def unsafeGetAndUpdateSome(pf: PartialFunction[A, A]): A = {
+      var loop       = true
+      var current: A = null.asInstanceOf[A]
+      while (loop) {
+        current = value.get
+        val next = pf.applyOrElse(current, (_: A) => current)
+        loop = !value.compareAndSet(current, next)
+      }
+      current
+    }
+
+    def unsafeModify[B](f: A => (B, A)): B = {
+      var loop = true
+      var b: B = null.asInstanceOf[B]
+      while (loop) {
+        val current = value.get
+        val tuple   = f(current)
+        b = tuple._1
+        loop = !value.compareAndSet(current, tuple._2)
+      }
+      b
+    }
+
+    def unsafeModifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): B = {
+      var loop = true
+      var b: B = null.asInstanceOf[B]
+      while (loop) {
+        val current = value.get
+        val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
+        b = tuple._1
+        loop = !value.compareAndSet(current, tuple._2)
+      }
+      b
+    }
+
+    def unsafeSet(a: A): Unit =
+      value.set(a)
+
+    def unsafeSetAsync(a: A): Unit =
+      value.lazySet(a)
+
+    def unsafeUpdate(f: A => A): Unit = {
+      var loop    = true
+      var next: A = null.asInstanceOf[A]
+      while (loop) {
+        val current = value.get
+        next = f(current)
+        loop = !value.compareAndSet(current, next)
+      }
+      ()
+    }
+
+    def unsafeUpdateAndGet(f: A => A): A = {
+      var loop    = true
+      var next: A = null.asInstanceOf[A]
+      while (loop) {
+        val current = value.get
+        next = f(current)
+        loop = !value.compareAndSet(current, next)
+      }
+      next
+    }
+
+    def unsafeUpdateSome(pf: PartialFunction[A, A]): Unit = {
+      var loop    = true
+      var next: A = null.asInstanceOf[A]
+      while (loop) {
+        val current = value.get
+        next = pf.applyOrElse(current, (_: A) => current)
+        loop = !value.compareAndSet(current, next)
+      }
+      ()
+    }
+
+    def unsafeUpdateSomeAndGet(pf: PartialFunction[A, A]): A = {
+      var loop    = true
+      var next: A = null.asInstanceOf[A]
+      while (loop) {
+        val current = value.get
+        next = pf.applyOrElse(current, (_: A) => current)
+        loop = !value.compareAndSet(current, next)
+      }
+      next
+    }
+
+    def update(f: A => A)(implicit trace: ZTraceElement): UIO[Unit] =
+      ZIO.effectTotal(unsafeUpdate(f))
 
     def updateAndGet(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
-      UIO.succeed {
-        var loop    = true
-        var next: A = null.asInstanceOf[A]
-        while (loop) {
-          val current = value.get
-          next = f(current)
-          loop = !value.compareAndSet(current, next)
-        }
-        next
-      }
+      ZIO.effectTotal(unsafeUpdateAndGet(f))
 
     def updateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[Unit] =
-      UIO.succeed {
-        var loop    = true
-        var next: A = null.asInstanceOf[A]
-        while (loop) {
-          val current = value.get
-          next = pf.applyOrElse(current, (_: A) => current)
-          loop = !value.compareAndSet(current, next)
-        }
-        ()
-      }
+      ZIO.effectTotal(unsafeUpdateSome(pf))
 
     def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
-      UIO.succeed {
-        var loop    = true
-        var next: A = null.asInstanceOf[A]
-        while (loop) {
-          val current = value.get
-          next = pf.applyOrElse(current, (_: A) => current)
-          loop = !value.compareAndSet(current, next)
-        }
-        next
-      }
+      ZIO.effectTotal(unsafeUpdateSomeAndGet(pf))
   }
 
   private abstract class Derived[+EA, +EB, -A, +B] extends ZRef[Any, Any, EA, EB, A, B] { self =>

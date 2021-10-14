@@ -14,26 +14,25 @@
  * limitations under the License.
  */
 
-package zio.internal
+package zio
 
-import zio.Duration
-import zio.internal.Scheduler.CancelToken
+import zio.Scheduler.CancelToken
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
-private[zio] abstract class Scheduler {
-  def schedule(task: Runnable, duration: Duration): CancelToken
+abstract class Scheduler {
+  def unsafeSchedule(task: Runnable, duration: Duration): CancelToken
 }
 
-private[zio] object Scheduler {
+object Scheduler {
   type CancelToken = () => Boolean
 
   def fromScheduledExecutorService(service: ScheduledExecutorService): Scheduler =
     new Scheduler {
       val ConstFalse = () => false
 
-      override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
+      override def unsafeSchedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
         case Duration.Infinity => ConstFalse
         case Duration.Zero =>
           task.run()
