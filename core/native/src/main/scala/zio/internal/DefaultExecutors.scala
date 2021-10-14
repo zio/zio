@@ -16,4 +16,6 @@
 
 package zio.internal
 
-private[internal] abstract class DefaultExecutors
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+private[zio] abstract class DefaultExecutors

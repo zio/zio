@@ -1,9 +1,9 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.clock.Clock
 import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger}
-import zio.{Layer, Runtime, UIO, ZIO, ZLayer}
+import zio.{Clock, Has, Layer, Runtime, UIO, ZIO, ZLayer}
+import zio.ZTraceElement
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -22,24 +22,24 @@ abstract class BaseTestTask(
       .asInstanceOf[AbstractRunnableSpec]
   }
 
-  protected def run(eventHandler: EventHandler): ZIO[TestLogger with Clock, Throwable, Unit] =
+  protected def run(eventHandler: EventHandler): ZIO[Has[TestLogger] with Has[Clock], Throwable, Unit] =
     for {
       spec   <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
       _      <- sendSummary.provide(summary)
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
-      _      <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e)))
+      _      <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
     } yield ()
 
-  protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, TestLogger with Clock] =
-    ZLayer.succeed[TestLogger.Service](new TestLogger.Service {
-      def logLine(line: String): UIO[Unit] =
-        ZIO.effect(loggers.foreach(_.info(colored(line)))).ignore
+  protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, Has[TestLogger] with Has[Clock]] =
+    ZLayer.succeed[TestLogger](new TestLogger {
+      def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
+        ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {
-      Runtime((), specInstance.platform).unsafeRun {
+      Runtime((), specInstance.runtimeConfig).unsafeRun {
         run(eventHandler)
           .provideLayer(sbtTestLayer(loggers))
           .onError(e => UIO(println(e.prettyPrint)))

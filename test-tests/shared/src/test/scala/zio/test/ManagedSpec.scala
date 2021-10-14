@@ -15,51 +15,53 @@ object ManagedSpec extends ZIOBaseSpec {
     }
 
     val live: Layer[Nothing, Counter] =
-      ZLayer.fromManaged {
-        Ref.make(1).toManaged(_.set(-10)).map { ref =>
+      Ref
+        .make(1)
+        .toManagedWith(_.set(-10))
+        .map { ref =>
           new Counter.Service {
             val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
           }
         }
-      }
+        .toLayer
 
     val incrementAndGet: URIO[Counter, Int] =
-      ZIO.accessM[Counter](_.get[Counter.Service].incrementAndGet)
+      ZIO.accessZIO[Counter](_.get[Counter.Service].incrementAndGet)
   }
 
   def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("ManagedSpec")(
     suite("managed shared")(
       suite("first suite")(
-        testM("first test") {
+        test("first test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         },
-        testM("second test") {
+        test("second test") {
           assertM(Counter.incrementAndGet)(equalTo(3))
         }
       ),
       suite("second suite")(
-        testM("third test") {
+        test("third test") {
           assertM(Counter.incrementAndGet)(equalTo(4))
         },
-        testM("fourth test") {
+        test("fourth test") {
           assertM(Counter.incrementAndGet)(equalTo(5))
         }
       )
     ).provideLayerShared(Counter.live) @@ sequential,
     suite("managed per test")(
       suite("first suite")(
-        testM("first test") {
+        test("first test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         },
-        testM("second test") {
+        test("second test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         }
       ),
       suite("second suite")(
-        testM("third test") {
+        test("third test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         },
-        testM("fourth test") {
+        test("fourth test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
         }
       )

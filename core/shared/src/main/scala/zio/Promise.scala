@@ -17,6 +17,7 @@
 package zio
 
 import zio.Promise.internal._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -39,15 +40,15 @@ import java.util.concurrent.atomic.AtomicReference
  */
 final class Promise[E, A] private (
   private val state: AtomicReference[Promise.internal.State[E, A]],
-  blockingOn: List[Fiber.Id]
+  blockingOn: FiberId
 ) extends Serializable {
 
   /**
    * Retrieves the value of the promise, suspending the fiber running the action
    * until the result is available.
    */
-  def await: IO[E, A] =
-    IO.effectAsyncInterrupt[E, A](
+  def await(implicit trace: ZTraceElement): IO[E, A] =
+    IO.asyncInterrupt[E, A](
       k => {
         var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
         var retry  = true
@@ -78,13 +79,13 @@ final class Promise[E, A] private (
    * Kills the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def die(e: Throwable): UIO[Boolean] = completeWith(IO.die(e))
+  def die(e: Throwable)(implicit trace: ZTraceElement): UIO[Boolean] = completeWith(IO.die(e))
 
   /**
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def done(e: Exit[E, A]): UIO[Boolean] = completeWith(IO.done(e))
+  def done(e: Exit[E, A])(implicit trace: ZTraceElement): UIO[Boolean] = completeWith(IO.done(e))
 
   /**
    * Completes the promise with the result of the specified effect. If the
@@ -93,8 +94,8 @@ final class Promise[E, A] private (
    * Note that [[Promise.completeWith]] will be much faster, so consider using
    * that if you do not need to memoize the result of the specified effect.
    */
-  def complete(io: IO[E, A]): UIO[Boolean] =
-    io.to(this)
+  def complete(io: IO[E, A])(implicit trace: ZTraceElement): UIO[Boolean] =
+    io.intoPromise(this)
 
   /**
    * Completes the promise with the specified effect. If the promise has
@@ -109,8 +110,8 @@ final class Promise[E, A] private (
    * completes the promise with the result of an effect see
    * [[Promise.complete]].
    */
-  def completeWith(io: IO[E, A]): UIO[Boolean] =
-    IO.effectTotal {
+  def completeWith(io: IO[E, A])(implicit trace: ZTraceElement): UIO[Boolean] =
+    IO.succeed {
       var action: () => Boolean = null.asInstanceOf[() => Boolean]
       var retry                 = true
 
@@ -139,32 +140,42 @@ final class Promise[E, A] private (
    * Fails the promise with the specified error, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def fail(e: E): UIO[Boolean] = completeWith(IO.fail(e))
+  def fail(e: E)(implicit trace: ZTraceElement): UIO[Boolean] = completeWith(IO.fail(e))
+
+  /**
+   * Fails the promise with the specified cause, which will be propagated to all
+   * fibers waiting on the value of the promise.
+   */
+  def failCause(e: Cause[E])(implicit trace: ZTraceElement): UIO[Boolean] =
+    completeWith(IO.failCause(e))
 
   /**
    * Halts the promise with the specified cause, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def halt(e: Cause[E]): UIO[Boolean] = completeWith(IO.halt(e))
+  @deprecated("use failCause", "2.0.0")
+  def halt(e: Cause[E])(implicit trace: ZTraceElement): UIO[Boolean] =
+    failCause(e)
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise as by the fiber calling this method.
    */
-  def interrupt: UIO[Boolean] = ZIO.fiberId.flatMap(id => completeWith(IO.interruptAs(id)))
+  def interrupt(implicit trace: ZTraceElement): UIO[Boolean] =
+    ZIO.fiberId.flatMap(id => completeWith(IO.interruptAs(id)))
 
   /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise as by the specified fiber.
    */
-  def interruptAs(fiberId: Fiber.Id): UIO[Boolean] = completeWith(IO.interruptAs(fiberId))
+  def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Boolean] = completeWith(IO.interruptAs(fiberId))
 
   /**
    * Checks for completion of this Promise. Produces true if this promise has
    * already been completed with a value or an error and false otherwise.
    */
-  def isDone: UIO[Boolean] =
-    IO.effectTotal(state.get() match {
+  def isDone(implicit trace: ZTraceElement): UIO[Boolean] =
+    IO.succeed(state.get() match {
       case Done(_)    => true
       case Pending(_) => false
     })
@@ -173,8 +184,8 @@ final class Promise[E, A] private (
    * Checks for completion of this Promise. Returns the result effect if this
    * promise has already been completed or a `None` otherwise.
    */
-  def poll: UIO[Option[IO[E, A]]] =
-    IO.effectTotal(state.get).flatMap {
+  def poll(implicit trace: ZTraceElement): UIO[Option[IO[E, A]]] =
+    IO.succeed(state.get).flatMap {
       case Pending(_) => IO.succeedNow(None)
       case Done(io)   => IO.succeedNow(Some(io))
     }
@@ -182,9 +193,9 @@ final class Promise[E, A] private (
   /**
    * Completes the promise with the specified value.
    */
-  def succeed(a: A): UIO[Boolean] = completeWith(IO.succeedNow(a))
+  def succeed(a: A)(implicit trace: ZTraceElement): UIO[Boolean] = completeWith(IO.succeedNow(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Any): Canceler[Any] = IO.effectTotal {
+  private def interruptJoiner(joiner: IO[E, A] => Any)(implicit trace: ZTraceElement): Canceler[Any] = IO.succeed {
     var retry = true
 
     while (retry) {
@@ -235,20 +246,20 @@ object Promise {
   /**
    * Makes a new promise to be completed by the fiber creating the promise.
    */
-  def make[E, A]: UIO[Promise[E, A]] = ZIO.fiberId.flatMap(makeAs(_))
+  def make[E, A](implicit trace: ZTraceElement): UIO[Promise[E, A]] = ZIO.fiberId.flatMap(makeAs(_))
 
   /**
    * Makes a new promise to be completed by the fiber with the specified id.
    */
-  def makeAs[E, A](fiberId: Fiber.Id): UIO[Promise[E, A]] =
-    ZIO.effectTotal(unsafeMake(fiberId))
+  def makeAs[E, A](fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Promise[E, A]] =
+    ZIO.succeed(unsafeMake(fiberId))
 
   /**
    * Makes a new managed promise to be completed by the fiber creating the promise.
    */
-  def makeManaged[E, A]: UManaged[Promise[E, A]] =
-    make[E, A].toManaged_
+  def makeManaged[E, A](implicit trace: ZTraceElement): UManaged[Promise[E, A]] =
+    make[E, A].toManaged
 
-  private[zio] def unsafeMake[E, A](fiberId: Fiber.Id): Promise[E, A] =
-    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId :: Nil)
+  private[zio] def unsafeMake[E, A](fiberId: FiberId): Promise[E, A] =
+    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
 }

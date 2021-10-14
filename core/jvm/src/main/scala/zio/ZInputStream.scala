@@ -16,14 +16,14 @@
 
 package zio
 
-import zio.blocking._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 
 abstract class ZInputStream {
-  def readN(n: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]]
-  def skip(n: Long): ZIO[Blocking, IOException, Long]
-  def readAll(bufferSize: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]]
+  def readN(n: Int)(implicit trace: ZTraceElement): IO[Option[IOException], Chunk[Byte]]
+  def skip(n: Long)(implicit trace: ZTraceElement): IO[IOException, Long]
+  def readAll(bufferSize: Int)(implicit trace: ZTraceElement): IO[Option[IOException], Chunk[Byte]]
 }
 
 object ZInputStream {
@@ -31,8 +31,8 @@ object ZInputStream {
   def fromInputStream(is: java.io.InputStream): ZInputStream =
     new ZInputStream {
 
-      def readN(n: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]] =
-        effectBlockingIO {
+      def readN(n: Int)(implicit trace: ZTraceElement): IO[Option[IOException], Chunk[Byte]] =
+        ZIO.attemptBlockingIO {
           val b: Array[Byte] = new Array[Byte](n)
           val count          = is.read(b)
           if (count == -1) ZIO.fail(None) else ZIO.succeed(Chunk.fromArray(b).take(count))
@@ -40,11 +40,11 @@ object ZInputStream {
           Some(e)
         }.flatten
 
-      def skip(n: Long): ZIO[Blocking, IOException, Long] =
-        effectBlockingIO(is.skip(n))
+      def skip(n: Long)(implicit trace: ZTraceElement): IO[IOException, Long] =
+        ZIO.attemptBlockingIO(is.skip(n))
 
-      def readAll(bufferSize: Int): ZIO[Blocking, Option[IOException], Chunk[Byte]] =
-        effectBlockingIO {
+      def readAll(bufferSize: Int)(implicit trace: ZTraceElement): IO[Option[IOException], Chunk[Byte]] =
+        ZIO.attemptBlockingIO {
           val buffer = new java.io.ByteArrayOutputStream();
           val idata  = new Array[Byte](bufferSize);
           var count  = is.read(idata, 0, idata.length)

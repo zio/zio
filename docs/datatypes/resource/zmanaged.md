@@ -18,31 +18,30 @@ In this section, we explore some common ways to create managed resources.
 `ZManaged` has a `make` constructor which requires `acquire` and `release` actions:
 
 ```scala mdoc:invisible
-import java.io._
-import zio.blocking._
-import zio.console._
+import java.io.{BufferedReader, FileReader}
+import zio.Console._
 import zio._
 import scala.io.Source._
 trait Resource
-def use(resource: Resource): Task[Any]     = Task.effect(???)
-def release(resource: Resource): UIO[Unit] = Task.effectTotal(???)
-def acquire: Task[Resource]                = Task.effect(???)
+def use(resource: Resource): Task[Any]     = Task.attempt(???)
+def release(resource: Resource): UIO[Unit] = Task.succeed(???)
+def acquire: Task[Resource]                = Task.attempt(???)
 ```
 
 ```scala mdoc:silent:nest
-val managed = ZManaged.make(acquire)(release)
+val managed = ZManaged.acquireReleaseWith(acquire)(release)
 ```
 
 In the following example, we have a managed resource which requires `Console` as an environment to print the first line of a given file. The `BufferedReader` will be acquired before printing the first line and automatically will be released after using `BufferedReader`:
 
 ```scala mdoc:silent:nest
-import zio.console._
-def printFirstLine(file: String): ZIO[Console, Throwable, Unit] = {
-  def acquire(file: String) = ZIO.effect(new BufferedReader(new FileReader(file)))
-  def release(reader: BufferedReader) = ZIO.effectTotal(reader.close())
+import zio.Console._
+def printFirstLine(file: String): ZIO[Has[Console], Throwable, Unit] = {
+  def acquire(file: String) = ZIO.attempt(new BufferedReader(new FileReader(file)))
+  def release(reader: BufferedReader) = ZIO.succeed(reader.close())
 
-  ZManaged.make(acquire(file))(release).use { reader =>
-    putStrLn(reader.readLine()) 
+  ZManaged.acquireReleaseWith(acquire(file))(release).use { reader =>
+    printLine(reader.readLine()) 
   }
 }
 ```
@@ -57,7 +56,7 @@ trait ZManaged[-R, +E, +A] {
 }
 ```
 
-Not that like `ZManaged.make`, both of `acquire` and `release` actions are uninterruptible in `ZManaged.makeExit`.
+Note that like `ZManaged.acquireReleaseWith`, both of `acquire` and `release` actions are uninterruptible in `ZManaged.acquireReleaseExitWith`.
 
 ### Lifting a pure value
 
@@ -73,25 +72,24 @@ val managedBoolean = ZManaged.succeed(true)
 Every `ZIO` effect can be lifted to `ZManaged` with `ZManaged.fromEffect` or `ZIO#toZManaged_` operations:
 
 ```scala mdoc:silent:nest
-val managedHello = ZManaged.fromEffect(putStrLn("Hello, World!"))
-val managedHello_ = putStrLn("Hello, World!").toManaged_
+val managedHello = ZManaged.fromZIO(printLine("Hello, World!"))
+val managedHello_ = printLine("Hello, World!").toManaged
 ```
 
 This is useful when we want to combine `ZManaged` effects with `ZIO` effects. Assume during creation of managed resource, we need to log some information, we can lift a `ZIO` effect to `ZManaged` world:
 
 ```scala mdoc:invisible:reset
 import zio._
-import zio.blocking._
-import zio.console._
+import zio.Console._
 import scala.io.Source._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
 
 trait DBConfig
 trait Transactor
 
-def dbConfig: Task[DBConfig] = Task.effect(???)
-def initializeDb(config: DBConfig): Task[Unit] = Task.effect(???)
-def makeTransactor(config: DBConfig): ZManaged[Blocking, Throwable, Transactor] = ???
+def dbConfig: Task[DBConfig] = Task.attempt(???)
+def initializeDb(config: DBConfig): Task[Unit] = Task.attempt(???)
+def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ???
 
 case class UserRepository(xa: Transactor)
 object UserRepository {
@@ -100,13 +98,13 @@ object UserRepository {
 ```
 
 ```scala mdoc:silent:nest
-def userRepository: ZManaged[Blocking with Console, Throwable, UserRepository] = for {
-  cfg <- dbConfig.toManaged_
-  _ <- putStrLn("Read database config").toManaged_
-  _ <- initializeDb(cfg).toManaged_
-  _ <- putStrLn("Database initialized").toManaged_
+def userRepository: ZManaged[Has[Console], Throwable, UserRepository] = for {
+  cfg <- dbConfig.toManaged
+  _ <- printLine("Read database config").toManaged
+  _ <- initializeDb(cfg).toManaged
+  _ <- printLine("Database initialized").toManaged
   xa <- makeTransactor(cfg)
-  _ <- putStrLn("Created new blocking transactor").toManaged_
+  _ <- printLine("Created new blocking transactor").toManaged
 } yield new UserRepository(xa)
 ```
 
@@ -115,18 +113,18 @@ def userRepository: ZManaged[Blocking with Console, Throwable, UserRepository] =
 If the resource implemented the `AutoClosable` interface, we can easily make a `ZManaged` from it by using `ZManaged.fromAutoClosable` constructor:
 
 ```scala mdoc
-ZManaged.fromAutoCloseable(ZIO.effect(new FileInputStream("file.txt")))
-ZManaged.fromAutoCloseable(ZIO.effect(fromResource("file.txt")))
-ZManaged.fromAutoCloseable(ZIO.effect(fromFile("file.txt")))
+ZManaged.fromAutoCloseable(ZIO.attempt(new FileInputStream("file.txt")))
+ZManaged.fromAutoCloseable(ZIO.attempt(fromResource("file.txt")))
+ZManaged.fromAutoCloseable(ZIO.attempt(fromFile("file.txt")))
 ```
 
 ### Making Interruptible Acquires
 
-By default, when we create a `ZManaged` via `ZManaged.make` constructor, the `acquire` and `release` actions are _uninterruptible_. But what if we want to make the `acquire` action interruptible? The `makeInterruptible` constructor does that for us:
+By default, when we create a `ZManaged` via `ZManaged.acquireReleaseWith` constructor, the `acquire` and `release` actions are _uninterruptible_. But what if we want to make the `acquire` action interruptible? The `acquireReleaseInterruptibleWith` constructor does that for us:
 
 ```scala mdoc:silent:nest
 trait ZManaged[-R, +E, +A] {
-  def makeInterruptible[R, E, A](
+  def acquireReleaseInterruptibleWith[R, E, A](
     acquire: ZIO[R, E, A]
   )(release: A => URIO[R, Any]): ZManaged[R, E, A]
 }
@@ -134,11 +132,11 @@ trait ZManaged[-R, +E, +A] {
 
 Making `ZManaged` via this constructor makes the `acquire` action interruptible, the release action remains uninterruptible.
 
-If we want to decide what to do in the `release` action based on how the `acquire` action is completed, whether by success, failure, or interruption; we can use the `makeReserve` constructor. The type of `release` action is `Exit[Any, Any] => URIO[R, Any]` which provides us the `Exit` status of the `acquire` action, so we can decide what to do based on the exit status of `acquire` action:
+If we want to decide what to do in the `release` action based on how the `acquire` action is completed, whether by success, failure, or interruption; we can use the `fromReservation` constructor. The type of `release` action is `Exit[Any, Any] => URIO[R, Any]` which provides us the `Exit` status of the `acquire` action, so we can decide what to do based on the exit status of `acquire` action:
 
 ```scala mdoc:silent:nest
 trait ZManaged[-R, +E, +A] {
-  def makeReserve[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A]
+  def fromReservation[R, E, A](reservation: ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A]
 }
 ```
 
@@ -147,7 +145,7 @@ trait ZManaged[-R, +E, +A] {
 ```scala mdoc:invisible:reset
 import zio._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
-import zio.console._
+import zio.Console._
 import scala.io.Source._
 ```
 
@@ -162,9 +160,9 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
 Inside the `use` block, we can use the managed resource and return a new value. The `use` method converts a managed resource from `ZManaged` world to `ZIO` world:
 
 ```scala mdoc:silent:nest
-def firstLine(file: String): ZIO[Console, Throwable, Unit] =
-  ZManaged.fromAutoCloseable(ZIO.effect(fromFile(file))).use { reader =>
-    putStrLn(reader.bufferedReader().readLine())
+def firstLine(file: String): ZIO[Has[Console], Throwable, Unit] =
+  ZManaged.fromAutoCloseable(ZIO.attempt(fromFile(file))).use { reader =>
+    printLine(reader.bufferedReader().readLine())
   }
 ```
 
@@ -179,17 +177,17 @@ val hello: UIO[String] = ZManaged.succeed("Hello, World!").useNow
 This is useful when we have composed some `ZManaged` with some `ZIO` effects, and the result can be outlived outside the `use` block:
 
 ```scala mdoc:silent:nest
-def is(file: String): Task[FileInputStream]  = Task.effect(???)
-def os(file: String): Task[FileOutputStream] = Task.effect(???)
+def is(file: String): Task[FileInputStream]  = Task.attempt(???)
+def os(file: String): Task[FileOutputStream] = Task.attempt(???)
 
-def close(resource: Closeable): UIO[Unit] = Task.effectTotal(???)
+def close(resource: Closeable): UIO[Unit] = Task.succeed(???)
 def copy(from: FileInputStream, to: FileOutputStream): Task[Unit] = ???
 
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
   val resource: ZManaged[Any, Throwable, Unit] = for {
-    from <- ZManaged.make(is(from))(close)
-    to   <- ZManaged.make(os(to))(close)
-    _    <- copy(from, to).toManaged_
+    from <- ZManaged.acquireReleaseWith(is(from))(close)
+    to   <- ZManaged.acquireReleaseWith(os(to))(close)
+    _    <- copy(from, to).toManaged
   } yield ()
   resource.useNow
 }
@@ -197,7 +195,7 @@ def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
 
 > **Note:**
 >
-> Be careful, don’t call the `useNow` method on a managed resource that isn’t valid after its release actions. For example, running `useNow` on `ZManaged.fromAutoCloseable(ZIO.effect(fromFile("file.txt")))` doesn’t make sense, because after releasing a file, we haven’t any handle to that file.
+> Be careful, don’t call the `useNow` method on a managed resource that isn’t valid after its release actions. For example, running `useNow` on `ZManaged.fromAutoCloseable(ZIO.attempt(fromFile("file.txt")))` doesn’t make sense, because after releasing a file, we haven’t any handle to that file.
 
 ### useForever
 
@@ -205,7 +203,7 @@ Assume we are going to make a managed resource long-lived. The `ZManaged#useFore
 
 ## Combinators
 
-`ZManaged` like the `ZIO` effect has almost all combinators that we introduced on the [ZIO](../core/zio.md) page. We can use them to create more complicated `ZManaged` ones.
+`ZManaged` like the `ZIO` effect has almost all combinators that we introduced on the [ZIO](../core/zio/zio.md) page. We can use them to create more complicated `ZManaged` ones.
 
 There is also some combinators which specific for `ZManaged`:
 

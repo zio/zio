@@ -16,6 +16,9 @@
 
 package zio.test
 
+import zio.ZTraceElement
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * An `AssertionValue` keeps track of a assertion and a value, existentially
  * hiding the type. This is used internally by the library to provide useful
@@ -34,7 +37,8 @@ sealed abstract class AssertionValue {
     AssertionValue(assertion.label(string), value, result, expression, sourceLocation)
   def sameAssertion(that: AssertionValue): Boolean = assertion == that.assertion
 
-  def negate: AssertionValue = AssertionValue(assertion.negate, value, !result, expression, sourceLocation)
+  def negate(implicit trace: ZTraceElement): AssertionValue =
+    AssertionValue(assertion.negate, value, !result, expression, sourceLocation)
   def withContext(expr: Option[String], sourceLocation: Option[String]): AssertionValue =
     AssertionValue(assertion, value, result, expr, sourceLocation)
 }

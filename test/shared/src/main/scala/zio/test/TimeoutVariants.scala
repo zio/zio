@@ -16,9 +16,8 @@
 
 package zio.test
 
-import zio.duration._
+import zio._
 import zio.test.environment.Live
-import zio.{URIO, ZIO, console}
 
 trait TimeoutVariants {
 
@@ -28,18 +27,20 @@ trait TimeoutVariants {
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect[Nothing, Live, Nothing, Any] =
-    new TestAspect[Nothing, Live, Nothing, Any] {
-      def some[R <: Live, E](
-        predicate: String => Boolean,
+  ): TestAspect[Nothing, Has[Live], Nothing, Any] =
+    new TestAspect[Nothing, Has[Live], Nothing, Any] {
+      def some[R <: Has[Live], E](
         spec: ZSpec[R, E]
-      ): ZSpec[R, E] = {
-        def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Live, E] =
+      )(implicit trace: ZTraceElement): ZSpec[R, E] = {
+        def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Has[Live], E] =
           spec.caseValue match {
-            case Spec.SuiteCase(label, specs, exec) =>
-              Spec.suite(label, specs.map(_.map(loop(label :: labels, _))), exec)
-            case Spec.TestCase(label, test, annotations) =>
-              Spec.test(label, warn(labels, label, test, duration), annotations)
+            case Spec.ExecCase(exec, spec)     => Spec.exec(exec, loop(labels, spec))
+            case Spec.LabeledCase(label, spec) => Spec.labeled(label, loop(label :: labels, spec))
+            case Spec.ManagedCase(managed)     => Spec.managed(managed.map(loop(labels, _)))
+            case Spec.MultipleCase(specs) =>
+              Spec.multiple(specs.map(loop(labels, _)))
+            case Spec.TestCase(test, annotations) =>
+              Spec.test(warn(labels, test, duration), annotations)
           }
 
         loop(Nil, spec)
@@ -47,31 +48,22 @@ trait TimeoutVariants {
     }
 
   private def warn[R, E](
-    suiteLabels: List[String],
-    testLabel: String,
+    labels: List[String],
     test: ZTest[R, E],
     duration: Duration
-  ): ZTest[R with Live, E] =
-    test.raceWith(Live.withLive(showWarning(suiteLabels, testLabel, duration))(_.delay(duration)))(
+  ): ZTest[R with Has[Live], E] =
+    test.raceWith(Live.withLive(showWarning(labels, duration))(_.delay(duration)))(
       (result, fiber) => fiber.interrupt *> ZIO.done(result),
       (_, fiber) => fiber.join
     )
 
   private def showWarning(
-    suiteLabels: List[String],
-    testLabel: String,
+    labels: List[String],
     duration: Duration
-  ): URIO[Live, Unit] =
-    Live.live(console.putStrLn(renderWarning(suiteLabels, testLabel, duration)))
+  ): URIO[Has[Live], Unit] =
+    Live.live(Console.printLine(renderWarning(labels, duration)).orDie)
 
-  private def renderWarning(suiteLabels: List[String], testLabel: String, duration: Duration): String =
-    (renderSuiteLabels(suiteLabels) + renderTest(testLabel, duration)).capitalize
-
-  private def renderSuiteLabels(suiteLabels: List[String]): String =
-    suiteLabels.map(label => "in Suite \"" + label + "\", ").reverse.mkString
-
-  private def renderTest(testLabel: String, duration: Duration): String =
-    "test " + "\"" + testLabel + "\"" + " has taken more than " + duration.render +
+  private def renderWarning(labels: List[String], duration: Duration): String =
+    "Test " + labels.reverse.mkString(" - ") + " has taken more than " + duration.render +
       " to execute. If this is not expected, consider using TestAspect.timeout to timeout runaway tests for faster diagnostics."
-
 }

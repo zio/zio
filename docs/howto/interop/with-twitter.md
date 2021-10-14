@@ -10,17 +10,17 @@ title: "How to Interop with Twitter?"
 ```scala
 import com.twitter.util.Future
 import zio.{ App, Task }
-import zio.console._
+import zio.Console._
 import zio.interop.twitter._
 
 object Example extends App {
   def run(args: List[String]) = {
     val program =
       for {
-        _        <- putStrLn("Hello! What is your name?")
-        name     <- getStrLn
+        _        <- printLine("Hello! What is your name?")
+        name     <- readLine
         greeting <- Task.fromTwitterFuture(Task(greet(name)))
-        _        <- putStrLn(greeting)
+        _        <- printLine(greeting)
       } yield ()
 
     program.exitCode

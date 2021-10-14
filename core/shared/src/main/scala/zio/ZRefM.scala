@@ -16,6 +16,9 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+@deprecated("use ZRef.Synchronized", "2.0.0")
 object ZRefM {
 
   /**
@@ -23,19 +26,19 @@ object ZRefM {
    * `RefM`.
    */
   @deprecated("use SubscriptionRef", "2.0.0")
-  def dequeueRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
-    ZRef.ZRefM.dequeueRef(a)
+  def dequeueRef[A](a: A)(implicit trace: ZTraceElement): UIO[(RefM[A], Dequeue[A])] =
+    ZRef.Synchronized.dequeueRef(a)
 
   /**
    * Creates a new `ZRefM` with the specified value.
    */
-  def make[A](a: A): UIO[RefM[A]] =
-    ZRef.ZRefM.make(a)
+  def make[A](a: A)(implicit trace: ZTraceElement): UIO[RefM[A]] =
+    ZRef.Synchronized.make(a)
 
   /**
    * Creates a new `ZRefM` with the specified value in the context of a
    * `Managed.`
    */
-  def makeManaged[A](a: A): UManaged[RefM[A]] =
-    ZRef.ZRefM.makeManaged(a)
+  def makeManaged[A](a: A)(implicit trace: ZTraceElement): UManaged[RefM[A]] =
+    ZRef.Synchronized.makeManaged(a)
 }

@@ -16,5 +16,7 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 final case class SourceLocation(path: String, line: Int)
 object SourceLocation extends SourceLocationVariants

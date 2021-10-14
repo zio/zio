@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 package object zio
     extends BuildFromCompat
     with EitherCompat
     with FunctionToLayerOps
     with IntersectionTypeCompat
     with PlatformSpecific
-    with VersionSpecific {
+    with VersionSpecific
+    with DurationModule {
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
@@ -46,6 +50,7 @@ package object zio
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
   type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
+  val Queue: ZQueue.type = ZQueue
 
   /**
    * A queue that can only be dequeued.
@@ -59,12 +64,17 @@ package object zio
   type ZEnqueue[-R, +E, -A] = ZQueue[R, Nothing, E, Any, A, Any]
   type Enqueue[-A]          = ZQueue[Any, Nothing, Nothing, Any, A, Any]
 
-  type Ref[A]      = ZRef[Any, Any, Nothing, Nothing, A, A]
-  type ERef[+E, A] = ZRef[Any, Any, E, E, A, A]
+  type Ref[A] = ZRef[Any, Any, Nothing, Nothing, A, A]
 
-  type ZRefM[-RA, -RB, +EA, +EB, -A, +B] = ZRef.ZRefM[RA, RB, EA, EB, A, B]
-  type RefM[A]                           = ZRefM[Any, Any, Nothing, Nothing, A, A]
-  type ERefM[+E, A]                      = ZRefM[Any, Any, E, E, A, A]
+  type ERef[+E, A] = ZRef[Any, Any, E, E, A, A]
+  val ERef: ZRef.type = ZRef
+
+  @deprecated("use ZRef.Synchronized", "2.0.0")
+  type ZRefM[-RA, -RB, +EA, +EB, -A, +B] = ZRef.Synchronized[RA, RB, EA, EB, A, B]
+  @deprecated("use Ref.Synchronized", "2.0.0")
+  type RefM[A] = ZRefM[Any, Any, Nothing, Nothing, A, A]
+  @deprecated("use ERef.Synchronized", "2.0.0")
+  type ERefM[+E, A] = ZRefM[Any, Any, E, E, A, A]
 
   type FiberRef[A] = ZFiberRef[Nothing, Nothing, A, A]
   val FiberRef: ZFiberRef.type = ZFiberRef
@@ -74,8 +84,14 @@ package object zio
 
   type Semaphore = stm.TSemaphore
 
-  object <*> {
-    def unapply[A, B](ab: (A, B)): Some[(A, B)] =
-      Some((ab._1, ab._2))
+  type HasMany[K, A] = Has[Map[K, A]]
+
+  type ZTraceElement = Tracer.instance.Type with Tracer.Traced
+  object ZTraceElement {
+    val empty = Tracer.instance.empty
+    object SourceLocation {
+      def unapply(trace: ZTraceElement): Option[(String, String, Int, Int)] =
+        Tracer.instance.unapply(trace)
+    }
   }
 }

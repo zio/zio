@@ -1,8 +1,6 @@
 package zio.test.environment
 
 import zio._
-import zio.clock._
-import zio.duration._
 import zio.test.Assertion._
 import zio.test._
 
@@ -13,19 +11,19 @@ object TestClockSpecJVM extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("TestClockSpecJVM")(
       suite("asScheduledExecutorService")(
-        testM("schedules tasks at fixed rate correctly") {
+        test("schedules tasks at fixed rate correctly") {
           for {
-            runtime                 <- ZIO.runtime[Clock]
+            runtime                 <- ZIO.runtime[Has[Clock]]
             ref                     <- Ref.make[List[Long]](List.empty)
-            scheduler               <- blocking.blocking(clock.scheduler)
+            scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
-            _ <- ZIO.effectTotal {
+            _ <- ZIO.succeed {
                    scheduledExecutorService.scheduleAtFixedRate(
                      new Runnable {
                        def run(): Unit =
                          runtime.unsafeRun {
                            ZIO.sleep(2.seconds) *>
-                             clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                             Clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
                          }
                      },
                      3,
@@ -37,19 +35,19 @@ object TestClockSpecJVM extends ZIOBaseSpec {
             values <- ref.get
           } yield assert(values.reverse)(equalTo(List(5L, 10L, 15L, 20L, 25L)))
         },
-        testM("does not allow tasks to pile up") {
+        test("does not allow tasks to pile up") {
           for {
-            runtime                 <- ZIO.runtime[Clock]
+            runtime                 <- ZIO.runtime[Has[Clock]]
             ref                     <- Ref.make[List[Long]](List.empty)
-            scheduler               <- blocking.blocking(clock.scheduler)
+            scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
-            _ <- ZIO.effectTotal {
+            _ <- ZIO.succeed {
                    scheduledExecutorService.scheduleAtFixedRate(
                      new Runnable {
                        def run(): Unit =
                          runtime.unsafeRun {
                            ZIO.sleep(5.seconds) *>
-                             clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                             Clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
                          }
                      },
                      3,
@@ -61,19 +59,19 @@ object TestClockSpecJVM extends ZIOBaseSpec {
             values <- ref.get
           } yield assert(values.reverse)(equalTo(List(8L, 13L, 18L, 23L, 28L)))
         },
-        testM("schedules tasks with fixed delay correctly") {
+        test("schedules tasks with fixed delay correctly") {
           for {
-            runtime                 <- ZIO.runtime[Clock]
+            runtime                 <- ZIO.runtime[Has[Clock]]
             ref                     <- Ref.make[List[Long]](List.empty)
-            scheduler               <- blocking.blocking(clock.scheduler)
+            scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
-            _ <- ZIO.effectTotal {
+            _ <- ZIO.succeed {
                    scheduledExecutorService.scheduleWithFixedDelay(
                      new Runnable {
                        def run(): Unit =
                          runtime.unsafeRun {
                            ZIO.sleep(2.seconds) *>
-                             clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                             Clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
                          }
                      },
                      3,
@@ -85,19 +83,19 @@ object TestClockSpecJVM extends ZIOBaseSpec {
             values <- ref.get
           } yield assert(values.reverse)(equalTo(List(5L, 12L, 19L, 26L, 33L)))
         },
-        testM("allows scheduled tasks to be interrupted") {
+        test("allows scheduled tasks to be interrupted") {
           for {
-            runtime                 <- ZIO.runtime[Clock]
+            runtime                 <- ZIO.runtime[Has[Clock]]
             ref                     <- Ref.make[List[Long]](List.empty)
-            scheduler               <- clock.scheduler
+            scheduler               <- Clock.scheduler
             scheduledExecutorService = scheduler.asScheduledExecutorService
-            future <- ZIO.effectTotal {
+            future <- ZIO.succeed {
                         scheduledExecutorService.scheduleAtFixedRate(
                           new Runnable {
                             def run(): Unit =
                               runtime.unsafeRun {
                                 ZIO.sleep(2.seconds) *>
-                                  clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                                  Clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
                               }
                           },
                           3,
@@ -106,7 +104,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                         )
                       }
             _      <- TestClock.adjust(7.seconds)
-            _      <- ZIO.effectTotal(future.cancel(false))
+            _      <- ZIO.succeed(future.cancel(false))
             _      <- TestClock.adjust(11.seconds)
             values <- ref.get
           } yield assert(values.reverse)(equalTo(List(5L)))

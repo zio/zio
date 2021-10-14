@@ -17,11 +17,23 @@
 package zio.internal
 
 import zio.Chunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] final class SingleThreadedRingBuffer[A](capacity: Int) {
   private[this] val array   = new Array[AnyRef](capacity)
   private[this] var size    = 0
   private[this] var current = 0
+
+  def head: Option[A] =
+    Option(array(current)).asInstanceOf[Option[A]]
+
+  def lastOrNull: A =
+    if (size == 0) null.asInstanceOf[A]
+    else {
+      val index = if (current == 0) array.length - 1 else current - 1
+
+      array(index).asInstanceOf[A]
+    }
 
   def put(value: A): Unit = {
     array(current) = value.asInstanceOf[AnyRef]

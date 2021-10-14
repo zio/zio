@@ -18,11 +18,13 @@ package zio.internal
 
 import zio.Fiber.Dump
 import zio.Fiber.Status.{Done, Finishing, Running, Suspended}
-import zio.{Fiber, UIO, ZIO}
+import zio.{Fiber, FiberId, UIO, ZIO, ZTraceElement}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] object FiberRenderer {
 
-  def dumpStr(fibers: Seq[Fiber.Runtime[_, _]], withTrace: Boolean): UIO[String] =
+  def dumpStr(fibers: Seq[Fiber.Runtime[_, _]], withTrace: Boolean)(implicit trace: ZTraceElement): UIO[String] =
     for {
       dumps <- ZIO.foreach(fibers)(f => f.dumpWith(withTrace))
       now   <- UIO(System.currentTimeMillis())
@@ -32,7 +34,7 @@ private[zio] object FiberRenderer {
       (treeString +: dumpStrings).mkString("\n")
     }
 
-  def prettyPrintM(dump: Fiber.Dump): UIO[String] =
+  def prettyPrintM(dump: Fiber.Dump)(implicit trace: ZTraceElement): UIO[String] =
     UIO(prettyPrint(dump, System.currentTimeMillis()))
 
   private def zipWithHasNext[A](it: Iterable[A]): Iterable[(A, Boolean)] =
@@ -55,16 +57,14 @@ private[zio] object FiberRenderer {
       (s"${millis}ms")
     val waitMsg = dump.status match {
       case Suspended(_, _, _, blockingOn, _) =>
-        if (blockingOn.nonEmpty)
-          "waiting on " + blockingOn.map(id => s"#${id.seqNumber}").mkString(", ")
-        else ""
+        if (blockingOn ne FiberId.None) "waiting on " + s"#${blockingOn.seqNumber}" else ""
       case _ => ""
     }
     val statMsg = renderStatus(dump.status)
 
     s"""
-       |${name}#${dump.fiberId.seqNumber} (${lifeMsg}) ${waitMsg}
-       |   Status: ${statMsg}
+       |$name#${dump.fiberId.seqNumber} ($lifeMsg) $waitMsg
+       |   Status: $statMsg
        |${dump.trace.fold("")(_.prettyPrint)}
        |""".stripMargin
   }
@@ -77,7 +77,7 @@ private[zio] object FiberRenderer {
       case Suspended(_, interruptible, epoch, _, asyncTrace) =>
         val in = if (interruptible) "interruptible" else "uninterruptible"
         val ep = s"$epoch asyncs"
-        val as = asyncTrace.map(_.prettyPrint).getOrElse("")
+        val as = asyncTrace.getOrElse(Tracer.newTrace).toString
         s"Suspended($in, $ep, $as)"
     }
 
@@ -90,7 +90,7 @@ private[zio] object FiberRenderer {
     def go(t: Dump, prefix: String): String = {
       val nameStr   = t.fiberName.fold("")(n => "\"" + n + "\" ")
       val statusMsg = renderStatus(t.status)
-      s"${prefix}+---${nameStr}#${t.fiberId.seqNumber} Status: $statusMsg\n"
+      s"$prefix+---$nameStr#${t.fiberId.seqNumber} Status: $statusMsg\n"
     }
 
     go(tree, "")

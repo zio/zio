@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * `TestVersion` provides information about the Scala version tests are being
  * run on to enable platform specific test configuration.

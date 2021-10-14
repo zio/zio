@@ -181,37 +181,36 @@ val mapped: UIO[String] =
   } yield s
 ```
 
-### ZQueue#mapM
+### ZQueue#mapZIO
 
 We may also use an effectful function to map the output. For example,
 we could annotate each element with the timestamp at which it was dequeued:
 
 ```scala mdoc:silent
 import java.util.concurrent.TimeUnit
-import zio.clock._
 
-val currentTimeMillis = currentTime(TimeUnit.MILLISECONDS)
+val currentTimeMillis = Clock.currentTime(TimeUnit.MILLISECONDS)
 
-val annotatedOut: UIO[ZQueue[Any, Clock, Nothing, Nothing, String, (Long, String)]] =
+val annotatedOut: UIO[ZQueue[Any, Has[Clock], Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[String](3)
-    mapped = queue.mapM { el =>
+    mapped = queue.mapZIO { el =>
       currentTimeMillis.map((_, el))
     }
   } yield mapped
 ```
 
-### ZQueue#contramapM
+### ZQueue#contramapZIO
 
-Similarly to `mapM`, we can also apply an effectful function to
+Similarly to `mapZIO`, we can also apply an effectful function to
 elements as they are enqueued. This queue will annotate the elements
 with their enqueue timestamp:
 
 ```scala mdoc:silent
-val annotatedIn: UIO[ZQueue[Clock, Any, Nothing, Nothing, String, (Long, String)]] =
+val annotatedIn: UIO[ZQueue[Has[Clock], Any, Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
-    mapped = queue.contramapM { el: String =>
+    mapped = queue.contramapZIO { el: String =>
       currentTimeMillis.map((_, el))
     }
   } yield mapped
@@ -221,19 +220,17 @@ This queue has the same type as the previous one, but the timestamp is
 attached to the elements when they are enqueued. This is reflected in
 the type of the environment required by the queue for enqueueing.
 
-To complete this example, we could combine this queue with `mapM` to
+To complete this example, we could combine this queue with `mapZIO` to
 compute the time that the elements stayed in the queue:
 
 ```scala mdoc:silent
-import zio.duration._
-
-val timeQueued: UIO[ZQueue[Clock, Clock, Nothing, Nothing, String, (Duration, String)]] =
+val timeQueued: UIO[ZQueue[Has[Clock], Has[Clock], Nothing, Nothing, String, (Duration, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
-    enqueueTimestamps = queue.contramapM { el: String =>
+    enqueueTimestamps = queue.contramapZIO { el: String =>
       currentTimeMillis.map((_, el))
     }
-    durations = enqueueTimestamps.mapM { case (enqueueTs, el) =>
+    durations = enqueueTimestamps.mapZIO { case (enqueueTs, el) =>
       currentTimeMillis
         .map(dequeueTs => ((dequeueTs - enqueueTs).millis, el))
     }

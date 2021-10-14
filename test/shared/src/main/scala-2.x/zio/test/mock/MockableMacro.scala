@@ -39,7 +39,8 @@ private[mock] object MockableMacro {
     }
 
     val service: Type = c.typecheck(q"(??? : ${c.prefix.tree})").tpe.typeArgs.head
-    if (service == definitions.NothingTpe) abort(s"@mockable macro requires type parameter: @mockable[Module.Service]")
+    if (service == definitions.NothingTpe)
+      abort(s"@mockable macro requires type parameter: @mockable[Module.Service]")
 
     val serviceBaseTypeParameters         = service.baseType(service.typeSymbol).typeConstructor.typeParams.map(_.asType)
     val serviceTypeParameterSubstitutions = serviceBaseTypeParameters.zip(service.typeArgs).toMap
@@ -259,8 +260,10 @@ private[mock] object MockableMacro {
       }
     }
 
+    val ownersToSkip = Set(typeOf[Object], typeOf[Any]).map(_.typeSymbol)
+
     val methods = service.members
-      .filter(member => member.owner == service.typeSymbol && member.name.toTermName != TermName("$init$"))
+      .filter(member => !ownersToSkip.contains(member.owner.asType) && member.name.toTermName != TermName("$init$"))
       .map(symbol => MethodInfo(symbol.asMethod))
       .toList
       .groupBy(_.symbol.name)
@@ -304,15 +307,15 @@ private[mock] object MockableMacro {
           ..$tags
 
           val compose: $composeAsc =
-            _root_.zio.ZLayer.fromServiceM { proxy =>
-              withRuntime.map { rts =>
+            _root_.zio.ZIO.service[_root_.zio.test.mock.Proxy].flatMap { proxy =>
+              withRuntime[_root_.zio.Has[_root_.zio.test.mock.Proxy]].map { rts =>
                 class $serviceClassName extends $service {
                   ..$mocks
                 }
                 new $serviceClassName
               }
-            }
-
+            }.toLayer
+            
           ..$body
         }
       """

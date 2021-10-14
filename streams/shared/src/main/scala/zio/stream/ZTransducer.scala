@@ -17,6 +17,7 @@
 package zio.stream
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.nio.charset.{Charset, StandardCharsets}
 import scala.collection.mutable
@@ -33,7 +34,9 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   /**
    * Compose this transducer with another transducer, resulting in a composite transducer.
    */
-  def >>>[R1 <: R, E1 >: E, O2 >: O, O3](that: ZTransducer[R1, E1, O2, O3]): ZTransducer[R1, E1, I, O3] =
+  def >>>[R1 <: R, E1 >: E, O2 >: O, O3](
+    that: ZTransducer[R1, E1, O2, O3]
+  )(implicit trace: ZTraceElement): ZTransducer[R1, E1, I, O3] =
     ZTransducer {
       self.push.zipWith(that.push) { (pushLeft, pushRight) =>
         {
@@ -52,7 +55,9 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
    * Compose this transducer with a sink, resulting in a sink that processes elements by piping
    * them through this transducer and piping the results into the sink.
    */
-  def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, L, Z](that: ZSink[R1, E1, O2, L, Z]): ZSink[R1, E1, I1, L, Z] =
+  def >>>[R1 <: R, E1 >: E, O2 >: O, I1 <: I, L, Z](
+    that: ZSink[R1, E1, O2, L, Z]
+  )(implicit trace: ZTraceElement): ZSink[R1, E1, I1, L, Z] =
     ZSink[R1, E1, I1, L, Z] {
       self.push.zipWith(that.push) { (pushSelf, pushThat) =>
         {
@@ -71,43 +76,65 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   /**
    * Transforms the inputs of this transducer.
    */
-  final def contramap[J](f: J => I): ZTransducer[R, E, J, O] =
+  final def contramap[J](f: J => I)(implicit trace: ZTraceElement): ZTransducer[R, E, J, O] =
     ZTransducer(self.push.map(push => is => push(is.map(_.map(f)))))
 
   /**
    * Effectually transforms the inputs of this transducer
    */
-  final def contramapM[R1 <: R, E1 >: E, J](f: J => ZIO[R1, E1, I]): ZTransducer[R1, E1, J, O] =
-    ZTransducer[R1, E1, J, O](self.push.map(push => is => ZIO.foreach(is)(_.mapM(f)).flatMap(push)))
+  @deprecated("use contramapZIO", "2.0.0")
+  final def contramapM[R1 <: R, E1 >: E, J](f: J => ZIO[R1, E1, I])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R1, E1, J, O] =
+    contramapZIO(f)
+
+  /**
+   * Effectually transforms the inputs of this transducer
+   */
+  final def contramapZIO[R1 <: R, E1 >: E, J](f: J => ZIO[R1, E1, I])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R1, E1, J, O] =
+    ZTransducer[R1, E1, J, O](self.push.map(push => is => ZIO.foreach(is)(_.mapZIO(f)).flatMap(push)))
 
   /**
    * Filters the outputs of this transducer.
    */
-  final def filter(p: O => Boolean): ZTransducer[R, E, I, O] =
+  final def filter(p: O => Boolean)(implicit trace: ZTraceElement): ZTransducer[R, E, I, O] =
     ZTransducer(self.push.map(push => i => push(i).map(_.filter(p))))
 
   /**
    * Filters the inputs of this transducer.
    */
-  final def filterInput[I1 <: I](p: I1 => Boolean): ZTransducer[R, E, I1, O] =
+  final def filterInput[I1 <: I](p: I1 => Boolean)(implicit trace: ZTraceElement): ZTransducer[R, E, I1, O] =
     ZTransducer(self.push.map(push => is => push(is.map(_.filter(p)))))
 
   /**
    * Effectually filters the inputs of this transducer.
    */
-  final def filterInputM[R1 <: R, E1 >: E, I1 <: I](p: I1 => ZIO[R1, E1, Boolean]): ZTransducer[R1, E1, I1, O] =
-    ZTransducer[R1, E1, I1, O](self.push.map(push => is => ZIO.foreach(is)(_.filterM(p)).flatMap(push)))
+  @deprecated("use filterInputZIO", "2.0.0")
+  final def filterInputM[R1 <: R, E1 >: E, I1 <: I](p: I1 => ZIO[R1, E1, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R1, E1, I1, O] =
+    filterInputZIO(p)
+
+  /**
+   * Effectually filters the inputs of this transducer.
+   */
+  final def filterInputZIO[R1 <: R, E1 >: E, I1 <: I](p: I1 => ZIO[R1, E1, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R1, E1, I1, O] =
+    ZTransducer[R1, E1, I1, O](self.push.map(push => is => ZIO.foreach(is)(_.filterZIO(p)).flatMap(push)))
 
   /**
    * Transforms the outputs of this transducer.
    */
-  final def map[P](f: O => P): ZTransducer[R, E, I, P] =
+  final def map[P](f: O => P)(implicit trace: ZTraceElement): ZTransducer[R, E, I, P] =
     ZTransducer(self.push.map(push => i => push(i).map(_.map(f))))
 
   /**
    * Transforms the chunks emitted by this transducer.
    */
-  final def mapChunks[O2](f: Chunk[O] => Chunk[O2]): ZTransducer[R, E, I, O2] =
+  final def mapChunks[O2](f: Chunk[O] => Chunk[O2])(implicit trace: ZTraceElement): ZTransducer[R, E, I, O2] =
     ZTransducer {
       self.push.map(push => (input: Option[Chunk[I]]) => push(input).map(f))
     }
@@ -115,9 +142,18 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   /**
    * Effectfully transforms the chunks emitted by this transducer.
    */
+  @deprecated("use mapChunksZIO", "2.0.0")
   final def mapChunksM[R1 <: R, E1 >: E, O2](
     f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
-  ): ZTransducer[R1, E1, I, O2] =
+  )(implicit trace: ZTraceElement): ZTransducer[R1, E1, I, O2] =
+    mapChunksZIO(f)
+
+  /**
+   * Effectfully transforms the chunks emitted by this transducer.
+   */
+  final def mapChunksZIO[R1 <: R, E1 >: E, O2](
+    f: Chunk[O] => ZIO[R1, E1, Chunk[O2]]
+  )(implicit trace: ZTraceElement): ZTransducer[R1, E1, I, O2] =
     ZTransducer {
       self.push.map(push => (input: Option[Chunk[I]]) => push(input).flatMap(f))
     }
@@ -125,14 +161,25 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
   /**
    * Transforms the outputs of this transducer.
    */
-  final def mapError[E1](f: E => E1): ZTransducer[R, E1, I, O] =
+  final def mapError[E1](f: E => E1)(implicit trace: ZTraceElement): ZTransducer[R, E1, I, O] =
     ZTransducer(self.push.map(push => i => push(i).mapError(f)))
 
   /**
    * Effectually transforms the outputs of this transducer
    */
-  final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P]): ZTransducer[R1, E1, I, P] =
-    ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapM(f))))
+  @deprecated("use mapZIO", "2.0.0")
+  final def mapM[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R1, E1, I, P] =
+    mapZIO(f)
+
+  /**
+   * Effectually transforms the outputs of this transducer
+   */
+  final def mapZIO[R1 <: R, E1 >: E, P](f: O => ZIO[R1, E1, P])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R1, E1, I, P] =
+    ZTransducer[R1, E1, I, P](self.push.map(push => i => push(i).flatMap(_.mapZIO(f))))
 }
 
 object ZTransducer extends ZTransducerPlatformSpecificConstructors {
@@ -147,13 +194,15 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * ZTransducer[Int].filter(_ % 2 != 0)
    * }}}
    */
-  def apply[I]: ZTransducer[Any, Nothing, I, I] = identity[I]
+  def apply[I]: ZTransducer[Any, Nothing, I, I] = identity[I](ZTraceElement.empty)
 
   /**
    * Reads the first n values from the stream and uses them to choose the transducer that will be used for the remainder of the stream.
    * If the stream ends before it has collected n values the partial chunk will be provided to f.
    */
-  def branchAfter[R, E, I, O](n: Int)(f: Chunk[I] => ZTransducer[R, E, I, O]): ZTransducer[R, E, I, O] =
+  def branchAfter[R, E, I, O](
+    n: Int
+  )(f: Chunk[I] => ZTransducer[R, E, I, O])(implicit trace: ZTraceElement): ZTransducer[R, E, I, O] =
     ZTransducer {
       sealed trait State
       object State {
@@ -166,7 +215,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       val toCollect = Math.max(0, n)
 
       ZManaged.scope.flatMap { scope =>
-        ZRefM.makeManaged(State.initial).map { stateRef =>
+        Ref.Synchronized.makeManaged(State.initial).map { stateRef =>
           {
             case None =>
               stateRef.getAndSet(State.initial).flatMap {
@@ -176,7 +225,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
                   f(data).push.use(_(None))
               }
             case Some(data) =>
-              stateRef.modifyM {
+              stateRef.modifyZIO {
                 case s @ State.Emitting(_, push) =>
                   push(Some(data)).map((_, s))
                 case s @ State.Collecting(collected) =>
@@ -201,7 +250,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Creates a transducer accumulating incoming values into chunks of maximum size `n`.
    */
-  def collectAllN[I](n: Int): ZTransducer[Any, Nothing, I, Chunk[I]] =
+  def collectAllN[I](n: Int)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, Chunk[I]] =
     ZTransducer {
 
       def go(in: Chunk[I], leftover: Chunk[I], outBuilder: ChunkBuilder[Chunk[I]]): (Chunk[Chunk[I]], Chunk[I]) = {
@@ -240,7 +289,9 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * are mapped to keys using the function `key`; elements mapped to the same key will
    * be merged with the function `f`.
    */
-  def collectAllToMapN[K, I](n: Long)(key: I => K)(f: (I, I) => I): ZTransducer[Any, Nothing, I, Map[K, I]] =
+  def collectAllToMapN[K, I](
+    n: Long
+  )(key: I => K)(f: (I, I) => I)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, Map[K, I]] =
     foldWeighted(Map[K, I]())((acc, i: I) => if (acc contains key(i)) 0 else 1, n) { (acc, i) =>
       val k = key(i)
 
@@ -251,13 +302,13 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Creates a transducer accumulating incoming values into sets of maximum size `n`.
    */
-  def collectAllToSetN[I](n: Long): ZTransducer[Any, Nothing, I, Set[I]] =
+  def collectAllToSetN[I](n: Long)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, Set[I]] =
     foldWeighted(Set[I]())((acc, i: I) => if (acc(i)) 0 else 1, n)(_ + _).filter(_.nonEmpty)
 
   /**
    * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
-  def collectAllWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, List[I]] =
+  def collectAllWhile[I](p: I => Boolean)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, List[I]] =
     fold[I, (List[I], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
       if (p(a)) (a :: as, true) else (as, false)
     }.map(_._1.reverse).filter(_.nonEmpty)
@@ -265,22 +316,33 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
-  def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, List[I]] =
-    foldM[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
+  @deprecated("use collectAllWhileZIO", "2.0.0")
+  def collectAllWhileM[R, E, I](p: I => ZIO[R, E, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, List[I]] =
+    collectAllWhileZIO(p)
+
+  /**
+   * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
+   */
+  def collectAllWhileZIO[R, E, I](p: I => ZIO[R, E, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, List[I]] =
+    foldZIO[R, E, I, (List[I], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
       p(a).map(if (_) (a :: as, true) else (as, false))
     }.map(_._1.reverse).filter(_.nonEmpty)
 
   /**
    * Creates a transducer that always dies with the specified exception.
    */
-  def die(e: => Throwable): ZTransducer[Any, Nothing, Any, Nothing] =
+  def die(e: => Throwable)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Any, Nothing] =
     ZTransducer(Managed.succeed((_: Any) => IO.die(e)))
 
   /**
    * Creates a transducer that starts consuming values as soon as one fails
    * the predicate `p`.
    */
-  def dropWhile[I](p: I => Boolean): ZTransducer[Any, Nothing, I, I] =
+  def dropWhile[I](p: I => Boolean)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, I] =
     ZTransducer {
       for {
         dropping <- ZRef.makeManaged(true)
@@ -303,7 +365,15 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Creates a transducer that starts consuming values as soon as one fails
    * the effectful predicate `p`.
    */
-  def dropWhileM[R, E, I](p: I => ZIO[R, E, Boolean]): ZTransducer[R, E, I, I] =
+  @deprecated("use dropWhileZIO", "2.0.0")
+  def dropWhileM[R, E, I](p: I => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZTransducer[R, E, I, I] =
+    dropWhileZIO(p)
+
+  /**
+   * Creates a transducer that starts consuming values as soon as one fails
+   * the effectful predicate `p`.
+   */
+  def dropWhileZIO[R, E, I](p: I => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZTransducer[R, E, I, I] =
     ZTransducer {
       for {
         dropping <- ZRef.makeManaged(true)
@@ -313,7 +383,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
             case Some(is) =>
               dropping.get.flatMap {
                 case false => UIO(is -> false)
-                case true  => is.dropWhileM(p).map(is1 => is1 -> is1.isEmpty)
+                case true  => is.dropWhileZIO(p).map(is1 => is1 -> is1.isEmpty)
               }.flatMap { case (is, pt) => dropping.set(pt) as is }
           }
         }
@@ -323,7 +393,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Creates a transducer that always fails with the specified failure.
    */
-  def fail[E](e: => E): ZTransducer[Any, E, Any, Nothing] =
+  def fail[E](e: => E)(implicit trace: ZTraceElement): ZTransducer[Any, E, Any, Nothing] =
     ZTransducer(ZManaged.succeed((_: Option[Any]) => ZIO.fail(e)))
 
   /**
@@ -331,7 +401,9 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * `contFn` results in `true`. The transducer will emit a value when `contFn`
    * evaluates to `false` and then restart the folding.
    */
-  def fold[I, O](z: O)(contFn: O => Boolean)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+  def fold[I, O](
+    z: O
+  )(contFn: O => Boolean)(f: (O, I) => O)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
       def go(in: Chunk[I], state: O, progress: Boolean): (Chunk[O], O, Boolean) =
         in.foldLeft[(Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) { case ((os0, state, _), i) =>
@@ -361,47 +433,32 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Creates a transducer by folding over a structure of type `O`. The transducer will
    * fold the inputs until the stream ends, resulting in a stream with one element.
    */
-  def foldLeft[I, O](z: O)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+  def foldLeft[I, O](z: O)(f: (O, I) => O)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, O] =
     fold(z)(_ => true)(f)
 
   /**
    * Creates a transducer by effectfully folding over a structure of type `O`. The transducer will
    * fold the inputs until the stream ends, resulting in a stream with one element.
    */
-  def foldLeftM[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldM(z)(_ => true)(f)
+  @deprecated("use foldLeftZIO", "2.0.0")
+  def foldLeftM[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O])(implicit trace: ZTraceElement): ZTransducer[R, E, I, O] =
+    foldLeftZIO(z)(f)
+
+  /**
+   * Creates a transducer by effectfully folding over a structure of type `O`. The transducer will
+   * fold the inputs until the stream ends, resulting in a stream with one element.
+   */
+  def foldLeftZIO[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O])(implicit trace: ZTraceElement): ZTransducer[R, E, I, O] =
+    foldZIO(z)(_ => true)(f)
 
   /**
    * Creates a sink by effectfully folding over a structure of type `S`.
    */
-  def foldM[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    ZTransducer {
-      val initial = Some(z)
-
-      def go(in: Chunk[I], state: O, progress: Boolean): ZIO[R, E, (Chunk[O], O, Boolean)] =
-        in.foldM[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) { case ((os0, state, _), i) =>
-          f(state, i).map { o =>
-            if (contFn(o))
-              (os0, o, true)
-            else
-              (os0 :+ o, z, false)
-          }
-        }
-
-      ZRef.makeManaged[Option[O]](initial).map { state =>
-        {
-          case Some(in) =>
-            state.get.flatMap(s => go(in, s.getOrElse(z), s.nonEmpty)).flatMap { case (os, s, progress) =>
-              if (progress)
-                state.set(Some(s)) *> Push.emit(os)
-              else
-                state.set(None) *> Push.emit(os)
-            }
-          case None =>
-            state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(Chunk.single(_)))
-        }
-      }
-    }
+  @deprecated("use foldZIO", "2.0.0")
+  def foldM[R, E, I, O](z: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, O] =
+    foldZIO(z)(contFn)(f)
 
   /**
    * Creates a transducer that folds elements of type `I` into a structure
@@ -409,7 +466,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    *
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
-  def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+  def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, O] =
     fold[I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
       (f(o, i), count + 1)
     }.map(_._1)
@@ -420,8 +477,22 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    *
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
-  def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldM[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
+  @deprecated("use foldUntilZIO", "2.0.0")
+  def foldUntilM[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, O] =
+    foldUntilZIO(z, max)(f)
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `O` until `max` elements have been folded.
+   *
+   * Like [[foldWeightedM]], but with a constant cost function of 1.
+   */
+  def foldUntilZIO[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, O] =
+    foldZIO[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
       f(o, i).map((_, count + 1))
     }.map(_._1)
 
@@ -434,7 +505,9 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * force the transducer to cross the `max` cost. See [[foldWeightedDecompose]]
    * for a variant that can handle these cases.
    */
-  def foldWeighted[I, O](z: O)(costFn: (O, I) => Long, max: Long)(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+  def foldWeighted[I, O](z: O)(costFn: (O, I) => Long, max: Long)(f: (O, I) => O)(implicit
+    trace: ZTraceElement
+  ): ZTransducer[Any, Nothing, I, O] =
     foldWeightedDecompose[I, O](z)(costFn, max, Chunk.single(_))(f)
 
   /**
@@ -449,8 +522,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * Stream(1, 5, 1)
    *  .aggregate(
    *    ZTransducer
-   *      .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
-   *        (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
+   *      .foldWeightedDecompose(List[Int]())((_, i: Int) => i.toLong, 4,
+   *        (i: Int) => if (i > 1) Chunk(i - 1, 1) else Chunk(i)) { (acc, el) =>
    *        el :: acc
    *      }
    *      .map(_.reverse)
@@ -472,7 +545,9 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    */
   def foldWeightedDecompose[I, O](
     z: O
-  )(costFn: (O, I) => Long, max: Long, decompose: I => Chunk[I])(f: (O, I) => O): ZTransducer[Any, Nothing, I, O] =
+  )(costFn: (O, I) => Long, max: Long, decompose: I => Chunk[I])(
+    f: (O, I) => O
+  )(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, O] =
     ZTransducer {
       case class FoldWeightedState(result: O, cost: Long)
 
@@ -529,14 +604,22 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * of type `S`, until `max` worth of elements (determined by the `costFn`) have
    * been folded.
    *
-   * @note Elements that have an individual cost larger than `max` will
-   * force the transducer to cross the `max` cost. See [[foldWeightedDecomposeM]]
-   * for a variant that can handle these cases.
+   * The `decompose` function will be used for decomposing elements that
+   * cause an `S` aggregate to cross `max` into smaller elements. Be vigilant with
+   * this function, it has to generate "simpler" values or the fold may never end.
+   * A value is considered indivisible if `decompose` yields the empty chunk or a
+   * single-valued chunk. In these cases, there is no other choice than to yield
+   * a value that will cross the threshold.
+   *
+   * See [[foldWeightedDecompose]] for an example.
    */
-  def foldWeightedM[R, E, I, O](
-    z: O
-  )(costFn: (O, I) => ZIO[R, E, Long], max: Long)(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    foldWeightedDecomposeM(z)(costFn, max, (i: I) => UIO.succeedNow(Chunk.single(i)))(f)
+  @deprecated("use foldWeightedDecomposeZIO", "2.0.0")
+  def foldWeightedDecomposeM[R, E, I, O](z: O)(
+    costFn: (O, I) => ZIO[R, E, Long],
+    max: Long,
+    decompose: I => ZIO[R, E, Chunk[I]]
+  )(f: (O, I) => ZIO[R, E, O])(implicit trace: ZTraceElement): ZTransducer[R, E, I, O] =
+    foldWeightedDecomposeZIO(z)(costFn, max, decompose)(f)
 
   /**
    * Creates a transducer that effectfully folds elements of type `I` into a structure
@@ -552,11 +635,11 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    *
    * See [[foldWeightedDecompose]] for an example.
    */
-  def foldWeightedDecomposeM[R, E, I, O](z: O)(
+  def foldWeightedDecomposeZIO[R, E, I, O](z: O)(
     costFn: (O, I) => ZIO[R, E, Long],
     max: Long,
     decompose: I => ZIO[R, E, Chunk[I]]
-  )(f: (O, I) => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
+  )(f: (O, I) => ZIO[R, E, O])(implicit trace: ZTraceElement): ZTransducer[R, E, I, O] =
     ZTransducer {
       final case class FoldWeightedState(result: O, cost: Long)
 
@@ -568,7 +651,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         state: FoldWeightedState,
         dirty: Boolean
       ): ZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)] =
-        in.foldM[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, dirty)) { case ((os, state, _), i) =>
+        in.foldZIO[R, E, (Chunk[O], FoldWeightedState, Boolean)]((os, state, dirty)) { case ((os, state, _), i) =>
           costFn(state.result, i).flatMap { cost =>
             val total = cost + state.cost
             if (total > max)
@@ -606,33 +689,148 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * force the transducer to cross the `max` cost. See [[foldWeightedDecomposeM]]
+   * for a variant that can handle these cases.
+   */
+  @deprecated("use foldWeightedZIO", "2.0.0")
+  def foldWeightedM[R, E, I, O](
+    z: O
+  )(costFn: (O, I) => ZIO[R, E, Long], max: Long)(f: (O, I) => ZIO[R, E, O])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, O] =
+    foldWeightedZIO(z)(costFn, max)(f)
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a structure
+   * of type `S`, until `max` worth of elements (determined by the `costFn`) have
+   * been folded.
+   *
+   * @note Elements that have an individual cost larger than `max` will
+   * force the transducer to cross the `max` cost. See [[foldWeightedDecomposeM]]
+   * for a variant that can handle these cases.
+   */
+  def foldWeightedZIO[R, E, I, O](
+    z: O
+  )(costFn: (O, I) => ZIO[R, E, Long], max: Long)(f: (O, I) => ZIO[R, E, O])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, O] =
+    foldWeightedDecomposeZIO(z)(costFn, max, (i: I) => UIO.succeedNow(Chunk.single(i)))(f)
+
+  /**
+   * Creates a sink by effectfully folding over a structure of type `S`.
+   */
+  def foldZIO[R, E, I, O](
+    z: O
+  )(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O])(implicit trace: ZTraceElement): ZTransducer[R, E, I, O] =
+    ZTransducer {
+      val initial = Some(z)
+
+      def go(in: Chunk[I], state: O, progress: Boolean): ZIO[R, E, (Chunk[O], O, Boolean)] =
+        in.foldZIO[R, E, (Chunk[O], O, Boolean)]((Chunk.empty, state, progress)) { case ((os0, state, _), i) =>
+          f(state, i).map { o =>
+            if (contFn(o))
+              (os0, o, true)
+            else
+              (os0 :+ o, z, false)
+          }
+        }
+
+      ZRef.makeManaged[Option[O]](initial).map { state =>
+        {
+          case Some(in) =>
+            state.get.flatMap(s => go(in, s.getOrElse(z), s.nonEmpty)).flatMap { case (os, s, progress) =>
+              if (progress)
+                state.set(Some(s)) *> Push.emit(os)
+              else
+                state.set(None) *> Push.emit(os)
+            }
+          case None =>
+            state.getAndSet(None).map(_.fold[Chunk[O]](Chunk.empty)(Chunk.single(_)))
+        }
+      }
+    }
+
+  /**
    * Creates a transducer that always evaluates the specified effect.
    */
-  def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZTransducer[R, E, Any, A] =
-    ZTransducer(Managed.succeed((_: Any) => zio.map(Chunk.single(_))))
+  @deprecated("use fromZIO", "2.0.0")
+  def fromEffect[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZTransducer[R, E, Any, A] =
+    fromZIO(zio)
 
   /**
    * Creates a transducer that purely transforms incoming values.
    */
-  def fromFunction[I, O](f: I => O): ZTransducer[Any, Nothing, I, O] =
+  def fromFunction[I, O](f: I => O)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, O] =
     identity.map(f)
 
   /**
    * Creates a transducer that effectfully transforms incoming values.
    */
-  def fromFunctionM[R, E, I, O](f: I => ZIO[R, E, O]): ZTransducer[R, E, I, O] =
-    identity.mapM(f(_))
+  @deprecated("use fromFunctionZIO", "2.0.0")
+  def fromFunctionM[R, E, I, O](f: I => ZIO[R, E, O])(implicit trace: ZTraceElement): ZTransducer[R, E, I, O] =
+    fromFunctionZIO(f)
+
+  /**
+   * Creates a transducer that effectfully transforms incoming values.
+   */
+  def fromFunctionZIO[R, E, I, O](f: I => ZIO[R, E, O])(implicit trace: ZTraceElement): ZTransducer[R, E, I, O] =
+    identity.mapZIO(f(_))
 
   /**
    * Creates a transducer from a chunk processing function.
    */
-  def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]]): ZTransducer[R, E, I, O] =
+  def fromPush[R, E, I, O](push: Option[Chunk[I]] => ZIO[R, E, Chunk[O]])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, O] =
     ZTransducer(Managed.succeed(push))
+
+  /**
+   * Creates a transducer that always evaluates the specified effect.
+   */
+  def fromZIO[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZTransducer[R, E, Any, A] =
+    ZTransducer(Managed.succeed((_: Any) => zio.map(Chunk.single(_))))
+
+  /**
+   * Creates a transducer that groups on adjacent keys, calculated by function f.<br>
+   * With this transducer we can mimic fs2 groupAdjacentBy.<br>
+   * This can be used like e.g. zstream.aggregate(groupAdjacentBy(_._1))
+   */
+  def groupAdjacentBy[I, K](
+    f: I => K
+  )(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, (K, NonEmptyChunk[I])] =
+    ZTransducer {
+      def go(
+        in: Chunk[I],
+        state: Option[(K, NonEmptyChunk[I])]
+      ): (Chunk[(K, NonEmptyChunk[I])], Option[(K, NonEmptyChunk[I])]) =
+        in.foldLeft[(Chunk[(K, NonEmptyChunk[I])], Option[(K, NonEmptyChunk[I])])]((Chunk.empty, state)) {
+          case ((os0, state), i) =>
+            state match {
+              case None => (os0, Some((f(i), NonEmptyChunk(i))))
+              case Some((key, aggregated)) =>
+                val newKey = f(i)
+                if (key == newKey) (os0, Some((key, aggregated :+ i)))
+                else (os0 :+ ((key, aggregated)), Some((newKey, NonEmptyChunk(i))))
+            }
+        }
+
+      ZRef.makeManaged[Option[(K, NonEmptyChunk[I])]](None).map { state =>
+        {
+          case Some(in) => state.modify(go(in, _))
+          case None     => state.getAndSet(None).map(_.fold[Chunk[(K, NonEmptyChunk[I])]](Chunk.empty)(Chunk.single))
+        }
+      }
+    }
 
   /**
    * Creates a transducer that returns the first element of the stream, if it exists.
    */
-  def head[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+  def head[O](implicit trace: ZTraceElement): ZTransducer[Any, Nothing, O, Option[O]] =
     foldLeft[O, Option[O]](Option.empty[O]) { case (acc, a) =>
       acc match {
         case Some(_) => acc
@@ -643,7 +841,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * The identity transducer. Passes elements through.
    */
-  def identity[I]: ZTransducer[Any, Nothing, I, I] =
+  def identity[I](implicit trace: ZTraceElement): ZTransducer[Any, Nothing, I, I] =
     ZTransducer.fromPush {
       case Some(is) => ZIO.succeedNow(is)
       case None     => ZIO.succeedNow(Chunk.empty)
@@ -655,7 +853,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  val iso_8859_1Decode: ZTransducer[Any, Nothing, Byte, String] =
+  def iso_8859_1Decode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
     ZTransducer.fromPush {
       case Some(is) => ZIO.succeedNow(Chunk.single(new String(is.toArray, StandardCharsets.ISO_8859_1)))
       case None     => ZIO.succeedNow(Chunk.empty)
@@ -664,15 +862,15 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Creates a transducer that returns the last element of the stream, if it exists.
    */
-  def last[O]: ZTransducer[Any, Nothing, O, Option[O]] =
+  def last[O](implicit trace: ZTraceElement): ZTransducer[Any, Nothing, O, Option[O]] =
     foldLeft[O, Option[O]](Option.empty[O])((_, a) => Some(a))
 
   /**
    * Emits the provided chunk before emitting any other value.
    */
-  def prepend[A](values: Chunk[A]): ZTransducer[Any, Nothing, A, A] =
+  def prepend[A](values: Chunk[A])(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, A, A] =
     ZTransducer {
-      ZRef.makeManaged(values).map { stateRef =>
+      ZRef.makeManaged(values).map[Option[Chunk[A]] => ZIO[Any, Nothing, Chunk[A]]] { stateRef =>
         {
           case None =>
             stateRef.getAndSet(Chunk.empty)
@@ -685,66 +883,67 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
-  val splitLines: ZTransducer[Any, Nothing, String, String] =
+  def splitLines(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, String, String] =
     ZTransducer {
-      ZRef.makeManaged[(Option[String], Boolean)]((None, false)).map { stateRef =>
-        {
-          case None =>
-            stateRef.getAndSet((None, false)).flatMap {
-              case (None, _)      => ZIO.succeedNow(Chunk.empty)
-              case (Some(str), _) => ZIO.succeedNow(Chunk(str))
-            }
-
-          case Some(strings) =>
-            stateRef.modify { case (leftover, wasSplitCRLF) =>
-              val buf    = mutable.ArrayBuffer[String]()
-              var inCRLF = wasSplitCRLF
-              var carry  = leftover getOrElse ""
-
-              strings.foreach { string =>
-                val concat = carry + string
-
-                if (concat.length() > 0) {
-                  var i =
-                    // If we had a split CRLF, we start reading
-                    // from the last character of the leftover (which was the '\r')
-                    if (inCRLF && carry.length > 0) carry.length - 1
-                    // Otherwise we just skip over the entire previous leftover as
-                    // it doesn't contain a newline.
-                    else carry.length
-                  var sliceStart = 0
-
-                  while (i < concat.length()) {
-                    if (concat(i) == '\n') {
-                      buf += concat.substring(sliceStart, i)
-                      i += 1
-                      sliceStart = i
-                    } else if (concat(i) == '\r' && (i + 1) < concat.length && concat(i + 1) == '\n') {
-                      buf += concat.substring(sliceStart, i)
-                      i += 2
-                      sliceStart = i
-                    } else if (concat(i) == '\r' && i == concat.length - 1) {
-                      inCRLF = true
-                      i += 1
-                    } else {
-                      i += 1
-                    }
-                  }
-
-                  carry = concat.substring(sliceStart, concat.length)
-                }
+      ZRef.makeManaged[(Option[String], Boolean)]((None, false)).map[Option[Chunk[String]] => UIO[Chunk[String]]] {
+        stateRef =>
+          {
+            case None =>
+              stateRef.getAndSet((None, false)).flatMap {
+                case (None, _)      => ZIO.succeedNow(Chunk.empty)
+                case (Some(str), _) => ZIO.succeedNow(Chunk(str))
               }
 
-              (Chunk.fromArray(buf.toArray), (if (carry.length() > 0) Some(carry) else None, inCRLF))
-            }
-        }
+            case Some(strings) =>
+              stateRef.modify { case (leftover, wasSplitCRLF) =>
+                val buf    = mutable.ArrayBuffer[String]()
+                var inCRLF = wasSplitCRLF
+                var carry  = leftover getOrElse ""
+
+                strings.foreach { string =>
+                  val concat = carry + string
+
+                  if (concat.length() > 0) {
+                    var i =
+                      // If we had a split CRLF, we start reading
+                      // from the last character of the leftover (which was the '\r')
+                      if (inCRLF && carry.length > 0) carry.length - 1
+                      // Otherwise we just skip over the entire previous leftover as
+                      // it doesn't contain a newline.
+                      else carry.length
+                    var sliceStart = 0
+
+                    while (i < concat.length()) {
+                      if (concat(i) == '\n') {
+                        buf += concat.substring(sliceStart, i)
+                        i += 1
+                        sliceStart = i
+                      } else if (concat(i) == '\r' && (i + 1) < concat.length && concat(i + 1) == '\n') {
+                        buf += concat.substring(sliceStart, i)
+                        i += 2
+                        sliceStart = i
+                      } else if (concat(i) == '\r' && i == concat.length - 1) {
+                        inCRLF = true
+                        i += 1
+                      } else {
+                        i += 1
+                      }
+                    }
+
+                    carry = concat.substring(sliceStart, concat.length)
+                  }
+                }
+
+                (Chunk.fromArray(buf.toArray), (if (carry.length() > 0) Some(carry) else None, inCRLF))
+              }
+          }
       }
     }
 
   /**
    * Splits strings on a delimiter.
    */
-  def splitOn(delimiter: String): ZTransducer[Any, Nothing, String, String] = {
+  def splitOn(delimiter: String)(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, String, String] = {
     val chars = ZTransducer.fromFunction[String, Chunk[Char]](s => Chunk.fromArray(s.toArray)).mapChunks(_.flatten)
     val split = splitOnChunk(Chunk.fromArray(delimiter.toArray)).map(_.mkString(""))
     chars >>> split
@@ -753,7 +952,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   /**
    * Splits elements on a delimiter and transforms the splits into desired output.
    */
-  def splitOnChunk[A](delimiter: Chunk[A]): ZTransducer[Any, Nothing, A, Chunk[A]] =
+  def splitOnChunk[A](delimiter: Chunk[A])(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, A, Chunk[A]] =
     ZTransducer {
       ZRef.makeManaged[(Option[Chunk[A]], Int)](None -> 0).map { state =>
         {
@@ -807,12 +1006,28 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     }
 
   /**
+   * Creates a transducer produced from an effect.
+   */
+  def unwrap[R, E, I, O](zio: ZIO[R, E, ZTransducer[R, E, I, O]])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, O] =
+    unwrapManaged(zio.toManaged)
+
+  /**
+   * Creates a transducer produced from a managed effect.
+   */
+  def unwrapManaged[R, E, I, O](managed: ZManaged[R, E, ZTransducer[R, E, I, O]])(implicit
+    trace: ZTraceElement
+  ): ZTransducer[R, E, I, O] =
+    ZTransducer(managed.fold(e => ZTransducer.fail(e), Predef.identity).flatMap(_.push))
+
+  /**
    * Decodes chunks of Unicode bytes into strings.
    *
    * Detects byte order marks for UTF-8, UTF-16BE, UTF-16LE, UTF-32BE, UTF-32LE or defaults
    * to UTF-8 if no BOM is detected.
    */
-  val utfDecode: ZTransducer[Any, Nothing, Byte, String] =
+  def utfDecode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(4) { bytes =>
       bytes.toList match {
         case 0 :: 0 :: -2 :: -1 :: Nil if Charset.isSupported("UTF-32BE") => utf32BEDecode
@@ -830,7 +1045,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  val utf8Decode: ZTransducer[Any, Nothing, Byte, String] = {
+  def utf8Decode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] = {
     val transducer = ZTransducer[Any, Nothing, Byte, String] {
       def is2ByteSequenceStart(b: Byte) = (b & 0xe0) == 0xc0
       def is3ByteSequenceStart(b: Byte) = (b & 0xf0) == 0xe0
@@ -901,7 +1116,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the endisn-specific String constructor's behavior when handling
    * malformed byte sequences.
    */
-  val utf16Decode: ZTransducer[Any, Nothing, Byte, String] =
+  def utf16Decode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(2) { bytes =>
       bytes.toList match {
         case -2 :: -1 :: Nil =>
@@ -919,7 +1134,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  val utf16BEDecode: ZTransducer[Any, Nothing, Byte, String] =
+  def utf16BEDecode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
     utfFixedLengthDecode(StandardCharsets.UTF_16BE, 2)
 
   /**
@@ -928,14 +1143,14 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  val utf16LEDecode: ZTransducer[Any, Nothing, Byte, String] =
+  def utf16LEDecode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
     utfFixedLengthDecode(StandardCharsets.UTF_16LE, 2)
 
   /**
    * Decodes chunks of UTF-32 bytes into strings.
    * If no byte order mark is found big-endianness is assumed.
    */
-  lazy val utf32Decode: ZTransducer[Any, Nothing, Byte, String] =
+  def utf32Decode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
     branchAfter(4) { bytes =>
       bytes.toList match {
         case 0 :: 0 :: -2 :: -1 :: Nil =>
@@ -953,7 +1168,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  lazy val utf32BEDecode: ZTransducer[Any, Nothing, Byte, String] =
+  def utf32BEDecode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
     utfFixedLengthDecode(Charset.forName("UTF-32BE"), 4)
 
   /**
@@ -962,10 +1177,12 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  lazy val utf32LEDecode: ZTransducer[Any, Nothing, Byte, String] =
+  def utf32LEDecode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
     utfFixedLengthDecode(Charset.forName("UTF-32LE"), 4)
 
-  private def utfFixedLengthDecode(charset: Charset, width: Int): ZTransducer[Any, Nothing, Byte, String] =
+  private def utfFixedLengthDecode(charset: Charset, width: Int)(implicit
+    trace: ZTraceElement
+  ): ZTransducer[Any, Nothing, Byte, String] =
     ZTransducer {
       ZRef.makeManaged[Chunk[Byte]](Chunk.empty).map { stateRef =>
         {
@@ -997,7 +1214,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * This transducer uses the String constructor's behavior when handling malformed byte
    * sequences.
    */
-  val usASCIIDecode: ZTransducer[Any, Nothing, Byte, String] =
+  def usASCIIDecode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
     ZTransducer.fromPush {
       case Some(chunk) => ZIO.succeedNow(Chunk.single(new String(chunk.toArray, StandardCharsets.US_ASCII)))
       case None        => ZIO.succeedNow(Chunk.empty)

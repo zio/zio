@@ -16,6 +16,10 @@
 
 package zio
 
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+@deprecated("2.0.0", "Use zio.ZIOApp and use the managed inside `run`")
 trait ManagedApp extends BootstrapRuntime { ma =>
 
   /**
@@ -25,8 +29,10 @@ trait ManagedApp extends BootstrapRuntime { ma =>
   def run(args: List[String]): ZManaged[ZEnv, Nothing, ExitCode]
 
   private val app = new App {
-    override def run(args: List[String]): URIO[ZEnv, ExitCode] =
-      ma.run(args).use(exit => ZIO.effectTotal(exit))
+    override def run(args: List[String]): URIO[ZEnv, ExitCode] = {
+      implicit val trace = Tracer.newTrace
+      ma.run(args).use(exit => ZIO.succeed(exit))
+    }
   }
 
   final def main(args: Array[String]): Unit = app.main(args)

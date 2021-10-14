@@ -3,9 +3,9 @@ id: treentrantlock
 title: "TReentrantLock"
 ---
 
-A TReentrantLock allows safe concurrent access to some mutable state efficiently, allowing multiple fibers to read the 
+A `TReentrantLock` allows safe concurrent access to some mutable state efficiently, allowing multiple fibers to read the 
 state (because that is safe to do) but only one fiber to modify the state (to prevent data corruption). Also, even though 
-the TReentrantLock is implemented using STM; reads and writes can be committed, allowing this to be used as a building 
+the `TReentrantLock` is implemented using `STM`; reads and writes can be committed, allowing this to be used as a building 
 block for solutions that expose purely ZIO effects and internally allow locking on more than one piece of state in a 
 simple and composable way (thanks to STM).
 
@@ -108,16 +108,14 @@ the fiber attempting to acquire the write lock) have released their hold on the 
 
 ```scala mdoc:silent
 import zio._
-import zio.clock._
-import zio.console._
+import zio.Console._
 import zio.stm._
-import zio.duration._
 
-val writeLockDemoProgram: URIO[Console with Clock, Unit] = for {
+val writeLockDemoProgram: URIO[Has[Console] with Has[Clock], Unit] = for {
   l  <- TReentrantLock.make.commit
-  _  <- putStrLn("Beginning test")
+  _  <- printLine("Beginning test").orDie
   f1 <- (l.acquireRead.commit *> ZIO.sleep(5.seconds) *> l.releaseRead.commit).fork
-  f2 <- (l.acquireRead.commit *> putStrLn("read-lock") *> l.acquireWrite.commit *> putStrLn("I have upgraded!")).fork
+  f2 <- (l.acquireRead.commit *> printLine("read-lock").orDie *> l.acquireWrite.commit *> printLine("I have upgraded!").orDie).fork
   _  <- (f1 zip f2).join
 } yield ()
 ```
@@ -136,15 +134,13 @@ don't hold onto any resources once we are done using the reentrant lock.
 
 ```scala mdoc:silent
 import zio._
-import zio.clock._
-import zio.console._
+import zio.Console._
 import zio.stm._
-import zio.duration._
 
-val saferProgram: URIO[Console with Clock, Unit] = for {
+val saferProgram: URIO[Has[Console] with Has[Clock], Unit] = for {
   lock <- TReentrantLock.make.commit
-  f1   <- lock.readLock.use_(ZIO.sleep(5.seconds) *> putStrLn("Powering down")).fork
-  f2   <- lock.readLock.use_(lock.writeLock.use_(putStrLn("Huzzah, writes are mine"))).fork
+  f1   <- lock.readLock.useDiscard(ZIO.sleep(5.seconds) *> printLine("Powering down").orDie).fork
+  f2   <- lock.readLock.useDiscard(lock.writeLock.useDiscard(printLine("Huzzah, writes are mine").orDie)).fork
   _    <- (f1 zip f2).join
 } yield ()
 ```

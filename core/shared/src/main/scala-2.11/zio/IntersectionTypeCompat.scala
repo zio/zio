@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
- package zio
+package zio
 
- private[zio] trait IntersectionTypeCompat {
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+private[zio] trait IntersectionTypeCompat {
   type &[+A, +B] = A with B
- }
+}

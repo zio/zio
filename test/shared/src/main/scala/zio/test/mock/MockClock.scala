@@ -16,14 +16,14 @@
 
 package zio.test.mock
 
-import zio.clock.Clock
-import zio.duration.Duration
-import zio.{Has, UIO, URLayer, ZLayer}
+import zio._
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
 
-object MockClock extends Mock[Clock] {
+object MockClock extends Mock[Has[Clock]] {
 
   object CurrentTime     extends Effect[TimeUnit, Nothing, Long]
   object CurrentDateTime extends Effect[Unit, Nothing, OffsetDateTime]
@@ -33,16 +33,21 @@ object MockClock extends Mock[Clock] {
   object Scheduler       extends Effect[Unit, Nothing, zio.internal.Scheduler]
   object Sleep           extends Effect[Duration, Nothing, Unit]
 
-  val compose: URLayer[Has[Proxy], Clock] =
-    ZLayer.fromService(proxy =>
-      new Clock.Service {
-        def currentTime(unit: TimeUnit): UIO[Long]          = proxy(CurrentTime, unit)
-        def currentDateTime: UIO[OffsetDateTime]            = proxy(CurrentDateTime)
-        val nanoTime: UIO[Long]                             = proxy(NanoTime)
-        def scheduler: UIO[zio.internal.Scheduler]          = proxy(Scheduler)
-        def sleep(duration: Duration): UIO[Unit]            = proxy(Sleep, duration)
-        def instant: zio.UIO[java.time.Instant]             = proxy(Instant)
-        def localDateTime: zio.UIO[java.time.LocalDateTime] = proxy(LocalDateTime)
+  val compose: URLayer[Has[Proxy], Has[Clock]] = {
+    implicit val trace = Tracer.newTrace
+    ZIO
+      .service[Proxy]
+      .map { proxy =>
+        new Clock {
+          def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long]       = proxy(CurrentTime, unit)
+          def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime]            = proxy(CurrentDateTime)
+          def nanoTime(implicit trace: ZTraceElement): UIO[Long]                             = proxy(NanoTime)
+          def scheduler(implicit trace: ZTraceElement): UIO[zio.internal.Scheduler]          = proxy(Scheduler)
+          def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit]         = proxy(Sleep, duration)
+          def instant(implicit trace: ZTraceElement): zio.UIO[java.time.Instant]             = proxy(Instant)
+          def localDateTime(implicit trace: ZTraceElement): zio.UIO[java.time.LocalDateTime] = proxy(LocalDateTime)
+        }
       }
-    )
+      .toLayer
+  }
 }

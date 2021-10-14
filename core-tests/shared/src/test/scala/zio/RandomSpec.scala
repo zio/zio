@@ -1,6 +1,5 @@
 package zio
 
-import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
 import zio.test.environment.Live
@@ -14,66 +13,73 @@ object RandomSpec extends ZIOBaseSpec {
     (l, r) => java.lang.Float.compare(l, r)
 
   def spec: ZSpec[Environment, Failure] = suite("RandomSpec")(
-    testM("nextDoubleBetween generates doubles in specified range") {
-      checkM(genDoubles) { case (min, max) =>
+    test("nextDoubleBetween generates doubles in specified range") {
+      check(genDoubles) { case (min, max) =>
         for {
-          n <- Live.live(random.nextDoubleBetween(min, max))
+          n <- Live.live(Random.nextDoubleBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextFloatBetween generates floats in specified range") {
-      checkM(genFloats) { case (min, max) =>
+    test("nextFloatBetween generates floats in specified range") {
+      check(genFloats) { case (min, max) =>
         for {
-          n <- Live.live(random.nextFloatBetween(min, max))
+          n <- Live.live(Random.nextFloatBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextIntBetween generates integers in specified range") {
-      checkM(genInts) { case (min, max) =>
+    test("nextIntBetween generates integers in specified range") {
+      check(genInts) { case (min, max) =>
         for {
-          n <- Live.live(random.nextIntBetween(min, max))
+          n <- Live.live(Random.nextIntBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextLongBetween generates longs in specified range") {
-      checkM(genLongs) { case (min, max) =>
+    test("nextLongBetween generates longs in specified range") {
+      check(genLongs) { case (min, max) =>
         for {
-          n <- Live.live(random.nextLongBetween(min, max))
+          n <- Live.live(Random.nextLongBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
           assert(n)(isLessThan(max))
       }
     },
-    testM("nextUUID generates universally unique identifiers") {
-      check(Gen.fromEffect(Live.live(random.nextUUID))) { uuid =>
+    test("nextUUID generates universally unique identifiers") {
+      check(Gen.fromZIO(Live.live(Random.nextUUID))) { uuid =>
         assert(uuid.variant)(equalTo(2))
       }
+    },
+    test("scalaRandom") {
+      val layer  = ZLayer.fromZIO(ZIO.succeed(new scala.util.Random)) >>> Random.scalaRandom
+      val sample = ZIO.replicateZIO(5)((Random.setSeed(91) *> Random.nextInt).provideSomeLayer(layer.fresh))
+      for {
+        values <- ZIO.collectAllPar(ZIO.replicate(5)(sample))
+      } yield assertTrue(values.toSet.size == 1)
     }
   )
 
-  val genDoubles: Gen[Random, (Double, Double)] =
+  val genDoubles: Gen[Has[Random], (Double, Double)] =
     for {
-      a <- Gen.anyDouble
-      b <- Gen.anyDouble if a != b
+      a <- Gen.double
+      b <- Gen.double if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genFloats: Gen[Random, (Float, Float)] =
+  val genFloats: Gen[Has[Random], (Float, Float)] =
     for {
-      a <- Gen.anyFloat
-      b <- Gen.anyFloat if a != b
+      a <- Gen.float
+      b <- Gen.float if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genInts: Gen[Random, (Int, Int)] =
+  val genInts: Gen[Has[Random], (Int, Int)] =
     for {
-      a <- Gen.anyInt
-      b <- Gen.anyInt if a != b
+      a <- Gen.int
+      b <- Gen.int if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genLongs: Gen[Random, (Long, Long)] =
+  val genLongs: Gen[Has[Random], (Long, Long)] =
     for {
-      a <- Gen.anyLong
-      b <- Gen.anyLong if a != b
+      a <- Gen.long
+      b <- Gen.long if a != b
     } yield if (b > a) (a, b) else (b, a)
 }

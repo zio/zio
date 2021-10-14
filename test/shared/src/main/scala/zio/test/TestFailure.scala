@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.Cause
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 sealed abstract class TestFailure[+E]
 
@@ -34,17 +35,17 @@ object TestFailure {
    * Constructs a runtime failure that dies with the specified `Throwable`.
    */
   def die(t: Throwable): TestFailure[Nothing] =
-    halt(Cause.die(t))
+    failCause(Cause.die(t))
 
   /**
    * Constructs a runtime failure that fails with the specified error.
    */
   def fail[E](e: E): TestFailure[E] =
-    halt(Cause.fail(e))
+    failCause(Cause.fail(e))
 
   /**
    * Constructs a runtime failure with the specified cause.
    */
-  def halt[E](cause: Cause[E]): TestFailure[E] =
+  def failCause[E](cause: Cause[E]): TestFailure[E] =
     Runtime(cause)
 }

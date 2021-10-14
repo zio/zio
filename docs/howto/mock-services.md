@@ -46,10 +46,9 @@ trait Event
 
 ```scala mdoc:silent
 import zio._
-import zio.console.Console
 
-def processEvent(event: Event): URIO[Console, Unit] =
-  console.putStrLn(s"Got $event")
+def processEvent(event: Event): URIO[Has[Console], Unit] =
+  Console.printLine(s"Got $event").orDie
 ```
 
 With ZIO, we've regained to ability to reason about the effects called. We know that `processEvent` can only call on _capabilities_ of `Console`, so even though we still have `Unit` as the result, we have narrowed the possible effects space to a few.
@@ -61,7 +60,7 @@ With ZIO, we've regained to ability to reason about the effects called. We know 
 However, the same method could be implemented as:
 
 ```scala mdoc:silent
-def processEvent2(event: Event): URIO[Console, Unit] =
+def processEvent2(event: Event): URIO[Has[Console], Unit] =
   ZIO.unit
 ```
 
@@ -78,7 +77,7 @@ ZIO Test provides a framework for mocking your modules.
 
 ## Creating a mock service
 
-We'll be assuming you've read [How to use modules and layers][doc-use-modules-and-layers] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose layer_.
+We'll be assuming you've read about modules and layers in the [contextual types][doc-contextual-types] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose layer_.
 
 ```scala mdoc:silent
 // main sources
@@ -156,8 +155,8 @@ def withRuntime[R]: URIO[R, Runtime[R]] = ???
 import ExampleMock._
 
 val compose: URLayer[Has[Proxy], Example] =
-  ZLayer.fromServiceM { proxy =>
-    withRuntime.map { rts =>
+  ZIO.serviceWith[Proxy] { proxy =>
+    withRuntime[Any].map { rts =>
       new Example.Service {
         val static                                 = proxy(Static)
         def zeroArgs                               = proxy(ZeroArgs)
@@ -173,7 +172,7 @@ val compose: URLayer[Has[Proxy], Example] =
         def stream(a: Int)                         = rts.unsafeRun(proxy(Stream, a))
       }
     }
-  }
+  }.toLayer
 ```
 
 > **Note:** The `withRuntime` helper is defined in `Mock`. It accesses the Runtime via `ZIO.runtime` and if you're on JS platform, it will replace the executor to an unyielding one.
@@ -193,7 +192,6 @@ trait AccountEvent
 // main sources
 
 import zio._
-import zio.console.Console
 import zio.test.mock._
 
 type AccountObserver = Has[AccountObserver.Service]
@@ -205,25 +203,25 @@ object AccountObserver {
   }
 
   def processEvent(event: AccountEvent) =
-    ZIO.accessM[AccountObserver](_.get.processEvent(event))
+    ZIO.accessZIO[AccountObserver](_.get.processEvent(event))
 
   def runCommand() =
-    ZIO.accessM[AccountObserver](_.get.runCommand)
+    ZIO.accessZIO[AccountObserver](_.get.runCommand())
 
-  val live: ZLayer[Console, Nothing, AccountObserver] =
-    ZLayer.fromService[Console.Service, Service] { console =>
+  val live: ZLayer[Has[Console], Nothing, AccountObserver] =
+    { (console: Console) =>
       new Service {
         def processEvent(event: AccountEvent): UIO[Unit] =
           for {
-            _    <- console.putStrLn(s"Got $event")
-            line <- console.getStrLn.orDie
-            _    <- console.putStrLn(s"You entered: $line")
+            _    <- console.printLine(s"Got $event").orDie
+            line <- console.readLine.orDie
+            _    <- console.printLine(s"You entered: $line").orDie
           } yield ()
 
         def runCommand(): UIO[Unit] =
-          console.putStrLn("Done!")
+          console.printLine("Done!").orDie
       }
-    }
+    }.toLayer
 }
 ```
 
@@ -236,12 +234,12 @@ object AccountObserverMock extends Mock[AccountObserver] {
   object RunCommand   extends Effect[Unit, Nothing, Unit]
 
   val compose: URLayer[Has[Proxy], AccountObserver] =
-    ZLayer.fromService { proxy =>
+    ZIO.service[Proxy].map { proxy =>
       new AccountObserver.Service {
         def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
         def runCommand(): UIO[Unit]           = proxy(RunCommand)
       }
-    }
+    }.toLayer
 }
 ```
 
@@ -250,10 +248,10 @@ object AccountObserverMock extends Mock[AccountObserver] {
 ## Provided ZIO services
 
 For each built-in ZIO service you will find their mockable counterparts in `zio.test.mock` package:
-- `MockClock` for `zio.clock.Clock`
-- `MockConsole` for `zio.console.Console`
-- `MockRandom` for `zio.random.Random`
-- `MockSystem` for `zio.system.System`
+- `MockClock` for `zio.Clock`
+- `MockConsole` for `zio.Console`
+- `MockRandom` for `zio.Random`
+- `MockSystem` for `zio.System`
 
 ## Setting up expectations
 
@@ -269,10 +267,13 @@ object Example {
 object ExampleMock extends Mock[Has[Example.Service]] {
   object ZeroArgs  extends Effect[Unit, Nothing, Int]
   object SingleArg extends Effect[Int, Nothing, String]
-  val compose: URLayer[Has[Proxy], Has[Example.Service]] = ZLayer.fromService(proxy => new Example.Service {
-    def zeroArgs             = proxy(ZeroArgs)
-    def singleArg(arg1: Int) = proxy(SingleArg, arg1)
-  })
+  val compose: URLayer[Has[Proxy], Has[Example.Service]] =
+    ZIO.service[Proxy].map { proxy =>
+      new Example.Service {
+        def zeroArgs             = proxy(ZeroArgs)
+        def singleArg(arg1: Int) = proxy(SingleArg, arg1)
+      }
+    }.toLayer
 }
 ```
 
@@ -312,14 +313,13 @@ For methods that may return `Unit`, we may skip the predefined result (it will d
 ```scala mdoc:silent
 import zio.test.mock.MockConsole
 
-val exp03 = MockConsole.PutStrLn(equalTo("Welcome to ZIO!"))
-val exp04 = MockConsole.PutStrLn(equalTo("Welcome to ZIO!"), unit)
+val exp03 = MockConsole.PrintLine(equalTo("Welcome to ZIO!"), unit)
 ```
 
 For methods that may return `Unit` and take no input we can skip both:
 
 ```scala mdoc:silent
-val exp05 = AccountObserverMock.RunCommand()
+val exp04 = AccountObserverMock.RunCommand()
 ```
 
 Finally we're all set and can create ad-hoc mock environments with our services.
@@ -329,10 +329,10 @@ import zio.test._
 
 val event = new AccountEvent {}
 val app: URIO[AccountObserver, Unit] = AccountObserver.processEvent(event)
-val mockEnv: ULayer[Console] = (
-  MockConsole.PutStrLn(equalTo(s"Got $event"), unit) ++
-  MockConsole.GetStrLn(value("42")) ++
-  MockConsole.PutStrLn(equalTo("You entered: 42"))
+val mockEnv: ULayer[Has[Console]] = (
+  MockConsole.PrintLine(equalTo(s"Got $event"), unit) ++
+  MockConsole.ReadLine(value("42")) ++
+  MockConsole.PrintLine(equalTo("You entered: 42"), unit)
 )
 ```
 
@@ -351,8 +351,8 @@ We can combine our expectation to build complex scenarios using combinators defi
 ```scala mdoc:silent
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
-    testM("calls putStrLn > getStrLn > putStrLn and returns unit") {
-      val result = app.provideLayer(mockEnv >>> AccountObserver.live)
+    test("calls printLine > readLine > printLine and returns unit") {
+      val result = app.provideSomeLayer(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
   )
@@ -366,12 +366,12 @@ Often the dependency on a collaborator is only in some branches of the code. To 
 ```scala mdoc:silent
 object MaybeConsoleSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
-    testM("expect no call") {
+    test("expect no call") {
       def maybeConsole(invokeConsole: Boolean) =
-        ZIO.when(invokeConsole)(console.putStrLn("foo"))
+        ZIO.when(invokeConsole)(Console.printLine("foo"))
 
-      val maybeTest1 = maybeConsole(false).provideLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).provideLayer(MockConsole.PutStrLn(equalTo("foo")))
+      val maybeTest1 = maybeConsole(false).unit.provideSomeLayer(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).unit.provideSomeLayer(MockConsole.PrintLine(equalTo("foo"), unit))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )
@@ -383,26 +383,24 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
 In some cases we have more than one collaborating service being called. You can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlaying mocked layer will be updated.
 
 ```scala mdoc:silent
-import zio.console.Console
-import zio.random.Random
 import zio.test.mock.MockRandom
 
-val combinedEnv: ULayer[Console with Random] = (
-  MockConsole.PutStrLn(equalTo("What is your name?")) ++
-  MockConsole.GetStrLn(value("Mike")) ++
+val combinedEnv: ULayer[Has[Console] with Has[Random]] = (
+  MockConsole.PrintLine(equalTo("What is your name?"), unit) ++
+  MockConsole.ReadLine(value("Mike")) ++
   MockRandom.NextInt(value(42)) ++
-  MockConsole.PutStrLn(equalTo("Mike, your lucky number today is 42!"))
+  MockConsole.PrintLine(equalTo("Mike, your lucky number today is 42!"), unit)
 )
 
 val combinedApp =
   for {
-    _    <- console.putStrLn("What is your name?")
-    name <- console.getStrLn.orDie
-    num  <- random.nextInt
-    _    <- console.putStrLn(s"$name, your lucky number today is $num!")
+    _    <- Console.printLine("What is your name?")
+    name <- Console.readLine.orDie
+    num  <- Random.nextInt
+    _    <- Console.printLine(s"$name, your lucky number today is $num!")
   } yield ()
 
-val result = combinedApp.provideLayer(combinedEnv)
+val result = combinedApp.provideSomeLayer(combinedEnv)
 assertM(result)(isUnit)
 ```
 
@@ -438,8 +436,8 @@ object PolyExampleMock extends Mock[PolyExample] {
   object PolyAll    extends Poly.Effect.InputErrorOutput
 
   val compose: URLayer[Has[Proxy], PolyExample] =
-    ZLayer.fromServiceM { proxy =>
-      withRuntime.map { rts =>
+    ZIO.serviceWith[Proxy] { proxy =>
+      withRuntime[Any].map { rts =>
         new PolyExample.Service {
           def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)
           def polyError[E: Tag](input: Int)                   = proxy(PolyError.of[E], input)
@@ -447,7 +445,7 @@ object PolyExampleMock extends Mock[PolyExample] {
           def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
         }
       }
-    }
+    }.toLayer
 }
 ```
 
@@ -469,20 +467,16 @@ val exp10 = PolyAll.of[Int, Throwable, String](equalTo(42), failure(new Exceptio
 You can find more examples in the `examples` and `test-tests` subproject:
 
 - [MockExampleSpec][link-gh-mock-example-spec]
-- [BasicMockSpec][link-gh-basic-mock-spec]
-- [AdvancedMockSpec][link-gh-advanced-mock-spec]
 - [EmptyMockSpec][link-gh-empty-mock-spec]
 - [ComposedMockSpec][link-gh-composed-mock-spec]
 - [ComposedEmptyMockSpec][link-gh-composed-empty-mock-spec]
 - [PolyMockSpec][link-gh-poly-mock-spec]
 
-[doc-use-modules-and-layers]: use-modules-and-layers.md
+[doc-contextual-types]: ../datatypes/contextual/index.md
 [doc-macros]: howto-macros.md
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html
 [link-gh-mock-example-spec]: https://github.com/zio/zio/blob/master/examples/shared/src/test/scala/zio/examples/test/MockExampleSpec.scala
-[link-gh-basic-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/BasicMockSpec.scala
-[link-gh-advanced-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/AdvancedMockSpec.scala
 [link-gh-empty-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/EmptyMockSpec.scala
 [link-gh-composed-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/ComposedMockSpec.scala
 [link-gh-composed-empty-mock-spec]: https://github.com/zio/zio/blob/master/test-tests/shared/src/test/scala/zio/test/mock/ComposedEmptyMockSpec.scala

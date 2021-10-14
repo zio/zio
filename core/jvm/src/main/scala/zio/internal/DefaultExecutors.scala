@@ -16,35 +16,19 @@
 
 package zio.internal
 
-import java.util.concurrent.{LinkedBlockingQueue, RejectedExecutionException, ThreadPoolExecutor, TimeUnit}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-private[internal] abstract class DefaultExecutors {
-  final def makeDefault(yieldOpCount: Int): Executor =
-    fromThreadPoolExecutor(_ => yieldOpCount) {
-      val corePoolSize  = Runtime.getRuntime.availableProcessors() * 2
-      val maxPoolSize   = corePoolSize
-      val keepAliveTime = 60000L
-      val timeUnit      = TimeUnit.MILLISECONDS
-      val workQueue     = new LinkedBlockingQueue[Runnable]()
-      val threadFactory = new NamedThreadFactory("zio-default-async", true)
+import java.util.concurrent.{RejectedExecutionException, ThreadPoolExecutor}
 
-      val threadPool = new ThreadPoolExecutor(
-        corePoolSize,
-        maxPoolSize,
-        keepAliveTime,
-        timeUnit,
-        workQueue,
-        threadFactory
-      )
-      threadPool.allowCoreThreadTimeOut(true)
+private[zio] abstract class DefaultExecutors {
 
-      threadPool
-    }
+  final def makeDefault(yieldOpCount: Int): zio.Executor =
+    new ZScheduler(yieldOpCount)
 
   final def fromThreadPoolExecutor(yieldOpCount0: ExecutionMetrics => Int)(
     es: ThreadPoolExecutor
-  ): Executor =
-    new Executor {
+  ): zio.Executor =
+    new zio.Executor {
       private[this] def metrics0 = new ExecutionMetrics {
         def concurrency: Int = es.getMaximumPoolSize()
 
@@ -66,11 +50,11 @@ private[internal] abstract class DefaultExecutors {
         def dequeuedCount: Long = enqueuedCount - size.toLong
       }
 
-      def metrics = Some(metrics0)
+      def unsafeMetrics = Some(metrics0)
 
       def yieldOpCount = yieldOpCount0(metrics0)
 
-      def submit(runnable: Runnable): Boolean =
+      def unsafeSubmit(runnable: Runnable): Boolean =
         try {
           es.execute(runnable)
 

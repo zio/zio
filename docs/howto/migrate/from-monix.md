@@ -11,14 +11,17 @@ Once you've completed the initial translation, you'll find that ZIO is outfitted
 methods which have no Monix equivalents, so have fun exploring the API and see if you can rewrite some
 of your logic at a higher level of abstraction, with more powerful combinators and fewer lines code.
 
+If you are using operators from from Cats Effect extension methods see also 
+[here](https://zio.dev/docs/howto/migrate/from-cats-effect).
+
 ### Methods on Trait
 
 | Monix | ZIO |
 |-------|-----|
 | `attempt` | `either` |
-| `bracketCase` | `bracketExit` |
-| `bracketE` | `bracketExit` |
-| `bracket` | `bracket` |
+| `bracketCase` | `acquireReleaseExitWith` |
+| `bracketE` | `acquireReleaseExitWith` |
+| `bracket` | `acquireReleaseWith` |
 | `delayExecution` | `delay` |
 | `dematerialize` | `absolve` |
 | `doOnCancel` | `onInterrupt` |
@@ -35,7 +38,7 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 | `onErrorHandleWith` | `catchAll` |
 | `onErrorRecoverWith` | `catchSome` |
 | `onErrorRestart` | `retryN` |
-| `redeemWith` | `foldM` |
+| `redeemWith` | `foldZIO` |
 | `redeem` | `fold` |
 | `restartUntil` | `repeatUntil` |
 | `start` | `fork` |
@@ -48,13 +51,13 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 | Monix  | ZIO |
 |-------|-----|
 | `apply` | `apply` |
-| `asyncF` | `effectAsyncM` |
-| `async` | `effectAsync` |
-| `cancelable` | `effectAsyncInterrupt` |
+| `asyncF` | `asyncZIO` |
+| `async` | `async` |
+| `cancelable` | `asyncInterrupt` |
 | `deferFuture` | `fromFuture` |
-| `defer` | `effectSuspend` |
-| `delay` | `effect` |
-| `eval` | `effect` |
+| `defer` | `suspend` |
+| `delay` | `attempt` |
+| `eval` | `attempt` |
 | `fromEither` | `fromEither` |
 | `fromFuture` | `fromFuture` |
 | `fromTry` | `fromTry` |
@@ -75,7 +78,7 @@ of your logic at a higher level of abstraction, with more powerful combinators a
 | `sequence` | `collectAll` |
 | `shift` | `yield` |
 | `sleep` | `sleep` |
-| `suspend` | `effectSuspend` |
+| `suspend` | `suspend` |
 | `traverse` | `foreach` |
 | `unit` | `unit` |
 

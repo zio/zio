@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(1)
 class TMapOpsBenchmarks {
-  import IOBenchmarks.unsafeRun
+  import BenchmarkUtil.unsafeRun
 
   @Param(Array("0", "10", "100", "1000", "10000", "100000"))
   var size: Int = _
@@ -34,29 +34,29 @@ class TMapOpsBenchmarks {
 
   @Benchmark
   def lookup(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => map.get(idx).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => map.get(idx).commit))
 
   @Benchmark
   def update(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => map.put(idx, idx).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => map.put(idx, idx).commit))
 
   @Benchmark
   def transform(): Unit =
     unsafeRun(map.transform((k, v) => (k, v)).commit)
 
   @Benchmark
-  def transformM(): Unit =
-    unsafeRun(map.transformM((k, v) => STM.succeedNow(v).map(k -> _)).commit)
+  def transformSTM(): Unit =
+    unsafeRun(map.transformSTM((k, v) => STM.succeedNow(v).map(k -> _)).commit)
 
   @Benchmark
   def removal(): Unit =
-    unsafeRun(ZIO.foreach_(calls)(_ => map.delete(idx).commit))
+    unsafeRun(ZIO.foreachDiscard(calls)(_ => map.delete(idx).commit))
 
   @Benchmark
   def fold(): Int =
     unsafeRun(map.fold(0)((acc, kv) => acc + kv._2).commit)
 
   @Benchmark
-  def foldM(): Int =
-    unsafeRun(map.foldM(0)((acc, kv) => STM.succeedNow(acc + kv._2)).commit)
+  def foldSTM(): Int =
+    unsafeRun(map.foldSTM[Any, Nothing, Int](0)((acc, kv) => STM.succeedNow(acc + kv._2)).commit)
 }

@@ -6,7 +6,7 @@ title: "How to Access System Information?"
 Sometimes, environment variables are relevant information to an application. ZIO provides a `system` package to interface with this functionality.
 
 ```scala mdoc:silent
-import zio.system
+import zio.System
 ```
 
 ## Environment Variables
@@ -15,7 +15,7 @@ With the `env` method, you can safely read an environment variable:
 
 ```scala mdoc
 // Read an environment variable
-system.env("JAVA_HOME")
+System.env("JAVA_HOME")
 ```
 
 ## Properties
@@ -24,7 +24,7 @@ With the `property` method, you can safely access Java properties:
 
 ```scala mdoc
 // Read a system property
-system.property("java.version")
+System.property("java.version")
 ```
 
 ## Miscellaneous
@@ -32,5 +32,5 @@ system.property("java.version")
 With the `lineSeparator` method, you can determine the line separator for the underlying platform:
 
 ```scala mdoc
-system.lineSeparator
+System.lineSeparator
 ```

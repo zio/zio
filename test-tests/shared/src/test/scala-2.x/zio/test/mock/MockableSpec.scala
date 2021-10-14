@@ -44,7 +44,7 @@ object MockableSpec extends DefaultRunnableSpec {
           Check
         })(anything)
       },
-      testM("fails when applied to object without type arg") {
+      test("fails when applied to object without type arg") {
         assertM(typeCheck {
           """
             @mockable
@@ -52,7 +52,7 @@ object MockableSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to trait") {
+      test("fails when applied to trait") {
         assertM(typeCheck {
           """
             object Module {
@@ -64,7 +64,7 @@ object MockableSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to class") {
+      test("fails when applied to class") {
         assertM(typeCheck {
           """
             object Module {
@@ -277,6 +277,21 @@ object MockableSpec extends DefaultRunnableSpec {
             val SingleParam: ModuleMock.Effect[Int, Exception, Double]                    = ModuleMock.SingleParam
             val ManyParams: ModuleMock.Effect[(Int, String, Long), Exception, Double]     = ModuleMock.ManyParams
             val ManyParamLists: ModuleMock.Effect[(Int, String, Long), Exception, Double] = ModuleMock.ManyParamLists
+          }
+
+          Check
+        })(anything)
+      },
+      test("generates mocks for services that extend a service") {
+        assert({
+          @mockable[MultipleTraitsDefModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[MultipleTraitsDefModule] = ModuleMock
+
+            val Foo: ModuleMock.Method[Int, Throwable, String]    = ModuleMock.Foo
+            val Bar: ModuleMock.Method[String, Throwable, String] = ModuleMock.Bar
           }
 
           Check

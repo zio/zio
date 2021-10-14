@@ -16,9 +16,8 @@
 
 package zio.test.environment
 
-import zio.duration._
 import zio.internal.Scheduler
-import zio.{UIO, ZIO}
+import zio.{Duration, UIO, ZIO, ZTraceElement}
 
 import java.time.Instant
 import java.util.concurrent._
@@ -28,7 +27,7 @@ import scala.annotation.tailrec
 
 trait TestClockPlatformSpecific { self: TestClock.Test =>
 
-  def scheduler: UIO[Scheduler] =
+  def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
     ZIO.runtime[Any].map { runtime =>
       new Scheduler {
         def schedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {

@@ -16,15 +16,16 @@
 
 package zio.test
 
-import zio.ZLayer
-import zio.test.environment.TestEnvironment
+import zio.{Has, Tag, ZLayer}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * Syntax for writing test like
  * {{{
  * object MySpec extends DefaultMutableRunnableSpec {
  *   suite("foo") {
- *     testM("name") {
+ *     test("name") {
  *     } @@ ignore
  *
  *     test("name 2")
@@ -35,5 +36,6 @@ import zio.test.environment.TestEnvironment
  * }
  * }}}
  */
+@deprecated("use DefaultRunnableSpec", "2.0.0")
 class DefaultMutableRunnableSpec
-    extends MutableRunnableSpec[TestEnvironment](ZLayer.identity[TestEnvironment], TestAspect.identity)
+    extends MutableRunnableSpec[Has[Any]](ZLayer.succeed[Any](())(Tag[Any], Tracer.newTrace), TestAspect.identity)

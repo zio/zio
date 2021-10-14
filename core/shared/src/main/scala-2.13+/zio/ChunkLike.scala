@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.collection.immutable.{IndexedSeq, IndexedSeqOps, StrictOptimizedSeqOps}
 import scala.collection.{IterableFactoryDefaults, SeqFactory}
 import scala.reflect.ClassTag
@@ -107,6 +109,9 @@ trait ChunkLike[+A]
    */
   override final def map[B](f: A => B): Chunk[B] =
     mapChunk(f)
+
+  override final def updated[A1 >: A](index: Int, elem: A1): Chunk[A1] =
+    update(index, elem)
 
   /**
    * Zips this chunk with the index of every element.

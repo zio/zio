@@ -16,31 +16,44 @@
 
 package zio
 
-import zio.blocking.Blocking
 import zio.interop.javaz
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.nio.channels.CompletionHandler
 import java.util.concurrent.{CompletableFuture, CompletionStage, Future}
 
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
-  def toCompletableFuture[A1 >: A](implicit ev: E IsSubtypeOfError Throwable): URIO[R, CompletableFuture[A1]] =
+  def toCompletableFuture[A1 >: A](implicit
+    ev: E IsSubtypeOfError Throwable,
+    trace: ZTraceElement
+  ): URIO[R, CompletableFuture[A1]] =
     toCompletableFutureWith(ev)
 
-  def toCompletableFutureWith[A1 >: A](f: E => Throwable): URIO[R, CompletableFuture[A1]] =
+  def toCompletableFutureWith[A1 >: A](f: E => Throwable)(implicit
+    trace: ZTraceElement
+  ): URIO[R, CompletableFuture[A1]] =
     self.mapError(f).fold(javaz.CompletableFuture_.failedFuture, CompletableFuture.completedFuture[A1])
 }
 
 private[zio] trait ZIOCompanionPlatformSpecific {
 
-  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any): Task[T] =
-    javaz.effectAsyncWithCompletionHandler(op)
+  def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: ZTraceElement): Task[T] =
+    javaz.asyncWithCompletionHandler(op)
 
-  def fromCompletionStage[A](cs: => CompletionStage[A]): Task[A] = javaz.fromCompletionStage(cs)
+  @deprecated("use asyncWithCompletionHandler", "2.0.0")
+  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit
+    trace: ZTraceElement
+  ): Task[T] =
+    asyncWithCompletionHandler(op)
+
+  def fromCompletionStage[A](cs: => CompletionStage[A])(implicit trace: ZTraceElement): Task[A] =
+    javaz.fromCompletionStage(cs)
 
   /** Alias for `formCompletionStage` for a concrete implementation of CompletionStage */
-  def fromCompletableFuture[A](cs: => CompletableFuture[A]): Task[A] = fromCompletionStage(cs)
+  def fromCompletableFuture[A](cs: => CompletableFuture[A])(implicit trace: ZTraceElement): Task[A] =
+    fromCompletionStage(cs)
 
   /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
-  def fromFutureJava[A](future: => Future[A]): RIO[Blocking, A] = javaz.fromFutureJava(future)
+  def fromFutureJava[A](future: => Future[A])(implicit trace: ZTraceElement): Task[A] = javaz.fromFutureJava(future)
 
 }

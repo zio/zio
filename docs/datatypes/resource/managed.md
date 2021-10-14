@@ -3,7 +3,7 @@ id: managed
 title: "Managed"
 ---
 
-`Managed[E, A]` is a type alias for `Managed[Any, E, A]`, which represents a managed resource that has no requirements, and may fail with an `E`, or succeed with an `A`.
+`Managed[E, A]` is a type alias for `ZManaged[Any, E, A]`, which represents a managed resource that has no requirements, and may fail with an `E`, or succeed with an `A`.
 
 ```scala mdoc:invisible
 import zio.ZManaged
@@ -23,7 +23,7 @@ Resources do not survive the scope of `use`, meaning that if you attempt to capt
 import zio._
 def doSomething(queue: Queue[Int]): UIO[Unit] = IO.unit
 
-val managedResource = Managed.make(Queue.unbounded[Int])(_.shutdown)
+val managedResource = Managed.acquireReleaseWith(Queue.unbounded[Int])(_.shutdown)
 val usedResource: UIO[Unit] = managedResource.use { queue => doSomething(queue) }
 ```
 
@@ -36,9 +36,9 @@ As shown in the previous example, a `Managed` can be created by passing an `acqu
 It can also be created from an effect. In this case the release function will do nothing.
 ```scala mdoc:silent
 import zio._
-def acquire: IO[Throwable, Int] = IO.effect(???)
+def acquire: IO[Throwable, Int] = IO.attempt(???)
 
-val managedFromEffect: Managed[Throwable, Int] = Managed.fromEffect(acquire)
+val managedFromEffect: Managed[Throwable, Int] = Managed.fromZIO(acquire)
 ```
 
 You can create a `Managed` from a pure value as well.
@@ -53,10 +53,10 @@ val managedFromValue: Managed[Nothing, Int] = Managed.succeed(3)
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
+import zio.Console._
 
-val zManagedResource: ZManaged[Console, Nothing, Unit] = ZManaged.make(console.putStrLn("acquiring"))(_ => console.putStrLn("releasing"))
-val zUsedResource: URIO[Console, Unit] = zManagedResource.use { _ => console.putStrLn("running") }
+val zManagedResource: ZManaged[Has[Console], Nothing, Unit] = ZManaged.acquireReleaseWith(printLine("acquiring").orDie)(_ => printLine("releasing").orDie)
+val zUsedResource: URIO[Has[Console], Unit] = zManagedResource.use { _ => printLine("running").orDie }
 ```
 
 ## Combining Managed
@@ -70,14 +70,14 @@ import zio._
 ```scala mdoc:invisible:nest
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
-def closeFile(f: File): UIO[Unit] = IO.effectTotal(???)
-def doSomething(queue: Queue[Int], file: File): UIO[Unit] = IO.effectTotal(???)
+def openFile(s: String): IO[IOException, File] = IO.attempt(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = IO.succeed(???)
+def doSomething(queue: Queue[Int], file: File): UIO[Unit] = IO.succeed(???)
 ```
 
 ```scala mdoc:silent
-val managedQueue: Managed[Nothing, Queue[Int]] = Managed.make(Queue.unbounded[Int])(_.shutdown)
-val managedFile: Managed[IOException, File] = Managed.make(openFile("data.json"))(closeFile)
+val managedQueue: Managed[Nothing, Queue[Int]] = Managed.acquireReleaseWith(Queue.unbounded[Int])(_.shutdown)
+val managedFile: Managed[IOException, File] = Managed.acquireReleaseWith(openFile("data.json"))(closeFile)
 
 val combined: Managed[IOException, (Queue[Int], File)] = for {
     queue <- managedQueue

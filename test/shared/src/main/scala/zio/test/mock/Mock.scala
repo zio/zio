@@ -16,10 +16,10 @@
 
 package zio.test.mock
 
-import zio.internal.Executor
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZSink, ZStream}
 import zio.test.TestPlatform
-import zio.{Has, Runtime, Tag, ULayer, URIO, URLayer, ZIO}
+import zio.{Executor, Has, Runtime, Tag, ULayer, URIO, URLayer, ZIO, ZTraceElement}
 
 /**
  * A `Mock[R]` represents a mockable environment `R`.
@@ -28,17 +28,17 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
 
   protected[test] val compose: URLayer[Has[Proxy], R]
 
-  def empty: ULayer[R] = Expectation.NoCalls(self)
+  def empty(implicit trace: ZTraceElement): ULayer[R] = Expectation.NoCalls(self)
 
   /**
    * Replaces Runtime on JS platform to one with unyielding executor.
    */
-  protected def withRuntime[R]: URIO[R, Runtime[R]] =
+  protected def withRuntime[R](implicit trace: ZTraceElement): URIO[R, Runtime[R]] =
     ZIO.runtime[R].map { runtime =>
       if (!TestPlatform.isJS) runtime
       else
         runtime.withExecutor {
-          val ec = runtime.platform.executor.asEC
+          val ec = runtime.runtimeConfig.executor.asExecutionContext
           Executor.fromExecutionContext(Int.MaxValue)(ec)
         }
     }

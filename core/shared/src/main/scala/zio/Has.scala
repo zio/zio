@@ -16,18 +16,15 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.annotation.implicitNotFound
 
 /**
  * The trait `Has[A]` is used with ZIO environment to express an effect's
  * dependency on a service of type `A`. For example,
- * `RIO[Has[Console.Service], Unit]` is an effect that requires a
- * `Console.Service` service. Inside the ZIO library, type aliases are provided
- * as shorthands for common services, e.g.:
- *
- * {{{
- * type Console = Has[ConsoleService]
- * }}}
+ * `RIO[Has[Console], Unit]` is an effect that requires a
+ * `Console` service.
  *
  * Services parameterized on path dependent types are not supported.
  */
@@ -65,6 +62,7 @@ object Has {
     def add[R0 <: R, M: Tag](r: R0, m: M): R0 with Has[M]
     def union[R0 <: R, R1 <: Has[_]: Tag](r: R0, r1: R1): R0 with R1
     def update[R0 <: R, M: Tag](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0
+    def updateAt[R0 <: R, K, A](r: R0, k: K, f: A => A)(implicit ev: R0 <:< HasMany[K, A], tagged: Tag[Map[K, A]]): R0
   }
   object IsHas {
     implicit def ImplicitIs[R <: Has[_]]: IsHas[R] =
@@ -72,6 +70,8 @@ object Has {
         def add[R0 <: R, M: Tag](r: R0, m: M): R0 with Has[M] = r.add(m)
         def union[R0 <: R, R1 <: Has[_]: Tag](r: R0, r1: R1): R0 with R1 = r.union[R1](r1)
         def update[R0 <: R, M: Tag](r: R0, f: M => M)(implicit ev: R0 <:< Has[M]): R0 = r.update(f)
+        def updateAt[R0 <: R, K, A](r: R0, k: K, f: A => A)(implicit ev: R0 <:< HasMany[K, A], tagged: Tag[Map[K, A]]): R0 =
+          r.updateAt(k)(f)
       }
   }
 
@@ -222,7 +222,58 @@ object Has {
      */
     def update[B: Tag](f: B => B)(implicit ev: Self MustHave B): Self =
       self.add(f(get[B]))
+
+    /**
+     * Adds a service to the environment.
+     */
+    def addAt[K, A](k: K, a: A)(implicit ev: Self <:< HasMany[K, A], tagged: Tag[Map[K, A]]): Self = {
+      val tag = taggedTagType(tagged)
+
+      val map = self.map
+        .getOrElse(
+          tag,
+          self.cache.getOrElse(
+            tag,
+            Map.empty
+          )
+        )
+        .asInstanceOf[Map[K, A]]
+        .updated(k, a)
+
+      new Has(self.map + (tag -> map)).asInstanceOf[Self]
+    }
+
+    /**
+     * Retrieves a service at the specified key from the environment.
+     */
+    def getAt[K, A](k: K)(implicit ev: Self <:< HasMany[K, A], tagged: Tag[Map[K, A]]): Option[A] = {
+      val tag = taggedTagType(tagged)
+
+      val map = self.map
+        .getOrElse(
+          tag,
+          self.cache.getOrElse(
+            tag,
+            throw new Error(s"Defect in zio.Has: Could not find ${tag} inside ${self}")
+          )
+        )
+        .asInstanceOf[Map[K, A]]
+      
+      map.get(k)
+    }
+
+  /**
+   * Updates a service at the specified key in the environment.
+   */
+  def updateAt[K, A](k: K)(f: A => A)(implicit ev: Self MustHave Map[K, A], tagged: Tag[Map[K, A]]): Self =
+    getAt(k).fold(self)(a => addAt(k, f(a)))
   }
+
+  implicit final class HasManySyntax[Self <: Has[Map[_, _]]](private val self: Self) extends AnyVal {
+
+
+  }
+
 
   /**
    * Constructs a new environment holding the single service.
@@ -630,7 +681,7 @@ object Has {
   def scoped[A: Tag](f: A => A): Scoped[A] = new Scoped(f)
 
   class Scoped[M: Tag](f: M => M) {
-    def apply[R <: Has[M], E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    def apply[R <: Has[M], E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       ZIO.environment[R].flatMap(env => zio.provide(env.update(f)))
   }
 

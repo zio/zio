@@ -16,27 +16,34 @@
 
 package zio.test.mock
 
-import zio.console.Console
-import zio.{Has, IO, UIO, URLayer, ZLayer}
+import zio.{Console, Has, IO, URLayer, ZIO, ZTraceElement}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 
-object MockConsole extends Mock[Console] {
+object MockConsole extends Mock[Has[Console]] {
 
-  object PutStr      extends Effect[String, Nothing, Unit]
-  object PutStrErr   extends Effect[String, Nothing, Unit]
-  object PutStrLn    extends Effect[String, Nothing, Unit]
-  object PutStrLnErr extends Effect[String, Nothing, Unit]
-  object GetStrLn    extends Effect[Unit, IOException, String]
+  object Print          extends Effect[Any, IOException, Unit]
+  object PrintError     extends Effect[Any, IOException, Unit]
+  object PrintLine      extends Effect[Any, IOException, Unit]
+  object PrintLineError extends Effect[Any, IOException, Unit]
+  object ReadLine       extends Effect[Unit, IOException, String]
 
-  val compose: URLayer[Has[Proxy], Console] =
-    ZLayer.fromService(proxy =>
-      new Console.Service {
-        def putStr(line: String): UIO[Unit]      = proxy(PutStr, line)
-        def putStrErr(line: String): UIO[Unit]   = proxy(PutStrErr, line)
-        def putStrLn(line: String): UIO[Unit]    = proxy(PutStrLn, line)
-        def putStrLnErr(line: String): UIO[Unit] = proxy(PutStrLnErr, line)
-        val getStrLn: IO[IOException, String]    = proxy(GetStrLn)
-      }
-    )
+  val compose: URLayer[Has[Proxy], Has[Console]] = {
+    implicit val trace = Tracer.newTrace
+    ZIO
+      .service[Proxy]
+      .map(proxy =>
+        new Console {
+          def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]      = proxy(Print, line)
+          def printError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] = proxy(PrintError, line)
+          def printLine(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]  = proxy(PrintLine, line)
+          def printLineError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+            proxy(PrintLineError, line)
+          def readLine(implicit trace: ZTraceElement): IO[IOException, String] = proxy(ReadLine)
+        }
+      )
+      .toLayer
+  }
 }

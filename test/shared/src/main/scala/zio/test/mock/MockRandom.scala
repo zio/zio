@@ -16,10 +16,11 @@
 
 package zio.test.mock
 
-import zio.random.Random
-import zio.{Chunk, Has, UIO, URLayer, ZLayer}
+import zio.{Chunk, Has, Random, UIO, URLayer, ZIO, ZTraceElement}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-object MockRandom extends Mock[Random] {
+object MockRandom extends Mock[Has[Random]] {
 
   object NextBoolean       extends Effect[Unit, Nothing, Boolean]
   object NextBytes         extends Effect[Int, Nothing, Chunk[Byte]]
@@ -39,33 +40,42 @@ object MockRandom extends Mock[Random] {
   object SetSeed           extends Effect[Long, Nothing, Unit]
   object Shuffle           extends Effect[Iterable[Any], Nothing, Iterable[Any]]
 
-  val compose: URLayer[Has[Proxy], Random] =
-    ZLayer.fromService(proxy =>
-      new Random.Service {
-        val nextBoolean: UIO[Boolean]                = proxy(NextBoolean)
-        def nextBytes(length: Int): UIO[Chunk[Byte]] = proxy(NextBytes, length)
-        val nextDouble: UIO[Double]                  = proxy(NextDouble)
-        def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): UIO[Double] =
-          proxy(NextDoubleBetween, minInclusive, maxExclusive)
-        val nextFloat: UIO[Float] = proxy(NextFloat)
-        def nextFloatBetween(minInclusive: Float, maxExclusive: Float): UIO[Float] =
-          proxy(NextFloatBetween, minInclusive, maxExclusive)
-        val nextGaussian: UIO[Double] = proxy(NextGaussian)
-        val nextInt: UIO[Int]         = proxy(NextInt)
-        def nextIntBetween(minInclusive: Int, maxExclusive: Int): UIO[Int] =
-          proxy(NextIntBetween, minInclusive, maxExclusive)
-        def nextIntBounded(n: Int): UIO[Int] = proxy(NextIntBounded, n)
-        val nextLong: UIO[Long]              = proxy(NextLong)
-        def nextLongBetween(minInclusive: Long, maxExclusive: Long): UIO[Long] =
-          proxy(NextLongBetween, minInclusive, maxExclusive)
-        def nextLongBounded(n: Long): UIO[Long]  = proxy(NextLongBounded, n)
-        val nextPrintableChar: UIO[Char]         = proxy(NextPrintableChar)
-        def nextString(length: Int): UIO[String] = proxy(NextString, length)
-        def setSeed(seed: Long): UIO[Unit]       = proxy(SetSeed, seed)
-        def shuffle[A, Collection[+Element] <: Iterable[Element]](
-          collection: Collection[A]
-        )(implicit bf: BuildFrom[Collection[A], A, Collection[A]]): UIO[Collection[A]] =
-          proxy(Shuffle, collection).asInstanceOf[UIO[Collection[A]]]
-      }
-    )
+  val compose: URLayer[Has[Proxy], Has[Random]] = {
+    implicit val trace = Tracer.newTrace
+    ZIO
+      .service[Proxy]
+      .map(proxy =>
+        new Random {
+          def nextBoolean(implicit trace: ZTraceElement): UIO[Boolean]                   = proxy(NextBoolean)
+          def nextBytes(length: => Int)(implicit trace: ZTraceElement): UIO[Chunk[Byte]] = proxy(NextBytes, length)
+          def nextDouble(implicit trace: ZTraceElement): UIO[Double]                     = proxy(NextDouble)
+          def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double)(implicit
+            trace: ZTraceElement
+          ): UIO[Double] =
+            proxy(NextDoubleBetween, minInclusive, maxExclusive)
+          def nextFloat(implicit trace: ZTraceElement): UIO[Float] = proxy(NextFloat)
+          def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit
+            trace: ZTraceElement
+          ): UIO[Float] =
+            proxy(NextFloatBetween, minInclusive, maxExclusive)
+          def nextGaussian(implicit trace: ZTraceElement): UIO[Double] = proxy(NextGaussian)
+          def nextInt(implicit trace: ZTraceElement): UIO[Int]         = proxy(NextInt)
+          def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit trace: ZTraceElement): UIO[Int] =
+            proxy(NextIntBetween, minInclusive, maxExclusive)
+          def nextIntBounded(n: => Int)(implicit trace: ZTraceElement): UIO[Int] = proxy(NextIntBounded, n)
+          def nextLong(implicit trace: ZTraceElement): UIO[Long]                 = proxy(NextLong)
+          def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit trace: ZTraceElement): UIO[Long] =
+            proxy(NextLongBetween, minInclusive, maxExclusive)
+          def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): UIO[Long]  = proxy(NextLongBounded, n)
+          def nextPrintableChar(implicit trace: ZTraceElement): UIO[Char]            = proxy(NextPrintableChar)
+          def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String] = proxy(NextString, length)
+          def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit]       = proxy(SetSeed, seed)
+          def shuffle[A, Collection[+Element] <: Iterable[Element]](
+            collection: => Collection[A]
+          )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: ZTraceElement): UIO[Collection[A]] =
+            proxy(Shuffle, collection).asInstanceOf[UIO[Collection[A]]]
+        }
+      )
+      .toLayer
+  }
 }

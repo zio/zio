@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.collection.generic.{CanBuildFrom, GenericCompanion, GenericTraversableTemplate}
 import scala.collection.immutable.IndexedSeq
 import scala.collection.{GenTraversableOnce, IndexedSeqLike}
@@ -141,6 +143,12 @@ private[zio] trait ChunkLike[+A]
    */
   override final def size: Int =
     length
+
+  override final def updated[B >: A, That](index: Int, elem: B)(implicit
+    bf: scala.collection.generic.CanBuildFrom[zio.Chunk[A], B, That]
+  ): That =
+    if (isChunkCanBuildFrom[A, B, That](bf)) update(index, elem).asInstanceOf[That]
+    else super.updated(index, elem)
 
   /**
    * The implementation of `flatMap` for `Chunk`.

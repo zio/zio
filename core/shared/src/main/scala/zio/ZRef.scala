@@ -17,6 +17,7 @@
 package zio
 
 import com.github.ghik.silencer.silent
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.STM
 
 import java.util.concurrent.atomic.AtomicReference
@@ -38,21 +39,22 @@ import java.util.concurrent.atomic.AtomicReference
  * By default, `ZRef` is implemented in terms of compare and swap operations
  * for maximum performance and does not support performing effects within
  * update operations. If you need to perform effects within update operations
- * you can create a `ZRefM`, a specialized type of `ZRef` that supports
- * performing effects within update operations at some cost to performance. In
- * this case writes will semantically block other writers, while multiple
- * readers can read simultaneously.
+ * you can create a `ZRef.Synchronized`, a specialized type of `ZRef` that
+ * supports performing effects within update operations at some cost to
+ * performance. In this case writes will semantically block other writers,
+ * while multiple readers can read simultaneously.
  *
- * `ZRefM` also supports composing multiple `ZRefM` values together to form a
- * single `ZRefM` value that can be atomically updated using the `zip`
- * operator. In this case reads and writes will semantically block other
- * readers and writers.
+ * `ZRef.Synchronized` also supports composing multiple `ZRef.Synchronized`
+ * values together to form a single `ZRef.Synchronized` value that can be
+ * atomically updated using the `zip` operator. In this case reads and writes
+ * will semantically block other readers and writers.
  *
  * NOTE: While `ZRef` provides the functional equivalent of a mutable
  * reference, the value inside the `ZRef` should normally be immutable since
  * compare and swap operations are not safe for mutable values that do not
- * support concurrent access. If you do need to use a mutable value `ZRefM`
- * will guarantee that access to the value is properly synchronized.
+ * support concurrent access. If you do need to use a mutable value
+ * `ZRef.Synchronized` will guarantee that access to the value is properly
+ * synchronized.
  */
 sealed abstract class ZRef[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
@@ -86,19 +88,19 @@ sealed abstract class ZRef[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
   /**
    * Reads the value from the `ZRef`.
    */
-  def get: ZIO[RB, EB, B]
+  def get(implicit trace: ZTraceElement): ZIO[RB, EB, B]
 
   /**
    * Writes a new value to the `ZRef`, with a guarantee of immediate
    * consistency (at some cost to performance).
    */
-  def set(a: A): ZIO[RA, EA, Unit]
+  def set(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Unit]
 
   /**
    * Writes a new value to the `ZRef` without providing a guarantee of
    * immediate consistency.
    */
-  def setAsync(a: A): ZIO[RA, EA, Unit]
+  def setAsync(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Unit]
 
   /**
    * Maps and filters the `get` value of the `ZRef` with the specified partial
@@ -192,8 +194,8 @@ object ZRef extends Serializable {
   /**
    * Creates a new `ZRef` with the specified value.
    */
-  def make[A](a: A): UIO[Ref[A]] =
-    UIO.effectTotal(unsafeMake(a))
+  def make[A](a: A)(implicit trace: ZTraceElement): UIO[Ref[A]] =
+    UIO.succeed(unsafeMake(a))
 
   private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
     Atomic(new AtomicReference(a))
@@ -201,8 +203,8 @@ object ZRef extends Serializable {
   /**
    * Creates a new managed `ZRef` with the specified value
    */
-  def makeManaged[A](a: A): Managed[Nothing, Ref[A]] =
-    make(a).toManaged_
+  def makeManaged[A](a: A)(implicit trace: ZTraceElement): Managed[Nothing, Ref[A]] =
+    make(a).toManaged
 
   implicit class UnifiedSyntax[-R, +E, A](private val self: ZRef[R, R, E, E, A, A]) extends AnyVal {
 
@@ -210,7 +212,7 @@ object ZRef extends Serializable {
      * Atomically writes the specified value to the `ZRef`, returning the value
      * immediately before modification.
      */
-    def getAndSet(a: A): ZIO[R, E, A] =
+    def getAndSet(a: A)(implicit trace: ZTraceElement): ZIO[R, E, A] =
       self match {
         case atomic: Atomic[A] => atomic.getAndSet(a)
         case derived           => derived.modify(v => (v, a))
@@ -220,7 +222,7 @@ object ZRef extends Serializable {
      * Atomically modifies the `ZRef` with the specified function, returning
      * the value immediately before modification.
      */
-    def getAndUpdate(f: A => A): ZIO[R, E, A] =
+    def getAndUpdate(f: A => A)(implicit trace: ZTraceElement): ZIO[R, E, A] =
       self match {
         case atomic: Atomic[A] => atomic.getAndUpdate(f)
         case derived           => derived.modify(v => (v, f(v)))
@@ -231,7 +233,7 @@ object ZRef extends Serializable {
      * returning the value immediately before modification. If the function is
      * undefined on the current value it doesn't change it.
      */
-    def getAndUpdateSome(pf: PartialFunction[A, A]): ZIO[R, E, A] =
+    def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       self match {
         case atomic: Atomic[A] => atomic.getAndUpdateSome(pf)
         case derived =>
@@ -247,7 +249,7 @@ object ZRef extends Serializable {
      * version of `update`.
      */
     @silent("unreachable code")
-    def modify[B](f: A => (B, A)): ZIO[R, E, B] =
+    def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): ZIO[R, E, B] =
       self match {
         case atomic: Atomic[A] => atomic.modify(f)
         case derived: Derived[E, E, A, A] =>
@@ -276,8 +278,8 @@ object ZRef extends Serializable {
               }
             }
           }.absolve
-        case zRefM: ZRefM[R, R, E, E, A, A] =>
-          zRefM.modifyM(a => ZIO.succeedNow(f(a)))
+        case zRef: Synchronized[R, R, E, E, A, A] =>
+          zRef.modifyZIO(a => ZIO.succeedNow(f(a)))
       }
 
     /**
@@ -286,7 +288,7 @@ object ZRef extends Serializable {
      * defined on the current value otherwise it returns a default value. This
      * is a more powerful version of `updateSome`.
      */
-    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): ZIO[R, E, B] =
+    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: ZTraceElement): ZIO[R, E, B] =
       self match {
         case atomic: Atomic[A] => atomic.modifySome(default)(pf)
         case derived =>
@@ -296,7 +298,7 @@ object ZRef extends Serializable {
     /**
      * Atomically modifies the `ZRef` with the specified function.
      */
-    def update(f: A => A): ZIO[R, E, Unit] =
+    def update(f: A => A)(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
       self match {
         case atomic: Atomic[A] => atomic.update(f)
         case derived           => derived.modify(v => ((), f(v)))
@@ -306,7 +308,7 @@ object ZRef extends Serializable {
      * Atomically modifies the `ZRef` with the specified function and returns
      * the updated value.
      */
-    def updateAndGet(f: A => A): ZIO[R, E, A] =
+    def updateAndGet(f: A => A)(implicit trace: ZTraceElement): ZIO[R, E, A] =
       self match {
         case atomic: Atomic[A] => atomic.updateAndGet(f)
         case derived =>
@@ -320,7 +322,7 @@ object ZRef extends Serializable {
      * Atomically modifies the `ZRef` with the specified partial function. If
      * the function is undefined on the current value it doesn't change it.
      */
-    def updateSome(pf: PartialFunction[A, A]): ZIO[R, E, Unit] =
+    def updateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
       self match {
         case atomic: Atomic[A] => atomic.updateSome(pf)
         case derived =>
@@ -335,7 +337,7 @@ object ZRef extends Serializable {
      * the function is undefined on the current value it returns the old value
      * without changing it.
      */
-    def updateSomeAndGet(pf: PartialFunction[A, A]): ZIO[R, E, A] =
+    def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       self match {
         case atomic: Atomic[A] => atomic.updateSomeAndGet(pf)
         case derived =>
@@ -347,52 +349,47 @@ object ZRef extends Serializable {
   }
 
   /**
-   * A `ZRefM[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional
-   * description of a mutable reference. The fundamental operations of a `ZRefM`
-   * are `set` and `get`. `set` takes a value of type `A` and sets the reference
-   * to a new value, requiring an environment of type `RA` and potentially
-   * failing with an error of type `EA`. `get` gets the current value of the
-   * reference and returns a value of type `B`, requiring an environment of type
-   * `RB` and potentially failing with an error of type `EB`.
+   * A `ZRef.Synchronized[RA, RB, EA, EB, A, B]` is a polymorphic, purely
+   * functional description of a mutable reference. The fundamental operations
+   * of a `ZRef.Synchronized` are `set` and `get`. `set` takes a value of type
+   * `A` and sets the reference to a new value, requiring an environment of
+   * type `RA` and potentially failing with an error of type `EA`. `get` gets
+   * the current value of the reference and returns a value of type `B`,
+   * requiring an environment of type `RB` and potentially failing with an
+   * error of type `EB`.
    *
-   * When the error and value types of the `ZRefM` are unified, that is, it is a
-   * `ZRefM[R, R, E, E, A, A]`, the `ZRefM` also supports atomic `modify` and
-   * `update` operations.
+   * When the error and value types of the `ZRef.Synchronized` are unified,
+   * that is, it is a `ZRef.Synchronized[R, R, E, E, A, A]`, the
+   * `ZRef.Synchronized` also supports atomic `modify` and `update` operations.
    *
-   * Unlike an ordinary `ZRef`, a `ZRefM` allows performing effects within update
-   * operations, at some cost to performance. Writes will semantically block
-   * other writers, while multiple readers can read simultaneously.
+   * Unlike an ordinary `ZRef`, a `ZRef.Synchronized` allows performing effects
+   * within update operations, at some cost to performance. Writes will
+   * semantically block other writers, while multiple readers can read
+   * simultaneously.
    *
-   * `ZRefM` also supports composing multiple `ZRefM` values together to form a
-   * single `ZRefM` value that can be atomically updated using the `zip`
-   * operator. In this case reads and writes will semantically block other
+   * `ZRef.Synchronized` also supports composing multiple `ZRef.Synchronized`
+   * values together to form a single `ZRef.Synchronized` value that can be
+   * atomically updated using the `zip` operator. In this case reads and writes
+   * will semantically block other
    * readers and writers.
    */
-  sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] extends ZRef[RA, RB, EA, EB, A, B] { self =>
+  sealed abstract class Synchronized[-RA, -RB, +EA, +EB, -A, +B] extends ZRef[RA, RB, EA, EB, A, B] { self =>
 
     protected def semaphores: Set[Semaphore]
 
-    protected def unsafeGet: ZIO[RB, EB, B]
+    protected def unsafeGet(implicit trace: ZTraceElement): ZIO[RB, EB, B]
 
-    protected def unsafeSet(a: A): ZIO[RA, EA, Unit]
+    protected def unsafeSet(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Unit]
 
-    protected def unsafeSetAsync(a: A): ZIO[RA, EA, Unit]
-
-    /**
-     * A symbolic alias for `zip`.
-     */
-    final def <*>[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A2, B2](
-      that: ZRefM[RA1, RB1, EA1, EB1, A2, B2]
-    ): ZRef[RA1, RB1, EA1, EB1, (A, A2), (B, B2)] =
-      self zip that
+    protected def unsafeSetAsync(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Unit]
 
     /**
      * Maps and filters the `get` value of the `ZRefM` with the specified partial
      * function, returning a `ZRefM` with a `get` value that succeeds with the
      * result of the partial function if it is defined or else fails with `None`.
      */
-    override final def collect[C](pf: PartialFunction[B, C]): ZRefM[RA, RB, EA, Option[EB], A, C] =
-      collectM(pf.andThen(ZIO.succeedNow(_)))
+    override final def collect[C](pf: PartialFunction[B, C]): Synchronized[RA, RB, EA, Option[EB], A, C] =
+      collectZIO(pf.andThen(ZIO.succeedNow(_)))
 
     /**
      * Maps and filters the `get` value of the `ZRefM` with the specified
@@ -400,42 +397,67 @@ object ZRef extends Serializable {
      * succeeds with the result of the partial function if it is defined or else
      * fails with `None`.
      */
+    @deprecated("use collectZIO", "2.0.0")
     final def collectM[RC <: RB, EC >: EB, C](
       pf: PartialFunction[B, ZIO[RC, EC, C]]
     ): ZRefM[RA, RC, EA, Option[EC], A, C] =
-      foldM(
+      collectZIO(pf)
+
+    /**
+     * Maps and filters the `get` value of the `ZRef.Synchronized` with the
+     * specified effectual partial function, returning a `ZRef.Synchronized`
+     * with a `get` value that succeeds with the result of the partial function
+     * if it is defined or else fails with `None`.
+     */
+    final def collectZIO[RC <: RB, EC >: EB, C](
+      pf: PartialFunction[B, ZIO[RC, EC, C]]
+    ): Synchronized[RA, RC, EA, Option[EC], A, C] =
+      foldZIO(
         identity,
         Some(_),
         ZIO.succeedNow,
-        b => pf.andThen(_.asSomeError).applyOrElse[B, ZIO[RC, Option[EC], C]](b, _ => ZIO.fail(None))
+        b =>
+          pf.andThen(_.asSomeError(ZTraceElement.empty))
+            .applyOrElse[B, ZIO[RC, Option[EC], C]](b, _ => ZIO.fail(None)(ZTraceElement.empty))
       )
 
     /**
-     * Transforms the `set` value of the `ZRefM` with the specified function.
+     * Transforms the `set` value of the `ZRef.Synchronized` with the specified
+     * function.
      */
-    override final def contramap[C](f: C => A): ZRefM[RA, RB, EA, EB, C, B] =
-      contramapM(c => ZIO.succeedNow(f(c)))
+    override final def contramap[C](f: C => A): Synchronized[RA, RB, EA, EB, C, B] =
+      contramapZIO(c => ZIO.succeedNow(f(c)))
 
     /**
      * Transforms the `set` value of the `ZRef` with the specified fallible
      * function.
      */
-    override final def contramapEither[EC >: EA, C](f: C => Either[EC, A]): ZRefM[RA, RB, EC, EB, C, B] =
+    override final def contramapEither[EC >: EA, C](f: C => Either[EC, A]): Synchronized[RA, RB, EC, EB, C, B] =
       dimapEither(f, Right(_))
 
     /**
      * Transforms the `set` value of the `ZRefM` with the specified effectual
      * function.
      */
-    final def contramapM[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZRefM[RC, RB, EC, EB, C, B] =
-      dimapM(f, ZIO.succeedNow)
+    @deprecated("use contramapZIO", "2.0.0")
+    final def contramapM[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A])(implicit
+      trace: ZTraceElement
+    ): ZRefM[RC, RB, EC, EB, C, B] =
+      contramapZIO(f)
 
     /**
-     * Transforms both the `set` and `get` values of the `ZRefM` with the
-     * specified functions.
+     * Transforms the `set` value of the `ZRef.Synchronized` with the specified
+     * effectual function.
      */
-    override final def dimap[C, D](f: C => A, g: B => D): ZRefM[RA, RB, EA, EB, C, D] =
-      dimapM(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
+    final def contramapZIO[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): Synchronized[RC, RB, EC, EB, C, B] =
+      dimapZIO(f, ZIO.succeedNow)
+
+    /**
+     * Transforms both the `set` and `get` values of the `ZRef.Synchronized`
+     * with the specified functions.
+     */
+    override final def dimap[C, D](f: C => A, g: B => D): Synchronized[RA, RB, EA, EB, C, D] =
+      dimapZIO(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
 
     /**
      * Transforms both the `set` and `get` values of the `ZRef` with the
@@ -444,75 +466,124 @@ object ZRef extends Serializable {
     override final def dimapEither[EC >: EA, ED >: EB, C, D](
       f: C => Either[EC, A],
       g: B => Either[ED, D]
-    ): ZRefM[RA, RB, EC, ED, C, D] =
+    ): Synchronized[RA, RB, EC, ED, C, D] =
       fold(identity, identity, f, g)
 
     /**
      * Transforms both the `set` and `get` values of the `ZRefM` with the
      * specified effectual functions.
      */
+    @deprecated("use dimapZIO", "2.0.0")
     final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
       f: C => ZIO[RC, EC, A],
       g: B => ZIO[RD, ED, D]
     ): ZRefM[RC, RD, EC, ED, C, D] =
-      foldM(identity, identity, f, g)
+      dimapZIO(f, g)
 
     /**
-     * Transforms both the `set` and `get` errors of the `ZRefM` with the
-     * specified functions.
+     * Transforms both the `set` and `get` values of the `ZRef.Synchronized`
+     * with the specified effectual functions.
      */
-    override final def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZRefM[RA, RB, EC, ED, A, B] =
+    final def dimapZIO[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
+      f: C => ZIO[RC, EC, A],
+      g: B => ZIO[RD, ED, D]
+    ): Synchronized[RC, RD, EC, ED, C, D] =
+      foldZIO(identity, identity, f, g)
+
+    /**
+     * Transforms both the `set` and `get` errors of the `ZRef.Synchronized`
+     * with the specified functions.
+     */
+    override final def dimapError[EC, ED](f: EA => EC, g: EB => ED): Synchronized[RA, RB, EC, ED, A, B] =
       fold(f, g, Right(_), Right(_))
 
     /**
-     * Filters the `set` value of the `ZRefM` with the specified predicate,
-     * returning a `ZRefM` with a `set` value that succeeds if the predicate is
-     * satisfied or else fails with `None`.
+     * Filters the `set` value of the `ZRef.Synchronized` with the specified
+     * predicate, returning a `ZRef.Synchronized` with a `set` value that
+     * succeeds if the predicate is satisfied or else fails with `None`.
      */
-    override final def filterInput[A1 <: A](f: A1 => Boolean): ZRefM[RA, RB, Option[EA], EB, A1, B] =
-      filterInputM(a => ZIO.succeedNow(f(a)))
+    override final def filterInput[A1 <: A](f: A1 => Boolean): Synchronized[RA, RB, Option[EA], EB, A1, B] =
+      filterInputZIO(a => ZIO.succeedNow(f(a)))
 
     /**
      * Filters the `set` value of the `ZRefM` with the specified effectual
      * predicate, returning a `ZRefM` with a `set` value that succeeds if the
      * predicate is satisfied or else fails with `None`.
      */
+    @deprecated("use filterInputZIO", "2.0.0")
     final def filterInputM[RC <: RA, EC >: EA, A1 <: A](
       f: A1 => ZIO[RC, EC, Boolean]
     ): ZRefM[RC, RB, Option[EC], EB, A1, B] =
-      foldM(Some(_), identity, a => ZIO.ifM(f(a).asSomeError)(ZIO.succeedNow(a), ZIO.fail(None)), ZIO.succeedNow)
+      filterInputZIO(f)
 
     /**
-     * Filters the `get` value of the `ZRefM` with the specified predicate,
-     * returning a `ZRefM` with a `get` value that succeeds if the predicate is
-     * satisfied or else fails with `None`.
+     * Filters the `set` value of the `ZRef.Synchronized` with the specified
+     * effectual predicate, returning a `ZRef.Synchronized` with a `set` value
+     * that succeeds if the predicate is satisfied or else fails with `None`.
      */
-    override final def filterOutput(f: B => Boolean): ZRefM[RA, RB, EA, Option[EB], A, B] =
-      filterOutputM(a => ZIO.succeedNow(f(a)))
+    final def filterInputZIO[RC <: RA, EC >: EA, A1 <: A](
+      f: A1 => ZIO[RC, EC, Boolean]
+    ): Synchronized[RC, RB, Option[EC], EB, A1, B] =
+      foldZIO(
+        Some(_),
+        identity,
+        a =>
+          ZIO.ifZIO(f(a).asSomeError(ZTraceElement.empty))(ZIO.succeedNow(a), ZIO.fail(None)(ZTraceElement.empty))(
+            ZTraceElement.empty
+          ),
+        ZIO.succeedNow
+      )
+
+    /**
+     * Filters the `get` value of the `ZRef.Synchronized` with the specified
+     * predicate, returning a `ZRef.Synchronized` with a `get` value that
+     * succeeds if the predicate is satisfied or else fails with `None`.
+     */
+    override final def filterOutput(f: B => Boolean): Synchronized[RA, RB, EA, Option[EB], A, B] =
+      filterOutputZIO(a => ZIO.succeedNow(f(a)))
 
     /**
      * Filters the `get` value of the `ZRefM` with the specified effectual predicate,
      * returning a `ZRefM` with a `get` value that succeeds if the predicate is
      * satisfied or else fails with `None`.
      */
+    @deprecated("use filterOutputZIO", "2.0.0")
     final def filterOutputM[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Boolean]): ZRefM[RA, RC, EA, Option[EC], A, B] =
-      foldM(identity, Some(_), ZIO.succeedNow, b => ZIO.ifM(f(b).asSomeError)(ZIO.succeedNow(b), ZIO.fail(None)))
+      filterOutputZIO(f)
 
     /**
-     * Folds over the error and value types of the `ZRefM`.
+     * Filters the `get` value of the `ZRef.Synchronized` with the specified
+     * effectual predicate, returning a `ZRef.Synchronized` with a `get` value
+     * that succeeds if the predicate is satisfied or else fails with `None`.
+     */
+    final def filterOutputZIO[RC <: RB, EC >: EB](
+      f: B => ZIO[RC, EC, Boolean]
+    ): Synchronized[RA, RC, EA, Option[EC], A, B] =
+      foldZIO(
+        identity,
+        Some(_),
+        (a: A) => ZIO.succeedNow(a),
+        b =>
+          ZIO.ifZIO(f(b).asSomeError(ZTraceElement.empty))(ZIO.succeedNow(b), ZIO.fail(None)(ZTraceElement.empty))(
+            ZTraceElement.empty
+          )
+      )
+
+    /**
+     * Folds over the error and value types of the `ZRef.Synchronized`.
      */
     final def fold[EC, ED, C, D](
       ea: EA => EC,
       eb: EB => ED,
       ca: C => Either[EC, A],
       bd: B => Either[ED, D]
-    ): ZRefM[RA, RB, EC, ED, C, D] =
-      foldM(ea, eb, c => ZIO.fromEither(ca(c)), b => ZIO.fromEither(bd(b)))
+    ): Synchronized[RA, RB, EC, ED, C, D] =
+      foldZIO(ea, eb, c => ZIO.fromEither(ca(c))(ZTraceElement.empty), b => ZIO.fromEither(bd(b))(ZTraceElement.empty))
 
     /**
-     * Folds over the error and value types of the `ZRefM`, allowing access to
-     * the state in transforming the `set` value but requiring unifying the error
-     * type.
+     * Folds over the error and value types of the `ZRef.Synchronized`,
+     * allowing access to the state in transforming the `set` value but
+     * requiring unifying the error type.
      */
     final def foldAll[EC, ED, C, D](
       ea: EA => EC,
@@ -520,14 +591,21 @@ object ZRef extends Serializable {
       ec: EB => EC,
       ca: C => B => Either[EC, A],
       bd: B => Either[ED, D]
-    ): ZRefM[RA with RB, RB, EC, ED, C, D] =
-      foldAllM(ea, eb, ec, c => b => ZIO.fromEither(ca(c)(b)), b => ZIO.fromEither(bd(b)))
+    ): Synchronized[RA with RB, RB, EC, ED, C, D] =
+      foldAllZIO(
+        ea,
+        eb,
+        ec,
+        c => b => ZIO.fromEither(ca(c)(b))(ZTraceElement.empty),
+        b => ZIO.fromEither(bd(b))(ZTraceElement.empty)
+      )
 
     /**
      * Folds over the error and value types of the `ZRefM`, allowing access to
      * the state in transforming the `set` value. This is a more powerful version
      * of `foldM` but requires unifying the environment and error types.
      */
+    @deprecated("use foldAllZIO", "2.0.0")
     final def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
       ea: EA => EC,
       eb: EB => ED,
@@ -535,18 +613,33 @@ object ZRef extends Serializable {
       ca: C => B => ZIO[RC, EC, A],
       bd: B => ZIO[RD, ED, D]
     ): ZRefM[RC, RD, EC, ED, C, D] =
-      new ZRefM[RC, RD, EC, ED, C, D] {
+      foldAllZIO(ea, eb, ec, ca, bd)
+
+    /**
+     * Folds over the error and value types of the `ZRef.Synchronized`,
+     * allowing access to the state in transforming the `set` value. This is a
+     * more powerful version of `foldZIO` but requires unifying the environment
+     * and error types.
+     */
+    final def foldAllZIO[RC <: RA with RB, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ec: EB => EC,
+      ca: C => B => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): Synchronized[RC, RD, EC, ED, C, D] =
+      new Synchronized[RC, RD, EC, ED, C, D] {
         def semaphores =
           self.semaphores
-        def unsafeGet: ZIO[RD, ED, D] =
-          self.get.foldM(e => ZIO.fail(eb(e)), bd)
-        def unsafeSet(c: C): ZIO[RC, EC, Unit] =
-          self.get.foldM(
+        def unsafeGet(implicit trace: ZTraceElement): ZIO[RD, ED, D] =
+          self.get.foldZIO(e => ZIO.fail(eb(e)), bd)
+        def unsafeSet(c: C)(implicit trace: ZTraceElement): ZIO[RC, EC, Unit] =
+          self.get.foldZIO(
             e => ZIO.fail(ec(e)),
             b => ca(c)(b).flatMap(a => self.unsafeSet(a).mapError(ea))
           )
-        def unsafeSetAsync(c: C): ZIO[RC, EC, Unit] =
-          self.get.foldM(
+        def unsafeSetAsync(c: C)(implicit trace: ZTraceElement): ZIO[RC, EC, Unit] =
+          self.get.foldZIO(
             e => ZIO.fail(ec(e)),
             b => ca(c)(b).flatMap(a => self.unsafeSetAsync(a).mapError(ea))
           )
@@ -560,176 +653,219 @@ object ZRef extends Serializable {
      * ergonomic but this method is extremely useful for implementing new
      * combinators.
      */
+    @deprecated("use foldZIO", "2.0.0")
     final def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
       ea: EA => EC,
       eb: EB => ED,
       ca: C => ZIO[RC, EC, A],
       bd: B => ZIO[RD, ED, D]
     ): ZRefM[RC, RD, EC, ED, C, D] =
-      new ZRefM[RC, RD, EC, ED, C, D] {
+      foldZIO(ea, eb, ca, bd)
+
+    /**
+     * Folds over the error and value types of the `ZRef.Synchronized`. This is
+     * a highly polymorphic method that is capable of arbitrarily transforming
+     * the error and value types of the `ZRef.Synchronized`. For most use cases
+     * one of the more specific combinators implemented in terms of `foldZIO`
+     * will be more ergonomic but this method is extremely useful for
+     * implementing new combinators.
+     */
+    final def foldZIO[RC <: RA, RD <: RB, EC, ED, C, D](
+      ea: EA => EC,
+      eb: EB => ED,
+      ca: C => ZIO[RC, EC, A],
+      bd: B => ZIO[RD, ED, D]
+    ): Synchronized[RC, RD, EC, ED, C, D] =
+      new Synchronized[RC, RD, EC, ED, C, D] {
         def semaphores: Set[Semaphore] =
           self.semaphores
-        def unsafeGet: ZIO[RD, ED, D] =
-          self.unsafeGet.foldM(e => ZIO.fail(eb(e)), bd)
-        def unsafeSetAsync(c: C): ZIO[RC, EC, Unit] =
+        def unsafeGet(implicit trace: ZTraceElement): ZIO[RD, ED, D] =
+          self.unsafeGet.foldZIO(e => ZIO.fail(eb(e)), bd)
+        def unsafeSetAsync(c: C)(implicit trace: ZTraceElement): ZIO[RC, EC, Unit] =
           ca(c).flatMap(self.unsafeSetAsync(_).mapError(ea))
-        def unsafeSet(c: C): ZIO[RC, EC, Unit] =
+        def unsafeSet(c: C)(implicit trace: ZTraceElement): ZIO[RC, EC, Unit] =
           ca(c).flatMap(self.unsafeSet(_).mapError(ea))
       }
 
     /**
      * Reads the value from the `ZRef`.
      */
-    final def get: ZIO[RB, EB, B] =
+    final def get(implicit trace: ZTraceElement): ZIO[RB, EB, B] =
       if (semaphores.size == 1) unsafeGet else withPermit(unsafeGet)
 
     /**
-     * Transforms the `get` value of the `ZRefM` with the specified function.
+     * Transforms the `get` value of the `ZRef.Synchronized` with the specified
+     * function.
      */
-    override final def map[C](f: B => C): ZRefM[RA, RB, EA, EB, A, C] =
-      mapM(b => ZIO.succeedNow(f(b)))
+    override final def map[C](f: B => C): Synchronized[RA, RB, EA, EB, A, C] =
+      mapZIO(b => ZIO.succeedNow(f(b)))
 
     /**
      * Transforms the `get` value of the `ZRef` with the specified fallible
      * function.
      */
-    override final def mapEither[EC >: EB, C](f: B => Either[EC, C]): ZRefM[RA, RB, EA, EC, A, C] =
+    override final def mapEither[EC >: EB, C](f: B => Either[EC, C]): Synchronized[RA, RB, EA, EC, A, C] =
       dimapEither(Right(_), f)
 
     /**
      * Transforms the `get` value of the `ZRefM` with the specified effectual
      * function.
      */
-    final def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZRefM[RA, RC, EA, EC, A, C] =
-      dimapM(ZIO.succeedNow, f)
+    @deprecated("use mapZIO", "2.0.0")
+    final def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C])(implicit
+      trace: ZTraceElement
+    ): ZRefM[RA, RC, EA, EC, A, C] =
+      mapZIO(f)
 
     /**
-     * Returns a read only view of the `ZRefM`.
+     * Transforms the `get` value of the `ZRef.Synchronized` with the specified
+     * effectual function.
      */
-    override final def readOnly: ZRefM[RA, RB, EA, EB, Nothing, B] =
+    final def mapZIO[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): Synchronized[RA, RC, EA, EC, A, C] =
+      dimapZIO(ZIO.succeedNow, f)
+
+    /**
+     * Returns a read only view of the `ZRef.Synchronized`.
+     */
+    override final def readOnly: Synchronized[RA, RB, EA, EB, Nothing, B] =
       self
 
     /**
      * Writes a new value to the `ZRef`, with a guarantee of immediate
      * consistency (at some cost to performance).
      */
-    final def set(a: A): ZIO[RA, EA, Unit] =
+    final def set(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Unit] =
       withPermit(unsafeSet(a))
 
     /**
      * Writes a new value to the `ZRef` without providing a guarantee of
      * immediate consistency.
      */
-    final def setAsync(a: A): ZIO[RA, EA, Unit] =
+    final def setAsync(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Unit] =
       withPermit(unsafeSetAsync(a))
 
     /**
      * Performs the specified effect every time a value is written to this
-     * `ZRefM`.
+     * `ZRef.Synchronized`.
      */
-    final def tapInput[RC <: RA, EC >: EA, A1 <: A](f: A1 => ZIO[RC, EC, Any]): ZRefM[RC, RB, EC, EB, A1, B] =
-      contramapM(a => f(a).as(a))
+    final def tapInput[RC <: RA, EC >: EA, A1 <: A](f: A1 => ZIO[RC, EC, Any])(implicit
+      trace: ZTraceElement
+    ): Synchronized[RC, RB, EC, EB, A1, B] =
+      contramapZIO(a => f(a).as(a))
 
     /**
      * Performs the specified effect very time a value is read from this
-     * `ZRefM`.
+     * `ZRef.Synchronized`.
      */
-    final def tapOutput[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Any]): ZRefM[RA, RC, EA, EC, A, B] =
-      mapM(b => f(b).as(b))
+    final def tapOutput[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Any])(implicit
+      trace: ZTraceElement
+    ): Synchronized[RA, RC, EA, EC, A, B] =
+      mapZIO(b => f(b).as(b))
 
     /**
-     * Returns a write only view of the `ZRefM`.
+     * Returns a write only view of the `ZRef.Synchronized`.
      */
-    override final def writeOnly: ZRefM[RA, RB, EA, Unit, A, Nothing] =
+    override final def writeOnly: Synchronized[RA, RB, EA, Unit, A, Nothing] =
       fold(identity, _ => (), Right(_), _ => Left(()))
 
-    /**
-     * Combines this `ZRefM` with the specified `ZRefM` to create a new
-     * `ZRefM` with the `get` and `set` values of both. The new `ZRefM` value
-     * supports atomically modifying both of the underlying `ZRefM` values.
-     */
-    final def zip[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A2, B2](
-      that: ZRefM[RA1, RB1, EA1, EB1, A2, B2]
-    ): ZRef[RA1, RB1, EA1, EB1, (A, A2), (B, B2)] =
-      new ZRefM[RA1, RB1, EA1, EB1, (A, A2), (B, B2)] {
-        val semaphores: Set[Semaphore] =
-          self.semaphores | that.semaphores
-        def unsafeGet: ZIO[RB1, EB1, (B, B2)] =
-          self.get <*> that.get
-        def unsafeSetAsync(a: (A, A2)): ZIO[RA1, EA1, Unit] =
-          self.unsafeSetAsync(a._1) *> that.unsafeSetAsync(a._2)
-        def unsafeSet(a: (A, A2)): ZIO[RA1, EA1, Unit] =
-          self.unsafeSet(a._1) *> that.unsafeSet(a._2)
-      }
-
-    private final def withPermit[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    private final def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       ZIO.uninterruptibleMask { restore =>
         restore(STM.foreach(semaphores)(_.acquire).commit) *>
           restore(zio).ensuring(STM.foreach(semaphores)(_.release).commit)
       }
   }
 
-  object ZRefM {
+  object Synchronized {
 
     /**
      * Creates a new `RefM` and a `Dequeue` that will emit every change to the
      * `RefM`.
      */
     @deprecated("use SubscriptionRef", "2.0.0")
-    def dequeueRef[A](a: A): UIO[(RefM[A], Dequeue[A])] =
+    def dequeueRef[A](a: A)(implicit trace: ZTraceElement): UIO[(RefM[A], Dequeue[A])] =
       for {
         ref   <- make(a)
         queue <- Queue.unbounded[A]
       } yield (ref.tapInput(queue.offer), queue)
 
     /**
-     * Creates a new `ZRefM` with the specified value.
+     * Creates a new `ZRef.Synchronized` with the specified value.
      */
-    def make[A](a: A): UIO[RefM[A]] =
+    def make[A](a: A)(implicit trace: ZTraceElement): UIO[Synchronized[Any, Any, Nothing, Nothing, A, A]] =
       for {
         ref       <- Ref.make(a)
         semaphore <- Semaphore.make(1)
-      } yield new RefM[A] {
+      } yield new Ref.Synchronized[A] {
         val semaphores: Set[Semaphore] =
           Set(semaphore)
-        def unsafeGet: ZIO[Any, Nothing, A] =
+        def unsafeGet(implicit trace: ZTraceElement): ZIO[Any, Nothing, A] =
           ref.get
-        def unsafeSet(a: A): ZIO[Any, Nothing, Unit] =
+        def unsafeSet(a: A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Unit] =
           ref.set(a)
-        def unsafeSetAsync(a: A): ZIO[Any, Nothing, Unit] =
+        def unsafeSetAsync(a: A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Unit] =
           ref.setAsync(a)
       }
 
     /**
-     * Creates a new `ZRefM` with the specified value in the context of a
-     * `Managed.`
+     * Creates a new `ZRef.Synchronized` with the specified value in the
+     * context of a `Managed.`
      */
-    def makeManaged[A](a: A): UManaged[RefM[A]] =
-      make(a).toManaged_
+    def makeManaged[A](a: A)(implicit trace: ZTraceElement): UManaged[Synchronized[Any, Any, Nothing, Nothing, A, A]] =
+      make(a).toManaged
 
-    implicit class UnifiedSyntax[-R, +E, A](private val self: ZRefM[R, R, E, E, A, A]) extends AnyVal {
+    implicit class UnifiedSyntax[-R, +E, A](private val self: Synchronized[R, R, E, E, A, A]) extends AnyVal {
 
       /**
        * Atomically modifies the `RefM` with the specified function, returning the
        * value immediately before modification.
        */
-      def getAndUpdateM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
-        modifyM(v => f(v).map(result => (v, result)))
+      @deprecated("use getAndUpdateZIO", "2.0.0")
+      def getAndUpdateM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A])(implicit trace: ZTraceElement): ZIO[R1, E1, A] =
+        getAndUpdateZIO(f)
+
+      /**
+       * Atomically modifies the `Ref.Synchronized` with the specified
+       * function, returning the value immediately before modification.
+       */
+      def getAndUpdateZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A])(implicit trace: ZTraceElement): ZIO[R1, E1, A] =
+        modifyZIO(v => f(v).map(result => (v, result)))
 
       /**
        * Atomically modifies the `RefM` with the specified partial function,
        * returning the value immediately before modification.
        * If the function is undefined on the current value it doesn't change it.
        */
-      def getAndUpdateSomeM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
-        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (v, result)))
+      @deprecated("use getAndUpdateSomeZIO", "2.0.0")
+      def getAndUpdateSomeM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]])(implicit
+        trace: ZTraceElement
+      ): ZIO[R1, E1, A] =
+        getAndUpdateSomeZIO(pf)
+
+      /**
+       * Atomically modifies the `Ref.Synchronized` with the specified partial
+       * function, returning the value immediately before modification. If the
+       * function is undefined on the current value it doesn't change it.
+       */
+      def getAndUpdateSomeZIO[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]])(implicit
+        trace: ZTraceElement
+      ): ZIO[R1, E1, A] =
+        modifyZIO(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (v, result)))
 
       /**
        * Atomically modifies the `RefM` with the specified function, which computes
        * a return value for the modification. This is a more powerful version of
        * `update`.
        */
-      def modifyM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)]): ZIO[R1, E1, B] =
+      @deprecated("use modifyZIO", "2.0.0")
+      def modifyM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
+        modifyZIO(f)
+
+      /**
+       * Atomically modifies the `Ref.Synchronized` with the specified
+       * function, which computes a return value for the modification. This is
+       * a more powerful version of `update`.
+       */
+      def modifyZIO[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
         self.withPermit(self.unsafeGet.flatMap(f).flatMap { case (b, a) => self.unsafeSet(a).as(b) })
 
       /**
@@ -738,36 +874,135 @@ object ZRef extends Serializable {
        * otherwise it returns a default value.
        * This is a more powerful version of `updateSome`.
        */
-      def modifySomeM[R1 <: R, E1 >: E, B](default: B)(pf: PartialFunction[A, ZIO[R1, E1, (B, A)]]): ZIO[R1, E1, B] =
-        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, (B, A)]](v, _ => ZIO.succeedNow((default, v))))
+      @deprecated("use modifySomeZIO", "2.0.0")
+      def modifySomeM[R1 <: R, E1 >: E, B](default: B)(pf: PartialFunction[A, ZIO[R1, E1, (B, A)]])(implicit
+        trace: ZTraceElement
+      ): ZIO[R1, E1, B] =
+        modifySomeZIO[R1, E1, B](default)(pf)
+
+      /**
+       * Atomically modifies the `Ref.Synchronized` with the specified
+       * function, which computes a return value for the modification if the
+       * function is defined in the current value otherwise it returns a
+       * default value. This is a more powerful version of `updateSome`.
+       */
+      def modifySomeZIO[R1 <: R, E1 >: E, B](default: B)(pf: PartialFunction[A, ZIO[R1, E1, (B, A)]])(implicit
+        trace: ZTraceElement
+      ): ZIO[R1, E1, B] =
+        modifyZIO(v => pf.applyOrElse[A, ZIO[R1, E1, (B, A)]](v, _ => ZIO.succeedNow((default, v))))
 
       /**
        * Atomically modifies the `RefM` with the specified function.
        */
-      def updateM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, Unit] =
-        modifyM(v => f(v).map(result => ((), result)))
+      @deprecated("use updateZIO", "2.0.0")
+      def updateM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A])(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
+        updateZIO(f)
+
+      /**
+       * Atomically modifies the `Ref.Synchronized` with the specified
+       * function.
+       */
+      def updateZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A])(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
+        modifyZIO(v => f(v).map(result => ((), result)))
 
       /**
        * Atomically modifies the `RefM` with the specified function, returning the
        * value immediately after modification.
        */
-      def updateAndGetM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A]): ZIO[R1, E1, A] =
-        modifyM(v => f(v).map(result => (result, result)))
+      @deprecated("use updateAndGetZIO", "2.0.0")
+      def updateAndGetM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A])(implicit trace: ZTraceElement): ZIO[R1, E1, A] =
+        updateAndGetZIO(f)
+
+      /**
+       * Atomically modifies the `Ref.Synchronized` with the specified
+       * function, returning the value immediately after modification.
+       */
+      def updateAndGetZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, A])(implicit trace: ZTraceElement): ZIO[R1, E1, A] =
+        modifyZIO(v => f(v).map(result => (result, result)))
 
       /**
        * Atomically modifies the `RefM` with the specified partial function.
        * If the function is undefined on the current value it doesn't change it.
        */
-      def updateSomeM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, Unit] =
-        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => ((), result)))
+      @deprecated("use updateSomeZIO", "2.0.0")
+      def updateSomeM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]])(implicit
+        trace: ZTraceElement
+      ): ZIO[R1, E1, Unit] =
+        updateSomeZIO(pf)
+
+      /**
+       * Atomically modifies the `Ref.Synchronized` with the specified partial
+       * function. If the function is undefined on the current value it doesn't
+       * change it.
+       */
+      def updateSomeZIO[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]])(implicit
+        trace: ZTraceElement
+      ): ZIO[R1, E1, Unit] =
+        modifyZIO(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => ((), result)))
 
       /**
        * Atomically modifies the `RefM` with the specified partial function.
        * If the function is undefined on the current value it returns the old value
        * without changing it.
        */
-      def updateSomeAndGetM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
-        modifyM(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (result, result)))
+      @deprecated("use updateSomeAndGetZIO", "2.0.0")
+      def updateSomeAndGetM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]])(implicit
+        trace: ZTraceElement
+      ): ZIO[R1, E1, A] =
+        updateSomeAndGetZIO(pf)
+
+      /**
+       * Atomically modifies the `Ref.Synchronized` with the specified partial
+       * function. If the function is undefined on the current value it returns
+       * the old value without changing it.
+       */
+      def updateSomeAndGetZIO[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]])(implicit
+        trace: ZTraceElement
+      ): ZIO[R1, E1, A] =
+        modifyZIO(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (result, result)))
+    }
+
+    implicit final class ZipSyntax[RA, RB, EA, EB, A, B](private val self: ZRef.Synchronized[RA, RB, EA, EB, A, B])
+        extends AnyVal {
+
+      /**
+       * A symbolic alias for `zip`.
+       */
+      final def <*>[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A2, B2](
+        that: ZRef.Synchronized[RA1, RB1, EA1, EB1, A2, B2]
+      )(implicit
+        unzippable: Unzippable[A, A2],
+        zippable: Zippable[B, B2]
+      ): ZRef.Synchronized[RA1, RB1, EA1, EB1, unzippable.In, zippable.Out] =
+        self zip that
+
+      /**
+       * Combines this `ZRefM` with the specified `ZRefM` to create a new
+       * `ZRefM` with the `get` and `set` values of both. The new `ZRefM` value
+       * supports atomically modifying both of the underlying `ZRefM` values.
+       */
+      final def zip[RA1 <: RA, RB1 <: RB, EA1 >: EA, EB1 >: EB, A2, B2](
+        that: ZRef.Synchronized[RA1, RB1, EA1, EB1, A2, B2]
+      )(implicit
+        unzippable: Unzippable[A, A2],
+        zippable: Zippable[B, B2]
+      ): ZRef.Synchronized[RA1, RB1, EA1, EB1, unzippable.In, zippable.Out] =
+        new ZRef.Synchronized[RA1, RB1, EA1, EB1, unzippable.In, zippable.Out] {
+          val semaphores: Set[Semaphore] =
+            self.semaphores | that.semaphores
+          def unsafeGet(implicit trace: ZTraceElement): ZIO[RB1, EB1, zippable.Out] =
+            self.get <*> that.get
+          def unsafeSetAsync(in: unzippable.In)(implicit trace: ZTraceElement): ZIO[RA1, EA1, Unit] =
+            unzippable.unzip(in) match {
+              case (a, a2) =>
+                self.unsafeSetAsync(a) *> that.unsafeSetAsync(a2)
+            }
+          def unsafeSet(in: unzippable.In)(implicit trace: ZTraceElement): ZIO[RA1, EA1, Unit] =
+            unzippable.unzip(in) match {
+              case (a, a2) =>
+                self.unsafeSet(a) *> that.unsafeSet(a2)
+            }
+        }
     }
   }
 
@@ -806,29 +1041,29 @@ object ZRef extends Serializable {
           self
       }
 
-    def get: UIO[A] =
-      ZIO.effectTotal(unsafeGet)
+    def get(implicit trace: ZTraceElement): UIO[A] =
+      ZIO.succeed(unsafeGet)
 
-    def getAndSet(a: A): UIO[A] =
-      ZIO.effectTotal(unsafeGetAndSet(a))
+    def getAndSet(a: A)(implicit trace: ZTraceElement): UIO[A] =
+      ZIO.succeed(unsafeGetAndSet(a))
 
-    def getAndUpdate(f: A => A): UIO[A] =
-      ZIO.effectTotal(unsafeGetAndUpdate(f))
+    def getAndUpdate(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
+      ZIO.succeed(unsafeGetAndUpdate(f))
 
-    def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] =
-      ZIO.effectTotal(unsafeGetAndUpdateSome(pf))
+    def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
+      ZIO.succeed(unsafeGetAndUpdateSome(pf))
 
-    def modify[B](f: A => (B, A)): UIO[B] =
-      ZIO.effectTotal(unsafeModify(f))
+    def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B] =
+      ZIO.succeed(unsafeModify(f))
 
-    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] =
-      ZIO.effectTotal(unsafeModifySome(default)(pf))
+    def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: ZTraceElement): UIO[B] =
+      ZIO.succeed(unsafeModifySome(default)(pf))
 
-    def set(a: A): UIO[Unit] =
-      ZIO.effectTotal(unsafeSet(a))
+    def set(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
+      ZIO.succeed(unsafeSet(a))
 
-    def setAsync(a: A): UIO[Unit] =
-      ZIO.effectTotal(unsafeSetAsync(a))
+    def setAsync(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
+      ZIO.succeed(unsafeSetAsync(a))
 
     override def toString: String =
       s"Ref(${value.get})"
@@ -942,16 +1177,16 @@ object ZRef extends Serializable {
       next
     }
 
-    def update(f: A => A): UIO[Unit] =
+    def update(f: A => A)(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.effectTotal(unsafeUpdate(f))
 
-    def updateAndGet(f: A => A): UIO[A] =
+    def updateAndGet(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
       ZIO.effectTotal(unsafeUpdateAndGet(f))
 
-    def updateSome(pf: PartialFunction[A, A]): UIO[Unit] =
+    def updateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.effectTotal(unsafeUpdateSome(pf))
 
-    def updateSomeAndGet(pf: PartialFunction[A, A]): UIO[A] =
+    def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
       ZIO.effectTotal(unsafeUpdateSomeAndGet(pf))
   }
 
@@ -1000,13 +1235,13 @@ object ZRef extends Serializable {
           self.value
       }
 
-    final def get: IO[EB, B] =
+    final def get(implicit trace: ZTraceElement): IO[EB, B] =
       value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
 
-    final def set(a: A): IO[EA, Unit] =
+    final def set(a: A)(implicit trace: ZTraceElement): IO[EA, Unit] =
       setEither(a).fold(ZIO.fail(_), value.set)
 
-    final def setAsync(a: A): IO[EA, Unit] =
+    final def setAsync(a: A)(implicit trace: ZTraceElement): IO[EA, Unit] =
       setEither(a).fold(ZIO.fail(_), value.setAsync)
   }
 
@@ -1055,10 +1290,10 @@ object ZRef extends Serializable {
           self.value
       }
 
-    final def get: IO[EB, B] =
+    final def get(implicit trace: ZTraceElement): IO[EB, B] =
       value.get.flatMap(getEither(_).fold(ZIO.fail(_), ZIO.succeedNow))
 
-    final def set(a: A): IO[EA, Unit] =
+    final def set(a: A)(implicit trace: ZTraceElement): IO[EA, Unit] =
       value.modify { s =>
         setEither(a)(s) match {
           case Left(e)  => (Left(e), s)
@@ -1066,7 +1301,7 @@ object ZRef extends Serializable {
         }
       }.absolve
 
-    final def setAsync(a: A): IO[EA, Unit] =
+    final def setAsync(a: A)(implicit trace: ZTraceElement): IO[EA, Unit] =
       value.modify { s =>
         setEither(a)(s) match {
           case Left(e)  => (Left(e), s)

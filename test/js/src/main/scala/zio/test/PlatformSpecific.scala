@@ -17,24 +17,27 @@
 package zio.test
 
 import zio._
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.environment._
 
 private[test] abstract class PlatformSpecific {
   type TestEnvironment =
-    Annotations
-      with Live
-      with Sized
-      with TestClock
-      with TestConfig
-      with TestConsole
-      with TestRandom
-      with TestSystem
+    Has[Annotations]
+      with Has[Live]
+      with Has[Sized]
+      with Has[TestClock]
+      with Has[TestConfig]
+      with Has[TestConsole]
+      with Has[TestRandom]
+      with Has[TestSystem]
       with ZEnv
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
-      ZLayer.requires[TestEnvironment]
-    val live: ZLayer[ZEnv, Nothing, TestEnvironment] =
+      ZLayer.environment[TestEnvironment](Tracer.newTrace)
+    val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
+      implicit val trace = Tracer.newTrace
       Annotations.live ++
         Live.default ++
         Sized.live(100) ++
@@ -43,5 +46,6 @@ private[test] abstract class PlatformSpecific {
         (Live.default >>> TestConsole.debug) ++
         TestRandom.deterministic ++
         TestSystem.default
+    }
   }
 }

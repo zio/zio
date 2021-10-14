@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.blocking._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io
 import java.io.IOException
@@ -30,52 +30,52 @@ private[zio] trait ZManagedPlatformSpecific {
    * as the `acquire` action and shifting back to the original executor as the
    * `release` action.
    */
-  val blocking: ZManaged[Blocking, Nothing, Unit] =
-    blockingExecutor.toManaged_.flatMap(executor => ZManaged.lock(executor))
+  def blocking(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZIO.blockingExecutor.toManaged.flatMap(executor => ZManaged.onExecutor(executor))
 
-  def readFile(path: Path): ZManaged[Blocking, IOException, ZInputStream] =
+  def readFile(path: Path)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
     readFile(path.toString())
 
-  def readFile(path: String): ZManaged[Blocking, IOException, ZInputStream] =
+  def readFile(path: String)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
-      .make(
-        effectBlockingIO {
+      .acquireReleaseWith(
+        ZIO.attemptBlockingIO {
           val fis = new io.FileInputStream(path)
           (fis, ZInputStream.fromInputStream(fis))
         }
-      )(tuple => effectBlocking(tuple._1.close()).orDie)
+      )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def readURL(url: URL): ZManaged[Blocking, IOException, ZInputStream] =
+  def readURL(url: URL)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
     ZManaged
-      .make(
-        effectBlockingIO {
+      .acquireReleaseWith(
+        ZIO.attemptBlockingIO {
           val fis = url.openStream()
           (fis, ZInputStream.fromInputStream(fis))
         }
-      )(tuple => effectBlocking(tuple._1.close()).orDie)
+      )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def readURL(url: String): ZManaged[Blocking, IOException, ZInputStream] =
-    ZManaged.fromEffect(ZIO.effectTotal(new URL(url))).flatMap(readURL)
+  def readURL(url: String)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
+    ZManaged.fromZIO(ZIO.succeed(new URL(url))).flatMap(readURL)
 
-  def readURI(uri: URI): ZManaged[Blocking, IOException, ZInputStream] =
+  def readURI(uri: URI)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZInputStream] =
     for {
-      isAbsolute <- ZManaged.fromEffect(effectBlockingIO(uri.isAbsolute()))
+      isAbsolute <- ZManaged.fromZIO(ZIO.attemptBlockingIO(uri.isAbsolute()))
       is         <- if (isAbsolute) readURL(uri.toURL()) else readFile(uri.toString())
     } yield is
 
-  def writeFile(path: String): ZManaged[Blocking, IOException, ZOutputStream] =
+  def writeFile(path: String)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZOutputStream] =
     ZManaged
-      .make(
-        effectBlockingIO {
+      .acquireReleaseWith(
+        ZIO.attemptBlockingIO {
           val fos = new io.FileOutputStream(path)
           (fos, ZOutputStream.fromOutputStream(fos))
         }
-      )(tuple => effectBlocking(tuple._1.close()).orDie)
+      )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def writeFile(path: Path): ZManaged[Blocking, IOException, ZOutputStream] =
+  def writeFile(path: Path)(implicit trace: ZTraceElement): ZManaged[Any, IOException, ZOutputStream] =
     writeFile(path.toString())
 
 }
