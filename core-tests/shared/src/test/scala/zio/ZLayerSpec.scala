@@ -69,25 +69,25 @@ object ZLayerSpec extends ZIOBaseSpec {
     suite("ZLayerSpec")(
       suite("compilation of >>>")(
         test("Int/Has") {
-          val left: ZLayer[Any, Nothing, Int] = ZLayer.succeedMany(42)
+          val left: ZLayer[Any, Nothing, Int]               = ZLayer.succeedMany(42)
           val right: ZLayer[Has[Int], Nothing, Has[String]] = ZLayer.fromFunction(_.get.toString)
 
           assertTrue(left >>> right != null)
         },
         test("Has/Int") {
-          val left: ZLayer[Any, Nothing, Has[Int]] = ZLayer.succeed(42)
+          val left: ZLayer[Any, Nothing, Has[Int]]     = ZLayer.succeed(42)
           val right: ZLayer[Int, Nothing, Has[String]] = ZLayer.fromFunction(_.toString)
 
           assertTrue(left >>> right != null)
         },
         test("Int/Int") {
-          val left: ZLayer[Any, Nothing, Int] = ZLayer.succeedMany(42)
+          val left: ZLayer[Any, Nothing, Int]          = ZLayer.succeedMany(42)
           val right: ZLayer[Int, Nothing, Has[String]] = ZLayer.fromFunction(_.toString)
 
           assertTrue(left >>> right != null)
         },
         test("Has[Int]/Has[Int]") {
-          val left: ZLayer[Any, Nothing, Has[Int]] = ZLayer.succeed(42)
+          val left: ZLayer[Any, Nothing, Has[Int]]          = ZLayer.succeed(42)
           val right: ZLayer[Has[Int], Nothing, Has[String]] = ZLayer.fromFunction(_.get.toString)
 
           assertTrue(left >>> right != null)

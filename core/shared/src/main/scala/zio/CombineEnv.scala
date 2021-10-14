@@ -19,9 +19,9 @@ package zio
 import scala.annotation.implicitNotFound
 
 /**
-  * The `CombineEnv[L, R]` trait defines how to combine two environments of type `L` and `R`.
-  * Currently, the trait can combine multiple environments using `Has` maps.
-  */
+ * The `CombineEnv[L, R]` trait defines how to combine two environments of type `L` and `R`.
+ * Currently, the trait can combine multiple environments using `Has` maps.
+ */
 @implicitNotFound(
   "The operator you are trying to use needs to combine multiple services, " +
     "which requires use of the Has data type. If you are writing " +
@@ -29,30 +29,31 @@ import scala.annotation.implicitNotFound
     "on your type parameters, or manually wrap your services in Has."
 )
 sealed trait CombineEnv[L, R] {
+
   /**
-    * The type which results from combining an environment of type `L` with an 
-    environment of type `R`.
-    */
+   * The type which results from combining an environment of type `L` with an
+   *    environment of type `R`.
+   */
   type Out
 
   /**
-    * Combines two environments into a type which "holds" both of them.
-    */
+   * Combines two environments into a type which "holds" both of them.
+   */
   def combine(l: L, r: R): Out
 
   /**
-    * Projects out the left part of the combined environment.
-    */
+   * Projects out the left part of the combined environment.
+   */
   def projectLeft(out: Out): L
 
   /**
-    * Projects out the right part of the combined environment.
-    */
+   * Projects out the right part of the combined environment.
+   */
   def projectRight(out: Out): R
 
   /**
-    * Updates the left part of a combined environment.
-    */
+   * Updates the left part of a combined environment.
+   */
   final def updateLeft(out: Out)(f: L => L): Out = {
     val l = projectLeft(out)
     val r = projectRight(out)
@@ -61,36 +62,37 @@ sealed trait CombineEnv[L, R] {
   }
 
   /**
-    * Updates the right part of a combined environment.
-    */
+   * Updates the right part of a combined environment.
+   */
   final def updateRight(out: Out)(f: R => R): Out = {
     val l = projectLeft(out)
     val r = projectRight(out)
-    
+
     combine(l, f(r))
   }
 }
 object CombineEnv extends MediumPriorityUnionAllImplicits {
+
   /**
-    * A type alias that refines `CombineEnv` to include a third type parameter,
-    * which is the type of the combined environment (called `Out`).
-    */
+   * A type alias that refines `CombineEnv` to include a third type parameter,
+   * which is the type of the combined environment (called `Out`).
+   */
   type WithOut[L, R, Out0] = CombineEnv[L, R] { type Out = Out0 }
 
-  implicit def hasHasTag[L <: Has[_], R <: Has[_]: Tag]: CombineEnvIntersection[L, R] = 
+  implicit def hasHasTag[L <: Has[_], R <: Has[_]: Tag]: CombineEnvIntersection[L, R] =
     new CombineEnvIntersection[L, R] {
-      def projectLeft(out: Out): L = out 
+      def projectLeft(out: Out): L = out
 
-      def projectRight(out: Out): R = out 
+      def projectRight(out: Out): R = out
 
       def combine(l: L, r: R): Out = l.union[R](r)
     }
 }
 private[zio] trait MediumPriorityUnionAllImplicits extends LowPriorityUnionAllImplicits {
-  implicit def hasHas[L <: Has[_], R <: Has[_]]: CombineEnvIntersection[L, R] = 
+  implicit def hasHas[L <: Has[_], R <: Has[_]]: CombineEnvIntersection[L, R] =
     new CombineEnvIntersection[L, R] {
-      
-      def projectLeft(out: Out): L = out 
+
+      def projectLeft(out: Out): L = out
 
       def projectRight(out: Out): R = out
 
@@ -98,16 +100,16 @@ private[zio] trait MediumPriorityUnionAllImplicits extends LowPriorityUnionAllIm
     }
 }
 private[zio] trait LowPriorityUnionAllImplicits extends LowerPriorityUnionAllImplicits {
-  implicit def hasAny[L <: Has[_]]: CombineEnvIntersection[L, Any] = 
+  implicit def hasAny[L <: Has[_]]: CombineEnvIntersection[L, Any] =
     new CombineEnvIntersection[L, Any] {
-      def projectLeft(out: Out): L = out 
+      def projectLeft(out: Out): L = out
 
       def projectRight(out: Out): Any = ()
 
       def combine(l: L, r: Any): Out = l
     }
 
-  implicit def anyHas[R <: Has[_]]: CombineEnvIntersection[Any, R] = 
+  implicit def anyHas[R <: Has[_]]: CombineEnvIntersection[Any, R] =
     new CombineEnvIntersection[Any, R] {
       def projectLeft(out: Out): Any = ()
 
@@ -116,11 +118,11 @@ private[zio] trait LowPriorityUnionAllImplicits extends LowerPriorityUnionAllImp
       def combine(l: Any, r: R): Out = r
     }
 
-  implicit val anyAny: CombineEnvIntersection[Any, Any] = 
+  implicit val anyAny: CombineEnvIntersection[Any, Any] =
     new CombineEnvIntersection[Any, Any] {
-      def projectLeft(out: Out): Any = () 
+      def projectLeft(out: Out): Any = ()
 
-      def projectRight(out: Out): Any = () 
+      def projectRight(out: Out): Any = ()
 
       def combine(r: Any, l: Any): Out = ()
     }
@@ -174,9 +176,9 @@ private[zio] trait LowestPriorityUnionAllImplicits {
 }
 
 /**
-  * A refinement on `CombineEnv` in which the output type is the intersection 
-  of left and right environments.
-  */
+ * A refinement on `CombineEnv` in which the output type is the intersection
+ *  of left and right environments.
+ */
 sealed trait CombineEnvIntersection[L, R] extends CombineEnv[L, R] {
   final type Out = L with R
 }

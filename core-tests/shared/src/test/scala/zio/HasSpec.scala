@@ -15,7 +15,7 @@ object HasSpec extends ZIOBaseSpec {
   val cat2: Cat     = new Cat { override val toString = "cat2" }
   val bunny1: Bunny = new Bunny { override val toString = "bunny1" }
 
-  val any: Any = () 
+  val any: Any = ()
 
   val hasDog1: Has[Dog] = Has(dog1)
   val hasCat1: Has[Cat] = Has(cat1)
@@ -42,9 +42,8 @@ object HasSpec extends ZIOBaseSpec {
       test("any/any") {
         final case class Capture[A](a: A)
 
-        def isAny[A](a: A)(implicit ev: A =:= Capture[Any]) = {
+        def isAny[A](a: A)(implicit ev: A =:= Capture[Any]) =
           assertTrue(a != null)
-        }
 
         val combined = Capture(Has.combine(any, any))
 

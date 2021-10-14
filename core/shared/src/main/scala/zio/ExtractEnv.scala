@@ -19,7 +19,7 @@ package zio
 sealed trait ExtractEnv[-Whole, +Piece] {
   def extract(whole: Whole): Piece
 
-  final def toLayer: ZLayer[Whole, Nothing, Piece] = 
+  final def toLayer: ZLayer[Whole, Nothing, Piece] =
     ZLayer.fromZIOMany {
       for {
         whole <- ZIO.environment[Whole]
@@ -27,18 +27,18 @@ sealed trait ExtractEnv[-Whole, +Piece] {
     }
 }
 object ExtractEnv extends ExtractEnvLowPriorityImplicits {
-  implicit def extractId[A]: ExtractEnv[A, A] = 
+  implicit def extractId[A]: ExtractEnv[A, A] =
     new ExtractEnv[A, A] {
-      def extract(whole: A): A = whole 
+      def extract(whole: A): A = whole
     }
 }
 private[zio] trait ExtractEnvLowPriorityImplicits {
-  implicit def extractHas1[A: Tag]: ExtractEnv[Has[A], A] = 
+  implicit def extractHas1[A: Tag]: ExtractEnv[Has[A], A] =
     new ExtractEnv[Has[A], A] {
       def extract(whole: Has[A]): A = whole.get[A]
     }
 
-  implicit def extractHas2[A: Tag]: ExtractEnv[A, Has[A]] = 
+  implicit def extractHas2[A: Tag]: ExtractEnv[A, Has[A]] =
     new ExtractEnv[A, Has[A]] {
       def extract(whole: A): Has[A] = Has(whole)
     }
