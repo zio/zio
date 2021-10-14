@@ -152,8 +152,8 @@ final class TMap[K, V] private (
    * Atomically folds using a transactional function.
    */
   @deprecated("use foldSTM", "2.0.0")
-  def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] =
-    foldSTM(zero)(op)
+  def foldM[R, E, A](zero: A)(op: (A, (K, V)) => ZSTM[R, E, A]): ZSTM[R, E, A] =
+    foldSTM[R, E, A](zero)(op)
 
   /**
    * Atomically folds using a transactional function.

@@ -17,8 +17,8 @@ import java.util.concurrent.TimeUnit
 @Fork(value = 3)
 class ZSchedulerBenchmarks {
 
-  final def fixedThreadPoolExecutor(yieldOpCount: Int): Executor =
-    Executor.fromThreadPoolExecutor(_ => yieldOpCount) {
+  final def fixedThreadPoolExecutor(yieldOpCount: Int): zio.Executor =
+    zio.Executor.fromThreadPoolExecutor(_ => yieldOpCount) {
       val corePoolSize  = java.lang.Runtime.getRuntime.availableProcessors() * 2
       val maxPoolSize   = corePoolSize
       val keepAliveTime = 60000L
@@ -39,9 +39,9 @@ class ZSchedulerBenchmarks {
       threadPool
     }
 
-  val catsRuntime: IORuntime    = IORuntime.global
-  val fixedThreadPool: Executor = fixedThreadPoolExecutor(RuntimeConfig.defaultYieldOpCount)
-  val zScheduler: Executor      = Executor.makeDefault(RuntimeConfig.defaultYieldOpCount)
+  val catsRuntime: IORuntime        = IORuntime.global
+  val fixedThreadPool: zio.Executor = fixedThreadPoolExecutor(RuntimeConfig.defaultYieldOpCount)
+  val zScheduler: zio.Executor      = zio.Executor.makeDefault(RuntimeConfig.defaultYieldOpCount)
 
   @Benchmark
   def catsRuntimeChainedFork(): Int =
@@ -154,7 +154,7 @@ class ZSchedulerBenchmarks {
     io.unsafeRunSync()(runtime)
   }
 
-  def zioChainedFork(executor: Executor): Int = {
+  def zioChainedFork(executor: zio.Executor): Int = {
 
     def iterate(promise: Promise[Nothing, Unit], n: Int): UIO[Any] =
       if (n <= 0) promise.succeed(())
@@ -169,7 +169,7 @@ class ZSchedulerBenchmarks {
     unsafeRun(io.onExecutor(executor))
   }
 
-  def zioForkMany(executor: Executor): Int = {
+  def zioForkMany(executor: zio.Executor): Int = {
 
     val io = for {
       promise <- Promise.make[Nothing, Unit]
@@ -182,7 +182,7 @@ class ZSchedulerBenchmarks {
     unsafeRun(io.onExecutor(executor))
   }
 
-  def zioPingPong(executor: Executor): Int = {
+  def zioPingPong(executor: zio.Executor): Int = {
 
     def iterate(promise: Promise[Nothing, Unit], n: Int): UIO[Any] =
       for {
@@ -203,7 +203,7 @@ class ZSchedulerBenchmarks {
     unsafeRun(io.onExecutor(executor))
   }
 
-  def zioYieldMany(executor: Executor): Int = {
+  def zioYieldMany(executor: zio.Executor): Int = {
 
     val io = for {
       promise <- Promise.make[Nothing, Unit]
