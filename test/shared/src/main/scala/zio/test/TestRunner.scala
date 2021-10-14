@@ -31,8 +31,11 @@ final case class TestRunner[R, E](
   runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] =
     DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
-  bootstrap: Layer[Nothing, Has[TestLogger] with Has[Clock]] =
-    (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(ZTraceElement.empty)) ++ Clock.live
+  bootstrap: Layer[Nothing, Has[TestLogger] with Has[Clock]] = {
+    implicit val trace = ZTraceElement.empty
+
+    Console.live.to(TestLogger.fromConsole) ++ Clock.live
+  }
 ) { self =>
 
   lazy val runtime: Runtime[Unit] = Runtime((), runtimeConfig)
