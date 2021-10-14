@@ -6,8 +6,8 @@ import zio.test._
 
 object TaggedSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("TaggedSpec")(
-    testM("tags can be derived for polymorphic services") {
+  def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = suite("TaggedSpec")(
+    test("tags can be derived for polymorphic services") {
       val result = typeCheck {
         """
             trait Producer[R, K, V]

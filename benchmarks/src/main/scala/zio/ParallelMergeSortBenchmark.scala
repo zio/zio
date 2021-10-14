@@ -15,9 +15,9 @@ import org.openjdk.jmh.annotations.{
   Warmup
 }
 
+import java.lang.{System => JSystem}
 import java.util.concurrent.TimeUnit
 import scala.collection.Iterable
-import scala.util.Random
 
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -42,14 +42,14 @@ class ParallelMergeSortBenchmark {
   def setup(): Unit =
     sortInput = 1
       .to(samples)
-      .map(_ => Random.shuffle(1.to(size).toVector))
+      .map(_ => scala.util.Random.shuffle(1.to(size).toVector))
       .toList
 
   @Benchmark
-  def zioSort(): Unit = benchMergeSort(IOBenchmarks)
+  def zioSort(): Unit = benchMergeSort(BenchmarkUtil)
 
   @Benchmark
-  def zioSortTraced(): Unit = benchMergeSort(IOBenchmarks.TracedRuntime)
+  def zioSortTraced(): Unit = benchMergeSort(BenchmarkUtil.TracedRuntime)
 
   @Benchmark
   def scalaCollectionSort(): Unit = {
@@ -70,7 +70,7 @@ class ParallelMergeSortBenchmark {
       case _             => true
     }
 
-    IOBenchmarks.verify(sorted)(s"Not sorted: ${inOut._2} <-- ${inOut._1}")
+    BenchmarkUtil.verify(sorted)(s"Not sorted: ${inOut._2} <-- ${inOut._1}")
   }
 
   private def mergeSort(is: Iterable[Int]): UIO[Iterable[Int]] =
@@ -104,7 +104,7 @@ class ParallelMergeSortBenchmark {
     val ie = i + middle - start
     var j  = middle
     var k  = start
-    System.arraycopy(is, start, buf, i, middle - start)
+    JSystem.arraycopy(is, start, buf, i, middle - start)
 
     while (i < ie && j < end) {
       val (a, b) = (buf(i), is(j))
@@ -120,7 +120,7 @@ class ParallelMergeSortBenchmark {
     }
 
     if (i < ie) {
-      System.arraycopy(buf, i, is, k, ie - i)
+      JSystem.arraycopy(buf, i, is, k, ie - i)
     }
   }
 

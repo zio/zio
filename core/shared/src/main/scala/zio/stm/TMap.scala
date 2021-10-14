@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package zio.stm
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
-import zio.{Chunk, ChunkBuilder}
+import zio.{Chunk, ChunkBuilder, NonEmptyChunk}
 
 /**
  * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
@@ -44,7 +45,7 @@ final class TMap[K, V] private (
    * Removes binding for given key.
    */
   def delete(k: K): USTM[Unit] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val buckets = tBuckets.unsafeGet(journal)
       val idx     = TMap.indexOf(k, buckets.array.length)
       val bucket  = buckets.array(idx).unsafeGet(journal)
@@ -57,14 +58,80 @@ final class TMap[K, V] private (
         tSize.unsafeSet(journal, currSize - 1)
       }
 
-      TExit.unit
-    })
+      ()
+    }
+
+  /**
+   * Deletes all entries associated with the specified keys.
+   */
+  def deleteAll(ks: Iterable[K]): USTM[Unit] =
+    ZSTM.Effect { (journal, _, _) =>
+      ks.foreach { k =>
+        val buckets = tBuckets.unsafeGet(journal)
+        val idx     = TMap.indexOf(k, buckets.array.length)
+        val bucket  = buckets.array(idx).unsafeGet(journal)
+
+        val (toRemove, toRetain) = bucket.partition(_._1 == k)
+
+        if (toRemove.nonEmpty) {
+          val currSize = tSize.unsafeGet(journal)
+          buckets.array(idx).unsafeSet(journal, toRetain)
+          tSize.unsafeSet(journal, currSize - 1)
+        }
+      }
+    }
+
+  /**
+   * Finds the key/value pair matching the specified predicate, and uses the
+   * provided function to extract a value out of it.
+   */
+  def find[A](pf: PartialFunction[(K, V), A]): USTM[Option[A]] =
+    findSTM {
+      case kv if pf.isDefinedAt(kv) => STM.succeedNow(pf(kv))
+      case _                        => STM.fail(None)
+    }
+
+  /**
+   * Finds the key/value pair matching the specified predicate, and uses the
+   * provided effectful function to extract a value out of it.
+   */
+  def findSTM[R, E, A](f: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, Option[A]] =
+    foldSTM[R, E, Option[A]](Option.empty[A]) {
+      case (None, (k, v)) =>
+        f(k, v).foldSTM(_.fold[STM[E, Option[A]]](STM.none)(STM.fail(_)), STM.some(_))
+      case (other, _) => STM.succeedNow(other)
+    }
+
+  /**
+   * Finds all the key/value pairs matching the specified predicate, and uses
+   * the provided function to extract values out them.
+   */
+  def findAll[A](pf: PartialFunction[(K, V), A]): USTM[Chunk[A]] =
+    findAllSTM {
+      case kv if pf.isDefinedAt(kv) => STM.succeedNow(pf(kv))
+      case _                        => STM.fail(None)
+    }
+
+  /**
+   * Finds all the key/value pairs matching the specified predicate, and uses
+   * the provided effectful function to extract values out of them..
+   */
+  def findAllSTM[R, E, A](pf: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, Chunk[A]] =
+    foldSTM(Chunk.empty: Chunk[A]) { case (acc, kv) =>
+      pf(kv._1, kv._2).foldSTM(
+        {
+          case None    => STM.succeedNow(acc)
+          case Some(e) => STM.fail(e)
+        },
+        a => STM.succeedNow(acc :+ a)
+      )
+    }
 
   /**
    * Atomically folds using a pure function.
    */
   def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val buckets = tBuckets.unsafeGet(journal)
       var res     = zero
       var i       = 0
@@ -78,32 +145,39 @@ final class TMap[K, V] private (
         i += 1
       }
 
-      TExit.Succeed(res)
-    })
+      res
+    }
 
   /**
    * Atomically folds using a transactional function.
    */
-  def foldM[A, E](zero: A)(op: (A, (K, V)) => STM[E, A]): STM[E, A] =
+  @deprecated("use foldSTM", "2.0.0")
+  def foldM[R, E, A](zero: A)(op: (A, (K, V)) => ZSTM[R, E, A]): ZSTM[R, E, A] =
+    foldSTM[R, E, A](zero)(op)
+
+  /**
+   * Atomically folds using a transactional function.
+   */
+  def foldSTM[R, E, A](zero: A)(op: (A, (K, V)) => ZSTM[R, E, A]): ZSTM[R, E, A] =
     toChunk.flatMap(ZSTM.foldLeft(_)(zero)(op))
 
   /**
    * Atomically performs transactional-effect for each binding present in map.
    */
-  def foreach[E](f: (K, V) => STM[E, Unit]): STM[E, Unit] =
-    foldM(())((_, kv) => f(kv._1, kv._2))
+  def foreach[R, E](f: (K, V) => ZSTM[R, E, Unit]): ZSTM[R, E, Unit] =
+    foldSTM(())((_, kv) => f(kv._1, kv._2))
 
   /**
    * Retrieves value associated with given key.
    */
   def get(k: K): USTM[Option[V]] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val buckets = tBuckets.unsafeGet(journal)
       val idx     = TMap.indexOf(k, buckets.array.length)
       val bucket  = buckets.array(idx).unsafeGet(journal)
 
-      TExit.Succeed(bucket.find(_._1 == k).map(_._2))
-    })
+      bucket.find(_._1 == k).map(_._2)
+    }
 
   /**
    * Retrieves value associated with given key or default value, in case the
@@ -167,7 +241,7 @@ final class TMap[K, V] private (
       tBuckets.unsafeSet(journal, new TArray(newArray))
     }
 
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val buckets      = tBuckets.unsafeGet(journal)
       val capacity     = buckets.array.length
       val idx          = TMap.indexOf(k, capacity)
@@ -189,8 +263,8 @@ final class TMap[K, V] private (
         }
       }
 
-      TExit.unit
-    })
+      ()
+    }
   }
 
   /**
@@ -203,7 +277,7 @@ final class TMap[K, V] private (
    * Removes bindings matching predicate.
    */
   def removeIf(p: (K, V) => Boolean): USTM[Unit] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val f        = p.tupled
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
@@ -230,14 +304,14 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.unit
-    })
+      ()
+    }
 
   /**
    * Retains bindings matching predicate.
    */
   def retainIf(p: (K, V) => Boolean): USTM[Unit] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val f        = p.tupled
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
@@ -264,14 +338,121 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.unit
-    })
+      ()
+    }
 
   /**
    * Returns the number of bindings.
    */
   val size: USTM[Int] =
     tSize.get
+
+  /**
+   * Takes the first matching value, or retries until there is one.
+   */
+  def takeFirst[A](pf: PartialFunction[(K, V), A]): USTM[A] =
+    ZSTM
+      .Effect[Any, Nothing, Option[A]] { (journal, _, _) =>
+        var result      = Option.empty[A]
+        val size        = tSize.unsafeGet(journal)
+        val buckets     = tBuckets.unsafeGet(journal)
+        val capacity    = buckets.array.length
+        val isDefinedAt = (t: (K, V)) => pf.isDefinedAt(t)
+
+        var i = 0
+
+        while (i < capacity && (result == None)) {
+          val bucket   = buckets.array(i).unsafeGet(journal)
+          val recreate = bucket.exists(isDefinedAt)
+
+          if (recreate) {
+            var newBucket = List.empty[(K, V)]
+            val it        = bucket.iterator
+
+            while (it.hasNext && (result == None)) {
+              val pair = it.next()
+              if (isDefinedAt(pair) && result == None) {
+                result = Some(pf(pair))
+              } else {
+                newBucket = pair :: newBucket
+              }
+            }
+            buckets.array(i).unsafeSet(journal, newBucket)
+          }
+
+          i += 1
+        }
+
+        if (result != None) tSize.unsafeSet(journal, size - 1)
+
+        result
+      }
+      .collect { case Some(value) => value }
+
+  def takeFirstSTM[R, E, A](pf: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, A] =
+    findSTM { case (k, v) =>
+      pf(k, v).map(a => k -> a)
+    }.collect { case Some(value) =>
+      value
+    }.flatMap(kv => delete(kv._1).as(kv._2))
+
+  /**
+   * Takes all matching values, or retries until there is at least one.
+   */
+  def takeSome[A](pf: PartialFunction[(K, V), A]): USTM[NonEmptyChunk[A]] =
+    ZSTM
+      .Effect[Any, Nothing, Option[NonEmptyChunk[A]]] { (journal, _, _) =>
+        val buckets      = tBuckets.unsafeGet(journal)
+        val capacity     = buckets.array.length
+        val chunkBuilder = ChunkBuilder.make[A]()
+        val isDefinedAt  = (t: (K, V)) => pf.isDefinedAt(t)
+
+        var i       = 0
+        var newSize = 0
+
+        while (i < capacity) {
+          val bucket   = buckets.array(i).unsafeGet(journal)
+          val recreate = bucket.exists(isDefinedAt)
+
+          if (recreate) {
+            var newBucket = List.empty[(K, V)]
+
+            val it = bucket.iterator
+            while (it.hasNext) {
+              val pair = it.next()
+              if (pf.isDefinedAt(pair)) {
+                chunkBuilder += pf(pair)
+              } else {
+                newBucket = pair :: newBucket
+                newSize += 1
+              }
+            }
+
+            buckets.array(i).unsafeSet(journal, newBucket)
+          } else {
+            newSize += bucket.length
+          }
+
+          i += 1
+        }
+
+        tSize.unsafeSet(journal, newSize)
+
+        NonEmptyChunk.fromChunk(chunkBuilder.result())
+      }
+      .collect { case Some(value) => value }
+
+  /**
+   * Takes all matching values, or retries until there is at least one.
+   */
+  def takeSomeSTM[R, E, A](pf: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, NonEmptyChunk[A]] =
+    findAllSTM { case (k, v) =>
+      pf(k, v).map(a => k -> a)
+    }.map(NonEmptyChunk.fromChunk(_))
+      .collect { case Some(value) =>
+        value
+      }
+      .flatMap(both => deleteAll(both.map(_._1)).as(both.map(_._2)))
 
   /**
    * Collects all bindings into a list.
@@ -283,7 +464,7 @@ final class TMap[K, V] private (
    * Collects all bindings into a chunk.
    */
   def toChunk: USTM[Chunk[(K, V)]] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
       val size     = tSize.unsafeGet(journal)
@@ -298,8 +479,8 @@ final class TMap[K, V] private (
         i += 1
       }
 
-      TExit.Succeed(builder.result())
-    })
+      builder.result()
+    }
 
   /**
    * Collects all bindings into a map.
@@ -311,7 +492,7 @@ final class TMap[K, V] private (
    * Atomically updates all bindings using a pure function.
    */
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val g        = f.tupled
       val buckets  = tBuckets.unsafeGet(journal)
       val capacity = buckets.array.length
@@ -348,18 +529,25 @@ final class TMap[K, V] private (
 
       tSize.unsafeSet(journal, newSize)
 
-      TExit.unit
-    })
+      ()
+    }
 
   /**
    * Atomically updates all bindings using a transactional function.
    */
+  @deprecated("use transformSTM", "2.0.0")
   def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
+    transformSTM(f)
+
+  /**
+   * Atomically updates all bindings using a transactional function.
+   */
+  def transformSTM[R, E](f: (K, V) => ZSTM[R, E, (K, V)]): ZSTM[R, E, Unit] =
     toChunk.flatMap { data =>
       val g = f.tupled
 
-      STM.foreach(data)(g).flatMap { newData =>
-        new ZSTM((journal, _, _, _) => {
+      ZSTM.foreach(data)(g).flatMap { newData =>
+        ZSTM.Effect { (journal, _, _) =>
           val buckets    = tBuckets.unsafeGet(journal)
           val capacity   = buckets.array.length
           val newBuckets = Array.fill[List[(K, V)]](capacity)(Nil)
@@ -384,8 +572,8 @@ final class TMap[K, V] private (
           }
 
           tSize.unsafeSet(journal, newSize)
-          TExit.unit
-        })
+          ()
+        }
       }
     }
 
@@ -398,8 +586,15 @@ final class TMap[K, V] private (
   /**
    * Atomically updates all values using a transactional function.
    */
+  @deprecated("use transformValuesSTM", "2.0.0")
   def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
-    transformM((k, v) => f(v).map(k -> _))
+    transformValuesSTM(f)
+
+  /**
+   * Atomically updates all values using a transactional function.
+   */
+  def transformValuesSTM[R, E](f: V => ZSTM[R, E, V]): ZSTM[R, E, Unit] =
+    transformSTM((k, v) => f(v).map(k -> _))
 
   /**
    * Collects all values stored in map.
@@ -428,8 +623,6 @@ object TMap {
    * Makes a new `TMap` that is initialized with specified values.
    */
   def make[K, V](data: (K, V)*): USTM[TMap[K, V]] = fromIterable(data)
-
-  private final case class UpdateResult(stm: STM[Nothing, Unit])
 
   private def allocate[K, V](capacity: Int, data: List[(K, V)]): USTM[TMap[K, V]] = {
     val buckets  = Array.fill[List[(K, V)]](capacity)(Nil)

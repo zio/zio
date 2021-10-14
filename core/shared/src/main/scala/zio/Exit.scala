@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package zio
+
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * An `Exit[E, A]` describes the result of executing an `IO` value. The
@@ -41,7 +43,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
+  final def <&>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _), _ && _)
 
   /**
    * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
@@ -51,7 +54,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
+  final def <*>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _), _ ++ _)
 
   /**
    * Replaces the success value with the one provided.
@@ -61,7 +65,9 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Maps over both the error and value type.
    */
-  final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] = mapError(f).map(g)
+  @deprecated("use mapBoth", "2.0.0")
+  final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] =
+    mapBoth(f, g)
 
   final def exists(p: A => Boolean): Boolean =
     fold(_ => false, p)
@@ -78,7 +84,14 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Flat maps over the value type.
    */
+  @deprecated("use flatMapZIO", "2.0.0")
   final def flatMapM[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
+    flatMapZIO(f)
+
+  /**
+   * Flat maps over the value type.
+   */
+  final def flatMapZIO[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
     self match {
       case Success(a)     => f(a)
       case e @ Failure(_) => ZIO.succeedNow(e)
@@ -99,7 +112,18 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def foldM[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B]): ZIO[R, E1, B] =
+  @deprecated("use foldZIO", "2.0.0")
+  final def foldM[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E1, B] =
+    foldZIO(failed, completed)
+
+  /**
+   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
+   */
+  final def foldZIO[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E1, B] =
     self match {
       case Failure(cause) => failed(cause)
       case Success(v)     => completed(v)
@@ -109,8 +133,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
    * Applies the function `f` to the successful result of the `Exit` and
    * returns the result in a new `Exit`.
    */
-  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
-    fold(c => ZIO.succeedNow(halt(c)), a => f(a).run)
+  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, Nothing, Exit[E1, B]] =
+    fold(c => ZIO.succeedNow(failCause(c)), a => f(a).exit)
 
   /**
    * Retrieves the `A` if succeeded, or else returns the specified default `A`.
@@ -123,9 +147,29 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Determines if the result is interrupted.
    */
-  final def interrupted: Boolean = self match {
+  @deprecated("use isInterrupted", "2.0.0")
+  final def interrupted: Boolean =
+    isInterrupted
+
+  /**
+   * Determines if the result is a failure.
+   */
+  final def isFailure: Boolean = !isSuccess
+
+  /**
+   * Determines if the result is interrupted.
+   */
+  final def isInterrupted: Boolean = self match {
     case Success(_) => false
-    case Failure(c) => c.interrupted
+    case Failure(c) => c.isInterrupted
+  }
+
+  /**
+   * Determines if the result is a success.
+   */
+  final def isSuccess: Boolean = self match {
+    case Success(_) => true
+    case _          => false
   }
 
   /**
@@ -138,12 +182,18 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
     }
 
   /**
+   * Maps over both the error and value type.
+   */
+  final def mapBoth[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] =
+    mapError(f).map(g)
+
+  /**
    * Maps over the error type.
    */
   final def mapError[E1](f: E => E1): Exit[E1, A] =
     self match {
       case e @ Success(_) => e
-      case Failure(c)     => halt(c.map(f))
+      case Failure(c)     => failCause(c.map(f))
     }
 
   /**
@@ -164,10 +214,9 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Determines if the result is a success.
    */
-  final def succeeded: Boolean = self match {
-    case Success(_) => true
-    case _          => false
-  }
+  @deprecated("use isSuccess", "2.0.0")
+  final def succeeded: Boolean =
+    isSuccess
 
   /**
    * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the
@@ -191,7 +240,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Named alias for `<*>`.
    */
-  final def zip[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <*> that
+  final def zip[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    self <*> that
 
   /**
    * Named alias for `<*`.
@@ -201,7 +251,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Named alias for `<&>`.
    */
-  final def zipPar[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = self <&> that
+  final def zipPar[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    self <&> that
 
   /**
    * Named alias for `<&`.
@@ -227,7 +278,7 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   ): Exit[E1, C] =
     (self, that) match {
       case (Success(a), Success(b)) => Exit.succeed(f(a, b))
-      case (Failure(l), Failure(r)) => Exit.halt(g(l, r))
+      case (Failure(l), Failure(r)) => Exit.failCause(g(l, r))
       case (e @ Failure(_), _)      => e
       case (_, e @ Failure(_))      => e
     }
@@ -238,7 +289,8 @@ object Exit extends Serializable {
   final case class Success[+A](value: A)        extends Exit[Nothing, A]
   final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
 
-  def interrupt(id: Fiber.Id): Exit[Nothing, Nothing] = halt(Cause.interrupt(id))
+  def interrupt(id: FiberId): Exit[Nothing, Nothing] =
+    failCause(Cause.interrupt(id))
 
   def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
@@ -256,9 +308,14 @@ object Exit extends Serializable {
         .map(_.reverse)
     }
 
-  def die(t: Throwable): Exit[Nothing, Nothing] = halt(Cause.die(t))
+  def die(t: Throwable): Exit[Nothing, Nothing] =
+    failCause(Cause.die(t))
 
-  def fail[E](error: E): Exit[E, Nothing] = halt(Cause.fail(error))
+  def fail[E](error: E): Exit[E, Nothing] =
+    failCause(Cause.fail(error))
+
+  def failCause[E](cause: Cause[E]): Exit[E, Nothing] =
+    Failure(cause)
 
   def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
     exit.flatMap(identity)
@@ -275,7 +332,9 @@ object Exit extends Serializable {
       case scala.util.Failure(t) => fail(t)
     }
 
-  def halt[E](cause: Cause[E]): Exit[E, Nothing] = Failure(cause)
+  @deprecated("use failCause", "2.0.0")
+  def halt[E](cause: Cause[E]): Exit[E, Nothing] =
+    failCause(cause)
 
   def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 

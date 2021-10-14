@@ -2,7 +2,6 @@ package zio.stm
 
 import org.openjdk.jmh.annotations._
 import zio._
-import zio.clock.Clock
 
 import java.util.concurrent.TimeUnit
 
@@ -13,13 +12,13 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 10)
 @Fork(1)
 class TMapContentionBenchmarks {
-  import IOBenchmarks.unsafeRun
+  import BenchmarkUtil.unsafeRun
 
   @Param(Array("100", "1000", "10000"))
   var repeatedUpdates: Int = _
 
-  private var mapUpdates: URIO[Clock, Unit] = _
-  private var refUpdates: URIO[Clock, Unit] = _
+  private var mapUpdates: URIO[Has[Clock], Unit] = _
+  private var refUpdates: URIO[Has[Clock], Unit] = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
@@ -28,8 +27,8 @@ class TMapContentionBenchmarks {
     val map          = unsafeRun(TMap.fromIterable(data).commit)
     val ref          = ZTRef.unsafeMake(data.toMap)
 
-    mapUpdates = ZIO.foreachPar_(keysToUpdate)(i => map.put(i, i).commit.repeatN(repeatedUpdates))
-    refUpdates = ZIO.foreachPar_(keysToUpdate)(i => ref.update(_.updated(i, i)).commit.repeatN(repeatedUpdates))
+    mapUpdates = ZIO.foreachParDiscard(keysToUpdate)(i => map.put(i, i).commit.repeatN(repeatedUpdates))
+    refUpdates = ZIO.foreachParDiscard(keysToUpdate)(i => ref.update(_.updated(i, i)).commit.repeatN(repeatedUpdates))
   }
 
   @Benchmark

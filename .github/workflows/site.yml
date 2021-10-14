@@ -1,20 +1,25 @@
 name: Website
 
 on:
-  release:
-    types:
-      - published
+  push:
+    branches:
+      - documentation
 
 jobs:
   publish:
     runs-on: ubuntu-20.04
     if: github.event_name != 'pull_request'
     steps:
-      - name: Checkout current branch
+      - name: Checkout all branches
         uses: actions/checkout@v2
+        with:
+          fetch-depth: '0'
       - name: Setup Scala and Java
-        uses: olafurpg/setup-scala@v10
-      - name: Publish Github pages
-        run: sbt docs/docusaurusPublishGhpages
-        env:
-          GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
+        uses: olafurpg/setup-scala@v13
+      - run: |
+          ./scripts/createSite.sh ${{ github.ref }}
+      - name: Release to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@4.1.5
+        with:
+          branch: gh-pages
+          folder: ./website/build

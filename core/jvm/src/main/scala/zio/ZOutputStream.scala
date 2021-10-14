@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,19 @@
 
 package zio
 
-import zio.blocking._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 
 abstract class ZOutputStream {
-  def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit]
+  def write(chunk: Chunk[Byte])(implicit trace: ZTraceElement): IO[IOException, Unit]
 }
 
 object ZOutputStream {
 
   def fromOutputStream(os: java.io.OutputStream): ZOutputStream = new ZOutputStream {
-    def write(chunk: Chunk[Byte]): ZIO[Blocking, IOException, Unit] =
-      effectBlockingIO {
+    def write(chunk: Chunk[Byte])(implicit trace: ZTraceElement): IO[IOException, Unit] =
+      ZIO.attemptBlockingIO {
         os.write(chunk.toArray)
       }
   }

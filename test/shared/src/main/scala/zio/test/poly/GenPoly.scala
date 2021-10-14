@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package zio.test.poly
 
-import zio.random.Random
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
+import zio.{Has, Random, ZTraceElement}
 
 /**
  * `GenPoly` provides evidence that an instance of `Gen[T]` exists for some
@@ -51,28 +52,28 @@ import zio.test.{Gen, Sized}
  * Using it we can define polymorphic generators for expressions:
  *
  * {{{
- * def genValue(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+ * def genValue(t: GenPoly): Gen[Has[Random] with Has[Sized], Expr[t.T]] =
  *   t.genT.map(Value(_))
  *
- * def genMapping(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+ * def genMapping(t: GenPoly): Gen[Has[Random] with Has[Sized], Expr[t.T]] =
  *   Gen.suspend {
  *     GenPoly.genPoly.flatMap { t0 =>
  *       genExpr(t0).flatMap { expr =>
- *         val genFunction: Gen[Random with Sized, t0.T => t.T] = Gen.function(t.genT)
- *         val genExpr1: Gen[Random with Sized, Expr[t.T]]      = genFunction.map(f => Mapping(expr, f))
+ *         val genFunction: Gen[Has[Random] with Has[Sized], t0.T => t.T] = Gen.function(t.genT)
+ *         val genExpr1: Gen[Has[Random] with Has[Sized], Expr[t.T]]      = genFunction.map(f => Mapping(expr, f))
  *         genExpr1
  *       }
  *     }
  *   }
  *
- * def genExpr(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+ * def genExpr(t: GenPoly): Gen[Has[Random] with Has[Sized], Expr[t.T]] =
  *   Gen.oneOf(genMapping(t), genValue(t))
  * }}}
  *
  * Finally, we can test our property:
  *
  * {{{
- * testM("map fusion") {
+ * test("map fusion") {
  *   check(GenPoly.genPoly.flatMap(genExpr(_))) { expr =>
  *     assert(eval(fuse(expr)))(equalTo(eval(expr)))
  *   }
@@ -90,7 +91,7 @@ import zio.test.{Gen, Sized}
  */
 trait GenPoly {
   type T
-  val genT: Gen[Random with Sized, T]
+  val genT: Gen[Has[Random] with Has[Sized], T]
 }
 
 object GenPoly {
@@ -99,7 +100,7 @@ object GenPoly {
    * Constructs an instance of `TypeWith` using the specified value,
    * existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Random with Sized, A]): GenPoly =
+  def apply[A](gen: Gen[Has[Random] with Has[Sized], A]): GenPoly =
     new GenPoly {
       type T = A
       val genT = gen
@@ -109,42 +110,42 @@ object GenPoly {
    * Provides evidence that instances of `Gen` and a `Ordering` exist for
    * booleans.
    */
-  val boolean: GenPoly =
+  def boolean(implicit trace: ZTraceElement): GenPoly =
     GenOrderingPoly(Gen.boolean, Ordering.Boolean)
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for bytes.
    */
-  val byte: GenPoly =
+  def byte(implicit trace: ZTraceElement): GenPoly =
     GenIntegralPoly.byte
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for
    * characters.
    */
-  val char: GenPoly =
+  def char(implicit trace: ZTraceElement): GenPoly =
     GenIntegralPoly.char
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for doubles.
    */
-  val double: GenPoly =
+  def double(implicit trace: ZTraceElement): GenPoly =
     GenFractionalPoly.double
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for floats.
    */
-  val float: GenPoly =
+  def float(implicit trace: ZTraceElement): GenPoly =
     GenFractionalPoly.float
 
-  lazy val genPoly: Gen[Random, GenPoly] =
+  def genPoly(implicit trace: ZTraceElement): Gen[Has[Random], GenPoly] =
     GenOrderingPoly.genOrderingPoly
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for
    * integers.
    */
-  val int: GenPoly =
+  def int(implicit trace: ZTraceElement): GenPoly =
     GenIntegralPoly.int
 
   /**
@@ -152,13 +153,13 @@ object GenPoly {
    * `Ordering[List[T]]` exist for any type for which `Gen[T]` and
    * `Ordering[T]` exist.
    */
-  def list(poly: GenPoly): GenPoly =
+  def list(poly: GenPoly)(implicit trace: ZTraceElement): GenPoly =
     GenPoly(Gen.listOf(poly.genT))
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for longs.
    */
-  val long: GenPoly =
+  def long(implicit trace: ZTraceElement): GenPoly =
     GenIntegralPoly.long
 
   /**
@@ -166,27 +167,27 @@ object GenPoly {
    * `Ordering[Option[T]]` exist for any type for which `Gen[T]` and
    * `Ordering[T]` exist.
    */
-  def option(poly: GenPoly): GenPoly =
+  def option(poly: GenPoly)(implicit trace: ZTraceElement): GenPoly =
     GenPoly(Gen.option(poly.genT))
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for shorts.
    */
-  val short: GenPoly =
+  def short(implicit trace: ZTraceElement): GenPoly =
     GenIntegralPoly.long
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for
    * strings.
    */
-  val string: GenPoly =
-    GenOrderingPoly(Gen.anyString, Ordering.String)
+  def string(implicit trace: ZTraceElement): GenPoly =
+    GenOrderingPoly(Gen.string, Ordering.String)
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for
    * the unit value.
    */
-  val unit: GenPoly =
+  def unit(implicit trace: ZTraceElement): GenPoly =
     GenOrderingPoly(Gen.unit, Ordering.Unit)
 
   /**
@@ -194,6 +195,6 @@ object GenPoly {
    * `Ordering[Vector[T]]` exist for any type for which `Gen[T]` and
    * `Ordering[T]` exist.
    */
-  def vector(poly: GenPoly): GenPoly =
+  def vector(poly: GenPoly)(implicit trace: ZTraceElement): GenPoly =
     GenPoly(Gen.vectorOf(poly.genT))
 }

@@ -8,7 +8,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("AccessibleMMSpec")(
     suite("AccessibleMM macro")(
-      testM("compiles when applied to object with empty Service") {
+      test("compiles when applied to object with empty Service") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -18,7 +18,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("fails when applied to object without a Service") {
+      test("fails when applied to object without a Service") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -26,15 +26,15 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to trait") {
+      test("success when applied to trait") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
             trait Module[F[_, _]]
           """
-        })(isLeft(anything))
+        })(isRight(anything))
       },
-      testM("fails when applied to class") {
+      test("fails when applied to class") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -42,7 +42,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to object with Service without type param") {
+      test("fails when applied to object with Service without type param") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -52,7 +52,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to Service with Service without suitable type param") {
+      test("fails when applied to Service with Service without suitable type param") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -62,7 +62,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to Service with Service with multiple suitable type params") {
+      test("fails when applied to Service with Service with multiple suitable type params") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -72,7 +72,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to non-ZIO type param") {
+      test("fails when applied to non-ZIO type param") {
         assertM(typeCheck {
           """
             @accessibleMM[Either]
@@ -82,7 +82,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("generates accessor for values") {
+      test("generates accessor for values") {
         assertM(typeCheck {
           """
             @accessibleMM[URIO]
@@ -99,7 +99,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for functions") {
+      test("generates accessor for functions") {
         assertM(typeCheck {
           """
             @accessibleMM[URIO]
@@ -116,7 +116,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for varargs functions") {
+      test("generates accessor for varargs functions") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -133,7 +133,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("compiles when applied to method with simple return type") {
+      test("compiles when applied to method with simple return type") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -150,7 +150,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for members returning ZManaged") {
+      test("generates accessors for members returning ZManaged") {
         assertM(typeCheck {
           """
             @accessibleMM[RManaged]
@@ -167,7 +167,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for service with default method implementations") {
+      test("generates accessor for service with default method implementations") {
         assertM(typeCheck {
           """
              @accessibleMM[IO]
@@ -187,7 +187,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """.stripMargin
         })(isRight(anything))
       },
-      testM("generates accessor for service with one type param other than F") {
+      test("generates accessor for service with one type param other than F") {
         assertM(typeCheck {
           """
              @accessibleMM[IO]
@@ -222,7 +222,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for service with contravariant type param") {
+      test("generates accessor for service with contravariant type param") {
         assertM(typeCheck {
           """
              @accessibleMM[RIO]
@@ -239,7 +239,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for service with two type params and type bounds") {
+      test("generates accessor for service with two type params and type bounds") {
         assertM(typeCheck {
           """
              trait Foo
@@ -277,7 +277,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for ZIO capabilities") {
+      test("generates accessors for ZIO capabilities") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -311,7 +311,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for ZManaged capabilities") {
+      test("generates accessors for ZManaged capabilities") {
         assertM(typeCheck {
           """
             @accessibleMM[URManaged]
@@ -347,7 +347,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for method capabilities") {
+      test("generates accessors for method capabilities") {
         assertM(typeCheck {
           """
             @accessibleMM[IO]
@@ -363,7 +363,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("preserves type constructor co- and contravariance") {
+      test("preserves type constructor co- and contravariance") {
         assertM(typeCheck {
           """
              @accessibleMM[URIO]
@@ -387,7 +387,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("preserves Service covariance") {
+      test("preserves Service covariance") {
         assertM(typeCheck {
           """
              @accessibleMM[URIO]
@@ -410,7 +410,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("preserves Service contravariance") {
+      test("preserves Service contravariance") {
         assertM(typeCheck {
           """
              @accessibleMM[URIO]
@@ -435,7 +435,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
       },
       // this test mimics the situation when covariant type appears in contravariant position
       // in reality, the code will not compile due to true variance check, but in tests `c.typecheck` doesn't check it
-      testM("fails when contravariant type appears in covariant position") {
+      test("fails when contravariant type appears in covariant position") {
         assertM(typeCheck {
           """
              @accessibleMM[URIO]

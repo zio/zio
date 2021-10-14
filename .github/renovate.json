@@ -1,0 +1,13 @@
+{
+  "automerge": true,
+  "rebaseWhen": "conflicted",
+  "labels": ["type: dependencies"],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "sbt"
+      ],
+      "enabled": false
+    }
+  ]
+}

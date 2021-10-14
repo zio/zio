@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 package zio.test
 
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
-import zio.clock.Clock
-import zio.{Has, URIO}
+import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 @EnableReflectiveInstantiation
 abstract class AbstractRunnableSpec {
 
-  type Environment <: Has[_]
+  type Environment
   type Failure
 
   def aspects: List[TestAspect[Nothing, Environment, Nothing, Any]]
@@ -31,21 +31,28 @@ abstract class AbstractRunnableSpec {
   def spec: ZSpec[Environment, Failure]
 
   /**
+   * the platform used by the runner
+   */
+  @deprecated("use runtimeConfig", "2.0.0")
+  final def platform =
+    runtimeConfig
+
+  /**
    * Returns an effect that executes the spec, producing the results of the execution.
    */
-  final def run: URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
-    runSpec(spec)
+  final def run(implicit trace: ZTraceElement): ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
+    runSpec(spec).provideCustomLayer(runner.bootstrap)
 
   /**
    * Returns an effect that executes a given spec, producing the results of the execution.
    */
   private[zio] def runSpec(
     spec: ZSpec[Environment, Failure]
-  ): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
+  )(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _))
 
   /**
-   * the platform used by the runner
+   * The runtime configuration used by the runner.
    */
-  final def platform = runner.platform
+  final def runtimeConfig: RuntimeConfig = runner.runtimeConfig
 }

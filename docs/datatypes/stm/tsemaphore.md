@@ -88,12 +88,11 @@ You can simply use `withPermit` instead:
 import zio._
 import zio.stm._
 
-val tSemaphoreWithPermit: STM[Nothing, Unit] = for {
-  sem <- TSemaphore.make(1L)
-  a   <- sem.withPermit(yourSTMAction)
-} yield a
-
-tSemaphoreWithPermit.commit
+val tSemaphoreWithPermit: IO[Nothing, Unit] =
+  for {
+    sem <- TSemaphore.make(1L).commit
+    a   <- sem.withPermit(yourSTMAction.commit)
+  } yield a
 ```
 
 It is considered best practice to use `withPermit` over using an `acquire` and a `release` directly unless dealing with more complicated use cases that involve multiple STM actions where `acquire` is not at the start and `release` is not at the end of the STM transaction.

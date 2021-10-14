@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package zio.test.mock
 
 import zio.{IO, UIO}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `Result[-I, +E, +A]` represents the value or failure that will be returned

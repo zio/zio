@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package zio.test.poly
 
-import zio.random.Random
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
+import zio.{Has, Random, ZTraceElement}
 
 /**
  * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and
@@ -33,7 +34,7 @@ object GenFractionalPoly {
    * Constructs an instance of `GenFractionalPoly` using the specified `Gen`
    * and `Fractional` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Random with Sized, A], num: Fractional[A]): GenFractionalPoly =
+  def apply[A](gen: Gen[Has[Random] with Has[Sized], A], num: Fractional[A]): GenFractionalPoly =
     new GenFractionalPoly {
       type T = A
       val genT = gen
@@ -44,20 +45,20 @@ object GenFractionalPoly {
    * Provides evidence that instances of `Gen` and `Fractional` exist for
    * doubles.
    */
-  val double: GenFractionalPoly =
-    GenFractionalPoly(Gen.anyDouble, Numeric.DoubleIsFractional)
+  def double(implicit trace: ZTraceElement): GenFractionalPoly =
+    GenFractionalPoly(Gen.double, Numeric.DoubleIsFractional)
 
   /**
    * Provides evidence that instances of `Gen` and `Fractional` exist for
    * floats.
    */
-  val float: GenFractionalPoly =
-    GenFractionalPoly(Gen.anyFloat, Numeric.FloatIsFractional)
+  def float(implicit trace: ZTraceElement): GenFractionalPoly =
+    GenFractionalPoly(Gen.float, Numeric.FloatIsFractional)
 
   /**
    * A generator of polymorphic values constrainted to have a `Fractional`
    * instance.
    */
-  val genFractionalPoly: Gen[Random, GenFractionalPoly] =
+  def genFractionalPoly(implicit trace: ZTraceElement): Gen[Has[Random], GenFractionalPoly] =
     Gen.elements(double, float)
 }

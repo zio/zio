@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package zio.test
 
-import zio.Semaphore
+import zio.{Semaphore, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZStream.BufferedPull
 
 trait FunctionVariants {
@@ -27,28 +28,28 @@ trait FunctionVariants {
    * be guaranteed to generate the same `B` value, if they have the same
    * `hashCode`.
    */
-  final def function[R, A, B](gen: Gen[R, B]): Gen[R, A => B] =
+  final def function[R, A, B](gen: Gen[R, B])(implicit trace: ZTraceElement): Gen[R, A => B] =
     functionWith(gen)(_.hashCode)
 
   /**
    * A version of `function` that generates functions that accept two
    * parameters.
    */
-  final def function2[R, A, B, C](gen: Gen[R, C]): Gen[R, (A, B) => C] =
+  final def function2[R, A, B, C](gen: Gen[R, C])(implicit trace: ZTraceElement): Gen[R, (A, B) => C] =
     function[R, (A, B), C](gen).map(Function.untupled[A, B, C])
 
   /**
    * A version of `function` that generates functions that accept three
    * parameters.
    */
-  final def function3[R, A, B, C, D](gen: Gen[R, D]): Gen[R, (A, B, C) => D] =
+  final def function3[R, A, B, C, D](gen: Gen[R, D])(implicit trace: ZTraceElement): Gen[R, (A, B, C) => D] =
     function[R, (A, B, C), D](gen).map(Function.untupled[A, B, C, D])
 
   /**
    * A version of `function` that generates functions that accept four
    * parameters.
    */
-  final def function4[R, A, B, C, D, E](gen: Gen[R, E]): Gen[R, (A, B, C, D) => E] =
+  final def function4[R, A, B, C, D, E](gen: Gen[R, E])(implicit trace: ZTraceElement): Gen[R, (A, B, C, D) => E] =
     function[R, (A, B, C, D), E](gen).map(Function.untupled[A, B, C, D, E])
 
   /**
@@ -58,13 +59,13 @@ trait FunctionVariants {
    * `B` value, if they have have the same hash. This is useful when `A` does
    * not implement `hashCode` in a way that is consistent with equality.
    */
-  final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B] =
-    Gen.fromEffect {
-      gen.sample.forever.process.use { pull =>
+  final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit trace: ZTraceElement): Gen[R, A => B] =
+    Gen.fromZIO {
+      gen.sample.forever.collectSome.process.use { pull =>
         for {
           lock    <- Semaphore.make(1)
           bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)
-          fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).optional.map(_.get.value))(hash)
+          fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).unsome.map(_.get.value))(hash)
         } yield fun
       }
     }
@@ -73,20 +74,26 @@ trait FunctionVariants {
    * A version of `functionWith` that generates functions that accept two
    * parameters.
    */
-  final def functionWith2[R, A, B, C](gen: Gen[R, C])(hash: (A, B) => Int): Gen[R, (A, B) => C] =
+  final def functionWith2[R, A, B, C](gen: Gen[R, C])(hash: (A, B) => Int)(implicit
+    trace: ZTraceElement
+  ): Gen[R, (A, B) => C] =
     functionWith[R, (A, B), C](gen)(hash.tupled).map(Function.untupled[A, B, C])
 
   /**
    * A version of `functionWith` that generates functions that accept three
    * parameters.
    */
-  final def functionWith3[R, A, B, C, D](gen: Gen[R, D])(hash: (A, B, C) => Int): Gen[R, (A, B, C) => D] =
+  final def functionWith3[R, A, B, C, D](gen: Gen[R, D])(hash: (A, B, C) => Int)(implicit
+    trace: ZTraceElement
+  ): Gen[R, (A, B, C) => D] =
     functionWith[R, (A, B, C), D](gen)(hash.tupled).map(Function.untupled[A, B, C, D])
 
   /**
    * A version of `functionWith` that generates functions that accept four
    * parameters.
    */
-  final def functionWith4[R, A, B, C, D, E](gen: Gen[R, E])(hash: (A, B, C, D) => Int): Gen[R, (A, B, C, D) => E] =
+  final def functionWith4[R, A, B, C, D, E](gen: Gen[R, E])(hash: (A, B, C, D) => Int)(implicit
+    trace: ZTraceElement
+  ): Gen[R, (A, B, C, D) => E] =
     functionWith[R, (A, B, C, D), E](gen)(hash.tupled).map(Function.untupled[A, B, C, D, E])
 }

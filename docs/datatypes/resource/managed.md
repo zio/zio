@@ -3,9 +3,19 @@ id: managed
 title: "Managed"
 ---
 
-`Managed` is a data structure that encapsulates the acquisition and the release of a resource.
+`Managed[E, A]` is a type alias for `ZManaged[Any, E, A]`, which represents a managed resource that has no requirements, and may fail with an `E`, or succeed with an `A`.
 
-A `Managed[E, A]` is a managed resource of type `A`, which may be used by invoking the `use` method of the resource. The resource will be automatically acquired before the resource is used, and automatically released after the resource is used.
+```scala mdoc:invisible
+import zio.ZManaged
+```
+
+The `Managed` type alias is defined as follows:
+
+```scala mdoc:silent:nest
+type Managed[+E, +A] = ZManaged[Any, E, A]
+```
+
+`Managed` is a data structure that encapsulates the acquisition and the release of a resource, which may be used by invoking the `use` method of the resource. The resource will be automatically acquired before the resource is used, and automatically released after the resource is used.
 
 Resources do not survive the scope of `use`, meaning that if you attempt to capture the resource, leak it from `use`, and then use it after the resource has been consumed, the resource will not be valid anymore and may fail with some checked error, as per the type of the functions provided by the resource.
 
@@ -13,7 +23,7 @@ Resources do not survive the scope of `use`, meaning that if you attempt to capt
 import zio._
 def doSomething(queue: Queue[Int]): UIO[Unit] = IO.unit
 
-val managedResource = Managed.make(Queue.unbounded[Int])(_.shutdown)
+val managedResource = Managed.acquireReleaseWith(Queue.unbounded[Int])(_.shutdown)
 val usedResource: UIO[Unit] = managedResource.use { queue => doSomething(queue) }
 ```
 
@@ -26,9 +36,9 @@ As shown in the previous example, a `Managed` can be created by passing an `acqu
 It can also be created from an effect. In this case the release function will do nothing.
 ```scala mdoc:silent
 import zio._
-def acquire: IO[Throwable, Int] = IO.effect(???)
+def acquire: IO[Throwable, Int] = IO.attempt(???)
 
-val managedFromEffect: Managed[Throwable, Int] = Managed.fromEffect(acquire)
+val managedFromEffect: Managed[Throwable, Int] = Managed.fromZIO(acquire)
 ```
 
 You can create a `Managed` from a pure value as well.
@@ -43,10 +53,10 @@ val managedFromValue: Managed[Nothing, Int] = Managed.succeed(3)
 
 ```scala mdoc:silent
 import zio._
-import zio.console._
+import zio.Console._
 
-val zManagedResource: ZManaged[Console, Nothing, Unit] = ZManaged.make(console.putStrLn("acquiring"))(_ => console.putStrLn("releasing"))
-val zUsedResource: URIO[Console, Unit] = zManagedResource.use { _ => console.putStrLn("running") }
+val zManagedResource: ZManaged[Has[Console], Nothing, Unit] = ZManaged.acquireReleaseWith(printLine("acquiring").orDie)(_ => printLine("releasing").orDie)
+val zUsedResource: URIO[Has[Console], Unit] = zManagedResource.use { _ => printLine("running").orDie }
 ```
 
 ## Combining Managed
@@ -57,17 +67,17 @@ It is possible to combine multiple `Managed` using `flatMap` to obtain a single 
 import zio._
 ```
 
-```scala mdoc:invisible
+```scala mdoc:invisible:nest
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
-def closeFile(f: File): UIO[Unit] = IO.effectTotal(???)
-def doSomething(queue: Queue[Int], file: File): UIO[Unit] = IO.effectTotal(???)
+def openFile(s: String): IO[IOException, File] = IO.attempt(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = IO.succeed(???)
+def doSomething(queue: Queue[Int], file: File): UIO[Unit] = IO.succeed(???)
 ```
 
 ```scala mdoc:silent
-val managedQueue: Managed[Nothing, Queue[Int]] = Managed.make(Queue.unbounded[Int])(_.shutdown)
-val managedFile: Managed[IOException, File] = Managed.make(openFile("data.json"))(closeFile)
+val managedQueue: Managed[Nothing, Queue[Int]] = Managed.acquireReleaseWith(Queue.unbounded[Int])(_.shutdown)
+val managedFile: Managed[IOException, File] = Managed.acquireReleaseWith(openFile("data.json"))(closeFile)
 
 val combined: Managed[IOException, (Queue[Int], File)] = for {
     queue <- managedQueue

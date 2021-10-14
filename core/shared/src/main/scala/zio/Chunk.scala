@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package zio
+
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
@@ -38,13 +40,6 @@ import scala.reflect.{ClassTag, classTag}
  * types.
  */
 sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
-
-  /**
-   * Appends an element to the chunk
-   */
-  @deprecated("use :+", "1.0.0")
-  final def +[A1 >: A](a: A1): Chunk[A1] =
-    self :+ a
 
   /**
    * Returns the concatenation of this chunk with the specified chunk.
@@ -121,8 +116,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a .
    */
-  def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectM(pf)
+  @deprecated("use collectZIO", "2.0.0")
+  def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
+    collectZIO(pf)
 
   /**
    * Transforms all elements of the chunk for as long as the specified partial function is defined.
@@ -130,8 +126,20 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] =
     if (isEmpty) Chunk.empty else self.materialize.collectWhile(pf)
 
-  def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectWhileM(pf)
+  @deprecated("use collectWhileZIO", "2.0.0")
+  def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
+    collectWhileZIO(pf)
+
+  def collectWhileZIO[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, Chunk[B]] =
+    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectWhileZIO(pf)
+
+  /**
+   * Returns a filtered, mapped subset of the elements of this chunk based on a .
+   */
+  def collectZIO[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
+    if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectZIO(pf)
 
   /**
    * Determines whether this chunk and the specified chunk have the same length
@@ -194,26 +202,31 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     drop(i)
   }
 
-  def dropWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
-    val length  = self.length
-    val builder = ChunkBuilder.make[A]()
-    builder.sizeHint(length)
-    var dropping: ZIO[R, E, Boolean] = UIO.succeedNow(true)
-    val iterator                     = self.iterator
-    while (iterator.hasNext) {
-      val a = iterator.next()
-      dropping = dropping.flatMap { d =>
-        (if (d) p(a) else UIO(false)).map {
-          case true =>
-            true
-          case false =>
-            builder += a
-            false
+  @deprecated("use dropWhileZIO", "2.0.0")
+  def dropWhileM[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
+    dropWhileZIO(p)
+
+  def dropWhileZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
+    ZIO.suspendSucceed {
+      val length  = self.length
+      val builder = ChunkBuilder.make[A]()
+      builder.sizeHint(length)
+      var dropping: ZIO[R, E, Boolean] = UIO.succeedNow(true)
+      val iterator                     = self.iterator
+      while (iterator.hasNext) {
+        val a = iterator.next()
+        dropping = dropping.flatMap { d =>
+          (if (d) p(a) else UIO(false)).map {
+            case true =>
+              true
+            case false =>
+              builder += a
+              false
+          }
         }
       }
+      dropping as builder.result()
     }
-    dropping as builder.result()
-  }
 
   override final def equals(that: Any): Boolean =
     that match {
@@ -254,19 +267,28 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Filters this chunk by the specified effectful predicate, retaining all elements for
    * which the predicate evaluates to true.
    */
-  final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
-    val iterator = self.iterator
-    val builder  = ChunkBuilder.make[A]()
-    builder.sizeHint(length)
-    var dest: ZIO[R, E, ChunkBuilder[A]] = IO.succeedNow(builder)
-    while (iterator.hasNext) {
-      val a = iterator.next()
-      dest = dest.zipWith(f(a)) { case (builder, res) =>
-        if (res) builder += a else builder
+  @deprecated("use filterZIO", "2.0.0")
+  final def filterM[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
+    filterZIO(f)
+
+  /**
+   * Filters this chunk by the specified effectful predicate, retaining all elements for
+   * which the predicate evaluates to true.
+   */
+  final def filterZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
+    ZIO.suspendSucceed {
+      val iterator = self.iterator
+      val builder  = ChunkBuilder.make[A]()
+      builder.sizeHint(length)
+      var dest: ZIO[R, E, ChunkBuilder[A]] = IO.succeedNow(builder)
+      while (iterator.hasNext) {
+        val a = iterator.next()
+        dest = dest.zipWith(f(a)) { case (builder, res) =>
+          if (res) builder += a else builder
+        }
       }
+      dest.map(_.result())
     }
-    dest.map(_.result())
-  }
 
   /**
    * Returns the first element that satisfies the predicate.
@@ -282,6 +304,35 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     }
     result
   }
+
+  /**
+   * Returns the first element that satisfies the effectful predicate.
+   */
+  @deprecated("use findZIO", "2.0.0")
+  final def findM[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
+    findZIO(f)
+
+  /**
+   * Returns the first element that satisfies the effectful predicate.
+   */
+  final def findZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
+    ZIO.suspendSucceed {
+      val iterator = self.iterator
+
+      def loop(iterator: Iterator[A]): ZIO[R, E, Option[A]] =
+        if (iterator.hasNext) {
+          val a = iterator.next
+
+          f(a).flatMap {
+            if (_) ZIO.succeedNow(Some(a))
+            else loop(iterator)
+          }
+        } else {
+          ZIO.succeedNow(None)
+        }
+
+      loop(iterator)
+    }
 
   /**
    * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
@@ -311,7 +362,14 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Effectfully folds over the elements in this chunk from the left.
    */
-  final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
+  @deprecated("use foldZIO", "2.0.0")
+  final def foldM[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S])(implicit trace: ZTraceElement): ZIO[R, E, S] =
+    foldZIO(s)(f)
+
+  /**
+   * Effectfully folds over the elements in this chunk from the left.
+   */
+  final def foldZIO[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S])(implicit trace: ZTraceElement): ZIO[R, E, S] =
     foldLeft[ZIO[R, E, S]](IO.succeedNow(s))((s, a) => s.flatMap(f(_, a)))
 
   /**
@@ -343,7 +401,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     s
   }
 
-  final def foldWhileM[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] = {
+  @deprecated("use foldWhileZIO", "2.0.0")
+  final def foldWhileM[R, E, S](z: S)(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, S] =
+    foldWhileZIO(z)(pred)(f)
+
+  final def foldWhileZIO[R, E, S](
+    z: S
+  )(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S])(implicit trace: ZTraceElement): ZIO[R, E, S] = {
     val iterator = self.iterator
 
     def loop(s: S, iterator: Iterator[A]): ZIO[R, E, S] =
@@ -453,8 +519,19 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Statefully and effectfully maps over the elements of this chunk to produce
    * new elements.
    */
-  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)]): ZIO[R, E, (S1, Chunk[B])] =
-    ZIO.effectSuspendTotal {
+  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, (S1, Chunk[B])] =
+    mapAccumZIO(s1)(f1)
+
+  /**
+   * Statefully and effectfully maps over the elements of this chunk to produce
+   * new elements.
+   */
+  final def mapAccumZIO[R, E, S1, B](
+    s1: S1
+  )(f1: (S1, A) => ZIO[R, E, (S1, B)])(implicit trace: ZTraceElement): ZIO[R, E, (S1, Chunk[B])] =
+    ZIO.suspendSucceed {
       val iterator = self.iterator
       val builder  = ChunkBuilder.make[B]()
       builder.sizeHint(length)
@@ -474,26 +551,54 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Effectfully maps the elements of this chunk.
    */
-  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
-    ZIO.foreach(self)(f)
+  @deprecated("use mapZIO", "2.0.0")
+  final def mapM[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
+    mapZIO(f)
+
+  /**
+   * Effectfully maps the elements of this chunk purely for the effects.
+   */
+  @deprecated("use mapZIODiscard", "2.0.0")
+  final def mapM_[R, E](f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+    mapZIODiscard(f)
 
   /**
    * Effectfully maps the elements of this chunk in parallel.
    */
-  final def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Chunk[B]] =
+  @deprecated("use mapZIOPar", "2.0.0")
+  final def mapMPar[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
+    mapZIOPar(f)
+
+  /**
+   * Effectfully maps the elements of this chunk in parallel purely for the effects.
+   */
+  @deprecated("use mapZIOParDiscard", "2.0.0")
+  final def mapMPar_[R, E](f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+    mapZIOParDiscard(f)
+
+  /**
+   * Effectfully maps the elements of this chunk.
+   */
+  final def mapZIO[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
+    ZIO.foreach(self)(f)
+
+  /**
+   * Effectfully maps the elements of this chunk purely for the effects.
+   */
+  final def mapZIODiscard[R, E](f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+    ZIO.foreachDiscard(self)(f)
+
+  /**
+   * Effectfully maps the elements of this chunk in parallel.
+   */
+  final def mapZIOPar[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
     ZIO.foreachPar(self)(f)
 
   /**
    * Effectfully maps the elements of this chunk in parallel purely for the effects.
    */
-  final def mapMPar_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    ZIO.foreachPar_(self)(f)
-
-  /**
-   * Effectfully maps the elements of this chunk purely for the effects.
-   */
-  final def mapM_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    ZIO.foreach_(self)(f)
+  final def mapZIOParDiscard[R, E](f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+    ZIO.foreachParDiscard(self)(f)
 
   /**
    * Materializes a chunk into a chunk backed by an array. This method can
@@ -629,8 +734,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Takes all elements so long as the effectual predicate returns true.
    */
-  def takeWhileM[R, E](p: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] =
-    ZIO.effectSuspendTotal {
+  @deprecated("use takeWhileZIO", "2.0.0")
+  def takeWhileM[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
+    takeWhileZIO(p)
+
+  /**
+   * Takes all elements so long as the effectual predicate returns true.
+   */
+  def takeWhileZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
+    ZIO.suspendSucceed {
       val length  = self.length
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(length)
@@ -690,8 +802,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * pairs of elements from each chunk. The returned chunk will have the
    * length of the shorter chunk.
    */
-  final def zip[B](that: Chunk[B]): Chunk[(A, B)] =
-    zipWith(that)((_, _))
+  final def zip[B](that: Chunk[B])(implicit zippable: Zippable[A, B]): Chunk[zippable.Out] =
+    zipWith(that)(zippable.zip(_, _))
 
   /**
    * Zips this chunk with the specified chunk to produce a new chunk with
@@ -828,6 +940,19 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
 
   protected def right: Chunk[A] =
     Chunk.empty
+
+  /**
+   * Updates an element at the specified index of the chunk.
+   */
+  protected def update[A1 >: A](index: Int, a1: A1): Chunk[A1] =
+    if (index < 0 || index >= length) throw new IndexOutOfBoundsException(s"Update chunk access to $index")
+    else {
+      val bufferIndices = Array.ofDim[Int](Chunk.UpdateBufferSize)
+      val bufferValues  = Array.ofDim[AnyRef](Chunk.UpdateBufferSize)
+      bufferIndices(0) = index
+      bufferValues(0) = a1.asInstanceOf[AnyRef]
+      Chunk.Update(self, bufferIndices, bufferValues, 1, new AtomicInteger(1))
+    }
 
   private final def fromBuilder[A1 >: A, B[_]](builder: Builder[A1, B[A1]]): B[A1] = {
     val c   = materialize
@@ -1032,8 +1157,18 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    * Constructs a `Chunk` by repeatedly applying the effectual function `f` as
    * long as it returns `Some`.
    */
-  def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]]): ZIO[R, E, Chunk[A]] =
-    ZIO.effectSuspendTotal {
+  @deprecated("use unfoldZIO", "2.0.0")
+  def unfoldM[R, E, A, S](s: S)(f: S => ZIO[R, E, Option[(A, S)]])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
+    unfoldZIO(s)(f)
+
+  /**
+   * Constructs a `Chunk` by repeatedly applying the effectual function `f` as
+   * long as it returns `Some`.
+   */
+  def unfoldZIO[R, E, A, S](
+    s: S
+  )(f: S => ZIO[R, E, Option[(A, S)]])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
+    ZIO.suspendSucceed {
 
       def go(s: S, builder: ChunkBuilder[A]): ZIO[R, E, Chunk[A]] =
         f(s).flatMap {
@@ -1061,6 +1196,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case x: PrependN[A]    => x.classTag
       case x: Singleton[A]   => x.classTag
       case x: Slice[A]       => x.classTag
+      case x: Update[A]      => x.classTag
       case x: VectorChunk[A] => x.classTag
       case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
@@ -1070,6 +1206,12 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   private val BufferSize: Int =
     64
+
+  /**
+   * The maximum number of elements in the buffer for fast update.
+   */
+  private val UpdateBufferSize: Int =
+    256
 
   private final case class AppendN[A](start: Chunk[A], buffer: Array[AnyRef], bufferUsed: Int, chain: AtomicInteger)
       extends Chunk[A] { self =>
@@ -1091,7 +1233,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
 
     def apply(n: Int): A =
-      if (n < start.length) start(n) else buffer(n - start.length).asInstanceOf[A]
+      if (n < 0 || n >= length) throw new IndexOutOfBoundsException(s"Append chunk access to $n")
+      else if (n < start.length) start(n)
+      else buffer(n - start.length).asInstanceOf[A]
 
     override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
       start.toArray(n, dest)
@@ -1119,12 +1263,68 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
 
     def apply(n: Int): A =
-      if (n < bufferUsed) buffer(BufferSize - bufferUsed + n).asInstanceOf[A] else end(n - bufferUsed)
+      if (n < 0 || n >= length) throw new IndexOutOfBoundsException(s"Prepend chunk access to $n")
+      else if (n < bufferUsed) buffer(BufferSize - bufferUsed + n).asInstanceOf[A]
+      else end(n - bufferUsed)
 
     override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
       val length = math.min(bufferUsed, math.max(dest.length - n, 0))
       Array.copy(buffer, BufferSize - bufferUsed, dest, n, length)
       val _ = end.toArray(n + length, dest)
+    }
+  }
+
+  private final case class Update[A](
+    chunk: Chunk[A],
+    bufferIndices: Array[Int],
+    bufferValues: Array[AnyRef],
+    used: Int,
+    chain: AtomicInteger
+  ) extends Chunk[A] { self =>
+
+    implicit val classTag: ClassTag[A] = Chunk.classTagOf(chunk)
+
+    val length: Int =
+      chunk.length
+
+    def apply(i: Int): A = {
+      var j = used
+      var a = null.asInstanceOf[A]
+      while (j >= 0) {
+        if (bufferIndices(j) == i) {
+          a = bufferValues(j).asInstanceOf[A]
+          j = -1
+        } else {
+          j -= 1
+        }
+      }
+      if (a != null) a else chunk(i)
+    }
+
+    override protected def update[A1 >: A](i: Int, a: A1): Chunk[A1] =
+      if (i < 0 || i >= length) throw new IndexOutOfBoundsException(s"Update chunk access to $i")
+      else if (used < UpdateBufferSize && chain.compareAndSet(used, used + 1)) {
+        bufferIndices(used) = i
+        bufferValues(used) = a.asInstanceOf[AnyRef]
+        Update(chunk, bufferIndices, bufferValues, used + 1, chain)
+      } else {
+        val bufferIndices = Array.ofDim[Int](UpdateBufferSize)
+        val bufferValues  = Array.ofDim[AnyRef](UpdateBufferSize)
+        bufferIndices(0) = i
+        bufferValues(0) = a.asInstanceOf[AnyRef]
+        val array = chunk.asInstanceOf[Chunk[AnyRef]].toArray
+        Update(Chunk.fromArray(array.asInstanceOf[Array[A1]]), bufferIndices, bufferValues, 1, new AtomicInteger(1))
+      }
+
+    override protected[zio] def toArray[A1 >: A](n: Int, dest: Array[A1]): Unit = {
+      chunk.toArray(n, dest)
+      var i = 0
+      while (i < used) {
+        val index = bufferIndices(i)
+        val value = self.bufferValues(i)
+        dest(index) = value.asInstanceOf[A1]
+        i += 1
+      }
     }
   }
 
@@ -1141,7 +1341,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def apply(n: Int): A =
       array(n)
 
-    override def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] = ZIO.effectSuspendTotal {
+    override def collectZIO[R, E, B](
+      pf: PartialFunction[A, ZIO[R, E, B]]
+    )(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] = ZIO.suspendSucceed {
       val len     = array.length
       val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
@@ -1185,8 +1387,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       builder.result()
     }
 
-    override def collectWhileM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
-      ZIO.effectSuspendTotal {
+    override def collectWhileZIO[R, E, B](
+      pf: PartialFunction[A, ZIO[R, E, B]]
+    )(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
+      ZIO.suspendSucceed {
         val len     = self.length
         val builder = ChunkBuilder.make[B]()
         builder.sizeHint(len)

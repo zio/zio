@@ -16,13 +16,12 @@ is placed in internal suspended fibers queue and will be awaken when `permits` v
 ```scala mdoc:silent
 import java.util.concurrent.TimeUnit
 import zio._
-import zio.console._
-import zio.duration.Duration
+import zio.Console._
 
 val task = for {
-  _ <- putStrLn("start")
+  _ <- printLine("start")
   _ <- ZIO.sleep(Duration(2, TimeUnit.SECONDS))
-  _ <- putStrLn("end")
+  _ <- printLine("end")
 } yield ()
 
 val semTask = (sem: Semaphore) => for {
@@ -35,7 +34,7 @@ val program = for {
 
   sem <- Semaphore.make(permits = 1)
 
-  seq <- ZIO.effectTotal(semTaskSeq(sem))
+  seq <- ZIO.succeed(semTaskSeq(sem))
 
   _ <- ZIO.collectAllPar(seq)
 

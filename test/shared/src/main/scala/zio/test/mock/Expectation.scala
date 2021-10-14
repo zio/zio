@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 
 package zio.test.mock
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
 import zio.test.mock.Expectation.{And, Chain, Or, Repeated}
 import zio.test.mock.Result.{Fail, Succeed}
 import zio.test.mock.internal.{ExpectationState, MockException, MockState, ProxyFactory}
-import zio.{Has, IO, Managed, Tag, ULayer, URLayer, ZLayer}
+import zio.{Has, IO, Managed, Tag, ULayer, URLayer, ZLayer, ZTraceElement}
 
 import scala.language.implicitConversions
 
@@ -52,7 +53,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy both.
    *
    * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.getStrLn(value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) and MockConsole.readLine(value("foo"))
    * }}
    */
   def and[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
@@ -70,7 +71,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy both sequentially.
    *
    * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.getStrLn(value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen MockConsole.readLine(value("foo"))
    * }}
    */
   def andThen[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
@@ -108,7 +109,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy one of them.
    *
    * {{
-   * val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.getStrLn(value("foo"))
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) or MockConsole.readLine(value("foo"))
    * }}
    */
   def or[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
@@ -141,7 +142,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   /**
    * Converts this expectation to ZLayer.
    */
-  def toLayer: ULayer[R] = Expectation.toLayer(self)
+  def toLayer(implicit trace: ZTraceElement): ULayer[R] = Expectation.toLayer(self)
 
   /**
    * Invocations log.
@@ -177,7 +178,12 @@ object Expectation {
   private[test] object And {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): And[R] =
-      And(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
+      And(
+        children.asInstanceOf[List[Expectation[R]]],
+        if (children.forall(_.state == Satisfied)) Satisfied else Unsatisfied,
+        List.empty,
+        Mock.Composed(compose)
+      )
 
     object Items {
 
@@ -223,7 +229,12 @@ object Expectation {
   private[test] object Chain {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Chain[R] =
-      Chain(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
+      Chain(
+        children.asInstanceOf[List[Expectation[R]]],
+        if (children.forall(_.state == Satisfied)) Satisfied else Unsatisfied,
+        List.empty,
+        Mock.Composed(compose)
+      )
 
     object Items {
 
@@ -254,7 +265,12 @@ object Expectation {
   private[test] object Or {
 
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Or[R] =
-      Or(children.asInstanceOf[List[Expectation[R]]], Unsatisfied, List.empty, Mock.Composed(compose))
+      Or(
+        children.asInstanceOf[List[Expectation[R]]],
+        if (children.exists(_.state == Satisfied)) Satisfied else Unsatisfied,
+        List.empty,
+        Mock.Composed(compose)
+      )
 
     object Items {
 
@@ -287,37 +303,37 @@ object Expectation {
   /**
    * Expectation result failing with `E`.
    */
-  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
+  def failure[E](failure: E)(implicit trace: ZTraceElement): Fail[Any, E] = Fail(_ => IO.fail(failure))
 
   /**
    * Maps the input arguments `I` to expectation result failing with `E`.
    */
-  def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
+  def failureF[I, E](f: I => E)(implicit trace: ZTraceElement): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
 
   /**
    * Effectfully maps the input arguments `I` to expectation result failing with `E`.
    */
-  def failureM[I, E](f: I => IO[E, Nothing]): Fail[I, E] = Fail(f)
+  def failureM[I, E](f: I => IO[E, Nothing])(implicit trace: ZTraceElement): Fail[I, E] = Fail(f)
 
   /**
    * Expectation result computing forever.
    */
-  def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
+  def never(implicit trace: ZTraceElement): Succeed[Any, Nothing] = valueM(_ => IO.never)
 
   /**
    * Expectation result succeeding with `Unit`.
    */
-  def unit: Succeed[Any, Unit] = value(())
+  def unit(implicit trace: ZTraceElement): Succeed[Any, Unit] = value(())
 
   /**
    * Expectation result succeeding with `A`.
    */
-  def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
+  def value[A](value: A)(implicit trace: ZTraceElement): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
 
   /**
    * Maps the input arguments `I` to expectation result succeeding with `A`.
    */
-  def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
+  def valueF[I, A](f: I => A)(implicit trace: ZTraceElement): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
 
   /**
    * Effectfully maps the input arguments `I` expectation result succeeding with `A`.
@@ -327,10 +343,10 @@ object Expectation {
   /**
    * Implicitly converts Expectation to ZLayer mock environment.
    */
-  implicit def toLayer[R <: Has[_]: Tag](trunk: Expectation[R]): ULayer[R] =
-    ZLayer.fromManagedMany(
+  implicit def toLayer[R <: Has[_]: Tag](trunk: Expectation[R])(implicit trace: ZTraceElement): ULayer[R] =
+    ZLayer(
       for {
-        state <- Managed.make(MockState.make(trunk))(MockState.checkUnmetExpectations)
+        state <- Managed.acquireReleaseWith(MockState.make(trunk))(MockState.checkUnmetExpectations)
         env   <- (ProxyFactory.mockProxy(state) >>> trunk.mock.compose).build
       } yield env
     )

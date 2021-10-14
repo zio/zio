@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,18 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
 package object internal {
+
+  @deprecated("use Executor", "2.0.0")
+  type Executor = zio.Executor
+  @deprecated("use Executor", "2.0.0")
+  val Executor = zio.Executor
+
+  @deprecated("use RuntimeConfig", "2.0.0")
+  type Platform = RuntimeConfig
 
   /**
    * Returns an effect that models success with the specified value.

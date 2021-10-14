@@ -1,9 +1,27 @@
+/*
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.stream.compression
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.compression.Gzipper._
 import zio.{Chunk, ZIO}
 
 import java.util.zip.{CRC32, Deflater}
+import zio.ZTraceElement
 
 private[compression] class Gzipper(
   bufferSize: Int,
@@ -21,7 +39,7 @@ private[compression] class Gzipper(
     deflater
   }
 
-  def onNone: ZIO[Any, Nothing, Chunk[Byte]] = ZIO.effectTotal {
+  def onNone(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[Byte]] = ZIO.succeed {
     deflater.finish()
     val restAndTrailer = Deflate.pullOutput(deflater, buffer, flushMode) ++ getTrailer
     val lastChunk      = if (headerSent) restAndTrailer else header ++ restAndTrailer
@@ -32,7 +50,7 @@ private[compression] class Gzipper(
     lastChunk
   }
 
-  def onChunk(chunk: Chunk[Byte]): ZIO[Any, Nothing, Chunk[Byte]] = ZIO.effectTotal {
+  def onChunk(chunk: Chunk[Byte])(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[Byte]] = ZIO.succeed {
     val input = chunk.toArray
     inputSize += input.length
     crc.update(input)
@@ -70,5 +88,6 @@ private[stream] object Gzipper {
     level: CompressionLevel,
     strategy: CompressionStrategy,
     flushMode: FlushMode
-  ): ZIO[Any, Nothing, Gzipper] = ZIO.succeed(new Gzipper(bufferSize, level, strategy, flushMode))
+  )(implicit trace: ZTraceElement): ZIO[Any, Nothing, Gzipper] =
+    ZIO.succeed(new Gzipper(bufferSize, level, strategy, flushMode))
 }
