@@ -282,6 +282,16 @@ object TMapSpec extends ZIOBaseSpec {
           } yield res
 
         assertM(tx.commit)(hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
+      },
+      test("updateWith") {
+        for {
+          tmap <- TMap.make("a" -> 1, "b" -> 2)
+          _    <- tmap.updateWith("a")(_.map(_ + 1))
+          _    <- tmap.updateWith("b")(_ => None)
+          _    <- tmap.updateWith("c")(_ => Some(3))
+          _    <- tmap.updateWith("d")(_ => None)
+          res  <- tmap.toMap
+        } yield assertTrue(res == Map("a" -> 2, "c" -> 3))
       }
     ),
     suite("folds")(

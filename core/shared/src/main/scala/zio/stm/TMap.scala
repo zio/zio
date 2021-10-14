@@ -597,6 +597,16 @@ final class TMap[K, V] private (
     transformSTM((k, v) => f(v).map(k -> _))
 
   /**
+   * Updates the mapping for the specified key with the specified function,
+   * which takes the current value of the key as an input, if it exists, and
+   * either returns `Some` with a new value to indicate to update the value in
+   * the map or `None` to remove the value from the map. Returns `Some` with
+   * the updated value or `None` if the value was removed from the map.
+   */
+  def updateWith(k: K)(f: Option[V] => Option[V]): USTM[Option[V]] =
+    get(k).flatMap(f(_).fold[USTM[Option[V]]](delete(k).as(None))(v => put(k, v).as(Some(v))))
+
+  /**
    * Collects all values stored in map.
    */
   def values: USTM[List[V]] =
