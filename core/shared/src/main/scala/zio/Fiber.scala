@@ -16,8 +16,8 @@
 
 package zio
 
-import zio.internal.stacktracer.ZTraceElement
 import zio.internal.FiberRenderer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 import scala.concurrent.Future
@@ -107,7 +107,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *
    * @return `UIO[Exit[E, A]]`
    */
-  def await: UIO[Exit[E, A]]
+  def await(implicit trace: ZTraceElement): UIO[Exit[E, A]]
 
   /**
    * Folds over the runtime or synthetic fiber.
@@ -125,7 +125,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * Gets the value of the fiber ref for this fiber, or the initial value of
    * the fiber ref, if the fiber is not storing the ref.
    */
-  def getRef[A](ref: FiberRef.Runtime[A]): UIO[A]
+  def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A]
 
   /**
    * Inherits values from all [[FiberRef]] instances into current fiber.
@@ -133,7 +133,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *
    * @return `UIO[Unit]`
    */
-  def inheritRefs: UIO[Unit]
+  def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]
 
   /**
    * Interrupts the fiber from whichever fiber is calling this method. If the
@@ -142,7 +142,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *
    * @return `UIO[Exit, E, A]]`
    */
-  final def interrupt: UIO[Exit[E, A]] =
+  final def interrupt(implicit trace: ZTraceElement): UIO[Exit[E, A]] =
     ZIO.fiberId.flatMap(fiberId => self.interruptAs(fiberId))
 
   /**
@@ -152,7 +152,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *
    * @return `UIO[Exit, E, A]]`
    */
-  def interruptAs(fiberId: FiberId): UIO[Exit[E, A]]
+  def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]]
 
   /**
    * Interrupts the fiber from whichever fiber is calling this method. The
@@ -161,7 +161,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *
    * @return `UIO[Unit]`
    */
-  final def interruptFork: UIO[Unit] = interrupt.forkDaemon.unit
+  final def interruptFork(implicit trace: ZTraceElement): UIO[Unit] = interrupt.forkDaemon.unit
 
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the
@@ -172,7 +172,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *
    * @return `IO[E, A]`
    */
-  final def join: IO[E, A] = await.flatMap(IO.done(_)) <* inheritRefs
+  final def join(implicit trace: ZTraceElement): IO[E, A] = await.flatMap(IO.done(_)) <* inheritRefs
 
   /**
    * Maps over the value the Fiber computes.
@@ -192,7 +192,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @tparam B The success value.
    * @return `Fiber[E, B]` The continued fiber.
    */
-  final def mapFiber[E1 >: E, B](f: A => Fiber[E1, B]): UIO[Fiber[E1, B]] =
+  final def mapFiber[E1 >: E, B](f: A => Fiber[E1, B])(implicit trace: ZTraceElement): UIO[Fiber[E1, B]] =
     self.await.map(_.fold(Fiber.failCause(_), f))
 
   /**
@@ -207,14 +207,14 @@ sealed abstract class Fiber[+E, +A] { self =>
    */
   final def mapZIO[E1 >: E, B](f: A => IO[E1, B]): Fiber.Synthetic[E1, B] =
     new Fiber.Synthetic[E1, B] {
-      final def await: UIO[Exit[E1, B]] =
+      final def await(implicit trace: ZTraceElement): UIO[Exit[E1, B]] =
         self.await.flatMap(_.foreach(f))
-      final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = self.getRef(ref)
-      final def inheritRefs: UIO[Unit] =
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = self.getRef(ref)
+      final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] =
         self.inheritRefs
-      final def interruptAs(id: FiberId): UIO[Exit[E1, B]] =
+      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E1, B]] =
         self.interruptAs(id).flatMap(_.foreach(f))
-      final def poll: UIO[Option[Exit[E1, B]]] =
+      final def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E1, B]]] =
         self.poll.flatMap(_.fold[UIO[Option[Exit[E1, B]]]](UIO.succeedNow(None))(_.foreach(f).map(Some(_))))
     }
 
@@ -230,26 +230,26 @@ sealed abstract class Fiber[+E, +A] { self =>
    */
   def orElse[E1, A1 >: A](that: => Fiber[E1, A1])(implicit ev: CanFail[E]): Fiber.Synthetic[E1, A1] =
     new Fiber.Synthetic[E1, A1] {
-      final def await: UIO[Exit[E1, A1]] =
+      final def await(implicit trace: ZTraceElement): UIO[Exit[E1, A1]] =
         self.await.zipWith(that.await) {
           case (e1 @ Exit.Success(_), _) => e1
           case (_, e2)                   => e2
 
         }
 
-      final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] =
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] =
         for {
           first  <- self.getRef(ref)
-          second <- self.getRef(ref)
+          second <- that.getRef(ref)
         } yield if (first == ref.initial) second else first
 
-      final def interruptAs(id: FiberId): UIO[Exit[E1, A1]] =
+      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E1, A1]] =
         self.interruptAs(id) *> that.interruptAs(id)
 
-      final def inheritRefs: UIO[Unit] =
+      final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] =
         that.inheritRefs *> self.inheritRefs
 
-      final def poll: UIO[Option[Exit[E1, A1]]] =
+      final def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E1, A1]]] =
         self.poll.zipWith(that.poll) {
           case (Some(e1 @ Exit.Success(_)), _) => Some(e1)
           case (Some(_), o2)                   => o2
@@ -275,7 +275,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *
    * @return `UIO[Option[Exit, E, A]]]`
    */
-  def poll: UIO[Option[Exit[E, A]]]
+  def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]]
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]].
@@ -283,7 +283,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @param ev implicit witness that E is a subtype of Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFuture(implicit ev: E IsSubtypeOfError Throwable): UIO[CancelableFuture[A]] =
+  final def toFuture(implicit ev: E IsSubtypeOfError Throwable, trace: ZTraceElement): UIO[CancelableFuture[A]] =
     self toFutureWith ev
 
   /**
@@ -294,7 +294,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @param f function to the error into a Throwable
    * @return `UIO[Future[A]]`
    */
-  final def toFutureWith(f: E => Throwable): UIO[CancelableFuture[A]] =
+  final def toFutureWith(f: E => Throwable)(implicit trace: ZTraceElement): UIO[CancelableFuture[A]] =
     UIO.suspendSucceed {
       val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
@@ -306,7 +306,7 @@ sealed abstract class Fiber[+E, +A] { self =>
 
       for {
         runtime <- ZIO.runtime[Any]
-        _       <- completeFuture.forkDaemon // Cannot afford to NOT complete the promise, no matter what, so we fork daemon
+        _ <- completeFuture.forkDaemon // Cannot afford to NOT complete the promise, no matter what, so we fork daemon
       } yield new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] =
           runtime.unsafeRunToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapError(f)))
@@ -318,7 +318,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *
    * @return `ZManaged[Any, Nothing, Fiber[E, A]]`
    */
-  final def toManaged: ZManaged[Any, Nothing, Fiber[E, A]] =
+  final def toManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Fiber[E, A]] =
     ZManaged.acquireReleaseWith(UIO.succeedNow(self))(_.interrupt)
 
   /**
@@ -377,18 +377,18 @@ sealed abstract class Fiber[+E, +A] { self =>
    */
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber.Synthetic[E1, C] =
     new Fiber.Synthetic[E1, C] {
-      final def await: UIO[Exit[E1, C]] =
+      final def await(implicit trace: ZTraceElement): UIO[Exit[E1, C]] =
         self.await.flatMap(IO.done(_)).zipWithPar(that.await.flatMap(IO.done(_)))(f).exit
 
-      final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] =
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] =
         (self.getRef(ref) zipWith that.getRef(ref))(ref.join(_, _))
 
-      final def interruptAs(id: FiberId): UIO[Exit[E1, C]] =
+      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E1, C]] =
         (self interruptAs id).zipWith(that interruptAs id)(_.zipWith(_)(f, _ && _))
 
-      final def inheritRefs: UIO[Unit] = that.inheritRefs *> self.inheritRefs
+      final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = that.inheritRefs *> self.inheritRefs
 
-      final def poll: UIO[Option[Exit[E1, C]]] =
+      final def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E1, C]]] =
         self.poll.zipWith(that.poll) {
           case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(f, _ && _))
           case _                    => None
@@ -407,7 +407,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * Generates a fiber dump.
      */
-    final def dumpWith(withTrace: Boolean): UIO[Fiber.Dump] =
+    final def dumpWith(withTrace: Boolean)(implicit trace: ZTraceElement): UIO[Fiber.Dump] =
       for {
         name   <- self.getRef(Fiber.fiberName)
         status <- self.status
@@ -417,7 +417,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * Generates a fiber dump with optionally excluded stack traces.
      */
-    final def dump: UIO[Fiber.Dump] = dumpWith(true)
+    final def dump(implicit trace: ZTraceElement): UIO[Fiber.Dump] = dumpWith(true)
 
     /**
      * The identity of the fiber.
@@ -429,12 +429,12 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * The status of the fiber.
      */
-    def status: UIO[Fiber.Status]
+    def status(implicit trace: ZTraceElement): UIO[Fiber.Status]
 
     /**
      * The trace of the fiber.
      */
-    def trace: UIO[ZTrace]
+    def trace(implicit trace: ZTraceElement): UIO[ZTrace]
   }
 
   private[zio] object Runtime {
@@ -515,7 +515,7 @@ object Fiber extends FiberPlatformSpecific {
      *     at ...
      * }}}
      */
-    def prettyPrintM: UIO[String] =
+    def prettyPrintM(implicit trace: ZTraceElement): UIO[String] =
       FiberRenderer.prettyPrintM(self)
   }
 
@@ -600,7 +600,7 @@ object Fiber extends FiberPlatformSpecific {
    * @param fs `Iterable` of fibers to be awaited
    * @return `UIO[Unit]`
    */
-  def awaitAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
+  def awaitAll(fs: Iterable[Fiber[Any, Any]])(implicit trace: ZTraceElement): UIO[Unit] =
     collectAll(fs).await.unit
 
   /**
@@ -611,18 +611,18 @@ object Fiber extends FiberPlatformSpecific {
     fibers: Collection[Fiber[E, A]]
   )(implicit bf: BuildFrom[Collection[Fiber[E, A]], A, Collection[A]]): Fiber.Synthetic[E, Collection[A]] =
     new Fiber.Synthetic[E, Collection[A]] {
-      def await: UIO[Exit[E, Collection[A]]] =
+      def await(implicit trace: ZTraceElement): UIO[Exit[E, Collection[A]]] =
         IO.foreachPar(fibers)(_.await.flatMap(IO.done(_))).exit
-      def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] =
+      def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] =
         UIO.foldLeft(fibers)(ref.initial)((a, fiber) => fiber.getRef(ref).map(ref.join(a, _)))
-      def inheritRefs: UIO[Unit] =
+      def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] =
         UIO.foreachDiscard(fibers)(_.inheritRefs)
-      def interruptAs(fiberId: FiberId): UIO[Exit[E, Collection[A]]] =
+      def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, Collection[A]]] =
         UIO
           .foreach[Fiber[E, A], Exit[E, A], Iterable](fibers)(_.interruptAs(fiberId))
           .map(_.foldRight[Exit[E, List[A]]](Exit.succeed(Nil))(_.zipWith(_)(_ :: _, _ && _)))
           .map(_.map(bf.fromSpecific(fibers)))
-      def poll: UIO[Option[Exit[E, Collection[A]]]] =
+      def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, Collection[A]]]] =
         UIO
           .foreach[Fiber[E, A], Option[Exit[E, A]], Iterable](fibers)(_.poll)
           .map(_.foldRight[Option[Exit[E, List[A]]]](Some(Exit.succeed(Nil))) {
@@ -642,25 +642,25 @@ object Fiber extends FiberPlatformSpecific {
    */
   def done[E, A](exit: => Exit[E, A]): Fiber.Synthetic[E, A] =
     new Fiber.Synthetic[E, A] {
-      final def await: UIO[Exit[E, A]]                      = IO.succeedNow(exit)
-      final def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
-      final def interruptAs(id: FiberId): UIO[Exit[E, A]]   = IO.succeedNow(exit)
-      final def inheritRefs: UIO[Unit]                      = IO.unit
-      final def poll: UIO[Option[Exit[E, A]]]               = IO.succeedNow(Some(exit))
+      final def await(implicit trace: ZTraceElement): UIO[Exit[E, A]]                      = IO.succeedNow(exit)
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
+      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]]   = IO.succeedNow(exit)
+      final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]                      = IO.unit
+      final def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]]               = IO.succeedNow(Some(exit))
     }
 
   /**
    * Collects a complete dump of the specified fibers and all children of the
    * fibers.
    */
-  def dump(fibers: Fiber.Runtime[_, _]*): UIO[Iterable[Dump]] =
+  def dump(fibers: Fiber.Runtime[_, _]*)(implicit trace: ZTraceElement): UIO[Iterable[Dump]] =
     ZIO.foreach(fibers)(f => f.dump)
 
   /**
    * Collects a complete dump of the specified fibers and all children of the
    * fibers and renders it as a string.
    */
-  def dumpStr(fibers: Fiber.Runtime[_, _]*): UIO[String] =
+  def dumpStr(fibers: Fiber.Runtime[_, _]*)(implicit trace: ZTraceElement): UIO[String] =
     FiberRenderer.dumpStr(fibers, true)
 
   /**
@@ -692,7 +692,7 @@ object Fiber extends FiberPlatformSpecific {
    * @return `UIO[Fiber[E, A]]`
    */
   @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[E, A](io: IO[E, A]): UIO[Fiber.Synthetic[E, A]] =
+  def fromEffect[E, A](io: IO[E, A])(implicit trace: ZTraceElement): UIO[Fiber.Synthetic[E, A]] =
     fromZIO(io)
 
   /**
@@ -702,15 +702,15 @@ object Fiber extends FiberPlatformSpecific {
    * @tparam A type of the `Fiber`
    * @return `Fiber[Throwable, A]`
    */
-  def fromFuture[A](thunk: => Future[A]): Fiber.Synthetic[Throwable, A] =
+  def fromFuture[A](thunk: => Future[A])(implicit trace: ZTraceElement): Fiber.Synthetic[Throwable, A] =
     new Fiber.Synthetic[Throwable, A] {
       lazy val ftr: Future[A] = thunk
 
-      def await: UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).exit
+      def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).exit
 
-      def getRef[A](ref: FiberRef.Runtime[A]): UIO[A] = UIO(ref.initial)
+      def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
 
-      def interruptAs(id: FiberId): UIO[Exit[Throwable, A]] =
+      def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
         UIO.suspendSucceed {
           ftr match {
             case c: CancelableFuture[A] => ZIO.fromFuture(_ => c.cancel()).orDie
@@ -718,9 +718,9 @@ object Fiber extends FiberPlatformSpecific {
           }
         }
 
-      def inheritRefs: UIO[Unit] = IO.unit
+      def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = IO.unit
 
-      def poll: UIO[Option[Exit[Throwable, A]]] = IO.succeed(ftr.value.map(Exit.fromTry))
+      def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Throwable, A]]] = IO.succeed(ftr.value.map(Exit.fromTry))
     }
 
   /**
@@ -731,14 +731,14 @@ object Fiber extends FiberPlatformSpecific {
    * @tparam A type of the fiber
    * @return `UIO[Fiber[E, A]]`
    */
-  def fromZIO[E, A](io: IO[E, A]): UIO[Fiber.Synthetic[E, A]] =
+  def fromZIO[E, A](io: IO[E, A])(implicit trace: ZTraceElement): UIO[Fiber.Synthetic[E, A]] =
     io.exit.map(done(_))
 
   /**
    * Creates a `Fiber` that is halted with the specified cause.
    */
   @deprecated("use failCause", "2.0.0")
-  def halt[E](cause: Cause[E]): Fiber.Synthetic[E, Nothing] =
+  def halt[E](cause: Cause[E])(implicit trace: ZTraceElement): Fiber.Synthetic[E, Nothing] =
     failCause(cause)
 
   /**
@@ -747,7 +747,7 @@ object Fiber extends FiberPlatformSpecific {
    * @param fs `Iterable` of fibers to be interrupted
    * @return `UIO[Unit]`
    */
-  def interruptAll(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
+  def interruptAll(fs: Iterable[Fiber[Any, Any]])(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.fiberId.flatMap(interruptAllAs(_)(fs))
 
   /**
@@ -757,7 +757,7 @@ object Fiber extends FiberPlatformSpecific {
    * @param fs `Iterable` of fibers to be interrupted
    * @return `UIO[Unit]`
    */
-  def interruptAllAs(fiberId: FiberId)(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
+  def interruptAllAs(fiberId: FiberId)(fs: Iterable[Fiber[Any, Any]])(implicit trace: ZTraceElement): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io <* f.interruptAs(fiberId))
 
   /**
@@ -776,7 +776,7 @@ object Fiber extends FiberPlatformSpecific {
    * @param fs `Iterable` of fibers to be joined
    * @return `UIO[Unit]`
    */
-  def joinAll[E](fs: Iterable[Fiber[E, Any]]): IO[E, Unit] =
+  def joinAll[E](fs: Iterable[Fiber[E, Any]])(implicit trace: ZTraceElement): IO[E, Unit] =
     collectAll(fs).join.unit.refailWithTrace
 
   /**
@@ -784,18 +784,20 @@ object Fiber extends FiberPlatformSpecific {
    */
   val never: Fiber.Synthetic[Nothing, Nothing] =
     new Fiber.Synthetic[Nothing, Nothing] {
-      def await: UIO[Exit[Nothing, Nothing]]                    = IO.never
-      def getRef[A](ref: FiberRef.Runtime[A]): UIO[A]           = UIO(ref.initial)
-      def interruptAs(id: FiberId): UIO[Exit[Nothing, Nothing]] = IO.never
-      def inheritRefs: UIO[Unit]                                = IO.unit
-      def poll: UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeedNow(None)
+      def await(implicit trace: ZTraceElement): UIO[Exit[Nothing, Nothing]]                    = IO.never
+      def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A]           = UIO(ref.initial)
+      def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Nothing, Nothing]] = IO.never
+      def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]                                = IO.unit
+      def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Nothing, Nothing]]]             = IO.succeedNow(None)
     }
 
   /**
    * Collects a complete dump of the specified fibers and all children of the
    * fibers and renders it to the console.
    */
-  def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*): ZIO[Has[Console], IOException, Unit] =
+  def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*)(implicit
+    trace: ZTraceElement
+  ): ZIO[Has[Console], IOException, Unit] =
     dumpStr(fibers: _*).flatMap(str => Console.printLine(s"$label: $str"))
 
   /**

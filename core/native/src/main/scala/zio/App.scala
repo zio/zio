@@ -16,5 +16,7 @@
 
 package zio
 
-@deprecated("2.0.0", "Use zio.ZIOApp")
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+@deprecated("2.0.0", "Use zio.ZIOAppDefault")
 trait App extends ZApp[ZEnv] with BootstrapRuntime

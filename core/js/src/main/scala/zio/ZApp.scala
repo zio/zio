@@ -16,6 +16,9 @@
 
 package zio
 
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 @deprecated("2.0.0", "Use zio.ZIOApp")
 trait ZApp[R] extends Runtime[R] {
 
@@ -29,5 +32,5 @@ trait ZApp[R] extends Runtime[R] {
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   final def main(args0: Array[String]): Unit =
-    unsafeRunAsync(run(args0.toList))
+    unsafeRunAsync(run(args0.toList))(Tracer.newTrace)
 }

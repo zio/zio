@@ -16,6 +16,7 @@
 
 package zio.test.render
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.LogLine.Fragment.Style
 
 object LogLine {

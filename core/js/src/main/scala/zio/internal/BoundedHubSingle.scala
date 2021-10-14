@@ -17,6 +17,7 @@
 package zio.internal
 
 import zio.Chunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A bounded hub with capacity equal to one backed by an atomic reference.

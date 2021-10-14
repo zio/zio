@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * The entry point for a purely-functional application on the JVM.
  *
@@ -37,5 +39,5 @@ package zio
  * }
  * }}}
  */
-@deprecated("2.0.0", "Use zio.ZIOApp")
+@deprecated("2.0.0", "Use zio.ZIOAppDefault")
 trait App extends ZApp[ZEnv] with BootstrapRuntime

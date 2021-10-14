@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Arrow.Span
 
 import scala.annotation.tailrec

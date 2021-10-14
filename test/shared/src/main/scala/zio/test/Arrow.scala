@@ -1,9 +1,11 @@
 package zio.test
 
 import zio.ZIO
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
+import zio.ZTraceElement
 
 case class Assert(arrow: Arrow[Any, Boolean]) {
   def &&(that: Assert): Assert = Assert(arrow && that.arrow)
@@ -24,7 +26,7 @@ object Assert {
     else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
   }
 
-  implicit def traceM2TestResult[R, E](zio: ZIO[R, E, Assert]): ZIO[R, E, TestResult] =
+  implicit def traceM2TestResult[R, E](zio: ZIO[R, E, Assert])(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
     zio.map(trace2TestResult)
 
 }
@@ -146,7 +148,7 @@ object Arrow {
     parentSpan: Option[Span],
     code: Option[String],
     location: Option[String]
-  )                                                                     extends Arrow[A, B]
+  ) extends Arrow[A, B]
   case class ArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])        extends Arrow[A, B] {}
   case class AndThen[A, B, C](f: Arrow[A, B], g: Arrow[B, C])           extends Arrow[A, C]
   case class And(left: Arrow[Any, Boolean], right: Arrow[Any, Boolean]) extends Arrow[Any, Boolean]

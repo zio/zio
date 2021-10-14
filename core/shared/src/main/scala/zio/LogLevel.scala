@@ -15,6 +15,8 @@
  */
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * [[LogLevel]] represents the log level associated with an individual logging
  * operation. Log levels are used both to describe the granularity (or
@@ -47,7 +49,9 @@ final case class LogLevel(ordinal: Int, label: String, syslog: Int)
   def >(that: LogLevel): Boolean =
     self.ordinal > that.ordinal
 
-  def apply[R >: Nothing <: Any, E >: Nothing <: Any, A >: Nothing <: Any](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+  def apply[R >: Nothing <: Any, E >: Nothing <: Any, A >: Nothing <: Any](zio: ZIO[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, A] =
     FiberRef.currentLogLevel.locally(self)(zio)
 }
 object LogLevel {

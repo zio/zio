@@ -1,7 +1,9 @@
 package zio.stream.experimental
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.nio.charset.{Charset, StandardCharsets}
 import java.util.concurrent.atomic.AtomicReference
 
 class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Chunk[In], Any, OutErr, Chunk[L], Z])
@@ -12,7 +14,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def |[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     race(that)
 
   /**
@@ -20,7 +22,11 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def <*>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit zippable: Zippable[Z, Z1], ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
+  )(implicit
+    zippable: Zippable[Z, Z1],
+    ev: L <:< In1,
+    trace: ZTraceElement
+  ): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zip(that)
 
   /**
@@ -28,7 +34,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def <&>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
+  )(implicit zippable: Zippable[Z, Z1], trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zipPar(that)
 
   /**
@@ -36,7 +42,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def *>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipRight(that)
 
   /**
@@ -44,7 +50,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def &>[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipParRight(that)
 
   /**
@@ -52,7 +58,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def <*[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipLeft(that)
 
   /**
@@ -60,13 +66,13 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def <&[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipParLeft(that)
 
   /**
    * Replaces this sink's result with the provided value.
    */
-  def as[Z2](z: => Z2): ZSink[R, InErr, In, OutErr, L, Z2] =
+  def as[Z2](z: => Z2)(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, L, Z2] =
     map(_ => z)
 
   /**
@@ -75,7 +81,8 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * using the stepping function `f`.
    */
   def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit
-    ev: L <:< In
+    ev: L <:< In,
+    trace: ZTraceElement
   ): ZSink[R, InErr, In, OutErr, L, S] =
     new ZSink(
       ZChannel
@@ -113,14 +120,16 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Transforms this sink's input elements.
    */
-  def contramap[In1](f: In1 => In): ZSink[R, InErr, In1, OutErr, L, Z] =
+  def contramap[In1](f: In1 => In)(implicit trace: ZTraceElement): ZSink[R, InErr, In1, OutErr, L, Z] =
     contramapChunks(_.map(f))
 
   /**
    * Transforms this sink's input chunks.
    * `f` must preserve chunking-invariance
    */
-  def contramapChunks[In1](f: Chunk[In1] => Chunk[In]): ZSink[R, InErr, In1, OutErr, L, Z] = {
+  def contramapChunks[In1](
+    f: Chunk[In1] => Chunk[In]
+  )(implicit trace: ZTraceElement): ZSink[R, InErr, In1, OutErr, L, Z] = {
     lazy val loop: ZChannel[R, InErr, Chunk[In1], Any, InErr, Chunk[In], Any] =
       ZChannel.readWith[R, InErr, Chunk[In1], Any, InErr, Chunk[In], Any](
         chunk => ZChannel.write(f(chunk)) *> loop,
@@ -137,7 +146,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   @deprecated("use contramapChunksZIO", "2.0.0")
   def contramapChunksM[R1 <: R, InErr1 <: InErr, In1](
     f: Chunk[In1] => ZIO[R1, InErr1, Chunk[In]]
-  ): ZSink[R1, InErr1, In1, OutErr, L, Z] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr, L, Z] =
     contramapChunksZIO(f)
 
   /**
@@ -146,7 +155,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   def contramapChunksZIO[R1 <: R, InErr1 <: InErr, In1](
     f: Chunk[In1] => ZIO[R1, InErr1, Chunk[In]]
-  ): ZSink[R1, InErr1, In1, OutErr, L, Z] = {
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr, L, Z] = {
     lazy val loop: ZChannel[R1, InErr1, Chunk[In1], Any, InErr1, Chunk[In], Any] =
       ZChannel.readWith[R1, InErr1, Chunk[In1], Any, InErr1, Chunk[In], Any](
         chunk => ZChannel.fromZIO(f(chunk)).flatMap(ZChannel.write) *> loop,
@@ -162,7 +171,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   @deprecated("use contramapZIO", "2.0.0")
   def contramapM[R1 <: R, InErr1 <: InErr, In1](
     f: In1 => ZIO[R1, InErr1, In]
-  ): ZSink[R1, InErr1, In1, OutErr, L, Z] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr, L, Z] =
     contramapZIO(f)
 
   /**
@@ -170,19 +179,21 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   def contramapZIO[R1 <: R, InErr1 <: InErr, In1](
     f: In1 => ZIO[R1, InErr1, In]
-  ): ZSink[R1, InErr1, In1, OutErr, L, Z] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr, L, Z] =
     contramapChunksZIO(_.mapZIO(f))
 
   /**
    * Transforms both inputs and result of this sink using the provided functions.
    */
-  def dimap[In1, Z1](f: In1 => In, g: Z => Z1): ZSink[R, InErr, In1, OutErr, L, Z1] =
+  def dimap[In1, Z1](f: In1 => In, g: Z => Z1)(implicit trace: ZTraceElement): ZSink[R, InErr, In1, OutErr, L, Z1] =
     contramap(f).map(g)
 
   /**
    * Transforms both input chunks and result of this sink using the provided functions.
    */
-  def dimapChunks[In1, Z1](f: Chunk[In1] => Chunk[In], g: Z => Z1): ZSink[R, InErr, In1, OutErr, L, Z1] =
+  def dimapChunks[In1, Z1](f: Chunk[In1] => Chunk[In], g: Z => Z1)(implicit
+    trace: ZTraceElement
+  ): ZSink[R, InErr, In1, OutErr, L, Z1] =
     contramapChunks(f).map(g)
 
   /**
@@ -193,7 +204,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def dimapChunksM[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1, Z1](
     f: Chunk[In1] => ZIO[R1, InErr1, Chunk[In]],
     g: Z => ZIO[R1, OutErr1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L, Z1] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L, Z1] =
     dimapChunksZIO(f, g)
 
   /**
@@ -203,7 +214,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def dimapChunksZIO[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1, Z1](
     f: Chunk[In1] => ZIO[R1, InErr1, Chunk[In]],
     g: Z => ZIO[R1, OutErr1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L, Z1] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L, Z1] =
     contramapChunksZIO(f).mapZIO(g)
 
   /**
@@ -213,7 +224,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def dimapM[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1, Z1](
     f: In1 => ZIO[R1, InErr1, In],
     g: Z => ZIO[R1, OutErr1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L, Z1] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L, Z1] =
     dimapZIO(f, g)
 
   /**
@@ -222,21 +233,21 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   def dimapZIO[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1, Z1](
     f: In1 => ZIO[R1, InErr1, In],
     g: Z => ZIO[R1, OutErr1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L, Z1] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L, Z1] =
     contramapZIO(f).mapZIO(g)
 
-  def filterInput[In1 <: In](p: In1 => Boolean): ZSink[R, InErr, In1, OutErr, L, Z] =
+  def filterInput[In1 <: In](p: In1 => Boolean)(implicit trace: ZTraceElement): ZSink[R, InErr, In1, OutErr, L, Z] =
     contramapChunks(_.filter(p))
 
   @deprecated("use filterInputZIO", "2.0.0")
   def filterInputM[R1 <: R, InErr1 <: InErr, In1 <: In](
     p: In1 => ZIO[R1, InErr1, Boolean]
-  ): ZSink[R1, InErr1, In1, OutErr, L, Z] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr, L, Z] =
     filterInputZIO(p)
 
   def filterInputZIO[R1 <: R, InErr1 <: InErr, In1 <: In](
     p: In1 => ZIO[R1, InErr1, Boolean]
-  ): ZSink[R1, InErr1, In1, OutErr, L, Z] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr, L, Z] =
     contramapChunksZIO(_.filterZIO(p))
 
   /**
@@ -247,20 +258,20 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   def flatMap[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1](
     f: Z => ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     foldSink(ZSink.fail(_), f)
 
   @deprecated("use foldSink", "2.0.0")
   def foldM[R1 <: R, InErr1 <: InErr, OutErr2, In1 <: In, L1 >: L <: In1, Z1](
     failure: OutErr => ZSink[R1, InErr1, In1, OutErr2, L1, Z1],
     success: Z => ZSink[R1, InErr1, In1, OutErr2, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
     foldSink(failure, success)
 
   def foldSink[R1 <: R, InErr1 <: InErr, OutErr2, In1 <: In, L1 >: L <: In1, Z1](
     failure: OutErr => ZSink[R1, InErr1, In1, OutErr2, L1, Z1],
     success: Z => ZSink[R1, InErr1, In1, OutErr2, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
     new ZSink(
       channel.doneCollect.foldChannel(
         failure(_).channel,
@@ -289,25 +300,29 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Transforms this sink's result.
    */
-  def map[Z2](f: Z => Z2): ZSink[R, InErr, In, OutErr, L, Z2] = new ZSink(channel.map(f))
+  def map[Z2](f: Z => Z2)(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, L, Z2] = new ZSink(channel.map(f))
 
   /**
    * Transforms the errors emitted by this sink using `f`.
    */
-  def mapError[OutErr2](f: OutErr => OutErr2): ZSink[R, InErr, In, OutErr2, L, Z] =
+  def mapError[OutErr2](f: OutErr => OutErr2)(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr2, L, Z] =
     new ZSink(channel.mapError(f))
 
   /**
    * Effectfully transforms this sink's result.
    */
   @deprecated("use mapZIO", "2.0.0")
-  def mapM[R1 <: R, OutErr1 >: OutErr, Z1](f: Z => ZIO[R1, OutErr1, Z1]): ZSink[R1, InErr, In, OutErr1, L, Z1] =
+  def mapM[R1 <: R, OutErr1 >: OutErr, Z1](f: Z => ZIO[R1, OutErr1, Z1])(implicit
+    trace: ZTraceElement
+  ): ZSink[R1, InErr, In, OutErr1, L, Z1] =
     mapZIO(f)
 
   /**
    * Effectfully transforms this sink's result.
    */
-  def mapZIO[R1 <: R, OutErr1 >: OutErr, Z1](f: Z => ZIO[R1, OutErr1, Z1]): ZSink[R1, InErr, In, OutErr1, L, Z1] =
+  def mapZIO[R1 <: R, OutErr1 >: OutErr, Z1](f: Z => ZIO[R1, OutErr1, Z1])(implicit
+    trace: ZTraceElement
+  ): ZSink[R1, InErr, In, OutErr1, L, Z1] =
     new ZSink(channel.mapZIO(f))
 
   /**
@@ -316,7 +331,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def race[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     self.raceBoth(that).map(_.merge)
 
   /**
@@ -325,22 +340,24 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def raceBoth[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] =
     ???
 
   /**
    * Returns the sink that executes this one and times its execution.
    */
-  final def timed: ZSink[R with Has[Clock], InErr, In, OutErr, L, (Z, Duration)] =
+  final def timed(implicit trace: ZTraceElement): ZSink[R with Has[Clock], InErr, In, OutErr, L, (Z, Duration)] =
     summarized(Clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
 
-  def repeat(implicit ev: L <:< In): ZSink[R, InErr, In, OutErr, L, Chunk[Z]] =
+  def repeat(implicit ev: L <:< In, trace: ZTraceElement): ZSink[R, InErr, In, OutErr, L, Chunk[Z]] =
     collectAllWhileWith[Chunk[Z]](Chunk.empty)(_ => true)((s, z) => s :+ z)
 
   /**
    * Summarize a sink by running an effect when the sink starts and again when it completes
    */
-  final def summarized[R1 <: R, E1 >: OutErr, B, C](summary: ZIO[R1, E1, B])(f: (B, B) => C) =
+  final def summarized[R1 <: R, E1 >: OutErr, B, C](
+    summary: ZIO[R1, E1, B]
+  )(f: (B, B) => C)(implicit trace: ZTraceElement) =
     new ZSink[R1, InErr, In, E1, L, (Z, C)](for {
       start <- ZChannel.fromZIO(summary)
       done  <- self.channel
@@ -349,12 +366,16 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
 
   def orElse[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr2 >: OutErr, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, InErr1, In1, OutErr2, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr2, L1, Z1] =
     new ZSink[R1, InErr1, In1, OutErr2, L1, Z1](self.channel.orElse(that.channel))
 
   def zip[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit zippable: Zippable[Z, Z1], ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
+  )(implicit
+    zippable: Zippable[Z, Z1],
+    ev: L <:< In1,
+    trace: ZTraceElement
+  ): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zipWith[R1, InErr1, OutErr1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
   /**
@@ -362,7 +383,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def zipLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipWith[R1, InErr1, OutErr1, In1, L1, Z1, Z](that)((z, _) => z)
 
   /**
@@ -370,7 +391,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def zipPar[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit zippable: Zippable[Z, Z1]): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
+  )(implicit zippable: Zippable[Z, Z1], trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, zippable.Out] =
     zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
   /**
@@ -378,7 +399,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def zipParLeft[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z] =
     zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, Z](that)((b, _) => b)
 
   /**
@@ -386,7 +407,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def zipParRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  ): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipWithPar[R1, InErr1, OutErr1, In1, L1, Z1, Z1](that)((_, c) => c)
 
   /**
@@ -394,7 +415,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def zipRight[R1 <: R, InErr1 <: InErr, In1 <: In, OutErr1 >: OutErr, L1 >: L <: In1, Z1](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z1] =
     zipWith[R1, InErr1, OutErr1, In1, L1, Z1, Z1](that)((_, z1) => z1)
 
   /**
@@ -403,7 +424,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def zipWith[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1, Z2](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(f: (Z, Z1) => Z2)(implicit ev: L <:< In1): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
+  )(f: (Z, Z1) => Z2)(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
     flatMap(z => that.map(f(z, _)))
 
   /**
@@ -412,13 +433,13 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def zipWithPar[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1, Z2](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(f: (Z, Z1) => Z2): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
+  )(f: (Z, Z1) => Z2)(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
     ???
 
-  def exposeLeftover: ZSink[R, InErr, In, OutErr, Nothing, (Z, Chunk[L])] =
+  def exposeLeftover(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, Nothing, (Z, Chunk[L])] =
     new ZSink(channel.doneCollect.map { case (chunks, z) => (z, chunks.flatten) })
 
-  def dropLeftover: ZSink[R, InErr, In, OutErr, Nothing, Z] =
+  def dropLeftover(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, Nothing, Z] =
     new ZSink(channel.drain)
 
   /**
@@ -428,7 +449,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   @deprecated("use untilOutputZIO", "2.0.0")
   def untilOutputM[R1 <: R, OutErr1 >: OutErr](
     f: Z => ZIO[R1, OutErr1, Boolean]
-  )(implicit ev: L <:< In): ZSink[R1, InErr, In, OutErr1, L, Option[Z]] =
+  )(implicit ev: L <:< In, trace: ZTraceElement): ZSink[R1, InErr, In, OutErr1, L, Option[Z]] =
     untilOutputZIO(f)
 
   /**
@@ -437,7 +458,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   def untilOutputZIO[R1 <: R, OutErr1 >: OutErr](
     f: Z => ZIO[R1, OutErr1, Boolean]
-  )(implicit ev: L <:< In): ZSink[R1, InErr, In, OutErr1, L, Option[Z]] =
+  )(implicit ev: L <:< In, trace: ZTraceElement): ZSink[R1, InErr, In, OutErr1, L, Option[Z]] =
     new ZSink(
       ZChannel
         .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
@@ -474,7 +495,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Provides the sink with its required environment, which eliminates
    * its dependency on `R`.
    */
-  def provide(r: R)(implicit ev: NeedsEnv[R]): ZSink[Any, InErr, In, OutErr, L, Z] =
+  def provide(r: R)(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZSink[Any, InErr, In, OutErr, L, Z] =
     new ZSink(channel.provide(r))
 }
 
@@ -486,7 +507,7 @@ object ZSink {
   def accessSink[R]: AccessSinkPartiallyApplied[R] =
     new AccessSinkPartiallyApplied[R]
 
-  def collectAll[Err, In]: ZSink[Any, Err, In, Err, Nothing, Chunk[In]] = {
+  def collectAll[Err, In](implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, Nothing, Chunk[In]] = {
     def loop(acc: Chunk[In]): ZChannel[Any, Err, Chunk[In], Any, Err, Nothing, Chunk[In]] =
       ZChannel.readWithCause(
         chunk => loop(acc ++ chunk),
@@ -500,7 +521,7 @@ object ZSink {
    * A sink that collects first `n` elements into a chunk. Note that the chunk
    * is preallocated and must fit in memory.
    */
-  def collectAllN[Err, In](n: Int): ZSink[Any, Err, In, Err, In, Chunk[In]] =
+  def collectAllN[Err, In](n: Int)(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, Chunk[In]] =
     fromZIO(UIO(ChunkBuilder.make[In](n)))
       .flatMap(cb => foldUntil[Err, In, ChunkBuilder[In]](cb, n.toLong)(_ += _))
       .map(_.result())
@@ -510,7 +531,9 @@ object ZSink {
    * using the keying function `key`; if multiple inputs use the same key, they are merged
    * using the `f` function.
    */
-  def collectAllToMap[Err, In, K](key: In => K)(f: (In, In) => In): ZSink[Any, Err, In, Err, Nothing, Map[K, In]] =
+  def collectAllToMap[Err, In, K](
+    key: In => K
+  )(f: (In, In) => In)(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, Nothing, Map[K, In]] =
     foldLeftChunks(Map[K, In]()) { (acc, as) =>
       as.foldLeft(acc) { (acc, a) =>
         val k = key(a)
@@ -529,7 +552,9 @@ object ZSink {
    * from inputs using the keying function `key`; if multiple inputs use the
    * the same key, they are merged using the `f` function.
    */
-  def collectAllToMapN[Err, In, K](n: Long)(key: In => K)(f: (In, In) => In): ZSink[Any, Err, In, Err, In, Map[K, In]] =
+  def collectAllToMapN[Err, In, K](
+    n: Long
+  )(key: In => K)(f: (In, In) => In)(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, Map[K, In]] =
     foldWeighted[Err, In, Map[K, In]](Map())((acc, in) => if (acc.contains(key(in))) 0 else 1, n) { (acc, in) =>
       val k = key(in)
       val v = if (acc.contains(k)) f(acc(k), in) else in
@@ -540,19 +565,21 @@ object ZSink {
   /**
    * A sink that collects all of its inputs into a set.
    */
-  def collectAllToSet[Err, In]: ZSink[Any, Err, In, Err, Nothing, Set[In]] =
+  def collectAllToSet[Err, In](implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, Nothing, Set[In]] =
     foldLeftChunks(Set[In]())((acc, as) => as.foldLeft(acc)(_ + _))
 
   /**
    * A sink that collects first `n` distinct inputs into a set.
    */
-  def collectAllToSetN[Err, In](n: Long): ZSink[Any, Err, In, Err, In, Set[In]] =
+  def collectAllToSetN[Err, In](n: Long)(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, Set[In]] =
     foldWeighted[Err, In, Set[In]](Set())((acc, in) => if (acc.contains(in)) 0 else 1, n)(_ + _)
 
   /**
    * Accumulates incoming elements into a chunk as long as they verify predicate `p`.
    */
-  def collectAllWhile[Err, In](p: In => Boolean): ZSink[Any, Err, In, Err, In, Chunk[In]] =
+  def collectAllWhile[Err, In](p: In => Boolean)(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Err, In, Err, In, Chunk[In]] =
     fold[Err, In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
       if (p(a)) (a :: as, true)
       else (as, false)
@@ -564,13 +591,17 @@ object ZSink {
    * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
   @deprecated("use collectAllWhileZIO", "2.0.0")
-  def collectAllWhileM[Env, Err, In](p: In => ZIO[Env, Err, Boolean]): ZSink[Env, Err, In, Err, In, Chunk[In]] =
+  def collectAllWhileM[Env, Err, In](p: In => ZIO[Env, Err, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZSink[Env, Err, In, Err, In, Chunk[In]] =
     collectAllWhileZIO(p)
 
   /**
    * Accumulates incoming elements into a chunk as long as they verify effectful predicate `p`.
    */
-  def collectAllWhileZIO[Env, Err, In](p: In => ZIO[Env, Err, Boolean]): ZSink[Env, Err, In, Err, In, Chunk[In]] =
+  def collectAllWhileZIO[Env, Err, In](p: In => ZIO[Env, Err, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZSink[Env, Err, In, Err, In, Chunk[In]] =
     foldZIO[Env, Err, In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
       p(a).map(if (_) (a :: as, true) else (as, false))
     }.map { case (is, _) =>
@@ -580,29 +611,29 @@ object ZSink {
   /**
    * A sink that counts the number of elements fed to it.
    */
-  def count[Err]: ZSink[Any, Err, Any, Err, Nothing, Long] =
+  def count[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Any, Err, Nothing, Long] =
     foldLeft(0L)((s, _) => s + 1)
 
   /**
    * Creates a sink halting with the specified `Throwable`.
    */
-  def die(e: => Throwable): ZSink[Any, Any, Any, Nothing, Nothing, Nothing] =
+  def die(e: => Throwable)(implicit trace: ZTraceElement): ZSink[Any, Any, Any, Nothing, Nothing, Nothing] =
     ZSink.failCause(Cause.die(e))
 
   /**
    * Creates a sink halting with the specified message, wrapped in a
    * `RuntimeException`.
    */
-  def dieMessage(m: => String): ZSink[Any, Any, Any, Nothing, Nothing, Nothing] =
+  def dieMessage(m: => String)(implicit trace: ZTraceElement): ZSink[Any, Any, Any, Nothing, Nothing, Nothing] =
     ZSink.failCause(Cause.die(new RuntimeException(m)))
 
   /**
    * A sink that ignores its inputs.
    */
-  def drain[Err]: ZSink[Any, Err, Any, Err, Nothing, Unit] =
+  def drain[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Any, Err, Nothing, Unit] =
     new ZSink(ZChannel.read[Any].unit.repeated.catchAll(_ => ZChannel.unit))
 
-  def dropWhile[Err, In](p: In => Boolean): ZSink[Any, Err, In, Err, In, Any] = {
+  def dropWhile[Err, In](p: In => Boolean)(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, Any] = {
     lazy val loop: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] = ZChannel.readWith(
       (in: Chunk[In]) => {
         val leftover = in.dropWhile(p)
@@ -615,7 +646,15 @@ object ZSink {
     new ZSink(loop)
   }
 
-  def dropWhileM[R, InErr, In](p: In => ZIO[R, InErr, Boolean]): ZSink[R, InErr, In, InErr, In, Any] = {
+  @deprecated("use dropWhileZIO", "2.0.0")
+  def dropWhileM[R, InErr, In](p: In => ZIO[R, InErr, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, InErr, In, InErr, In, Any] =
+    dropWhileZIO(p)
+
+  def dropWhileZIO[R, InErr, In](
+    p: In => ZIO[R, InErr, Boolean]
+  )(implicit trace: ZTraceElement): ZSink[R, InErr, In, InErr, In, Any] = {
     lazy val loop: ZChannel[R, InErr, Chunk[In], Any, InErr, Chunk[In], Any] = ZChannel.readWith(
       (in: Chunk[In]) =>
         ZChannel.unwrap(in.dropWhileZIO(p).map { leftover =>
@@ -634,30 +673,34 @@ object ZSink {
    */
   def effectSuspendTotal[Env, InErr, In, OutErr, Leftover, Done](
     sink: => ZSink[Env, InErr, In, OutErr, Leftover, Done]
-  ): ZSink[Env, InErr, In, OutErr, Leftover, Done] =
+  )(implicit trace: ZTraceElement): ZSink[Env, InErr, In, OutErr, Leftover, Done] =
     new ZSink(ZChannel.effectSuspendTotal(sink.channel))
 
   /**
    * Returns a sink that executes a total effect and ends with its result.
    */
-  def effectTotal[A](a: => A): ZSink[Any, Any, Any, Nothing, Nothing, A] =
+  def effectTotal[A](a: => A)(implicit trace: ZTraceElement): ZSink[Any, Any, Any, Nothing, Nothing, A] =
     new ZSink(ZChannel.effectTotal(a))
 
   /**
    * A sink that always fails with the specified error.
    */
-  def fail[E](e: => E): ZSink[Any, Any, Any, E, Nothing, Nothing] = new ZSink(ZChannel.fail(e))
+  def fail[E](e: => E)(implicit trace: ZTraceElement): ZSink[Any, Any, Any, E, Nothing, Nothing] = new ZSink(
+    ZChannel.fail(e)
+  )
 
   /**
    * Creates a sink halting with a specified cause.
    */
-  def failCause[E](e: => Cause[E]): ZSink[Any, Any, Any, E, Nothing, Nothing] =
+  def failCause[E](e: => Cause[E])(implicit trace: ZTraceElement): ZSink[Any, Any, Any, E, Nothing, Nothing] =
     new ZSink(ZChannel.failCause(e))
 
   /**
    * A sink that folds its inputs with the provided function, termination predicate and initial state.
    */
-  def fold[Err, In, S](z: S)(contFn: S => Boolean)(f: (S, In) => S): ZSink[Any, Err, In, Err, In, S] = {
+  def fold[Err, In, S](
+    z: S
+  )(contFn: S => Boolean)(f: (S, In) => S)(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, S] = {
     def foldChunkSplit(z: S, chunk: Chunk[In])(
       contFn: S => Boolean
     )(f: (S, In) => S): (S, Chunk[In]) = {
@@ -700,7 +743,9 @@ object ZSink {
    */
   def foldChunks[Err, In, S](
     z: S
-  )(contFn: S => Boolean)(f: (S, Chunk[In]) => S): ZSink[Any, Err, In, Err, Nothing, S] = {
+  )(
+    contFn: S => Boolean
+  )(f: (S, Chunk[In]) => S)(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, Nothing, S] = {
     def reader(s: S): ZChannel[Any, Err, Chunk[In], Any, Err, Nothing, S] = ZChannel.readWith(
       (in: Chunk[In]) => {
         val nextS = f(s, in)
@@ -726,7 +771,9 @@ object ZSink {
   @deprecated("use foldChunksZIO", "2.0.0")
   def foldChunksM[Env, Err, In, S](
     z: S
-  )(contFn: S => Boolean)(f: (S, Chunk[In]) => ZIO[Env, Err, S]): ZSink[Env, Err, In, Err, In, S] =
+  )(contFn: S => Boolean)(f: (S, Chunk[In]) => ZIO[Env, Err, S])(implicit
+    trace: ZTraceElement
+  ): ZSink[Env, Err, In, Err, In, S] =
     foldChunksZIO(z)(contFn)(f)
 
   /**
@@ -736,7 +783,9 @@ object ZSink {
    */
   def foldChunksZIO[Env, Err, In, S](
     z: S
-  )(contFn: S => Boolean)(f: (S, Chunk[In]) => ZIO[Env, Err, S]): ZSink[Env, Err, In, Err, In, S] = {
+  )(
+    contFn: S => Boolean
+  )(f: (S, Chunk[In]) => ZIO[Env, Err, S])(implicit trace: ZTraceElement): ZSink[Env, Err, In, Err, In, S] = {
     def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Nothing, S] =
       ZChannel.readWith(
         (in: Chunk[In]) =>
@@ -757,14 +806,16 @@ object ZSink {
   /**
    * A sink that folds its inputs with the provided function and initial state.
    */
-  def foldLeft[Err, In, S](z: S)(f: (S, In) => S): ZSink[Any, Err, In, Err, Nothing, S] =
+  def foldLeft[Err, In, S](z: S)(f: (S, In) => S)(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, Nothing, S] =
     fold(z)(_ => true)(f).dropLeftover
 
   /**
    * A sink that folds its input chunks with the provided function and initial state.
    * `f` must preserve chunking-invariance.
    */
-  def foldLeftChunks[Err, In, S](z: S)(f: (S, Chunk[In]) => S): ZSink[Any, Err, In, Err, Nothing, S] =
+  def foldLeftChunks[Err, In, S](z: S)(f: (S, Chunk[In]) => S)(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Err, In, Err, Nothing, S] =
     foldChunks[Err, In, S](z)(_ => true)(f)
 
   /**
@@ -774,7 +825,7 @@ object ZSink {
   @deprecated("use foldLeftChunksZIO", "2.0.0")
   def foldLeftChunksM[R, Err, In, S](z: S)(
     f: (S, Chunk[In]) => ZIO[R, Err, S]
-  ): ZSink[R, Err, In, Err, Nothing, S] =
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, Nothing, S] =
     foldLeftChunksZIO[R, Err, In, S](z)(f)
 
   /**
@@ -783,7 +834,7 @@ object ZSink {
    */
   def foldLeftChunksZIO[R, Err, In, S](z: S)(
     f: (S, Chunk[In]) => ZIO[R, Err, S]
-  ): ZSink[R, Err, In, Err, Nothing, S] =
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, Nothing, S] =
     foldChunksZIO[R, Err, In, S](z)(_ => true)(f).dropLeftover
 
   /**
@@ -792,7 +843,7 @@ object ZSink {
   @deprecated("use foldLeftZIO", "2.0.0")
   def foldLeftM[R, Err, In, S](z: S)(
     f: (S, In) => ZIO[R, Err, S]
-  ): ZSink[R, Err, In, Err, In, S] =
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, S] =
     foldLeftZIO(z)(f)
 
   /**
@@ -800,7 +851,7 @@ object ZSink {
    */
   def foldLeftZIO[R, Err, In, S](z: S)(
     f: (S, In) => ZIO[R, Err, S]
-  ): ZSink[R, Err, In, Err, In, S] =
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, S] =
     foldZIO[R, Err, In, S](z)(_ => true)(f)
 
   /**
@@ -809,7 +860,7 @@ object ZSink {
   @deprecated("use foldZIO", "2.0.0")
   def foldM[Env, Err, In, S](z: S)(contFn: S => Boolean)(
     f: (S, In) => ZIO[Env, Err, S]
-  ): ZSink[Env, Err, In, Err, In, S] =
+  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, Err, In, S] =
     foldZIO(z)(contFn)(f)
 
   /**
@@ -818,7 +869,9 @@ object ZSink {
    *
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
-  def foldUntil[Err, In, S](z: S, max: Long)(f: (S, In) => S): ZSink[Any, Err, In, Err, In, S] =
+  def foldUntil[Err, In, S](z: S, max: Long)(f: (S, In) => S)(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Err, In, Err, In, S] =
     fold[Err, In, (S, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
       (f(o, i), count + 1)
     }.map(_._1)
@@ -832,7 +885,7 @@ object ZSink {
   @deprecated("use foldUntilZIO", "2.0.0")
   def foldUntilM[Env, In, Err, S](z: S, max: Long)(
     f: (S, In) => ZIO[Env, Err, S]
-  ): ZSink[Env, Err, In, Err, In, S] =
+  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, Err, In, S] =
     foldUntilZIO(z, max)(f)
 
   /**
@@ -843,7 +896,7 @@ object ZSink {
    */
   def foldUntilZIO[Env, In, Err, S](z: S, max: Long)(
     f: (S, In) => ZIO[Env, Err, S]
-  ): ZSink[Env, Err, In, Err, In, S] =
+  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, Err, In, S] =
     foldZIO[Env, Err, In, (S, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
       f(o, i).map((_, count + 1))
     }.map(_._1)
@@ -859,7 +912,7 @@ object ZSink {
    */
   def foldWeighted[Err, In, S](z: S)(costFn: (S, In) => Long, max: Long)(
     f: (S, In) => S
-  ): ZSink[Any, Err, In, Err, In, S] =
+  )(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, S] =
     foldWeightedDecompose[Err, In, S](z)(costFn, max, Chunk.single(_))(f)
 
   /**
@@ -899,7 +952,7 @@ object ZSink {
     z: S
   )(costFn: (S, In) => Long, max: Long, decompose: In => Chunk[In])(
     f: (S, In) => S
-  ): ZSink[Any, Err, In, Err, In, S] = {
+  )(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, S] = {
     def go(s: S, cost: Long, dirty: Boolean): ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], S] =
       ZChannel.readWith(
         (in: Chunk[In]) => {
@@ -961,7 +1014,7 @@ object ZSink {
     costFn: (S, In) => ZIO[Env, Err, Long],
     max: Long,
     decompose: In => ZIO[Env, Err, Chunk[In]]
-  )(f: (S, In) => ZIO[Env, Err, S]): ZSink[Env, Err, In, Err, In, S] =
+  )(f: (S, In) => ZIO[Env, Err, S])(implicit trace: ZTraceElement): ZSink[Env, Err, In, Err, In, S] =
     foldWeightedDecomposeZIO(z)(costFn, max, decompose)(f)
 
   /**
@@ -982,7 +1035,7 @@ object ZSink {
     costFn: (S, In) => ZIO[Env, Err, Long],
     max: Long,
     decompose: In => ZIO[Env, Err, Chunk[In]]
-  )(f: (S, In) => ZIO[Env, Err, S]): ZSink[Env, Err, In, Err, In, S] = {
+  )(f: (S, In) => ZIO[Env, Err, S])(implicit trace: ZTraceElement): ZSink[Env, Err, In, Err, In, S] = {
     def go(s: S, cost: Long, dirty: Boolean): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], S] =
       ZChannel.readWith(
         (in: Chunk[In]) => {
@@ -1044,7 +1097,7 @@ object ZSink {
     z: S
   )(costFn: (S, In) => ZIO[Env, Err, Long], max: Long)(
     f: (S, In) => ZIO[Env, Err, S]
-  ): ZSink[Env, Err, In, Err, In, S] =
+  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, Err, In, S] =
     foldWeightedZIO(z)(costFn, max)(f)
 
   /**
@@ -1060,7 +1113,7 @@ object ZSink {
     z: S
   )(costFn: (S, In) => ZIO[Env, Err, Long], max: Long)(
     f: (S, In) => ZIO[Env, Err, S]
-  ): ZSink[Env, Err, In, Err, In, S] =
+  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, Err, In, S] =
     foldWeightedDecomposeZIO(z)(costFn, max, (i: In) => UIO.succeedNow(Chunk.single(i)))(f)
 
   /**
@@ -1068,7 +1121,7 @@ object ZSink {
    */
   def foldZIO[Env, Err, In, S](z: S)(contFn: S => Boolean)(
     f: (S, In) => ZIO[Env, Err, S]
-  ): ZSink[Env, Err, In, Err, In, S] = {
+  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, Err, In, S] = {
     def foldChunkSplitM(z: S, chunk: Chunk[In])(
       contFn: S => Boolean
     )(f: (S, In) => ZIO[Env, Err, S]): ZIO[Env, Err, (S, Option[Chunk[In]])] = {
@@ -1108,7 +1161,7 @@ object ZSink {
   /**
    * A sink that executes the provided effectful function for every element fed to it.
    */
-  def foreach[R, Err, In](f: In => ZIO[R, Err, Any]): ZSink[R, Err, In, Err, In, Unit] =
+  def foreach[R, Err, In](f: In => ZIO[R, Err, Any])(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, Unit] =
     foreachWhile(f(_).as(true))
 
   /**
@@ -1116,7 +1169,7 @@ object ZSink {
    */
   def foreachChunk[R, Err, In](
     f: Chunk[In] => ZIO[R, Err, Any]
-  ): ZSink[R, Err, In, Err, In, Unit] =
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, Unit] =
     foreachChunkWhile(f(_).as(true))
 
   /**
@@ -1125,7 +1178,7 @@ object ZSink {
    */
   final def foreachWhile[R, Err, In](
     f: In => ZIO[R, Err, Boolean]
-  ): ZSink[R, Err, In, Err, In, Unit] = {
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, Unit] = {
     def go(
       chunk: Chunk[In],
       idx: Int,
@@ -1156,7 +1209,7 @@ object ZSink {
    */
   def foreachChunkWhile[R, Err, In](
     f: Chunk[In] => ZIO[R, Err, Boolean]
-  ): ZSink[R, Err, In, Err, In, Unit] = {
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, Unit] = {
     lazy val reader: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
       ZChannel.readWith(
         (in: Chunk[In]) =>
@@ -1175,41 +1228,46 @@ object ZSink {
    * Creates a single-value sink produced from an effect
    */
   @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, Z](b: => ZIO[R, E, Z]): ZSink[R, Any, Any, E, Nothing, Z] =
+  def fromEffect[R, E, Z](b: => ZIO[R, E, Z])(implicit trace: ZTraceElement): ZSink[R, Any, Any, E, Nothing, Z] =
     fromZIO(b)
 
   /**
    * Creates a single-value sink produced from an effect
    */
-  def fromZIO[R, E, Z](b: => ZIO[R, E, Z]): ZSink[R, Any, Any, E, Nothing, Z] =
+  def fromZIO[R, E, Z](b: => ZIO[R, E, Z])(implicit trace: ZTraceElement): ZSink[R, Any, Any, E, Nothing, Z] =
     new ZSink(ZChannel.fromZIO(b))
 
   /**
    * Creates a sink halting with a specified cause.
    */
   @deprecated("use failCause", "2.0.0")
-  def halt[E](e: => Cause[E]): ZSink[Any, Any, Any, E, Nothing, Nothing] =
+  def halt[E](e: => Cause[E])(implicit trace: ZTraceElement): ZSink[Any, Any, Any, E, Nothing, Nothing] =
     failCause(e)
 
   /**
    * Creates a sink containing the first value.
    */
-  def head[Err, In]: ZSink[Any, Err, In, Err, In, Option[In]] =
+  def head[Err, In](implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, Option[In]] =
     fold(None: Option[In])(_.isEmpty) {
       case (s @ Some(_), _) => s
       case (None, in)       => Some(in)
     }
 
+  def iso_8859_1Decode(implicit trace: ZTraceElement): ZSink[Any, Nothing, Byte, Nothing, Nothing, Option[String]] =
+    foldChunks[Nothing, Byte, Option[String]](Option.empty[String])(_ => true)((_, is) =>
+      Some(new String(is.toArray, StandardCharsets.ISO_8859_1))
+    )
+
   /**
    * Creates a sink containing the last value.
    */
-  def last[Err, In]: ZSink[Any, Err, In, Err, In, Option[In]] =
+  def last[Err, In](implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, Option[In]] =
     foldLeft(None: Option[In])((_, in) => Some(in))
 
-  def leftover[L](c: Chunk[L]): ZSink[Any, Any, Any, Nothing, L, Unit] =
+  def leftover[L](c: Chunk[L])(implicit trace: ZTraceElement): ZSink[Any, Any, Any, Nothing, L, Unit] =
     new ZSink(ZChannel.write(c))
 
-  def mkString[Err]: ZSink[Any, Err, Any, Err, Nothing, String] =
+  def mkString[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Any, Err, Nothing, String] =
     ZSink.effectSuspendTotal {
       val builder = new StringBuilder()
 
@@ -1218,28 +1276,33 @@ object ZSink {
       )
     }
 
+  @deprecated("use unwrapManaged", "2.0.0")
   def managed[R, InErr, In, OutErr >: InErr, A, L <: In, Z](resource: ZManaged[R, OutErr, A])(
     fn: A => ZSink[R, InErr, In, OutErr, L, Z]
-  ): ZSink[R, InErr, In, OutErr, In, Z] =
+  )(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, In, Z] =
     new ZSink(ZChannel.managed(resource)(fn(_).channel))
 
-  val never: ZSink[Any, Any, Any, Nothing, Nothing, Nothing] = new ZSink(ZChannel.fromZIO(ZIO.never))
+  def never(implicit trace: ZTraceElement): ZSink[Any, Any, Any, Nothing, Nothing, Nothing] = new ZSink(
+    ZChannel.fromZIO(ZIO.never)
+  )
 
   /**
    * A sink that immediately ends with the specified value.
    */
-  def succeed[Z](z: => Z): ZSink[Any, Any, Any, Nothing, Nothing, Z] = new ZSink(ZChannel.succeed(z))
+  def succeed[Z](z: => Z)(implicit trace: ZTraceElement): ZSink[Any, Any, Any, Nothing, Nothing, Z] = new ZSink(
+    ZChannel.succeed(z)
+  )
 
   /**
    * A sink that sums incoming numeric values.
    */
-  def sum[Err, A](implicit A: Numeric[A]): ZSink[Any, Err, A, Err, Nothing, A] =
+  def sum[Err, A](implicit A: Numeric[A], trace: ZTraceElement): ZSink[Any, Err, A, Err, Nothing, A] =
     foldLeft(A.zero)(A.plus)
 
   /**
    * A sink that takes the specified number of values.
    */
-  def take[Err, In](n: Int): ZSink[Any, Err, In, Err, In, Chunk[In]] =
+  def take[Err, In](n: Int)(implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, In, Chunk[In]] =
     ZSink.foldChunks[Err, In, Chunk[In]](Chunk.empty)(_.length < n)(_ ++ _).flatMap { acc =>
       val (taken, leftover) = acc.splitAt(n)
       new ZSink(
@@ -1247,16 +1310,49 @@ object ZSink {
       )
     }
 
-  def timed[Err]: ZSink[Has[Clock], Err, Any, Err, Nothing, Duration] = ZSink.drain.timed.map(_._2)
+  def timed[Err](implicit trace: ZTraceElement): ZSink[Has[Clock], Err, Any, Err, Nothing, Duration] =
+    ZSink.drain.timed.map(_._2)
+
+  /**
+   * Creates a sink produced from an effect.
+   */
+  def unwrap[R, InErr, In, OutErr, L, Z](
+    zio: ZIO[R, OutErr, ZSink[R, InErr, In, OutErr, L, Z]]
+  )(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, L, Z] =
+    new ZSink(ZChannel.unwrap(zio.map(_.channel)))
+
+  /**
+   * Creates a sink produced from a managed effect.
+   */
+  def unwrapManaged[R, InErr, In, OutErr, L, Z](
+    managed: ZManaged[R, OutErr, ZSink[R, InErr, In, OutErr, L, Z]]
+  )(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, L, Z] =
+    new ZSink(ZChannel.unwrapManaged(managed.map(_.channel)))
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, InErr, In, OutErr, L, Z](
       f: R => ZSink[R1, InErr, In, OutErr, L, Z]
-    ): ZSink[R with R1, InErr, In, OutErr, L, Z] =
+    )(implicit trace: ZTraceElement): ZSink[R with R1, InErr, In, OutErr, L, Z] =
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
   }
 
-  def utf8Decode[Err]: ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
+  def utfDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
+    def prepend(bytes: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Any, Err, Chunk[Byte], Any] =
+      ZChannel.write(bytes) *> ZChannel.identity[Err, Chunk[Byte], Any]
+
+    ZSink.take[Err, Byte](4).flatMap { bytes =>
+      bytes.toList match {
+        case 0 :: 0 :: -2 :: -1 :: Nil if Charset.isSupported("UTF-32BE") => utf32BEDecode
+        case -2 :: -1 :: 0 :: 0 :: Nil if Charset.isSupported("UTF-32LE") => utf32LEDecode
+        case -17 :: -69 :: -65 :: x1 :: Nil                               => new ZSink(prepend(Chunk(x1)) >>> utf8Decode.channel)
+        case -2 :: -1 :: x1 :: x2 :: Nil                                  => new ZSink(prepend(Chunk(x1, x2)) >>> utf16BEDecode.channel)
+        case -1 :: -2 :: x1 :: x2 :: Nil                                  => new ZSink(prepend(Chunk(x1, x2)) >>> utf16LEDecode.channel)
+        case _                                                            => utf8Decode
+      }
+    }
+  }
+
+  def utf8Decode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
     def is2ByteSequenceStart(b: Byte) = (b & 0xe0) == 0xc0
     def is3ByteSequenceStart(b: Byte) = (b & 0xf0) == 0xe0
     def is4ByteSequenceStart(b: Byte) = (b & 0xf8) == 0xf0
@@ -1303,8 +1399,8 @@ object ZSink {
           val (toConvert, newLeftovers) = concat.splitAt(computeSplit(concat))
 
           if (toConvert.isEmpty) channel(newLeftovers.materialize)
-          else if (newLeftovers.isEmpty) ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
-          else ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+          else if (newLeftovers.isEmpty) ZChannel.end(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
+          else ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
         },
         (err: Err) => ZChannel.fail(err),
         (_: Any) =>
@@ -1315,14 +1411,90 @@ object ZSink {
             if (toConvert.isEmpty)
               // Upstream has ended and all we read was an incomplete chunk, so we fallback to the
               // String constructor behavior.
-              ZChannel.end(Some(new String(newLeftovers.toArray[Byte], "UTF-8")))
+              ZChannel.end(Some(new String(newLeftovers.toArray[Byte], StandardCharsets.UTF_8)))
             else if (newLeftovers.nonEmpty)
-              ZChannel.write(newLeftovers.materialize).as(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+              ZChannel
+                .write(newLeftovers.materialize)
+                .as(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
             else
-              ZChannel.end(Some(new String(toConvert.toArray[Byte], "UTF-8")))
+              ZChannel.end(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
           }
       )
 
     new ZSink(channel(Chunk.empty))
+  }
+
+  def utf16Decode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    ZSink.take[Err, Byte](2).flatMap { bytes =>
+      bytes.toList match {
+        case -2 :: -1 :: Nil =>
+          utf16BEDecode
+        case -1 :: -2 :: Nil =>
+          utf16LEDecode
+        case _ =>
+          new ZSink(ZChannel.write(bytes) >>> utf16BEDecode.channel)
+      }
+    }
+
+  def utf16BEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    utfFixedLengthDecode(StandardCharsets.UTF_16BE, 2)
+
+  def utf16LEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    utfFixedLengthDecode(StandardCharsets.UTF_16LE, 2)
+
+  def utf32Decode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    ZSink.take[Err, Byte](4).flatMap { bytes =>
+      bytes.toList match {
+        case 0 :: 0 :: -2 :: -1 :: Nil =>
+          utf32BEDecode
+        case -1 :: -2 :: 0 :: 0 :: Nil =>
+          utf32LEDecode
+        case _ =>
+          new ZSink(ZChannel.write(bytes) >>> utf32BEDecode.channel)
+      }
+    }
+
+  def utf32BEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    utfFixedLengthDecode(Charset.forName("UTF-32BE"), 4)
+
+  def utf32LEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    utfFixedLengthDecode[Err](Charset.forName("UTF-32LE"), 4)
+
+  private def utfFixedLengthDecode[Err](charset: Charset, width: Int)(implicit trace: ZTraceElement) = {
+    def reader(buffer: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Any, Err, Chunk[Byte], Option[String]] =
+      ZChannel.readWith(
+        (in: Chunk[Byte]) => {
+          val data      = buffer ++ in
+          val remainder = data.length % width
+          if (remainder == 0) {
+            val decoded = new String(data.toArray, charset)
+            ZChannel.end(Some(decoded))
+          } else if (data.length > width) {
+            val (fullChunk, rest) = data.splitAt(data.length - remainder)
+            val decoded           = new String(fullChunk.toArray, charset)
+            ZChannel.write(rest) *> ZChannel.end(Some(decoded))
+          } else {
+            reader(data.materialize)
+          }
+        },
+        (err: Err) => ZChannel.fail(err),
+        (_: Any) =>
+          if (buffer.isEmpty) ZChannel.end(None)
+          else ZChannel.end(Some(new String(buffer.toArray, charset)))
+      )
+
+    new ZSink(reader(Chunk.empty))
+  }
+
+  def usASCIIDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Nothing, Option[String]] = {
+    lazy val reader: ZChannel[Any, Err, Chunk[Byte], Any, Err, Nothing, Option[String]] = ZChannel.readWith(
+      (in: Chunk[Byte]) =>
+        if (in.nonEmpty) ZChannel.end(Some(new String(in.toArray, StandardCharsets.US_ASCII)))
+        else reader,
+      (err: Err) => ZChannel.fail(err),
+      (_: Any) => ZChannel.end(None)
+    )
+
+    new ZSink(reader)
   }
 }

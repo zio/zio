@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * A `MetricLabel` represents a key value pair that allows analyzing metrics at
  * an additional level of granularity. For example if a metric tracks the

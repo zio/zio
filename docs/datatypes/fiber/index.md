@@ -3,8 +3,6 @@ id: index
 title: "Introduction"
 ---
 
-## Introduction
-
 A Fiber can be thought of as a virtual thread. A Fiber is the analog of a Java thread (`java.lang.thread`), but it performs much better. Fibers, on the other hand, are implemented in such a fashion that a single JVM thread will end up executing many fibers. We can think of fibers as unbounded JVM threads.
 
 > _**Warning**, if you are not an advanced programmer:_

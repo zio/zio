@@ -271,3 +271,8 @@ curl -X GET http://0.0.0.0:8080/
 ```
 
 Now we can check the Jaeger service (http://localhost:16686/) to see the result.
+
+## Articles
+
+- [Trace your microservices with ZIO](https://kadek-marek.medium.com/trace-your-microservices-with-zio-telemetry-5f88d69cb26b) by Marek Kadek (September 2021)
+

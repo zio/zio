@@ -16,6 +16,8 @@
 
 package zio.internal.tracing
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * Toggles:
  *

@@ -1,5 +1,7 @@
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * PrettyPrint will attempt to render a Scala value as the syntax used to create
  * that value. This makes it easier to copy-paste from values printed to the

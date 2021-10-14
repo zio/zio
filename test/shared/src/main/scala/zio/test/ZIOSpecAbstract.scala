@@ -18,36 +18,34 @@ package zio.test
 
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.environment.TestEnvironment
 import zio.test.render._
 
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
-  type Environment <: Has[_]
-
-  protected implicit def tag: Tag[Environment]
-
-  def layer: ZLayer[TestEnvironment, Any, Environment]
-
   def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any]
 
   def aspects: Chunk[TestAspect[Nothing, Environment with TestEnvironment with Has[ZIOAppArgs], Nothing, Any]] =
     Chunk.empty
 
-  final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
-    runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ (TestEnvironment.live >>> layer))
+  final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {
+    implicit val trace = Tracer.newTrace
+    runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ layer)
+  }
 
-  final def <>(that: ZIOSpecAbstract): ZIOSpecAbstract =
+  final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      def layer: ZLayer[TestEnvironment, Any, Environment] =
-        self.layer ++ that.layer
+      def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
+        self.layer +!+ that.layer
       override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
         self.spec + that.spec
-      protected def tag: Tag[Environment] = {
+      def tag: Tag[Environment] = {
         implicit val selfTag: Tag[self.Environment] = self.tag
         implicit val thatTag: Tag[that.Environment] = that.tag
         val _                                       = (selfTag, thatTag)
@@ -55,15 +53,17 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       }
     }
 
-  protected def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
+  protected def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] = {
+    implicit val trace = Tracer.newTrace
     for {
       args     <- ZIO.service[ZIOAppArgs]
-      testArgs  = TestArgs.parse(args.args.toArray)
+      testArgs  = TestArgs.parse(args.getArgs.toArray)
       exitCode <- runSpec(spec, testArgs)
       _        <- doExit(exitCode)
     } yield ()
+  }
 
-  private def createTestReporter(rendererName: String): TestReporter[Any] = {
+  private def createTestReporter(rendererName: String)(implicit trace: ZTraceElement): TestReporter[Any] = {
     val renderer = rendererName match {
       case "intellij" => IntelliJRenderer
       case _          => TestRenderer.default
@@ -71,7 +71,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     DefaultTestReporter(renderer, TestAnnotationRenderer.default)
   }
 
-  private def doExit(exitCode: Int): UIO[Unit] =
+  private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =
     exit(ExitCode(exitCode)).when(!isAmmonite).unit
 
   private def isAmmonite: Boolean =
@@ -82,7 +82,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   private def runSpec(
     spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any],
     testArgs: TestArgs
-  ): URIO[Environment with TestEnvironment with Has[ZIOAppArgs], Int] = {
+  )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with Has[ZIOAppArgs], Int] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {

@@ -18,10 +18,11 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `SetCount` represents the number of occurrences of specified values.
- * You can think of a dry vpimy as like a set of counters associated with
+ * You can think of a SetCount as like a set of counters associated with
  * each value except that new counters will automatically be created when new
  * values are observed. This could be used to track the frequency of
  * different types of failures, for example.
@@ -31,13 +32,13 @@ private[zio] trait SetCount {
   /**
    * Increments the counter associated with the specified value by one.
    */
-  def observe(word: String): UIO[Any]
+  def observe(word: String)(implicit trace: ZTraceElement): UIO[Any]
 
   /**
    * The number of occurences of every value observed by this
    * set count.
    */
-  def occurrences: UIO[Chunk[(String, Long)]]
+  def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]]
 }
 
 private[zio] object SetCount {

@@ -17,6 +17,7 @@
 package zio
 
 import zio.ZManaged.ReleaseMap
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.collection.immutable.LongMap
 import scala.concurrent.ExecutionContext
@@ -59,13 +60,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
     aspect: => ZManagedAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
-  ): ZManaged[UpperR, LowerE, LowerA] =
+  )(implicit trace: ZTraceElement): ZManaged[UpperR, LowerE, LowerA] =
     ZManaged.suspend(aspect(self))
 
   /**
    * A symbolic alias for `orDie`.
    */
-  final def !(implicit ev1: E <:< Throwable, ev2: CanFail[E]): ZManaged[R, Nothing, A] =
+  final def !(implicit ev1: E <:< Throwable, ev2: CanFail[E], trace: ZTraceElement): ZManaged[R, Nothing, A] =
     self.orDie
 
   /**
@@ -73,81 +74,87 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   @deprecated("use zip", "2.0.0")
   def &&&[R1 <: R, E1 >: E, B](that: => ZManaged[R1, E1, B])(implicit
-    zippable: Zippable[A, B]
+    zippable: Zippable[A, B],
+    trace: ZTraceElement
   ): ZManaged[R1, E1, zippable.Out] =
     self <*> that
 
   /**
    * Symbolic alias for zipParRight
    */
-  def &>[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
+  def &>[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit trace: ZTraceElement): ZManaged[R1, E1, A1] =
     zipPar(that).map(_._2)
 
   /**
    * Symbolic alias for zipRight
    */
-  def *>[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
+  def *>[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit trace: ZTraceElement): ZManaged[R1, E1, A1] =
     flatMap(_ => that)
 
   /**
    * Symbolic alias for zipParLeft
    */
-  def <&[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] = zipPar(that).map(_._1)
+  def <&[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit trace: ZTraceElement): ZManaged[R1, E1, A] =
+    zipPar(that).map(_._1)
 
   /**
    * Symbolic alias for zipPar
    */
   def <&>[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit
-    zippable: Zippable[A, A1]
+    zippable: Zippable[A, A1],
+    trace: ZTraceElement
   ): ZManaged[R1, E1, zippable.Out] =
     zipWithPar(that)(zippable.zip(_, _))
 
   /**
    * Symbolic alias for zipLeft.
    */
-  def <*[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
+  def <*[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit trace: ZTraceElement): ZManaged[R1, E1, A] =
     flatMap(r => that.map(_ => r))
 
   /**
    * Symbolic alias for zip.
    */
   def <*>[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit
-    zippable: Zippable[A, A1]
+    zippable: Zippable[A, A1],
+    trace: ZTraceElement
   ): ZManaged[R1, E1, zippable.Out] =
     zipWith(that)(zippable.zip(_, _))
 
   /**
    * Operator alias for `orElse`.
    */
-  def <>[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1])(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
+  def <>[R1 <: R, E2, A1 >: A](
+    that: => ZManaged[R1, E2, A1]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E2, A1] =
     orElse(that)
 
   /**
    * Symbolic alias for flatMap
    */
   @deprecated("use flatMap", "2.0.0")
-  def >>=[R1 <: R, E1 >: E, B](k: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
+  def >>=[R1 <: R, E1 >: E, B](k: A => ZManaged[R1, E1, B])(implicit trace: ZTraceElement): ZManaged[R1, E1, B] =
     flatMap(k)
 
   /**
    * Submerges the error case of an `Either` into the `ZManaged`. The inverse
    * operation of `ZManaged.either`.
    */
-  def absolve[E1 >: E, B](implicit ev: A IsSubtypeOfOutput Either[E1, B]): ZManaged[R, E1, B] =
+  def absolve[E1 >: E, B](implicit ev: A IsSubtypeOfOutput Either[E1, B], trace: ZTraceElement): ZManaged[R, E1, B] =
     ZManaged.absolve(self.map(ev))
 
   /**
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  def absorb(implicit ev: E IsSubtypeOfError Throwable): ZManaged[R, Throwable, A] =
+  def absorb(implicit ev: E IsSubtypeOfError Throwable, trace: ZTraceElement): ZManaged[R, Throwable, A] =
     absorbWith(ev)
 
   /**
    * Attempts to convert defects into a failure, throwing away all information
    * about the cause of the failure.
    */
-  def absorbWith(f: E => Throwable): ZManaged[R, Throwable, A] =
+  def absorbWith(f: E => Throwable)(implicit trace: ZTraceElement): ZManaged[R, Throwable, A] =
     self.sandbox
       .foldManaged(
         cause => ZManaged.fail(cause.squashWith(f)),
@@ -158,26 +165,26 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Maps this effect to the specified constant while preserving the
    * effects of this effect.
    */
-  def as[B](b: => B): ZManaged[R, E, B] =
+  def as[B](b: => B)(implicit trace: ZTraceElement): ZManaged[R, E, B] =
     map(_ => b)
 
   /**
    * Maps the success value of this effect to a service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def asService[A1 >: A: Tag]: ZManaged[R, E, Has[A1]] =
+  def asService[A1 >: A: Tag](implicit trace: ZTraceElement): ZManaged[R, E, Has[A1]] =
     map(Has(_))
 
   /**
    * Maps the success value of this effect to an optional value.
    */
-  final def asSome: ZManaged[R, E, Option[A]] =
+  final def asSome(implicit trace: ZTraceElement): ZManaged[R, E, Option[A]] =
     map(Some(_))
 
   /**
    * Maps the error value of this effect to an optional value.
    */
-  final def asSomeError: ZManaged[R, Option[E], A] =
+  final def asSomeError(implicit trace: ZTraceElement): ZManaged[R, Option[E], A] =
     mapError(Some(_))
 
   /**
@@ -185,7 +192,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * the specified pair of functions, `f` and `g`.
    */
   @deprecated("use mapBoth", "2.0.0")
-  def bimap[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E]): ZManaged[R, E1, A1] =
+  def bimap[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, E1, A1] =
     mapBoth(f, g)
 
   /**
@@ -193,7 +200,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def catchAll[R1 <: R, E2, A1 >: A](
     h: E => ZManaged[R1, E2, A1]
-  )(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E2, A1] =
     foldManaged(h, ZManaged.succeedNow)
 
   /**
@@ -205,7 +212,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * @see [[absorb]], [[sandbox]], [[mapErrorCause]] - other functions that can recover from defects
    */
-  def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZManaged[R1, E2, A1]): ZManaged[R1, E2, A1] =
+  def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZManaged[R1, E2, A1])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E2, A1] =
     self.foldCauseManaged[R1, E2, A1](h, ZManaged.succeedNow)
 
   /**
@@ -213,7 +222,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def catchSome[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[E, ZManaged[R1, E1, A1]]
-  )(implicit ev: CanFail[E]): ZManaged[R1, E1, A1] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E1, A1] =
     foldManaged(pf.applyOrElse[E, ZManaged[R1, E1, A1]](_, ZManaged.fail(_)), ZManaged.succeedNow)
 
   /**
@@ -221,14 +230,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](
     pf: PartialFunction[Cause[E], ZManaged[R1, E1, A1]]
-  ): ZManaged[R1, E1, A1] =
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, A1] =
     foldCauseManaged(pf.applyOrElse[Cause[E], ZManaged[R1, E1, A1]](_, ZManaged.failCause(_)), ZManaged.succeedNow)
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
    * succeed with the returned value.
    */
-  def collect[E1 >: E, B](e: => E1)(pf: PartialFunction[A, B]): ZManaged[R, E1, B] =
+  def collect[E1 >: E, B](e: => E1)(pf: PartialFunction[A, B])(implicit trace: ZTraceElement): ZManaged[R, E1, B] =
     collectManaged(e)(pf.andThen(ZManaged.succeedNow(_)))
 
   /**
@@ -236,21 +245,25 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * continue with the returned value.
    */
   @deprecated("use collectManaged", "2.0.0")
-  def collectM[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZManaged[R1, E1, B]]): ZManaged[R1, E1, B] =
+  def collectM[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZManaged[R1, E1, B]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, B] =
     collectManaged(e)(pf)
 
   /**
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
    * continue with the returned value.
    */
-  def collectManaged[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZManaged[R1, E1, B]]): ZManaged[R1, E1, B] =
+  def collectManaged[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZManaged[R1, E1, B]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, B] =
     self.flatMap(v => pf.applyOrElse[A, ZManaged[R1, E1, B]](v, _ => ZManaged.fail(e)))
 
   /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail
    */
-  def either(implicit ev: CanFail[E]): ZManaged[R, Nothing, Either[E, A]] =
+  def either(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, Nothing, Either[E, A]] =
     fold(Left[E, A], Right[E, A])
 
   /**
@@ -259,7 +272,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * For usecases that need access to the ZManaged's result, see [[ZManaged#onExit]].
    */
-  def ensuring[R1 <: R](f: => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def ensuring[R1 <: R](f: => ZIO[R1, Nothing, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     onExit(_ => f)
 
   /**
@@ -268,14 +281,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * For usecases that need access to the ZManaged's result, see [[ZManaged#onExitFirst]].
    */
-  def ensuringFirst[R1 <: R](f: => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def ensuringFirst[R1 <: R](f: => ZIO[R1, Nothing, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     onExitFirst(_ => f)
 
   /**
    * Returns a ZManaged that ignores errors raised by the acquire effect and
    * runs it repeatedly until it eventually succeeds.
    */
-  def eventually(implicit ev: CanFail[E]): ZManaged[R, Nothing, A] =
+  def eventually(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, Nothing, A] =
     ZManaged(zio.eventually)
 
   /**
@@ -284,7 +297,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * resources in order until one of them is successfully acquired, ensuring
    * that the acquired resource is properly released after being used.
    */
-  final def firstSuccessOf[R1 <: R, E1 >: E, A1 >: A](rest: => Iterable[ZManaged[R1, E1, A1]]): ZManaged[R1, E1, A1] =
+  final def firstSuccessOf[R1 <: R, E1 >: E, A1 >: A](rest: => Iterable[ZManaged[R1, E1, A1]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A1] =
     ZManaged.firstSuccessOf(self, rest)
 
   /**
@@ -292,7 +307,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * the passing of its value to the specified continuation function `k`,
    * followed by the effect that it returns.
    */
-  def flatMap[R1 <: R, E1 >: E, B](f: A => ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
+  def flatMap[R1 <: R, E1 >: E, B](f: A => ZManaged[R1, E1, B])(implicit trace: ZTraceElement): ZManaged[R1, E1, B] =
     ZManaged {
       self.zio.flatMap { case (releaseSelf, a) =>
         f(a).zio.map { case (releaseThat, b) =>
@@ -312,7 +327,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Effectfully map the error channel
    */
-  def flatMapError[R1 <: R, E2](f: E => ZManaged[R1, Nothing, E2])(implicit ev: CanFail[E]): ZManaged[R1, E2, A] =
+  def flatMapError[R1 <: R, E2](
+    f: E => ZManaged[R1, Nothing, E2]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E2, A] =
     flipWith(_.flatMap(f))
 
   /**
@@ -321,7 +338,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * This method can be used to "flatten" nested effects.
    */
-  def flatten[R1 <: R, E1 >: E, B](implicit ev: A IsSubtypeOfOutput ZManaged[R1, E1, B]): ZManaged[R1, E1, B] =
+  def flatten[R1 <: R, E1 >: E, B](implicit
+    ev: A IsSubtypeOfOutput ZManaged[R1, E1, B],
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, B] =
     flatMap(ev)
 
   /**
@@ -331,7 +351,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * This method can be used to "flatten" nested effects.
    */
   @deprecated("use flattenZIO", "2.0.0")
-  def flattenM[R1 <: R, E1 >: E, B](implicit ev: A IsSubtypeOfOutput ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+  def flattenM[R1 <: R, E1 >: E, B](implicit
+    ev: A IsSubtypeOfOutput ZIO[R1, E1, B],
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, B] =
     flattenZIO
 
   /**
@@ -340,19 +363,24 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * This method can be used to "flatten" nested effects.
    */
-  def flattenZIO[R1 <: R, E1 >: E, B](implicit ev: A IsSubtypeOfOutput ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+  def flattenZIO[R1 <: R, E1 >: E, B](implicit
+    ev: A IsSubtypeOfOutput ZIO[R1, E1, B],
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, B] =
     mapZIO(ev)
 
   /**
    * Flip the error and result
    */
-  def flip: ZManaged[R, A, E] =
+  def flip(implicit trace: ZTraceElement): ZManaged[R, A, E] =
     foldManaged(ZManaged.succeedNow, ZManaged.fail(_))
 
   /**
    * Flip the error and result, then apply an effectful function to the effect
    */
-  def flipWith[R1, A1, E1](f: ZManaged[R, A, E] => ZManaged[R1, A1, E1]): ZManaged[R1, E1, A1] =
+  def flipWith[R1, A1, E1](f: ZManaged[R, A, E] => ZManaged[R1, A1, E1])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A1] =
     f(flip).flip
 
   /**
@@ -360,13 +388,16 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * does not fail, but succeeds with the value returned by the left or right
    * function passed to `fold`.
    */
-  def fold[B](failure: E => B, success: A => B)(implicit ev: CanFail[E]): ZManaged[R, Nothing, B] =
+  def fold[B](failure: E => B, success: A => B)(implicit
+    ev: CanFail[E],
+    trace: ZTraceElement
+  ): ZManaged[R, Nothing, B] =
     foldManaged(failure.andThen(ZManaged.succeedNow), success.andThen(ZManaged.succeedNow))
 
   /**
    * A more powerful version of `fold` that allows recovering from any kind of failure except interruptions.
    */
-  def foldCause[B](failure: Cause[E] => B, success: A => B): ZManaged[R, Nothing, B] =
+  def foldCause[B](failure: Cause[E] => B, success: A => B)(implicit trace: ZTraceElement): ZManaged[R, Nothing, B] =
     sandbox.fold(failure, success)
 
   /**
@@ -376,7 +407,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def foldCauseM[R1 <: R, E1, A1](
     failure: Cause[E] => ZManaged[R1, E1, A1],
     success: A => ZManaged[R1, E1, A1]
-  ): ZManaged[R1, E1, A1] =
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, A1] =
     foldCauseManaged(failure, success)
 
   /**
@@ -386,7 +417,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def foldCauseManaged[R1 <: R, E1, A1](
     failure: Cause[E] => ZManaged[R1, E1, A1],
     success: A => ZManaged[R1, E1, A1]
-  ): ZManaged[R1, E1, A1] =
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, A1] =
     ZManaged(self.zio.foldCauseZIO(failure(_).zio, { case (_, a) => success(a).zio }))
 
   /**
@@ -397,7 +428,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def foldM[R1 <: R, E2, B](
     failure: E => ZManaged[R1, E2, B],
     success: A => ZManaged[R1, E2, B]
-  )(implicit ev: CanFail[E]): ZManaged[R1, E2, B] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E2, B] =
     foldManaged(failure, success)
 
   /**
@@ -407,7 +438,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def foldManaged[R1 <: R, E2, B](
     failure: E => ZManaged[R1, E2, B],
     success: A => ZManaged[R1, E2, B]
-  )(implicit ev: CanFail[E]): ZManaged[R1, E2, B] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E2, B] =
     foldCauseManaged(_.failureOrCause.fold(failure, ZManaged.failCause(_)), success)
 
   /**
@@ -415,7 +446,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * and provides that fiber. The finalizer for this value will interrupt the fiber
    * and run the original finalizer.
    */
-  def fork: ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
+  def fork(implicit trace: ZTraceElement): ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
@@ -435,20 +466,21 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   @deprecated("use some", "2.0.0")
   def get[B](implicit
     ev1: E IsSubtypeOfError Nothing,
-    ev2: A IsSubtypeOfOutput Option[B]
+    ev2: A IsSubtypeOfOutput Option[B],
+    trace: ZTraceElement
   ): ZManaged[R, Option[Nothing], B] =
-    ZManaged.absolve(mapError(ev1)(CanFail).map(ev2(_).toRight(None)))
+    ZManaged.absolve(mapError(ev1)(CanFail, trace).map(ev2(_).toRight(None)))
 
   /**
    * Returns a new effect that ignores the success or failure of this effect.
    */
-  def ignore: ZManaged[R, Nothing, Unit] =
+  def ignore(implicit trace: ZTraceElement): ZManaged[R, Nothing, Unit] =
     fold(_ => (), _ => ())
 
   /**
    * Returns a new managed effect that ignores defects in finalizers.
    */
-  def ignoreReleaseFailures: ZManaged[R, E, A] =
+  def ignoreReleaseFailures(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged(
       ZIO
         .environment[(R, ReleaseMap)]
@@ -458,13 +490,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Returns whether this managed effect is a failure.
    */
-  def isFailure: ZManaged[R, Nothing, Boolean] =
+  def isFailure(implicit trace: ZTraceElement): ZManaged[R, Nothing, Boolean] =
     fold(_ => true, _ => false)
 
   /**
    * Returns whether this managed effect is a success.
    */
-  def isSuccess: ZManaged[R, Nothing, Boolean] =
+  def isSuccess(implicit trace: ZTraceElement): ZManaged[R, Nothing, Boolean] =
     fold(_ => false, _ => true)
 
   /**
@@ -473,7 +505,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * sequentially after it will be run on the specified executor.
    */
   @deprecated("use onExecutor", "2.0.0")
-  final def lock(executor: => Executor): ZManaged[R, E, A] =
+  final def lock(executor: => Executor)(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     onExecutor(executor)
 
   /**
@@ -481,20 +513,20 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * sequentially after it, using the specified `ExecutionContext`.
    */
   @deprecated("use onExecutionContext", "2.0.0")
-  final def lockExecutionContext(ec: => ExecutionContext): ZManaged[R, E, A] =
+  final def lockExecutionContext(ec: => ExecutionContext)(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     onExecutionContext(ec)
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
-  def map[B](f: A => B): ZManaged[R, E, B] =
+  def map[B](f: A => B)(implicit trace: ZTraceElement): ZManaged[R, E, B] =
     ZManaged(zio.map { case (fin, a) => (fin, f(a)) })
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
-  def mapBoth[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E]): ZManaged[R, E1, A1] =
+  def mapBoth[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, E1, A1] =
     mapError(f).map(g)
 
   /**
@@ -502,42 +534,46 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
   @deprecated("use mapAttempt", "2.0.0")
-  final def mapEffect[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable): ZManaged[R, Throwable, B] =
+  final def mapEffect[B](
+    f: A => B
+  )(implicit ev: E IsSubtypeOfError Throwable, trace: ZTraceElement): ZManaged[R, Throwable, B] =
     mapAttempt(f)
 
   /**
    * Returns an effect whose success is mapped by the specified side effecting
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
-  final def mapAttempt[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable): ZManaged[R, Throwable, B] =
+  final def mapAttempt[B](
+    f: A => B
+  )(implicit ev: E IsSubtypeOfError Throwable, trace: ZTraceElement): ZManaged[R, Throwable, B] =
     foldManaged(e => ZManaged.fail(ev(e)), a => ZManaged.attempt(f(a)))
 
   /**
    * Returns an effect whose failure is mapped by the specified `f` function.
    */
-  def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
+  def mapError[E1](f: E => E1)(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, E1, A] =
     ZManaged(zio.mapError(f))
 
   /**
    * Returns an effect whose full failure is mapped by the specified `f` function.
    */
-  def mapErrorCause[E1](f: Cause[E] => Cause[E1]): ZManaged[R, E1, A] =
+  def mapErrorCause[E1](f: Cause[E] => Cause[E1])(implicit trace: ZTraceElement): ZManaged[R, E1, A] =
     ZManaged(zio.mapErrorCause(f))
 
   /**
    * Effectfully maps the resource acquired by this value.
    */
   @deprecated("use mapZIO", "2.0.0")
-  def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+  def mapM[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZManaged[R1, E1, B] =
     mapZIO(f)
 
   /**
    * Effectfully maps the resource acquired by this value.
    */
-  def mapZIO[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZManaged[R1, E1, B] =
+  def mapZIO[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZManaged[R1, E1, B] =
     ZManaged(zio.flatMap { case (fin, a) => f(a).map((fin, _)).provideSome[(R1, ZManaged.ReleaseMap)](_._1) })
 
-  def memoize: ZManaged[Any, Nothing, ZManaged[R, E, A]] =
+  def memoize(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZManaged[R, E, A]] =
     ZManaged.releaseMap.mapZIO { finalizers =>
       for {
         promise <- Promise.make[E, A]
@@ -556,13 +592,17 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Returns a new effect where the error channel has been merged into the
    * success channel to their common combined type.
    */
-  def merge[A1 >: A](implicit ev1: E IsSubtypeOfError A1, ev2: CanFail[E]): ZManaged[R, Nothing, A1] =
+  def merge[A1 >: A](implicit
+    ev1: E IsSubtypeOfError A1,
+    ev2: CanFail[E],
+    trace: ZTraceElement
+  ): ZManaged[R, Nothing, A1] =
     self.foldManaged(e => ZManaged.succeedNow(ev1(e)), ZManaged.succeedNow)
 
   /**
    * Requires the option produced by this value to be `None`.
    */
-  final def none[B](implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, Option[E], Unit] =
+  final def none[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZManaged[R, Option[E], Unit] =
     self.foldManaged(
       e => ZManaged.fail(Some(e)),
       a => ev(a).fold[ZManaged[R, Option[E], Unit]](ZManaged.succeedNow(()))(_ => ZManaged.fail(None))
@@ -573,7 +613,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * sequentially after it, using the specified `ExecutionContext`.
    */
   @deprecated("use onExecutionContext", "2.0.0")
-  final def on(ec: => ExecutionContext): ZManaged[R, E, A] =
+  final def on(ec: => ExecutionContext)(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     onExecutionContext(ec)
 
   /**
@@ -581,21 +621,21 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * this managed effect as well as managed effects that are composed
    * sequentially after it will be run on the specified executor.
    */
-  final def onExecutor(executor: => Executor): ZManaged[R, E, A] =
+  final def onExecutor(executor: => Executor)(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.onExecutor(executor) *> self
 
   /**
    * Runs this managed effect, as well as any managed effects that are composed
    * sequentially after it, using the specified `ExecutionContext`.
    */
-  final def onExecutionContext(ec: => ExecutionContext): ZManaged[R, E, A] =
+  final def onExecutionContext(ec: => ExecutionContext)(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     self.onExecutor(Executor.fromExecutionContext(Int.MaxValue)(ec))
 
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after
    * the existing finalizers.
    */
-  def onExit[R1 <: R](cleanup: Exit[E, A] => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def onExit[R1 <: R](cleanup: Exit[E, A] => ZIO[R1, Nothing, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
@@ -619,7 +659,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Ensures that a cleanup function runs when this ZManaged is finalized, before
    * the existing finalizers.
    */
-  def onExitFirst[R1 <: R](cleanup: Exit[E, A] => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def onExitFirst[R1 <: R](
+    cleanup: Exit[E, A] => ZIO[R1, Nothing, Any]
+  )(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
@@ -644,35 +686,41 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Executes this effect, skipping the error but returning optionally the success.
    */
-  def option(implicit ev: CanFail[E]): ZManaged[R, Nothing, Option[A]] =
+  def option(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, Nothing, Option[A]] =
     fold(_ => None, Some(_))
 
   /**
    * Converts an option on errors into an option on values.
    */
   @deprecated("use unsome", "2.0.0")
-  final def optional[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R, E1, Option[A]] =
+  final def optional[E1](implicit ev: E IsSubtypeOfError Option[E1], trace: ZTraceElement): ZManaged[R, E1, Option[A]] =
     unsome
 
   /**
    * Translates effect failure into death of the fiber, making all failures unchecked and
    * not a part of the type of the effect.
    */
-  def orDie(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZManaged[R, Nothing, A] =
+  def orDie(implicit
+    ev1: E IsSubtypeOfError Throwable,
+    ev2: CanFail[E],
+    trace: ZTraceElement
+  ): ZManaged[R, Nothing, A] =
     orDieWith(ev1)
 
   /**
    * Keeps none of the errors, and terminates the fiber with them, using
    * the specified function to convert the `E` into a `Throwable`.
    */
-  def orDieWith(f: E => Throwable)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A] =
+  def orDieWith(f: E => Throwable)(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, Nothing, A] =
     mapError(f).catchAll(ZManaged.die(_))
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise executes the specified effect.
    */
-  def orElse[R1 <: R, E2, A1 >: A](that: => ZManaged[R1, E2, A1])(implicit ev: CanFail[E]): ZManaged[R1, E2, A1] =
+  def orElse[R1 <: R, E2, A1 >: A](
+    that: => ZManaged[R1, E2, A1]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E2, A1] =
     foldManaged(_ => that, ZManaged.succeedNow)
 
   /**
@@ -681,14 +729,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def orElseEither[R1 <: R, E2, B](
     that: => ZManaged[R1, E2, B]
-  )(implicit ev: CanFail[E]): ZManaged[R1, E2, Either[A, B]] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E2, Either[A, B]] =
     foldManaged(_ => that.map(Right[A, B]), a => ZManaged.succeedNow(Left[A, B](a)))
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise fails with the specified error.
    */
-  final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
+  final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, E1, A] =
     orElse(ZManaged.fail(e1))
 
   /**
@@ -698,14 +746,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   final def orElseOptional[R1 <: R, E1, A1 >: A](
     that: => ZManaged[R1, Option[E1], A1]
-  )(implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R1, Option[E1], A1] =
+  )(implicit ev: E IsSubtypeOfError Option[E1], trace: ZTraceElement): ZManaged[R1, Option[E1], A1] =
     catchAll(ev(_).fold(that)(e => ZManaged.fail(Some(e))))
 
   /**
    * Executes this effect and returns its value, if it succeeds, but
    * otherwise succeeds with the specified value.
    */
-  final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E]): ZManaged[R, Nothing, A1] =
+  final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, Nothing, A1] =
     orElse(ZManaged.succeedNow(a1))
 
   /**
@@ -714,7 +762,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * are not interrupted between running preallocate and actually acquiring
    * the resource as you might leak otherwise.
    */
-  def preallocate: ZIO[R, E, Managed[Nothing, A]] =
+  def preallocate(implicit trace: ZTraceElement): ZIO[R, E, Managed[Nothing, A]] =
     ZIO.uninterruptibleMask { restore =>
       for {
         releaseMap <- ReleaseMap.make
@@ -741,7 +789,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Preallocates the managed resource inside an outer managed, resulting in a
    * ZManaged that reserves and acquires immediately and cannot fail.
    */
-  def preallocateManaged: ZManaged[R, E, Managed[Nothing, A]] =
+  def preallocateManaged(implicit trace: ZTraceElement): ZManaged[R, E, Managed[Nothing, A]] =
     ZManaged {
       self.zio.map { case (release, a) =>
         (
@@ -759,7 +807,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Provides the `ZManaged` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
-  def provide(r: => R)(implicit ev: NeedsEnv[R]): Managed[E, A] =
+  def provide(r: => R)(implicit ev: NeedsEnv[R], trace: ZTraceElement): Managed[E, A] =
     provideSome(_ => r)
 
   /**
@@ -776,13 +824,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   final def provideCustomLayer[E1 >: E, R1](
     layer: => ZLayer[ZEnv, E1, R1]
-  )(implicit ev1: ZEnv with R1 <:< R, ev2: CombineEnvIntersection[ZEnv, R1], tagged: Tag[R1]): ZManaged[ZEnv, E1, A] =
+  )(implicit ev1: ZEnv with R1 <:< R, ev2: CombineEnvIntersection[ZEnv, R1], tagged: Tag[R1], trace: ZTraceElement): ZManaged[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  final def provideLayer[E1 >: E, R0, R1](layer: => ZLayer[R0, E1, R1])(implicit ev: R1 <:< R): ZManaged[R0, E1, A] =
+  final def provideLayer[E1 >: E, R0, R1](
+    layer: => ZLayer[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
     ZManaged.suspend(layer.build.map(ev).flatMap(r => self.provide(r)))
 
   /**
@@ -791,7 +841,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * implementing operators that are polymorphic in the environment type. When
    * your environment is a subtype of `Has[_]` use [[zio.ZIO.injectSome]]
    */
-  def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R]): ZManaged[R0, E, A] =
+  def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
     ZManaged(zio.provideSome[(R0, ZManaged.ReleaseMap)](tp => (f(tp._1), tp._2)))
 
   /**
@@ -814,7 +864,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def refineOrDie[E1](
     pf: PartialFunction[E, E1]
-  )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZManaged[R, E1, A] =
+  )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E], trace: ZTraceElement): ZManaged[R, E1, A] =
     refineOrDieWith(pf)(ev1)
 
   /**
@@ -823,14 +873,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def refineOrDieWith[E1](
     pf: PartialFunction[E, E1]
-  )(f: E => Throwable)(implicit ev: CanFail[E]): ZManaged[R, E1, A] =
+  )(f: E => Throwable)(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, E1, A] =
     catchAll(e => pf.lift(e).fold[ZManaged[R, E1, A]](ZManaged.die(f(e)))(ZManaged.fail(_)))
 
   /**
    * Fail with the returned value if the `PartialFunction` matches, otherwise
    * continue with our held value.
    */
-  def reject[E1 >: E](pf: PartialFunction[A, E1]): ZManaged[R, E1, A] =
+  def reject[E1 >: E](pf: PartialFunction[A, E1])(implicit trace: ZTraceElement): ZManaged[R, E1, A] =
     rejectManaged(pf.andThen(ZManaged.fail(_)))
 
   /**
@@ -839,7 +889,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * our held value.
    */
   @deprecated("use rejectManaged", "2.0.0")
-  def rejectM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZManaged[R1, E1, E1]]): ZManaged[R1, E1, A] =
+  def rejectM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZManaged[R1, E1, E1]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A] =
     rejectManaged(pf)
 
   /**
@@ -847,7 +899,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * translating the successful match into a failure, otherwise continue with
    * our held value.
    */
-  def rejectManaged[R1 <: R, E1 >: E](pf: PartialFunction[A, ZManaged[R1, E1, E1]]): ZManaged[R1, E1, A] =
+  def rejectManaged[R1 <: R, E1 >: E](
+    pf: PartialFunction[A, ZManaged[R1, E1, E1]]
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, A] =
     self.flatMap { v =>
       pf.andThen[ZManaged[R1, E1, A]](_.flatMap(ZManaged.fail(_)))
         .applyOrElse[A, ZManaged[R1, E1, A]](v, ZManaged.succeedNow)
@@ -859,14 +913,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Note that this is only safe if the result of this managed effect is valid
    * outside its scope.
    */
-  def release: ZManaged[R, E, A] =
+  def release(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.fromZIO(useNow)
 
   /**
    * Returns a `Reservation` that allows separately accessing effects
    * describing resource acquisition and release.
    */
-  def reserve: UIO[Reservation[R, E, A]] =
+  def reserve(implicit trace: ZTraceElement): UIO[Reservation[R, E, A]] =
     ReleaseMap.make.map { releaseMap =>
       Reservation(
         zio.provideSome[R]((_, releaseMap)).map(_._2),
@@ -880,7 +934,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
    * "execute `io` and in case of failure, try again once".
    */
-  def retry[R1 <: R, S](policy: => Schedule[R1, E, S])(implicit ev: CanFail[E]): ZManaged[R1 with Has[Clock], E, A] =
+  def retry[R1 <: R, S](
+    policy: => Schedule[R1, E, S]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1 with Has[Clock], E, A] =
     ZManaged(ZIO.accessZIO[(R1 with Has[Clock], ZManaged.ReleaseMap)] { case (env, releaseMap) =>
       zio.provideSome[R1 with Has[Clock]](env => (env, releaseMap)).retry(policy).provide(env)
     })
@@ -889,7 +945,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Returns an effect that semantically runs the effect on a fiber,
    * producing an [[zio.Exit]] for the completion value of the fiber.
    */
-  def exit: ZManaged[R, Nothing, Exit[E, A]] =
+  def exit(implicit trace: ZTraceElement): ZManaged[R, Nothing, Exit[E, A]] =
     foldCauseManaged(
       cause => ZManaged.succeedNow(Exit.failCause(cause)),
       succ => ZManaged.succeedNow(Exit.succeed(succ))
@@ -898,7 +954,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Exposes the full cause of failure of this effect.
    */
-  def sandbox: ZManaged[R, Cause[E], A] =
+  def sandbox(implicit trace: ZTraceElement): ZManaged[R, Cause[E], A] =
     ZManaged(zio.sandbox)
 
   /**
@@ -907,13 +963,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def sandboxWith[R1 <: R, E2, B](
     f: ZManaged[R1, Cause[E], A] => ZManaged[R1, Cause[E2], B]
-  ): ZManaged[R1, E2, B] =
+  )(implicit trace: ZTraceElement): ZManaged[R1, E2, B] =
     ZManaged.unsandbox(f(self.sandbox))
 
   /**
    * Converts an option on values into an option on errors.
    */
-  final def some[B](implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, Option[E], B] =
+  final def some[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZManaged[R, Option[E], B] =
     self.foldManaged(
       e => ZManaged.fail(Some(e)),
       a => ev(a).fold[ZManaged[R, Option[E], B]](ZManaged.fail(Option.empty[E]))(ZManaged.succeedNow)
@@ -922,7 +978,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Extracts the optional value, or returns the given 'default'.
    */
-  final def someOrElse[B](default: => B)(implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, E, B] =
+  final def someOrElse[B](
+    default: => B
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZManaged[R, E, B] =
     map(a => ev(a).getOrElse(default))
 
   /**
@@ -931,7 +989,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   @deprecated("use someOrElseManaged", "2.0.0")
   final def someOrElseM[B, R1 <: R, E1 >: E](
     default: => ZManaged[R1, E1, B]
-  )(implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R1, E1, B] =
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZManaged[R1, E1, B] =
     someOrElseManaged(default)
 
   /**
@@ -939,7 +997,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   final def someOrElseManaged[B, R1 <: R, E1 >: E](
     default: => ZManaged[R1, E1, B]
-  )(implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R1, E1, B] =
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZManaged[R1, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZManaged.succeedNow(value)
       case None        => default
@@ -948,7 +1006,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Extracts the optional value, or fails with the given error 'e'.
    */
-  final def someOrFail[B, E1 >: E](e: => E1)(implicit ev: A IsSubtypeOfOutput Option[B]): ZManaged[R, E1, B] =
+  final def someOrFail[B, E1 >: E](
+    e: => E1
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZManaged[R, E1, B] =
     self.flatMap(ev(_) match {
       case Some(value) => ZManaged.succeedNow(value)
       case None        => ZManaged.fail(e)
@@ -959,7 +1019,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   final def someOrFailException[B, E1 >: E](implicit
     ev: A IsSubtypeOfOutput Option[B],
-    ev2: NoSuchElementException <:< E1
+    ev2: NoSuchElementException <:< E1,
+    trace: ZTraceElement
   ): ZManaged[R, E1, B] =
     self.foldManaged(
       e => ZManaged.fail(e),
@@ -972,14 +1033,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Returns an effect that effectfully peeks at the acquired resource.
    */
-  def tap[R1 <: R, E1 >: E](f: A => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
+  def tap[R1 <: R, E1 >: E](f: A => ZManaged[R1, E1, Any])(implicit trace: ZTraceElement): ZManaged[R1, E1, A] =
     flatMap(a => f(a).as(a))
 
   /**
    * Returns an effect that effectfully peeks at the failure or success of the acquired resource.
    */
   def tapBoth[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any], g: A => ZManaged[R1, E1, Any])(implicit
-    ev: CanFail[E]
+    ev: CanFail[E],
+    trace: ZTraceElement
   ): ZManaged[R1, E1, A] =
     foldManaged(
       e => f(e) *> ZManaged.fail(e),
@@ -991,27 +1053,35 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * the acquired resource.
    */
   @deprecated("use tapErrorCause", "2.0.0")
-  final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
+  final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A] =
     tapErrorCause(f)
 
   /**
    * Returns an effect that effectually "peeks" at the defect of the acquired
    * resource.
    */
-  final def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
+  final def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZManaged[R1, E1, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A] =
     catchAllCause(c => f(c.stripFailures) *> ZManaged.failCause(c))
 
   /**
    * Returns an effect that effectfully peeks at the failure of the acquired resource.
    */
-  def tapError[R1 <: R, E1 >: E](f: E => ZManaged[R1, E1, Any])(implicit ev: CanFail[E]): ZManaged[R1, E1, A] =
+  def tapError[R1 <: R, E1 >: E](
+    f: E => ZManaged[R1, E1, Any]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E1, A] =
     tapBoth(f, ZManaged.succeedNow)
 
   /**
    * Returns an effect that effectually peeks at the cause of the failure of
    * the acquired resource.
    */
-  final def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any]): ZManaged[R1, E1, A] =
+  final def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZManaged[R1, E1, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A] =
     catchAllCause(c => f(c) *> ZManaged.failCause(c))
 
   /**
@@ -1019,20 +1089,20 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * ZManaged value.
    */
   @deprecated("use tapZIO", "2.0.0")
-  def tapM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZManaged[R1, E1, A] =
+  def tapM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit trace: ZTraceElement): ZManaged[R1, E1, A] =
     tapZIO(f)
 
   /**
    * Like [[ZManaged#tap]], but uses a function that returns a ZIO value rather than a
    * ZManaged value.
    */
-  def tapZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZManaged[R1, E1, A] =
+  def tapZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit trace: ZTraceElement): ZManaged[R1, E1, A] =
     mapZIO(a => f(a).as(a))
 
   /**
    * Returns a new effect that executes this one and times the acquisition of the resource.
    */
-  def timed: ZManaged[R with Has[Clock], E, (Duration, A)] =
+  def timed(implicit trace: ZTraceElement): ZManaged[R with Has[Clock], E, (Duration, A)] =
     ZManaged {
       ZIO.environment[(R, ReleaseMap)].flatMap { case (r, releaseMap) =>
         self.zio
@@ -1051,7 +1121,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * If the reservation completes successfully (even after the timeout) the release action will be run on a new fiber.
    * `Some` will be returned if acquisition and reservation complete in time
    */
-  def timeout(d: => Duration): ZManaged[R with Has[Clock], E, Option[A]] =
+  def timeout(d: => Duration)(implicit trace: ZTraceElement): ZManaged[R with Has[Clock], E, Option[A]] =
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
@@ -1084,58 +1154,62 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Constructs a layer from this managed resource.
    */
-  def toLayer[A1 >: A: Tag]: ZLayer[R, E, Has[A1]] =
+  def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): ZLayer[R, E, Has[A1]] =
     ZLayer.fromManaged(self)
 
   /**
    * Constructs a layer from this managed resource, which must return one or
    * more services.
    */
-  final def toLayerMany[A1 >: A: Tag]: ZLayer[R, E, A1] =
+  final def toLayerMany[A1 >: A: Tag](implicit trace: ZTraceElement): ZLayer[R, E, A1] =
     ZLayer.fromManagedMany(self)
 
   /**
    * Return unit while running the effect
    */
-  lazy val unit: ZManaged[R, E, Unit] =
+  def unit(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
     as(())
 
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  final def unless(b: => Boolean): ZManaged[R, E, Option[A]] =
+  final def unless(b: => Boolean)(implicit trace: ZTraceElement): ZManaged[R, E, Option[A]] =
     ZManaged.unless(b)(self)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
   @deprecated("use unlessManaged", "2.0.0")
-  final def unlessM[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Option[A]] =
+  final def unlessM[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, Option[A]] =
     unlessManaged(b)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  final def unlessManaged[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Option[A]] =
+  final def unlessManaged[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, Option[A]] =
     ZManaged.unlessManaged(b)(self)
 
   /**
    * Converts an option on errors into an option on values.
    */
   @deprecated("use unsome", "2.0.0")
-  final def unoption[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R, E1, Option[A]] =
+  final def unoption[E1](implicit ev: E IsSubtypeOfError Option[E1], trace: ZTraceElement): ZManaged[R, E1, Option[A]] =
     unsome
 
   /**
    * The inverse operation `ZManaged.sandboxed`
    */
-  def unsandbox[E1](implicit ev: E IsSubtypeOfError Cause[E1]): ZManaged[R, E1, A] =
+  def unsandbox[E1](implicit ev: E IsSubtypeOfError Cause[E1], trace: ZTraceElement): ZManaged[R, E1, A] =
     ZManaged.unsandbox(mapError(ev))
 
   /**
    * Converts an option on errors into an option on values.
    */
-  final def unsome[E1](implicit ev: E IsSubtypeOfError Option[E1]): ZManaged[R, E1, Option[A]] =
+  final def unsome[E1](implicit ev: E IsSubtypeOfError Option[E1], trace: ZTraceElement): ZManaged[R, E1, Option[A]] =
     self.foldManaged(
       e => ev(e).fold[ZManaged[R, E1, Option[A]]](ZManaged.succeedNow(Option.empty[A]))(ZManaged.fail(_)),
       a => ZManaged.succeedNow(Some(a))
@@ -1156,7 +1230,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Run an effect while acquiring the resource before and releasing it after
    */
-  def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+  def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
     ZManaged.ReleaseMap.make.acquireReleaseExitWith(
       (relMap, exit: Exit[E1, B]) => relMap.releaseAll(exit, ExecutionStrategy.Sequential),
       relMap =>
@@ -1168,21 +1242,21 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *  This does not provide the resource to the function
    */
   @deprecated("use useDiscard", "2.0.0")
-  def use_[R1 <: R, E1 >: E, B](f: => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+  def use_[R1 <: R, E1 >: E, B](f: => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
     useDiscard(f)
 
   /**
    *  Run an effect while acquiring the resource before and releasing it after.
    *  This does not provide the resource to the function
    */
-  def useDiscard[R1 <: R, E1 >: E, B](f: => ZIO[R1, E1, B]): ZIO[R1, E1, B] =
+  def useDiscard[R1 <: R, E1 >: E, B](f: => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
     use(_ => f)
 
   /**
    * Use the resource until interruption.
    * Useful for resources that you want to acquire and use as long as the application is running, like a HTTP server.
    */
-  val useForever: ZIO[R, E, Nothing] =
+  def useForever(implicit trace: ZTraceElement): ZIO[R, E, Nothing] =
     use(_ => ZIO.never)
 
   /**
@@ -1190,26 +1264,30 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * managed effect. Note that this is only safe if the result of this managed
    * effect is valid outside its scope.
    */
-  val useNow: ZIO[R, E, A] =
+  def useNow(implicit trace: ZTraceElement): ZIO[R, E, A] =
     use(ZIO.succeedNow)
 
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when(b: => Boolean): ZManaged[R, E, Option[A]] =
+  def when(b: => Boolean)(implicit trace: ZTraceElement): ZManaged[R, E, Option[A]] =
     ZManaged.when(b)(self)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   @deprecated("use whenManaged", "2.0.0")
-  def whenM[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Option[A]] =
+  def whenM[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, Option[A]] =
     whenManaged(b)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenManaged[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean]): ZManaged[R1, E1, Option[A]] =
+  def whenManaged[R1 <: R, E1 >: E](b: => ZManaged[R1, E1, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, Option[A]] =
     ZManaged.whenManaged(b)(self)
 
   /**
@@ -1218,15 +1296,33 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * uninterruptibly with an exit value indicating that the effect was
    * interrupted, and if completed will cause the regular finalizer to not run.
    */
-  def withEarlyRelease: ZManaged[R, E, (UIO[Any], A)] =
+  def withEarlyRelease(implicit trace: ZTraceElement): ZManaged[R, E, (UIO[Any], A)] =
     ZManaged.fiberId.flatMap(fiberId => withEarlyReleaseExit(Exit.interrupt(fiberId)))
 
   /**
    * A more powerful version of [[withEarlyRelease]] that allows specifying an
    * exit value in the event of early release.
    */
-  def withEarlyReleaseExit(e: => Exit[Any, Any]): ZManaged[R, E, (UIO[Any], A)] =
+  def withEarlyReleaseExit(e: => Exit[Any, Any])(implicit trace: ZTraceElement): ZManaged[R, E, (UIO[Any], A)] =
     ZManaged(zio.map(tp => (tp._1, (tp._1(e).uninterruptible, tp._2))))
+
+  /**
+   * Runs this managed effect with the specified maximum number of fibers for
+   * parallel operators, guaranteeing that this managed effect as well as
+   * managed effects that are composed sequentially after it will be run with
+   * the specified maximum number of fibers for parallel operators.
+   */
+  def withParallelism(n: => Int)(implicit trace: ZTraceElement): ZManaged[R, E, A] =
+    ZManaged.withParallism(n) *> self
+
+  /**
+   * Runs this managed effect with an unbounded maximum number of fibers for
+   * parallel operators, guaranteeing that this managed effect as well as
+   * managed effects that are composed sequentially after it will be run with
+   * an unbounded maximum number of fibers for parallel operators.
+   */
+  def withParallelismUnbounded(implicit trace: ZTraceElement): ZManaged[R, E, A] =
+    ZManaged.withParallismUnbounded *> self
 
   /**
    * Runs this managed effect on the specified runtime configuration,
@@ -1234,54 +1330,64 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * composed sequentially after it will be run on the specified runtime
    * configuration.
    */
-  final def withRuntimeConfig(runtimeConfig: => RuntimeConfig): ZManaged[R, E, A] =
+  final def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.withRuntimeConfig(runtimeConfig) *> self
 
   /**
    * Named alias for `<*>`.
    */
   def zip[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit
-    zippable: Zippable[A, A1]
+    zippable: Zippable[A, A1],
+    trace: ZTraceElement
   ): ZManaged[R1, E1, zippable.Out] =
     self <*> that
 
   /**
    * Named alias for `<*`.
    */
-  def zipLeft[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
+  def zipLeft[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit trace: ZTraceElement): ZManaged[R1, E1, A] =
     self <* that
 
   /**
    * Named alias for `<&>`.
    */
   def zipPar[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit
-    zippable: Zippable[A, A1]
+    zippable: Zippable[A, A1],
+    trace: ZTraceElement
   ): ZManaged[R1, E1, zippable.Out] =
     self <&> that
 
   /**
    * Named alias for `<&`.
    */
-  def zipParLeft[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1]): ZManaged[R1, E1, A] =
+  def zipParLeft[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A] =
     self <& that
 
   /**
    * Named alias for `&>`.
    */
-  def zipParRight[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
+  def zipParRight[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A1] =
     self &> that
 
   /**
    * Named alias for `*>`.
    */
-  def zipRight[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1]): ZManaged[R1, E1, A1] =
+  def zipRight[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A1] =
     self *> that
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
    * in sequence, combining their results with the specified `f` function.
    */
-  def zipWith[R1 <: R, E1 >: E, A1, A2](that: => ZManaged[R1, E1, A1])(f: (A, A1) => A2): ZManaged[R1, E1, A2] =
+  def zipWith[R1 <: R, E1 >: E, A1, A2](that: => ZManaged[R1, E1, A1])(f: (A, A1) => A2)(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, A2] =
     flatMap(r => that.map(r1 => f(r, r1)))
 
   /**
@@ -1289,7 +1395,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * in parallel, combining their results with the specified `f` function. If
    * either side fails, then the other side will be interrupted.
    */
-  def zipWithPar[R1 <: R, E1 >: E, A1, A2](that: => ZManaged[R1, E1, A1])(f: (A, A1) => A2): ZManaged[R1, E1, A2] =
+  def zipWithPar[R1 <: R, E1 >: E, A1, A2](
+    that: => ZManaged[R1, E1, A1]
+  )(f: (A, A1) => A2)(implicit trace: ZTraceElement): ZManaged[R1, E1, A2] =
     ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapZIO { parallelReleaseMap =>
       val innerMap =
         ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.provideSome[R1]((_, parallelReleaseMap))
@@ -1317,37 +1425,42 @@ object ZManaged extends ZManagedPlatformSpecific {
       extends State
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: R => A): ZManaged[R, Nothing, A] =
+    def apply[A](f: R => A)(implicit trace: ZTraceElement): ZManaged[R, Nothing, A] =
       ZManaged.environment.map(f)
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A]): ZManaged[R with R1, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A])(implicit trace: ZTraceElement): ZManaged[R with R1, E, A] =
       ZManaged.environment.mapZIO(f)
   }
 
   final class AccessManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R1 <: R, E, A](f: R => ZManaged[R1, E, A]): ZManaged[R with R1, E, A] =
+    def apply[R1 <: R, E, A](f: R => ZManaged[R1, E, A])(implicit trace: ZTraceElement): ZManaged[R with R1, E, A] =
       ZManaged.environment.flatMap(f)
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
-    )(implicit tag: Tag[Map[Key, Service]]): ZManaged[HasMany[Key, Service], Nothing, Option[Service]] =
+    )(implicit
+      tag: Tag[Map[Key, Service]],
+      trace: ZTraceElement
+    ): ZManaged[HasMany[Key, Service], Nothing, Option[Service]] =
       ZManaged.access(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Has[Service], E, A](f: Service => ZIO[R, E, A])(implicit
-      tag: Tag[Service]
+      tag: Tag[Service],
+      trace: ZTraceElement
     ): ZManaged[R with Has[Service], E, A] =
       ZManaged.fromZIO(ZIO.serviceWith[Service](f))
   }
 
   final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Has[Service], E, A](f: Service => ZManaged[Has[Service], E, A])(implicit
-      tag: Tag[Service]
+      tag: Tag[Service],
+      trace: ZTraceElement
     ): ZManaged[R with Has[Service], E, A] =
       ZManaged.accessManaged[Has[Service]](hasService => f(hasService.get))
   }
@@ -1366,36 +1479,42 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[R1 <: R, E1 >: E, A](
       onTrue: => ZManaged[R1, E1, A],
       onFalse: => ZManaged[R1, E1, A]
-    ): ZManaged[R1, E1, A] =
+    )(implicit trace: ZTraceElement): ZManaged[R1, E1, A] =
       ZManaged.suspend(b().flatMap(b => if (b) onTrue else onFalse))
   }
 
   final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
-    )(implicit ev1: R0 with R1 <:< R, ev2: CombineEnvIntersection[R0, R1], tagged: Tag[R1]): ZManaged[R0, E1, A] =
+    )(implicit ev1: R0 with R1 <:< R, ev2: CombineEnvIntersection[R0, R1], tagged: Tag[R1], trace: ZTraceElement): ZManaged[R0, E1, A] =
       self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E, A](managed: => ZManaged[R1, E1, A]): ZManaged[R1, E1, Option[A]] =
+    def apply[R1 <: R, E1 >: E, A](managed: => ZManaged[R1, E1, A])(implicit
+      trace: ZTraceElement
+    ): ZManaged[R1, E1, Option[A]] =
       ZManaged.suspend(b().flatMap(b => if (b) none else managed.asSome))
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZManaged[R, E, A]) extends AnyVal {
-    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZManaged[R1, E, A] =
+    def apply[R1 <: R with Has[M]](
+      f: M => M
+    )(implicit ev: Has.IsHas[R1], tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
       self.provideSome(ev.update(_, f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZManaged[R1, E, A] =
+    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZManaged[R1, E, A] =
       self.provideSome(ev.updateAt(_, key, f))
   }
 
   final class WhenManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E, A](managed: => ZManaged[R1, E1, A]): ZManaged[R1, E1, Option[A]] =
+    def apply[R1 <: R, E1 >: E, A](managed: => ZManaged[R1, E1, A])(implicit
+      trace: ZTraceElement
+    ): ZManaged[R1, E1, Option[A]] =
       ZManaged.suspend(b().flatMap(b => if (b) managed.asSome else none))
   }
 
@@ -1472,17 +1591,30 @@ object ZManaged extends ZManagedPlatformSpecific {
   object ReleaseMap {
 
     /**
+     * Construct a [[ReleaseMap]] wrapped in a [[ZManaged]]. The `ReleaseMap`
+     * will be released with the in parallel as the release action for the
+     * resulting `ZManaged`.
+     */
+    def makeManagedPar(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ReleaseMap] =
+      ZManaged.parallelism.flatMap {
+        case Some(n) => makeManaged(ExecutionStrategy.ParallelN(n))
+        case None    => makeManaged(ExecutionStrategy.Parallel)
+      }
+
+    /**
      * Construct a [[ReleaseMap]] wrapped in a [[ZManaged]]. The `ReleaseMap` will
      * be released with the specified [[ExecutionStrategy]] as the release action
      * for the resulting `ZManaged`.
      */
-    def makeManaged(executionStrategy: ExecutionStrategy): ZManaged[Any, Nothing, ReleaseMap] =
+    def makeManaged(executionStrategy: ExecutionStrategy)(implicit
+      trace: ZTraceElement
+    ): ZManaged[Any, Nothing, ReleaseMap] =
       ZManaged.acquireReleaseExitWith(make)((m, e) => m.releaseAll(e, executionStrategy))
 
     /**
      * Creates a new ReleaseMap.
      */
-    def make: UIO[ReleaseMap] = {
+    def make(implicit trace: ZTraceElement): UIO[ReleaseMap] = {
       // The sorting order of the LongMap uses bit ordering (000, 001, ... 111 but with 64 bits). This
       // works out to be `0 ... Long.MaxValue, Long.MinValue, ... -1`. The order of the map is mainly
       // important for the finalization, in which we want to walk it in reverse order. So we insert
@@ -1556,10 +1688,11 @@ object ZManaged extends ZManagedPlatformSpecific {
                   case ExecutionStrategy.ParallelN(n) =>
                     (
                       ZIO
-                        .foreachParN(n)(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
+                        .foreachPar(fins: Iterable[(Long, Finalizer)]) { case (_, finalizer) =>
                           update(finalizer)(exit).exit
                         }
-                        .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit)),
+                        .flatMap(results => ZIO.done(Exit.collectAllPar(results) getOrElse Exit.unit))
+                        .withParallelism(n),
                       Exited(nextKey, exit, update)
                     )
 
@@ -1593,7 +1726,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Submerges the error case of an `Either` into the `ZManaged`. The inverse
    * operation of `ZManaged.either`.
    */
-  def absolve[R, E, A](v: => ZManaged[R, E, Either[E, A]]): ZManaged[R, E, A] =
+  def absolve[R, E, A](v: => ZManaged[R, E, Either[E, A]])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.suspend(v.flatMap(fromEither(_)))
 
   /**
@@ -1628,7 +1761,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def acquireRelease[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
     release: => ZIO[R1, Nothing, Any]
-  ): ZManaged[R1, E, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     acquireReleaseWith(acquire)(_ => release)
 
   /**
@@ -1636,14 +1769,18 @@ object ZManaged extends ZManagedPlatformSpecific {
    * action that does not need access to the resource. The acquire and release
    * actions will be performed uninterruptibly.
    */
-  def acquireReleaseAttempt[A](acquire: => A)(release: => Any): ZManaged[Any, Throwable, A] =
+  def acquireReleaseAttempt[A](acquire: => A)(release: => Any)(implicit
+    trace: ZTraceElement
+  ): ZManaged[Any, Throwable, A] =
     acquireReleaseAttemptWith(acquire)(_ => release)
 
   /**
    * Lifts a synchronous effect into `ZManaged[R, Throwable, A]` with a release action.
    * The acquire and release actions will be performed uninterruptibly.
    */
-  def acquireReleaseAttemptWith[A](acquire: => A)(release: A => Any): ZManaged[Any, Throwable, A] =
+  def acquireReleaseAttemptWith[A](acquire: => A)(release: A => Any)(implicit
+    trace: ZTraceElement
+  ): ZManaged[Any, Throwable, A] =
     acquireReleaseWith(Task(acquire))(a => Task(release(a)).orDie)
 
   /**
@@ -1653,7 +1790,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def acquireReleaseExit[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
     release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
-  ): ZManaged[R1, E, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     acquireReleaseExitWith(acquire)((_, exit) => release(exit))
 
   /**
@@ -1662,7 +1799,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def acquireReleaseExitWith[R, R1 <: R, E, A](
     acquire: => ZIO[R, E, A]
-  )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     ZManaged {
       (for {
         r               <- ZIO.environment[(R1, ReleaseMap)]
@@ -1678,7 +1815,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def acquireReleaseInterruptible[R, R1 <: R, E, A](
     acquire: => ZIO[R, E, A]
-  )(release: => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  )(release: => ZIO[R1, Nothing, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     acquireReleaseInterruptibleWith(acquire)(_ => release)
 
   /**
@@ -1688,7 +1825,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def acquireReleaseInterruptibleWith[R, R1 <: R, E, A](
     acquire: => ZIO[R, E, A]
-  )(release: A => URIO[R1, Any]): ZManaged[R1, E, A] =
+  )(release: A => URIO[R1, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     ZManaged.fromZIO(acquire).onExitFirst(_.foreach(release))
 
   /**
@@ -1697,7 +1834,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * access to the resource. The acquire and release actions will be performed
    * uninterruptibly.
    */
-  def acquireReleaseSucceed[A](acquire: => A)(release: => Any): ZManaged[Any, Nothing, A] =
+  def acquireReleaseSucceed[A](acquire: => A)(release: => Any)(implicit
+    trace: ZTraceElement
+  ): ZManaged[Any, Nothing, A] =
     acquireReleaseSucceedWith(acquire)(_ => release)
 
   /**
@@ -1705,7 +1844,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * `ZManaged[Any, Nothing, A]` with a release action. The acquire and
    * release actions will be performed uninterruptibly.
    */
-  def acquireReleaseSucceedWith[A](acquire: => A)(release: A => Any): ZManaged[Any, Nothing, A] =
+  def acquireReleaseSucceedWith[A](acquire: => A)(release: A => Any)(implicit
+    trace: ZTraceElement
+  ): ZManaged[Any, Nothing, A] =
     acquireReleaseWith(ZIO.succeed(acquire))(a => ZIO.succeed(release(a)))
 
   /**
@@ -1714,7 +1855,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def acquireReleaseWith[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
     release: A => ZIO[R1, Nothing, Any]
-  ): ZManaged[R1, E, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     acquireReleaseExitWith(acquire)((a, _) => release(a))
 
   /**
@@ -1738,7 +1879,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Lifts a synchronous side-effect into a `ZManaged[R, Throwable, A]`,
    * translating any thrown exceptions into typed failed effects.
    */
-  def attempt[A](r: => A): ZManaged[Any, Throwable, A] =
+  def attempt[A](r: => A)(implicit trace: ZTraceElement): ZManaged[Any, Throwable, A] =
     ZManaged.fromZIO(ZIO.attempt(r))
 
   /**
@@ -1747,7 +1888,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZManaged[R, E, Collection[B]] =
     foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
@@ -1756,7 +1897,10 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def collectAll[R, E, A, Collection[+Element] <: Iterable[Element]](
     ms: Collection[ZManaged[R, E, A]]
-  )(implicit bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]]): ZManaged[R, E, Collection[A]] =
+  )(implicit
+    bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]],
+    trace: ZTraceElement
+  ): ZManaged[R, E, Collection[A]] =
     foreach(ms)(ZIO.identityFn)
 
   /**
@@ -1764,14 +1908,16 @@ object ZManaged extends ZManagedPlatformSpecific {
    * results. For a parallel version, see `collectAllPar_`.
    */
   @deprecated("use collectAllDiscard", "2.0.0")
-  def collectAll_[R, E, A](ms: => Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
+  def collectAll_[R, E, A](ms: => Iterable[ZManaged[R, E, A]])(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
     collectAllDiscard(ms)
 
   /**
    * Evaluate each effect in the structure from left to right, and discard the
    * results. For a parallel version, see `collectAllParDiscard`.
    */
-  def collectAllDiscard[R, E, A](ms: => Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
+  def collectAllDiscard[R, E, A](ms: => Iterable[ZManaged[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Unit] =
     foreachDiscard(ms)(ZIO.identityFn)
 
   /**
@@ -1780,7 +1926,10 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def collectAllPar[R, E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[ZManaged[R, E, A]]
-  )(implicit bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]]): ZManaged[R, E, Collection[A]] =
+  )(implicit
+    bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]],
+    trace: ZTraceElement
+  ): ZManaged[R, E, Collection[A]] =
     foreachPar(as)(ZIO.identityFn)
 
   /**
@@ -1788,14 +1937,16 @@ object ZManaged extends ZManagedPlatformSpecific {
    * results. For a sequential version, see `collectAll_`.
    */
   @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllPar_[R, E, A](as: => Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
+  def collectAllPar_[R, E, A](as: => Iterable[ZManaged[R, E, A]])(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
     collectAllParDiscard(as)
 
   /**
    * Evaluate each effect in the structure in parallel, and discard the
    * results. For a sequential version, see `collectAllDiscard`.
    */
-  def collectAllParDiscard[R, E, A](as: => Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
+  def collectAllParDiscard[R, E, A](as: => Iterable[ZManaged[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Unit] =
     foreachParDiscard(as)(ZIO.identityFn)
 
   /**
@@ -1804,9 +1955,13 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `CollectAllPar`, this method will use at most `n` fibers.
    */
+  @deprecated("use collectAllPar", "2.0.0")
   def collectAllParN[R, E, A, Collection[+Element] <: Iterable[Element]](n: => Int)(
     as: Collection[ZManaged[R, E, A]]
-  )(implicit bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]]): ZManaged[R, E, Collection[A]] =
+  )(implicit
+    bf: BuildFrom[Collection[ZManaged[R, E, A]], A, Collection[A]],
+    trace: ZTraceElement
+  ): ZManaged[R, E, Collection[A]] =
     foreachParN(n)(as)(ZIO.identityFn)
 
   /**
@@ -1815,8 +1970,10 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `CollectAllPar_`, this method will use at most `n` fibers.
    */
-  @deprecated("use collectAllParNDiscard", "2.0.0")
-  def collectAllParN_[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
+  @deprecated("use collectAllParDiscard", "2.0.0")
+  def collectAllParN_[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Unit] =
     collectAllParNDiscard(n)(as)
 
   /**
@@ -1825,14 +1982,19 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `collectAllParDiscard`, this method will use at most `n` fibers.
    */
-  def collectAllParNDiscard[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]]): ZManaged[R, E, Unit] =
+  @deprecated("use collectAllParDiscard", "2.0.0")
+  def collectAllParNDiscard[R, E, A](n: => Int)(as: => Iterable[ZManaged[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Unit] =
     foreachParNDiscard(n)(as)(ZIO.identityFn)
 
   /**
    * Collects the first element of the `Iterable[A]` for which the effectual
    * function `f` returns `Some`.
    */
-  def collectFirst[R, E, A, B](as: => Iterable[A])(f: A => ZManaged[R, E, Option[B]]): ZManaged[R, E, Option[B]] =
+  def collectFirst[R, E, A, B](
+    as: => Iterable[A]
+  )(f: A => ZManaged[R, E, Option[B]])(implicit trace: ZTraceElement): ZManaged[R, E, Option[B]] =
     succeed(as.iterator).flatMap { iterator =>
       def loop: ZManaged[R, E, Option[B]] =
         if (iterator.hasNext) f(iterator.next()).flatMap(_.fold(loop)(some(_)))
@@ -1846,7 +2008,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def collectPar[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZManaged[R, E, Collection[B]] =
     foreachPar[R, E, A, Option[B], Iterable](in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
@@ -1855,16 +2017,17 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `collectPar`, this method will use at most up to `n` fibers.
    */
+  @deprecated("use collectAllPar", "2.0.0")
   def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(in: Collection[A])(
     f: A => ZManaged[R, Option[E], B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZManaged[R, E, Collection[B]] =
     foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Similar to Either.cond, evaluate the predicate,
    * return the given A as success if predicate returns true, and the given E as error otherwise
    */
-  def cond[E, A](predicate: => Boolean, result: => A, error: => E): Managed[E, A] =
+  def cond[E, A](predicate: => Boolean, result: => A, error: => E)(implicit trace: ZTraceElement): Managed[E, A] =
     ZManaged.suspend(if (predicate) succeed(result) else fail(error))
 
   /**
@@ -1872,7 +2035,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * This method can be used for terminating a fiber because a defect has been
    * detected in the code.
    */
-  def die(t: => Throwable): ZManaged[Any, Nothing, Nothing] =
+  def die(t: => Throwable)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Nothing] =
     failCause(Cause.die(t))
 
   /**
@@ -1880,13 +2043,13 @@ object ZManaged extends ZManagedPlatformSpecific {
    * specified text message. This method can be used for terminating a fiber
    * because a defect has been detected in the code.
    */
-  def dieMessage(message: => String): ZManaged[Any, Nothing, Nothing] =
+  def dieMessage(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Nothing] =
     die(new RuntimeException(message))
 
   /**
    * Returns an effect from a lazily evaluated [[zio.Exit]] value.
    */
-  def done[E, A](r: => Exit[E, A]): ZManaged[Any, E, A] =
+  def done[E, A](r: => Exit[E, A])(implicit trace: ZTraceElement): ZManaged[Any, E, A] =
     ZManaged.fromZIO(ZIO.done(r))
 
   /**
@@ -1894,27 +2057,29 @@ object ZManaged extends ZManagedPlatformSpecific {
    * translating any thrown exceptions into typed failed effects.
    */
   @deprecated("use attempt", "2.0.0")
-  def effect[A](r: => A): ZManaged[Any, Throwable, A] =
+  def effect[A](r: => A)(implicit trace: ZTraceElement): ZManaged[Any, Throwable, A] =
     attempt(r)
 
   /**
    * Lifts a by-name, pure value into a Managed.
    */
   @deprecated("use succeed", "2.0.0")
-  def effectTotal[A](r: => A): ZManaged[Any, Nothing, A] =
+  def effectTotal[A](r: => A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, A] =
     succeed(r)
 
   /**
    * Accesses the whole environment of the effect.
    */
-  def environment[R]: ZManaged[R, Nothing, R] =
+  def environment[R](implicit trace: ZTraceElement): ZManaged[R, Nothing, R] =
     ZManaged.fromZIO(ZIO.environment)
 
   /**
    * Determines whether any element of the `Iterable[A]` satisfies the
    * effectual predicate `f`.
    */
-  def exists[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Boolean]): ZManaged[R, E, Boolean] =
+  def exists[R, E, A](
+    as: => Iterable[A]
+  )(f: A => ZManaged[R, E, Boolean])(implicit trace: ZTraceElement): ZManaged[R, E, Boolean] =
     succeed(as.iterator).flatMap { iterator =>
       def loop: ZManaged[R, E, Boolean] =
         if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) succeedNow(b) else loop)
@@ -1926,33 +2091,33 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Returns an effect that models failure with the specified  error.
    * The moral equivalent of `throw` for pure code.
    */
-  def fail[E](error: => E): ZManaged[Any, E, Nothing] =
+  def fail[E](error: => E)(implicit trace: ZTraceElement): ZManaged[Any, E, Nothing] =
     failCause(Cause.fail(error))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
-  def failCause[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
+  def failCause[E](cause: => Cause[E])(implicit trace: ZTraceElement): ZManaged[Any, E, Nothing] =
     ZManaged.fromZIO(ZIO.failCause(cause))
 
   /**
    * Returns an effect that succeeds with the `FiberId` of the caller.
    */
-  lazy val fiberId: ZManaged[Any, Nothing, FiberId] =
+  def fiberId(implicit trace: ZTraceElement): ZManaged[Any, Nothing, FiberId] =
     ZManaged.fromZIO(ZIO.fiberId)
 
   /**
    * Creates an effect that only executes the provided finalizer as its
    * release action.
    */
-  def finalizer[R](f: => URIO[R, Any]): ZManaged[R, Nothing, Unit] =
+  def finalizer[R](f: => URIO[R, Any])(implicit trace: ZTraceElement): ZManaged[R, Nothing, Unit] =
     finalizerExit(_ => f)
 
   /**
    * Creates an effect that only executes the provided function as its
    * release action.
    */
-  def finalizerExit[R](f: Exit[Any, Any] => URIO[R, Any]): ZManaged[R, Nothing, Unit] =
+  def finalizerExit[R](f: Exit[Any, Any] => URIO[R, Any])(implicit trace: ZTraceElement): ZManaged[R, Nothing, Unit] =
     acquireReleaseExitWith(ZIO.unit)((_, e) => f(e))
 
   /**
@@ -1960,7 +2125,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The `Ref` is yielded as the result of the effect, allowing for
    * control flows that require mutating finalizers.
    */
-  def finalizerRef[R](initial: => Finalizer): ZManaged[R, Nothing, Ref[Finalizer]] =
+  def finalizerRef[R](initial: => Finalizer)(implicit trace: ZTraceElement): ZManaged[R, Nothing, Ref[Finalizer]] =
     ZManaged.acquireReleaseExitWith(Ref.make(initial))((ref, exit) => ref.get.flatMap(_.apply(exit)))
 
   /**
@@ -1972,7 +2137,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def firstSuccessOf[R, E, A](
     first: => ZManaged[R, E, A],
     rest: => Iterable[ZManaged[R, E, A]]
-  ): ZManaged[R, E, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.suspend(rest.foldLeft(first)(_ <> _))
 
   /**
@@ -1981,7 +2146,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * This method can be used to "flatten" nested effects.
    */
-  def flatten[R, E, A](zManaged: => ZManaged[R, E, ZManaged[R, E, A]]): ZManaged[R, E, A] =
+  def flatten[R, E, A](zManaged: => ZManaged[R, E, ZManaged[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, A] =
     ZManaged.suspend(zManaged.flatMap(scala.Predef.identity))
 
   /**
@@ -1991,7 +2158,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * This method can be used to "flatten" nested effects.
    */
   @deprecated("use flattenZIO", "2,0.0")
-  def flattenM[R, E, A](zManaged: => ZManaged[R, E, ZIO[R, E, A]]): ZManaged[R, E, A] =
+  def flattenM[R, E, A](zManaged: => ZManaged[R, E, ZIO[R, E, A]])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     flattenZIO(zManaged)
 
   /**
@@ -2000,7 +2167,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * This method can be used to "flatten" nested effects.
    */
-  def flattenZIO[R, E, A](zManaged: => ZManaged[R, E, ZIO[R, E, A]]): ZManaged[R, E, A] =
+  def flattenZIO[R, E, A](zManaged: => ZManaged[R, E, ZIO[R, E, A]])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.suspend(zManaged.mapZIO(scala.Predef.identity))
 
   /**
@@ -2008,14 +2175,16 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def foldLeft[R, E, S, A](
     in: => Iterable[A]
-  )(zero: => S)(f: (S, A) => ZManaged[R, E, S]): ZManaged[R, E, S] =
+  )(zero: => S)(f: (S, A) => ZManaged[R, E, S])(implicit trace: ZTraceElement): ZManaged[R, E, S] =
     ZManaged.suspend(in.foldLeft[ZManaged[R, E, S]](ZManaged.succeedNow(zero))((acc, el) => acc.flatMap(f(_, el))))
 
   /**
    * Determines whether all elements of the `Iterable[A]` satisfy the effectual
    * predicate `f`.
    */
-  def forall[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Boolean]): ZManaged[R, E, Boolean] =
+  def forall[R, E, A](
+    as: => Iterable[A]
+  )(f: A => ZManaged[R, E, Boolean])(implicit trace: ZTraceElement): ZManaged[R, E, Boolean] =
     succeed(as.iterator).flatMap { iterator =>
       def loop: ZManaged[R, E, Boolean] =
         if (iterator.hasNext) f(iterator.next()).flatMap(b => if (b) loop else succeedNow(b))
@@ -2033,7 +2202,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def foreach[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](in: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
-  )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
+  )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]], trace: ZTraceElement): ZManaged[R, E, Collection[A2]] =
     ZManaged(ZIO.foreach(in.toList)(f(_).zio).map { result =>
       val (fins, as) = result.unzip
       (e => ZIO.foreach(fins.reverse)(_.apply(e)), bf.fromSpecific(in)(as))
@@ -2043,7 +2212,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Applies the function `f` if the argument is non-empty and
    * returns the results in a new `Option[A2]`.
    */
-  final def foreach[R, E, A1, A2](in: Option[A1])(f: A1 => ZManaged[R, E, A2]): ZManaged[R, E, Option[A2]] =
+  final def foreach[R, E, A1, A2](in: Option[A1])(f: A1 => ZManaged[R, E, A2])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Option[A2]] =
     in.fold[ZManaged[R, E, Option[A2]]](succeed(None))(f(_).map(Some(_)))
 
   /**
@@ -2052,11 +2223,13 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   final def foreachExec[R, E, A, B, Collection[+Element] <: Iterable[Element]](as: Collection[A])(
     exec: => ExecutionStrategy
-  )(f: A => ZManaged[R, E, B])(implicit bf: BuildFrom[Collection[A], B, Collection[B]]): ZManaged[R, E, Collection[B]] =
+  )(
+    f: A => ZManaged[R, E, B]
+  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZManaged[R, E, Collection[B]] =
     ZManaged.suspend {
       exec match {
-        case ExecutionStrategy.Parallel     => ZManaged.foreachPar(as)(f)
-        case ExecutionStrategy.ParallelN(n) => ZManaged.foreachParN(n)(as)(f)
+        case ExecutionStrategy.Parallel     => ZManaged.foreachPar(as)(f).withParallelismUnbounded
+        case ExecutionStrategy.ParallelN(n) => ZManaged.foreachPar(as)(f).withParallelism(n)
         case ExecutionStrategy.Sequential   => ZManaged.foreach(as)(f)
       }
     }
@@ -2069,19 +2242,17 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def foreachPar[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](as: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
-  )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
-    ReleaseMap
-      .makeManaged(ExecutionStrategy.Parallel)
-      .mapZIO { parallelReleaseMap =>
-        val makeInnerMap =
-          ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
+  )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]], trace: ZTraceElement): ZManaged[R, E, Collection[A2]] =
+    ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
+      val makeInnerMap =
+        ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
 
-        ZIO
-          .foreachPar(as.toIterable)(a =>
-            makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
-          )
-          .map(bf.fromSpecific(as))
-      }
+      ZIO
+        .foreachPar(as.toIterable)(a =>
+          makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
+        )
+        .map(bf.fromSpecific(as))
+    }
 
   /**
    * Applies the function `f` to each element of the `Collection[A]` in parallel,
@@ -2089,9 +2260,10 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `foreachPar`, this method will use at most up to `n` fibers.
    */
+  @deprecated("use foreachPar", "2.0.0")
   def foreachParN[R, E, A1, A2, Collection[+Element] <: Iterable[Element]](n0: => Int)(as: Collection[A1])(
     f: A1 => ZManaged[R, E, A2]
-  )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]]): ZManaged[R, E, Collection[A2]] =
+  )(implicit bf: BuildFrom[Collection[A1], A2, Collection[A2]], trace: ZTraceElement): ZManaged[R, E, Collection[A2]] =
     ZManaged.suspend {
       val n = n0
       ReleaseMap
@@ -2116,7 +2288,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * the list of results.
    */
   @deprecated("use foreachDiscard", "2.0.0")
-  def foreach_[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  def foreach_[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Unit] =
     foreachDiscard(as)(f)
 
   /**
@@ -2126,7 +2300,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Equivalent to `foreach(as)(f).unit`, but without the cost of building
    * the list of results.
    */
-  def foreachDiscard[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  def foreachDiscard[R, E, A](
+    as: => Iterable[A]
+  )(f: A => ZManaged[R, E, Any])(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
     ZManaged {
       ZIO.suspendSucceed {
         ZIO.foreach(as)(f(_).zio).map { result =>
@@ -2143,7 +2319,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * For a sequential version of this method, see `foreach_`.
    */
   @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachPar_[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  def foreachPar_[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Unit] =
     foreachParDiscard(as)(f)
 
   /**
@@ -2152,8 +2330,10 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * For a sequential version of this method, see `foreachDiscard`.
    */
-  def foreachParDiscard[R, E, A](as: => Iterable[A])(f: A => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
-    ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapZIO { parallelReleaseMap =>
+  def foreachParDiscard[R, E, A](
+    as: => Iterable[A]
+  )(f: A => ZManaged[R, E, Any])(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
+    ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
       val makeInnerMap =
         ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
 
@@ -2166,14 +2346,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
    */
-  @deprecated("use foreachParNDiscard", "2.0.0")
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParN_[R, E, A](
     n: => Int
   )(
     as: => Iterable[A]
   )(
     f: A => ZManaged[R, E, Any]
-  ): ZManaged[R, E, Unit] =
+  )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
     foreachParNDiscard(n)(as)(f)
 
   /**
@@ -2182,13 +2362,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `foreachParDiscard`, this method will use at most up to `n` fibers.
    */
+  @deprecated("use foreachParDiscard", "2.0.0")
   def foreachParNDiscard[R, E, A](
     n0: => Int
   )(
     as: => Iterable[A]
   )(
     f: A => ZManaged[R, E, Any]
-  ): ZManaged[R, E, Unit] =
+  )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
     ZManaged.suspend {
       val n = n0
       ReleaseMap.makeManaged(ExecutionStrategy.ParallelN(n)).mapZIO { parallelReleaseMap =>
@@ -2205,14 +2386,18 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Constructs a  `ZManaged` value of the appropriate type for the specified
    * input.
    */
-  def from[Input](input: => Input)(implicit constructor: ZManagedConstructor[Input]): constructor.Out =
+  def from[Input](
+    input: => Input
+  )(implicit constructor: ZManagedConstructor[Input], trace: ZTraceElement): constructor.Out =
     constructor.make(input)
 
   /**
    * Creates a [[ZManaged]] from an `AutoCloseable` resource. The resource's `close`
    * method will be used as the release action.
    */
-  def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A]): ZManaged[R, E, A] =
+  def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, A] =
     acquireReleaseWith(fa)(a => UIO(a.close()))
 
   /**
@@ -2220,7 +2405,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * effect will be performed interruptibly.
    */
   @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A](fa: => ZIO[R, E, A]): ZManaged[R, E, A] =
+  def fromEffect[R, E, A](fa: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     fromZIO(fa)
 
   /**
@@ -2229,20 +2414,20 @@ object ZManaged extends ZManagedPlatformSpecific {
    * variant.
    */
   @deprecated("use fromZIOUninterruptible", "2.0.0")
-  def fromEffectUninterruptible[R, E, A](fa: => ZIO[R, E, A]): ZManaged[R, E, A] =
+  def fromEffectUninterruptible[R, E, A](fa: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     fromZIOUninterruptible(fa)
 
   /**
    * Lifts an `Either` into a `ZManaged` value.
    */
-  def fromEither[E, A](v: => Either[E, A]): ZManaged[Any, E, A] =
+  def fromEither[E, A](v: => Either[E, A])(implicit trace: ZTraceElement): ZManaged[Any, E, A] =
     succeed(v).flatMap(_.fold(fail(_), succeedNow))
 
   /**
    * Lifts a function `R => A` into a `ZManaged[R, Nothing, A]`.
    */
   @deprecated("use access", "2.0.0")
-  def fromFunction[R, A](f: R => A): ZManaged[R, Nothing, A] =
+  def fromFunction[R, A](f: R => A)(implicit trace: ZTraceElement): ZManaged[R, Nothing, A] =
     ZManaged.fromZIO(ZIO.environment[R]).map(f)
 
   /**
@@ -2250,21 +2435,21 @@ object ZManaged extends ZManagedPlatformSpecific {
    * an effect that requires the input to the function.
    */
   @deprecated("use accessManaged", "2.0.0")
-  def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A]): ZManaged[R, E, A] =
+  def fromFunctionM[R, E, A](f: R => ZManaged[Any, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     accessManaged(f)
 
   /**
    * Lifts an `Option` into a `ZManaged` but preserves the error as an option in the error channel, making it easier to compose
    * in some scenarios.
    */
-  def fromOption[A](v: => Option[A]): ZManaged[Any, Option[Nothing], A] =
+  def fromOption[A](v: => Option[A])(implicit trace: ZTraceElement): ZManaged[Any, Option[Nothing], A] =
     succeed(v).flatMap(_.fold[Managed[Option[Nothing], A]](fail(None))(succeedNow))
 
   /**
    * Lifts a pure `Reservation[R, E, A]` into `ZManaged[R, E, A]`. The acquisition step
    * is performed interruptibly.
    */
-  def fromReservation[R, E, A](reservation: => Reservation[R, E, A]): ZManaged[R, E, A] =
+  def fromReservation[R, E, A](reservation: => Reservation[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     fromReservationZIO(ZIO.succeed(reservation))
 
   /**
@@ -2276,7 +2461,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * This two-phase acquisition allows for resource acquisition flows that can be
    * safely interrupted and released.
    */
-  def fromReservationZIO[R, E, A](reservation: => ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A] =
+  def fromReservationZIO[R, E, A](
+    reservation: => ZIO[R, E, Reservation[R, E, A]]
+  )(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
@@ -2297,7 +2484,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Lifts a `Try` into a `ZManaged`.
    */
-  def fromTry[A](value: => scala.util.Try[A]): TaskManaged[A] =
+  def fromTry[A](value: => scala.util.Try[A])(implicit trace: ZTraceElement): TaskManaged[A] =
     attempt(value).flatMap {
       case scala.util.Success(v) => succeedNow(v)
       case scala.util.Failure(t) => fail(t)
@@ -2307,7 +2494,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
    * effect will be performed interruptibly.
    */
-  def fromZIO[R, E, A](fa: => ZIO[R, E, A]): ZManaged[R, E, A] =
+  def fromZIO[R, E, A](fa: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged(
       ZIO.uninterruptibleMask(restore => restore(fa).provideSome[(R, ReleaseMap)](_._1).map((Finalizer.noop, _)))
     )
@@ -2317,14 +2504,14 @@ object ZManaged extends ZManagedPlatformSpecific {
    * effect will be performed uninterruptibly. You usually want the [[ZManaged.fromZIO]]
    * variant.
    */
-  def fromZIOUninterruptible[R, E, A](fa: => ZIO[R, E, A]): ZManaged[R, E, A] =
+  def fromZIOUninterruptible[R, E, A](fa: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     fromZIO(fa.uninterruptible)
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   @deprecated("use failCause", "2.0.0")
-  def halt[E](cause: => Cause[E]): ZManaged[Any, E, Nothing] =
+  def halt[E](cause: => Cause[E])(implicit trace: ZTraceElement): ZManaged[Any, E, Nothing] =
     failCause(cause)
 
   /**
@@ -2344,13 +2531,13 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Returns an effect that is interrupted as if by the fiber calling this
    * method.
    */
-  lazy val interrupt: ZManaged[Any, Nothing, Nothing] =
+  def interrupt(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Nothing] =
     ZManaged.fromZIO(ZIO.descriptor).flatMap(d => failCause(Cause.interrupt(d.id)))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
    */
-  def interruptAs(fiberId: => FiberId): ZManaged[Any, Nothing, Nothing] =
+  def interruptAs(fiberId: => FiberId)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
   /**
@@ -2366,7 +2553,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * s
    * }}}
    */
-  def iterate[R, E, S](initial: => S)(cont: S => Boolean)(body: S => ZManaged[R, E, S]): ZManaged[R, E, S] =
+  def iterate[R, E, S](
+    initial: => S
+  )(cont: S => Boolean)(body: S => ZManaged[R, E, S])(implicit trace: ZTraceElement): ZManaged[R, E, S] =
     ZManaged.suspend {
       def loop(initial: S): ZManaged[R, E, S] =
         if (cont(initial)) body(initial).flatMap(loop)
@@ -2380,7 +2569,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * as the `acquire` action and shifting back to the original executor as the
    * `release` action.
    */
-  def lock(executor: => Executor): ZManaged[Any, Nothing, Unit] =
+  def lock(executor: => Executor)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
     onExecutor(executor)
 
   /**
@@ -2401,7 +2590,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def loop[R, E, A, S](
     initial: => S
-  )(cont: S => Boolean, inc: S => S)(body: S => ZManaged[R, E, A]): ZManaged[R, E, List[A]] =
+  )(cont: S => Boolean, inc: S => S)(
+    body: S => ZManaged[R, E, A]
+  )(implicit trace: ZTraceElement): ZManaged[R, E, List[A]] =
     ZManaged.suspend {
 
       def loop(initial: S): ZManaged[R, E, List[A]] =
@@ -2429,7 +2620,9 @@ object ZManaged extends ZManagedPlatformSpecific {
   @deprecated("use loopDiscard", "2.0.0")
   def loop_[R, E, S](
     initial: => S
-  )(cont: S => Boolean, inc: S => S)(body: S => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  )(cont: S => Boolean, inc: S => S)(body: S => ZManaged[R, E, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Unit] =
     loopDiscard(initial)(cont, inc)(body)
 
   /**
@@ -2447,7 +2640,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def loopDiscard[R, E, S](
     initial: => S
-  )(cont: S => Boolean, inc: S => S)(body: S => ZManaged[R, E, Any]): ZManaged[R, E, Unit] =
+  )(cont: S => Boolean, inc: S => S)(
+    body: S => ZManaged[R, E, Any]
+  )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
     ZManaged.suspend {
 
       def loop(initial: S): ZManaged[R, E, Unit] =
@@ -2462,7 +2657,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The acquire and release actions will be performed uninterruptibly.
    */
   @deprecated("use acquireReleaseWith", "2.0.0")
-  def make[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def make[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R1, Nothing, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E, A] =
     acquireReleaseWith(acquire)(release)
 
   /**
@@ -2471,7 +2668,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * will be performed uninterruptibly.
    */
   @deprecated("use acquireRelease", "2.0.0")
-  def make_[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  def make_[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: => ZIO[R1, Nothing, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E, A] =
     acquireRelease(acquire)(release)
 
   /**
@@ -2479,7 +2678,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The acquire and release actions will be performed uninterruptibly.
    */
   @deprecated("use acquireReleaseAttemptWith", "2.0.0")
-  def makeEffect[A](acquire: => A)(release: A => Any): ZManaged[Any, Throwable, A] =
+  def makeEffect[A](acquire: => A)(release: A => Any)(implicit trace: ZTraceElement): ZManaged[Any, Throwable, A] =
     acquireReleaseAttemptWith(acquire)(release)
 
   /**
@@ -2488,7 +2687,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * actions will be performed uninterruptibly.
    */
   @deprecated("use acquireReleaseAttempt", "2.0.0")
-  def makeEffect_[A](acquire: => A)(release: => Any): ZManaged[Any, Throwable, A] =
+  def makeEffect_[A](acquire: => A)(release: => Any)(implicit trace: ZTraceElement): ZManaged[Any, Throwable, A] =
     acquireReleaseAttempt(acquire)(release)
 
   /**
@@ -2497,7 +2696,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * release actions will be performed uninterruptibly.
    */
   @deprecated("use acquireReleaseSucceedWith", "2.0.0")
-  def makeEffectTotal[A](acquire: => A)(release: A => Any): ZManaged[Any, Nothing, A] =
+  def makeEffectTotal[A](acquire: => A)(release: A => Any)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, A] =
     acquireReleaseSucceedWith(acquire)(release)
 
   /**
@@ -2507,7 +2706,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * uninterruptibly.
    */
   @deprecated("use acquireReleaseSucceed", "2.0.0")
-  def makeEffectTotal_[A](acquire: => A)(release: => Any): ZManaged[Any, Nothing, A] =
+  def makeEffectTotal_[A](acquire: => A)(release: => Any)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, A] =
     acquireReleaseSucceed(acquire)(release)
 
   /**
@@ -2517,7 +2716,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   @deprecated("use acquireReleaseExitWith", "2.0.0")
   def makeExit[R, R1 <: R, E, A](
     acquire: ZIO[R, E, A]
-  )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     acquireReleaseExitWith(acquire)(release)
 
   /**
@@ -2528,7 +2727,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   @deprecated("use acquireReleaseExit", "2.0.0")
   def makeExit_[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
     release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
-  ): ZManaged[R1, E, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     acquireReleaseExit(acquire)(release)
 
   /**
@@ -2539,7 +2738,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   @deprecated("use acquireReleaseInterruptibleWith", "2.0.0")
   def makeInterruptible[R, R1 <: R, E, A](
     acquire: => ZIO[R, E, A]
-  )(release: A => URIO[R, Any]): ZManaged[R, E, A] =
+  )(release: A => URIO[R, Any])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     acquireReleaseInterruptibleWith(acquire)(release)
 
   /**
@@ -2550,7 +2749,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   @deprecated("use acquireReleaseInterruptible", "2.0.0")
   def makeInterruptible_[R, R1 <: R, E, A](
     acquire: => ZIO[R, E, A]
-  )(release: => ZIO[R1, Nothing, Any]): ZManaged[R1, E, A] =
+  )(release: => ZIO[R1, Nothing, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
     acquireReleaseInterruptible(acquire)(release)
 
   /**
@@ -2563,7 +2762,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * safely interrupted and released.
    */
   @deprecated("use fromReservationZIO", "2.0.0")
-  def makeReserve[R, E, A](reservation: => ZIO[R, E, Reservation[R, E, A]]): ZManaged[R, E, A] =
+  def makeReserve[R, E, A](reservation: => ZIO[R, E, Reservation[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, A] =
     fromReservationZIO(reservation)
 
   /**
@@ -2573,7 +2774,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   @deprecated("use zip", "2.0.0")
   def mapN[R, E, A, B, C](zManaged1: => ZManaged[R, E, A], zManaged2: => ZManaged[R, E, B])(
     f: (A, B) => C
-  ): ZManaged[R, E, C] =
+  )(implicit trace: ZTraceElement): ZManaged[R, E, C] =
     ZManaged.suspend(zManaged1.zipWith(zManaged2)(f))
 
   /**
@@ -2585,7 +2786,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged1: => ZManaged[R, E, A],
     zManaged2: => ZManaged[R, E, B],
     zManaged3: => ZManaged[R, E, C]
-  )(f: (A, B, C) => D): ZManaged[R, E, D] =
+  )(f: (A, B, C) => D)(implicit trace: ZTraceElement): ZManaged[R, E, D] =
     ZManaged.suspend {
       for {
         a <- zManaged1
@@ -2604,7 +2805,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged2: => ZManaged[R, E, B],
     zManaged3: => ZManaged[R, E, C],
     zManaged4: => ZManaged[R, E, D]
-  )(f: (A, B, C, D) => F): ZManaged[R, E, F] =
+  )(f: (A, B, C, D) => F)(implicit trace: ZTraceElement): ZManaged[R, E, F] =
     ZManaged.suspend {
       for {
         a <- zManaged1
@@ -2622,7 +2823,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   @deprecated("use zipPar", "2.0.0")
   def mapParN[R, E, A, B, C](zManaged1: => ZManaged[R, E, A], zManaged2: => ZManaged[R, E, B])(
     f: (A, B) => C
-  ): ZManaged[R, E, C] =
+  )(implicit trace: ZTraceElement): ZManaged[R, E, C] =
     ZManaged.suspend(zManaged1.zipWithPar(zManaged2)(f))
 
   /**
@@ -2635,7 +2836,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged1: => ZManaged[R, E, A],
     zManaged2: => ZManaged[R, E, B],
     zManaged3: => ZManaged[R, E, C]
-  )(f: (A, B, C) => D): ZManaged[R, E, D] =
+  )(f: (A, B, C) => D)(implicit trace: ZTraceElement): ZManaged[R, E, D] =
     ZManaged.suspend((zManaged1 <&> zManaged2 <&> zManaged3).map(f.tupled))
 
   /**
@@ -2649,7 +2850,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     zManaged2: => ZManaged[R, E, B],
     zManaged3: => ZManaged[R, E, C],
     zManaged4: => ZManaged[R, E, D]
-  )(f: (A, B, C, D) => F): ZManaged[R, E, F] =
+  )(f: (A, B, C, D) => F)(implicit trace: ZTraceElement): ZManaged[R, E, F] =
     ZManaged.suspend((zManaged1 <&> zManaged2 <&> zManaged3 <&> zManaged4).map(f.tupled))
 
   /**
@@ -2660,7 +2861,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * be returned. All resources acquired by evaluating the function will be
    * released at the end of the scope.
    */
-  def memoize[R, E, A, B](f: A => ZManaged[R, E, B]): ZManaged[Any, Nothing, A => ZIO[R, E, B]] =
+  def memoize[R, E, A, B](
+    f: A => ZManaged[R, E, B]
+  )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, A => ZIO[R, E, B]] =
     for {
       fiberId <- ZIO.fiberId.toManaged
       ref     <- Ref.makeManaged[Map[A, Promise[E, B]]](Map.empty)
@@ -2678,7 +2881,9 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Merges an `Iterable[ZManaged]` to a single `ZManaged`, working sequentially.
    */
-  def mergeAll[R, E, A, B](in: => Iterable[ZManaged[R, E, A]])(zero: => B)(f: (B, A) => B): ZManaged[R, E, B] =
+  def mergeAll[R, E, A, B](in: => Iterable[ZManaged[R, E, A]])(zero: => B)(f: (B, A) => B)(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, B] =
     ZManaged.suspend(in.foldLeft[ZManaged[R, E, B]](succeedNow(zero))(_.zipWith(_)(f)))
 
   /**
@@ -2688,8 +2893,10 @@ object ZManaged extends ZManagedPlatformSpecific {
    * - commutative: `f(a, b) == f(b, a)`
    * - associative: `f(a, f(b, c)) == f(f(a, b), c)`
    */
-  def mergeAllPar[R, E, A, B](in: => Iterable[ZManaged[R, E, A]])(zero: => B)(f: (B, A) => B): ZManaged[R, E, B] =
-    ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapZIO { parallelReleaseMap =>
+  def mergeAllPar[R, E, A, B](
+    in: => Iterable[ZManaged[R, E, A]]
+  )(zero: => B)(f: (B, A) => B)(implicit trace: ZTraceElement): ZManaged[R, E, B] =
+    ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
       ZIO.mergeAllPar(in.map(_.zio.map(_._2)))(zero)(f).provideSome[R]((_, parallelReleaseMap))
     }
 
@@ -2702,6 +2909,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * Unlike `mergeAllPar`, this method will use at most up to `n` fibers.
    */
+  @deprecated("use mergeAllPar", "2.0.0")
   def mergeAllParN[R, E, A, B](
     n0: => Int
   )(
@@ -2710,7 +2918,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     zero: => B
   )(
     f: (B, A) => B
-  ): ZManaged[R, E, B] =
+  )(implicit trace: ZTraceElement): ZManaged[R, E, B] =
     ZManaged.suspend {
       val n = n0
       ReleaseMap.makeManaged(ExecutionStrategy.ParallelN(n)).mapZIO { parallelReleaseMap =>
@@ -2721,7 +2929,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Returns a `ZManaged` that never acquires a resource.
    */
-  lazy val never: ZManaged[Any, Nothing, Nothing] =
+  def never(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Nothing] =
     ZManaged.fromZIO(ZIO.never)
 
   /**
@@ -2735,7 +2943,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * as the `acquire` action and shifting back to the original executor as the
    * `release` action.
    */
-  def onExecutor(executor: => Executor): ZManaged[Any, Nothing, Unit] =
+  def onExecutor(executor: => Executor)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
     ZManaged.acquireReleaseWith {
       ZIO.descriptorWith { descriptor =>
         if (descriptor.isLocked) ZIO.shift(executor).as(Some(descriptor.executor))
@@ -2745,6 +2953,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       case Some(executor) => ZIO.shift(executor)
       case None           => ZIO.unshift
     }.unit
+
+  /**
+   * Retrieves the maximum number of fibers for parallel operators or `None` if
+   * it is unbounded.
+   */
+  def parallelism(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Option[Int]] =
+    ZManaged.fromZIO(ZIO.Parallelism.get)
 
   /**
    * A scope in which resources can be safely preallocated. Passing a [[ZManaged]]
@@ -2758,7 +2973,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Creates a scope in which resources can be safely preallocated.
    */
-  lazy val preallocationScope: Managed[Nothing, PreallocationScope] =
+  def preallocationScope(implicit trace: ZTraceElement): Managed[Nothing, PreallocationScope] =
     scope.map { allocate =>
       new PreallocationScope {
         def apply[R, E, A](managed: => ZManaged[R, E, A]) =
@@ -2773,7 +2988,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def reduceAll[R, E, A](a: => ZManaged[R, E, A], as: => Iterable[ZManaged[R, E, A]])(
     f: (A, A) => A
-  ): ZManaged[R, E, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.suspend(as.foldLeft[ZManaged[R, E, A]](a)(_.zipWith(_)(f)))
 
   /**
@@ -2781,8 +2996,8 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def reduceAllPar[R, E, A](a: => ZManaged[R, E, A], as: => Iterable[ZManaged[R, E, A]])(
     f: (A, A) => A
-  ): ZManaged[R, E, A] =
-    ReleaseMap.makeManaged(ExecutionStrategy.Parallel).mapZIO { parallelReleaseMap =>
+  )(implicit trace: ZTraceElement): ZManaged[R, E, A] =
+    ReleaseMap.makeManagedPar.mapZIO { parallelReleaseMap =>
       ZIO.reduceAllPar(a.zio.map(_._2), as.map(_.zio.map(_._2)))(f).provideSome[R]((_, parallelReleaseMap))
     }
 
@@ -2793,6 +3008,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *
    * This is not implemented in terms of ZIO.foreach / ZManaged.zipWithPar as otherwise all reservation phases would always run, causing unnecessary work
    */
+  @deprecated("use reduceAllPar", "2.0.0")
   def reduceAllParN[R, E, A](
     n0: => Int
   )(
@@ -2800,7 +3016,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     as: => Iterable[ZManaged[R, E, A]]
   )(
     f: (A, A) => A
-  ): ZManaged[R, E, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.suspend {
       val n = n0
       ReleaseMap.makeManaged(ExecutionStrategy.ParallelN(n)).mapZIO { parallelReleaseMap =>
@@ -2815,7 +3031,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * value, then the specified error will be raised.
    */
   @deprecated("use someOrFail", "2.0.0")
-  def require[R, E, A](error: => E): ZManaged[R, E, Option[A]] => ZManaged[R, E, A] =
+  def require[R, E, A](error: => E)(implicit trace: ZTraceElement): ZManaged[R, E, Option[A]] => ZManaged[R, E, A] =
     (zManaged: ZManaged[R, E, Option[A]]) => zManaged.flatMap(_.fold[ZManaged[R, E, A]](fail(error))(succeedNow))
 
   /**
@@ -2823,13 +3039,13 @@ object ZManaged extends ZManagedPlatformSpecific {
    * is performed interruptibly.
    */
   @deprecated("use fromReservation", "2.0.0")
-  def reserve[R, E, A](reservation: => Reservation[R, E, A]): ZManaged[R, E, A] =
+  def reserve[R, E, A](reservation: => Reservation[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     fromReservation(reservation)
 
   /**
    * Provides access to the entire map of resources allocated by this ZManaged.
    */
-  lazy val releaseMap: ZManaged[Any, Nothing, ReleaseMap] =
+  def releaseMap(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ReleaseMap] =
     apply(ZIO.environment[(Any, ReleaseMap)].map(tp => (Finalizer.noop, tp._2)))
 
   /**
@@ -2837,17 +3053,17 @@ object ZManaged extends ZManagedPlatformSpecific {
    * (unsafely) execute tasks. This is useful for integration with legacy
    * code that must call back into ZIO code.
    */
-  def runtime[R]: ZManaged[R, Nothing, Runtime[R]] =
+  def runtime[R](implicit trace: ZTraceElement): ZManaged[R, Nothing, Runtime[R]] =
     ZManaged.fromZIO(ZIO.runtime[R])
 
-  def sandbox[R, E, A](v: ZManaged[R, E, A]): ZManaged[R, Cause[E], A] =
+  def sandbox[R, E, A](v: ZManaged[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, Cause[E], A] =
     ZManaged.suspend(v.sandbox)
 
   /**
    * Returns a managed effect that describes shifting to the specified executor
    * as the `acquire` action with no release action.
    */
-  def shift(executor: => Executor): ZManaged[Any, Nothing, Unit] =
+  def shift(executor: => Executor)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
     ZManaged.fromZIO(ZIO.shift(executor))
 
   /**
@@ -2862,7 +3078,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Creates a scope in which resources can be safely allocated into together with a release action.
    */
-  lazy val scope: Managed[Nothing, Scope] =
+  def scope(implicit trace: ZTraceElement): Managed[Nothing, Scope] =
     ZManaged.releaseMap.map { finalizers =>
       new Scope {
         override def apply[R, E, A](managed: => ZManaged[R, E, A]) =
@@ -2876,7 +3092,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: Tag]: ZManaged[Has[A], Nothing, A] =
+  def service[A: Tag](implicit trace: ZTraceElement): ZManaged[Has[A], Nothing, A] =
     ZManaged.access(_.get[A])
 
   /**
@@ -2890,22 +3106,25 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag]: ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
+  def services[A: Tag, B: Tag](implicit trace: ZTraceElement): ZManaged[Has[A] with Has[B], Nothing, (A, B)] =
     ZManaged.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag]: ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag](implicit
+    trace: ZTraceElement
+  ): ZManaged[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag, D: Tag]
-    : ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+  def services[A: Tag, B: Tag, C: Tag, D: Tag](implicit
+    trace: ZTraceElement
+  ): ZManaged[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
@@ -2938,19 +3157,19 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    *  Returns an effect with the optional value.
    */
-  def some[A](a: => A): UManaged[Option[A]] =
+  def some[A](a: => A)(implicit trace: ZTraceElement): UManaged[Option[A]] =
     succeed(Some(a))
 
   /**
    * Lifts a lazy, pure value into a Managed.
    */
-  def succeed[A](r: => A): ZManaged[Any, Nothing, A] =
+  def succeed[A](r: => A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, A] =
     ZManaged(ZIO.succeed((Finalizer.noop, r)))
 
   /**
    * Returns a lazily constructed Managed.
    */
-  def suspend[R, E, A](zManaged: => ZManaged[R, E, A]): ZManaged[R, E, A] =
+  def suspend[R, E, A](zManaged: => ZManaged[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.unit.flatMap(_ => zManaged)
 
   /**
@@ -2984,7 +3203,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    *   }
    * }}}
    */
-  def switchable[R, E, A]: ZManaged[R, Nothing, ZManaged[R, E, A] => ZIO[R, E, A]] =
+  def switchable[R, E, A](implicit trace: ZTraceElement): ZManaged[R, Nothing, ZManaged[R, E, A] => ZIO[R, E, A]] =
     for {
       releaseMap <- ZManaged.releaseMap
       key <- releaseMap
@@ -3018,7 +3237,9 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless[R, E, A](b: => Boolean)(zManaged: => ZManaged[R, E, A]): ZManaged[R, E, Option[A]] =
+  def unless[R, E, A](b: => Boolean)(zManaged: => ZManaged[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Option[A]] =
     suspend(if (b) none else zManaged.asSome)
 
   /**
@@ -3037,25 +3258,29 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
-  def unsandbox[R, E, A](v: => ZManaged[R, Cause[E], A]): ZManaged[R, E, A] =
+  def unsandbox[R, E, A](v: => ZManaged[R, Cause[E], A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.suspend(v.mapErrorCause(_.flatten))
 
   /**
    * Unwraps a `ZManaged` that is inside a `ZIO`.
    */
-  def unwrap[R, E, A](fa: => ZIO[R, E, ZManaged[R, E, A]]): ZManaged[R, E, A] =
+  def unwrap[R, E, A](fa: => ZIO[R, E, ZManaged[R, E, A]])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.fromZIO(fa).flatten
 
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E, A](b: => Boolean)(zManaged: => ZManaged[R, E, A]): ZManaged[R, E, Option[A]] =
+  def when[R, E, A](b: => Boolean)(zManaged: => ZManaged[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Option[A]] =
     ZManaged.suspend(if (b) zManaged.asSome else none)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
    */
-  def whenCase[R, E, A, B](a: => A)(pf: PartialFunction[A, ZManaged[R, E, B]]): ZManaged[R, E, Option[B]] =
+  def whenCase[R, E, A, B](a: => A)(pf: PartialFunction[A, ZManaged[R, E, B]])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, Option[B]] =
     ZManaged.suspend(pf.andThen(_.asSome).applyOrElse(a, (_: A) => none))
 
   /**
@@ -3064,7 +3289,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   @deprecated("use whenCaseManaged", "2.0.0")
   def whenCaseM[R, E, A, B](
     a: => ZManaged[R, E, A]
-  )(pf: PartialFunction[A, ZManaged[R, E, B]]): ZManaged[R, E, Option[B]] =
+  )(pf: PartialFunction[A, ZManaged[R, E, B]])(implicit trace: ZTraceElement): ZManaged[R, E, Option[B]] =
     whenCaseManaged(a)(pf)
 
   /**
@@ -3072,7 +3297,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def whenCaseManaged[R, E, A, B](
     a: => ZManaged[R, E, A]
-  )(pf: PartialFunction[A, ZManaged[R, E, B]]): ZManaged[R, E, Option[B]] =
+  )(pf: PartialFunction[A, ZManaged[R, E, B]])(implicit trace: ZTraceElement): ZManaged[R, E, Option[B]] =
     ZManaged.suspend(a.flatMap(whenCase(_)(pf)))
 
   /**
@@ -3092,7 +3317,9 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Locally installs a supervisor and an effect that succeeds with all the
    * children that have been forked in the returned effect.
    */
-  def withChildren[R, E, A](get: UIO[Chunk[Fiber.Runtime[Any, Any]]] => ZManaged[R, E, A]): ZManaged[R, E, A] =
+  def withChildren[R, E, A](
+    get: UIO[Chunk[Fiber.Runtime[Any, Any]]] => ZManaged[R, E, A]
+  )(implicit trace: ZTraceElement): ZManaged[R, E, A] =
     ZManaged.unwrap(Supervisor.track(true).map { supervisor =>
       // Filter out the fiber id of whoever is calling this:
       ZManaged(
@@ -3102,11 +3329,27 @@ object ZManaged extends ZManagedPlatformSpecific {
     })
 
   /**
+   * Returns a managed effect that describes setting the specified maximum
+   * number of fibers for parallel operators as the `acquire` action and
+   * setting it back to the original value as the `release` action.
+   */
+  def withParallism(n: => Int)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZIO.Parallelism.locallyManaged(Some(n))
+
+  /**
+   * Returns a managed effect that describes setting an unbounded maximum
+   * number of fibers for parallel operators as the `acquire` action and
+   * setting it back to the original value as the `release` action.
+   */
+  def withParallismUnbounded(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZIO.Parallelism.locallyManaged(None)
+
+  /**
    * Returns a managed effect that describes setting the runtime configuration
    * to the specified value as the `acquire` action and setting it back to the
    * original runtime configuration as the `release` action.
    */
-  def withRuntimeConfig(runtimeConfig: => RuntimeConfig): ZManaged[Any, Nothing, Unit] =
+  def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
     ZManaged.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
       ZManaged.acquireRelease(ZIO.setRuntimeConfig(runtimeConfig))(ZIO.setRuntimeConfig(currentRuntimeConfig))
     }
@@ -3126,7 +3369,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     /**
      * Constructs a `ZManaged` value from the specified input.
      */
-    def make(input: => Input): Out
+    def make(input: => Input)(implicit trace: ZTraceElement): Out
   }
 
   object ZManagedConstructor extends ZManagedConstructorLowPriority1 {
@@ -3137,7 +3380,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def EitherConstructor[E, A]: WithOut[Either[E, A], ZManaged[Any, E, A]] =
       new ZManagedConstructor[Either[E, A]] {
         type Out = ZManaged[Any, E, A]
-        def make(input: => Either[E, A]): ZManaged[Any, E, A] =
+        def make(input: => Either[E, A])(implicit trace: ZTraceElement): ZManaged[Any, E, A] =
           ZManaged.fromEither(input)
       }
 
@@ -3147,7 +3390,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def EitherLeftConstructor[E, A]: WithOut[Left[E, A], ZManaged[Any, E, A]] =
       new ZManagedConstructor[Left[E, A]] {
         type Out = ZManaged[Any, E, A]
-        def make(input: => Left[E, A]): ZManaged[Any, E, A] =
+        def make(input: => Left[E, A])(implicit trace: ZTraceElement): ZManaged[Any, E, A] =
           ZManaged.fromEither(input)
       }
 
@@ -3157,7 +3400,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def EitherRightConstructor[E, A]: WithOut[Right[E, A], ZManaged[Any, E, A]] =
       new ZManagedConstructor[Right[E, A]] {
         type Out = ZManaged[Any, E, A]
-        def make(input: => Right[E, A]): ZManaged[Any, E, A] =
+        def make(input: => Right[E, A])(implicit trace: ZTraceElement): ZManaged[Any, E, A] =
           ZManaged.fromEither(input)
       }
 
@@ -3167,7 +3410,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def OptionConstructor[A]: WithOut[Option[A], ZManaged[Any, Option[Nothing], A]] =
       new ZManagedConstructor[Option[A]] {
         type Out = ZManaged[Any, Option[Nothing], A]
-        def make(input: => Option[A]): ZManaged[Any, Option[Nothing], A] =
+        def make(input: => Option[A])(implicit trace: ZTraceElement): ZManaged[Any, Option[Nothing], A] =
           ZManaged.fromOption(input)
       }
 
@@ -3177,7 +3420,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit val OptionNoneConstructor: WithOut[None.type, ZManaged[Any, Option[Nothing], Nothing]] =
       new ZManagedConstructor[None.type] {
         type Out = ZManaged[Any, Option[Nothing], Nothing]
-        def make(input: => None.type): ZManaged[Any, Option[Nothing], Nothing] =
+        def make(input: => None.type)(implicit trace: ZTraceElement): ZManaged[Any, Option[Nothing], Nothing] =
           ZManaged.fromOption(input)
       }
 
@@ -3187,7 +3430,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def OptionSomeConstructor[A]: WithOut[Some[A], ZManaged[Any, Option[Nothing], A]] =
       new ZManagedConstructor[Some[A]] {
         type Out = ZManaged[Any, Option[Nothing], A]
-        def make(input: => Some[A]): ZManaged[Any, Option[Nothing], A] =
+        def make(input: => Some[A])(implicit trace: ZTraceElement): ZManaged[Any, Option[Nothing], A] =
           ZManaged.fromOption(input)
       }
 
@@ -3197,7 +3440,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def ReservationConstructor[R, E, A]: WithOut[Reservation[R, E, A], ZManaged[R, E, A]] =
       new ZManagedConstructor[Reservation[R, E, A]] {
         type Out = ZManaged[R, E, A]
-        def make(input: => Reservation[R, E, A]): ZManaged[R, E, A] =
+        def make(input: => Reservation[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
           ZManaged.fromReservation(input)
       }
 
@@ -3208,7 +3451,9 @@ object ZManaged extends ZManagedPlatformSpecific {
       : WithOut[ZIO[R1, E1, Reservation[R2, E2, A]], ZManaged[R1 with R2, E3, A]] =
       new ZManagedConstructor[ZIO[R1, E1, Reservation[R2, E2, A]]] {
         type Out = ZManaged[R1 with R2, E3, A]
-        def make(input: => ZIO[R1, E1, Reservation[R2, E2, A]]): ZManaged[R1 with R2, E3, A] =
+        def make(input: => ZIO[R1, E1, Reservation[R2, E2, A]])(implicit
+          trace: ZTraceElement
+        ): ZManaged[R1 with R2, E3, A] =
           ZManaged.fromReservationZIO(input)
       }
 
@@ -3218,7 +3463,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def TryConstructor[A]: WithOut[scala.util.Try[A], ZManaged[Any, Throwable, A]] =
       new ZManagedConstructor[scala.util.Try[A]] {
         type Out = ZManaged[Any, Throwable, A]
-        def make(input: => scala.util.Try[A]): ZManaged[Any, Throwable, A] =
+        def make(input: => scala.util.Try[A])(implicit trace: ZTraceElement): ZManaged[Any, Throwable, A] =
           ZManaged.fromTry(input)
       }
 
@@ -3228,7 +3473,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def TryFailureConstructor[A]: WithOut[scala.util.Failure[A], ZManaged[Any, Throwable, A]] =
       new ZManagedConstructor[scala.util.Failure[A]] {
         type Out = ZManaged[Any, Throwable, A]
-        def make(input: => scala.util.Failure[A]): ZManaged[Any, Throwable, A] =
+        def make(input: => scala.util.Failure[A])(implicit trace: ZTraceElement): ZManaged[Any, Throwable, A] =
           ZManaged.fromTry(input)
       }
 
@@ -3238,7 +3483,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def TrySuccessConstructor[A]: WithOut[scala.util.Success[A], ZManaged[Any, Throwable, A]] =
       new ZManagedConstructor[scala.util.Success[A]] {
         type Out = ZManaged[Any, Throwable, A]
-        def make(input: => scala.util.Success[A]): ZManaged[Any, Throwable, A] =
+        def make(input: => scala.util.Success[A])(implicit trace: ZTraceElement): ZManaged[Any, Throwable, A] =
           ZManaged.fromTry(input)
       }
   }
@@ -3251,7 +3496,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def ZIOConstructor[R, E, A]: WithOut[ZIO[R, E, A], ZManaged[R, E, A]] =
       new ZManagedConstructor[ZIO[R, E, A]] {
         type Out = ZManaged[R, E, A]
-        def make(input: => ZIO[R, E, A]): ZManaged[R, E, A] =
+        def make(input: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
           ZManaged.fromZIO(input)
       }
   }
@@ -3269,7 +3514,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     implicit def AttemptConstructor[A]: WithOut[A, ZManaged[Any, Throwable, A]] =
       new ZManagedConstructor[A] {
         type Out = ZManaged[Any, Throwable, A]
-        def make(input: => A): ZManaged[Any, Throwable, A] =
+        def make(input: => A)(implicit trace: ZTraceElement): ZManaged[Any, Throwable, A] =
           ZManaged.attempt(input)
       }
   }
@@ -3282,7 +3527,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     /**
      * Keeps some of the errors, and terminates the fiber with the rest.
      */
-    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E]): ZManaged[R, E1, A] =
+    def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
   }
 

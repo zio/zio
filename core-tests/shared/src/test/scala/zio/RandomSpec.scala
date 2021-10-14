@@ -14,7 +14,7 @@ object RandomSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("RandomSpec")(
     test("nextDoubleBetween generates doubles in specified range") {
-      checkM(genDoubles) { case (min, max) =>
+      check(genDoubles) { case (min, max) =>
         for {
           n <- Live.live(Random.nextDoubleBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
@@ -22,7 +22,7 @@ object RandomSpec extends ZIOBaseSpec {
       }
     },
     test("nextFloatBetween generates floats in specified range") {
-      checkM(genFloats) { case (min, max) =>
+      check(genFloats) { case (min, max) =>
         for {
           n <- Live.live(Random.nextFloatBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
@@ -30,7 +30,7 @@ object RandomSpec extends ZIOBaseSpec {
       }
     },
     test("nextIntBetween generates integers in specified range") {
-      checkM(genInts) { case (min, max) =>
+      check(genInts) { case (min, max) =>
         for {
           n <- Live.live(Random.nextIntBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
@@ -38,7 +38,7 @@ object RandomSpec extends ZIOBaseSpec {
       }
     },
     test("nextLongBetween generates longs in specified range") {
-      checkM(genLongs) { case (min, max) =>
+      check(genLongs) { case (min, max) =>
         for {
           n <- Live.live(Random.nextLongBetween(min, max))
         } yield assert(n)(isGreaterThanEqualTo(min)) &&
@@ -49,6 +49,13 @@ object RandomSpec extends ZIOBaseSpec {
       check(Gen.fromZIO(Live.live(Random.nextUUID))) { uuid =>
         assert(uuid.variant)(equalTo(2))
       }
+    },
+    test("scalaRandom") {
+      val layer  = ZLayer.fromZIO(ZIO.succeed(new scala.util.Random)) >>> Random.scalaRandom
+      val sample = ZIO.replicateZIO(5)((Random.setSeed(91) *> Random.nextInt).provideSomeLayer(layer.fresh))
+      for {
+        values <- ZIO.collectAllPar(ZIO.replicate(5)(sample))
+      } yield assertTrue(values.toSet.size == 1)
     }
   )
 

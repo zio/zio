@@ -25,7 +25,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("TPriorityQueueSpec")(
     test("isEmpty") {
-      checkM(genEvents) { as =>
+      check(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.empty[Event]
           _     <- queue.offerAll(as)
@@ -35,7 +35,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
       }
     },
     test("nonEmpty") {
-      checkM(genEvents) { as =>
+      check(genEvents) { as =>
         val transaction = for {
           queue    <- TPriorityQueue.empty[Event]
           _        <- queue.offerAll(as)
@@ -45,7 +45,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
       }
     },
     test("offerAll and takeAll") {
-      checkM(genEvents) { as =>
+      check(genEvents) { as =>
         val transaction = for {
           queue  <- TPriorityQueue.empty[Event]
           _      <- queue.offerAll(as)
@@ -55,7 +55,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
       }
     },
     test("removeIf") {
-      checkM(genEvents, genPredicate) { (as, f) =>
+      check(genEvents, genPredicate) { (as, f) =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           _     <- queue.removeIf(f)
@@ -65,7 +65,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
       }
     },
     test("retainIf") {
-      checkM(Gen.listOf(genEvent), genPredicate) { (as, f) =>
+      check(Gen.listOf(genEvent), genPredicate) { (as, f) =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           _     <- queue.retainIf(f)
@@ -75,7 +75,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
       }
     },
     test("take") {
-      checkM(genEvents) { as =>
+      check(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           takes <- STM.collectAll(STM.replicate(as.length)(queue.take))
@@ -88,7 +88,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
         as <- genEvents
         n  <- Gen.int(0, as.length)
       } yield (as, n)
-      checkM(gen) { case (as, n) =>
+      check(gen) { case (as, n) =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           left  <- queue.takeUpTo(n)
@@ -98,7 +98,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
       }
     },
     test("toChunk") {
-      checkM(genEvents) { as =>
+      check(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           list  <- queue.toChunk
@@ -107,7 +107,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
       }
     },
     test("toList") {
-      checkM(genEvents) { as =>
+      check(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           list  <- queue.toList
@@ -116,7 +116,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
       }
     },
     test("toVector") {
-      checkM(genEvents) { as =>
+      check(genEvents) { as =>
         val transaction = for {
           queue <- TPriorityQueue.fromIterable(as)
           list  <- queue.toVector

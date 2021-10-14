@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.Chunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.ExecutedSpec._
 
 /**

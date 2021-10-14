@@ -26,7 +26,9 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
 
-  private def run(spec: ZSpec[Environment, Failure], testArgs: TestArgs): URIO[Has[TestLogger] with Has[Clock], Int] = {
+  private def run(spec: ZSpec[Environment, Failure], testArgs: TestArgs)(implicit
+    trace: ZTraceElement
+  ): URIO[Has[TestLogger] with Has[Clock], Int] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
     val testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
     for {
@@ -44,16 +46,23 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
   /**
    * A simple main function that can be used to run the spec.
    */
-  override final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
-    for {
-      args     <- ZIO.service[ZIOAppArgs]
-      testArgs  = TestArgs.parse(args.args.toArray)
-      exitCode <- run(spec, testArgs).provideLayer(runner.bootstrap)
-      _        <- doExit(exitCode)
-    } yield ()
+  final def main(args: Array[String]): Unit = {
+    val testArgs = TestArgs.parse(args)
+    val runtime  = runner.runtime
+    if (TestPlatform.isJVM) {
+      val exitCode = runtime.unsafeRun(run(spec, testArgs).provideLayer(runner.bootstrap))
+      doExit(exitCode)
+    } else if (TestPlatform.isJS) {
+      runtime.unsafeRunAsyncWith[Nothing, Int](run(spec, testArgs).provideLayer(runner.bootstrap)) { exit =>
+        val exitCode = exit.getOrElse(_ => 1)
+        doExit(exitCode)
+      }
+    }
+  }
 
-  private def doExit(exitCode: Int): UIO[Unit] =
-    exit(ExitCode(exitCode)).when(!isAmmonite).unit
+  private def doExit(exitCode: Int): Unit =
+    try if (!isAmmonite) sys.exit(exitCode)
+    catch { case _: SecurityException => }
 
   private def isAmmonite: Boolean =
     sys.env.exists { case (k, v) =>

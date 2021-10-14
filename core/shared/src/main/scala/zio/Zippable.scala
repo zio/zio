@@ -1,5 +1,7 @@
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 trait Zippable[-A, -B] {
   type Out
   def zip(left: A, right: B): Out

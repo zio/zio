@@ -17,6 +17,7 @@
 package zio.stm
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `ZTHub[RA, RB, EA, EB, A, B]` is a transactional message hub. Publishers
@@ -197,7 +198,7 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
    * can be evaluated multiple times within the scope of the managed to take a
    * message from the hub each time.
    */
-  final def subscribeManaged: ZManaged[Any, Nothing, ZTDequeue[RB, EB, B]] =
+  final def subscribeManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZTDequeue[RB, EB, B]] =
     ZManaged.acquireReleaseWith(subscribe.commit)(_.shutdown.commit)
 
   /**

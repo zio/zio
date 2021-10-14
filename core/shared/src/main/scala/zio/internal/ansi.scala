@@ -1,5 +1,7 @@
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 object ansi {
   trait AnsiCode {
     def code: String

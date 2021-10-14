@@ -16,6 +16,8 @@
 
 package zio.test.laws
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * `ZLawfulF[CapsF, Caps, R]` describes a set of laws that a parameterized type
  * `F[A]` with capabilities `CapsF` is expected to satisfy with respect to all

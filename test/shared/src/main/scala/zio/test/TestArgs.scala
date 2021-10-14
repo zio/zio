@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 final case class TestArgs(
   testSearchTerms: List[String],
   tagSearchTerms: List[String],
