@@ -126,9 +126,7 @@ object MyApp2 extends ZIOAppDefault {
   def run = ZIO.succeed(???)
 }
 
-object Main extends ZIOAppDefault {
-  def run = (MyApp1 <> MyApp2).invoke(Chunk.empty)
-}
+object Main extends ZIOApp.Proxy(MyApp1 <> MyApp2)
 ```
 
 The `<>` operator combines the two layers of applications, composes their hooks, and then runs the two applications in parallel.
