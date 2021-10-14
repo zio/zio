@@ -17,7 +17,7 @@
 package zio
 
 import zio.internal.stacktracer.Tracer
-import zio.internal.Scheduler
+import zio.Scheduler
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Schedule.Decision._
 
@@ -215,7 +215,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
       currentTime(TimeUnit.NANOSECONDS)
     def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+        val canceler = globalScheduler.unsafeSchedule(() => cb(UIO.unit), duration)
         Left(UIO.succeed(canceler()))
       }
     def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
@@ -245,7 +245,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
     def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       UIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+        val canceler = globalScheduler.unsafeSchedule(() => cb(UIO.unit), duration)
         Left(UIO.succeed(canceler()))
       }
 

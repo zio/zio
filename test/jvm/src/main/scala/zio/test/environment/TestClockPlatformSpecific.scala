@@ -16,8 +16,8 @@
 
 package zio.test.environment
 
-import zio.internal.Scheduler
-import zio.{Duration, UIO, ZIO, ZTraceElement}
+import zio.{Duration, Scheduler, UIO, ZIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.time.Instant
 import java.util.concurrent._
@@ -30,7 +30,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
   def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
     ZIO.runtime[Any].map { runtime =>
       new Scheduler {
-        def schedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {
+        def unsafeSchedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {
           val canceler =
             runtime.unsafeRunAsyncCancelable((sleep(duration) *> ZIO.effectTotal(runnable.run())))(_ => ())
           () => canceler(zio.Fiber.Id.None).interrupted
@@ -73,7 +73,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
               if (updatedState == Scheduling(end)) {
                 val start    = now()
                 val interval = Duration.fromInterval(start, end)
-                val cancelToken = schedule(
+                val cancelToken = unsafeSchedule(
                   () =>
                     executor.submitOrThrow { () =>
                       compute(a) match {

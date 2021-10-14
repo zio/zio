@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.Scheduler
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{DurationSyntax => _}
 
@@ -30,7 +29,7 @@ private[zio] trait ClockPlatformSpecific {
 
     private[this] val ConstFalse = () => false
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
+    override def unsafeSchedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
       case zio.Duration.Infinity => ConstFalse
       case zio.Duration.Finite(nanos) =>
         var completed = false

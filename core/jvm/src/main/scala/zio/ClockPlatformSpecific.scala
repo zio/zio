@@ -16,7 +16,8 @@
 
 package zio
 
-import zio.internal.{NamedThreadFactory, Scheduler}
+import zio.Scheduler
+import zio.internal.NamedThreadFactory
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent._
@@ -35,7 +36,7 @@ private[zio] trait ClockPlatformSpecific {
     def asScheduledExecutorService: ScheduledExecutorService =
       service
 
-    def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
+    def unsafeSchedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
       case Duration.Infinity => ConstFalse
       case _ =>
         val millis = duration.toMillis

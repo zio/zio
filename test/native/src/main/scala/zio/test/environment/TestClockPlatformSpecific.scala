@@ -16,15 +16,15 @@
 
 package zio.test.environment
 
-import zio.internal.Scheduler
-import zio.{Duration, UIO, ZIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.{Duration, Scheduler, UIO, ZIO, ZTraceElement}
 
 trait TestClockPlatformSpecific { self: TestClock.Test =>
 
   def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
     ZIO.runtime[Any].map { runtime =>
       new Scheduler {
-        def schedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {
+        def unsafeSchedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {
           val canceler =
             runtime.unsafeRunAsyncCancelable(sleep(duration) *> ZIO.effectTotal(runnable.run()))(_ => ())
           () => canceler(zio.Fiber.Id.None).interrupted
