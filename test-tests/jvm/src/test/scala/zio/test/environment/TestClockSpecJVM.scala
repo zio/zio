@@ -87,7 +87,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           for {
             runtime                 <- ZIO.runtime[Has[Clock]]
             ref                     <- Ref.make[List[Long]](List.empty)
-            scheduler               <- Clock.scheduler
+            scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
             future <- ZIO.succeed {
                         scheduledExecutorService.scheduleAtFixedRate(
@@ -110,5 +110,5 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           } yield assert(values.reverse)(equalTo(List(5L)))
         }
       )
-    )
+    ) @@ TestAspect.nonFlaky
 }
