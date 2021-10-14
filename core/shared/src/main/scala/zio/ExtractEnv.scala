@@ -33,8 +33,13 @@ object ExtractEnv extends ExtractEnvLowPriorityImplicits {
     }
 }
 private[zio] trait ExtractEnvLowPriorityImplicits {
-  implicit def extractHas[A: Tag]: ExtractEnv[Has[A], A] = 
+  implicit def extractHas1[A: Tag]: ExtractEnv[Has[A], A] = 
     new ExtractEnv[Has[A], A] {
       def extract(whole: Has[A]): A = whole.get[A]
+    }
+
+  implicit def extractHas2[A: Tag]: ExtractEnv[A, Has[A]] = 
+    new ExtractEnv[A, Has[A]] {
+      def extract(whole: A): Has[A] = Has(whole)
     }
 }

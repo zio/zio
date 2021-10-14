@@ -188,7 +188,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * function.
    */
   final def mapError[E1](f: E => E1)(implicit ev: CanFail[E]): ZLayer[RIn, E1, ROut] =
-    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyZIO(e => ZIO.fail(f(e))))
+    catchAll(ZLayer.second[E] >>> ZLayer.fromFunctionManyZIO[E, E1, Nothing](e => ZIO.fail(f(e))))
 
   /**
    * Returns a managed effect that, if evaluated, will return the lazily
@@ -202,7 +202,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * unchecked and not a part of the type of the layer.
    */
   final def orDie(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E]): ZLayer[RIn, Nothing, ROut] =
-    catchAll(ZLayer.second >>> ZLayer.fromFunctionManyZIO(e => ZIO.die(ev1(e))))
+    catchAll(ZLayer.second[E] >>> ZLayer.fromFunctionManyZIO((e: E) => ZIO.die(ev1(e))))
 
   /**
    * Executes this layer and returns its output, if it succeeds, but otherwise
@@ -222,7 +222,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     type S = schedule.State
 
     lazy val loop: ZLayer[(RIn1, S), E, ROut] =
-      (ZLayer.first >>> self).catchAll {
+      (ZLayer.first[RIn1] >>> self).catchAll {
         val update: ZLayer[((RIn1, S), E), E, (RIn1, S)] =
           ZLayer.fromFunctionManyZIO { case ((r, s), e) =>
             Clock.currentDateTime
@@ -244,7 +244,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Performs the specified effect if this layer succeeds.
    */
   final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any]): ZLayer[RIn1, E1, ROut] =
-    ZLayer.environment <&> self >>> ZLayer.fromFunctionManyZIO { case (in, out) =>
+    ZLayer.environment <&> self >>> ZLayer.fromFunctionManyZIO[(RIn1, ROut), E1, ROut] { case (in, out) =>
       f(out).provide(in) *> ZIO.succeed(out)
     }
 
@@ -271,7 +271,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Updates one of the services output by this layer.
    */
   final def update[A: Tag](f: A => A)(implicit ev1: Has.IsHas[ROut], ev2: ROut <:< Has[A]): ZLayer[RIn, E, ROut] =
-    self >>> ZLayer.fromFunctionMany(ev1.update[ROut, A](_, f))
+    self >>> ZLayer.fromFunctionMany[ROut, ROut](ev1.update[ROut, A](_, f))
 
   /**
    * Combines this layer with the specified layer, producing a new layer that
