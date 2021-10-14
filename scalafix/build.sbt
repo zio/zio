@@ -23,6 +23,9 @@ inThisBuild(
 
 skip in publish := true
 
+val zio1Version = "1.0.11"
+val zio2Version = "2.0.0-M3"
+
 lazy val rules = project.settings(
   moduleName                             := "scalafix",
   libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % V.scalafixVersion
@@ -30,11 +33,16 @@ lazy val rules = project.settings(
 
 lazy val input = project.settings(
   skip in publish                  := true,
-  libraryDependencies += "dev.zio" %% "zio-test" % "1.0.0-RC17"
+  libraryDependencies += "dev.zio" %% "zio"         % zio1Version,
+  libraryDependencies += "dev.zio" %% "zio-streams" % zio1Version,
+  libraryDependencies += "dev.zio" %% "zio-test"    % zio1Version
 )
 
 lazy val output = project.settings(
-  skip in publish := true
+  skip in publish                  := true,
+  libraryDependencies += "dev.zio" %% "zio"         % zio2Version,
+  libraryDependencies += "dev.zio" %% "zio-streams" % zio2Version,
+  libraryDependencies += "dev.zio" %% "zio-test"    % zio2Version
 )
 
 lazy val tests = project
