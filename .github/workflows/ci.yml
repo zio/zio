@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 60
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v2.3.4
+      uses: actions/checkout@v2.3.5
     - name: Setup Scala and Java
       uses: olafurpg/setup-scala@v13
     - name: Cache scala dependencies
@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
@@ -57,7 +57,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
@@ -76,7 +76,7 @@ jobs:
         platform: ['JVM']
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v2.3.4
+      uses: actions/checkout@v2.3.5
     - name: Setup Scala and Java
       uses: olafurpg/setup-scala@v13
       with:
@@ -106,7 +106,7 @@ jobs:
         platform: ['JVM']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
         with:
@@ -126,7 +126,7 @@ jobs:
         platform: ['JS', 'Native']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
         with:
@@ -150,7 +150,7 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
         with:
           fetch-depth: 0
       - name: Setup Scala and Java
