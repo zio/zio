@@ -18,6 +18,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "bracketOnError_"        -> "acquireReleaseOnError",
       "bracket_"               -> "acquireRelease",
       "bracket_"               -> "acquireRelease",
+      "collectAllParN"         -> "collectAllPar",
+      "collectAllParNDiscard"  -> "collectAllParDiscard",
       "collectAllParN_"        -> "collectAllParNDiscard",
       "collectAllPar_"         -> "collectAllParDiscard",
       "collectAll_"            -> "collectAllDiscard",
@@ -43,6 +45,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "foldTraceM"             -> "foldTraceZIO",
       "foldWeightedDecomposeM" -> "foldWeightedDecomposeZIO",
       "foldWeightedM"          -> "foldWeightedZIO",
+      "foreachParN"            -> "foreachPar",
+      "foreachParNDiscard"     -> "foreachParDiscard",
       "foreachParN_"           -> "foreachParNDiscard",
       "foreachPar_"            -> "foreachParDiscard",
       "foreach_"               -> "foreachDiscard",
@@ -87,9 +91,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "unsafeRunAsync"         -> "unsafeRunAsyncWith",
       "unsafeRunAsync_"        -> "unsafeRunAsync",
       "use_"                   -> "useDiscard",
-      "validate_"              -> "validateDiscard",
-      "validatePar_"           -> "validateParDiscard",
       "validateParN_"          -> "validateParNDiscard",
+      "validatePar_"           -> "validateParDiscard",
+      "validate_"              -> "validateDiscard",
       "whenCaseM"              -> "whenCaseZIO",
       "whenM"                  -> "whenZIO"
     )
@@ -188,6 +192,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Sized_Old   = SymbolMatcher.normalized("zio/test/package.Sized#")
   val Live_Old    = SymbolMatcher.normalized("zio/test/environment/package.Live#")
 
+  val Blocking_Old_Exact   = SymbolMatcher.exact("zio/blocking/package.Blocking#")
   val Random_Old_Exact     = SymbolMatcher.exact("zio/random/package.Random#")
   val Clock_Old_Exact      = SymbolMatcher.exact("zio/clock/package.Clock#")
   val System_Old_Exact     = SymbolMatcher.exact("zio/system/package.System#")
@@ -230,18 +235,28 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         Patch.replaceTree(name, "Console")
     }.asPatch
 
+  def replaceSymbols(implicit doc: SemanticDocument) = Patch.replaceSymbols(
+    "zio.console.putStrLn"          -> "zio.Console.printLine",
+    "zio.console.getStrLn"          -> "zio.Console.readLine",
+    "zio.console.putStr"            -> "zio.Console.print",
+    "zio.console.putStrLnErr"       -> "zio.Console.printLineError",
+    "zio.console.putStrErr"         -> "zio.Console.printError",
+    "zio.blocking.effectBlockingIO" -> "zio.ZIO.attemptBlockingIO",
+    "zio.ZIO.$greater$greater$eq"   -> "zio.ZIO.flatMap"
+  )
+
   override def fix(implicit doc: SemanticDocument): Patch =
     doc.tree.collect {
       case ZIORenames.Matcher(patch)       => patch
       case ZManagedRenames.Matcher(patch)  => patch
       case UniversalRenames.Matcher(patch) => patch
 
-//      case t @ q"$thing.run" =>
-//        println(thing.symbol.owner)
-//        println(thing.symbol.owner.structure)
-//        println(thing.symbol.structure)
-//        println(s"FOUND ${thing.syntax} ${thing.structure}")
-//        Patch.renameSymbol()
+      // Replace >>= with flatMap. For some reason, this doesn't work with the
+      // technique used above.
+      case t @ q"${lhs} >>= $rhs" if lhs.symbol.owner.value.startsWith("zio") =>
+        Patch.replaceTree(t, s"$lhs flatMap $rhs")
+      case t @ q"${lhs}.>>=($rhs)" if lhs.symbol.owner.value.startsWith("zio") =>
+        Patch.replaceTree(t, s"$lhs.flatMap($rhs)")
 
       case t @ q"import zio.duration._" =>
         Patch.replaceTree(t, "") +
@@ -273,6 +288,10 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ Console_Old_Service(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "Console") +
           Patch.addGlobalImport(newConsole)
+
+      case t @ Blocking_Old_Exact(Name(_)) =>
+        Patch.addGlobalImport(newRandom) +
+          Patch.replaceTree(unwindSelect(t), s"Any")
 
       case t @ Random_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(newRandom) +
@@ -312,13 +331,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ q"import zio.console._" =>
         Patch.replaceTree(t, "") +
           Patch.addGlobalImport(wildcardImport(q"zio.Console"))
-    }.asPatch + fixPackages + Patch.replaceSymbols(
-      "zio.console.putStrLn"    -> "zio.Console.printLine",
-      "zio.console.getStrLn"    -> "zio.Console.readLine",
-      "zio.console.putStr"      -> "zio.Console.print",
-      "zio.console.putStrLnErr" -> "zio.Console.printLineError",
-      "zio.console.putStrErr"   -> "zio.Console.printError"
-    )
+    }.asPatch + fixPackages + replaceSymbols
 
   private def wildcardImport(ref: Term.Ref): Importer =
     Importer(ref, List(Importee.Wildcard()))

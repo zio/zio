@@ -1,44 +1,24 @@
 /*
 rule = Zio2Upgrade
-*/
+ */
 package fix
 
 import zio._
+import zio.blocking.effectBlockingIO
 
 object Zio2Renames {
 
-  val effect = ZIO("cool")
+  val flatMap1 = ZIO(1).>>=((x: Int) => ZIO(x + 1))
+  val flatMap2 = ZIO(1) >>= { x: Int => ZIO(x + 1) }
+  val effect   = ZIO("cool")
 
   val halt     = ZIO.halt(Cause.fail("fail"))
   val haltWith = ZIO.haltWith(_ => Cause.fail("fail"))
 
   val toManaged_ = effect.toManaged_
   val toManaged  = effect.toManaged(_ => UIO.unit)
-// bimap -> mapBoth
-  val bimap = effect.bimap(_ => UIO.unit, _ => UIO.unit)
-// bracket -> acquireReleaseWith
-// bracket -> acquireReleaseWith
-// bracket_ -> acquireRelease
-// bracket_ -> acquireRelease
-// bracketExit -> acquireReleaseExitWith
-// bracketExit -> acquireReleaseExitWith
-// bracketOnError -> acquireReleaseOnErrorWith
-// collectM -> collectZIO
-// filterOrElse_ -> filterOrElse
-// foldCauseM -> foldCauseZIO
-// foldM -> foldZIO
-// foldTraceM -> foldTraceZIO
-// mapEffect -> mapAttempt
-// optional -> unoption
-// rejectM -> rejectZIO
-// repeatUntilM -> repeatUntilZIO
-// repeatWhileM -> repeatWhileZIO
-// replicateM -> replicateZIO
-// replicateM_ -> replicateZIODiscard
-// retryUntilM -> retryUntilZIO
-// retryWhileM -> retryWhileZIO
-// run -> exit
-// someOrElseM -> someOrElseZIO
-// unlessM -> unlessZIO
-// whenM -> whenZIO
+  val bimap      = effect.bimap(_ => UIO.unit, _ => UIO.unit)
+
+  // Blocking
+  effectBlockingIO(1)
 }
