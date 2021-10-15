@@ -1014,7 +1014,7 @@ IO.fail("e1")
 
 ## ZIO Aspect
 
-There are two types of concerns in an application, _core concerns_, and _cross-cutting concerns_. Cross-cutting concerns are shared among different parts of our application. We usually find them scattered and duplicated across our application, or they are tangled up with our primary concerns. This reduces the level of modularity of our programs. 
+There are two types of concerns in an application, _core concerns_, and _cross-cutting concerns_. Cross-cutting concerns are shared among different parts of our application. We usually find them scattered and duplicated across our application, or they are tangled up with our primary concerns. This reduces the level of modularity of our programs.
 
 A cross-cutting concern is more about _how_ we do something than _what_ we are doing. For example, when we are downloading a bunch of files, creating a socket to download each one is the core concern because it is a question of _what_ rather than the _how_, but the following concerns are cross-cutting ones:
 - Downloading files _sequentially_ or in _parallel_
@@ -1023,7 +1023,7 @@ _ _Logging_ and _monitoring_ the download process
 
 So they don't affect the return type of our workflows, but they add some new aspects or change their behavior.
 
-To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _ aspect-oriented programming_. 
+To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _ aspect-oriented programming_.
 
 The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `ZIO` effect and convert it into a specialized `ZIO` effect. We can add a new aspect to a `ZIO` effect with `@@` syntax like this:
 
@@ -1034,7 +1034,7 @@ val myApp: ZIO[Any, Throwable, String] =
 
 As we see, the `debug` aspect doesn't change the return type of our effect, but it adds a new debugging aspect to our effect.
 
-`ZIOAspect` is like a transformer of the `ZIO` effect, which takes a `ZIO` effect and converts it to another `ZIO` effect. We can think of a `ZIOAspect` as a function of type `ZIO[R, E, A] => ZIO[R, E, A]`. 
+`ZIOAspect` is like a transformer of the `ZIO` effect, which takes a `ZIO` effect and converts it to another `ZIO` effect. We can think of a `ZIOAspect` as a function of type `ZIO[R, E, A] => ZIO[R, E, A]`.
 
 To compose multiple aspects, we can use `@@` operator:
 
@@ -1050,9 +1050,39 @@ ZIO.foreachPar(List("zio.dev", "google.com")) { url =>
 
 The order of aspect composition matters. Therefore, if we change the order, the behavior may change.
 
+## Debugging
+
+When we are writing an application using the ZIO effect we are writing workflows as data transformers. So there are lots of cases we need to debug our application by seeing how the data transformed through the workflow. We can add or remove debugging capability without changing the signature of our effect:
+
+```scala mdoc:silent:nest
+ZIO.ifZIO(
+  Random.nextIntBounded(10)
+    .debug("random number")
+    .map(_ % 2)
+    .debug("remainder")
+    .map(_ == 0)
+)(
+  onTrue = ZIO.succeed("Success"),
+  onFalse = ZIO.succeed("Failure")
+).debug.repeatWhile(_ != "Success")
+``` 
+
+The following could be one of the results of this program:
+
+```
+random number: 5
+remainder: 1
+Failure
+random number: 1
+remainder: 1
+Failure
+random number: 2
+remainder: 0
+Success
+```
 ## Logging
 
-ZIO has built-in logging functionality. This allows us to log within our application without adding new dependencies. ZIO logging doesn't require any services from the environment, so we can add or remove logging capabilities without changing the signature of our effect.
+ZIO has built-in logging functionality. This allows us to log within our application without adding new dependencies. ZIO logging doesn't require any services from the environment. 
 
 We can easily log inside our application using the `ZIO.log` function:
 
