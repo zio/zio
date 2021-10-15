@@ -399,6 +399,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     catchSomeDefect { case t => h(t) }
 
   /**
+   * Recovers from all NonFatal Throwables.
+   *
+   * {{{
+   * openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
+   * }}}
+   */
+  final def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
+    h: E => ZIO[R1, E2, A1]
+  )(implicit ev1: CanFail[E], ev2: E <:< Throwable): ZIO[R1, E2, A1] = {
+
+    def hh(e: E) = ZIO.runtime[Any].flatMap(runtime => if (runtime.platform.fatal(e)) ZIO.die(e) else h(e))
+    self.foldM[R1, E2, A1](hh, new ZIO.SucceedFn(hh _))
+  }
+
+  /**
    * Recovers from some or all of the error cases.
    *
    * {{{
@@ -4260,6 +4275,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].
      */
     def toManaged: ZManaged[R, E, A] = ZManaged.fromAutoCloseable(io)
+
+    /**
+     * Converts this ZIO value to a ZManaged value. See [[ZManaged.fromAutoCloseable]].
+     */
+    def toManagedAuto: ZManaged[R, E, A] =
+      ZManaged.fromAutoCloseable(io)
   }
 
   implicit final class ZioRefineToOrDieOps[R, E <: Throwable, A](private val self: ZIO[R, E, A]) extends AnyVal {
