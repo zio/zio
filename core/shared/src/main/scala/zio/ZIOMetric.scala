@@ -145,21 +145,16 @@ object ZIOMetric {
     }
 
   /**
-    * A helper method to create histogram bucket boundaries for a histogram with linear increasing values
-    */
-  def linearBuckets(start: Double, width: Double, count: Int): DoubleHistogramBuckets = {
-    val boundaries = Chunk.fromArray(0.until(count).map(i => start + i * width).toArray) ++ Chunk(Double.MaxValue)
-    DoubleHistogramBuckets(boundaries.map(boundary => (boundary, 0L)))
-  }
+   * A helper method to create histogram bucket boundaries for a histogram with linear increasing values
+   */
+  def linearBuckets(start: Double, width: Double, count: Int): Chunk[Double] =
+    Chunk.fromArray(0.until(count).map(i => start + i * width).toArray) ++ Chunk(Double.MaxValue)
 
   /**
-    * A helper method to create histogram bucket boundaries for a histogram with exponentially increasing values
-    */
-  def exponentialBuckets(start: Double, factor: Double, count: Int): DoubleHistogramBuckets = {
-    val boundaries =
-      Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray) ++ Chunk(Double.MaxValue)
-    DoubleHistogramBuckets(boundaries.map(boundary => (boundary, 0L)))
-  }
+   * A helper method to create histogram bucket boundaries for a histogram with exponentially increasing values
+   */
+  def exponentialBuckets(start: Double, factor: Double, count: Int): Chunk[Double] =
+    Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray) ++ Chunk(Double.MaxValue)
 
   /**
    * A metric aspect that adds a value to a summary each time the effect it is
