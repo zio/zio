@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package zio.stm
 
-import zio.stm.ZSTM.internal._
 import zio.{Chunk, ChunkBuilder}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.collection.immutable.SortedMap
 
@@ -59,10 +59,10 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
    * a value is in the queue.
    */
   def peek: USTM[A] =
-    new ZSTM((journal, _, _, _) =>
+    ZSTM.Effect((journal, _, _) =>
       ref.unsafeGet(journal).headOption match {
-        case None          => TExit.Retry
-        case Some((_, as)) => TExit.Succeed(as.head)
+        case None          => throw ZSTM.RetryException
+        case Some((_, as)) => as.head
       }
     )
 
@@ -102,10 +102,10 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
    * Takes a value from the queue, retrying until a value is in the queue.
    */
   def take: USTM[A] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val map = ref.unsafeGet(journal)
       map.headOption match {
-        case None => TExit.Retry
+        case None => throw ZSTM.RetryException
         case Some((a, as)) =>
           ref.unsafeSet(
             journal,
@@ -114,9 +114,9 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
               case Nil    => map - a
             }
           )
-          TExit.Succeed(as.head)
+          as.head
       }
-    })
+    }
 
   /**
    * Takes all values from the queue.
@@ -155,10 +155,10 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
    * the queue.
    */
   def takeOption: USTM[Option[A]] =
-    new ZSTM((journal, _, _, _) => {
+    ZSTM.Effect { (journal, _, _) =>
       val map = ref.unsafeGet(journal)
       map.headOption match {
-        case None => TExit.Succeed(None)
+        case None => None
         case Some((a, as)) =>
           ref.unsafeSet(
             journal,
@@ -167,9 +167,9 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
               case Nil    => map - a
             }
           )
-          TExit.Succeed(Some(as.head))
+          Some(as.head)
       }
-    })
+    }
 
   /**
    * Collects all values into a chunk.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
   val sendSummary: SendSummary = SendSummary.fromSendM(summary =>
-    ZIO.effectTotal {
+    ZIO.succeed {
       summaries.updateAndGet(_ :+ summary)
       ()
     }

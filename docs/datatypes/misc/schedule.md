@@ -5,8 +5,6 @@ title: "Schedule"
 
 ```scala mdoc:invisible
 import zio._
-import zio.duration._
-import zio.console._
 ```
 
 A `Schedule[Env, In, Out]` is an **immutable value** that **describes** a recurring effectful schedule, which runs in some environment `Env`, after consuming values of type `In` (errors in the case of `retry`, or values in the case of `repeat`) produces values of type `Out`, and in every step based on input values and the internal state decides to halt or continue after some delay **d**.
@@ -273,14 +271,14 @@ val collect = Schedule.recurs(5).collectAll
 ```
 
 ### Filtering
-We can filter inputs or outputs of a schedule with `whileInput` and `whileOutput`. Alse ZIO schedule has an effectful version of these two functions, `whileInputM` and `whileOutputM`.
+We can filter inputs or outputs of a schedule with `whileInput` and `whileOutput`. Alse ZIO schedule has an effectful version of these two functions, `whileInputZIO` and `whileOutputZIO`.
 
-| Function       | Input Type                   | Output Type                |
-|----------------|------------------------------|----------------------------|
-| `whileInput`   | `In1 => Boolean`             | `Schedule[Env, In1, Out]`  |
-| `whileOutput`  | `Out => Boolean`             | `Schedule[Env, In, Out]`   |
-| `whileInputM`  | `In1 => URIO[Env1, Boolean]` | `Schedule[Env1, In1, Out]` |
-| `whileOutputM` | `Out => URIO[Env1, Boolean]` | `Schedule[Env1, In, Out]`  |
+| Function         | Input Type                   | Output Type                |
+|------------------|------------------------------|----------------------------|
+| `whileInput`     | `In1 => Boolean`             | `Schedule[Env, In1, Out]`  |
+| `whileOutput`    | `Out => Boolean`             | `Schedule[Env, In, Out]`   |
+| `whileInputZIO`  | `In1 => URIO[Env1, Boolean]` | `Schedule[Env1, In1, Out]` |
+| `whileOutputZIO` | `Out => URIO[Env1, Boolean]` | `Schedule[Env1, In, Out]`  |
 
 In following example we collect all emiting outputs before reaching the 5 output, so it would return `Chunk(0, 1, 2, 3, 4)`:
 
@@ -289,12 +287,12 @@ val res = Schedule.unfold(0)(_ + 1).whileOutput(_ < 5).collectAll
 ```
 
 ### Mapping
-There are two versions for mapping schedules, `map` and its effectful version `mapM`.
+There are two versions for mapping schedules, `map` and its effectful version `mapZIO`.
 
 | Function | Input Type                   | Output Type                |
 |----------|------------------------------|----------------------------|
 | `map`    | `f: Out => Out2`             | `Schedule[Env, In, Out2]`  |
-| `mapM`   | `f: Out => URIO[Env1, Out2]` | `Schedule[Env1, In, Out2]` |
+| `mapZIO` | `f: Out => URIO[Env1, Out2]` | `Schedule[Env1, In, Out2]` |
 
 ### Left/Right Ap
 Sometimes when we intersect two schedules with the `&&` operator, we just need to ignore the left or the right output. 
@@ -314,7 +312,7 @@ Whenever we need to effectfully process each schedule input/output, we can use `
 We can use these two functions for logging purposes:
 
 ```scala mdoc:silent
-val tappedSchedule = Schedule.count.whileOutput(_ < 5).tapOutput(o => putStrLn(s"retrying $o"))
+val tappedSchedule = Schedule.count.whileOutput(_ < 5).tapOutput(o => Console.printLine(s"retrying $o").orDie)
 ```
 
 

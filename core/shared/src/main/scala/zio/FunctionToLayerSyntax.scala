@@ -1,4 +1,22 @@
+/*
+ * Copyright 2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio
+
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait FunctionToLayerOps {
   implicit final class Function0ToLayerSyntax[A: Tag](self: () => A) {
@@ -13,7 +31,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer: URLayer[Any, Has[A]] =
+    def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): URLayer[Any, Has[A1]] =
       UIO(self()).toLayer
   }
 
@@ -29,7 +47,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer: URLayer[Has[A], Has[B]] =
+    def toLayer[B1 >: B: Tag](implicit trace: ZTraceElement): URLayer[Has[A], Has[B1]] =
       ZIO.service[A].map(self).toLayer
   }
 
@@ -45,7 +63,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer: URLayer[Has[A] with Has[B], Has[C]] = {
+    def toLayer[C1 >: C: Tag](implicit trace: ZTraceElement): URLayer[Has[A] with Has[B], Has[C1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -65,7 +83,7 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[D1 >: D: Tag]: URLayer[Has[A] with Has[B] with Has[C], Has[D1]] = {
+    def toLayer[D1 >: D: Tag](implicit trace: ZTraceElement): URLayer[Has[A] with Has[B] with Has[C], Has[D1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -86,7 +104,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[E1 >: E: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D], Has[E1]] = {
+    def toLayer[E1 >: E: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D], Has[E1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -110,7 +130,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[F1 >: F: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E], Has[F1]] = {
+    def toLayer[F1 >: F: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E], Has[F1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -135,7 +157,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[G1 >: G: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F], Has[G1]] = {
+    def toLayer[G1 >: G: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F], Has[G1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -161,8 +185,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[H1 >: H: Tag]
-      : URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G], Has[H1]] = {
+    def toLayer[H1 >: H: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G], Has[H1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -189,8 +214,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[I1 >: I: Tag]
-      : URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H], Has[I1]] = {
+    def toLayer[I1 >: I: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H], Has[I1]] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -229,7 +255,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[J1 >: J: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[J1 >: J: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I], Has[J1]] = {
       for {
@@ -272,7 +300,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[K1 >: K: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[K1 >: K: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J], Has[K1]] = {
       for {
@@ -317,7 +347,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[L1 >: L: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[L1 >: L: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K], Has[L1]] = {
       for {
@@ -364,7 +396,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[M1 >: M: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[M1 >: M: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L], Has[M1]] = {
       for {
@@ -412,7 +446,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[N1 >: N: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[N1 >: N: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M], Has[N1]] = {
       for {
@@ -463,7 +499,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[O1 >: O: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[O1 >: O: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N], Has[O1]] = {
       for {
@@ -516,7 +554,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[P1 >: P: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[P1 >: P: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O], Has[P1]] = {
       for {
@@ -571,7 +611,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[Q1 >: Q: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[Q1 >: Q: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P], Has[
       Q1
@@ -630,7 +672,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[R1 >: R: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[R1 >: R: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
       P
@@ -693,7 +737,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[S1 >: S: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[S1 >: S: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
       P
@@ -758,7 +804,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[T1 >: T: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[T1 >: T: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
       P
@@ -825,7 +873,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[U1 >: U: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[U1 >: U: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
       P
@@ -894,7 +944,9 @@ trait FunctionToLayerOps {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[V1 >: V: Tag]: URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
+    def toLayer[V1 >: V: Tag](implicit
+      trace: ZTraceElement
+    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
       G
     ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
       P

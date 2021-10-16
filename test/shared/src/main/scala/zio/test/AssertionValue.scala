@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
  */
 
 package zio.test
+
+import zio.ZTraceElement
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * An `AssertionValue` keeps track of a assertion and a value, existentially
@@ -34,7 +37,8 @@ sealed abstract class AssertionValue {
     AssertionValue(assertion.label(string), value, result, expression, sourceLocation)
   def sameAssertion(that: AssertionValue): Boolean = assertion == that.assertion
 
-  def negate: AssertionValue = AssertionValue(assertion.negate, value, !result, expression, sourceLocation)
+  def negate(implicit trace: ZTraceElement): AssertionValue =
+    AssertionValue(assertion.negate, value, !result, expression, sourceLocation)
   def withContext(expr: Option[String], sourceLocation: Option[String]): AssertionValue =
     AssertionValue(assertion, value, result, expr, sourceLocation)
 }

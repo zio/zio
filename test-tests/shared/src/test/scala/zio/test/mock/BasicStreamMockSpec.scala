@@ -1,9 +1,9 @@
 package zio.test.mock
 
-import zio.Chunk
 import zio.stream.{ZSink, ZStream}
 import zio.test.mock.module.{StreamModule, StreamModuleMock}
 import zio.test.{Annotations, Assertion, TestAspect, ZIOBaseSpec, ZSpec}
+import zio.{Chunk, Has}
 
 object BasicStreamMockSpec extends ZIOBaseSpec with MockSpecUtils[StreamModule] {
 
@@ -13,7 +13,7 @@ object BasicStreamMockSpec extends ZIOBaseSpec with MockSpecUtils[StreamModule] 
 
   val A: ZStream[Any, Nothing, Int] = ZStream.fromIterable(List(1, 2, 3))
 
-  def spec: ZSpec[Annotations, Any] =
+  def spec: ZSpec[Has[Annotations], Any] =
     suite("BasicStreamMockSpec")(
       suite("capabilities")(
         suite("sink")(

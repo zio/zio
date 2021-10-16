@@ -1,6 +1,23 @@
+/*
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.stream.internal
 
-import zio.{Chunk, Exit, FiberFailure, Runtime, ZIO}
+import zio.{Chunk, Exit, FiberFailure, Runtime, ZIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 
@@ -88,7 +105,9 @@ private[zio] class ZReader(private var chunks: Iterator[Chunk[Char]]) extends ja
 }
 
 private[zio] object ZReader {
-  def fromPull[R](runtime: Runtime[R], pull: ZIO[R, Option[Throwable], Chunk[Char]]): ZReader = {
+  def fromPull[R](runtime: Runtime[R], pull: ZIO[R, Option[Throwable], Chunk[Char]])(implicit
+    trace: ZTraceElement
+  ): ZReader = {
     def unfoldPull: Iterator[Chunk[Char]] =
       runtime.unsafeRunSync(pull) match {
         case Exit.Success(chunk) => Iterator.single(chunk) ++ unfoldPull

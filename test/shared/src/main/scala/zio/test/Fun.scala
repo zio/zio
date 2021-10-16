@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package zio.test
 
-import zio.internal.Executor
-import zio.{Runtime, URIO, ZIO}
+import zio.{Executor, Runtime, URIO, ZIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
 
@@ -47,7 +47,7 @@ private[test] object Fun {
    * Constructs a new `Fun` from an effectual function. The function should not
    * involve asynchronous effects.
    */
-  def make[R, A, B](f: A => URIO[R, B]): ZIO[R, Nothing, Fun[A, B]] =
+  def make[R, A, B](f: A => URIO[R, B])(implicit trace: ZTraceElement): ZIO[R, Nothing, Fun[A, B]] =
     makeHash(f)(_.hashCode)
 
   /**
@@ -55,7 +55,7 @@ private[test] object Fun {
    * This is useful when the domain of the function does not implement
    * `hashCode` in a way that is consistent with equality.
    */
-  def makeHash[R, A, B](f: A => URIO[R, B])(hash: A => Int): ZIO[R, Nothing, Fun[A, B]] =
+  def makeHash[R, A, B](f: A => URIO[R, B])(hash: A => Int)(implicit trace: ZTraceElement): ZIO[R, Nothing, Fun[A, B]] =
     ZIO.runtime[R].map { runtime =>
       val funRuntime = withFunExecutor(runtime)
       Fun(a => funRuntime.unsafeRun(f(a)), hash)

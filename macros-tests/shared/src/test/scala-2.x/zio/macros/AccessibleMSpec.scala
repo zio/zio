@@ -8,7 +8,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("AccessibleMSpec")(
     suite("AccessibleM macro")(
-      testM("compiles when applied to object with empty Service") {
+      test("compiles when applied to object with empty Service") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -18,7 +18,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("fails when applied to object without a Service") {
+      test("fails when applied to object without a Service") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -26,15 +26,15 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to trait") {
+      test("success when applied to trait") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
             trait Module[F[_]]
           """
-        })(isLeft(anything))
+        })(isRight(anything))
       },
-      testM("fails when applied to class") {
+      test("fails when applied to class") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -42,7 +42,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to object with Service without type param") {
+      test("fails when applied to object with Service without type param") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -52,7 +52,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to Service with Service without suitable type param") {
+      test("fails when applied to Service with Service without suitable type param") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -62,7 +62,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to Service with Service with multiple suitable type params") {
+      test("fails when applied to Service with Service with multiple suitable type params") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -72,7 +72,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("fails when applied to non-ZIO type param") {
+      test("fails when applied to non-ZIO type param") {
         assertM(typeCheck {
           """
             @accessibleM[List]
@@ -82,7 +82,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isLeft(anything))
       },
-      testM("generates accessor for values") {
+      test("generates accessor for values") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -99,7 +99,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for functions") {
+      test("generates accessor for functions") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -116,7 +116,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for varargs functions") {
+      test("generates accessor for varargs functions") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -133,7 +133,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("compiles when applied to method with simple return type") {
+      test("compiles when applied to method with simple return type") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -150,7 +150,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for members returning ZManaged") {
+      test("generates accessors for members returning ZManaged") {
         assertM(typeCheck {
           """
             @accessibleM[TaskManaged]
@@ -167,7 +167,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for service with default method implementations") {
+      test("generates accessor for service with default method implementations") {
         assertM(typeCheck {
           """
              @accessibleM[Task]
@@ -187,7 +187,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """.stripMargin
         })(isRight(anything))
       },
-      testM("generates accessor for service with one type param other than F") {
+      test("generates accessor for service with one type param other than F") {
         assertM(typeCheck {
           """
              @accessibleM[Task]
@@ -222,7 +222,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for service with covariant type param") {
+      test("generates accessor for service with covariant type param") {
         assertM(typeCheck {
           """
              @accessibleM[UIO]
@@ -239,7 +239,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessor for service with two type params and type bounds") {
+      test("generates accessor for service with two type params and type bounds") {
         assertM(typeCheck {
           """
              trait Foo
@@ -277,7 +277,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for ZIO capabilities") {
+      test("generates accessors for ZIO capabilities") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -311,7 +311,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for ZManaged capabilities") {
+      test("generates accessors for ZManaged capabilities") {
         assertM(typeCheck {
           """
             @accessibleM[UManaged]
@@ -347,7 +347,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("generates accessors for method capabilities") {
+      test("generates accessors for method capabilities") {
         assertM(typeCheck {
           """
             @accessibleM[UIO]
@@ -363,7 +363,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("preserves type constructor covariance") {
+      test("preserves type constructor covariance") {
         assertM(typeCheck {
           """
              @accessibleM[UIO]
@@ -387,7 +387,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("preserves Service covariance") {
+      test("preserves Service covariance") {
         assertM(typeCheck {
           """
              @accessibleM[UIO]
@@ -410,7 +410,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
           """
         })(isRight(anything))
       },
-      testM("preserves Service contravariance") {
+      test("preserves Service contravariance") {
         assertM(typeCheck {
           """
              @accessibleM[UIO]
@@ -435,7 +435,7 @@ object AccessibleMSpec extends DefaultRunnableSpec {
       },
       // this test mimics the situation when covariant type appears in contravariant position
       // in reality, the code will not compile due to true variance check, but in tests `c.typecheck` doesn't check it
-      testM("fails when contravariant type appears in covariant position") {
+      test("fails when contravariant type appears in covariant position") {
         assertM(typeCheck {
           """
              @accessibleM[UIO]

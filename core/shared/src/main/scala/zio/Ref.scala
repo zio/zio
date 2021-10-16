@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,29 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 object Ref extends Serializable {
+  private[zio] type Atomic[A] = ZRef.Atomic[A]
+
+  type Synchronized[A] = ZRef.Synchronized[Any, Any, Nothing, Nothing, A, A]
+  val Synchronized: ZRef.Synchronized.type = ZRef.Synchronized
 
   /**
    * @see [[zio.ZRef.make]]
    */
-  def make[A](a: A): UIO[Ref[A]] =
+  def make[A](a: A)(implicit trace: ZTraceElement): UIO[Ref[A]] =
     ZRef.make(a)
 
   /**
    * @see [[zio.ZRef.makeManaged]]
    */
-  def makeManaged[A](a: A): UManaged[Ref[A]] =
+  def makeManaged[A](a: A)(implicit trace: ZTraceElement): UManaged[Ref[A]] =
     ZRef.makeManaged(a)
 
-  private[zio] def unsafeMake[A](a: A): Ref[A] =
+  /**
+   * @see [[zio.ZRef.unsafeMake]]
+   */
+  private[zio] def unsafeMake[A](a: A)(implicit trace: ZTraceElement): Ref.Atomic[A] =
     ZRef.unsafeMake(a)
 }

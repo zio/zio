@@ -1,5 +1,6 @@
 package zio.test.mock
 
+import zio.Has
 import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.{Annotations, Assertion, Spec, TestAspect, TestFailure, TestSuccess, ZIOBaseSpec}
@@ -12,7 +13,7 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
   import MockException._
   import TestAspect.exceptDotty
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("PolyMockSpec")(
+  def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = suite("PolyMockSpec")(
     suite("polymorphic input")(
       suite("expectations met")(
         testValue("String")(
@@ -168,7 +169,7 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
             equalTo(42L)
           )
         ),
-        testValue("combined")(
+        testValue[Any, Any]("combined")(
           PureModuleMock.PolyInputError.of[Long, Int](equalTo(42L), value("foo")) andThen
             PureModuleMock.PolyInputError.of[Int, Long](equalTo(42), value("bar")),
           for {
@@ -290,7 +291,7 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
             equalTo(42)
           )
         ),
-        testValue("combined")(
+        testValue[Any, Any]("combined")(
           PureModuleMock.PolyErrorOutput.of[Long, Int](equalTo("foo"), value(42)) andThen
             PureModuleMock.PolyErrorOutput.of[Int, Long](equalTo("bar"), value(42L)),
           for {
@@ -363,7 +364,7 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
             equalTo("foo")
           )
         ),
-        testValue("combined")(
+        testValue[Any, Any]("combined")(
           PureModuleMock.PolyInputErrorOutput.of[String, Int, Long](equalTo("foo"), value(42L)) andThen
             PureModuleMock.PolyInputErrorOutput.of[Int, Long, String](equalTo(42), value("foo")) andThen
             PureModuleMock.PolyInputErrorOutput.of[Long, String, Int](equalTo(42L), value(42)),

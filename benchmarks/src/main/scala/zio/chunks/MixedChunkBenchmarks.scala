@@ -8,6 +8,9 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Measurement(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 3)
+@Warmup(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 3)
+@Fork(1)
 class MixedChunkBenchmarks {
   @Param(Array("1000"))
   var size: Int = _
@@ -45,11 +48,11 @@ class MixedChunkBenchmarks {
   }
 
   @Benchmark
-  def fold(): Int = chunk.fold(0)(_ + _)
+  def fold(): Int = chunk.foldLeft(0)(_ + _)
 
   @Benchmark
-  def filterM(): Chunk[Int] =
-    IOBenchmarks.unsafeRun(chunk.filterM[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
+  def filterZIO(): Chunk[Int] =
+    BenchmarkUtil.unsafeRun(chunk.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
 
   @Benchmark
   def map(): Chunk[Int] = chunk.map(_ * 2)
@@ -61,10 +64,10 @@ class MixedChunkBenchmarks {
   def find(): Option[Int] = chunk.find(_ > 2)
 
   @Benchmark
-  def mapM(): UIO[Unit] = chunk.mapM_(_ => ZIO.unit)
+  def mapZIO(): UIO[Unit] = chunk.mapZIODiscard(_ => ZIO.unit)
 
   @Benchmark
-  def foldM(): Int =
-    IOBenchmarks.unsafeRun(chunk.foldM[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
+  def foldZIO(): Int =
+    BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
 
 }

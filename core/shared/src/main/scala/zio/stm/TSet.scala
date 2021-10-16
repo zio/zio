@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
  */
 
 package zio.stm
+
+import zio.NonEmptyChunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * Transactional set implemented on top of [[TMap]].
@@ -34,10 +37,16 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     tmap.isEmpty
 
   /**
-   * Removes element from set.
+   * Removes a single element from the set.
    */
   def delete(a: A): USTM[Unit] =
     tmap.delete(a)
+
+  /**
+   * Removes elements from the set.
+   */
+  def deleteAll(as: Iterable[A]): USTM[Unit] =
+    tmap.deleteAll(as)
 
   /**
    * Atomically transforms the set into the difference of itself and the
@@ -55,14 +64,21 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   /**
    * Atomically folds using a transactional function.
    */
+  @deprecated("use foldSTM", "2.0.0")
   def foldM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] =
-    tmap.foldM(zero)((acc, kv) => op(acc, kv._1))
+    foldSTM(zero)(op)
+
+  /**
+   * Atomically folds using a transactional function.
+   */
+  def foldSTM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] =
+    tmap.foldSTM(zero)((acc, kv) => op(acc, kv._1))
 
   /**
    * Atomically performs transactional-effect for each element in set.
    */
   def foreach[E](f: A => STM[E, Unit]): STM[E, Unit] =
-    foldM(())((_, a) => f(a))
+    foldSTM(())((_, a) => f(a))
 
   /**
    * Atomically transforms the set into the intersection of itself and the
@@ -95,6 +111,35 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   def size: USTM[Int] = toList.map(_.size)
 
   /**
+   * Takes the first matching value, or retries until there is one.
+   */
+  def takeFirst[B](pf: PartialFunction[A, B]): USTM[B] =
+    tmap.takeFirst {
+      case (k, _) if pf.isDefinedAt(k) => pf(k)
+    }
+
+  def takeFirstSTM[R, E, B](pf: A => ZSTM[R, Option[E], B]): ZSTM[R, E, B] =
+    tmap.takeFirstSTM { case (k, _) =>
+      pf(k)
+    }
+
+  /**
+   * Takes all matching values, or retries until there is at least one.
+   */
+  def takeSome[B](pf: PartialFunction[A, B]): USTM[NonEmptyChunk[B]] =
+    tmap.takeSome {
+      case (k, _) if pf.isDefinedAt(k) => pf(k)
+    }
+
+  /**
+   * Takes all matching values, or retries until there is at least one.
+   */
+  def takeSomeSTM[R, E, B](pf: A => ZSTM[R, Option[E], B]): ZSTM[R, E, NonEmptyChunk[B]] =
+    tmap.takeSomeSTM { case (k, _) =>
+      pf(k)
+    }
+
+  /**
    * Collects all elements into a list.
    */
   def toList: USTM[List[A]] = tmap.keys
@@ -113,8 +158,15 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   /**
    * Atomically updates all elements using a transactional function.
    */
+  @deprecated("use transformSTM", "2.0.0")
   def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
-    tmap.transformM((k, v) => f(k).map(_ -> v))
+    transformSTM(f)
+
+  /**
+   * Atomically updates all elements using a transactional function.
+   */
+  def transformSTM[E](f: A => STM[E, A]): STM[E, Unit] =
+    tmap.transformSTM((k, v) => f(k).map(_ -> v))
 
   /**
    * Atomically transforms the set into the union of itself and the provided

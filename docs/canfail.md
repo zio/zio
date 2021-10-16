@@ -10,14 +10,14 @@ ZIO provides a variety of combinators to handle errors such as `orElse`, `catchA
 Code | Rewrite 
 --- | ---
 `uio <> zio` | `uio`
-`uio.bimap(f, g)` |  `uio.map(g)`
 `uio.catchAll(f)` | `uio`
 `uio.catchSome(pf)` | `uio`
 `uio.either` | `uio`*
 `uio.eventually` | `uio`
 `uio.flatMapError(f)` | `uio`
 `uio.fold(f, g)` | `uio.map(g)`
-`uio.foldM(f, g)` | `uio.flatMap(g)`
+`uio.foldZIO(f, g)` | `uio.flatMap(g)`
+`uio.mapBoth(f, g)` |  `uio.map(g)`
 `uio.mapError(f)` | `uio`
 `uio.option` | `uio`*
 `uio.orDie` | `uio`
@@ -34,24 +34,23 @@ Code | Rewrite
 `uio.retryOrElseEither(s, f)` | `uio`*
 `uio.tapBoth(f, g)` | `uio.tap(g)`
 `uio.tapError(f)` | `uio`
-`ZIO.partitionM(in)(f)` | `ZIO.foreach(in)(f)`*
-`ZIO.partitionMPar(in)(f)` | `ZIO.foreachPar(in)(f)`*
-`ZIO.partitionMParN(n)(in)(f)` | `ZIO.foreachParN(n)(in)(f)`*
-`ZIO.validateM(in)(f)` | `ZIO.foreach(in)(f)`*
-`ZIO.validateFirstM(in)(f)` | `ZIO.foreach(in)(f)`*
+`ZIO.partitionZIO(in)(f)` | `ZIO.foreach(in)(f)`*
+`ZIO.partitionZIOPar(in)(f)` | `ZIO.foreachPar(in)(f)`*
+`ZIO.validateZIO(in)(f)` | `ZIO.foreach(in)(f)`*
+`ZIO.validateFirstZIO(in)(f)` | `ZIO.foreach(in)(f)`*
 
 **ZManaged**
 
 Code | Rewrite 
 --- | ---
 `umanaged <> zmanaged` | `umanaged`
-`umanaged.bimap(f, g)` | `umanaged.map(g)`
 `umanaged.catchAll(f)` | `umanaged`
 `umanaged.catchSome(pf)` | `umanaged`
 `umanaged.either` | `umanaged`*
 `umanaged.flatMapError(f)` | `umanaged`
 `umanaged.fold(f, g)` | `umanaged.map(f)`
-`umanaged.foldM(f, g)` | `umanaged.flatMap(g)`
+`umanaged.foldManaged(f, g)` | `umanaged.flatMap(g)`
+`umanaged.mapBoth(f, g)` | `umanaged.map(g)`
 `umanaged.mapError(f)` | `umanaged`
 `umanaged.option` | `umanaged`*
 `umanaged.orDie` | `umanaged`
@@ -69,9 +68,9 @@ Code | Rewrite
 
 Code | Rewrite 
 --- | ---
-`ustream.bimap(f, g)` | `ustream.map(g)`
 `ustream.catchAll(f)` | `ustream`
 `ustream.either` | `ustream`*
+`ustream.mapBoth(f, g)` | `ustream.map(g)`
 `ustream.mapError(f)` | `ustream`
 `ustream.orElse(zstream)` | `ustream`
 
@@ -86,4 +85,4 @@ Code | Rewrite
 
 - `either`, `option`, `orElseEither`, and `retryOrElseEither` wrap their results in `Some` or `Right` so after rewriting, code calling these methods can be simplified to accept an `A` rather than an `Option[A]` or `Either[E, A]`. 
 
-- `partitionM`, `partitionMPar`, `partitionMParN`, `validateM` and `validateFirstM` have error accumulating semantics on either error channel or success channel. After rewrite the error type can be simplified to `E` rather than `List[E]` or the success type `List[B]` instead of `(List[E], List[B])`.
+- `partitionZIO`, `partitionZIOPar`, `validateZIO` and `validateFirstZIO` have error accumulating semantics on either error channel or success channel. After rewrite the error type can be simplified to `E` rather than `List[E]` or the success type `List[B]` instead of `(List[E], List[B])`.

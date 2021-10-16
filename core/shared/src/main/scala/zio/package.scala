@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 package object zio
     extends BuildFromCompat
     with EitherCompat
     with FunctionToLayerOps
     with IntersectionTypeCompat
     with PlatformSpecific
-    with VersionSpecific {
+    with VersionSpecific
+    with DurationModule {
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
@@ -46,20 +50,48 @@ package object zio
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
   type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
+  val Queue: ZQueue.type = ZQueue
 
   /**
    * A queue that can only be dequeued.
    */
-  type Dequeue[+A] = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
+  type ZDequeue[-R, +E, +A] = ZQueue[Nothing, R, Any, E, Nothing, A]
+  type Dequeue[+A]          = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
 
-  type Ref[A]      = ZRef[Nothing, Nothing, A, A]
-  type ERef[+E, A] = ZRef[E, E, A, A]
+  /**
+   * A queue that can only be enqueued.
+   */
+  type ZEnqueue[-R, +E, -A] = ZQueue[R, Nothing, E, Any, A, Any]
+  type Enqueue[-A]          = ZQueue[Any, Nothing, Nothing, Any, A, Any]
 
-  type RefM[A]      = ZRefM[Any, Any, Nothing, Nothing, A, A]
+  type Ref[A] = ZRef[Any, Any, Nothing, Nothing, A, A]
+
+  type ERef[+E, A] = ZRef[Any, Any, E, E, A, A]
+  val ERef: ZRef.type = ZRef
+
+  @deprecated("use ZRef.Synchronized", "2.0.0")
+  type ZRefM[-RA, -RB, +EA, +EB, -A, +B] = ZRef.Synchronized[RA, RB, EA, EB, A, B]
+  @deprecated("use Ref.Synchronized", "2.0.0")
+  type RefM[A] = ZRefM[Any, Any, Nothing, Nothing, A, A]
+  @deprecated("use ERef.Synchronized", "2.0.0")
   type ERefM[+E, A] = ZRefM[Any, Any, E, E, A, A]
 
-  object <*> {
-    def unapply[A, B](ab: (A, B)): Some[(A, B)] =
-      Some((ab._1, ab._2))
+  type FiberRef[A] = ZFiberRef[Nothing, Nothing, A, A]
+  val FiberRef: ZFiberRef.type = ZFiberRef
+
+  type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
+  val Hub: ZHub.type = ZHub
+
+  type Semaphore = stm.TSemaphore
+
+  type HasMany[K, A] = Has[Map[K, A]]
+
+  type ZTraceElement = Tracer.instance.Type with Tracer.Traced
+  object ZTraceElement {
+    val empty = Tracer.instance.empty
+    object SourceLocation {
+      def unapply(trace: ZTraceElement): Option[(String, String, Int, Int)] =
+        Tracer.instance.unapply(trace)
+    }
   }
 }

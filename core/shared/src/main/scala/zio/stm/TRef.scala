@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package zio.stm
 
-import zio.UIO
+import zio.{UIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 object TRef {
 
@@ -29,6 +30,6 @@ object TRef {
   /**
    * See [[ZTRef.makeCommit]].
    */
-  def makeCommit[A](a: => A): UIO[TRef[A]] =
+  def makeCommit[A](a: => A)(implicit trace: ZTraceElement): UIO[TRef[A]] =
     ZTRef.makeCommit(a)
 }

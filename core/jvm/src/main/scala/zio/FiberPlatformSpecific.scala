@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 package zio
 
 import _root_.java.util.concurrent.{CompletionStage, Future}
-import zio.blocking.Blocking
 import zio.interop.javaz
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait FiberPlatformSpecific {
 
@@ -26,14 +26,14 @@ private[zio] trait FiberPlatformSpecific {
     lazy val cs: CompletionStage[A] = thunk
 
     new Fiber.Synthetic.Internal[Throwable, A] {
-      override def await: UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).run
+      override def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).exit
 
-      override def poll: UIO[Option[Exit[Throwable, A]]] =
-        UIO.effectSuspendTotal {
+      override def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Throwable, A]]] =
+        UIO.suspendSucceed {
           val cf = cs.toCompletableFuture
           if (cf.isDone) {
             Task
-              .effectSuspendWith((p, _) => javaz.unwrapDone(p.fatal)(cf))
+              .suspendWith((p, _) => javaz.unwrapDone(p.fatal)(cf))
               .fold(Exit.fail, Exit.succeed)
               .map(Some(_))
           } else {
@@ -41,11 +41,12 @@ private[zio] trait FiberPlatformSpecific {
           }
         }
 
-      final def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
 
-      final def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+        join.fold(Exit.fail, Exit.succeed)
 
-      final def inheritRefs: UIO[Unit] = IO.unit
+      final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = IO.unit
     }
   }
 
@@ -54,14 +55,14 @@ private[zio] trait FiberPlatformSpecific {
     lazy val ftr: Future[A] = thunk
 
     new Fiber.Synthetic.Internal[Throwable, A] {
-      def await: UIO[Exit[Throwable, A]] =
-        Blocking.live.build.use(ZIO.fromFutureJava(ftr).provide(_).run)
+      def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+        ZIO.fromFutureJava(ftr).exit
 
-      def poll: UIO[Option[Exit[Throwable, A]]] =
-        UIO.effectSuspendTotal {
+      def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Throwable, A]]] =
+        UIO.suspendSucceed {
           if (ftr.isDone) {
             Task
-              .effectSuspendWith((p, _) => javaz.unwrapDone(p.fatal)(ftr))
+              .suspendWith((p, _) => javaz.unwrapDone(p.fatal)(ftr))
               .fold(Exit.fail, Exit.succeed)
               .map(Some(_))
           } else {
@@ -69,11 +70,12 @@ private[zio] trait FiberPlatformSpecific {
           }
         }
 
-      def getRef[A](ref: FiberRef[A]): UIO[A] = UIO(ref.initial)
+      def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
 
-      def interruptAs(id: Fiber.Id): UIO[Exit[Throwable, A]] = join.fold(Exit.fail, Exit.succeed)
+      def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+        join.fold(Exit.fail, Exit.succeed)
 
-      def inheritRefs: UIO[Unit] = UIO.unit
+      def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = UIO.unit
     }
   }
 }

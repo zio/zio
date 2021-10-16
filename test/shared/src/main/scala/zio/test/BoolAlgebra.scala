@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package zio.test
 
-import zio.ZIO
+import zio.{ZIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `BoolAlgebra[A]` is a description of logical operations on values of type
@@ -110,7 +111,19 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
    * Returns a new result, with all values mapped to new results using the
    * specified effectual function.
    */
-  final def flatMapM[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]]): ZIO[R, E, BoolAlgebra[B]] =
+  @deprecated("use flatMapZIO", "2.0.0")
+  final def flatMapM[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, BoolAlgebra[B]] =
+    flatMapZIO(f)
+
+  /**
+   * Returns a new result, with all values mapped to new results using the
+   * specified effectual function.
+   */
+  final def flatMapZIO[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, BoolAlgebra[B]] =
     fold(a => f(a))(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
 
   /**
@@ -174,8 +187,16 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
    * Returns a new result, with all values mapped by the specified effectual
    * function.
    */
-  final def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, BoolAlgebra[B]] =
-    flatMapM(a => f(a).map(success))
+  @deprecated("use mapZIO", "2.0.0")
+  final def mapM[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, BoolAlgebra[B]] =
+    mapZIO(f)
+
+  /**
+   * Returns a new result, with all values mapped by the specified effectual
+   * function.
+   */
+  final def mapZIO[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, BoolAlgebra[B]] =
+    flatMapZIO(a => f(a).map(success))
 
   /**
    * Negates this result, converting all successes into failures and failures

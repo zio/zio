@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package zio
+
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.collection.immutable.{IndexedSeq, IndexedSeqOps, StrictOptimizedSeqOps}
 import scala.collection.{IterableFactoryDefaults, SeqFactory}
@@ -57,26 +59,20 @@ trait ChunkLike[+A]
    * the specified function.
    */
   override final def flatMap[B](f: A => IterableOnce[B]): Chunk[B] = {
-    val iterator               = arrayIterator
+    val iterator               = self.iterator
     var chunks: List[Chunk[B]] = Nil
     var total                  = 0
     var B0: ClassTag[B]        = null.asInstanceOf[ClassTag[B]]
     while (iterator.hasNext) {
-      val array  = iterator.next()
-      val length = array.length
-      var i      = 0
-      while (i < length) {
-        val a     = array(i)
-        val bs    = f(a)
-        val chunk = ChunkLike.from(bs)
-        if (chunk.length > 0) {
-          if (B0 == null) {
-            B0 = Chunk.classTagOf(chunk)
-          }
-          chunks ::= chunk
-          total += chunk.length
+      val a     = iterator.next()
+      val bs    = f(a)
+      val chunk = ChunkLike.from(bs)
+      if (chunk.length > 0) {
+        if (B0 == null) {
+          B0 = Chunk.classTagOf(chunk)
         }
-        i += 1
+        chunks ::= chunk
+        total += chunk.length
       }
     }
     if (B0 == null) Chunk.empty
@@ -107,6 +103,9 @@ trait ChunkLike[+A]
    */
   override final def map[B](f: A => B): Chunk[B] =
     mapChunk(f)
+
+  override final def updated[A1 >: A](index: Int, elem: A1): Chunk[A1] =
+    update(index, elem)
 
   /**
    * Zips this chunk with the index of every element.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
 private[zio] final class NamedThreadFactory(name: String, daemon: Boolean) extends ThreadFactory {
 
-  private val parentGroup =
-    Option(System.getSecurityManager).fold(Thread.currentThread().getThreadGroup)(_.getThreadGroup)
-
+  private val parentGroup = Thread.currentThread.getThreadGroup
   private val threadGroup = new ThreadGroup(parentGroup, name)
   private val threadCount = new AtomicInteger(1)
 

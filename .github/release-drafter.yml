@@ -1,19 +1,36 @@
-name-template: 'v$NEXT_PATCH_VERSION'
-tag-template: 'v$NEXT_PATCH_VERSION'
-categories:
-  - title: '🚀 Features'
-    labels:
-      - 'feature'
-  - title: '🐛 Bug Fixes'
-    labels:
-      - 'bug'
-  - title: '🧰 Maintenance'
-    labels:
-      - 'build'
-  - title: '🌱 Dependency Updates'
-    labels:
-      - 'dependency-update'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
 template: |
-  ## Changes
+  # What's Changed
   $CHANGES
+categories:
+  - title: 'Breaking'
+    label: 'type: breaking'
+  - title: 'New'
+    label: 'type: feature'
+  - title: 'Bug Fixes'
+    label: 'type: bug'
+  - title: 'Maintenance'
+    label: 'type: maintenance'
+  - title: 'Documentation'
+    label: 'type: docs'
+  - title: 'Dependency Updates'
+    label: 'type: dependencies'
+
+version-resolver:
+  major:
+    labels:
+      - 'type: breaking'
+  minor:
+    labels:
+      - 'type: feature'
+  patch:
+    labels:
+      - 'type: bug'
+      - 'type: maintenance'
+      - 'type: docs'
+      - 'type: dependencies'
+      - 'type: security'
+
+exclude-labels:
+  - 'skip-changelog'

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package zio
 
-import zio.internal.stacktracer.ZTraceElement
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 
 final case class ZTrace(
-  fiberId: Fiber.Id,
+  fiberId: FiberId,
   executionTrace: List[ZTraceElement],
   stackTrace: List[ZTraceElement],
   parentTrace: Option[ZTrace]
@@ -33,14 +33,14 @@ final case class ZTrace(
     val stackPrint =
       if (stackTrace)
         s"Fiber:$fiberId was supposed to continue to:" ::
-          this.stackTrace.map(loc => s"  a future continuation at " + loc.prettyPrint)
+          this.stackTrace.map(loc => s"  a future continuation at " + loc.toString)
       else
         s"Fiber:$fiberId was supposed to continue to: <empty trace>" :: Nil
 
     val execPrint =
       if (execTrace)
         s"Fiber:$fiberId execution trace:" ::
-          executionTrace.map(loc => "  at " + loc.prettyPrint)
+          executionTrace.map(loc => "  at " + loc.toString)
       else s"Fiber:$fiberId ZIO Execution trace: <empty trace>" :: Nil
 
     val ancestry: List[String] =

@@ -131,14 +131,15 @@ For example, the ordinary `ZIO#zip` method zips two effects together, sequential
 
 The following table summarizes some of the sequential operations and their corresponding parallel versions:
 
-| **Description**              | **Sequential**    | **Parallel**         |
-| ---------------------------: | :---------------: | :------------------: |
-| Zips two effects into one    | `ZIO#zip`         | `ZIO#zipPar`         |
-| Zips two effects into one    | `ZIO#zipWith`     | `ZIO#zipWithPar`     |
-| Collects from many effects   | `ZIO.collectAll`  | `ZIO.collectAllPar`  |
-| Effectfully loop over values | `ZIO.foreach`     | `ZIO.foreachPar`     |
-| Reduces many values          | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
-| Merges many values           | `ZIO.mergeAll`    | `ZIO.mergeAllPar`    |
+| **Description**                | **Sequential**    | **Parallel**         |
+| -----------------------------: | :---------------: | :------------------: |
+| Zips two effects into one      | `ZIO#zip`         | `ZIO#zipPar`         |
+| Zips two effects into one      | `ZIO#zipWith`     | `ZIO#zipWithPar`     |
+| Zips multiple effects into one | `ZIO#tupled`      | `ZIO#tupledPar`      |
+| Collects from many effects     | `ZIO.collectAll`  | `ZIO.collectAllPar`  |
+| Effectfully loop over values   | `ZIO.foreach`     | `ZIO.foreachPar`     |
+| Reduces many values            | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
+| Merges many values             | `ZIO.mergeAll`    | `ZIO.mergeAllPar`    |
 
 For all the parallel operations, if one effect fails, then others will be interrupted, to minimize unnecessary computation.
 
@@ -161,8 +162,6 @@ If you want the first success or failure, rather than the first success, then yo
 ZIO lets you timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed.
 
 ```scala mdoc:silent
-import zio.duration._
-
 IO.succeed("Hello").timeout(10.seconds)
 ```
 

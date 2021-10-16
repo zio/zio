@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,12 +85,13 @@ final class ZTestTask(
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs) {
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
-    Runtime((), specInstance.platform)
-      .unsafeRunAsync((sbtTestLayer(loggers).build >>> run(eventHandler).toManaged_).use_(ZIO.unit)) { exit =>
-        exit match {
-          case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-          case _                   =>
-        }
-        continuation(Array())
+    Runtime((), specInstance.runtimeConfig).unsafeRunAsyncWith {
+      run(eventHandler).toManaged.provideLayer(sbtTestLayer(loggers)).useDiscard(ZIO.unit)
+    } { exit =>
+      exit match {
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+        case _                   =>
       }
+      continuation(Array())
+    }
 }
