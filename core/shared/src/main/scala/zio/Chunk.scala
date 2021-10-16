@@ -1646,7 +1646,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
       if (offset <= 0 && length >= 1) self
-      else Chunk.Empty
+      else ChunkIterator.empty
   }
 
   private final case class Slice[A](private val chunk: Chunk[A], offset: Int, l: Int) extends Chunk[A] {
@@ -1783,11 +1783,11 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Boolean] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Chunk.Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else BitChunk(bytes, self.minBitIndex + offset, self.minBitIndex + offset + length min self.maxBitIndex)
   }
 
-  private case object Empty extends Chunk[Nothing] with ChunkIterator[Nothing] { self =>
+  private case object Empty extends Chunk[Nothing] { self =>
 
     override val length: Int =
       0
@@ -1808,18 +1808,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override def toArray[A1: ClassTag]: Array[A1] =
       Array.empty
-
-    def chunkIterator: ChunkIterator[Nothing] =
-      self
-
-    def hasNextAt(index: Int): Boolean =
-      false
-
-    def nextAt(index: Int): Nothing =
-      throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $index")
-
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Nothing] =
-      self
   }
 
   final case class AnyRefArray[A <: AnyRef](array: Array[A], offset: Int, override val length: Int)
@@ -1835,7 +1823,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Chunk.Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else AnyRefArray(array, self.offset + offset, self.length - offset min length)
   }
 
@@ -1854,7 +1842,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Byte] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Chunk.Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else ByteArray(array, self.offset + offset, self.length - offset min length)
   }
 
@@ -1873,7 +1861,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Char] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Chunk.Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else CharArray(array, self.offset + offset, self.length - offset min length)
   }
 
@@ -1892,7 +1880,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Int] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else IntArray(array, self.offset + offset, self.length - offset min length)
   }
 
@@ -1911,7 +1899,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Long] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Chunk.Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else LongArray(array, self.offset + offset, self.length - offset min length)
   }
 
@@ -1930,7 +1918,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Double] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Chunk.Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else DoubleArray(array, self.offset + offset, self.length - offset min length)
   }
 
@@ -1949,7 +1937,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Float] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else FloatArray(array, self.offset + offset, self.length - offset min length)
   }
 
@@ -1968,7 +1956,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Short] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else ShortArray(array, self.offset + offset, self.length - offset min length)
   }
 
@@ -1987,7 +1975,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       array(index + offset)
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Boolean] =
       if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) Empty
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else BooleanArray(array, self.offset + offset, self.length - offset min length)
   }
 
@@ -2032,6 +2020,12 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   private object ChunkIterator {
 
     /**
+     * The empty iterator.
+     */
+    val empty: ChunkIterator[Nothing] =
+      Empty
+
+    /**
      * Constructs an iterator from an array of arbitrary values.
      */
     def fromArray[A](array: Array[A]): ChunkIterator[A] =
@@ -2073,6 +2067,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
             left.sliceIterator(offset, left.length - offset),
             right.sliceIterator(0, offset + length - left.length)
           )
+    }
+
+    private case object Empty extends ChunkIterator[Nothing] { self =>
+      def hasNextAt(index: Int): Boolean =
+        false
+      val length: Int =
+        0
+      def nextAt(index: Int): Nothing =
+        throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $index")
+      def slice(offset: Int, length: Int): ChunkIterator[Nothing] =
+        self
     }
 
     private final case class Iterator[A](iterator: scala.Iterator[A], length: Int) extends ChunkIterator[A] { self =>
