@@ -3,7 +3,7 @@ id: index
 title: "Introduction"
 ---
 
-**ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. 
+**ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. 
 
 ## Installation
 
@@ -47,3 +47,5 @@ object HelloWorldSpec extends DefaultRunnableSpec {
   )
 }
 ```
+
+In the example above, our test involved the effect of printing to the console, but we didn't have to do anything differently in our test.
