@@ -600,6 +600,7 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-schema"                    % "0.1.1",
       "dev.zio"                       %% "zio-sqs"                       % "0.4.2",
       "dev.zio"                       %% "zio-opentracing"               % "0.8.2",
+      "io.laserdisc"                  %% "tamer-db"                      % "0.16.1",
       "io.jaegertracing"               % "jaeger-core"                   % "1.6.0",
       "io.jaegertracing"               % "jaeger-client"                 % "1.6.0",
       "io.jaegertracing"               % "jaeger-zipkin"                 % "1.6.0",
@@ -640,7 +641,8 @@ lazy val docs = project.module
       "com.typesafe.slick"            %% "slick-hikaricp"                % "3.3.3",
       "info.senia"                    %% "zio-test-akka-http"            % "1.0.3",
       "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0"
-    )
+    ),
+    resolvers += "Confluent" at "https://packages.confluent.io/maven"
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
