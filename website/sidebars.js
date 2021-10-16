@@ -181,6 +181,9 @@ module.exports = {
           "datatypes/metrics/metriclabel",
           "datatypes/metrics/jvm",
       ],
+      "ZIO Test": [
+        "datatypes/test/index"
+      ],
     "Miscellaneous": [
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
