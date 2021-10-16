@@ -64,7 +64,8 @@ class MixedChunkBenchmarks {
   def find(): Option[Int] = chunk.find(_ > 2)
 
   @Benchmark
-  def mapZIO(): UIO[Unit] = chunk.mapZIODiscard(_ => ZIO.unit)
+  def mapZIO(): Unit =
+    BenchmarkUtil.unsafeRun(chunk.mapZIODiscard(_ => ZIO.unit))
 
   @Benchmark
   def foldZIO(): Int =
