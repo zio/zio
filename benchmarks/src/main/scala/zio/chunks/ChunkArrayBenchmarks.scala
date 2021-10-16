@@ -38,5 +38,5 @@ class ChunkArrayBenchmarks {
 
   @Benchmark
   def foldZIO(): Int =
-    BenchmarkUtil.unsafeRun(chunk.foldZIO(0)((s, a) => ZIO.succeed(s + a)))
+    BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
 }
