@@ -3,7 +3,11 @@ id: index
 title: "Introduction"
 ---
 
-**ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. Begin by adding the required configuration in your SBT settings:
+**ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. 
+
+## Installation
+
+In order to use ZIO Test, we need to add the required configuration in our SBT settings:
 
 ```scala
 libraryDependencies ++= Seq(
