@@ -1789,6 +1789,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   private case object Empty extends Chunk[Nothing] { self =>
 
+    def chunkIterator: ChunkIterator[Nothing] =
+      ChunkIterator.empty
+
     override val length: Int =
       0
 
@@ -2076,7 +2079,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         0
       def nextAt(index: Int): Nothing =
         throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $index")
-      def slice(offset: Int, length: Int): ChunkIterator[Nothing] =
+      def sliceIterator(offset: Int, length: Int): ChunkIterator[Nothing] =
         self
     }
 
