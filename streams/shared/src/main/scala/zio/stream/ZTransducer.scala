@@ -183,6 +183,12 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
 }
 
 object ZTransducer extends ZTransducerPlatformSpecificConstructors {
+
+  type TransduceStringToByte = ZTransducer[Any, Nothing, String, Byte]
+
+  val CharsetUtf32BE: Charset = Charset.forName("UTF-32BE")
+  val CharsetUtf32LE: Charset = Charset.forName("UTF-32LE")
+
   def apply[R, E, I, O](
     push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
   ): ZTransducer[R, E, I, O] =
@@ -1021,6 +1027,14 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
   ): ZTransducer[R, E, I, O] =
     ZTransducer(managed.fold(e => ZTransducer.fail(e), Predef.identity).flatMap(_.push))
 
+  object BOM {
+    val Utf8: Chunk[Byte]    = Chunk(-17, -69, -65)
+    val Utf16BE: Chunk[Byte] = Chunk(-2, -1)
+    val Utf16LE: Chunk[Byte] = Chunk(-1, -2)
+    val Utf32BE: Chunk[Byte] = Chunk(0, 0, -2, -1)
+    val Utf32LE: Chunk[Byte] = Chunk(-1, -2, 0, 0)
+  }
+
   /**
    * Decodes chunks of Unicode bytes into strings.
    *
@@ -1028,15 +1042,22 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * to UTF-8 if no BOM is detected.
    */
   def utfDecode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
-    branchAfter(4) { bytes =>
-      bytes.toList match {
-        case 0 :: 0 :: -2 :: -1 :: Nil if Charset.isSupported("UTF-32BE") => utf32BEDecode
-        case -2 :: -1 :: 0 :: 0 :: Nil if Charset.isSupported("UTF-32LE") => utf32LEDecode
-        case -17 :: -69 :: -65 :: x1 :: Nil                               => prepend(Chunk(x1)) >>> utf8Decode
-        case -2 :: -1 :: x1 :: x2 :: Nil                                  => prepend(Chunk(x1, x2)) >>> utf16BEDecode
-        case -1 :: -2 :: x1 :: x2 :: Nil                                  => prepend(Chunk(x1, x2)) >>> utf16LEDecode
-        case _                                                            => prepend(bytes) >>> utf8Decode
-      }
+    branchAfter(4) {
+      case BOM.Utf32BE if Charset.isSupported("UTF-32BE") =>
+        utf32BEDecode
+      case BOM.Utf32LE if Charset.isSupported("UTF-32LE") =>
+        utf32LEDecode
+      case bytes if bytes.take(3) == BOM.Utf8 =>
+        prepend(bytes.drop(3)) >>>
+          utf8Decode
+      case bytes if bytes.take(2) == BOM.Utf16BE =>
+        prepend(bytes.drop(2)) >>>
+          utf16BEDecode
+      case bytes if bytes.take(2) == BOM.Utf16LE =>
+        prepend(bytes.drop(2)) >>>
+          utf16LEDecode
+      case bytes =>
+        prepend(bytes) >>> utf8Decode
     }
 
   /**
@@ -1098,14 +1119,11 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       }
     }
 
-    // handle optional byte order mark
-    branchAfter(3) { bytes =>
-      bytes.toList match {
-        case -17 :: -69 :: -65 :: Nil =>
-          transducer
-        case _ =>
-          prepend(bytes) >>> transducer
-      }
+    branchAfter(3) {
+      case BOM.Utf8 =>
+        transducer
+      case bytes =>
+        prepend(bytes) >>> transducer
     }
   }
 
@@ -1117,15 +1135,13 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * malformed byte sequences.
    */
   def utf16Decode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
-    branchAfter(2) { bytes =>
-      bytes.toList match {
-        case -2 :: -1 :: Nil =>
-          utf16BEDecode
-        case -1 :: -2 :: Nil =>
-          utf16LEDecode
-        case _ =>
-          prepend(bytes) >>> utf16BEDecode
-      }
+    branchAfter(2) {
+      case BOM.Utf16BE =>
+        utf16BEDecode
+      case BOM.Utf16LE =>
+        utf16LEDecode
+      case bytes =>
+        prepend(bytes) >>> utf16BEDecode
     }
 
   /**
@@ -1151,15 +1167,13 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * If no byte order mark is found big-endianness is assumed.
    */
   def utf32Decode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
-    branchAfter(4) { bytes =>
-      bytes.toList match {
-        case 0 :: 0 :: -2 :: -1 :: Nil =>
-          utf32BEDecode
-        case -1 :: -2 :: 0 :: 0 :: Nil =>
-          utf32LEDecode
-        case _ =>
-          prepend(bytes) >>> utf32BEDecode
-      }
+    branchAfter(4) {
+      case BOM.Utf32BE =>
+        utf32BEDecode
+      case BOM.Utf32LE =>
+        utf32LEDecode
+      case bytes =>
+        prepend(bytes) >>> utf32BEDecode
     }
 
   /**
@@ -1169,7 +1183,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * sequences.
    */
   def utf32BEDecode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
-    utfFixedLengthDecode(Charset.forName("UTF-32BE"), 4)
+    utfFixedLengthDecode(CharsetUtf32BE, 4)
 
   /**
    * Decodes chunks of UTF-32LE bytes into strings.
@@ -1178,7 +1192,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
    * sequences.
    */
   def utf32LEDecode(implicit trace: ZTraceElement): ZTransducer[Any, Nothing, Byte, String] =
-    utfFixedLengthDecode(Charset.forName("UTF-32LE"), 4)
+    utfFixedLengthDecode(CharsetUtf32LE, 4)
 
   private def utfFixedLengthDecode(charset: Charset, width: Int)(implicit
     trace: ZTraceElement
@@ -1219,6 +1233,56 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       case Some(chunk) => ZIO.succeedNow(Chunk.single(new String(chunk.toArray, StandardCharsets.US_ASCII)))
       case None        => ZIO.succeedNow(Chunk.empty)
     }
+
+  def utf8Encode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utfEncodeFor(StandardCharsets.UTF_8)
+
+  def utf8BomEncode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utfEncodeFor(StandardCharsets.UTF_8) >>>
+      prepend(BOM.Utf8)
+
+  def utf16BEEncode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utfEncodeFor(StandardCharsets.UTF_16BE) >>>
+      prepend(BOM.Utf16BE)
+
+  def utf16LEEncode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utfEncodeFor(StandardCharsets.UTF_16LE) >>>
+      prepend(BOM.Utf16LE)
+
+  def utf16Encode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utf16BEEncode
+
+  def utf32BEEncode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utfEncodeFor(CharsetUtf32BE) >>>
+      prepend(BOM.Utf32BE)
+
+  def utf32LEEncode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utfEncodeFor(CharsetUtf32LE) >>>
+      prepend(BOM.Utf32LE)
+
+  def utf32Encode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utf32BEEncode
+
+  def usASCIIEncode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utfEncodeFor(StandardCharsets.US_ASCII)
+
+  def iso_8859_1Encode(implicit trace: ZTraceElement): TransduceStringToByte =
+    utfEncodeFor(StandardCharsets.ISO_8859_1)
+
+  private def utfEncodeFor(charset: Charset)(implicit
+    trace: ZTraceElement
+  ): TransduceStringToByte = ZTransducer.fromPush {
+    case Some(strings) =>
+      val bytes = strings.foldLeft[Chunk[Byte]](
+        Chunk.empty
+      ) { (acc, string) =>
+        val bytes = string.getBytes(charset)
+        acc ++ Chunk.fromArray(bytes)
+      }
+      ZIO.succeedNow(bytes)
+    case None =>
+      ZIO.succeedNow(Chunk.empty)
+  }
 
   object Push {
     def emit[A](a: A): UIO[Chunk[A]]         = IO.succeedNow(Chunk.single(a))
