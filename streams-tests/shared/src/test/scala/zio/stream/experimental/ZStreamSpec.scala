@@ -521,7 +521,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               s2 = ZStream
                      .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).rechunk(1).ensuring(latch4.succeed(())))
-              s = (s1 ++ s2).bufferChunksDropping(8)
+              s3 = ZStream(-1)
+              s = (s1 ++ s2 ++ s3).bufferChunksDropping(8)
               snapshots <- s.toPull.use { as =>
                              for {
                                zero      <- as
@@ -566,7 +567,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               s2 = ZStream
                      .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).rechunk(1).ensuring(latch4.succeed(())))
-              s = (s1 ++ s2).bufferChunksSliding(8)
+              s3 = ZStream(-1)
+              s = (s1 ++ s2 ++ s3).bufferChunksSliding(8)
               snapshots <- s.toPull.use { as =>
                              for {
                                zero      <- as
@@ -584,7 +586,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))
             ) &&
               assert(snapshots._3)(
-                equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9))
+                equalTo(List(-1, 24, 23, 22, 21, 20, 19, 18, 16, 15, 14, 13, 12, 11, 10, 9))
               )
           }
         ),
@@ -611,7 +613,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               s2 = ZStream
                      .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
-              s = (s1 ++ s2).bufferDropping(8)
+              s3 = ZStream(-1)
+              s = (s1 ++ s2 ++ s3).bufferDropping(8)
               snapshots <- s.toPull.use { as =>
                              for {
                                zero      <- as
@@ -686,7 +689,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               s2 = ZStream
                      .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
-              s = (s1 ++ s2).bufferSliding(8)
+              s3 = ZStream(-1)
+              s = (s1 ++ s2 ++ s3).bufferSliding(8)
               snapshots <- s.toPull.use { as =>
                              for {
                                zero      <- as
@@ -704,7 +708,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               equalTo(List(16, 15, 14, 13, 12, 11, 10, 9))
             ) &&
               assert(snapshots._3)(
-                equalTo(List(24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9))
+                equalTo(List(-1, 24, 23, 22, 21, 20, 19, 18, 16, 15, 14, 13, 12, 11, 10, 9))
               )
           }
         ),
@@ -1406,7 +1410,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          } @@ flaky @@ ignore // TODO: fix
+          } @@ nonFlaky
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {

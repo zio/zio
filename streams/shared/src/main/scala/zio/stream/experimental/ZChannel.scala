@@ -728,7 +728,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ): ZManaged[Env, OutErr, OutDone] =
     ZManaged
       .acquireReleaseExitWith(
-        UIO(new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](() => self, null))
+        UIO(
+          new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+            () => self,
+            null,
+            executeCloseLastSubstream = identity[URIO[Env, Any]]
+          )
+        )
       ) { (exec, exit) =>
         val finalize = exec.close(exit)
         if (finalize ne null) finalize
@@ -766,11 +772,18 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def toPull: ZManaged[Env, Nothing, ZIO[Env, Either[OutErr, OutDone], OutElem]] =
     ZManaged
       .acquireReleaseExitWith(
-        UIO(new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](() => self, null))
+        UIO(
+          new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+            () => self,
+            null,
+            identity[URIO[Env, Any]]
+          )
+        )
       ) { (exec, exit) =>
         val finalize = exec.close(exit)
-        if (finalize ne null) finalize
-        else ZIO.unit
+        ZIO.debug("toPull finalizer started") *>
+          (if (finalize ne null) finalize
+           else ZIO.unit).tap(_ => ZIO.debug("toPull finalizer ended"))
       }
       .map { exec =>
         def interpret(
@@ -1167,14 +1180,13 @@ object ZChannel {
     }
 
   def managedOut[R, E, A](m: ZManaged[R, E, A]): ZChannel[R, Any, Any, Any, E, A, Any] =
-    acquireReleaseOutExitWith(ReleaseMap.make)((releaseMap, exit) =>
-      releaseMap.releaseAll(
-        exit,
-        ExecutionStrategy.Sequential
-      )
-    ).concatMap { releaseMap =>
-      fromZIO(m.zio.provideSome[R]((_, releaseMap)).map(_._2)).flatMap(write(_))
-    }
+    acquireReleaseOutExitWith(
+      ReleaseMap.make.flatMap { releaseMap =>
+        m.zio.provideSome[R]((_, releaseMap)).map { case (_, out) => (out, releaseMap) }
+      }
+    ) { case ((_, releaseMap), exit) =>
+      releaseMap.releaseAll(exit, ExecutionStrategy.Sequential)
+    }.mapOut(_._1)
 
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: ZChannel[
@@ -1309,10 +1321,10 @@ object ZChannel {
         unwrap[Env, Any, Any, Any, OutErr, OutElem, OutDone] {
           queue.take.flatten.foldCause(
             Cause.flipCauseEither[OutErr, OutDone](_) match {
-              case Right(outDone) => end(outDone)
-              case Left(cause)    => failCause(cause)
+              case Right(outDone) => println("mergeAllWith: done"); end(outDone)
+              case Left(cause)    => println("mergeAllWith: fail"); failCause(cause)
             },
-            outElem => write(outElem) *> consumer
+            outElem => { println(s"mergeAllWith: ${outElem}"); write(outElem) *> consumer }
           )
         }
 

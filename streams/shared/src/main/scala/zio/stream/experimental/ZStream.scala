@@ -1406,12 +1406,23 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * concurrently. Up to `bufferSize` elements of the produced streams may be
    * buffered in memory by this operator.
    */
-  def flatMapPar[R1 <: R, E1 >: E, B](n: Int, bufferSize: Int = 16)(f: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] =
+  def flatMapPar[R1 <: R, E1 >: E, B](n: Int, bufferSize: Int = 16)(f: A => ZStream[R1, E1, B]): ZStream[R1, E1, B] = {
+//    lazy val go: ZChannel[R, E, Chunk[A], Any, E, A, Any] =
+//      ZChannel.readWith[R, E, Chunk[A], Any, E, A, Any](
+//        (in: Chunk[A]) => ZChannel.writeChunk(in) *> go,
+//        (e: E) => ZChannel.fail(e),
+//        (z: Any) => ZChannel.end(z)
+//      )
+
     new ZStream[R1, E1, B](
       channel.concatMap(ZChannel.writeChunk(_)).mergeMap[R1, Any, Any, Any, E1, Chunk[B]](n, bufferSize) {
         f(_).channel
       }
+//      (channel >>> go).mergeMap[R1, Any, Any, Any, E1, Chunk[B]](n, bufferSize) {
+//        f(_).channel
+//      }
     )
+  }
 
   /**
    * Maps each element of this stream to another stream and returns the non-deterministic merge
