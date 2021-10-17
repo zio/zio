@@ -384,7 +384,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 case _ =>
                   UIO(assert(())(Assertion.nothing))
               }
-          } @@ ignore, // NOTE: blocked by ensuringFirst
+          },
           test("Errors") {
             (ZStream.range(0, 1) ++ ZStream.fail("Boom")).broadcast(2, 12).use {
               case s1 :: s2 :: Nil =>
@@ -396,7 +396,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               case _ =>
                 UIO(assert(())(Assertion.nothing))
             }
-          } @@ ignore, // NOTE: blocked by ensuringFirst
+          },
           test("BackPressure") {
             ZStream
               .range(0, 5)
@@ -421,7 +421,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 case _ =>
                   UIO(assert(())(Assertion.nothing))
               }
-          } @@ ignore // NOTE: blocked by ensuringFirst
+          } @@ ignore // TODO: fix
 //               test("Unsubscribe") { // TODO: implement without .process
 //                 ZStream.range(0, 5).broadcast(2, 2).use {
 //                   case s1 :: s2 :: Nil =>
@@ -1547,7 +1547,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          } @@ flaky @@ ignore // TODO: fix
+          }
         ),
         suite("flattenExitOption")(
           test("happy path") {
@@ -2948,7 +2948,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result <- fiber.join
               } yield result)(equalTo(Chunk(Chunk(3, 4), Chunk(6, 7))))
             }
-          } @@ TestAspect.ignore,
+          },
           test("should take latest chunk within waitTime") {
             assertWithChunkCoordination(List(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6))) { c =>
               val stream = ZStream
@@ -2987,7 +2987,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- TestClock.adjust(3.seconds)
               result <- fiber.join
             } yield assert(result)(equalTo(Chunk(3)))
-          } @@ TestAspect.ignore,
+          },
           test("should fail immediately") {
             val stream = ZStream.fromZIO(IO.fail(None)).debounce(Duration.Infinity)
             assertM(stream.runCollect.either)(isLeft(equalTo(None)))
@@ -3002,7 +3002,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- TestClock.adjust(1.second)
               result <- fiber.join
             } yield result)(equalTo(Chunk(3)))
-          } @@ TestAspect.ignore,
+          },
           test("should interrupt fibers properly") {
             assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3))) { c =>
               for {
@@ -3021,7 +3021,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 results <- fib.join
               } yield assert(results)(equalTo(Chunk(3)))
             }
-          } @@ TestAspect.ignore,
+          },
           test("should interrupt children fiber on stream interruption") {
             for {
               ref <- Ref.make(false)
