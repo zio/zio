@@ -1250,7 +1250,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       prepend(BOM.Utf16LE)
 
   def utf16Encode(implicit trace: ZTraceElement): TransduceStringToByte =
-    utf16BEEncode
+    utfEncodeFor(StandardCharsets.UTF_16)
 
   def utf32BEEncode(implicit trace: ZTraceElement): TransduceStringToByte =
     utfEncodeFor(CharsetUtf32BE) >>>
