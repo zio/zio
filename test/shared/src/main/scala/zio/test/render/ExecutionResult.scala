@@ -16,6 +16,7 @@
 
 package zio.test.render
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestAnnotationMap
 import zio.test.render.ExecutionResult.Status._
 import zio.test.render.ExecutionResult.{ResultType, Status}

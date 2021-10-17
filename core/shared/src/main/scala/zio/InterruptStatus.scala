@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * The `InterruptStatus` of a fiber determines whether or not it can be
  * interrupted. The status can change over time in different regions.

@@ -2247,7 +2247,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
               for {
                 l <- s.mapZIOPar(8)(f).runCollect
-                r <- IO.foreachParN(8)(data)(f)
+                r <- IO.foreachPar(data)(f).withParallelism(8)
               } yield assert(l.toList)(equalTo(r))
             }
           },

@@ -2,6 +2,7 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -87,9 +88,9 @@ private[zio] class ConcurrentState {
     }
     val counter = value.asInstanceOf[ConcurrentMetricState.Counter]
     new Counter {
-      override def count: UIO[Double] =
+      override def count(implicit trace: ZTraceElement): UIO[Double] =
         ZIO.succeed(counter.count)
-      override def increment(value: Double): UIO[Unit] =
+      override def increment(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           val (v, d) = counter.increment(value)
           listener.unsafeCounterChanged(key, v, d)
@@ -106,17 +107,17 @@ private[zio] class ConcurrentState {
     }
     val gauge = value.asInstanceOf[ConcurrentMetricState.Gauge]
     new Gauge {
-      def adjust(value: Double): UIO[Unit] =
+      def adjust(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           val (v, d) = gauge.adjust(value)
           listener.unsafeGaugeChanged(key, v, d)
         }
-      def set(value: Double): UIO[Unit] =
+      def set(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           val (v, d) = gauge.set(value)
           listener.unsafeGaugeChanged(key, v, d)
         }
-      def value: UIO[Double] =
+      def value(implicit trace: ZTraceElement): UIO[Double] =
         ZIO.succeed(gauge.get)
     }
   }
@@ -137,16 +138,16 @@ private[zio] class ConcurrentState {
     }
     val histogram = value.asInstanceOf[ConcurrentMetricState.Histogram]
     new Histogram {
-      def buckets: UIO[Chunk[(Double, Long)]] =
+      def buckets(implicit trace: ZTraceElement): UIO[Chunk[(Double, Long)]] =
         ZIO.succeed(histogram.histogram.snapshot())
-      def count: UIO[Long] =
+      def count(implicit trace: ZTraceElement): UIO[Long] =
         ZIO.succeed(histogram.histogram.getCount())
-      def observe(value: Double): UIO[Unit] =
+      def observe(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           histogram.observe(value)
           listener.unsafeHistogramChanged(key, histogram.toMetricState)
         }
-      def sum: UIO[Double] =
+      def sum(implicit trace: ZTraceElement): UIO[Double] =
         ZIO.succeed(histogram.histogram.getSum())
     }
   }
@@ -166,16 +167,16 @@ private[zio] class ConcurrentState {
     }
     val summary = value.asInstanceOf[ConcurrentMetricState.Summary]
     new Summary {
-      val count: zio.UIO[Long] =
+      def count(implicit trace: ZTraceElement): zio.UIO[Long] =
         ZIO.succeed(summary.summary.getCount())
-      def observe(value: Double): UIO[Unit] =
+      def observe(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           summary.observe(value, Instant.now)
           listener.unsafeSummaryChanged(key, summary.toMetricState)
         }
-      val quantileValues: zio.UIO[zio.Chunk[(Double, Option[Double])]] =
+      def quantileValues(implicit trace: ZTraceElement): zio.UIO[zio.Chunk[(Double, Option[Double])]] =
         ZIO.succeed(summary.summary.snapshot(Instant.now))
-      val sum: zio.UIO[Double] =
+      def sum(implicit trace: ZTraceElement): zio.UIO[Double] =
         ZIO.succeed(summary.summary.getSum())
     }
   }
@@ -193,12 +194,12 @@ private[zio] class ConcurrentState {
     }
     val setCount = value.asInstanceOf[ConcurrentMetricState.SetCount]
     new SetCount {
-      def observe(word: String): UIO[Unit] =
+      def observe(word: String)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           setCount.observe(word)
           listener.unsafeSetChanged(key, setCount.toMetricState)
         }
-      val occurrences: UIO[Chunk[(String, Long)]] =
+      def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]] =
         ZIO.succeed(setCount.setCount.snapshot())
     }
   }

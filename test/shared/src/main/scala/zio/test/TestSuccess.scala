@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 sealed abstract class TestSuccess
 
 object TestSuccess {

@@ -17,6 +17,7 @@
 package zio.test.mock.internal
 
 import zio.Has
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
 import zio.test.mock.Capability
 

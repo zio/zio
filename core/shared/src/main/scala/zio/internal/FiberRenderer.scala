@@ -19,10 +19,12 @@ package zio.internal
 import zio.Fiber.Dump
 import zio.Fiber.Status.{Done, Finishing, Running, Suspended}
 import zio.{Fiber, FiberId, UIO, ZIO, ZTraceElement}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] object FiberRenderer {
 
-  def dumpStr(fibers: Seq[Fiber.Runtime[_, _]], withTrace: Boolean): UIO[String] =
+  def dumpStr(fibers: Seq[Fiber.Runtime[_, _]], withTrace: Boolean)(implicit trace: ZTraceElement): UIO[String] =
     for {
       dumps <- ZIO.foreach(fibers)(f => f.dumpWith(withTrace))
       now   <- UIO(System.currentTimeMillis())
@@ -32,7 +34,7 @@ private[zio] object FiberRenderer {
       (treeString +: dumpStrings).mkString("\n")
     }
 
-  def prettyPrintM(dump: Fiber.Dump): UIO[String] =
+  def prettyPrintM(dump: Fiber.Dump)(implicit trace: ZTraceElement): UIO[String] =
     UIO(prettyPrint(dump, System.currentTimeMillis()))
 
   private def zipWithHasNext[A](it: Iterable[A]): Iterable[(A, Boolean)] =
@@ -75,7 +77,7 @@ private[zio] object FiberRenderer {
       case Suspended(_, interruptible, epoch, _, asyncTrace) =>
         val in = if (interruptible) "interruptible" else "uninterruptible"
         val ep = s"$epoch asyncs"
-        val as = asyncTrace.getOrElse(implicitly[ZTraceElement]).toString
+        val as = asyncTrace.getOrElse(Tracer.newTrace).toString
         s"Suspended($in, $ep, $as)"
     }
 

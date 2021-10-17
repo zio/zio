@@ -17,6 +17,7 @@
 package zio.metrics
 
 import zio.internal.metrics._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `MetricClient` provides the functionality to consume metrics produced by

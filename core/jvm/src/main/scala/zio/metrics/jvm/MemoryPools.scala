@@ -4,6 +4,7 @@ import com.github.ghik.silencer.silent
 
 import zio.ZIOMetric.Gauge
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{ManagementFactory, MemoryMXBean, MemoryPoolMXBean, MemoryUsage}
 
@@ -49,7 +50,9 @@ trait MemoryPools extends JvmMetrics {
   private def poolBytesInit(pool: String): Gauge[Long] =
     ZIOMetric.setGaugeWith("jvm_memory_pool_bytes_init", MetricLabel("pool", pool))(_.toDouble)
 
-  private def reportMemoryUsage(usage: MemoryUsage, area: Area): ZIO[Any, Nothing, Unit] =
+  private def reportMemoryUsage(usage: MemoryUsage, area: Area)(implicit
+    trace: ZTraceElement
+  ): ZIO[Any, Nothing, Unit] =
     for {
       _ <- UIO(usage.getUsed) @@ memoryBytesUsed(area)
       _ <- UIO(usage.getCommitted) @@ memoryBytesCommitted(area)
@@ -57,7 +60,9 @@ trait MemoryPools extends JvmMetrics {
       _ <- UIO(usage.getInit) @@ memoryBytesInit(area)
     } yield ()
 
-  private def reportPoolUsage(usage: MemoryUsage, pool: String): ZIO[Any, Nothing, Unit] =
+  private def reportPoolUsage(usage: MemoryUsage, pool: String)(implicit
+    trace: ZTraceElement
+  ): ZIO[Any, Nothing, Unit] =
     for {
       _ <- UIO(usage.getUsed) @@ poolBytesUsed(pool)
       _ <- UIO(usage.getCommitted) @@ poolBytesCommitted(pool)
@@ -68,7 +73,7 @@ trait MemoryPools extends JvmMetrics {
   private def reportMemoryMetrics(
     memoryMXBean: MemoryMXBean,
     poolMXBeans: List[MemoryPoolMXBean]
-  ): ZIO[Any, Throwable, Unit] =
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
       heapUsage    <- Task(memoryMXBean.getHeapMemoryUsage)
       nonHeapUsage <- Task(memoryMXBean.getNonHeapMemoryUsage)
@@ -84,7 +89,7 @@ trait MemoryPools extends JvmMetrics {
     } yield ()
 
   @silent("JavaConverters")
-  val collectMetrics: ZManaged[Has[Clock], Throwable, MemoryPools] =
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock], Throwable, MemoryPools] =
     for {
       memoryMXBean <- Task(ManagementFactory.getMemoryMXBean).toManaged
       poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList).toManaged
@@ -97,6 +102,6 @@ trait MemoryPools extends JvmMetrics {
 
 object MemoryPools extends MemoryPools with JvmMetrics.DefaultSchedule {
   def withSchedule(schedule: Schedule[Any, Any, Unit]): MemoryPools = new MemoryPools {
-    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
   }
 }

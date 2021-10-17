@@ -43,49 +43,18 @@ Runtime Systems have a lot of responsibilities:
 
 ## Running a ZIO Effect
 
-There are two ways to run ZIO effect:
-1. **Using `zio.App` entry point**
-2. **Using `unsafeRun` method directly**
+There are two common ways to run a ZIO effect. Most of the time, we use the [`ZIOAppDefault`](zioapp.md) trait. There are, however, some advanced use cases for which we need to directly feed a ZIO effect into the runtime system's `unsafeRun` method:
 
-### Using zio.App
+```scala mdoc:compile-only
+import zio._
 
-In most cases we use this method to run our ZIO effect. `zio.App` has a `run` function which is the main entry point for running a ZIO application on the JVM:
-
-```scala
-package zio
-trait App {
-  def run(args: List[String]): URIO[ZEnv, ExitCode]
-}
-```
-
-Assume we have written an effect using ZIO:
-
-```scala mdoc:silent
-import zio.Console
-
-def myAppLogic =
-  for {
+object RunZIOEffectUsingUnsafeRun extends scala.App {
+  val myAppLogic = for {
     _ <- Console.printLine("Hello! What is your name?")
     n <- Console.readLine
     _ <- Console.printLine("Hello, " + n + ", good to meet you!")
   } yield ()
-```
 
-Now we can run that effect using `run` entry point:
-
-```scala mdoc:silent
-object MyApp extends zio.App {
-  final def run(args: List[String]) =
-    myAppLogic.exitCode
-}
-```
-
-### Using unsafeRun
-
-Another way to execute ZIO effect is to feed the ZIO effect to the `unsafeRun` method of Runtime system:
-
-```scala mdoc:silent:nest
-object RunZIOEffectUsingUnsafeRun extends scala.App {
   zio.Runtime.default.unsafeRun(
     myAppLogic
   )
@@ -116,8 +85,9 @@ type ZEnv = Clock with Console with System with Random with Blocking
 
 We can easily access the default `Runtime` to run an effect:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 object MainApp extends scala.App {
+  val myAppLogic = ZIO.succeed(???)
   val runtime = Runtime.default
   runtime.unsafeRun(myAppLogic)
 }
@@ -292,4 +262,42 @@ To do benchmark operation, we need a `Runtime` with settings suitable for that. 
 
 ```scala mdoc:silent:nest
 val benchmarkRuntime = Runtime.default.mapRuntimeConfig(_ => RuntimeConfig.benchmark)
+```
+
+## RuntimeConfig Aspect
+
+ZIO has a `RuntimeConfigAspect` which helps us easily transform an existing `RuntimeConfig` to the customized one. We can think of a `RuntimeConfigAspect` as a function of type `RuntimeConfig => RuntimeConfig`. So if we have a `RuntimeConfig`, by applying it to a `RuntimeConfig` we will get back a new `RuntimeConfig` which is the modified version of the former one.
+
+It has the following constructors:
+
+| Constructor                               | Input                         | Output                |
+|-------------------------------------------+-------------------------------+-----------------------|
+| `RuntimeConfigAspect.addLogger`           | `logger: ZLogger[Any]`        | `RuntimeConfigAspect` |
+| `RuntimeConfigAspect.addReportFatal`      | `f: Throwable => Nothing`     | `RuntimeConfigAspect` |
+| `RuntimeConfigAspect.addSupervisor`       | `supervisor: Supervisor[Any]` | `RuntimeConfigAspect` |
+| `RuntimeConfigAspect.identity`            |                               | `RuntimeConfigAspect` |
+| `RuntimeConfigAspect.setBlockingExecutor` | `executor: Executor`          | `RuntimeConfigAspect` |
+| `RuntimeConfigAspect.setExecutor`         | `executor: Executor`          | `RuntimeConfigAspect` |
+| `RuntimeConfigAspect.setTracing`          | `tracing: Tracing`            | `RuntimeConfigAspect` |
+
+
+The `ZIOAppDefault` (and also the `ZIOApp`) has a `hook` member of a type `RuntimeConfigAspect`. The following code illustrates how to hook into the ZIO runtime system by creating and composing multiple aspects:
+
+```scala mdoc:invisible
+val myAppLogic = ZIO.succeed(???)
+```
+
+```scala mdoc:compile-only
+import zio._
+import zio.internal.tracing.Tracing
+
+val loggly  = RuntimeConfigAspect.addLogger(???)
+val zmx     = RuntimeConfigAspect.addSupervisor(???)
+val tracing = RuntimeConfigAspect.setTracing(Tracing.enabled)
+
+object Main extends ZIOAppDefault {
+  override def hook = loggly >>> zmx >>> tracing
+  
+  def run = myAppLogic
+}
 ```

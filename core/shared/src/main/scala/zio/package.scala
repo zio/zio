@@ -15,6 +15,7 @@
  */
 
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 package object zio
     extends BuildFromCompat

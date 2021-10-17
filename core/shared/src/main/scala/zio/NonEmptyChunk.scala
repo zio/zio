@@ -17,6 +17,7 @@
 package zio
 
 import zio.NonEmptyChunk._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
 
@@ -114,40 +115,44 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * some state along the way.
    */
   @deprecated("use mapAccumZIO", "2.0.0")
-  def mapAccumM[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)]): ZIO[R, E, (S, NonEmptyChunk[B])] =
+  def mapAccumM[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, (S, NonEmptyChunk[B])] =
     chunk.mapAccumZIO(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
 
   /**
    * Effectfully maps over the elements of this `NonEmptyChunk`, maintaining
    * some state along the way.
    */
-  def mapAccumZIO[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)]): ZIO[R, E, (S, NonEmptyChunk[B])] =
+  def mapAccumZIO[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, (S, NonEmptyChunk[B])] =
     chunk.mapAccumZIO(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk`.
    */
   @deprecated("use mapZIO", "2.0.0")
-  def mapM[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
+  def mapM[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, NonEmptyChunk[B]] =
     chunk.mapZIO(f).map(nonEmpty)
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk` in parallel.
    */
   @deprecated("use mapZIOPar", "2.0.0")
-  def mapMPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
+  def mapMPar[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, NonEmptyChunk[B]] =
     chunk.mapZIOPar(f).map(nonEmpty)
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk`.
    */
-  def mapZIO[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
+  def mapZIO[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, NonEmptyChunk[B]] =
     chunk.mapZIO(f).map(nonEmpty)
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk` in parallel.
    */
-  def mapZIOPar[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, NonEmptyChunk[B]] =
+  def mapZIOPar[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, NonEmptyChunk[B]] =
     chunk.mapZIOPar(f).map(nonEmpty)
 
   /**
@@ -175,17 +180,11 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * function `reduce` to combine the `B` value with each other `A` value.
    */
   def reduceMapLeft[B](map: A => B)(reduce: (B, A) => B): B = {
-    val iterator = chunk.arrayIterator
+    val iterator = chunk.iterator
     var b: B     = null.asInstanceOf[B]
     while (iterator.hasNext) {
-      val array  = iterator.next()
-      val length = array.length
-      var i      = 0
-      while (i < length) {
-        val a = array(i)
-        if (b == null) b = map(a) else b = reduce(b, a)
-        i += 1
-      }
+      val a = iterator.next()
+      if (b == null) b = map(a) else b = reduce(b, a)
     }
     b
   }
@@ -196,17 +195,11 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * function `reduce` to combine the `B` value with each other `A` value.
    */
   def reduceMapRight[B](map: A => B)(reduce: (A, B) => B): B = {
-    val iterator = chunk.reverseArrayIterator
+    val iterator = chunk.reverseIterator
     var b: B     = null.asInstanceOf[B]
     while (iterator.hasNext) {
-      val array  = iterator.next()
-      val length = array.length
-      var i      = length - 1
-      while (i >= 0) {
-        val a = array(i)
-        if (b == null) b = map(a) else b = reduce(a, b)
-        i -= 1
-      }
+      val a = iterator.next()
+      if (b == null) b = map(a) else b = reduce(a, b)
     }
     b
   }

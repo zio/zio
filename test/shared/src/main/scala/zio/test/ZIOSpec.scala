@@ -17,6 +17,7 @@
 package zio.test
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 abstract class ZIOSpec[R <: Has[_]: Tag] extends ZIOApp { self =>
   type Environment = R

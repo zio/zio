@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.tracing.Tracing
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
     extends (RuntimeConfig => RuntimeConfig) { self =>
@@ -46,4 +47,11 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
 
   def setTracing(tracing: Tracing): RuntimeConfigAspect =
     RuntimeConfigAspect(_.copy(tracing = tracing))
+
+  /**
+   * An aspect that adds a supervisor that tracks all forked fibers in a set.
+   * Note that this may have a negative impact on performance.
+   */
+  def track(weak: Boolean): RuntimeConfigAspect =
+    addSupervisor(Supervisor.unsafeTrack(weak))
 }

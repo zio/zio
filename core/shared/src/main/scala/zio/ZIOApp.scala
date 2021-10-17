@@ -16,6 +16,7 @@
 package zio
 
 import zio.internal._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * An entry point for a ZIO application that allows sharing layers between
@@ -47,19 +48,20 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application that
    * executes the logic of both applications.
    */
-  final def <>(that: ZIOApp): ZIOApp =
+  final def <>(that: ZIOApp)(implicit trace: ZTraceElement): ZIOApp =
     ZIOApp(self.run.zipPar(that.run), self.layer +!+ that.layer, self.hook >>> that.hook)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
    * application. You may use this helper function inside your `run` function.
    */
-  final def args: ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] = ZIO.service[ZIOAppArgs].map(_.args)
+  final def getArgs(implicit trace: ZTraceElement): ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] =
+    ZIOAppArgs.getArgs
 
   /**
    * A helper function to exit the application with the specified exit code.
    */
-  final def exit(code: ExitCode): UIO[Unit] =
+  final def exit(code: ExitCode)(implicit trace: ZTraceElement): UIO[Unit] =
     UIO {
       if (!shuttingDown) {
         shuttingDown = true
@@ -79,7 +81,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
   /**
    * Invokes the main app. Designed primarily for testing.
    */
-  final def invoke(args: Chunk[String]): ZIO[ZEnv, Any, Any] =
+  final def invoke(args: Chunk[String])(implicit trace: ZTraceElement): ZIO[ZEnv, Any, Any] =
     ZIO.runtime[ZEnv].flatMap { runtime =>
       val newRuntime = runtime.mapRuntimeConfig(hook)
 
@@ -130,6 +132,6 @@ object ZIOApp {
   /**
    * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's configuration.
    */
-  def fromZIO(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOApp =
+  def fromZIO(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any])(implicit trace: ZTraceElement): ZIOApp =
     ZIOApp(run0, ZLayer.environment, RuntimeConfigAspect.identity)
 }

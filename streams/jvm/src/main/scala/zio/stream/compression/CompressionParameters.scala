@@ -16,6 +16,8 @@
 
 package zio.stream.compression
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 case class CompressionParameters(
   level: CompressionLevel,
   strategy: CompressionStrategy,

@@ -16,6 +16,8 @@
 
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
