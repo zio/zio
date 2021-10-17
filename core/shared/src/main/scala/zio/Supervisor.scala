@@ -166,33 +166,8 @@ object Supervisor {
    * @param weak Whether or not to track the children in a weak set, if
    *             possible (platform-dependent).
    */
-  def track(weak: Boolean)(implicit trace: ZTraceElement): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] = UIO {
-    val set: java.util.Set[Fiber.Runtime[Any, Any]] =
-      if (weak) Platform.newWeakSet[Fiber.Runtime[Any, Any]]()
-      else new java.util.HashSet[Fiber.Runtime[Any, Any]]()
-
-    new Supervisor[Chunk[Fiber.Runtime[Any, Any]]] {
-      def value(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[Any, Any]]] =
-        UIO.succeed(
-          Sync(set)(Chunk.fromArray(set.toArray[Fiber.Runtime[Any, Any]](Array[Fiber.Runtime[Any, Any]]())))
-        )
-
-      def unsafeOnStart[R, E, A](
-        environment: R,
-        effect: ZIO[R, E, A],
-        parent: Option[Fiber.Runtime[Any, Any]],
-        fiber: Fiber.Runtime[E, A]
-      ): Unit = {
-        Sync(set)(set.add(fiber))
-        ()
-      }
-
-      def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit = {
-        Sync(set)(set.remove(fiber))
-        ()
-      }
-    }
-  }
+  def track(weak: Boolean)(implicit trace: ZTraceElement): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] =
+    ZIO.succeed(unsafeTrack(weak))
 
   @deprecated("use fromZIO", "2.0.0")
   def fromEffect[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(_ => value)
@@ -250,6 +225,34 @@ object Supervisor {
     ): Unit = ()
 
     def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit = ()
+  }
+
+  private[zio] def unsafeTrack(weak: Boolean): Supervisor[Chunk[Fiber.Runtime[Any, Any]]] = {
+    val set: java.util.Set[Fiber.Runtime[Any, Any]] =
+      if (weak) Platform.newWeakSet[Fiber.Runtime[Any, Any]]()
+      else new java.util.HashSet[Fiber.Runtime[Any, Any]]()
+
+    new Supervisor[Chunk[Fiber.Runtime[Any, Any]]] {
+      def value(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[Any, Any]]] =
+        UIO.succeed(
+          Sync(set)(Chunk.fromArray(set.toArray[Fiber.Runtime[Any, Any]](Array[Fiber.Runtime[Any, Any]]())))
+        )
+
+      def unsafeOnStart[R, E, A](
+        environment: R,
+        effect: ZIO[R, E, A],
+        parent: Option[Fiber.Runtime[Any, Any]],
+        fiber: Fiber.Runtime[E, A]
+      ): Unit = {
+        Sync(set)(set.add(fiber))
+        ()
+      }
+
+      def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit = {
+        Sync(set)(set.remove(fiber))
+        ()
+      }
+    }
   }
 
   private class ProxySupervisor[A](value0: ZTraceElement => UIO[A], underlying: Supervisor[Any]) extends Supervisor[A] {
