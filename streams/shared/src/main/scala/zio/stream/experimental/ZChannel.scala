@@ -781,9 +781,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         )
       ) { (exec, exit) =>
         val finalize = exec.close(exit)
-        ZIO.debug("toPull finalizer started") *>
-          (if (finalize ne null) finalize
-           else ZIO.unit).tap(_ => ZIO.debug("toPull finalizer ended"))
+        if (finalize ne null) finalize
+        else ZIO.unit
       }
       .map { exec =>
         def interpret(
@@ -1321,10 +1320,10 @@ object ZChannel {
         unwrap[Env, Any, Any, Any, OutErr, OutElem, OutDone] {
           queue.take.flatten.foldCause(
             Cause.flipCauseEither[OutErr, OutDone](_) match {
-              case Right(outDone) => println("mergeAllWith: done"); end(outDone)
-              case Left(cause)    => println("mergeAllWith: fail"); failCause(cause)
+              case Right(outDone) => end(outDone)
+              case Left(cause)    => failCause(cause)
             },
-            outElem => { println(s"mergeAllWith: ${outElem}"); write(outElem) *> consumer }
+            outElem => write(outElem) *> consumer
           )
         }
 

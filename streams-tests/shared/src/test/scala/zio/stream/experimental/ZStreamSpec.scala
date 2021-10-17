@@ -522,7 +522,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).rechunk(1).ensuring(latch4.succeed(())))
               s3 = ZStream(-1)
-              s = (s1 ++ s2 ++ s3).bufferChunksDropping(8)
+              s  = (s1 ++ s2 ++ s3).bufferChunksDropping(8)
               snapshots <- s.toPull.use { as =>
                              for {
                                zero      <- as
@@ -568,7 +568,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).rechunk(1).ensuring(latch4.succeed(())))
               s3 = ZStream(-1)
-              s = (s1 ++ s2 ++ s3).bufferChunksSliding(8)
+              s  = (s1 ++ s2 ++ s3).bufferChunksSliding(8)
               snapshots <- s.toPull.use { as =>
                              for {
                                zero      <- as
@@ -614,7 +614,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
               s3 = ZStream(-1)
-              s = (s1 ++ s2 ++ s3).bufferDropping(8)
+              s  = (s1 ++ s2 ++ s3).bufferDropping(8)
               snapshots <- s.toPull.use { as =>
                              for {
                                zero      <- as
@@ -690,7 +690,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .fromZIO(latch3.await)
                      .flatMap(_ => ZStream.range(17, 25).ensuring(latch4.succeed(())))
               s3 = ZStream(-1)
-              s = (s1 ++ s2 ++ s3).bufferSliding(8)
+              s  = (s1 ++ s2 ++ s3).bufferSliding(8)
               snapshots <- s.toPull.use { as =>
                              for {
                                zero      <- as
