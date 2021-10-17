@@ -18,7 +18,7 @@ libraryDependencies ++= Seq(
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 ```
 
-## Our Fist Lines of ZIO Test
+## Our First Lines of ZIO Test
 
 The fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
 
