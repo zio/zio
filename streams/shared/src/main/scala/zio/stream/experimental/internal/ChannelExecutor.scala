@@ -15,7 +15,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private val id = ChannelExecutor.id.incrementAndGet()
 
   private def debug(s: String): Unit = {
-    println(s"[$id] $s")
+//    println(s"[$id] $s")
   }
 
   private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env]) = {
@@ -560,21 +560,14 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       case ChannelState.Emit =>
         debug(s"drainInnerSubexecutor(${inner.exec.id}) EMIT, closeLastSubstream=$closeLastSubstream")
 
-//        val innerExecuteLastClose =
-//          (f: URIO[Env, Any]) =>
-//            UIO {
-//              debug(s"Appending inner closeLastSubstream operation to $closeLastSubstream from subK <- inner")
-//              val prevLastClose = if (closeLastSubstream eq null) ZIO.unit else closeLastSubstream()
-//              closeLastSubstream = () => prevLastClose *> f
-//            }
-        val innerExecuteLastClose = executeCloseLastSubstream
-
         if (this.closeLastSubstream ne null) {
-          val lastClose = this.closeLastSubstream
+          val closeLast = this.closeLastSubstream
+          closeLastSubstream = null
+
           ChannelState.Effect {
-            executeCloseLastSubstream(lastClose).map { _ =>
+            executeCloseLastSubstream(closeLast).map { _ =>
               val fromK: ErasedExecutor[Env] =
-                new ChannelExecutor(() => inner.subK(inner.exec.getEmit), providedEnv, innerExecuteLastClose)
+                new ChannelExecutor(() => inner.subK(inner.exec.getEmit), providedEnv, executeCloseLastSubstream)
               fromK.input = input
               debug(s"Last close done => New subexecutor is ${fromK.id}")
 
@@ -583,7 +576,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           }
         } else {
           val fromK: ErasedExecutor[Env] =
-            new ChannelExecutor(() => inner.subK(inner.exec.getEmit), providedEnv, innerExecuteLastClose)
+            new ChannelExecutor(() => inner.subK(inner.exec.getEmit), providedEnv, executeCloseLastSubstream)
           fromK.input = input
 
           debug(s"New subexecutor is ${fromK.id}")
@@ -617,8 +610,11 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
       case ChannelState.Effect(zio) =>
         debug(s"drainInnerSubexecutor(${inner.exec.id}) EFFECT, closeLastSubstream=$closeLastSubstream")
+        val closeLast =
+          if (closeLastSubstream eq null) ZIO.unit else closeLastSubstream
+        closeLastSubstream = null
         ChannelState.Effect(
-          zio.catchAllCause(cause =>
+          executeCloseLastSubstream(closeLast) *> zio.catchAllCause(cause =>
             finishSubexecutorWithCloseEffect(
               Exit.failCause(cause),
               inner.exec.close
