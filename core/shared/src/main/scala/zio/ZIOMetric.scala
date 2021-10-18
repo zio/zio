@@ -17,6 +17,7 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.metrics.MetricKey
 
 /**
  * A `ZIOMetric` is able to add collection of metrics to a `ZIO` effect without
@@ -111,7 +112,7 @@ object ZIOMetric {
    * A metric aspect that tracks how long the effect it is applied to takes to
    * complete execution, recording the results in a histogram.
    */
-  def observeDurations[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(
+  def observeDurations[A](name: String, boundaries: MetricKey.Boundaries, tags: MetricLabel*)(
     f: Duration => Double
   ): Histogram[A] =
     new Histogram[A](name, boundaries, Chunk.fromIterable(tags)) {
@@ -125,7 +126,7 @@ object ZIOMetric {
    * A metric aspect that adds a value to a histogram each time the effect it
    * is applied to succeeds.
    */
-  def observeHistogram(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram[Double] =
+  def observeHistogram(name: String, boundaries: MetricKey.Boundaries, tags: MetricLabel*): Histogram[Double] =
     new Histogram[Double](name, boundaries, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(observe)
@@ -136,25 +137,13 @@ object ZIOMetric {
    * is applied to succeeds, using the specified function to transform the
    * value returned by the effect to the value to add to the histogram.
    */
-  def observeHistogramWith[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(
+  def observeHistogramWith[A](name: String, boundaries: MetricKey.Boundaries, tags: MetricLabel*)(
     f: A => Double
   ): Histogram[A] =
     new Histogram[A](name, boundaries, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(a => observe(f(a)))
     }
-
-  /**
-   * A helper method to create histogram bucket boundaries for a histogram with linear increasing values
-   */
-  def linearBuckets(start: Double, width: Double, count: Int): Chunk[Double] =
-    Chunk.fromArray(0.until(count).map(i => start + i * width).toArray) ++ Chunk(Double.MaxValue)
-
-  /**
-   * A helper method to create histogram bucket boundaries for a histogram with exponentially increasing values
-   */
-  def exponentialBuckets(start: Double, factor: Double, count: Int): Chunk[Double] =
-    Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray) ++ Chunk(Double.MaxValue)
 
   /**
    * A metric aspect that adds a value to a summary each time the effect it is
@@ -351,7 +340,7 @@ object ZIOMetric {
    */
   abstract class Histogram[A](
     final val name: String,
-    final val boundaries: Chunk[Double],
+    final val boundaries: MetricKey.Boundaries,
     final val tags: Chunk[MetricLabel]
   ) extends ZIOMetric[A] { self =>
     private[this] val histogram = internal.metrics.Histogram(name, boundaries, tags)
@@ -377,7 +366,7 @@ object ZIOMetric {
      */
     final def copy(
       name: String = name,
-      boundaries: Chunk[Double] = boundaries,
+      boundaries: MetricKey.Boundaries = boundaries,
       tags: Chunk[MetricLabel] = tags
     ): Histogram[A] =
       new Histogram[A](name, boundaries, tags) {
