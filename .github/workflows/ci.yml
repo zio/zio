@@ -49,6 +49,8 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2.3.5
+        with:
+          fetch-depth: 0
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
@@ -62,6 +64,8 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2.3.5
+        with:
+          fetch-depth: 0
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies

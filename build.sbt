@@ -20,7 +20,7 @@ inThisBuild(
         url("http://degoes.net")
       )
     ),
-    versionPolicyIntention := Compatibility.BinaryAndSourceCompatible,
+    versionPolicyIntention := Compatibility.BinaryCompatible,
     versionPolicyIgnoredInternalDependencyVersions := Some(
       "^\\d+\\.\\d+\\.\\d+\\+\\d+".r
     ) // See https://github.com/scalacenter/sbt-version-policy#how-to-integrate-with-sbt-dynver
