@@ -293,6 +293,7 @@ private[zio] final class FiberContext[E, A](
       }
 
       if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.set(this)
+      if (runtimeConfig.supervisor ne null) runtimeConfig.supervisor.unsafeOnResume(self)
 
       while (curZio ne null) {
         try {
@@ -313,6 +314,7 @@ private[zio] final class FiberContext[E, A](
                 // the next instruction in the program:
                 if (traceExec && currentTracingStatus && tag > ZIO.Tags.ExecutionTracingCutoff)
                   addExecutionTrace(curZio.trace)
+                if (runtimeConfig.supervisor ne null) runtimeConfig.supervisor.unsafeOnEffect(self, curZio)
                 (tag: @switch) match {
                   case ZIO.Tags.FlatMap =>
                     val zio = curZio.asInstanceOf[ZIO.FlatMap[Any, Any, Any, Any]]
@@ -676,7 +678,10 @@ private[zio] final class FiberContext[E, A](
             }
         }
       }
-    } finally if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.remove()
+    } finally {
+      if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.remove()
+      if (runtimeConfig.supervisor ne null) runtimeConfig.supervisor.unsafeOnSuspend(self)
+    }
 
   private def addExecutionTrace(trace: ZTraceElement) =
     if (execTrace.lastOrNull ne trace)
