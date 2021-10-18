@@ -21,7 +21,7 @@ mv website/static/api website/static/api-1.x
 
 # No we need to checkout the branch that originally has triggered the site build 
 git checkout $1
-sbt docs/unidoc docs/mdoc
+ZIO_LATEST=`git describe --abbrev=0 --tags` sbt docs/unidoc docs/mdoc
 
 cd website 
 rm -Rf node_modules
