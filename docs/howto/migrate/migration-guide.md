@@ -7,18 +7,38 @@ title: "ZIO 2.x Migration Guide"
 import zio._
 ```
 
-## Upgrading Dependencies
+In this guide we want to introduce the migration process to ZIO 2.x. So if you have a project written in ZIO 1.x and want to migrate that to ZIO 2.x, this article is for you. 
 
-If we are using one of the following dependencies, we need to upgrade them to the `2.0.0-M2` version:
+ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
 
-```scala
-libraryDependencies += "dev.zio" %% "zio"         % "2.0.0-M3"
-libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0-M3"
-libraryDependencies += "dev.zio" %% "zio-test"    % "2.0.0-M3"
-```
+ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to the ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
 
-## Automated Scalafix Rules
-TODO
+> **Note**: We shouldn't upgrade the ZIO version in our project, before running scalafix.
+
+1. First, we should make sure that all of direct and transitive dependencies are migrated to the ZIO 2.x version.
+
+2. Next, we need to install the [Scalafix SBT Plugin](https://github.com/scalacenter/sbt-scalafix), by adding the following line into `project/plugins.sbt` file:
+    ```scala
+    // project/plugins.sbt
+    addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "<version>")
+    ```
+
+3. We are ready to apply the migration rule:
+    ```bash
+    sbt "scalafixEnable; scalafixAll github:zio/zio/Zio2Upgrade?sha=series/2.x" 
+    ```
+
+4. After running scalafix, it's time to upgrade ZIO dependencies. If we are using one of the following dependencies, we need to bump them into the `2.x` version:
+
+    ```scala
+    libraryDependencies += "dev.zio" %% "zio"         % "2.0.0"
+    libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0"
+    libraryDependencies += "dev.zio" %% "zio-test"    % "2.0.0"
+    ```
+
+   Other than ZIO, we should upgrade all other (official or community) ZIO libraries we are using in our `build.sbt` file.
+
+6. Now, we have performed most of the migration. Finally, we should fix the remaining compilation errors with the help of the remaining sections in this article.
 
 ## ZIO
 
