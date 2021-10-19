@@ -267,7 +267,7 @@ object MyApp extends zio.App {
 Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOAppDefault` trait which is simpler than the former approach (Note that the `ZApp` and `ManagedApp` are also deprecated, and we should use the `ZIOAppDefault` instead):
 
 ```scala mdoc:compile-only
-import zio.ZIOApp
+import zio.ZIOAppDefault
 import zio.Console._
 
 object MyApp extends ZIOAppDefault {
