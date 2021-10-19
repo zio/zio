@@ -421,23 +421,19 @@ object ZIOMetric {
 
     object Boundaries {
 
-      def explicit(chunk: Chunk[Double]): Boundaries = Boundaries(chunk.sorted)
+      def fromChunk(chunk: Chunk[Double]): Boundaries = Boundaries((chunk ++ Chunk(Double.MaxValue)).distinct)
 
       /**
        * A helper method to create histogram bucket boundaries for a histogram with linear increasing values
        */
       def linear(start: Double, width: Double, count: Int): Boundaries =
-        Boundaries(Chunk.fromArray(0.until(count).map(i => start + i * width).toArray) ++ Chunk(Double.MaxValue))
+        fromChunk(Chunk.fromArray(0.until(count).map(i => start + i * width).toArray))
 
       /**
        * A helper method to create histogram bucket boundaries for a histogram with exponentially increasing values
        */
       def exponential(start: Double, factor: Double, count: Int): Boundaries =
-        Boundaries(
-          Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray) ++ Chunk(
-            Double.MaxValue
-          )
-        )
+        fromChunk(Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray))
     }
   }
 
