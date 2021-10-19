@@ -17,7 +17,6 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.metrics.MetricKey
 
 /**
  * A `ZIOMetric` is able to add collection of metrics to a `ZIO` effect without
@@ -427,13 +426,13 @@ object ZIOMetric {
       /**
        * A helper method to create histogram bucket boundaries for a histogram with linear increasing values
        */
-      def linearBuckets(start: Double, width: Double, count: Int): Boundaries =
+      def linear(start: Double, width: Double, count: Int): Boundaries =
         Boundaries(Chunk.fromArray(0.until(count).map(i => start + i * width).toArray) ++ Chunk(Double.MaxValue))
 
       /**
        * A helper method to create histogram bucket boundaries for a histogram with exponentially increasing values
        */
-      def exponentialBuckets(start: Double, factor: Double, count: Int): Boundaries =
+      def exponential(start: Double, factor: Double, count: Int): Boundaries =
         Boundaries(
           Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray) ++ Chunk(
             Double.MaxValue
