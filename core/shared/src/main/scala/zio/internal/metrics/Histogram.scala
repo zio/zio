@@ -64,6 +64,6 @@ private[zio] object Histogram {
    * Constructs a histogram with the specified name, boundaries, and labels.
    * The boundaries must be in strictly increasing order.
    */
-  def apply(name: String, boundaries: Chunk[Double], tags: Chunk[MetricLabel]): Histogram =
+  def apply(name: String, boundaries: ZIOMetric.Histogram.Boundaries, tags: Chunk[MetricLabel]): Histogram =
     apply(MetricKey.Histogram(name, boundaries, tags))
 }
