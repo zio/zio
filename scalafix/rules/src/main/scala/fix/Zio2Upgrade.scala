@@ -18,13 +18,11 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "bracketOnError_"        -> "acquireReleaseOnError",
       "bracket_"               -> "acquireRelease",
       "bracket_"               -> "acquireRelease",
-      "collectAllParN"         -> "collectAllPar",
-      "collectAllParNDiscard"  -> "collectAllParDiscard",
-      "collectAllParN_"        -> "collectAllParNDiscard",
       "collectAllPar_"         -> "collectAllParDiscard",
       "collectAll_"            -> "collectAllDiscard",
       "collectM"               -> "collectZIO",
       "contramapM"             -> "contramapZIO",
+      "checkM"                 -> "check",
       "effect"                 -> "attempt",
       "effectAsync"            -> "async",
       "effectAsyncInterrupt"   -> "asyncInterrupt",
@@ -45,9 +43,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "foldTraceM"             -> "foldTraceZIO",
       "foldWeightedDecomposeM" -> "foldWeightedDecomposeZIO",
       "foldWeightedM"          -> "foldWeightedZIO",
-      "foreachParN"            -> "foreachPar",
-      "foreachParNDiscard"     -> "foreachParDiscard",
-      "foreachParN_"           -> "foreachParNDiscard",
       "foreachPar_"            -> "foreachParDiscard",
       "foreach_"               -> "foreachDiscard",
       "fromEffect"             -> "fromZIO",
@@ -91,7 +86,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "unsafeRunAsync"         -> "unsafeRunAsyncWith",
       "unsafeRunAsync_"        -> "unsafeRunAsync",
       "use_"                   -> "useDiscard",
-      "validateParN_"          -> "validateParNDiscard",
       "validatePar_"           -> "validateParDiscard",
       "validate_"              -> "validateDiscard",
       "whenCaseM"              -> "whenCaseZIO",
@@ -220,29 +214,62 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Console_Old_Service    = SymbolMatcher.exact("zio/console/package.Console.Service#")
   val System_Old_Service     = SymbolMatcher.exact("zio/system/package.System.Service#")
 
-  def fixPackages(implicit doc: SemanticDocument): Patch =
-    doc.tree.collect {
-      case q"${Clock_Old_Package(name)}.$select" if select.value != "Clock" =>
-        Patch.replaceTree(name, "Clock")
-
-      case q"${Random_Old_Package(name)}.$select" if select.value != "Random" =>
-        Patch.replaceTree(name, "Random")
-
-      case q"${System_Old_Package(name)}.$select" if select.value != "System" =>
-        Patch.replaceTree(name, "System")
-
-      case q"${Console_Old_Package(name)}.$select" if select.value != "Console" =>
-        Patch.replaceTree(name, "Console")
-    }.asPatch
+//  def fixPackages(implicit doc: SemanticDocument): Patch =
+//    doc.tree.collect {
+//      case q"${Clock_Old_Package(name)}.$select" if select.value != "Clock" =>
+//        Patch.replaceTree(name, "Clock")
+//
+//      case q"${Random_Old_Package(name)}.$select" if select.value != "Random" =>
+//        Patch.replaceTree(name, "Random")
+//
+//      case q"${System_Old_Package(name)}.$select" if select.value != "System" =>
+//        Patch.replaceTree(name, "System")
+//
+//      case q"${Console_Old_Package(name)}.$select" if select.value != "Console" =>
+//        Patch.replaceTree(name, "Console")
+//    }.asPatch
 
   def replaceSymbols(implicit doc: SemanticDocument) = Patch.replaceSymbols(
-    "zio.console.putStrLn"          -> "zio.Console.printLine",
-    "zio.console.getStrLn"          -> "zio.Console.readLine",
-    "zio.console.putStr"            -> "zio.Console.print",
-    "zio.console.putStrLnErr"       -> "zio.Console.printLineError",
-    "zio.console.putStrErr"         -> "zio.Console.printError",
-    "zio.blocking.effectBlockingIO" -> "zio.ZIO.attemptBlockingIO",
-    "zio.ZIO.$greater$greater$eq"   -> "zio.ZIO.flatMap"
+    // Console
+    "zio.console.putStrLn"    -> "zio.Console.printLine",
+    "zio.console.getStrLn"    -> "zio.Console.readLine",
+    "zio.console.putStr"      -> "zio.Console.print",
+    "zio.console.putStrLnErr" -> "zio.Console.printLineError",
+    "zio.console.putStrErr"   -> "zio.Console.printError",
+    // Clock
+    "zio.clock.sleep"           -> "zio.Clock.sleep",
+    "zio.clock.instant"         -> "zio.Clock.instant",
+    "zio.clock.nanoTime"        -> "zio.Clock.nanoTime",
+    "zio.clock.localDateTime"   -> "zio.Clock.localDateTime",
+    "zio.clock.currentTime"     -> "zio.Clock.currentTime",
+    "zio.clock.currentDateTime" -> "zio.Clock.currentDateTime",
+    // Random
+    "zio.random.nextString"        -> "zio.Random.nextString",
+    "zio.random.nextBoolean"       -> "zio.Random.nextBoolean",
+    "zio.random.nextBytes"         -> "zio.Random.nextBytes",
+    "zio.random.nextDouble"        -> "zio.Random.nextDouble",
+    "zio.random.nextDoubleBetween" -> "zio.Random.nextDoubleBetween",
+    "zio.random.nextFloat"         -> "zio.Random.nextFloat",
+    "zio.random.nextFloatBetween"  -> "zio.Random.nextFloatBetween",
+    "zio.random.nextGaussian"      -> "zio.Random.nextGaussian",
+    "zio.random.nextInt"           -> "zio.Random.nextInt",
+    "zio.random.nextIntBetween"    -> "zio.Random.nextIntBetween",
+    "zio.random.nextIntBounded"    -> "zio.Random.nextIntBounded",
+    "zio.random.nextLong"          -> "zio.Random.nextLong",
+    "zio.random.nextLongBetween"   -> "zio.Random.nextLongBetween",
+    "zio.random.nextLongBounded"   -> "zio.Random.nextLongBounded",
+    "zio.random.nextPrintableChar" -> "zio.Random.nextPrintableChar",
+    "zio.random.nextString"        -> "zio.Random.nextString",
+    "zio.random.nextUUID"          -> "zio.Random.nextUUID",
+    "zio.random.setSeed"           -> "zio.Random.setSeed",
+    "zio.random.shuffle"           -> "zio.Random.shuffle",
+    // Blocking
+    "zio.blocking.effectBlockingIO"         -> "zio.ZIO.attemptBlockingIO",
+    "zio.blocking.effectBlocking"           -> "zio.ZIO.attemptBlocking",
+    "zio.blocking.effectBlockingCancelable" -> "zio.ZIO.attemptBlockingCancelable",
+    "zio.blocking.effectBlockingInterrupt"  -> "zio.ZIO.attemptBlockingInterrupt",
+    "zio.blocking.blocking"                 -> "zio.ZIO.blocking",
+    "zio.blocking.blockingExecutor"         -> "zio.ZIO.blockingExecutor"
   )
 
   override def fix(implicit doc: SemanticDocument): Patch =
@@ -253,10 +280,38 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
       // Replace >>= with flatMap. For some reason, this doesn't work with the
       // technique used above.
-      case t @ q"${lhs} >>= $rhs" if lhs.symbol.owner.value.startsWith("zio") =>
+      case t @ q"$lhs >>= $rhs" if lhs.symbol.owner.value.startsWith("zio") =>
         Patch.replaceTree(t, s"$lhs flatMap $rhs")
-      case t @ q"${lhs}.>>=($rhs)" if lhs.symbol.owner.value.startsWith("zio") =>
+      case t @ q"$lhs.>>=($rhs)" if lhs.symbol.owner.value.startsWith("zio") =>
         Patch.replaceTree(t, s"$lhs.flatMap($rhs)")
+
+      case t @ q"$lhs.collectAllParN($n)($as)" =>
+        Patch.replaceTree(t, s"$lhs.collectAllPar($as).withParallelism($n)")
+      case t @ q"$lhs.collectAllParN_($n)($as)" =>
+        Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
+      case t @ q"$lhs.collectAllParNDiscard($n)($as)" =>
+        Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
+
+      case t @ q"$lhs.foreachParN($n)($as)($body)" =>
+        Patch.replaceTree(t, s"$lhs.foreachPar($as)($body).withParallelism($n)")
+      case t @ q"$lhs.foreachParN_($n)($as)($body)" =>
+        Patch.replaceTree(t, s"$lhs.foreachParDiscard($as)($body).withParallelism($n)")
+      case t @ q"$lhs.foreachParNDiscard($n)($as)($body)" =>
+        Patch.replaceTree(t, s"$lhs.foreachParDiscard($as)($body).withParallelism($n)")
+
+      case t @ q"$lhs.reduceAllParN($n)($a, $as)($body)" =>
+        Patch.replaceTree(t, s"$lhs.reduceAllPar($a, $as)($body).withParallelism($n)")
+      case t @ q"$lhs.reduceAllParNDiscard($n)($a, $as)($body)" =>
+        Patch.replaceTree(t, s"$lhs.reduceAllParDiscard($a, $as)($body).withParallelism($n)")
+      case t @ q"$lhs.reduceAllParNDiscard($n)($a, $as)($body)" =>
+        Patch.replaceTree(t, s"$lhs.reduceAllPar_($a, $as)($body).withParallelism($n)")
+
+      case t @ q"$lhs.mergeAllParN($n)($as)($zero)($body)" =>
+        Patch.replaceTree(t, s"$lhs.mergeAllPar($as)($zero)($body).withParallelism($n)")
+      case t @ q"$lhs.mergeAllParN_($n)($as)($zero)($body)" =>
+        Patch.replaceTree(t, s"$lhs.mergeAllParDiscard($as)($zero)($body).withParallelism($n)")
+      case t @ q"$lhs.mergeAllParNDiscard($n)($as)($zero)($body)" =>
+        Patch.replaceTree(t, s"$lhs.mergeAllParDiscard($as)($zero)($body).withParallelism($n)")
 
       case t @ q"import zio.duration._" =>
         Patch.replaceTree(t, "") +
@@ -331,7 +386,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ q"import zio.console._" =>
         Patch.replaceTree(t, "") +
           Patch.addGlobalImport(wildcardImport(q"zio.Console"))
-    }.asPatch + fixPackages + replaceSymbols
+    }.asPatch + replaceSymbols // + fixPackages
 
   private def wildcardImport(ref: Term.Ref): Importer =
     Importer(ref, List(Importee.Wildcard()))

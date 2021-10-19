@@ -924,7 +924,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("foreachParN")(
       testM("returns the list of results in the appropriate order") {
         val list = List(1, 2, 3)
-        val res  = IO.foreachParN(2)(list)(x => IO.effectTotal(x.toString))
+        val res  = IO.foreachParN(2)(list)(x => UIO(x.toString))
         assertM(res)(equalTo(List("1", "2", "3")))
       },
       testM("works on large lists") {

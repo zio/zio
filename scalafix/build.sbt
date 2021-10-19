@@ -23,8 +23,8 @@ inThisBuild(
 
 skip in publish := true
 
-val zio1Version = "1.0.11"
-val zio2Version = "2.0.0-M3"
+val zio1Version = "1.0.12"
+val zio2Version = "2.0.0-M4"
 
 lazy val rules = project.settings(
   moduleName                             := "scalafix",
