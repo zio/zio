@@ -298,14 +298,14 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(
     crossScalaVersions --= Seq(Scala211),
     scalacOptions ++= {
-      if (scalaVersion.value == ScalaDotty) {
+      if (scalaVersion.value == Scala3) {
         Seq.empty
       } else {
         Seq("-language:experimental.macros")
       }
     },
     libraryDependencies ++= {
-      if (scalaVersion.value == ScalaDotty) {
+      if (scalaVersion.value == Scala3) {
         Seq.empty
       } else {
         Seq(
