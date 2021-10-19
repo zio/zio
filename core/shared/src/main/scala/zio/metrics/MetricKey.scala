@@ -33,29 +33,11 @@ object MetricKey {
 
   final case class Gauge(name: String, tags: Chunk[MetricLabel] = Chunk.empty) extends MetricKey
 
-  final case class Boundaries(chunk: Chunk[Double])
-
-  object Boundaries {
-
-    def explicit(chunk: Chunk[Double]): Boundaries = Boundaries(chunk.sorted)
-
-    /**
-     * A helper method to create histogram bucket boundaries for a histogram with linear increasing values
-     */
-    def linearBuckets(start: Double, width: Double, count: Int): Boundaries =
-      Boundaries(Chunk.fromArray(0.until(count).map(i => start + i * width).toArray) ++ Chunk(Double.MaxValue))
-
-    /**
-     * A helper method to create histogram bucket boundaries for a histogram with exponentially increasing values
-     */
-    def exponentialBuckets(start: Double, factor: Double, count: Int): Boundaries =
-      Boundaries(
-        Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray) ++ Chunk(Double.MaxValue)
-      )
-  }
-
-  final case class Histogram(name: String, boundaries: Boundaries, tags: Chunk[MetricLabel] = Chunk.empty)
-      extends MetricKey
+  final case class Histogram(
+    name: String,
+    boundaries: ZIOMetric.Histogram.Boundaries,
+    tags: Chunk[MetricLabel] = Chunk.empty
+  ) extends MetricKey
 
   final case class Summary(
     name: String,
