@@ -72,7 +72,7 @@ jobs:
       fail-fast: false
       matrix:
         java: ['8']
-        scala: ['2.11.12', '2.12.15', '2.13.6', '3.0.1']
+        scala: ['2.11.12', '2.12.15', '2.13.6', '3.0.2']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
