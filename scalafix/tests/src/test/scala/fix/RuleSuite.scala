@@ -1,7 +1,8 @@
 package fix
 
-import scalafix.testkit.SemanticRuleSuite
+import scalafix.testkit._
+import org.scalatest.FunSuiteLike
 
-class RuleSuite extends SemanticRuleSuite() {
+class RuleSuite extends AbstractSemanticRuleSuite with FunSuiteLike {
   runAllTests()
 }

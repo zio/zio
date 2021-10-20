@@ -188,9 +188,21 @@ Everything done within a transaction to other transactions looks like it happens
 
 
 ## STM Data Types
+
+Like the `ZIO` data type, the `ZSTM` has some type aliases as follows:
+
+```scala
+type RSTM[-R, +A]  = ZSTM[R, Throwable, A]
+type URSTM[-R, +A] = ZSTM[R, Nothing, A]
+type STM[+E, +A]   = ZSTM[Any, E, A]
+type USTM[+A]      = ZSTM[Any, Nothing, A]
+type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
+```
+
 There are a variety of transactional data structures that can take part in an STM transaction:
 
 - **[TArray](tarray.md)** - A `TArray[A]` is an array of mutable references that can participate in transactions.
+- **[TRandom](trandom.md)** — `TRandom` is a random service that provides utilities to generate random numbers, which can participate in STM transactions.
 - **[TSet](tset.md)** - A `TSet` is a mutable set that can participate in transactions.
 - **[TMap](tmap.md)** - A `TMap[A]` is a mutable map that can participate in transactions.
 - **[TRef](tref.md)** - A `TRef` is a mutable reference to an immutable value that can participate in transactions.
@@ -199,6 +211,7 @@ There are a variety of transactional data structures that can take part in an ST
 - **[TQueue](tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
 - **[TReentrantLock](treentrantlock.md)** - A `TReentrantLock` is a reentrant read / write lock that can be composed.
 - **[TSemaphore](tsemaphore.md)** - A `TSemaphore` is a semaphore that can participate in transactions.
+- **[ZTHub](zthub.md)** - A `ZTHub` is a hub that can participate in STM transactions.
 
 Since STM places a great emphasis on compositionality, we can build upon these data structures and define our very own concurrent data structures. For example, we can build a transactional priority queue using `TRef`, `TMap` and `TQueue`.
 

@@ -718,7 +718,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("recovery from some errors") {
             val s1 = ZStream(1, 2) ++ ZStream.failCause(Cause.Fail("Boom"))
             val s2 = ZStream(3, 4)
-            s1.catchSomeCause { case Cause.Fail("Boom") => s2 }.runCollect
+            s1.catchSomeCause { case c if c.contains(Cause.Fail("Boom")) => s2 }.runCollect
               .map(assert(_)(equalTo(Chunk(1, 2, 3, 4))))
           },
           test("fails stream when partial function does not match") {
@@ -1867,7 +1867,22 @@ object ZStreamSpec extends ZIOBaseSpec {
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
-            } @@ zioTag(errors)
+            } @@ zioTag(errors),
+            test("preserves scope of inner fibers") {
+              for {
+                promise <- Promise.make[Nothing, Unit]
+                queue1  <- Queue.unbounded[Chunk[Int]]
+                queue2  <- Queue.unbounded[Chunk[Int]]
+                _       <- queue1.offer(Chunk(1))
+                _       <- queue2.offer(Chunk(2))
+                _       <- queue1.offer(Chunk(3)).fork
+                _       <- queue2.offer(Chunk(4)).fork
+                s1       = ZStream.fromChunkQueue(queue1)
+                s2       = ZStream.fromChunkQueue(queue2)
+                s3       = s1.zipWithLatest(s2)((_, _)).interruptWhen(promise.await).take(3)
+                _       <- s3.runDrain
+              } yield assertCompletes
+            } @@ nonFlaky
           ) @@ zioTag(interruption),
           suite("interruptWhen(IO)")(
             test("interrupts the current element") {
@@ -1898,7 +1913,21 @@ object ZStreamSpec extends ZIOBaseSpec {
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
-            } @@ zioTag(errors)
+            } @@ zioTag(errors),
+            test("preserves scope of inner fibers") {
+              for {
+                queue1 <- Queue.unbounded[Chunk[Int]]
+                queue2 <- Queue.unbounded[Chunk[Int]]
+                _      <- queue1.offer(Chunk(1))
+                _      <- queue2.offer(Chunk(2))
+                _      <- queue1.offer(Chunk(3)).fork
+                _      <- queue2.offer(Chunk(4)).fork
+                s1      = ZStream.fromChunkQueue(queue1)
+                s2      = ZStream.fromChunkQueue(queue2)
+                s3      = s1.zipWithLatest(s2)((_, _)).interruptWhen(ZIO.never).take(3)
+                _      <- s3.runDrain
+              } yield assertCompletes
+            } @@ nonFlaky
           ) @@ zioTag(interruption)
         ),
         suite("interruptAfter")(
@@ -2101,7 +2130,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
               for {
                 l <- s.mapZIOPar(8)(f).runCollect
-                r <- IO.foreachParN(8)(data)(f)
+                r <- IO.foreachPar(data)(f).withParallelism(8)
               } yield assert(l.toList)(equalTo(r))
             }
           },

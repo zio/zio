@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 package object stream {
   type Stream[+E, +A] = ZStream[Any, E, A]
   val Stream = ZStream

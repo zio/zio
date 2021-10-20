@@ -1,6 +1,7 @@
 package zio.internal.metrics
 
 import zio.metrics._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] sealed trait ConcurrentMetricState { self =>
   def key: MetricKey

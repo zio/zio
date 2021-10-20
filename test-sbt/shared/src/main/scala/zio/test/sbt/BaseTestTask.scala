@@ -3,6 +3,7 @@ package zio.test.sbt
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
 import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger}
 import zio.{Clock, Has, Layer, Runtime, UIO, ZIO, ZLayer}
+import zio.ZTraceElement
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -32,7 +33,7 @@ abstract class BaseTestTask(
 
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, Has[TestLogger] with Has[Clock]] =
     ZLayer.succeed[TestLogger](new TestLogger {
-      def logLine(line: String): UIO[Unit] =
+      def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live
 

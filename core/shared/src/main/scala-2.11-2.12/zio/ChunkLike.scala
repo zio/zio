@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.collection.generic.{CanBuildFrom, GenericCompanion, GenericTraversableTemplate}
 import scala.collection.immutable.IndexedSeq
 import scala.collection.{GenTraversableOnce, IndexedSeqLike}
@@ -86,25 +88,21 @@ private[zio] trait ChunkLike[+A]
    * specified start, separator, and end strings.
    */
   override final def mkString(start: String, sep: String, end: String): String = {
-    val iterator = arrayIterator
+    val iterator = self.chunkIterator
+    var index    = 0
     val builder  = new scala.collection.mutable.StringBuilder()
     builder.sizeHint(length)
     builder.append(start)
     var started = false
-    while (iterator.hasNext) {
-      val array  = iterator.next()
-      val length = array.length
-      var i      = 0
-      while (i < length) {
-        val a = array(i)
-        if (started) {
-          builder.append(sep)
-        } else {
-          started = true
-        }
-        builder.append(a.toString)
-        i += 1
+    while (iterator.hasNextAt(index)) {
+      val a = iterator.nextAt(index)
+      index += 1
+      if (started) {
+        builder.append(sep)
+      } else {
+        started = true
       }
+      builder.append(a.toString)
     }
     builder.append(end)
 
@@ -152,26 +150,22 @@ private[zio] trait ChunkLike[+A]
    * The implementation of `flatMap` for `Chunk`.
    */
   protected final def flatMapChunk[B, That](f: A => GenTraversableOnce[B]): Chunk[B] = {
-    val iterator               = arrayIterator
+    val iterator               = self.chunkIterator
+    var index                  = 0
     var chunks: List[Chunk[B]] = Nil
     var total                  = 0
     var B0: ClassTag[B]        = null.asInstanceOf[ClassTag[B]]
-    while (iterator.hasNext) {
-      val array  = iterator.next()
-      val length = array.length
-      var i      = 0
-      while (i < length) {
-        val a     = array(i)
-        val bs    = f(a)
-        val chunk = ChunkLike.fromGenTraversableOnce(bs)
-        if (chunk.length > 0) {
-          if (B0 == null) {
-            B0 = Chunk.classTagOf(chunk)
-          }
-          chunks ::= chunk
-          total += chunk.length
+    while (iterator.hasNextAt(index)) {
+      val a = iterator.nextAt(index)
+      index += 1
+      val bs    = f(a)
+      val chunk = ChunkLike.fromGenTraversableOnce(bs)
+      if (chunk.length > 0) {
+        if (B0 == null) {
+          B0 = Chunk.classTagOf(chunk)
         }
-        i += 1
+        chunks ::= chunk
+        total += chunk.length
       }
     }
     if (B0 == null) Chunk.empty

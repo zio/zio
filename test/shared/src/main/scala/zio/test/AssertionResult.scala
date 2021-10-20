@@ -1,5 +1,7 @@
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 sealed trait AssertionResult { self =>
   import AssertionResult._
 

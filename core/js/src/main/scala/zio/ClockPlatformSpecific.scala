@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.Scheduler
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.scalajs.js
 
@@ -26,7 +26,7 @@ private[zio] trait ClockPlatformSpecific {
 
     private[this] val ConstFalse = () => false
 
-    override def schedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
+    override def unsafeSchedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
       case Duration.Infinity => ConstFalse
       case Duration.Finite(_) =>
         var completed = false

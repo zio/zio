@@ -61,10 +61,7 @@ Create a histogram with 12 buckets: `0..100` in steps of `10` and `Double.MaxVal
 ```scala mdoc:silent:nest
 import zio._
 val histogram =
-  ZIOMetric.observeHistogram(
-    "histogram", 
-    Chunk.fromArray(0.until(11).map(i => 0.0d + i * 10.0d).toArray) ++ Chunk(Double.MaxValue)
-  )
+  ZIOMetric.observeHistogram("histogram", ZIOMetric.Histogram.Boundaries.linear(0, 10, 11))
 ```
 
 Now we can apply the histogram to effects producing `Double`:

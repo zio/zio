@@ -16,12 +16,15 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.ZTraceElement
+
 /**
  * Filters a given `ZSpec` based on the command-line arguments.
  * If no arguments were specified, the spec returns unchanged.
  */
 private[zio] object FilteredSpec {
-  def apply[R, E](spec: ZSpec[R, E], args: TestArgs): ZSpec[R, E] = {
+  def apply[R, E](spec: ZSpec[R, E], args: TestArgs)(implicit trace: ZTraceElement): ZSpec[R, E] = {
     def filtered: Option[ZSpec[R, E]] =
       (args.testSearchTerms, args.tagSearchTerms) match {
         case (Nil, Nil) => None

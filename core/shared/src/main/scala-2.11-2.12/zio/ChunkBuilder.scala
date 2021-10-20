@@ -17,6 +17,7 @@
 package zio
 
 import zio.Chunk.BitChunk
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.collection.mutable.{ArrayBuilder, Builder}
 import scala.{

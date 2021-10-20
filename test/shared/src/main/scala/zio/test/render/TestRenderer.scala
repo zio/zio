@@ -16,6 +16,7 @@
 
 package zio.test.render
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestAnnotationRenderer
 
 trait TestRenderer {

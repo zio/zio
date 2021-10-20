@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.stacktracer.ZTraceElement
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 
@@ -33,14 +33,14 @@ final case class ZTrace(
     val stackPrint =
       if (stackTrace)
         s"Fiber:$fiberId was supposed to continue to:" ::
-          this.stackTrace.map(loc => s"  a future continuation at " + loc.prettyPrint)
+          this.stackTrace.map(loc => s"  a future continuation at " + loc.toString)
       else
         s"Fiber:$fiberId was supposed to continue to: <empty trace>" :: Nil
 
     val execPrint =
       if (execTrace)
         s"Fiber:$fiberId execution trace:" ::
-          executionTrace.map(loc => "  at " + loc.prettyPrint)
+          executionTrace.map(loc => "  at " + loc.toString)
       else s"Fiber:$fiberId ZIO Execution trace: <empty trace>" :: Nil
 
     val ancestry: List[String] =

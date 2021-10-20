@@ -1,5 +1,6 @@
 package zio.test.diff
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.ConsoleUtils._
 import zio.test.PrettyPrint
 

@@ -17,6 +17,7 @@
 package zio
 
 import zio.internal.MutableConcurrentQueue
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -34,7 +35,7 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * The `IO` returned by this method will not resume until the queue has been shutdown.
    * If the queue is already shutdown, the `IO` will resume right away.
    */
-  def awaitShutdown: UIO[Unit]
+  def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit]
 
   /**
    * How many elements can hold in the queue
@@ -44,12 +45,12 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * `true` if `shutdown` has been called.
    */
-  def isShutdown: UIO[Boolean]
+  def isShutdown(implicit trace: ZTraceElement): UIO[Boolean]
 
   /**
    * Places one value in the queue.
    */
-  def offer(a: A): ZIO[RA, EA, Boolean]
+  def offer(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean]
 
   /**
    * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and always returns true.
@@ -67,37 +68,37 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * For Dropping Queue: uses `Dropping` Strategy,
    * It places the values in the queue but if there is no room it will not enqueue them and return false.
    */
-  def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean]
+  def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean]
 
   /**
    * Interrupts any fibers that are suspended on `offer` or `take`.
    * Future calls to `offer*` and `take*` will be interrupted immediately.
    */
-  def shutdown: UIO[Unit]
+  def shutdown(implicit trace: ZTraceElement): UIO[Unit]
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
    * in the queue. This may be negative if fibers are suspended waiting for
    * elements to be added to the queue.
    */
-  def size: UIO[Int]
+  def size(implicit trace: ZTraceElement): UIO[Int]
 
   /**
    * Removes the oldest value in the queue. If the queue is empty, this will
    * return a computation that resumes when an item has been added to the queue.
    */
-  def take: ZIO[RB, EB, B]
+  def take(implicit trace: ZTraceElement): ZIO[RB, EB, B]
 
   /**
    * Removes all the values in the queue and returns the values. If the queue
    * is empty returns an empty collection.
    */
-  def takeAll: ZIO[RB, EB, Chunk[B]]
+  def takeAll(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]]
 
   /**
    * Takes up to max number of values in the queue.
    */
-  def takeUpTo(max: Int): ZIO[RB, EB, Chunk[B]]
+  def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]]
 
   /**
    * Takes a number of elements from the queue between the specified minimum
@@ -105,7 +106,7 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * available, suspends until at least the minimum number of elements have
    * been collected.
    */
-  final def takeBetween(min: Int, max: Int): ZIO[RB, EB, Chunk[B]] =
+  final def takeBetween(min: Int, max: Int)(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]] =
     ZIO.suspendSucceed {
 
       def takeRemainder(min: Int, max: Int, acc: Chunk[B]): ZIO[RB, EB, Chunk[B]] =
@@ -132,7 +133,7 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * If there are fewer than the specified number of elements available,
    * it suspends until they become available.
    */
-  final def takeN(n: Int): ZIO[RB, EB, Chunk[B]] =
+  final def takeN(n: Int)(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]] =
     takeBetween(n, n)
 
   /**
@@ -183,19 +184,20 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     new ZQueue[RC, RD, EC, ED, C, D] {
       def capacity: Int = self.capacity
 
-      def offer(c: C): ZIO[RC, EC, Boolean] =
+      def offer(c: C)(implicit trace: ZTraceElement): ZIO[RC, EC, Boolean] =
         f(c).flatMap(self.offer)
 
-      def offerAll(cs: Iterable[C]): ZIO[RC, EC, Boolean] =
+      def offerAll(cs: Iterable[C])(implicit trace: ZTraceElement): ZIO[RC, EC, Boolean] =
         ZIO.foreach(cs)(f).flatMap(self.offerAll)
 
-      def awaitShutdown: UIO[Unit]                  = self.awaitShutdown
-      def size: UIO[Int]                            = self.size
-      def shutdown: UIO[Unit]                       = self.shutdown
-      def isShutdown: UIO[Boolean]                  = self.isShutdown
-      def take: ZIO[RD, ED, D]                      = self.take.flatMap(g)
-      def takeAll: ZIO[RD, ED, Chunk[D]]            = self.takeAll.flatMap(ZIO.foreach(_)(g))
-      def takeUpTo(max: Int): ZIO[RD, ED, Chunk[D]] = self.takeUpTo(max).flatMap(ZIO.foreach(_)(g))
+      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit]       = self.awaitShutdown
+      def size(implicit trace: ZTraceElement): UIO[Int]                 = self.size
+      def shutdown(implicit trace: ZTraceElement): UIO[Unit]            = self.shutdown
+      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean]       = self.isShutdown
+      def take(implicit trace: ZTraceElement): ZIO[RD, ED, D]           = self.take.flatMap(g)
+      def takeAll(implicit trace: ZTraceElement): ZIO[RD, ED, Chunk[D]] = self.takeAll.flatMap(ZIO.foreach(_)(g))
+      def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[RD, ED, Chunk[D]] =
+        self.takeUpTo(max).flatMap(ZIO.foreach(_)(g))
     }
 
   /**
@@ -219,26 +221,26 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     new ZQueue[R2, RB, E2, EB, A1, B] {
       def capacity: Int = self.capacity
 
-      def offer(a: A1): ZIO[R2, E2, Boolean] =
+      def offer(a: A1)(implicit trace: ZTraceElement): ZIO[R2, E2, Boolean] =
         f(a) flatMap {
           if (_) self.offer(a)
           else IO.succeedNow(false)
         }
 
-      def offerAll(as: Iterable[A1]): ZIO[R2, E2, Boolean] =
+      def offerAll(as: Iterable[A1])(implicit trace: ZTraceElement): ZIO[R2, E2, Boolean] =
         ZIO.foreach(as)(a => f(a).map(if (_) Some(a) else None)).flatMap { maybeAs =>
           val filtered = maybeAs.flatten
           if (filtered.isEmpty) ZIO.succeedNow(false)
           else self.offerAll(filtered)
         }
 
-      def awaitShutdown: UIO[Unit]                  = self.awaitShutdown
-      def size: UIO[Int]                            = self.size
-      def shutdown: UIO[Unit]                       = self.shutdown
-      def isShutdown: UIO[Boolean]                  = self.isShutdown
-      def take: ZIO[RB, EB, B]                      = self.take
-      def takeAll: ZIO[RB, EB, Chunk[B]]            = self.takeAll
-      def takeUpTo(max: Int): ZIO[RB, EB, Chunk[B]] = self.takeUpTo(max)
+      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit]                  = self.awaitShutdown
+      def size(implicit trace: ZTraceElement): UIO[Int]                            = self.size
+      def shutdown(implicit trace: ZTraceElement): UIO[Unit]                       = self.shutdown
+      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean]                  = self.isShutdown
+      def take(implicit trace: ZTraceElement): ZIO[RB, EB, B]                      = self.take
+      def takeAll(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]]            = self.takeAll
+      def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]] = self.takeUpTo(max)
     }
 
   /**
@@ -261,30 +263,30 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    */
   def filterOutputZIO[RB1 <: RB, EB1 >: EB](f: B => ZIO[RB1, EB1, Boolean]): ZQueue[RA, RB1, EA, EB1, A, B] =
     new ZQueue[RA, RB1, EA, EB1, A, B] {
-      def awaitShutdown: UIO[Unit] =
+      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] =
         self.awaitShutdown
       def capacity: Int =
         self.capacity
-      def isShutdown: UIO[Boolean] =
+      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
         self.isShutdown
-      def offer(a: A): ZIO[RA, EA, Boolean] =
+      def offer(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean] =
         self.offer(a)
-      def offerAll(as: Iterable[A]): ZIO[RA, EA, Boolean] =
+      def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean] =
         self.offerAll(as)
-      def shutdown: UIO[Unit] =
+      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
         self.shutdown
-      def size: UIO[Int] =
+      def size(implicit trace: ZTraceElement): UIO[Int] =
         self.size
-      def take: ZIO[RB1, EB1, B] =
+      def take(implicit trace: ZTraceElement): ZIO[RB1, EB1, B] =
         self.take.flatMap { b =>
           f(b).flatMap { p =>
             if (p) ZIO.succeedNow(b)
             else take
           }
         }
-      def takeAll: ZIO[RB1, EB1, Chunk[B]] =
+      def takeAll(implicit trace: ZTraceElement): ZIO[RB1, EB1, Chunk[B]] =
         self.takeAll.flatMap(bs => ZIO.filter(bs)(f))
-      def takeUpTo(max: Int): ZIO[RB1, EB1, Chunk[B]] =
+      def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[RB1, EB1, Chunk[B]] =
         ZIO.suspendSucceed {
           def loop(max: Int, acc: Chunk[B]): ZIO[RB1, EB1, Chunk[B]] =
             self.takeUpTo(max).flatMap { bs =>
@@ -322,7 +324,7 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Take the head option of values in the queue.
    */
-  final def poll: ZIO[RB, EB, Option[B]] =
+  final def poll(implicit trace: ZTraceElement): ZIO[RB, EB, Option[B]] =
     takeUpTo(1).map(_.headOption)
 }
 
@@ -341,7 +343,7 @@ object ZQueue {
    * @tparam A type of the `Queue`
    * @return `UIO[Queue[A]]`
    */
-  def bounded[A](requestedCapacity: Int): UIO[Queue[A]] =
+  def bounded[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.BackPressure()))
 
   /**
@@ -356,7 +358,7 @@ object ZQueue {
    * @tparam A type of the `Queue`
    * @return `UIO[Queue[A]]`
    */
-  def dropping[A](requestedCapacity: Int): UIO[Queue[A]] =
+  def dropping[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Dropping()))
 
   /**
@@ -372,7 +374,7 @@ object ZQueue {
    * @tparam A type of the `Queue`
    * @return `UIO[Queue[A]]`
    */
-  def sliding[A](requestedCapacity: Int): UIO[Queue[A]] =
+  def sliding[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Sliding()))
 
   /**
@@ -381,10 +383,12 @@ object ZQueue {
    * @tparam A type of the `Queue`
    * @return `UIO[Queue[A]]`
    */
-  def unbounded[A]: UIO[Queue[A]] =
+  def unbounded[A](implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Strategy.Dropping()))
 
-  private def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A]): UIO[Queue[A]] =
+  private def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A])(implicit
+    trace: ZTraceElement
+  ): UIO[Queue[A]] =
     Promise
       .make[Nothing, Unit]
       .map(p =>
@@ -405,11 +409,12 @@ object ZQueue {
     strategy: Strategy[A]
   ): Queue[A] = new ZQueue[Any, Any, Nothing, Nothing, A, A] {
 
-    private def removeTaker(taker: Promise[Nothing, A]): UIO[Unit] = IO.succeed(unsafeRemove(takers, taker))
+    private def removeTaker(taker: Promise[Nothing, A])(implicit trace: ZTraceElement): UIO[Unit] =
+      IO.succeed(unsafeRemove(takers, taker))
 
     val capacity: Int = queue.capacity
 
-    def offer(a: A): UIO[Boolean] =
+    def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
       UIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -439,7 +444,7 @@ object ZQueue {
         }
       }
 
-    def offerAll(as: Iterable[A]): UIO[Boolean] =
+    def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean] =
       UIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -463,9 +468,9 @@ object ZQueue {
         }
       }
 
-    val awaitShutdown: UIO[Unit] = shutdownHook.await
+    def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] = shutdownHook.await
 
-    val size: UIO[Int] =
+    def size(implicit trace: ZTraceElement): UIO[Int] =
       UIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -473,7 +478,7 @@ object ZQueue {
           UIO.succeedNow(queue.size() - takers.size() + strategy.surplusSize)
       }
 
-    val shutdown: UIO[Unit] =
+    def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
       UIO.suspendSucceedWith { (_, fiberId) =>
         shutdownFlag.set(true)
 
@@ -484,9 +489,9 @@ object ZQueue {
           .unit
       }.uninterruptible
 
-    val isShutdown: UIO[Boolean] = UIO(shutdownFlag.get)
+    def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] = UIO(shutdownFlag.get)
 
-    val take: UIO[A] =
+    def take(implicit trace: ZTraceElement): UIO[A] =
       UIO.suspendSucceedWith { (_, fiberId) =>
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -511,7 +516,7 @@ object ZQueue {
         }
       }
 
-    val takeAll: UIO[Chunk[A]] =
+    def takeAll(implicit trace: ZTraceElement): UIO[Chunk[A]] =
       UIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -523,7 +528,7 @@ object ZQueue {
           }
       }
 
-    def takeUpTo(max: Int): UIO[Chunk[A]] =
+    def takeUpTo(max: Int)(implicit trace: ZTraceElement): UIO[Chunk[A]] =
       UIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -542,7 +547,7 @@ object ZQueue {
       queue: MutableConcurrentQueue[A],
       takers: MutableConcurrentQueue[Promise[Nothing, A]],
       isShutdown: AtomicBoolean
-    ): UIO[Boolean]
+    )(implicit trace: ZTraceElement): UIO[Boolean]
 
     def unsafeOnQueueEmptySpace(
       queue: MutableConcurrentQueue[A],
@@ -551,7 +556,7 @@ object ZQueue {
 
     def surplusSize: Int
 
-    def shutdown: UIO[Unit]
+    def shutdown(implicit trace: ZTraceElement): UIO[Unit]
 
     final def unsafeCompleteTakers(
       queue: MutableConcurrentQueue[A],
@@ -597,7 +602,7 @@ object ZQueue {
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
-      ): UIO[Boolean] =
+      )(implicit trace: ZTraceElement): UIO[Boolean] =
         UIO.suspendSucceedWith { (_, fiberId) =>
           val p = Promise.unsafeMake[Nothing, Boolean](fiberId)
 
@@ -644,7 +649,7 @@ object ZQueue {
 
       def surplusSize: Int = putters.size()
 
-      def shutdown: UIO[Unit] =
+      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
         for {
           fiberId <- ZIO.fiberId
           putters <- IO.succeed(unsafePollAll(putters))
@@ -659,7 +664,7 @@ object ZQueue {
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
-      ): UIO[Boolean] = IO.succeedNow(false)
+      )(implicit trace: ZTraceElement): UIO[Boolean] = IO.succeedNow(false)
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
@@ -668,7 +673,7 @@ object ZQueue {
 
       def surplusSize: Int = 0
 
-      def shutdown: UIO[Unit] = IO.unit
+      def shutdown(implicit trace: ZTraceElement): UIO[Unit] = IO.unit
     }
 
     final case class Sliding[A]() extends Strategy[A] {
@@ -677,7 +682,7 @@ object ZQueue {
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
-      ): UIO[Boolean] = {
+      )(implicit trace: ZTraceElement): UIO[Boolean] = {
         def unsafeSlidingOffer(as: Iterable[A]): Unit =
           if (as.nonEmpty && queue.capacity > 0) {
             val iterator = as.iterator
@@ -709,7 +714,7 @@ object ZQueue {
 
       def surplusSize: Int = 0
 
-      def shutdown: UIO[Unit] = IO.unit
+      def shutdown(implicit trace: ZTraceElement): UIO[Unit] = IO.unit
     }
   }
 

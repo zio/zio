@@ -7,8 +7,8 @@ import scala.annotation.tailrec
 
 trait ZIOBaseSpec extends DefaultRunnableSpec {
   override def aspects: List[TestAspectAtLeastR[Has[Live]]] =
-    if (TestPlatform.isJVM) List(TestAspect.timeout(60.seconds))
-    else List(TestAspect.sequential, TestAspect.timeout(60.seconds))
+    if (TestPlatform.isJVM) List(TestAspect.timeout(120.seconds))
+    else List(TestAspect.sequential, TestAspect.timeout(120.seconds))
 
   override def runner: TestRunner[Environment, Any] =
     defaultTestRunner.withRuntimeConfig(_.copy(enableCurrentFiber = true))

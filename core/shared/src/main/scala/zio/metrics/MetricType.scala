@@ -17,6 +17,7 @@
 package zio.metrics
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * `MetricType` represents information about the state of a metric that is

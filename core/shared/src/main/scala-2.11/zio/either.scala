@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 trait EitherCompat {
   implicit final class EitherOps[E, A](self: Either[E, A]) {
     def flatMap[E1 >: E, B](f: A => Either[E1, B]): Either[E1, B] =

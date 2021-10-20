@@ -56,12 +56,15 @@ val supervised = supervisor.flatMap(s => fib(20).supervised(s))
 Now we can access all information of children fibers through the supervisor.
 
 ## Example
+
 In the following example we are going to periodically monitor the number of fibers throughout our application life cycle:
 
-```scala mdoc:silent
-object SupervisorExample extends zio.App {
+```scala mdoc:compile-only
+import zio._
 
-  val program = for {
+object SupervisorExample extends ZIOAppDefault {
+
+  def run = for {
     supervisor <- Supervisor.track(true)
     fiber <- fib(20).supervised(supervisor).fork
     policy = Schedule
@@ -92,6 +95,5 @@ object SupervisorExample extends zio.App {
       } yield v1 + v2
     }
 
-  override def run(args: List[String]) = program.exitCode
 }
 ```

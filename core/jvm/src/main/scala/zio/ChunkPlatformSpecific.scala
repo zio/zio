@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.reflect.{ClassTag, classTag}
 
 private[zio] trait ChunkPlatformSpecific {
