@@ -18,11 +18,11 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "bracketOnError_"        -> "acquireReleaseOnError",
       "bracket_"               -> "acquireRelease",
       "bracket_"               -> "acquireRelease",
+      "checkM"                 -> "check",
       "collectAllPar_"         -> "collectAllParDiscard",
       "collectAll_"            -> "collectAllDiscard",
       "collectM"               -> "collectZIO",
       "contramapM"             -> "contramapZIO",
-      "checkM"                 -> "check",
       "effect"                 -> "attempt",
       "effectAsync"            -> "async",
       "effectAsyncInterrupt"   -> "asyncInterrupt",
@@ -63,6 +63,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "optional"               -> "unsome",
       "paginateChunkM"         -> "paginateChunkZIO",
       "paginateM"              -> "paginateZIO",
+      "partitionPar_"          -> "partitionParDiscard",
+      "partition_"             -> "partitionDiscard",
       "rejectM"                -> "rejectZIO",
       "repeatEffect"           -> "repeatZIO",
       "repeatEffectChunk"      -> "repeatZIOChunk",
@@ -142,30 +144,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     object Matcher {
       def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
         normalizedRenames.flatMap(_.unapply(tree)).headOption
-    }
-  }
-
-  final case class ParNRenamer(methodName: String) {
-
-    object Matcher {
-      def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
-        tree match {
-          case t @ q"$lhs.$method($n)($as)($body)" if method.value.startsWith(methodName + "N")=>
-            val generatedName = if (method.value.endsWith("_") || method.value.endsWith("Discard"))
-              s"${methodName}Discard" else methodName
-            println(s"MATCH? $t")
-            Some(Patch.replaceTree(t, s"$lhs.$generatedName($as)($body).withParallelism($n)"))
-
-          case t @ q"$lhs.$method[..$types]($n)($as)($body)" if method.value.startsWith(methodName + "N")=>
-            val generatedName = if (method.value.endsWith("_") || method.value.endsWith("Discard"))
-              s"${methodName}Discard" else methodName
-            println(s"MATCH TYPED? $t")
-            Some(Patch.replaceTree(t, s"$lhs.$generatedName[${types.mkString(", ")}]($as)($body).withParallelism($n)"))
-
-          case _ =>
-            None
-        }
-      //        normalizedRenames.flatMap(_.unapply(tree)).headOption
     }
   }
 
@@ -292,7 +270,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.blocking.blockingExecutor"         -> "zio.ZIO.blockingExecutor"
   )
 
-  val foreachParN = ParNRenamer("foreachPar")
+  val foreachParN             = ParNRenamer("foreachPar", 3)
+  val collectAllParN          = ParNRenamer("collectAllPar", 2)
+  val collectAllSuccessesParN = ParNRenamer("collectAllSuccessPar", 2)
+  val collectAllWithParN      = ParNRenamer("collectAllWithPar", 3)
+  val reduceAllParN           = ParNRenamer("reduceAllPar", 3)
+  val partitionParN           = ParNRenamer("partitionPar", 3)
+  val mergeAllParN            = ParNRenamer("mergeAllPar", 4)
   // TODO: Fill out remaining ParN stuff
 
   // TODO: rename all anyGen things (anyString ->  @deprecated("use string", "2.0.0"))
@@ -316,23 +300,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ q"$lhs.collectAllParNDiscard($n)($as)" =>
         Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
 
-      // TODO: Test with types
-      //         ZIO.foreachParN[Any, Throwable, Path, WcResult, List](4)(paths) { path =>
-      case foreachParN.Matcher(patch) => patch
-
-      case t @ q"$lhs.reduceAllParN($n)($a, $as)($body)" =>
-        Patch.replaceTree(t, s"$lhs.reduceAllPar($a, $as)($body).withParallelism($n)")
-      case t @ q"$lhs.reduceAllParNDiscard($n)($a, $as)($body)" =>
-        Patch.replaceTree(t, s"$lhs.reduceAllParDiscard($a, $as)($body).withParallelism($n)")
-      case t @ q"$lhs.reduceAllParNDiscard($n)($a, $as)($body)" =>
-        Patch.replaceTree(t, s"$lhs.reduceAllParDiscard($a, $as)($body).withParallelism($n)")
-
-      case t @ q"$lhs.mergeAllParN($n)($as)($zero)($body)" =>
-        Patch.replaceTree(t, s"$lhs.mergeAllPar($as)($zero)($body).withParallelism($n)")
-      case t @ q"$lhs.mergeAllParN_($n)($as)($zero)($body)" =>
-        Patch.replaceTree(t, s"$lhs.mergeAllParDiscard($as)($zero)($body).withParallelism($n)")
-      case t @ q"$lhs.mergeAllParNDiscard($n)($as)($zero)($body)" =>
-        Patch.replaceTree(t, s"$lhs.mergeAllParDiscard($as)($zero)($body).withParallelism($n)")
+      case foreachParN.Matcher(patch)             => patch
+      case collectAllParN.Matcher(patch)          => patch
+      case collectAllSuccessesParN.Matcher(patch) => patch
+      case collectAllWithParN.Matcher(patch)      => patch
+      case partitionParN.Matcher(patch)           => patch
+      case reduceAllParN.Matcher(patch)           => patch
+      case mergeAllParN.Matcher(patch)            => patch
 
       case t @ q"import zio.blocking._" =>
         Patch.removeTokens(t.tokens)
@@ -438,4 +412,35 @@ private object ImporteeNameOrRename {
       case Importee.Rename(x, _) => Some(x)
       case _                     => None
     }
+}
+
+final case class ParNRenamer(methodName: String, paramCount: Int) {
+  object Matcher {
+    def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
+      tree match {
+        case t @ q"$lhs.$method(...$params)"
+            if method.value.startsWith(methodName + "N") && paramCount == params.length =>
+          val generatedName =
+            if (method.value.endsWith("_") || method.value.endsWith("Discard"))
+              s"${methodName}Discard"
+            else methodName
+          val n          = params.head.head
+          val paramLists = params.drop(1).map(_.mkString("(", ", ", ")")).mkString("")
+          Some(Patch.replaceTree(t, s"$lhs.$generatedName$paramLists.withParallelism($n)"))
+
+        case t @ q"$lhs.$method[..$types](...$params)"
+            if method.value.startsWith(methodName + "N") && paramCount == params.length =>
+          val generatedName =
+            if (method.value.endsWith("_") || method.value.endsWith("Discard"))
+              s"${methodName}Discard"
+            else methodName
+          val n          = params.head.head
+          val paramLists = params.drop(1).map(_.mkString("(", ", ", ")")).mkString("")
+          Some(Patch.replaceTree(t, s"$lhs.$generatedName[${types.mkString(", ")}]$paramLists.withParallelism($n)"))
+
+        case _ =>
+          None
+      }
+    //        normalizedRenames.flatMap(_.unapply(tree)).headOption
+  }
 }
