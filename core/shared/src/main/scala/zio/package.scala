@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 package object zio
     extends BuildFromCompat
     with EitherCompat
@@ -82,4 +85,13 @@ package object zio
   type Semaphore = stm.TSemaphore
 
   type HasMany[K, A] = Has[Map[K, A]]
+
+  type ZTraceElement = Tracer.instance.Type with Tracer.Traced
+  object ZTraceElement {
+    val empty = Tracer.instance.empty
+    object SourceLocation {
+      def unapply(trace: ZTraceElement): Option[(String, String, Int, Int)] =
+        Tracer.instance.unapply(trace)
+    }
+  }
 }

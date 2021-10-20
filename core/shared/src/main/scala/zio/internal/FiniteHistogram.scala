@@ -1,5 +1,7 @@
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.util.concurrent.atomic.LongAdder
 import scala.annotation.tailrec
 

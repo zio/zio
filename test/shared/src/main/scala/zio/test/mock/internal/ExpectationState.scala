@@ -16,6 +16,8 @@
 
 package zio.test.mock.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.math.Ordering
 
 /**

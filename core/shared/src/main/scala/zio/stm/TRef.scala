@@ -16,7 +16,8 @@
 
 package zio.stm
 
-import zio.UIO
+import zio.{UIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 object TRef {
 
@@ -29,6 +30,6 @@ object TRef {
   /**
    * See [[ZTRef.makeCommit]].
    */
-  def makeCommit[A](a: => A): UIO[TRef[A]] =
+  def makeCommit[A](a: => A)(implicit trace: ZTraceElement): UIO[TRef[A]] =
     ZTRef.makeCommit(a)
 }

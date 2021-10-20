@@ -17,6 +17,7 @@
 package zio.stream
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.{IOException, InputStream}
 import scala.concurrent.Future
@@ -33,7 +34,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def async[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncMaybe(
       callback => {
         register(callback)
@@ -51,7 +52,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def asyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
@@ -89,7 +90,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def asyncManaged[R, E, A](
     register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZManaged[R, E, Any],
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     managed {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
@@ -120,7 +121,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def asyncZIO[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     managed {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
@@ -152,7 +153,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def asyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
@@ -191,7 +192,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def effectAsync[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     async(register, outputBuffer)
 
   /**
@@ -204,7 +205,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def effectAsyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncInterrupt(register, outputBuffer)
 
   /**
@@ -216,7 +217,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def effectAsyncM[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncZIO(register, outputBuffer)
 
   /**
@@ -229,7 +230,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def effectAsyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
     outputBuffer: Int = 16
-  ): ZStream[R, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncMaybe(register, outputBuffer)
 
   /**
@@ -238,7 +239,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def fromInputStream(
     is: => InputStream,
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[Any, IOException, Byte] =
+  )(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
     ZStream {
       for {
         done       <- Ref.make(false).toManaged
@@ -276,7 +277,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def fromInputStreamEffect[R](
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Byte] =
+  )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
     fromInputStreamZIO(is, chunkSize)
 
   /**
@@ -286,7 +287,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def fromInputStreamZIO[R](
     is: ZIO[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Byte] =
+  )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
     fromInputStreamManaged(is.toManagedWith(is => ZIO.succeed(is.close())), chunkSize)
 
   /**
@@ -295,7 +296,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
   def fromInputStreamManaged[R](
     is: ZManaged[R, IOException, InputStream],
     chunkSize: Int = ZStream.DefaultChunkSize
-  ): ZStream[R, IOException, Byte] =
+  )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
     ZStream
       .managed(is)
       .flatMap(fromInputStream(_, chunkSize))
@@ -309,7 +310,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
     implicit val InputStreamConstructor: WithOut[InputStream, ZStream[Any, IOException, Byte]] =
       new ZStreamConstructor[InputStream] {
         type Out = ZStream[Any, IOException, Byte]
-        def make(input: => InputStream): ZStream[Any, IOException, Byte] =
+        def make(input: => InputStream)(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
           ZStream.fromInputStream(input)
       }
 
@@ -321,7 +322,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
       : WithOut[ZManaged[R, E, InputStream], ZStream[R, IOException, Byte]] =
       new ZStreamConstructor[ZManaged[R, E, InputStream]] {
         type Out = ZStream[R, IOException, Byte]
-        def make(input: => ZManaged[R, E, InputStream]): ZStream[R, IOException, Byte] =
+        def make(input: => ZManaged[R, E, InputStream])(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
           ZStream.fromInputStreamManaged(input)
       }
 
@@ -333,7 +334,7 @@ trait ZStreamPlatformSpecificConstructors { self: ZStream.type =>
       : WithOut[ZIO[R, E, InputStream], ZStream[R, IOException, Byte]] =
       new ZStreamConstructor[ZIO[R, E, InputStream]] {
         type Out = ZStream[R, IOException, Byte]
-        def make(input: => ZIO[R, E, InputStream]): ZStream[R, IOException, Byte] =
+        def make(input: => ZIO[R, E, InputStream])(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
           ZStream.fromInputStreamZIO(input)
       }
   }

@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * The entry point for a purely-functional application on the JVM.
  *

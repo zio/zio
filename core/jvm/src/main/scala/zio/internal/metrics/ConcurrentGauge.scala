@@ -1,5 +1,7 @@
 package zio.internal.metrics
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.util.concurrent.atomic.AtomicReference
 
 private[zio] sealed abstract class ConcurrentGauge {

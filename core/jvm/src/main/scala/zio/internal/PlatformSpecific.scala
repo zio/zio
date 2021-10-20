@@ -1,5 +1,7 @@
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{Collections, Map => JMap, Set => JSet, WeakHashMap}

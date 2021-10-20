@@ -1,6 +1,6 @@
 package zio
 
-import zio.internal.stacktracer._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait ZLogger[+A] { self =>
   def apply(
@@ -108,24 +108,40 @@ object ZLogger {
     }
 
     trace match {
-      case ZTraceElement.NoLocation(_) =>
+      case ZTraceElement.SourceLocation(location, file, line, column) =>
+        sb.append(" location=")
 
-      case ZTraceElement.SourceLocation(file, clazz, method, line) =>
+        appendQuoted(location, sb)
+
         sb.append(" file=")
 
         appendQuoted(file, sb)
 
         sb.append(" line=")
           .append(line)
-          .append(" class=")
 
-        appendQuoted(clazz, sb)
+        sb.append(" column=")
+          .append(column)
 
-        sb.append(" method=")
-          .append(method)
+      case _ =>
     }
 
     sb.toString()
+  }
+
+  /**
+   * A logger that does nothing in response to logging events.
+   */
+  val none: ZLogger[Unit] = new ZLogger[Unit] {
+    def apply(
+      trace: ZTraceElement,
+      fiberId: FiberId,
+      logLevel: LogLevel,
+      message: () => String,
+      context: Map[FiberRef.Runtime[_], AnyRef],
+      spans: List[LogSpan]
+    ): Unit =
+      ()
   }
 
   private def appendQuoted(label: String, sb: StringBuilder): StringBuilder = {

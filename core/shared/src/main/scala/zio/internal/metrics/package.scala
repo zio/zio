@@ -1,5 +1,7 @@
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 package object metrics {
 
   private[zio] lazy val metricState: ConcurrentState =

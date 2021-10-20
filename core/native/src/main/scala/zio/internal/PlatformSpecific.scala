@@ -1,5 +1,7 @@
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
 
 private[zio] trait PlatformSpecific {

@@ -1,6 +1,8 @@
 package zio.test.environment
 
-import zio.{Has, IO, ZEnv, ZIO, ZLayer, ZManaged}
+import zio.{Has, IO, ZEnv, ZIO, ZLayer, ZManaged, ZTraceElement}
+import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * The `Live` trait provides access to the "live" environment from within the
@@ -23,7 +25,7 @@ import zio.{Has, IO, ZEnv, ZIO, ZLayer, ZManaged}
  * methods are re-exported in the `environment` package for easy availability.
  */
 trait Live {
-  def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A]
+  def provide[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): IO[E, A]
 }
 
 object Live {
@@ -35,20 +37,22 @@ object Live {
    * could be useful if you are mixing in interfaces to create your own
    * environment type.
    */
-  def default: ZLayer[ZEnv, Nothing, Has[Live]] =
+  def default: ZLayer[ZEnv, Nothing, Has[Live]] = {
+    implicit val trace = Tracer.newTrace
     ZManaged
       .access[ZEnv] { zenv =>
         new Live {
-          def provide[E, A](zio: ZIO[ZEnv, E, A]): IO[E, A] =
+          def provide[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): IO[E, A] =
             zio.provide(zenv)
         }
       }
       .toLayer
+  }
 
   /**
    * Provides an effect with the "live" environment.
    */
-  def live[E, A](zio: ZIO[ZEnv, E, A]): ZIO[Has[Live], E, A] =
+  def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Has[Live], E, A] =
     ZIO.accessZIO(_.get.provide(zio))
 
   /**
@@ -58,6 +62,6 @@ object Live {
    */
   def withLive[R <: Has[Live], E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[ZEnv, E1, B]): ZIO[R, E1, B] =
+  )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
     ZIO.environment[R].flatMap(r => live(f(zio.provide(r))))
 }

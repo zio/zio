@@ -18,6 +18,7 @@ package zio.internal.metrics
 
 import zio._
 import zio.metrics._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `Histogram` is a metric representing a collection of numerical with the
@@ -32,23 +33,23 @@ private[zio] trait Histogram {
   /**
    * The current sum and count of values in each bucket of the histogram.
    */
-  def buckets: UIO[Chunk[(Double, Long)]]
+  def buckets(implicit trace: ZTraceElement): UIO[Chunk[(Double, Long)]]
 
   /**
    * The current count of values in the histogram.
    */
-  def count: UIO[Long]
+  def count(implicit trace: ZTraceElement): UIO[Long]
 
   /**
    * Adds the specified value to the distribution of values represented by the
    * histogram.
    */
-  def observe(value: Double): UIO[Any]
+  def observe(value: Double)(implicit trace: ZTraceElement): UIO[Any]
 
   /**
    * The current sum of values in the histogram.
    */
-  def sum: UIO[Double]
+  def sum(implicit trace: ZTraceElement): UIO[Double]
 }
 
 private[zio] object Histogram {
@@ -63,6 +64,6 @@ private[zio] object Histogram {
    * Constructs a histogram with the specified name, boundaries, and labels.
    * The boundaries must be in strictly increasing order.
    */
-  def apply(name: String, boundaries: Chunk[Double], tags: Chunk[MetricLabel]): Histogram =
+  def apply(name: String, boundaries: ZIOMetric.Histogram.Boundaries, tags: Chunk[MetricLabel]): Histogram =
     apply(MetricKey.Histogram(name, boundaries, tags))
 }

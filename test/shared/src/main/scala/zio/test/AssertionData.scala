@@ -16,7 +16,8 @@
 
 package zio.test
 
-import zio.ZIO
+import zio.{ZIO, ZTraceElement}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 sealed abstract class AssertionData {
   type Value
@@ -44,8 +45,8 @@ sealed abstract class AssertionMData {
   lazy val asFailure: AssertResult = BoolAlgebra.failure(AssertionValue(assertion, value, result = asFailure))
   lazy val asSuccess: AssertResult = BoolAlgebra.success(AssertionValue(assertion, value, result = asSuccess))
 
-  def asFailureM: AssertResultM = BoolAlgebraM(ZIO.succeed(asFailure))
-  def asSuccessM: AssertResultM = BoolAlgebraM(ZIO.succeed(asSuccess))
+  def asFailureM(implicit trace: ZTraceElement): AssertResultM = BoolAlgebraM(ZIO.succeed(asFailure))
+  def asSuccessM(implicit trace: ZTraceElement): AssertResultM = BoolAlgebraM(ZIO.succeed(asSuccess))
 }
 
 object AssertionMData {

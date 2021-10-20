@@ -1,5 +1,7 @@
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 trait Unzippable[A, B] {
   type In
   def unzip(in: In): (A, B)

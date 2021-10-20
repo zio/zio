@@ -17,5 +17,6 @@
 package zio.test
 
 import zio.BuildFromCompat
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 package object mock extends BuildFromCompat

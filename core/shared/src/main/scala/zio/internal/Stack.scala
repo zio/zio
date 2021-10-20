@@ -16,6 +16,8 @@
 
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * A very fast, growable/shrinkable, mutable stack.
  */
@@ -56,7 +58,8 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
   /**
    * Determines if the stack is empty.
    */
-  override def isEmpty: Boolean = size == 0
+  override def isEmpty: Boolean =
+    _used <= 0
 
   /**
    * Pushes an item onto the stack.

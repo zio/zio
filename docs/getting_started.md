@@ -7,9 +7,7 @@ Include ZIO in your project by adding the following to your `build.sbt` file:
 
 ```scala mdoc:passthrough
 println(s"""```""")
-if (zio.BuildInfo.isSnapshot)
-  println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
-println(s"""libraryDependencies += "dev.zio" %% "zio" % "${java.lang.System.getenv("ZIO_LATEST")}"""")
+println(s"""libraryDependencies += "dev.zio" %% "zio" % "${zio.BuildInfo.version.split('+').head}"""")
 println(s"""```""")
 ```
 
@@ -17,23 +15,21 @@ If you want to use ZIO streams, you should also include the following dependency
 
 ```scala mdoc:passthrough
 println(s"""```""")
-if (zio.BuildInfo.isSnapshot)
-  println(s"""resolvers += Resolver.sonatypeRepo("snapshots")""")
-println(s"""libraryDependencies += "dev.zio" %% "zio-streams" % "${java.lang.System.getenv("ZIO_LATEST")}"""")
+println(s"""libraryDependencies += "dev.zio" %% "zio-streams" % "${zio.BuildInfo.version.split('+').head}"""")
 println(s"""```""")
 ```
 
 ## Main
 
-Your application can extend `App`, which provides a complete runtime system and allows you to write your whole program using ZIO:
+Your application can extend `ZIOAppDefault`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
 import zio.Console._
 
-object MyApp extends zio.App {
+object MyApp extends ZIOAppDefault {
 
-  def run(args: List[String]) =
-    myAppLogic.exitCode
+  def run = myAppLogic
 
   val myAppLogic =
     for {
