@@ -201,6 +201,33 @@ Here is the list of `zip` variants that are deprecated:
 | `ZIO.mapN`      | `ZIO.zip`    |
 | `ZIO.mapParN`   | `ZIO.zipPar` |
 
+### Compositional Concurrency
+
+We introduced two operations that modify the parallel factor of a concurrent ZIO effect, `ZIO#withParallelism` and `ZIO#withParallelismUnbounded`. This makes the maximum number of fibers for parallel operators as a regional setting. Therefore, all parallelism operators ending in `N`, such as `foreachParN` and `collectAllParN`, have been deprecated.
+
+Having separate methods for changing the parallelism factor of a parallel effect deprecates lots of extra operators and makes concurrency more compositional.
+
+So instead of writing a parallel task like this:
+
+```scala mdoc:nest:silent:warn
+val urls: List[String] = ???
+def download(url: String): Task[String] = ???
+
+ZIO.foreachParN(8)(urls)(download)
+```
+
+We should use the `withParallelism` method:
+
+```scala mdoc:nest:silent
+ZIO.foreachPar(urls)(download).withParallelism(8)
+```
+
+The `withParallelismUnbounded` method is useful when we want to run a parallel effect with an unbounded maximum number of fibers:
+
+```scala mdoc:silent:nest 
+ZIO.foreachPar(urls)(download).withParallelismUnbounded
+```
+
 ### Either Values
 
 In ZIO 1.x, the `ZIO#left` and `ZIO#right` operators are lossy, and they don't preserve the information on the other side of `Either` after the transformation.
