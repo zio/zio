@@ -3,9 +3,11 @@ package fix
 import zio._
 
 
+import zio.test.Gen
 import zio.Console
 import zio.Console._
 import zio.ZIO.attemptBlockingIO
+import zio.test.Gen
 
 object Zio2Renames {
 
@@ -31,6 +33,38 @@ object Zio2Renames {
   val foreachParNWithTypes = ZIO.foreachPar[Any, Nothing, Int, Int, List](List(1,2))({ int =>
     ZIO.succeed(int)
   }).withParallelism(4)
+
+  // Generators
+  Gen.int
+  Gen.string
+  Gen.unicodeChar
+  Gen.asciiChar
+  Gen.byte
+  Gen.char
+  Gen.double
+  Gen.float
+  Gen.hexChar
+  Gen.long
+  Gen.hexCharLower
+  Gen.short
+  Gen.hexCharUpper
+  Gen.asciiString
+  Gen.dayOfWeek
+  Gen.finiteDuration
+  Gen.uuid
+  Gen.localDate
+  Gen.localTime
+  Gen.localDateTime
+  Gen.month
+  Gen.monthDay
+  Gen.offsetDateTime
+  Gen.offsetTime
+  Gen.period
+  Gen.year
+  Gen.yearMonth
+  Gen.zonedDateTime
+  Gen.zoneOffset
+  Gen.zoneId
 
   // Blocking
   attemptBlockingIO(1)

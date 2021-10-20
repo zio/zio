@@ -7,6 +7,7 @@ import zio._
 import zio.blocking.effectBlockingIO
 import zio.blocking._
 import zio.console._
+import zio.test.Gen
 
 object Zio2Renames {
 
@@ -32,6 +33,38 @@ object Zio2Renames {
   val foreachParNWithTypes = ZIO.foreachParN[Any, Nothing, Int, Int, List](4)(List(1,2)) { int =>
     ZIO.succeed(int)
   }
+
+  // Generators
+  Gen.anyInt
+  Gen.anyString
+  Gen.anyUnicodeChar
+  Gen.anyASCIIChar
+  Gen.anyByte
+  Gen.anyChar
+  Gen.anyDouble
+  Gen.anyFloat
+  Gen.anyHexChar
+  Gen.anyLong
+  Gen.anyLowerHexChar
+  Gen.anyShort
+  Gen.anyUpperHexChar
+  Gen.anyASCIIString
+  Gen.anyDayOfWeek
+  Gen.anyFiniteDuration
+  Gen.anyUUID
+  Gen.anyLocalDate
+  Gen.anyLocalTime
+  Gen.anyLocalDateTime
+  Gen.anyMonth
+  Gen.anyMonthDay
+  Gen.anyOffsetDateTime
+  Gen.anyOffsetTime
+  Gen.anyPeriod
+  Gen.anyYear
+  Gen.anyYearMonth
+  Gen.anyZonedDateTime
+  Gen.anyZoneOffset
+  Gen.anyZoneId
 
   // Blocking
   effectBlockingIO(1)
