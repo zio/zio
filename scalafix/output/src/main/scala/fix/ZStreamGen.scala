@@ -2,7 +2,7 @@ package zio.stream
 
 import zio._
 import zio.test.{Gen, GenZIO}
-import zio.Random
+import zio.{ Has, Random }
 import zio.test.Sized
 
 object ZStreamGen extends GenZIO {

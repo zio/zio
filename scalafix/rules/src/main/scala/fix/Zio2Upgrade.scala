@@ -145,6 +145,30 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     }
   }
 
+  final case class ParNRenamer(methodName: String) {
+
+    object Matcher {
+      def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
+        tree match {
+          case t @ q"$lhs.$method($n)($as)($body)" if method.value.startsWith(methodName + "N")=>
+            val generatedName = if (method.value.endsWith("_") || method.value.endsWith("Discard"))
+              s"${methodName}Discard" else methodName
+            println(s"MATCH? $t")
+            Some(Patch.replaceTree(t, s"$lhs.$generatedName($as)($body).withParallelism($n)"))
+
+          case t @ q"$lhs.$method[..$types]($n)($as)($body)" if method.value.startsWith(methodName + "N")=>
+            val generatedName = if (method.value.endsWith("_") || method.value.endsWith("Discard"))
+              s"${methodName}Discard" else methodName
+            println(s"MATCH TYPED? $t")
+            Some(Patch.replaceTree(t, s"$lhs.$generatedName[${types.mkString(", ")}]($as)($body).withParallelism($n)"))
+
+          case _ =>
+            None
+        }
+      //        normalizedRenames.flatMap(_.unapply(tree)).headOption
+    }
+  }
+
   val UniversalRenames = Renames(scopes, renames)
 
   val ZIORenames = Renames(
@@ -195,6 +219,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Sized_Old_Exact      = SymbolMatcher.exact("zio/test/package.Sized#")
   val Live_Old_Exact       = SymbolMatcher.exact("zio/test/environment/package.Live#")
 
+  val hasImport    = Symbol("zio/Has#")
   val newRandom    = Symbol("zio/Random#")
   val newConsole   = Symbol("zio/Console#")
   val newSystem    = Symbol("zio/System#")
@@ -214,22 +239,17 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Console_Old_Service    = SymbolMatcher.exact("zio/console/package.Console.Service#")
   val System_Old_Service     = SymbolMatcher.exact("zio/system/package.System.Service#")
 
-//  def fixPackages(implicit doc: SemanticDocument): Patch =
-//    doc.tree.collect {
-//      case q"${Clock_Old_Package(name)}.$select" if select.value != "Clock" =>
-//        Patch.replaceTree(name, "Clock")
-//
-//      case q"${Random_Old_Package(name)}.$select" if select.value != "Random" =>
-//        Patch.replaceTree(name, "Random")
-//
-//      case q"${System_Old_Package(name)}.$select" if select.value != "System" =>
-//        Patch.replaceTree(name, "System")
-//
-//      case q"${Console_Old_Package(name)}.$select" if select.value != "Console" =>
-//        Patch.replaceTree(name, "Console")
-//    }.asPatch
-
   def replaceSymbols(implicit doc: SemanticDocument) = Patch.replaceSymbols(
+    // System
+    "zio.system.env"              -> "zio.System.env",
+    "zio.system.envOrElse"        -> "zio.System.envOrElse",
+    "zio.system.envOrOption"      -> "zio.System.envOrOption",
+    "zio.system.envs"             -> "zio.System.envs",
+    "zio.system.lineSeparator"    -> "zio.System.lineSeparator",
+    "zio.system.properties"       -> "zio.System.properties",
+    "zio.system.property"         -> "zio.System.property",
+    "zio.system.propertyOrElse"   -> "zio.System.propertyOrElse",
+    "zio.system.propertyOrOption" -> "zio.System.propertyOrOption",
     // Console
     "zio.console.putStrLn"    -> "zio.Console.printLine",
     "zio.console.getStrLn"    -> "zio.Console.readLine",
@@ -272,6 +292,10 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.blocking.blockingExecutor"         -> "zio.ZIO.blockingExecutor"
   )
 
+  val foreachParN = ParNRenamer("foreachPar")
+  // TODO: Fill out remaining ParN stuff
+
+  // TODO: rename all anyGen things (anyString ->  @deprecated("use string", "2.0.0"))
   override def fix(implicit doc: SemanticDocument): Patch =
     doc.tree.collect {
       case ZIORenames.Matcher(patch)       => patch
@@ -292,19 +316,16 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ q"$lhs.collectAllParNDiscard($n)($as)" =>
         Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
 
-      case t @ q"$lhs.foreachParN($n)($as)($body)" =>
-        Patch.replaceTree(t, s"$lhs.foreachPar($as)($body).withParallelism($n)")
-      case t @ q"$lhs.foreachParN_($n)($as)($body)" =>
-        Patch.replaceTree(t, s"$lhs.foreachParDiscard($as)($body).withParallelism($n)")
-      case t @ q"$lhs.foreachParNDiscard($n)($as)($body)" =>
-        Patch.replaceTree(t, s"$lhs.foreachParDiscard($as)($body).withParallelism($n)")
+      // TODO: Test with types
+      //         ZIO.foreachParN[Any, Throwable, Path, WcResult, List](4)(paths) { path =>
+      case foreachParN.Matcher(patch) => patch
 
       case t @ q"$lhs.reduceAllParN($n)($a, $as)($body)" =>
         Patch.replaceTree(t, s"$lhs.reduceAllPar($a, $as)($body).withParallelism($n)")
       case t @ q"$lhs.reduceAllParNDiscard($n)($a, $as)($body)" =>
         Patch.replaceTree(t, s"$lhs.reduceAllParDiscard($a, $as)($body).withParallelism($n)")
       case t @ q"$lhs.reduceAllParNDiscard($n)($a, $as)($body)" =>
-        Patch.replaceTree(t, s"$lhs.reduceAllPar_($a, $as)($body).withParallelism($n)")
+        Patch.replaceTree(t, s"$lhs.reduceAllParDiscard($a, $as)($body).withParallelism($n)")
 
       case t @ q"$lhs.mergeAllParN($n)($as)($zero)($body)" =>
         Patch.replaceTree(t, s"$lhs.mergeAllPar($as)($zero)($body).withParallelism($n)")
@@ -312,6 +333,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         Patch.replaceTree(t, s"$lhs.mergeAllParDiscard($as)($zero)($body).withParallelism($n)")
       case t @ q"$lhs.mergeAllParNDiscard($n)($as)($zero)($body)" =>
         Patch.replaceTree(t, s"$lhs.mergeAllParDiscard($as)($zero)($body).withParallelism($n)")
+
+      case t @ q"import zio.blocking._" =>
+        Patch.removeTokens(t.tokens)
 
       case t @ q"import zio.duration._" =>
         Patch.replaceTree(t, "") +
@@ -349,35 +373,43 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.replaceTree(unwindSelect(t), s"Any")
 
       case t @ Random_Old_Exact(Name(_)) =>
-        Patch.addGlobalImport(newRandom) +
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newRandom) +
           Patch.replaceTree(unwindSelect(t), s"Has[Random]")
 
       case t @ Random_Old_Exact(Name(_)) =>
-        Patch.addGlobalImport(newRandom) +
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newRandom) +
           Patch.replaceTree(unwindSelect(t), s"Has[Random]")
 
       case t @ Console_Old_Exact(Name(_)) =>
-        Patch.addGlobalImport(newConsole) +
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newConsole) +
           Patch.replaceTree(unwindSelect(t), s"Has[Console]")
 
       case t @ System_Old_Exact(Name(_)) =>
-        Patch.addGlobalImport(newSystem) +
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newSystem) +
           Patch.replaceTree(unwindSelect(t), s"Has[System]")
 
       case t @ Clock_Old_Exact(Name(_)) =>
-        Patch.addGlobalImport(newClock) +
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newClock) +
           Patch.replaceTree(unwindSelect(t), s"Has[Clock]")
 
       case t @ Test_Clock_Old_Exact(Name(_)) =>
-        Patch.addGlobalImport(newTestClock) +
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newTestClock) +
           Patch.replaceTree(unwindSelect(t), s"Has[TestClock]")
 
       case t @ Sized_Old_Exact(Name(_)) =>
-        Patch.addGlobalImport(newSized) +
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newSized) +
           Patch.replaceTree(unwindSelect(t), s"Has[Sized]")
 
       case t @ Live_Old_Exact(Name(_)) =>
-        Patch.addGlobalImport(newLive) +
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newLive) +
           Patch.replaceTree(unwindSelect(t), s"Has[Live]")
 
       case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_)) =>
@@ -386,7 +418,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ q"import zio.console._" =>
         Patch.replaceTree(t, "") +
           Patch.addGlobalImport(wildcardImport(q"zio.Console"))
-    }.asPatch + replaceSymbols // + fixPackages
+    }.asPatch + replaceSymbols
 
   private def wildcardImport(ref: Term.Ref): Importer =
     Importer(ref, List(Importee.Wildcard()))

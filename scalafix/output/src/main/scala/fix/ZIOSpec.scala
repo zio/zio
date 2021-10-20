@@ -11,7 +11,7 @@ import zio.test.environment.{Live, TestClock}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
-import zio.{ Clock, Clock, Random, Random, _ }
+import zio.{ Clock, Clock, Has, Random, Random, _ }
 import zio.test.Sized
 import zio.test.environment.Live
 

@@ -5,6 +5,7 @@ package fix
 
 import zio._
 import zio.blocking.effectBlockingIO
+import zio.blocking._
 import zio.console._
 
 object Zio2Renames {
@@ -21,6 +22,16 @@ object Zio2Renames {
   val bimap      = effect.bimap(_ => UIO.unit, _ => UIO.unit)
 
   val printline = console.putStrLn("HEY")
+
+  // foreachParN
+  val foreachParN = ZIO.foreachParN(4)(List(1,2)) { int =>
+    ZIO.succeed(int)
+  }
+
+  // foreachParN[Types]
+  val foreachParNWithTypes = ZIO.foreachParN[Any, Nothing, Int, Int, List](4)(List(1,2)) { int =>
+    ZIO.succeed(int)
+  }
 
   // Blocking
   effectBlockingIO(1)

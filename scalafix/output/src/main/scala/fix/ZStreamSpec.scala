@@ -14,7 +14,7 @@ import zio.test.environment.TestClock
 import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
-import zio.{ Clock, Clock }
+import zio.{ Clock, Clock, Has }
 import zio.test.environment.TestClock
 
 object ZStreamSpec extends DefaultRunnableSpec {
