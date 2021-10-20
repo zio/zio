@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * Describes a strategy for evaluating multiple effects, potentially in
  * parallel. There are three possible execution strategies: `Sequential`,

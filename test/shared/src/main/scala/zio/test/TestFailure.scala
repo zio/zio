@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.Cause
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 sealed abstract class TestFailure[+E]
 

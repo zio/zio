@@ -16,6 +16,8 @@
 
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
@@ -160,7 +162,7 @@ private final class ZScheduler(val yieldOpCount: Int) extends zio.Executor {
   }
   workers.foreach(_.start())
 
-  def metrics: Option[ExecutionMetrics] = {
+  def unsafeMetrics: Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
       def capacity: Int =
         Int.MaxValue
@@ -209,7 +211,31 @@ private final class ZScheduler(val yieldOpCount: Int) extends zio.Executor {
     Some(metrics)
   }
 
-  def submit(runnable: Runnable): Boolean = {
+  def unsafeSubmit(runnable: Runnable): Boolean = {
+    val currentThread = Thread.currentThread
+    if (currentThread.isInstanceOf[ZScheduler.Worker]) {
+      val worker = currentThread.asInstanceOf[ZScheduler.Worker]
+      if (!worker.localQueue.offer(runnable)) {
+        globalQueue.offerAll(worker.localQueue.pollUpTo(128) :+ runnable)
+      }
+    } else {
+      globalQueue.offer(runnable)
+    }
+    val currentState     = state.get
+    val currentActive    = (currentState & 0xffff0000) >> 16
+    val currentSearching = currentState & 0xffff
+    if (currentActive != poolSize && currentSearching == 0) {
+      val worker = idle.poll(null)
+      if (worker ne null) {
+        state.getAndAdd(0x10001)
+        worker.active = true
+        LockSupport.unpark(worker)
+      }
+    }
+    true
+  }
+
+  override def unsafeSubmitAndYield(runnable: Runnable): Boolean = {
     val currentThread = Thread.currentThread
     var notify        = false
     if (currentThread.isInstanceOf[ZScheduler.Worker]) {

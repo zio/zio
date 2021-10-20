@@ -3,6 +3,7 @@ package zio.metrics.jvm
 import com.github.ghik.silencer.silent
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{BufferPoolMXBean, ManagementFactory}
 
@@ -26,7 +27,7 @@ trait BufferPools extends JvmMetrics {
 
   private def reportBufferPoolMetrics(
     bufferPoolMXBeans: List[BufferPoolMXBean]
-  ): ZIO[Any, Throwable, Unit] =
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     ZIO.foreachParDiscard(bufferPoolMXBeans) { bufferPoolMXBean =>
       for {
         name <- Task(bufferPoolMXBean.getName)
@@ -37,7 +38,7 @@ trait BufferPools extends JvmMetrics {
     }
 
   @silent("JavaConverters")
-  val collectMetrics: ZManaged[Has[Clock], Throwable, BufferPools] =
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock], Throwable, BufferPools] =
     for {
       bufferPoolMXBeans <- Task(
                              ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList
@@ -51,6 +52,6 @@ trait BufferPools extends JvmMetrics {
 
 object BufferPools extends BufferPools with JvmMetrics.DefaultSchedule {
   def withSchedule(schedule: Schedule[Any, Any, Unit]): BufferPools = new BufferPools {
-    override protected val collectionSchedule: Schedule[Any, Any, Unit] = schedule
+    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
   }
 }

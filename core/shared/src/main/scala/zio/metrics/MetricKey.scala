@@ -17,6 +17,7 @@
 package zio.metrics
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `MetricKey` is a unique key associated with each metric. The key is based
@@ -29,9 +30,15 @@ sealed trait MetricKey
 
 object MetricKey {
   final case class Counter(name: String, tags: Chunk[MetricLabel] = Chunk.empty) extends MetricKey
-  final case class Gauge(name: String, tags: Chunk[MetricLabel] = Chunk.empty)   extends MetricKey
-  final case class Histogram(name: String, boundaries: Chunk[Double], tags: Chunk[MetricLabel] = Chunk.empty)
-      extends MetricKey
+
+  final case class Gauge(name: String, tags: Chunk[MetricLabel] = Chunk.empty) extends MetricKey
+
+  final case class Histogram(
+    name: String,
+    boundaries: ZIOMetric.Histogram.Boundaries,
+    tags: Chunk[MetricLabel] = Chunk.empty
+  ) extends MetricKey
+
   final case class Summary(
     name: String,
     maxAge: Duration,
@@ -40,6 +47,7 @@ object MetricKey {
     quantiles: Chunk[Double],
     tags: Chunk[MetricLabel] = Chunk.empty
   ) extends MetricKey
+
   final case class SetCount(name: String, setTag: String, tags: Chunk[MetricLabel] = Chunk.empty) extends MetricKey {
     def counterKey(word: String): MetricKey.Counter = MetricKey.Counter(name, Chunk(MetricLabel(setTag, word)) ++ tags)
   }

@@ -7,7 +7,7 @@ These are coding guidelines strictly for ZIO contributors for ZIO projects and
 not general conventions to be applied by the Scala community at large.
 
 Additionally, bear in mind that, although we try to enforce these rules to the 
-best of our ability, both via automated rules (scalafix) and strict reviewing 
+best of our ability, both via automated rules (scalafmt) and strict reviewing 
 processes, it is both possible to find existing code that does not comply to 
 these rules. If that is the case, we would be extremely grateful if you could 
 make a contribution, by providing a fix to said issue.
@@ -105,7 +105,7 @@ This section will attempt to provide some guidelines and examples to document, g
 5. Constructors for a data type `X` that are based on another data type `Y` should be placed in the companion object `X` and named `fromY`. 
    For example, `ZIO.fromOption`, `ZStream.fromEffect`;
    
-6. Parallel versions of methods should be named the same, but with a `Par` suffix. Parallel versions with a bound on parallelism should use a `ParN` suffix;
+6. Parallel versions of methods should be named the same, but with a `Par` suffix.
 
 7. `foreach` should be used for operators that effectually iterate over a collection. For example, `ZIO.foreach`.
 
@@ -114,6 +114,8 @@ This section will attempt to provide some guidelines and examples to document, g
 
 9. Use the `Discard` suffix for variants of methods that discard their results. For example, `foreachDiscard`. The `_` suffix should not be used as it is not idiomatic Scala and
    does not describe what it does.
+
+10. Methods that are necessarily side effecting should be prefixed with `unsafe`, for example `unsafeRun`. This does not apply to methods on internal data types that are inherently imperative in nature, for example `MutableConcurrentQueue`.
    
 ### Type annotations
 

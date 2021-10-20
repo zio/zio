@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * An `Exit[E, A]` describes the result of executing an `IO` value. The
  * result is either succeeded with a value `A`, or failed with a `Cause[E]`.
@@ -111,13 +113,17 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
   @deprecated("use foldZIO", "2.0.0")
-  final def foldM[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B]): ZIO[R, E1, B] =
+  final def foldM[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E1, B] =
     foldZIO(failed, completed)
 
   /**
    * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
    */
-  final def foldZIO[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B]): ZIO[R, E1, B] =
+  final def foldZIO[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E1, B] =
     self match {
       case Failure(cause) => failed(cause)
       case Success(v)     => completed(v)
@@ -127,7 +133,7 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
    * Applies the function `f` to the successful result of the `Exit` and
    * returns the result in a new `Exit`.
    */
-  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
+  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, Nothing, Exit[E1, B]] =
     fold(c => ZIO.succeedNow(failCause(c)), a => f(a).exit)
 
   /**
@@ -144,6 +150,11 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   @deprecated("use isInterrupted", "2.0.0")
   final def interrupted: Boolean =
     isInterrupted
+
+  /**
+   * Determines if the result is a failure.
+   */
+  final def isFailure: Boolean = !isSuccess
 
   /**
    * Determines if the result is interrupted.

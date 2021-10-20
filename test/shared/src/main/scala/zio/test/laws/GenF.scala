@@ -16,8 +16,10 @@
 
 package zio.test.laws
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
 import zio.{Chunk, Has, Random}
+import zio.ZTraceElement
 
 /**
  * A `GenF` knows how to construct a generator of `F[A]` values given a
@@ -31,7 +33,7 @@ trait GenF[-R, F[_]] {
   /**
    * Construct a generator of `F[A]` values given a generator of `A` values.
    */
-  def apply[R1 <: R, A](gen: Gen[R1, A]): Gen[R1, F[A]]
+  def apply[R1 <: R, A](gen: Gen[R1, A])(implicit trace: ZTraceElement): Gen[R1, F[A]]
 }
 
 object GenF {
@@ -41,7 +43,9 @@ object GenF {
    */
   val chunk: GenF[Has[Random] with Has[Sized], Chunk] =
     new GenF[Has[Random] with Has[Sized], Chunk] {
-      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A]): Gen[R1, Chunk[A]] =
+      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A])(implicit
+        trace: ZTraceElement
+      ): Gen[R1, Chunk[A]] =
         Gen.chunkOf(gen)
     }
 
@@ -50,7 +54,7 @@ object GenF {
    */
   def either[R <: Has[Random], A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Either[A, x] })#lambda] =
     new GenF[R, ({ type lambda[+x] = Either[A, x] })#lambda] {
-      def apply[R1 <: R, B](b: Gen[R1, B]): Gen[R1, Either[A, B]] =
+      def apply[R1 <: R, B](b: Gen[R1, B])(implicit trace: ZTraceElement): Gen[R1, Either[A, B]] =
         Gen.either(a, b)
     }
 
@@ -59,7 +63,9 @@ object GenF {
    */
   val list: GenF[Has[Random] with Has[Sized], List] =
     new GenF[Has[Random] with Has[Sized], List] {
-      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A]): Gen[R1, List[A]] =
+      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A])(implicit
+        trace: ZTraceElement
+      ): Gen[R1, List[A]] =
         Gen.listOf(gen)
     }
 
@@ -68,7 +74,7 @@ object GenF {
    */
   def map[R <: Has[Random] with Has[Sized], A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] =
     new GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] {
-      def apply[R1 <: R, B](b: Gen[R1, B]): Gen[R1, Map[A, B]] =
+      def apply[R1 <: R, B](b: Gen[R1, B])(implicit trace: ZTraceElement): Gen[R1, Map[A, B]] =
         Gen.mapOf(a, b)
     }
 
@@ -77,7 +83,7 @@ object GenF {
    */
   val option: GenF[Has[Random], Option] =
     new GenF[Has[Random], Option] {
-      def apply[R1 <: Has[Random], A](gen: Gen[R1, A]): Gen[R1, Option[A]] =
+      def apply[R1 <: Has[Random], A](gen: Gen[R1, A])(implicit trace: ZTraceElement): Gen[R1, Option[A]] =
         Gen.option(gen)
     }
 
@@ -86,7 +92,7 @@ object GenF {
    */
   val set: GenF[Has[Random] with Has[Sized], Set] =
     new GenF[Has[Random] with Has[Sized], Set] {
-      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A]): Gen[R1, Set[A]] =
+      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A])(implicit trace: ZTraceElement): Gen[R1, Set[A]] =
         Gen.setOf(gen)
     }
 
@@ -95,7 +101,9 @@ object GenF {
    */
   val vector: GenF[Has[Random] with Has[Sized], Vector] =
     new GenF[Has[Random] with Has[Sized], Vector] {
-      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A]): Gen[R1, Vector[A]] =
+      def apply[R1 <: Has[Random] with Has[Sized], A](gen: Gen[R1, A])(implicit
+        trace: ZTraceElement
+      ): Gen[R1, Vector[A]] =
         Gen.vectorOf(gen)
     }
 }

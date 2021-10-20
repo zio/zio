@@ -2,7 +2,7 @@ package zio
 
 import cats._
 import cats.effect.{Fiber => CFiber, IO => CIO}
-import zio.internal._
+import zio.internal.tracing.Tracing
 
 import scala.concurrent.ExecutionContext
 

@@ -16,11 +16,12 @@
 
 package zio.test.mock
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
 import zio.test.mock.Expectation.{And, Chain, Or, Repeated}
 import zio.test.mock.Result.{Fail, Succeed}
 import zio.test.mock.internal.{ExpectationState, MockException, MockState, ProxyFactory}
-import zio.{Has, IO, Managed, Tag, ULayer, URLayer, ZLayer}
+import zio.{Has, IO, Managed, Tag, ULayer, URLayer, ZLayer, ZTraceElement}
 
 import scala.language.implicitConversions
 
@@ -141,7 +142,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   /**
    * Converts this expectation to ZLayer.
    */
-  def toLayer: ULayer[R] = Expectation.toLayer(self)
+  def toLayer(implicit trace: ZTraceElement): ULayer[R] = Expectation.toLayer(self)
 
   /**
    * Invocations log.
@@ -302,37 +303,37 @@ object Expectation {
   /**
    * Expectation result failing with `E`.
    */
-  def failure[E](failure: E): Fail[Any, E] = Fail(_ => IO.fail(failure))
+  def failure[E](failure: E)(implicit trace: ZTraceElement): Fail[Any, E] = Fail(_ => IO.fail(failure))
 
   /**
    * Maps the input arguments `I` to expectation result failing with `E`.
    */
-  def failureF[I, E](f: I => E): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
+  def failureF[I, E](f: I => E)(implicit trace: ZTraceElement): Fail[I, E] = Fail(i => IO.succeed(i).map(f).flip)
 
   /**
    * Effectfully maps the input arguments `I` to expectation result failing with `E`.
    */
-  def failureM[I, E](f: I => IO[E, Nothing]): Fail[I, E] = Fail(f)
+  def failureM[I, E](f: I => IO[E, Nothing])(implicit trace: ZTraceElement): Fail[I, E] = Fail(f)
 
   /**
    * Expectation result computing forever.
    */
-  def never: Succeed[Any, Nothing] = valueM(_ => IO.never)
+  def never(implicit trace: ZTraceElement): Succeed[Any, Nothing] = valueM(_ => IO.never)
 
   /**
    * Expectation result succeeding with `Unit`.
    */
-  def unit: Succeed[Any, Unit] = value(())
+  def unit(implicit trace: ZTraceElement): Succeed[Any, Unit] = value(())
 
   /**
    * Expectation result succeeding with `A`.
    */
-  def value[A](value: A): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
+  def value[A](value: A)(implicit trace: ZTraceElement): Succeed[Any, A] = Succeed(_ => IO.succeed(value))
 
   /**
    * Maps the input arguments `I` to expectation result succeeding with `A`.
    */
-  def valueF[I, A](f: I => A): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
+  def valueF[I, A](f: I => A)(implicit trace: ZTraceElement): Succeed[I, A] = Succeed(i => IO.succeed(i).map(f))
 
   /**
    * Effectfully maps the input arguments `I` expectation result succeeding with `A`.
@@ -342,7 +343,7 @@ object Expectation {
   /**
    * Implicitly converts Expectation to ZLayer mock environment.
    */
-  implicit def toLayer[R <: Has[_]: Tag](trunk: Expectation[R]): ULayer[R] =
+  implicit def toLayer[R <: Has[_]: Tag](trunk: Expectation[R])(implicit trace: ZTraceElement): ULayer[R] =
     ZLayer(
       for {
         state <- Managed.acquireReleaseWith(MockState.make(trunk))(MockState.checkUnmetExpectations)

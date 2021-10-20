@@ -16,6 +16,7 @@
 
 package zio.test.internal.myers
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.ConsoleUtils
 import zio.{Chunk, ChunkBuilder}
 

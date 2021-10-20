@@ -273,7 +273,7 @@ import zio.Console._
 object MyApp extends ZIOAppDefault {
   def run =
     for {
-      arguments <- args
+      arguments <- getArgs
       _         <- startMyApp(arguments) 
     } yield ()
 }

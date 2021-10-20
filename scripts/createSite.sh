@@ -10,7 +10,7 @@ rm -Rf website/versioned_docs
 
 # Checkout latest released version of 1.x 
 git checkout refs/tags/v1.0.12
-git clean -df 
+git clean -df
 sbt docs/mdoc docs/unidoc
 
 mkdir -p website/versioned_docs/version-1.x
@@ -19,7 +19,7 @@ mv zio-docs/target/mdoc/* website/versioned_docs/version-1.x
 mkdir -p website/static/api/1.x
 mv website/static/api website/static/api-1.x
 
-# No we need to checkout the branch that originally has triggered the site build 
+# No we need to checkout the branch that originally has triggered the site build
 git checkout $1
 sbt docs/unidoc docs/mdoc
 

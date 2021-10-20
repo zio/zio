@@ -17,6 +17,7 @@
 package zio.internal
 
 import zio.{Chunk, ChunkBuilder}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A bounded hub with capacity equal to a power of two backed by an array.

@@ -16,6 +16,8 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.collection.mutable.Map
 
 private[test] final case class ConcurrentHashMap[K, V] private (private val map: Map[K, V]) {

@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * Whether ZIO Tracing is enabled for the current fiber in the current region.
  */

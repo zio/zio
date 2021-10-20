@@ -16,8 +16,9 @@
 
 package zio.test
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Macros.location
-import zio.{UIO, ZIO}
+import zio.{UIO, ZIO, ZTraceElement}
 
 import scala.annotation.tailrec
 import scala.compiletime.testing.typeChecks
@@ -50,13 +51,13 @@ trait CompileVariants {
     sourceLocation: Option[String] = None
   )(
     assertion: Assertion[A]
-  ): TestResult
+  )(implicit trace: ZTraceElement): TestResult
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)
-                                            (assertion: AssertionM[A]): ZIO[R, E, TestResult]
+                                            (assertion: AssertionM[A])(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
 
   inline def assertTrue(inline exprs: => Boolean*): Assert = ${SmartAssertMacros.smartAssert('exprs)}
 
@@ -75,15 +76,15 @@ trait CompileVariants {
  */
 object CompileVariants {
 
-  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A]): TestResult =
+  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult =
     zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
 
   def smartAssertProxy[A](value: => A, expression: String, sourceLocation: String)(
     assertion: Assertion[A]
-  ): TestResult =
+  )(implicit trace: ZTraceElement): TestResult =
     zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
 
   def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)
-                              (assertion: AssertionM[A]): ZIO[R, E, TestResult] =
+                              (assertion: AssertionM[A])(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
     zio.test.assertMImpl(effect, Some(sourceLocation))(assertion)
 }

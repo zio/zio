@@ -17,6 +17,8 @@
 package zio.test
 
 import zio.{Has, URIO, ZIO, ZLayer}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.ZTraceElement
 
 /**
  * The `TestConfig` service provides access to default configuration settings
@@ -53,7 +55,9 @@ object TestConfig {
   /**
    * Constructs a new `TestConfig` service with the specified settings.
    */
-  def live(repeats0: Int, retries0: Int, samples0: Int, shrinks0: Int): ZLayer[Any, Nothing, Has[TestConfig]] =
+  def live(repeats0: Int, retries0: Int, samples0: Int, shrinks0: Int)(implicit
+    trace: ZTraceElement
+  ): ZLayer[Any, Nothing, Has[TestConfig]] =
     ZLayer.succeed {
       new TestConfig {
         val repeats = repeats0
@@ -66,24 +70,24 @@ object TestConfig {
   /**
    * The number of times to repeat tests to ensure they are stable.
    */
-  val repeats: URIO[Has[TestConfig], Int] =
+  def repeats(implicit trace: ZTraceElement): URIO[Has[TestConfig], Int] =
     ZIO.access(_.get.repeats)
 
   /**
    * The number of times to retry flaky tests.
    */
-  val retries: URIO[Has[TestConfig], Int] =
+  def retries(implicit trace: ZTraceElement): URIO[Has[TestConfig], Int] =
     ZIO.access(_.get.retries)
 
   /**
    * The number of sufficient samples to check for a random variable.
    */
-  val samples: URIO[Has[TestConfig], Int] =
+  def samples(implicit trace: ZTraceElement): URIO[Has[TestConfig], Int] =
     ZIO.access(_.get.samples)
 
   /**
    * The maximum number of shrinkings to minimize large failures
    */
-  val shrinks: URIO[Has[TestConfig], Int] =
+  def shrinks(implicit trace: ZTraceElement): URIO[Has[TestConfig], Int] =
     ZIO.access(_.get.shrinks)
 }

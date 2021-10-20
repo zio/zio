@@ -1,5 +1,6 @@
 package zio.test.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test._
 import zio.test.diff.Diff
 
