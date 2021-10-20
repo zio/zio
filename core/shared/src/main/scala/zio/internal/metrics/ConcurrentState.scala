@@ -131,7 +131,7 @@ private[zio] class ConcurrentState {
       val histogram = ConcurrentMetricState.Histogram(
         key,
         "",
-        ConcurrentHistogram.manual(key.boundaries)
+        ConcurrentHistogram.manual(key.boundaries.chunk)
       )
       map.putIfAbsent(key, histogram)
       value = map.get(key)

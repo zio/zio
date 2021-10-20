@@ -111,7 +111,7 @@ object ZIOMetric {
    * A metric aspect that tracks how long the effect it is applied to takes to
    * complete execution, recording the results in a histogram.
    */
-  def observeDurations[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(
+  def observeDurations[A](name: String, boundaries: Histogram.Boundaries, tags: MetricLabel*)(
     f: Duration => Double
   ): Histogram[A] =
     new Histogram[A](name, boundaries, Chunk.fromIterable(tags)) {
@@ -125,7 +125,11 @@ object ZIOMetric {
    * A metric aspect that adds a value to a histogram each time the effect it
    * is applied to succeeds.
    */
-  def observeHistogram(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram[Double] =
+  def observeHistogram(
+    name: String,
+    boundaries: Histogram.Boundaries,
+    tags: MetricLabel*
+  ): Histogram[Double] =
     new Histogram[Double](name, boundaries, Chunk.fromIterable(tags)) {
       def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.tap(observe)
@@ -136,7 +140,7 @@ object ZIOMetric {
    * is applied to succeeds, using the specified function to transform the
    * value returned by the effect to the value to add to the histogram.
    */
-  def observeHistogramWith[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(
+  def observeHistogramWith[A](name: String, boundaries: Histogram.Boundaries, tags: MetricLabel*)(
     f: A => Double
   ): Histogram[A] =
     new Histogram[A](name, boundaries, Chunk.fromIterable(tags)) {
@@ -339,7 +343,7 @@ object ZIOMetric {
    */
   abstract class Histogram[A](
     final val name: String,
-    final val boundaries: Chunk[Double],
+    final val boundaries: Histogram.Boundaries,
     final val tags: Chunk[MetricLabel]
   ) extends ZIOMetric[A] { self =>
     private[this] val histogram = internal.metrics.Histogram(name, boundaries, tags)
@@ -365,7 +369,7 @@ object ZIOMetric {
      */
     final def copy(
       name: String = name,
-      boundaries: Chunk[Double] = boundaries,
+      boundaries: Histogram.Boundaries = boundaries,
       tags: Chunk[MetricLabel] = tags
     ): Histogram[A] =
       new Histogram[A](name, boundaries, tags) {
@@ -410,6 +414,27 @@ object ZIOMetric {
      */
     protected lazy val metricType =
       self.getClass
+  }
+
+  object Histogram {
+    final case class Boundaries(chunk: Chunk[Double])
+
+    object Boundaries {
+
+      def fromChunk(chunk: Chunk[Double]): Boundaries = Boundaries((chunk ++ Chunk(Double.MaxValue)).distinct)
+
+      /**
+       * A helper method to create histogram bucket boundaries for a histogram with linear increasing values
+       */
+      def linear(start: Double, width: Double, count: Int): Boundaries =
+        fromChunk(Chunk.fromArray(0.until(count).map(i => start + i * width).toArray))
+
+      /**
+       * A helper method to create histogram bucket boundaries for a histogram with exponentially increasing values
+       */
+      def exponential(start: Double, factor: Double, count: Int): Boundaries =
+        fromChunk(Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray))
+    }
   }
 
   /**

@@ -1778,8 +1778,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect until its value satisfies the specified predicate
    * or until the first failure.
    */
-  final def repeatUntil(f: A => Boolean)(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    repeatUntilZIO(a => ZIO.succeed(f(a)))
+  final def repeatUntil(p: A => Boolean)(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    repeatUntilZIO(a => ZIO.succeed(p(a)))
 
   /**
    * Repeats this effect until its value is equal to the specified value
@@ -1807,8 +1807,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect while its value satisfies the specified predicate
    * or until the first failure.
    */
-  final def repeatWhile(f: A => Boolean)(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    repeatWhileZIO(a => ZIO.succeed(f(a)))
+  final def repeatWhile(p: A => Boolean)(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    repeatWhileZIO(a => ZIO.succeed(p(a)))
 
   /**
    * Repeats this effect for as long as its value is equal to the specified value
@@ -2454,25 +2454,25 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  final def unless(b: => Boolean)(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
-    ZIO.unless(b)(self)
+  final def unless(p: => Boolean)(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
+    ZIO.unless(p)(self)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
   @deprecated("use unlessZIO", "2.0.0")
-  final def unlessM[R1 <: R, E1 >: E](b: => ZIO[R1, E1, Boolean])(implicit
+  final def unlessM[R1 <: R, E1 >: E](p: => ZIO[R1, E1, Boolean])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, Option[A]] =
-    unlessZIO(b)
+    unlessZIO(p)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  final def unlessZIO[R1 <: R, E1 >: E](b: => ZIO[R1, E1, Boolean])(implicit
+  final def unlessZIO[R1 <: R, E1 >: E](p: => ZIO[R1, E1, Boolean])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, Option[A]] =
-    ZIO.unlessZIO(b)(self)
+    ZIO.unlessZIO(p)(self)
 
   /**
    * Converts an option on errors into an option on values.
@@ -2595,25 +2595,25 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The moral equivalent of `if (p) exp`
    */
-  final def when(b: => Boolean)(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
-    ZIO.when(b)(self)
+  final def when(p: => Boolean)(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
+    ZIO.when(p)(self)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   @deprecated("use whenZIO", "2.0.0")
   final def whenM[R1 <: R, E1 >: E](
-    b: => ZIO[R1, E1, Boolean]
+    p: => ZIO[R1, E1, Boolean]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, Option[A]] =
-    whenZIO(b)
+    whenZIO(p)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   final def whenZIO[R1 <: R, E1 >: E](
-    b: => ZIO[R1, E1, Boolean]
+    p: => ZIO[R1, E1, Boolean]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, Option[A]] =
-    ZIO.whenZIO(b)(self)
+    ZIO.whenZIO(p)(self)
 
   /**
    * Runs this effect with the specified maximum number of fibers for parallel
@@ -5276,21 +5276,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (!p) exp`
    */
-  def unless[R, E, A](b: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
-    suspendSucceed(if (b) none else zio.asSome)
+  def unless[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
+    suspendSucceed(if (p) none else zio.asSome)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
   @deprecated("use unlessZIO", "2.0.0")
-  def unlessM[R, E](b: => ZIO[R, E, Boolean]): ZIO.UnlessZIO[R, E] =
-    unlessZIO(b)
+  def unlessM[R, E](p: => ZIO[R, E, Boolean]): ZIO.UnlessZIO[R, E] =
+    unlessZIO(p)
 
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  def unlessZIO[R, E](b: => ZIO[R, E, Boolean]): ZIO.UnlessZIO[R, E] =
-    new ZIO.UnlessZIO(() => b)
+  def unlessZIO[R, E](p: => ZIO[R, E, Boolean]): ZIO.UnlessZIO[R, E] =
+    new ZIO.UnlessZIO(() => p)
 
   /**
    * The inverse operation `IO.sandboxed`
@@ -5467,8 +5467,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (p) exp`
    */
-  def when[R, E, A](b: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
-    suspendSucceed(if (b) zio.asSome else none)
+  def when[R, E, A](p: => Boolean)(zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
+    suspendSucceed(if (p) zio.asSome else none)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given value, otherwise does nothing.
@@ -5499,14 +5499,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
   @deprecated("use whenZIO", "2.0.0")
-  def whenM[R, E](b: => ZIO[R, E, Boolean]): ZIO.WhenZIO[R, E] =
-    whenZIO(b)
+  def whenM[R, E](p: => ZIO[R, E, Boolean]): ZIO.WhenZIO[R, E] =
+    whenZIO(p)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  def whenZIO[R, E](b: => ZIO[R, E, Boolean]): ZIO.WhenZIO[R, E] =
-    new ZIO.WhenZIO(() => b)
+  def whenZIO[R, E](p: => ZIO[R, E, Boolean]): ZIO.WhenZIO[R, E] =
+    new ZIO.WhenZIO(() => p)
 
   /**
    * Locally installs a supervisor and an effect that succeeds with all the
