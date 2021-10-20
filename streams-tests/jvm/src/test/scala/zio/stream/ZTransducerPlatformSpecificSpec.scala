@@ -1,6 +1,6 @@
 package zio.stream
 
-import ZTransducer.{BOM, CharsetUtf32BE, CharsetUtf32LE}
+import ZTransducer.{BOM, CharsetUtf32, CharsetUtf32BE, CharsetUtf32LE}
 
 import zio._
 import zio.test._
@@ -248,6 +248,12 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
           ZTransducer.utf16Decode,
           StandardCharsets.UTF_16BE
         )
+      },
+      test("UTF-16, using random strings") {
+        testDecoderWithRandomStringUsing(
+          ZTransducer.utf16Decode,
+          StandardCharsets.UTF_16
+        )
       }
     ),
     suite("ZTransducer.utf16BEDecode")(
@@ -301,7 +307,13 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
           ZTransducer.utf32Decode,
           CharsetUtf32BE
         )
-      } @@ runOnlyIfSupporting("UTF-32BE")
+      } @@ runOnlyIfSupporting("UTF-32BE"),
+      test("UTF-32, using random strings") {
+        testDecoderWithRandomStringUsing(
+          ZTransducer.utf32Decode,
+          CharsetUtf32
+        )
+      } @@ runOnlyIfSupporting("UTF-32")
     ),
     suite("ZTransducer.utf32BEDecode")(
       test("UTF-32BE w/o BOM") {
@@ -399,11 +411,18 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
           BOM.Utf16LE ++ _
         )
       },
-      test("UTF-16, using random strings") {
+      test("UTF-16") {
+        testEncoderUsing(
+          "quickbrown-UTF-16BE-no-BOM",
+          ZTransducer.utf16Decode,
+          ZTransducer.utf16Encode
+        )
+      },
+      test("UTF-16, using random strings and Utf16BE charset") {
         testEncoderWithRandomStringUsing(
           ZTransducer.utf16Decode,
           ZTransducer.utf16Encode,
-          StandardCharsets.UTF_16
+          StandardCharsets.UTF_16BE
         )
       },
       test("UTF-32BE") {
@@ -420,7 +439,7 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
           CharsetUtf32BE,
           BOM.Utf32BE ++ _
         )
-      },
+      } @@ runOnlyIfSupporting("UTF-32BE"),
       test("UTF-32LE") {
         testEncoderUsing(
           "quickbrown-UTF-32LE-with-BOM",
@@ -435,10 +454,10 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
           CharsetUtf32LE,
           BOM.Utf32LE ++ _
         )
-      },
+      } @@ runOnlyIfSupporting("UTF-32LE"),
       test("UTF-32") {
         testEncoderUsing(
-          "quickbrown-UTF-32BE-with-BOM",
+          "quickbrown-UTF-32BE-no-BOM",
           ZTransducer.utf32Decode,
           ZTransducer.utf32Encode
         )
@@ -447,8 +466,14 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
         testEncoderWithRandomStringUsing(
           ZTransducer.utf32Decode,
           ZTransducer.utf32Encode,
-          CharsetUtf32BE,
-          BOM.Utf32BE ++ _
+          CharsetUtf32
+        )
+      } @@ runOnlyIfSupporting("UTF-32"),
+      test("UTF-32, using random strings and Utf32BE charset") {
+        testEncoderWithRandomStringUsing(
+          ZTransducer.utf32Decode,
+          ZTransducer.utf32Encode,
+          CharsetUtf32BE
         )
       } @@ runOnlyIfSupporting("UTF-32BE")
     )

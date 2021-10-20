@@ -186,6 +186,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
 
   type TransduceStringToByte = ZTransducer[Any, Nothing, String, Byte]
 
+  val CharsetUtf32: Charset   = Charset.forName("UTF-32")
   val CharsetUtf32BE: Charset = Charset.forName("UTF-32BE")
   val CharsetUtf32LE: Charset = Charset.forName("UTF-32LE")
 
@@ -1057,7 +1058,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         prepend(bytes.drop(2)) >>>
           utf16LEDecode
       case bytes =>
-        prepend(bytes) >>> utf8Decode
+        prepend(bytes) >>>
+          utf8Decode
     }
 
   /**
@@ -1250,7 +1252,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       prepend(BOM.Utf16LE)
 
   def utf16Encode(implicit trace: ZTraceElement): TransduceStringToByte =
-    utfEncodeFor(StandardCharsets.UTF_16)
+    utfEncodeFor(StandardCharsets.UTF_16BE)
 
   def utf32BEEncode(implicit trace: ZTraceElement): TransduceStringToByte =
     utfEncodeFor(CharsetUtf32BE) >>>
@@ -1261,7 +1263,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
       prepend(BOM.Utf32LE)
 
   def utf32Encode(implicit trace: ZTraceElement): TransduceStringToByte =
-    utf32BEEncode
+    utfEncodeFor(CharsetUtf32BE)
 
   def usASCIIEncode(implicit trace: ZTraceElement): TransduceStringToByte =
     utfEncodeFor(StandardCharsets.US_ASCII)
