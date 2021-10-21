@@ -1,8 +1,7 @@
 package zio.stream.experimental
 
-import ZSink.{BOM, CharsetUtf32, CharsetUtf32BE, CharsetUtf32LE}
-
 import zio._
+import zio.stream.internal.CharacterSet._
 import zio.test.Assertion._
 import zio.test.TestAspect.jvmOnly
 import zio.test._
@@ -14,7 +13,7 @@ object ZSinkSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  private def stringToByteChunkOf(charset: Charset, source: String) =
+  private def stringToByteChunkOf(charset: Charset, source: String): Chunk[Byte] =
     Chunk.fromArray(source.getBytes(charset))
 
   private def testDecoderWithRandomStringUsing[Err](

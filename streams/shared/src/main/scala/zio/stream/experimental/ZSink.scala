@@ -1,6 +1,7 @@
 package zio.stream.experimental
 
 import zio._
+import zio.stream.internal.CharacterSet._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.nio.charset.{Charset, StandardCharsets}
@@ -500,10 +501,6 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
 }
 
 object ZSink {
-
-  val CharsetUtf32: Charset   = Charset.forName("UTF-32")
-  val CharsetUtf32BE: Charset = Charset.forName("UTF-32BE")
-  val CharsetUtf32LE: Charset = Charset.forName("UTF-32LE")
 
   /**
    * Accesses the environment of the sink in the context of a sink.
@@ -1340,14 +1337,6 @@ object ZSink {
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
   }
 
-  object BOM {
-    val Utf8: Chunk[Byte]    = Chunk(-17, -69, -65)
-    val Utf16BE: Chunk[Byte] = Chunk(-2, -1)
-    val Utf16LE: Chunk[Byte] = Chunk(-1, -2)
-    val Utf32BE: Chunk[Byte] = Chunk(0, 0, -2, -1)
-    val Utf32LE: Chunk[Byte] = Chunk(-1, -2, 0, 0)
-  }
-
   def utfDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
 
     def decodeWithPrepending(
@@ -1357,7 +1346,7 @@ object ZSink {
       if (bytes.isEmpty)
         ZSink.succeed(None)
       else
-        new ZSink(ZChannel.write(bytes) >>> decoder.channel)
+        new ZSink((ZChannel.write(bytes) *> ZChannel.identity[Err, Chunk[Byte], Any]) >>> decoder.channel)
 
     ZSink.take[Err, Byte](4).flatMap {
       case BOM.Utf32BE if Charset.isSupported("UTF-32BE") =>
