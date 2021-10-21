@@ -187,9 +187,14 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Console_Old = SymbolMatcher.normalized("zio/console/package.Console#")
   val Sized_Old   = SymbolMatcher.normalized("zio/test/package.Sized#")
   val Live_Old    = SymbolMatcher.normalized("zio/test/environment/package.Live#")
-  val TestService_Old      = SymbolMatcher.normalized("zio/test/package.TestConfig#")
+  val TestConfig_Old      = SymbolMatcher.normalized("zio/test/package.TestConfig#")
+  val TestConfigService_Old      = SymbolMatcher.normalized("zio/test/package.TestConfig.Service#")
+  val TestAnnotations_Old      = SymbolMatcher.normalized("zio/test/package.TestAnnotations#")
+  val TestAnnotationsService_Old      = SymbolMatcher.normalized("zio/test/package.TestAnnotations.Service#")
   val TestSystem_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestSystem#")
+  val TestSystemService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestSystem.Service#")
 
+  // TODO TestConsole, TestRandom
   val Blocking_Old_Exact   = SymbolMatcher.exact("zio/blocking/package.Blocking#")
   val Random_Old_Exact     = SymbolMatcher.exact("zio/random/package.Random#")
   val Clock_Old_Exact      = SymbolMatcher.exact("zio/clock/package.Clock#")
@@ -198,8 +203,12 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Test_Clock_Old_Exact = SymbolMatcher.exact("zio/test/environment/package.TestClock#")
   val Sized_Old_Exact      = SymbolMatcher.exact("zio/test/package.Sized#")
   val Live_Old_Exact       = SymbolMatcher.exact("zio/test/environment/package.Live#")
-  val TestService_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig#")
+  val TestConfig_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig#")
+  val TestConfigService_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig.Service#")
+  val TestAnnotations_Old_Exact      = SymbolMatcher.exact("zio/test/package.Annotations#")
+  val TestAnnotationsService_Old_Exact      = SymbolMatcher.exact("zio/test/package.Annotations.Service#")
   val TestSystem_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestSystem#")
+  val TestSystemService_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestSystem.Service#")
 
   val hasImport    = Symbol("zio/Has#")
   val newRandom    = Symbol("zio/Random#")
@@ -210,12 +219,20 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val newSized     = Symbol("zio/test/Sized#")
   val newLive      = Symbol("zio/test/environment/Live#")
   val newTestConfig      = Symbol("zio/test/TestConfig#")
+  val newAnnotations      = Symbol("zio/test/Annotations#")
   val newTestSystem      = Symbol("zio/test/environment/TestSystem#")
 
   val Clock_Old_Package   = SymbolMatcher.normalized("zio.clock")
   val Random_Old_Package  = SymbolMatcher.normalized("zio.random")
   val Console_Old_Package = SymbolMatcher.normalized("zio.console")
   val System_Old_Package  = SymbolMatcher.normalized("zio.system")
+
+  // TODO Test environment.Live
+
+  // TODO Handle all of these
+  //  type Annotations = Has[Annotations.Service]
+  //  type Sized       = Has[Sized.Service]
+  //  type TestLogger  = Has[TestLogger.Service]
 
   val Test_Clock_Old_Service = SymbolMatcher.exact("zio/clock/environment/package.TestClock.Service#")
   val Clock_Old_Service      = SymbolMatcher.exact("zio/clock/package.Clock.Service#")
@@ -247,7 +264,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.clock.localDateTime"   -> "zio.Clock.localDateTime",
     "zio.clock.currentTime"     -> "zio.Clock.currentTime",
     "zio.clock.currentDateTime" -> "zio.Clock.currentDateTime",
-    // Duration
+    // Duration TODO Delete, probably.
     "zio.duration.Duration"     -> "zio.Duration",
     // Random
     "zio.random.nextString"        -> "zio.Random.nextString",
@@ -382,6 +399,18 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ System_Old_Service(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "System") +
           Patch.addGlobalImport(newSystem)
+        
+      case t @ TestSystemService_Old_Exact(Name(_)) =>
+        Patch.replaceTree(unwindSelect(t), "TestSystem") +
+          Patch.addGlobalImport(newTestSystem)
+
+      case t @ TestConfigService_Old_Exact(Name(_)) =>
+        Patch.replaceTree(unwindSelect(t), "TestConfig") +
+          Patch.addGlobalImport(newTestSystem)
+        
+      case t @ TestAnnotationsService_Old_Exact(Name(_)) =>
+        Patch.replaceTree(unwindSelect(t), "Annotations") +
+          Patch.addGlobalImport(newTestSystem)
 
       case t @ Console_Old_Service(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "Console") +
@@ -426,10 +455,15 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.addGlobalImport(newSized) +
           Patch.replaceTree(unwindSelect(t), s"Has[Sized]")
 
-      case t @ TestService_Old_Exact(Name(_)) =>
+      case t @ TestConfig_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newTestConfig) +
           Patch.replaceTree(unwindSelect(t), s"Has[TestConfig]")
+
+      case t @ TestAnnotations_Old_Exact(Name(_)) =>
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newAnnotations) +
+          Patch.replaceTree(unwindSelect(t), s"Has[Annotations]")
 
       case t @ TestSystem_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
@@ -441,7 +475,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.addGlobalImport(newLive) +
           Patch.replaceTree(unwindSelect(t), s"Has[Live]")
 
-      case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | Live_Old(_) | TestService_Old(_) | TestSystem_Old(_)) =>
+      case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) | TestAnnotations_Old(_) | TestAnnotationsService_Old(_)) =>
         Patch.removeImportee(t)
 
       case t @ q"import zio.console._" =>
