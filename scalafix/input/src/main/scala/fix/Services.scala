@@ -8,7 +8,7 @@ import zio.{Has, URIO, ZIO}
 import zio.random.Random
 import zio.console.{getStrLn, putStrLn}
 import zio._
-import zio.test.{Annotations, TestConfig}
+import zio.test.{Annotations, TestConfig, TestLogger}
 import zio.test.environment.TestSystem
 
 object Services {
@@ -22,6 +22,8 @@ object Services {
   val testSystemService: URIO[Has[TestSystem.Service], Unit] = ZIO.unit
   val annotations: URIO[Annotations, Unit] = ZIO.unit
   val annotationsService: URIO[Has[Annotations.Service], Unit] = ZIO.unit
+  val testLogger: URIO[TestLogger, Unit] = ZIO.unit
+  val testLoggerService: URIO[Has[TestLogger.Service], Unit] = ZIO.unit
 
   val effect = getStrLn *> putStrLn("hi")
 }

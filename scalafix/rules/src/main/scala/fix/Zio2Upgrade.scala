@@ -189,6 +189,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Live_Old    = SymbolMatcher.normalized("zio/test/environment/package.Live#")
   val TestConfig_Old      = SymbolMatcher.normalized("zio/test/package.TestConfig#")
   val TestConfigService_Old      = SymbolMatcher.normalized("zio/test/package.TestConfig.Service#")
+  val TestLogger_Old      = SymbolMatcher.normalized("zio/test/package.TestLogger#")
+  val TestLoggerService_Old      = SymbolMatcher.normalized("zio/test/package.TestLogger.Service#")
   val TestAnnotations_Old      = SymbolMatcher.normalized("zio/test/package.TestAnnotations#")
   val TestAnnotationsService_Old      = SymbolMatcher.normalized("zio/test/package.TestAnnotations.Service#")
   val TestSystem_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestSystem#")
@@ -205,6 +207,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Live_Old_Exact       = SymbolMatcher.exact("zio/test/environment/package.Live#")
   val TestConfig_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig#")
   val TestConfigService_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig.Service#")
+  val TestLogger_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestLogger#")
+  val TestLoggerService_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestLogger.Service#")
   val TestAnnotations_Old_Exact      = SymbolMatcher.exact("zio/test/package.Annotations#")
   val TestAnnotationsService_Old_Exact      = SymbolMatcher.exact("zio/test/package.Annotations.Service#")
   val TestSystem_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestSystem#")
@@ -219,6 +223,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val newSized     = Symbol("zio/test/Sized#")
   val newLive      = Symbol("zio/test/environment/Live#")
   val newTestConfig      = Symbol("zio/test/TestConfig#")
+  val newTestLogger      = Symbol("zio/test/TestLogger#")
   val newAnnotations      = Symbol("zio/test/Annotations#")
   val newTestSystem      = Symbol("zio/test/environment/TestSystem#")
 
@@ -230,7 +235,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   // TODO Test environment.Live
 
   // TODO Handle all of these
-  //  type Annotations = Has[Annotations.Service]
   //  type Sized       = Has[Sized.Service]
   //  type TestLogger  = Has[TestLogger.Service]
 
@@ -406,11 +410,15 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
       case t @ TestConfigService_Old_Exact(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "TestConfig") +
-          Patch.addGlobalImport(newTestSystem)
-        
+          Patch.addGlobalImport(newTestConfig)
+
+      case t @ TestLoggerService_Old_Exact(Name(_)) =>
+        Patch.replaceTree(unwindSelect(t), "TestLogger") +
+          Patch.addGlobalImport(newTestLogger)
+
       case t @ TestAnnotationsService_Old_Exact(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "Annotations") +
-          Patch.addGlobalImport(newTestSystem)
+          Patch.addGlobalImport(newAnnotations)
 
       case t @ Console_Old_Service(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "Console") +
@@ -455,15 +463,20 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.addGlobalImport(newSized) +
           Patch.replaceTree(unwindSelect(t), s"Has[Sized]")
 
+      case t @ TestAnnotations_Old_Exact(Name(_)) =>
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newAnnotations) +
+          Patch.replaceTree(unwindSelect(t), s"Has[Annotations]")
+
       case t @ TestConfig_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newTestConfig) +
           Patch.replaceTree(unwindSelect(t), s"Has[TestConfig]")
 
-      case t @ TestAnnotations_Old_Exact(Name(_)) =>
+      case t @ TestLogger_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
-          Patch.addGlobalImport(newAnnotations) +
-          Patch.replaceTree(unwindSelect(t), s"Has[Annotations]")
+          Patch.addGlobalImport(newTestLogger) +
+          Patch.replaceTree(unwindSelect(t), s"Has[TestLogger]")
 
       case t @ TestSystem_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
@@ -475,7 +488,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.addGlobalImport(newLive) +
           Patch.replaceTree(unwindSelect(t), s"Has[Live]")
 
-      case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) | TestAnnotations_Old(_) | TestAnnotationsService_Old(_)) =>
+      case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) | TestAnnotations_Old(_) | TestAnnotationsService_Old(_) | TestLogger_Old(_) | TestLoggerService_Old(_)) =>
         Patch.removeImportee(t)
 
       case t @ q"import zio.console._" =>
