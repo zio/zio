@@ -5,6 +5,7 @@ import zio._
 import zio.{ Console, Random, System }
 import zio.Console.{ printLine, readLine }
 import zio.test.TestConfig
+import zio.test.environment.TestSystem
 
 object Services {
   val random: URIO[Has[Random], Random] = ZIO.service[Random]
@@ -12,6 +13,7 @@ object Services {
   val live: ZIO[Has[System], Nothing, Unit] = ZIO.unit
   val live2: ZIO[Has[System], Nothing, Unit] = ZIO.unit
   val testConfig: URIO[Has[TestConfig], Unit] = ZIO.unit
+  val testSystem: URIO[Has[TestSystem], Unit] = ZIO.unit
 
   val effect = readLine *> printLine("hi")
 }

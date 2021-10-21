@@ -188,6 +188,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Sized_Old   = SymbolMatcher.normalized("zio/test/package.Sized#")
   val Live_Old    = SymbolMatcher.normalized("zio/test/environment/package.Live#")
   val TestService_Old      = SymbolMatcher.normalized("zio/test/package.TestConfig#")
+  val TestSystem_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestSystem#")
 
   val Blocking_Old_Exact   = SymbolMatcher.exact("zio/blocking/package.Blocking#")
   val Random_Old_Exact     = SymbolMatcher.exact("zio/random/package.Random#")
@@ -198,6 +199,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Sized_Old_Exact      = SymbolMatcher.exact("zio/test/package.Sized#")
   val Live_Old_Exact       = SymbolMatcher.exact("zio/test/environment/package.Live#")
   val TestService_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig#")
+  val TestSystem_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestSystem#")
 
   val hasImport    = Symbol("zio/Has#")
   val newRandom    = Symbol("zio/Random#")
@@ -208,6 +210,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val newSized     = Symbol("zio/test/Sized#")
   val newLive      = Symbol("zio/test/environment/Live#")
   val newTestConfig      = Symbol("zio/test/TestConfig#")
+  val newTestSystem      = Symbol("zio/test/environment/TestSystem#")
 
   val Clock_Old_Package   = SymbolMatcher.normalized("zio.clock")
   val Random_Old_Package  = SymbolMatcher.normalized("zio.random")
@@ -428,12 +431,17 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.addGlobalImport(newTestConfig) +
           Patch.replaceTree(unwindSelect(t), s"Has[TestConfig]")
 
+      case t @ TestSystem_Old_Exact(Name(_)) =>
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newTestSystem) +
+          Patch.replaceTree(unwindSelect(t), s"Has[TestSystem]")
+
       case t @ Live_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newLive) +
           Patch.replaceTree(unwindSelect(t), s"Has[Live]")
 
-      case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | Live_Old(_) | TestService_Old(_)) =>
+      case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | Live_Old(_) | TestService_Old(_) | TestSystem_Old(_)) =>
         Patch.removeImportee(t)
 
       case t @ q"import zio.console._" =>
