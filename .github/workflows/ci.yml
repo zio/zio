@@ -66,13 +66,7 @@ jobs:
         uses: coursier/cache-action@v6
       - name: Check Website Generation
         run: |
-          ./sbt docs/mdoc
-          cd website
-          mv version2-only-docusaurus.config.js docusaurus.config.js 
-          rm -f versions.json
-          yarn install 
-          yarn build 
-          cd ..
+          ./scripts/checkSite.sh
         
   test:
     runs-on: ubuntu-20.04
