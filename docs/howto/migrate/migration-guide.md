@@ -40,6 +40,26 @@ ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base 
 
 6. Now, we have performed most of the migration. Finally, we should fix the remaining compilation errors with the help of the remaining sections in this article.
 
+## Guidelines for Library Authors
+
+As a contributor to ZIO ecosystem libraries, we also should cover these guidelines:
+
+1. We should add _implicit trace parameter_ to all our codebase, this prevents the guts of our library from messing up the user's execution trace. 
+ 
+   Let's see an example of that in the ZIO source code:
+
+   ```diff
+   trait ZIO[-R, +E, +A] {
+   -  def map[B](f: A => B): ZIO[R, E, B] =
+        flatMap(a => ZIO.succeedNow(f(a)))
+   +  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
+        flatMap(a => ZIO.succeedNow(f(a)))
+   }
+   ```
+2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters).
+3. We should update names to match [ZIO 2.0 naming conventions](#zio-20-naming-conventions).
+4. ZIO 2.0 introduced [new structured concurrently operators](#compositional-concurrency) which helps us to change the regional parallelism settings of our application. So if applicable, we should use these operators instead of the old parallel operators.
+
 ## ZIO
 
 ### Removed Methods
@@ -48,7 +68,7 @@ ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base 
 
 As the _Module Pattern 2.0_ encourages users to use `Has` with the environment `R` (`Has[R]`), it doesn't make sense to have arrow combinators. An arrow makes the `R` parameter as the _input_ of the arrow function, and it doesn't match properly with environments with the `Has` data type. So In ZIO 2.0, all arrow combinators are removed, and we need to use alternatives like doing monadic for-comprehension style `flatMap` with combinators like `provide`, `zip`, and so on.
 
-### Deprecated Methods
+### ZIO 2.0 Naming Conventions
 
 In ZIO 2.0, the name of constructors and operators becomes more ergonomic and simple. They reflect more about their purpose rather than just using idiomatic jargon of category theory or functional terms in functional programming with Haskell.
 
@@ -1606,4 +1626,3 @@ ZIO.logSpan("myspan") {
 ```
 
 ZIO Logging calculates the running duration of that span and includes that in the logging data corresponding to its span label.
-
