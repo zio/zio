@@ -366,6 +366,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio-test-scalacheck"))
   .settings(crossProjectSettings)
   .settings(
+    crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++= Seq(
       ("org.scalacheck" %%% "scalacheck" % "1.15.4")
     )
