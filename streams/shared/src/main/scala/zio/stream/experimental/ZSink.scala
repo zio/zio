@@ -1456,13 +1456,10 @@ object ZSink {
   def utf16Decode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
     ZSink.take[Err, Byte](2).flatMap {
       case BOM.Utf16BE =>
-        println(s">>> Utf16BE")
         utf16BEDecode
       case BOM.Utf16LE =>
-        println(s">>> Utf16LE")
         utf16LEDecode
       case bytes =>
-        println(s">>> No BOM: <$bytes>")
         new ZSink(ZChannel.write(bytes) >>> utf16BEDecode.channel)
     }
 
