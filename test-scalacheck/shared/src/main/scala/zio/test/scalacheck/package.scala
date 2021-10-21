@@ -26,7 +26,7 @@ import zio.test.Sized
  */
 package object scalacheck {
 
-  implicit final class ScalaCheckGenSyntax[A](private val self: scalacheck.Gen[A]) extends AnyVal {
+  implicit final class ScalaCheckGenSyntax[A](private val self: org.scalacheck.Gen[A]) extends AnyVal {
 
     /**
      * Converts a legacy ScalaCheck `Gen` to a ZIO Test `Gen`.
