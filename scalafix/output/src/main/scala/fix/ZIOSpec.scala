@@ -7,7 +7,7 @@ import zio.internal.Platform
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment.{Live, TestClock}
+import zio.test.environment.TestClock
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
