@@ -258,7 +258,16 @@ Here is the list of `zip` variants that are deprecated:
 
 ### Compositional Concurrency
 
-We introduced two operations that modify the parallel factor of a concurrent ZIO effect, `ZIO#withParallelism` and `ZIO#withParallelismUnbounded`. This makes the maximum number of fibers for parallel operators as a regional setting. Therefore, all parallelism operators ending in `N`, such as `foreachParN` and `collectAllParN`, have been deprecated.
+We introduced two operations that modify the parallel factor of a concurrent ZIO effect, `ZIO#withParallelism` and `ZIO#withParallelismUnbounded`. This makes the maximum number of fibers for parallel operators as a regional setting. Therefore, all parallelism operators ending in `N`, such as `foreachParN` and `collectAllParN`, have been deprecated:
+
+| ZIO 1.x                   | ZIO 2.x                  |
+|---------------------------|--------------------------|
+| `foreachParN`             | `foreachPar`             |
+| `foreachParN_`            | `foreachParDiscard`      |
+| `collectAllParN`          | `collectAllPar`          |
+| `collectAllParN_`         | `collectAllParDiscard`   |
+| `collectAllWithParN`      | `collectAllWithPar`      |
+| `collectAllSuccessesParN` | `collectAllSuccessesPar` |
 
 Having separate methods for changing the parallelism factor of a parallel effect deprecates lots of extra operators and makes concurrency more compositional.
 
