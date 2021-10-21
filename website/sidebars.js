@@ -274,6 +274,7 @@ module.exports = {
                 "resources/ecosystem/community/munit-zio",
                 "resources/ecosystem/community/quill",
                 "resources/ecosystem/community/rezilience",
+                "resources/ecosystem/community/tamer",
                 "resources/ecosystem/community/tranzactio",
                 "resources/ecosystem/community/zio-amqp",
                 "resources/ecosystem/community/zio-arrow",
