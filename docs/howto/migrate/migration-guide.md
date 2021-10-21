@@ -264,10 +264,12 @@ Having separate methods for changing the parallelism factor of a parallel effect
 
 So instead of writing a parallel task like this:
 
-```scala mdoc:nest:silent:warn
-val urls: List[String] = ???
-def download(url: String): Task[String] = ???
+```scala mdoc:invisible
+val urls: List[String] = List.empty
+def download(url: String): Task[String] = Task.attempt(???)
+```
 
+```scala mdoc:silent:warn
 ZIO.foreachParN(8)(urls)(download)
 ```
 
@@ -279,7 +281,7 @@ ZIO.foreachPar(urls)(download).withParallelism(8)
 
 The `withParallelismUnbounded` method is useful when we want to run a parallel effect with an unbounded maximum number of fibers:
 
-```scala mdoc:silent:nest 
+```scala mdoc:silent:nest
 ZIO.foreachPar(urls)(download).withParallelismUnbounded
 ```
 
