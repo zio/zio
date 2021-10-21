@@ -34,6 +34,8 @@ object Zio2Renames {
     ZIO.succeed(int)
   }
 
+  zio.duration.Duration
+
   // Generators
   Gen.anyInt
   Gen.anyString

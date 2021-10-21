@@ -244,6 +244,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.clock.localDateTime"   -> "zio.Clock.localDateTime",
     "zio.clock.currentTime"     -> "zio.Clock.currentTime",
     "zio.clock.currentDateTime" -> "zio.Clock.currentDateTime",
+    // Duration
+    "zio.duration.Duration"     -> "zio.Duration",
     // Random
     "zio.random.nextString"        -> "zio.Random.nextString",
     "zio.random.nextBoolean"       -> "zio.Random.nextBoolean",
