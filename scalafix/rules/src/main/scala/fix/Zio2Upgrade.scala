@@ -299,6 +299,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.TimeVariants.anyZonedDateTime" -> "zio.test.Gen.zonedDateTime",
     "zio.test.TimeVariants.anyZoneOffset" -> "zio.test.Gen.zoneOffset",
     "zio.test.TimeVariants.anyZoneId" -> "zio.test.Gen.zoneId",
+    // App
+    "zio.App" -> "zio.ZIOAppDefault"
   )
 
   val foreachParN             = ParNRenamer("foreachPar", 3)
@@ -326,6 +328,10 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
       case t @ q"$lhs.collectAllParN($n)($as)" =>
         Patch.replaceTree(t, s"$lhs.collectAllPar($as).withParallelism($n)")
+
+      case t @ q"implicit val runtime: Runtime[ZEnv] = $rhs" =>
+        Patch.removeTokens(t.tokens)
+
       case t @ q"$lhs.collectAllParN_($n)($as)" =>
         Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
       case t @ q"$lhs.collectAllParNDiscard($n)($as)" =>
