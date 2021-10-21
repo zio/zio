@@ -159,6 +159,61 @@ Here are some of the most important changes:
 | `ZIO.validate_`                | `ZIO.validateDiscard`             |
 | `ZIO.validatePar_`             | `ZIO.validateParDiscard`          |
 
+### Lazy Evaluation of Parameters
+
+In ZIO 2.x, we changed the signature of those functions that return effects to use _by-name parameters_. And we also encourage library authors to do the same for any functions that return effects.
+
+Our motivation for this change was a common mistake among new users of ZIO, which they _accidentally embed raw effects_ inside the function they pass to ZIO constructors and operators. This mistake may produce some unwanted behaviors.
+
+Let's see an example of this anti-pattern in ZIO 1.x:
+
+```scala mdoc:silent:nest:warn
+ZIO.bracket({
+  val random = scala.util.Random.nextInt()
+  ZIO.succeed(random)
+})(_ => ZIO.unit)(x => console.putStrLn(x.toString)).repeatN(2)
+```
+
+The newbie user expects that this program prints 3 different random numbers, while the output would be something as follows:
+
+```
+1085597917
+1085597917
+1085597917
+```
+
+This is because the user incorrectly introduced a raw effect into the `acquire` parameter of `bracket` operation. As the `acuqire` is _by-value parameter_, the value passed to the function evaluated _eagerly_, only once:
+
+```scala
+def bracket[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A]
+```
+
+If we make the `acquire` to _by-name parameter_, we can prevent these mistakes:
+
+```diff
+- def bracket[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A]
++ def bracket[R, E, A](acquire: => ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A]
+```
+
+So, in ZIO 2.x if we accidentally introduce an effect to the ZIO parameters, the lazy parameter prevents the program from producing undesired behaviors:
+
+```scala mdoc:silent:nest:warn
+// Note that in ZIO 2.x, the `bracket` is deprecated and renamed to the `acquireReleaseWith`. In this example to prevent the consistency of our example, we used the `bracket`.
+
+ZIO.bracket({
+  val random = scala.util.Random.nextInt()
+  ZIO.succeed(random)
+})(_ => ZIO.unit)(x => console.putStrLn(x.toString)).repeatN(2)
+```
+
+The output would be something like this:
+
+```scala
+355191016
+2046799548
+333146616
+```
+
 ### Composable Zips
 
 In ZIO 2.x, when we are zipping together different effects:
