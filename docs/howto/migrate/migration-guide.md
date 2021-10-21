@@ -155,7 +155,6 @@ Here are some of the most important changes:
 | `ZIO.replicateM`               | `ZIO.replicateZIO`                |
 | `ZIO.replicateM_`              | `ZIO.replicateZIODiscard`         |
 |                                |                                   |
-|                                |                                   |
 | `ZIO.validate_`                | `ZIO.validateDiscard`             |
 | `ZIO.validatePar_`             | `ZIO.validateParDiscard`          |
 
