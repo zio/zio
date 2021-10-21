@@ -9,7 +9,7 @@ import zio.random.Random
 import zio.console.{getStrLn, putStrLn}
 import zio._
 import zio.test.{Annotations, Sized, TestConfig, TestLogger}
-import zio.test.environment.{TestConsole, TestSystem}
+import zio.test.environment.{TestConsole, TestRandom, TestSystem}
 
 object Services {
   val random: URIO[Random, Random.Service] = ZIO.service[Random.Service]
@@ -28,6 +28,8 @@ object Services {
   val sizedService: URIO[Has[Sized.Service], Unit] = ZIO.unit
   val testConsole: URIO[TestConsole, Unit] = ZIO.unit
   val testConsoleService: URIO[Has[TestConsole.Service], Unit] = ZIO.unit
+  val testRandom: URIO[TestRandom, Unit] = ZIO.unit
+  val testRandomService: URIO[Has[TestRandom.Service], Unit] = ZIO.unit
 
   val effect = getStrLn *> putStrLn("hi")
 }

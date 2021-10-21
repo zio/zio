@@ -6,7 +6,7 @@ import zio.test.Annotations
 import zio.{ Console, Random, System }
 import zio.Console.{ printLine, readLine }
 import zio.test.{ Annotations, Sized, TestConfig, TestLogger }
-import zio.test.environment.{ TestConsole, TestSystem }
+import zio.test.environment.{ TestConsole, TestRandom, TestSystem }
 
 object Services {
   val random: URIO[Has[Random], Random] = ZIO.service[Random]
@@ -25,6 +25,8 @@ object Services {
   val sizedService: URIO[Has[Sized], Unit] = ZIO.unit
   val testConsole: URIO[Has[TestConsole], Unit] = ZIO.unit
   val testConsoleService: URIO[Has[TestConsole], Unit] = ZIO.unit
+  val testRandom: URIO[Has[TestRandom], Unit] = ZIO.unit
+  val testRandomService: URIO[Has[TestRandom], Unit] = ZIO.unit
 
   val effect = readLine *> printLine("hi")
 }

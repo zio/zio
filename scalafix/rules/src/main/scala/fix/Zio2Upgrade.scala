@@ -198,8 +198,10 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val TestSystemService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestSystem.Service#")
   val TestConsole_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestConsole#")
   val TestConsoleService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestConsole.Service#")
+  val TestRandom_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestRandom#")
+  val TestRandomService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestRandom.Service#")
 
-  // TODO TestConsole, TestRandom
+  // TODO TestRandom
   val Blocking_Old_Exact   = SymbolMatcher.exact("zio/blocking/package.Blocking#")
   val Random_Old_Exact     = SymbolMatcher.exact("zio/random/package.Random#")
   val Clock_Old_Exact      = SymbolMatcher.exact("zio/clock/package.Clock#")
@@ -219,6 +221,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val TestSystemService_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestSystem.Service#")
   val TestConsole_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestConsole#")
   val TestConsoleService_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestConsole.Service#")
+  val TestRandom_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestRandom#")
+  val TestRandomService_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestRandom.Service#")
 
   val hasImport    = Symbol("zio/Has#")
   val newRandom    = Symbol("zio/Random#")
@@ -233,6 +237,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val newAnnotations      = Symbol("zio/test/Annotations#")
   val newTestSystem      = Symbol("zio/test/environment/TestSystem#")
   val newTestConsole      = Symbol("zio/test/environment/TestConsole#")
+  val newTestRandom      = Symbol("zio/test/environment/TestRandom#")
 
   val Clock_Old_Package   = SymbolMatcher.normalized("zio.clock")
   val Random_Old_Package  = SymbolMatcher.normalized("zio.random")
@@ -419,6 +424,10 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         Patch.replaceTree(unwindSelect(t), "TestConsole") +
           Patch.addGlobalImport(newTestConsole)
 
+      case t @ TestRandomService_Old_Exact(Name(_)) =>
+        Patch.replaceTree(unwindSelect(t), "TestRandom") +
+          Patch.addGlobalImport(newTestRandom)
+
       case t @ SizedService_Old_Exact(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "Sized") +
           Patch.addGlobalImport(newSized)
@@ -503,12 +512,17 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.addGlobalImport(newTestConsole) +
           Patch.replaceTree(unwindSelect(t), s"Has[TestConsole]")
 
+      case t @ TestRandom_Old_Exact(Name(_)) =>
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newTestRandom) +
+          Patch.replaceTree(unwindSelect(t), s"Has[TestRandom]")
+
       case t @ Live_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newLive) +
           Patch.replaceTree(unwindSelect(t), s"Has[Live]")
 
-      case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | SizedService_Old(_) | Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) | TestConsole_Old(_) | TestConsoleService_Old(_) | TestAnnotations_Old(_) | TestAnnotationsService_Old(_) | TestLogger_Old(_) | TestLoggerService_Old(_)) =>
+      case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | SizedService_Old(_) | Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) | TestConsole_Old(_) | TestConsoleService_Old(_) | TestRandom_Old(_) | TestRandomService_Old(_) | TestAnnotations_Old(_) | TestAnnotationsService_Old(_) | TestLogger_Old(_) | TestLoggerService_Old(_)) =>
         Patch.removeImportee(t)
 
       case t @ q"import zio.console._" =>
