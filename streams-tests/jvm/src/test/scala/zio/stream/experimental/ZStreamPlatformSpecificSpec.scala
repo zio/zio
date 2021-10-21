@@ -235,7 +235,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                 assertM(
                   ZStream
                     .fromFile(path, 24)
-                    .transduce(ZSink.utf8Decode)
+                    .transduce(ZSink.utf8Decode())
                     .runCollect
                     .map(_.collect { case Some(str) => str }.mkString)
                 )(
@@ -287,7 +287,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         test("returns the content of the resource") {
           ZStream
             .fromResource("zio/stream/bom/quickbrown-UTF-8-with-BOM.txt")
-            .transduce(ZSink.utf8Decode)
+            .transduce(ZSink.utf8Decode())
             .runCollect
             .map(b => assert(b.collect { case Some(str) => str }.mkString)(startsWithString("Sent")))
         },
@@ -306,7 +306,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                         .fromSocketServer(8896)
                         .foreach { c =>
                           c.read
-                            .transduce(ZSink.utf8Decode)
+                            .transduce(ZSink.utf8Decode())
                             .runCollect
                             .map(_.collect { case Some(str) => str }.mkString)
                             .flatMap(s => refOut.update(_ + s))
