@@ -45,6 +45,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * @param ancestorStackTraceLength How many lines of stack trace to include in the
  *                                 trace of last lines before .fork in the parent fiber
  *                                 that spawned the current fiber
+ * @param captureUnsafeRunStack if this is true, `Runtime.unsafeRun*` will capture the call stack up to this method and
+ *                              it will be included in the traces as the root parent trace (as Fiber(0,0))
  */
 final case class TracingConfig(
   traceExecution: Boolean,
@@ -54,11 +56,14 @@ final case class TracingConfig(
   stackTraceLength: Int,
   ancestryLength: Int,
   ancestorExecutionTraceLength: Int,
-  ancestorStackTraceLength: Int
-)
+  ancestorStackTraceLength: Int,
+  captureUnsafeRunStack: Boolean
+) {
+  def withCaptureUnsafeRunStack(capture: Boolean) = copy(captureUnsafeRunStack = capture)
+}
 
 object TracingConfig {
-  def enabled: TracingConfig   = TracingConfig(true, true, true, 100, 100, 10, 10, 10)
-  def stackOnly: TracingConfig = TracingConfig(false, false, true, 100, 100, 10, 10, 10)
-  def disabled: TracingConfig  = TracingConfig(false, false, false, 0, 0, 0, 0, 10)
+  def enabled: TracingConfig   = TracingConfig(true, true, true, 100, 100, 10, 10, 10, true)
+  def stackOnly: TracingConfig = TracingConfig(false, false, true, 100, 100, 10, 10, 10, true)
+  def disabled: TracingConfig  = TracingConfig(false, false, false, 0, 0, 0, 0, 10, false)
 }

@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.tracing.Tracing
+import zio.internal.tracing.{Tracing, TracingConfig}
 import zio.internal.{FiberContext, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -296,10 +296,18 @@ trait Runtime[+R] {
    */
   def withTracing(t: Tracing): Runtime[R] = mapRuntimeConfig(_.copy(tracing = t))
 
+  /**
+   * Constructs a new `Runtime` with the tracing configuration transformed by the given function.
+   */
+  def withTracingConfig(f: TracingConfig => TracingConfig): Runtime[R] =
+    mapRuntimeConfig(rtc => rtc.copy(tracing = rtc.tracing.copy(tracingConfig = f(rtc.tracing.tracingConfig))))
+
   private final def unsafeRunWith[E, A](
     zio: => ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
     val fiberId = Fiber.newFiberId()
+
+    val parentTrace = captureStackAsZTrace(runtimeConfig.tracing.tracingConfig.captureUnsafeRunStack)
 
     val scope = ZScope.unsafeMake[Exit[E, A]]()
 
@@ -312,7 +320,7 @@ trait Runtime[+R] {
       runtimeConfig.executor,
       false,
       InterruptStatus.Interruptible,
-      None,
+      parentTrace,
       true,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),
       scope
@@ -331,6 +339,21 @@ trait Runtime[+R] {
     fiberId =>
       k => unsafeRunAsyncWith(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))
   }
+
+  private def captureStackAsZTrace(captureUnsafeRunStack: Boolean) =
+    if (captureUnsafeRunStack)
+      Some(
+        ZTrace(
+          FiberId.None,
+          Thread.currentThread.getStackTrace
+            .drop(2)
+            .map(_.toString.asInstanceOf[ZTraceElement])
+            .toList,
+          Nil,
+          None
+        )
+      )
+    else None
 }
 
 object Runtime {
@@ -371,6 +394,9 @@ object Runtime {
 
     override final def withTracing(t: Tracing): Runtime.Managed[R] =
       mapRuntimeConfig(_.copy(tracing = t))
+
+    override def withTracingConfig(f: TracingConfig => TracingConfig): Runtime.Managed[R] =
+      mapRuntimeConfig(rtc => rtc.copy(tracing = rtc.tracing.copy(tracingConfig = f(rtc.tracing.tracingConfig))))
   }
 
   object Managed {
