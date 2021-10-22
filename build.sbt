@@ -482,10 +482,12 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(macroExpansionSettings)
   .settings(scalacOptions += "-Xfatal-warnings")
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(publish / skip := true)
   .dependsOn(macros, testRunner)
 
 lazy val examplesJS = examples.js
   .settings(dottySettings)
+
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
   .dependsOn(testJunitRunnerJVM)
