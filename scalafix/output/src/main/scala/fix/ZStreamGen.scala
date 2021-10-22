@@ -2,8 +2,8 @@ package zio.stream
 
 import zio._
 import zio.test.{Gen, GenZIO}
-import zio.Random
-import zio.test.Sized
+import zio.{ Has, Random }
+import zio.test.{ Gen, Sized }
 
 object ZStreamGen extends GenZIO {
   def tinyListOf[R <: Has[Random], A](g: Gen[R, A]): Gen[R, List[A]] =
@@ -49,10 +49,10 @@ object ZStreamGen extends GenZIO {
     ZIO.foreach(1 to n)(_ => pull.either)
 
   val streamOfInts: Gen[Has[Random] with Has[Sized], ZStream[Any, String, Int]] =
-    Gen.bounded(0, 5)(streamGen(Gen.anyInt, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
+    Gen.bounded(0, 5)(streamGen(Gen.int, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
 
   val pureStreamOfInts: Gen[Has[Random] with Has[Sized], ZStream[Any, Nothing, Int]] =
-    Gen.bounded(0, 5)(pureStreamGen(Gen.anyInt, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
+    Gen.bounded(0, 5)(pureStreamGen(Gen.int, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
 
   def injectEmptyChunks[R, E, A](stream: ZStream[R, E, A], predicate: Chunk[A] => Boolean): ZStream[R, E, A] =
     stream.mapChunks { chunk =>
