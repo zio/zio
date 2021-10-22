@@ -20,7 +20,7 @@ Since the ZIO Redis is in the experimental phase, it is not released yet.
 
 ## Example
 
-To execute our ZIO Redis effect, we should provide the `RedisExecutor` layer to that effect. To create this layer we should also provide the following layers:
+To execute our ZIO Redis effect, we should provide the `RedisExecutor` dependency to that effect. To create this dependency we should also provide the following dependencies:
 
 - **Logging** — For simplicity, we ignored the logging functionality.
 - **RedisConfig** — Using default one, will connect to the `localhost:6379` Redis instance.
@@ -50,7 +50,7 @@ object ZIORedisExample extends zio.App {
     Logging.ignore ++ ZDeps.succeed(RedisConfig.Default) ++ ZDeps.succeed(StringUtf8Codec) >>> RedisExecutor.live
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideCustomLayer(deps).exitCode
+    myApp.provideCustomDeps(deps).exitCode
 }
 ```
 

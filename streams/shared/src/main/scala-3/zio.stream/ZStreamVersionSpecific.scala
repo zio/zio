@@ -11,18 +11,19 @@ trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
    *
    * {{{
    * val stream: ZStream[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyLayer: ZDeps[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZDeps[Blocking, Nothing, Fly] = ???
+   * val oldLadyDeps: ZDeps[Fly, Nothing, OldLady] = ???
+   * val flyDeps: ZDeps[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to stream
-   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.injectCustom(oldLadyLayer, flyLayer)
+   * // The ZEnv you use later will provide both Blocking to flyDeps and Console to stream
+   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.injectCustom(oldLadyDeps, flyDeps)
    * }}}
    */
   inline def injectCustom[E1 >: E](inline deps: ZDeps[_,E1,_]*): ZStream[ZEnv, E1, O] =
     ${ZStreamProvideMacro.injectImpl[ZEnv, R, E1, O]('self, 'deps)}
 
   /**
-   * Automatically assembles a layer for the ZStream effect, which translates it to another level.
+   * Automatically assembles a set of dependencies for the ZStream effect,
+   * which translates it to another level.
    */
   inline def inject[E1 >: E](inline deps: ZDeps[_,E1,_]*): ZStream[Any, E1, O] =
     ${ZStreamProvideMacro.injectImpl[Any, R, E1, O]('self, 'deps)}

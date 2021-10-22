@@ -7,7 +7,7 @@ import zio.test.environment._
 
 abstract class ZIOSpecDefault extends ZIOSpec[TestEnvironment] {
 
-  final val testLayer: ZDeps[TestEnvironment, Any, TestEnvironment] = ZDeps.environment(Tracer.newTrace)
+  final val testDeps: ZDeps[TestEnvironment, Any, TestEnvironment] = ZDeps.environment(Tracer.newTrace)
 
   def spec: ZSpec[TestEnvironment, Any]
 }

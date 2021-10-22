@@ -21,40 +21,40 @@ import zio.internal.macros.{DummyK, WireMacros}
 private[zio] trait ZDepsCompanionVersionSpecific {
 
   /**
-   * Automatically assembles a layer for the provided type.
+   * Automatically assembles a set of dependencies for the provided type.
    *
    * {{{
-   * ZDeps.wire[Car](carLayer, wheelsLayer, engineLayer)
+   * ZDeps.wire[Car](carDeps, wheelsDeps, engineDeps)
    * }}}
    */
   def wire[R <: Has[_]]: WirePartiallyApplied[R] =
     new WirePartiallyApplied[R]
 
   /**
-   * Automatically constructs a layer for the provided type `R`, leaving
-   * a remainder `R0`.
+   * Automatically constructs a set of dependencies for the provided type `R`,
+   * leaving a remainder `R0`.
    *
    * {{{
-   * val carLayer: ZDeps[Engine with Wheels, Nothing, Car] = ???
-   * val wheelsLayer: ZDeps[Any, Nothing, Wheels] = ???
+   * val carDeps: ZDeps[Engine with Wheels, Nothing, Car] = ???
+   * val wheelsDeps: ZDeps[Any, Nothing, Wheels] = ???
    *
-   * val deps = ZDeps.wireSome[Engine, Car](carLayer, wheelsLayer)
+   * val deps = ZDeps.wireSome[Engine, Car](carDeps, wheelsDeps)
    * }}}
    */
   def wireSome[R0 <: Has[_], R <: Has[_]]: WireSomePartiallyApplied[R0, R] =
     new WireSomePartiallyApplied[R0, R]
 
   /**
-   * Automatically constructs a layer for the provided type `R`, leaving a
-   * remainder `ZEnv`. This will satisfy all transitive `ZEnv` requirements
-   * with `ZEnv.any`, allowing them to be provided later.
+   * Automatically constructs a set of dependencies for the provided type `R`,
+   * leaving a remainder `ZEnv`. This will satisfy all transitive `ZEnv`
+   * requirements with `ZEnv.any`, allowing them to be provided later.
    *
    * {{{
-   * val oldLadyLayer: ZDeps[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZDeps[Blocking, Nothing, Fly] = ???
+   * val oldLadyDeps: ZDeps[Fly, Nothing, OldLady] = ???
+   * val flyDeps: ZDeps[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val deps : ZDeps[ZEnv, Nothing, OldLady] = ZDeps.wireCustom[OldLady](oldLadyLayer, flyLayer)
+   * // The ZEnv you use later will provide both Blocking to flyDeps and Console to zio
+   * val deps : ZDeps[ZEnv, Nothing, OldLady] = ZDeps.wireCustom[OldLady](oldLadyDeps, flyDeps)
    * }}}
    */
   def wireCustom[R <: Has[_]]: WireSomePartiallyApplied[ZEnv, R] =

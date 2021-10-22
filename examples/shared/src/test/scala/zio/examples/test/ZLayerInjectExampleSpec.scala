@@ -13,7 +13,7 @@ object ZDepsInjectExampleSpec extends DefaultRunnableSpec {
     }
 
   def spec: ZSpec[Environment, Failure] =
-    suite("AutoLayerExampleSpec")(
+    suite("AutoDepsExampleSpec")(
       test("inject") {
         assertM(exampleZio)(anything)
       }.inject(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),

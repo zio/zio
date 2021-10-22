@@ -3,7 +3,7 @@ id: zdeps
 title: "ZDeps"
 ---
 
-A `ZDeps[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`. 
+A `ZDeps[-RIn, +E, +ROut]` describes a set of dependencies of an application: every set of dependencies in an application requires some services as input `RIn` and produces some services as the output `ROut`. 
 
 ZDeps are:
 
@@ -11,9 +11,9 @@ ZDeps are:
 
 2. **An Alternative to Constructors** — We can think of `ZDeps` as a more powerful version of a constructor, it is an alternative way to represent a constructor. Like a constructor, it allows us to build the `ROut` service in terms of its dependencies (`RIn`).
 
-3. **Composable** — Because of their excellent **composition properties**, layers are the idiomatic way in ZIO to create services that depend on other services. We can define layers that are relying on each other. 
+3. **Composable** — Because of their excellent **composition properties**, dependencies are the idiomatic way in ZIO to create services that depend on other services. We can define dependencies that are relying on each other. 
 
-4. **Effectful and Resourceful** — The construction of ZIO layers can be effectful and resourceful, they can be acquired and safely released when the services are done being utilized.
+4. **Effectful and Resourceful** — The construction of ZIO dependencies can be effectful and resourceful, they can be acquired and safely released when the services are done being utilized.
 
 5. **Asynchronous** — Unlike class constructors which are blocking, ZDeps is fully asynchronous and non-blocking.
 
@@ -25,7 +25,7 @@ For example, a `ZDeps[Blocking with Logging, Throwable, Database]` can be though
 
 So we can say that the `Database` service has two dependencies: `Blocking` and `Logging` services.
 
-Let's see how we can create a layer:
+Let's see how we can create a set of dependencies:
 
 ## Creation
 
@@ -35,18 +35,18 @@ Let's see how we can create a layer:
 
 2. **Acquisition/Release Action** — It may contain how to initialize a service. For example, if we are creating a recipe for a `Database` service, we should provide how the `Database` will be initialized, via acquisition action. Also, it may contain how to release a service. For example, how the `Database` releases its connection pools.
 
-In some cases, a `ZDeps` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The `Layer` type alias provided by ZIO is a convenient way to define a layer without requirements.
+In some cases, a `ZDeps` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The `Deps` type alias provided by ZIO is a convenient way to define a set of dependencies without requirements.
 
 There are many ways to create a ZDeps. Here's an incomplete list:
- - `ZDeps.succeed` to create a layer from an existing service
- - `ZDeps.succeedMany` to create a layer from a value that's one or more services
- - `ZDeps.fromFunction` to create a layer from a function from the requirement to the service
- - `ZDeps.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
- - `ZDeps.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `ZManaged`.
- - `ZDeps.fromService` to build a layer from a service
- - `ZDeps.fromServices` to build a layer from a number of required services
- - `ZDeps.identity` to express the requirement for a layer
- - `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
+ - `ZDeps.succeed` to create a dependency from an existing service
+ - `ZDeps.succeedMany` to create a set of dependencies from a value that's one or more services
+ - `ZDeps.fromFunction` to create a dependency from a function from the requirement to the service
+ - `ZDeps.fromEffect` to lift a `ZIO` effect to a dependency requiring the effect environment
+ - `ZDeps.fromAcquireRelease` for a dependency based on resource acquisition/release. The idea is the same as `ZManaged`.
+ - `ZDeps.fromService` to build a dependency from a service
+ - `ZDeps.fromServices` to build a dependency from a number of required services
+ - `ZDeps.identity` to express the requirement for a dependency
+ - `ZIO#toDeps` or `ZManaged#toDeps` to construct a dependency from an effect
 
 Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `M`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
 
@@ -54,23 +54,23 @@ Let's review some of the `ZDeps`'s most useful constructors:
 
 ### From Simple Values
 
-With `ZDeps.succeed` we can construct a `ZDeps` from a value. It returns a `ULayer[Has[A]]` value, which represents a layer of application that _has_ a service of type `A`:
+With `ZDeps.succeed` we can construct a `ZDeps` from a value. It returns a `UDeps[Has[A]]` value, which represents a set of dependencies of an application that _has_ a service of type `A`:
 
 ```scala
-def succeed[A: Tag](a: A): ULayer[Has[A]]
+def succeed[A: Tag](a: A): UDeps[Has[A]]
 ```
 
-In the following example, we are going to create a `nameLayer` that provides us the name of `Adam`.
+In the following example, we are going to create a `nameDeps` that provides us the name of `Adam`.
 
 ```scala mdoc:invisible
 import zio._
 ```
 
 ```scala mdoc:silent
-val nameLayer: ULayer[Has[String]] = ZDeps.succeed("Adam")
+val nameDeps: UDeps[Has[String]] = ZDeps.succeed("Adam")
 ```
 
-In most cases, we use `ZDeps.succeed` to provide a layer of service of type `A`.
+In most cases, we use `ZDeps.succeed` to create a dependency of type `A`.
 
 For example, assume we have written the following service:
 
@@ -104,7 +104,7 @@ val live: ZDeps[Any, Nothing, Terminal] = ZDeps.succeed(Terminal.Service.live)
 
 Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). 
 
-Fortunately, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
+Fortunately, the construction of ZIO dependencies can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
 `ZDeps` relies on the powerful `ZManaged` data type and this makes this process extremely simple.
 
@@ -118,17 +118,17 @@ import scala.io.BufferedSource
 val managedFile = ZManaged.fromAutoCloseable(
   ZIO.attempt(scala.io.Source.fromFile("file.txt"))
 )
-val fileLayer: ZDeps[Any, Throwable, Has[BufferedSource]] = 
+val fileDeps: ZDeps[Any, Throwable, Has[BufferedSource]] = 
   ZDeps.fromManaged(managedFile)
 ```
 
-Also, every `ZManaged` can be converted to `ZDeps` by calling `ZDeps#toLayer`:
+Also, every `ZManaged` can be converted to `ZDeps` by calling `ZDeps#toDeps`:
 
 ```scala mdoc:silent:nest
-val fileLayer: ZDeps[Any, Throwable, Has[BufferedSource]] = managedFile.toDeps
+val fileDeps: ZDeps[Any, Throwable, Has[BufferedSource]] = managedFile.toDeps
 ```
 
-Let's see another real-world example of creating a layer from managed resources. Assume we have written a managed `UserRepository`:
+Let's see another real-world example of creating a set of dependencies from managed resources. Assume we have written a managed `UserRepository`:
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -157,11 +157,11 @@ def userRepository: ZManaged[Has[Console], Throwable, UserRepository] = for {
 } yield new UserRepository(xa)
 ```
 
-We can convert that to `ZDeps` with `ZDeps.fromManaged` or `ZManaged#toLayer`:
+We can convert that to `ZDeps` with `ZDeps.fromManaged` or `ZManaged#toDeps`:
 
 ```scala mdoc:nest
-val usersLayer  = userRepository.toDeps
-val usersLayer_ = ZDeps.fromManaged(userRepository)
+val usersDeps  = userRepository.toDeps
+val usersDeps_ = ZDeps.fromManaged(userRepository)
 ```
 
 Also, we can create a `ZDeps` directly from `acquire` and `release` actions of a managed resource:
@@ -170,19 +170,19 @@ Also, we can create a `ZDeps` directly from `acquire` and `release` actions of a
 def acquire = ZIO.attempt(new FileInputStream("file.txt"))
 def release(resource: Closeable) = ZIO.succeed(resource.close())
 
-val inputStreamLayer = ZDeps.fromAcquireRelease(acquire)(release)
+val inputStreamDeps = ZDeps.fromAcquireRelease(acquire)(release)
 ```
 
 ### From ZIO Effects
 
-We can create `ZDeps` from any `ZIO` effect by using `ZDeps.fromEffect` constructor, or calling `ZIO#toLayer` method:
+We can create `ZDeps` from any `ZIO` effect by using `ZDeps.fromEffect` constructor, or calling `ZIO#toDeps` method:
 
 ```scala mdoc
 val deps = ZDeps.fromZIO(ZIO.succeed("Hello, World!"))
 val deps_ = ZIO.succeed("Hello, World!").toDeps
 ```
 
-Assume we have a `ZIO` effect that read the application config from a file, we can create a layer from that:
+Assume we have a `ZIO` effect that read the application config from a file, we can create a dependency from that:
 
 ```scala mdoc:invisible
 trait AppConfig
@@ -190,14 +190,14 @@ trait AppConfig
 
 ```scala mdoc:nest
 def loadConfig: Task[AppConfig] = Task.attempt(???)
-val configLayer = ZDeps.fromZIO(loadConfig)
+val configDeps = ZDeps.fromZIO(loadConfig)
 ```
 
 ### From another Service
 
-Every `ZDeps` describes an application that requires some services as input and produces some services as output. Sometimes when we are writing a new layer, we may need to access and depend on one or several services.
+Every `ZDeps` describes an application that requires some services as input and produces some services as output. Sometimes when we are creating a dependency, we may need to access and depend on one or several services.
 
-The `ZDeps.fromService` construct a layer that purely depends on the specified service:
+The `ZDeps.fromService` construct a dependency that purely depends on the specified service:
 
 ```scala
 def fromService[A: Tag, B: Tag](f: A => B): ZDeps[Has[A], Nothing, Has[B]]
@@ -238,9 +238,9 @@ We said that we can think of the `ZDeps` as a more powerful _constructor_. Const
 
 `ZDeps`s can be composed together horizontally or vertically:
 
-1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose two layers horizontally, the new layer that this layer requires all the services that both of them require, also this layer produces all services that both of them produces. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that they don't have any relationship with each other. 
+1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose two sets of dependencies horizontally, the new set of dependencies requires all the services that both of them require and produces all services that both of them produce. Horizontal composition is a way of composing two sets of dependencies side-by-side. It is useful when we combine two sets of dependencies that they don't have any relationship with each other. 
 
-2. **Vertical Composition** — If we have a layer that requires `A` and produces `B`, we can compose this layer with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another.
+2. **Vertical Composition** — If we have a set of dependencies that requires `A` and produces `B`, we can compose this with another set of dependencies that requires `B` and produces `C`; this composition produces a set of dependencies that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one set of dependencies to an input of another.
 
 Let's get into an example, assume we have these services with their implementations:
 
@@ -282,20 +282,20 @@ val docRepo: URDeps[Has[Logging] with Has[Database] with Has[BlobStorage], Has[D
 Now, we can compose logging and database horizontally:
 
 ```scala mdoc:silent
-val newLayer: ZDeps[Has[Console], Throwable, Has[Logging] with Has[Database]] = logging ++ database
+val newDeps: ZDeps[Has[Console], Throwable, Has[Logging] with Has[Database]] = logging ++ database
 ```
 
-And then we can compose the `newLayer` with `userRepo` vertically:
+And then we can compose the `newDeps` with `userRepo` vertically:
 
 ```scala mdoc:silent
-val myLayer: ZDeps[Has[Console], Throwable, Has[UserRepo]] = newLayer >>> userRepo
+val myDeps: ZDeps[Has[Console], Throwable, Has[UserRepo]] = newDeps >>> userRepo
 ```
 
-## Layer Memoization
+## Dependency Memoization
 
-One important feature of `ZIO` layers is that **they are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time. 
+One important feature of `ZIO` dependencies is that **they are shared by default**, meaning that if the same dependency is used twice, the dependency will only be allocated a single time. 
 
-For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. 
+For every dependency in our dependency graph, there is only one instance of it that is shared between all the dependencies that depend on it. 
 
 If we don't want to share a module, we should create a fresh, non-shared version of it through `ZDeps#fresh`.
 
@@ -366,9 +366,9 @@ object Logging {
 
 import java.sql.Connection
 def makeConnection: UIO[Connection] = UIO(???)
-val connectionLayer: Deps[Nothing, Has[Connection]] =
+val connectionDeps: Deps[Nothing, Has[Connection]] =
     ZDeps.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
-val postgresLayer: ZDeps[Has[Connection], Nothing, UserRepo] =
+val postgresDeps: ZDeps[Has[Connection], Nothing, UserRepo] =
   ZDeps.fromFunction { hasC: Has[Connection] =>
     new UserRepo.Service {
       override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
@@ -376,7 +376,7 @@ val postgresLayer: ZDeps[Has[Connection], Nothing, UserRepo] =
     }
   }
 
-val fullRepo: Deps[Nothing, UserRepo] = connectionLayer >>> postgresLayer
+val fullRepo: Deps[Nothing, UserRepo] = connectionDeps >>> postgresDeps
 
 
 
@@ -392,13 +392,13 @@ val makeUser: ZIO[Logging with UserRepo, DBError, Unit] = for {
 val horizontal: ZDeps[Has[Console], Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
 
 // fulfill missing deps, composing vertically
-val fullLayer: Deps[Nothing, Logging with UserRepo] = Console.live >>> horizontal
+val fullDeps: Deps[Nothing, Logging with UserRepo] = Console.live >>> horizontal
 
-// provide the layer to the program
-makeUser.provideSomeLayer(fullLayer)
+// provide the dependencies to the program
+makeUser.provideSomeDeps(fullDeps)
 ```
 
-Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
+Given a set of dependencies, it is possible to update one or more components it provides. We update a dependency in two ways:
 
 1. **Using the `update` Method** — This method allows us to replace one requirement with a different implementation:
 
@@ -410,15 +410,15 @@ val withPostgresService = horizontal.update[UserRepo.Service]{ oldRepo  => new U
   }
 ```
 
-2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a layer that provides the updated service. The resulting composition will replace the old layer with the new one:
+2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a dependency that provides the updated service. The resulting composition will replace the old dependency with the new one:
 
 ```scala mdoc:silent:nest
-val dbLayer: Deps[Nothing, UserRepo] = ZDeps.succeed(new UserRepo.Service {
+val dbDeps: Deps[Nothing, UserRepo] = ZDeps.succeed(new UserRepo.Service {
     override def getUser(userId: UserId): IO[DBError, Option[User]] = ???
     override def createUser(user: User): IO[DBError, Unit] = ???
   })
 
-val updatedHorizontal2 = horizontal ++ dbLayer
+val updatedHorizontal2 = horizontal ++ dbDeps
 ```
 
 ## Hidden Versus Passed Through Dependencies
@@ -428,12 +428,12 @@ One design decision regarding building dependency graphs is whether to hide or p
 To illustrate this, consider the Postgres-based repository discussed above:
 
 ```scala mdoc:silent:nest
-val connection: ZDeps[Any, Nothing, Has[Connection]] = connectionLayer
-val userRepo: ZDeps[Has[Connection], Nothing, UserRepo] = postgresLayer
+val connection: ZDeps[Any, Nothing, Has[Connection]] = connectionDeps
+val userRepo: ZDeps[Has[Connection], Nothing, UserRepo] = postgresDeps
 val deps: ZDeps[Any, Nothing, UserRepo] = connection >>> userRepo
 ```
 
-Notice that in `layer`, the dependency `UserRepo` has on `Connection` has been "hidden", and is no longer expressed in the type signature. From the perspective of a caller, `layer` just outputs a `UserRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` is constructed.
+Notice that in `deps`, the dependency `UserRepo` has on `Connection` has been "hidden", and is no longer expressed in the type signature. From the perspective of a caller, `deps` just outputs a `UserRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` is constructed.
 
 To provide only some inputs, we need to explicitly define what inputs still need to be provided:
 
@@ -441,22 +441,22 @@ To provide only some inputs, we need to explicitly define what inputs still need
 trait Configuration
 
 val userRepoWithConfig: ZDeps[Has[Configuration] with Has[Connection], Nothing, UserRepo] = 
-  ZDeps.succeed(new Configuration{}) ++ postgresLayer
-val partialLayer: ZDeps[Has[Configuration], Nothing, UserRepo] = 
+  ZDeps.succeed(new Configuration{}) ++ postgresDeps
+val partialDeps: ZDeps[Has[Configuration], Nothing, UserRepo] = 
   (ZDeps.environment[Has[Configuration]] ++ connection) >>> userRepoWithConfig
 ``` 
 
-In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialLayer`.
+In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialDeps`.
 
 This achieves an encapsulation of services and can make it easier to refactor code. For example, say we want to refactor our application to use an in-memory database:
 
 ```scala mdoc:silent:nest
-val updatedLayer: ZDeps[Any, Nothing, UserRepo] = dbLayer
+val updatedDeps: ZDeps[Any, Nothing, UserRepo] = dbDeps
 ```
 
 No other code will need to be changed, because the previous implementation's dependency upon a `Connection` was hidden from users, and so they were not able to rely on it.
 
-However, if an upstream dependency is used by many other services, it can be convenient to "pass through" that dependency, and include it in the output of a layer. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_ layers.
+However, if an upstream dependency is used by many other services, it can be convenient to "pass through" that dependency, and include it in the output of a set of dependencies. This can be done with the `>+>` operator, which provides the output of one set of dependencies to another set of dependencies, returning a new set of dependencies that outputs the services of _both_.
 
 
 ```scala mdoc:silent:nest
@@ -511,28 +511,28 @@ lazy val all: ZDeps[Any, Nothing, Baker with Ingredients with Oven with Dough wi
 `ZDeps` makes it easy to mix and match these styles. If you pass through dependencies and later want to hide them you can do so through a simple type ascription:
 
 ```scala mdoc:silent
-lazy val hidden: ZLayer[Any, Nothing, Cake] = all
+lazy val hidden: ZDeps[Any, Nothing, Cake] = all
 ```
 
-And if you do build your dependency graph more explicitly, you can be confident that layers used in multiple parts of the dependency graph will only be created once due to memoization and sharing.
+And if you do build your dependency graph more explicitly, you can be confident that dependencies used in multiple parts of the dependency graph will only be created once due to memoization and sharing.
 
 ## Cyclic Dependencies
 
-The `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
+The `ZDeps` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
 
 ## Asynchronous Service Construction
 
-Another important note about `ZLayer` is that, unlike constructors which are synchronous, `ZLayer` is _asynchronous_. Constructors in classes are always synchronous. This is a drawback for non-blocking applications. Because sometimes we might want to use something that is blocking the inside constructor.
+Another important note about `ZDeps` is that, unlike constructors which are synchronous, `ZDeps` is _asynchronous_. Constructors in classes are always synchronous. This is a drawback for non-blocking applications. Because sometimes we might want to use something that is blocking the inside constructor.
 
 For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to blocking inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
 
-Well, with ZIO ZLayer, our constructor could be asynchronous, and they also can block definitely. And that is because `ZLayer` has the full power of ZIO. And as a result, we have strictly more power on our constructors with ZLayer. 
+Well, with ZIO ZDeps, our constructor could be asynchronous, and they also can block definitely. And that is because `ZDEps` has the full power of ZIO. And as a result, we have strictly more power on our constructors with ZDeps. 
 
 We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO.
 
 ## Examples
 
-### The simplest ZLayer application
+### The simplest ZDeps application
 
 This application demonstrates a ZIO program with a single dependency on a simple string value:
 
@@ -547,17 +547,17 @@ object Example extends ZIOAppDefault {
     _    <- UIO(println(s"Hello, $name!"))
   } yield ()
 
-  // Create a ZLayer that produces a string and can be used to satisfy a string
+  // Create a ZDeps that produces a string and can be used to satisfy a string
   // dependency that the program has
-  val nameLayer: ULayer[Has[String]] = ZLayer.succeed("Adam")
+  val nameDeps: UDeps[Has[String]] = ZDeps.succeed("Adam")
 
   // Run the program, providing the `nameDeps`
-  def run = zio.provideSomeDeps(nameLayer)
+  def run = zio.provideSomeDeps(nameDeps)
 }
 
 ```
 
-### ZLayer application with dependencies 
+### ZDeps application with dependencies 
 
 In the following example, our ZIO application has several dependencies:
  - `zio.Clock`
@@ -580,10 +580,10 @@ object moduleA {
       def letsGoA(v: Int): UIO[String]
     }
 
-    val any: ZLayer[ModuleA, Nothing, ModuleA] =
-      ZLayer.requires[ModuleA]
+    val any: ZDeps[ModuleA, Nothing, ModuleA] =
+      ZDeps.requires[ModuleA]
 
-    val live: Deps[Nothing, Has[Service]] = ZLayer.succeed {
+    val live: Deps[Nothing, Has[Service]] = ZDeps.succeed {
       new Service {
         def letsGoA(v: Int): UIO[String] = UIO(s"done: v = $v ")
       }
@@ -604,10 +604,10 @@ object moduleB {
       def letsGoB(v: Int): UIO[String]
     }
 
-    val any: ZLayer[ModuleB, Nothing, ModuleB] =
-      ZLayer.requires[ModuleB]
+    val any: ZDeps[ModuleB, Nothing, ModuleB] =
+      ZDeps.requires[ModuleB]
 
-    val live: ZLayer[ModuleA, Nothing, ModuleB] = ZLayer.fromService { (moduleA: ModuleA.Service) =>
+    val live: ZDeps[ModuleA, Nothing, ModuleB] = ZDeps.fromService { (moduleA: ModuleA.Service) =>
       new Service {
         def letsGoB(v: Int): UIO[String] =
           moduleA.letsGoA(v)
@@ -619,7 +619,7 @@ object moduleB {
     ZIO.accessZIO(_.get.letsGoB(v))
 }
 
-object ZLayerApp0 extends zio.App {
+object ZDepsApp0 extends zio.App {
 
   import moduleB._
 
@@ -633,25 +633,25 @@ object ZLayerApp0 extends zio.App {
     } yield ()
 
   def run(args: List[String]) =
-    program.provideSomeLayer(env).exitCode
+    program.provideSomeDeps(env).exitCode
 
 }
 
 // output: 
-// [info] running ZLayersApp 
+// [info] running ZDepsApp 
 // Welcome to ZIO!
 // done: v = 10 
 ```
 
-### ZLayer example with complex dependencies
+### ZDeps example with complex dependencies
 
-In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, and `Clock`. The layer provided to the runnable application shows how dependency layers can be combined using `++` into a single combined layer. The combined layer will then be able to produce both of the outputs of the original layers as a single layer:
+In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, and `Clock`. The dependencies provided to the runnable application shows how dependencies can be combined using `++` into a single combined set of dependencies. The combined set of dependencies will then be able to produce both of the outputs of the original sets as a single set of dependencies:
 
 ```scala mdoc:compile-only
 import zio._
 import zio.Clock._
 
-object ZLayerApp1 extends scala.App {
+object ZDepsApp1 extends scala.App {
   val rt = Runtime.default
 
   type ModuleA = Has[ModuleA.Service]
@@ -660,11 +660,11 @@ object ZLayerApp1 extends scala.App {
 
     trait Service {}
 
-    val any: ZLayer[ModuleA, Nothing, ModuleA] =
-      ZLayer.environment[ModuleA]
+    val any: ZDeps[ModuleA, Nothing, ModuleA] =
+      ZDeps.environment[ModuleA]
 
-    val live: ZLayer[Any, Nothing, ModuleA] =
-      ZLayer.succeed(new Service {})
+    val live: ZDeps[Any, Nothing, ModuleA] =
+      ZDeps.succeed(new Service {})
   }
 
   type ModuleB = Has[ModuleB.Service]
@@ -673,11 +673,11 @@ object ZLayerApp1 extends scala.App {
 
     trait Service {}
 
-    val any: ZLayer[ModuleB, Nothing, ModuleB] =
-      ZLayer.environment[ModuleB]
+    val any: ZDeps[ModuleB, Nothing, ModuleB] =
+      ZDeps.environment[ModuleB]
 
-    val live: ZLayer[Any, Nothing, ModuleB] =
-      ZLayer.succeed(new Service {})
+    val live: ZDeps[Any, Nothing, ModuleB] =
+      ZDeps.succeed(new Service {})
   }
 
   type ModuleC = Has[ModuleC.Service]
@@ -688,11 +688,11 @@ object ZLayerApp1 extends scala.App {
       def foo: UIO[Int]
     }
 
-    val any: ZLayer[ModuleC, Nothing, ModuleC] =
-      ZLayer.environment[ModuleC]
+    val any: ZDeps[ModuleC, Nothing, ModuleC] =
+      ZDeps.environment[ModuleC]
 
-    val live: ZLayer[ModuleA with ModuleB with Has[Clock], Nothing, ModuleC] =
-      ZLayer.succeed {
+    val live: ZDeps[ModuleA with ModuleB with Has[Clock], Nothing, ModuleC] =
+      ZDeps.succeed {
         new Service {
           val foo: UIO[Int] = UIO.succeed(42)
         }
@@ -702,9 +702,9 @@ object ZLayerApp1 extends scala.App {
       ZIO.accessZIO(_.get.foo)
   }
 
-  val env = (ModuleA.live ++ ModuleB.live ++ ZLayer.environment[Has[Clock]]) >>> ModuleC.live
+  val env = (ModuleA.live ++ ModuleB.live ++ ZDeps.environment[Has[Clock]]) >>> ModuleC.live
 
-  val res = ModuleC.foo.provideCustomLayer(env)
+  val res = ModuleC.foo.provideCustomDeps(env)
 
   val out = rt.unsafeRun(res)
   println(out)

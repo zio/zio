@@ -48,7 +48,7 @@ object Annotations {
   /**
    * Constructs a new `Annotations` service.
    */
-  val live: ULayer[Has[Annotations]] = {
+  val live: UDeps[Has[Annotations]] = {
     implicit val trace = Tracer.newTrace
     ZDeps.fromZIO(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
       new Annotations {

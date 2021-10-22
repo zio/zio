@@ -1638,19 +1638,19 @@ object ZIOSpec extends DefaultRunnableSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
-    suite("provideCustomLayer")(
+    suite("provideCustomDeps")(
       testM("provides the part of the environment that is not part of the `ZEnv`") {
-        val loggingLayer: ZDeps[Any, Nothing, Logging] = Logging.live
+        val loggingDeps: ZDeps[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomLayer(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomDeps(loggingDeps)
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSomeLayer")(
+    suite("provideSomeDeps")(
       testM("can split environment into two parts") {
-        val clockLayer: ZDeps[Any, Nothing, Clock]    = Clock.live
+        val clockDeps: ZDeps[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
+        val zio2: URIO[Random, Unit]                   = zio.provideSomeDeps[Random](clockDeps)
         assertM(zio2)(anything)
       }
     ),

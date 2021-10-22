@@ -13,25 +13,26 @@ final class WireSomePartiallyApplied[R0 <: Has[_], R <: Has[_]](val dummy: Boole
 }
 
 trait ZDepsCompanionVersionSpecific {
-      /**
-   * Automatically assembles a layer for the provided type.
+
+  /**
+   * Automatically assembles a set of dependencies for the provided type.
    *
    * {{{
-   * val deps = ZDeps.wire[Car](carLayer, wheelsLayer, engineLayer)
+   * val deps = ZDeps.wire[Car](carDeps, wheelsDeps, engineDeps)
    * }}}
    */
   inline def wire[R <: Has[_]]: WirePartiallyApplied[R] =
     new WirePartiallyApplied[R]()
 
     /**
-   * Automatically assembles a layer for the provided type `R`, leaving
-   * a remainder `R0`.
+   * Automatically assembles a set of dependencies for the provided type `R`,
+   * leaving a remainder `R0`.
    *
    * {{{
-   * val carLayer: ZDeps[Engine with Wheels, Nothing, Car] = ???
-   * val wheelsLayer: ZDeps[Any, Nothing, Wheels] = ???
+   * val carDeps: ZDeps[Engine with Wheels, Nothing, Car] = ???
+   * val wheelsDeps: ZDeps[Any, Nothing, Wheels] = ???
    *
-   * val deps = ZDeps.wireSome[Engine, Car](carLayer, wheelsLayer)
+   * val deps = ZDeps.wireSome[Engine, Car](carDeps, wheelsDeps)
    * }}}
    */
   def wireSome[R0 <: Has[_], R <: Has[_]] =

@@ -188,7 +188,7 @@ zio.Runtime.default.unsafeRun(effect)
 
 That is how the `Has` data type helps us to combine services. The previous example was just for demonstrating purposes, and we rarely create `Has` data type directly. Instead, we create a `Has` via `ZDeps`.
 
-Whenever we lift a service value into `ZDeps` with the `ZDeps.succeed` constructor or  `toLayer`, ZIO will wrap our service with `Has` data type.
+Whenever we lift a service value into `ZDeps` with the `ZDeps.succeed` constructor or  `toDeps`, ZIO will wrap our service with `Has` data type.
 
 Let's implement `Logging` and `RandomInt` services:
 
@@ -256,16 +256,16 @@ object RandomIntLive {
 }
 ```
 
-Now, when we combine multiple layers together, these services will combined via `with` intersection type:
+Now, when we combine multiple dependencies together, these services will combined via `with` intersection type:
 
 ```scala mdoc:silent:nest
-val myLayer: ZDeps[Any, Nothing, Has[Logging] with Has[RandomInt]] = 
+val myDeps: ZDeps[Any, Nothing, Has[Logging] with Has[RandomInt]] = 
     LoggingLive.deps ++ RandomIntLive.deps
 ```
 
-Finally, when we provide our layer into the ZIO effect, ZIO can access the binding configuration and extract each service. ZIO does internally these pieces of wiring machinery, we don't care about the implementation detail:
+Finally, when we provide our dependencies to the ZIO effect, ZIO can access the binding configuration and extract each service. ZIO does internally these pieces of wiring machinery, we don't care about the implementation detail:
 
 ```scala mdoc:nest
-val mainApp: ZIO[Any, Nothing, Unit] = myApp.provideLayer(myLayer) 
+val mainApp: ZIO[Any, Nothing, Unit] = myApp.provideDeps(myDeps) 
 ```
 

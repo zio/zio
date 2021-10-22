@@ -1,3 +1,3 @@
 package zio.examples
 
-object RealWorldProvideLayerExample {}
+object RealWorldProvideDepsExample {}

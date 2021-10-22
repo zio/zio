@@ -130,6 +130,6 @@ object Main extends zio.App {
     } yield ()
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideCustomLayer(env).exitCode
+    myApp.provideCustomDeps(env).exitCode
 }
 ```

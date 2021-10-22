@@ -9,7 +9,7 @@ object ZDepsInjectExample extends ZIOAppDefault {
       Console.printLine(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}")
     }
 
-  val autoLayer: ZDeps[Any, Nothing, Has[OldLady]] =
+  val autoDeps: ZDeps[Any, Nothing, Has[OldLady]] =
     ZDeps.wire[Has[OldLady]](
       OldLady.live,
       Spider.live,

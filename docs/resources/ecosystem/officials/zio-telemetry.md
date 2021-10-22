@@ -81,7 +81,7 @@ lazy val openTracingExample = Seq(
 )
 ```
 
-Let's create a `ZDeps` for `OpenTracing` which provides us Jaeger tracer. Each microservice uses this layer to send its tracing data to the _Jaeger Backend_:
+Let's create a `ZDeps` for `OpenTracing` which provides us Jaeger tracer. Each microservice uses this dependency to send its tracing data to the _Jaeger Backend_:
 
 ```scala
 import io.jaegertracing.Configuration

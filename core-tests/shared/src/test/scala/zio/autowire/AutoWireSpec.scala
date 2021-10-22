@@ -120,27 +120,27 @@ object AutoWireSpec extends ZIOBaseSpec {
           } @@ TestAspect.exceptDotty
         ),
         suite("injectCustom")(
-          test("automatically constructs a layer from its dependencies, leaving off ZEnv") {
-            val stringLayer = Console.readLine.orDie.toDeps
-            val program     = ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
+          test("automatically constructs a set of dependencies, leaving off ZEnv") {
+            val stringDeps = Console.readLine.orDie.toDeps
+            val program    = ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
-              program.injectCustom(stringLayer)
+              program.injectCustom(stringDeps)
 
             assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
           }
         ),
         suite("injectSome")(
-          test("automatically constructs a layer from its dependencies, leaving off some environment") {
-            val stringLayer = Console.readLine.orDie.toDeps
-            val program     = ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
+          test("automatically constructs a set of dependencies, leaving off some environment") {
+            val stringDeps = Console.readLine.orDie.toDeps
+            val program    = ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
-              program.injectSome[Has[Random] with Has[Console]](stringLayer)
+              program.injectSome[Has[Random] with Has[Console]](stringDeps)
 
             assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
           }
         ),
         suite("`ZDeps.wire`")(
-          test("automatically constructs a layer from its dependencies") {
+          test("automatically constructs a set of dependencies") {
             val doubleDeps                     = ZDeps.succeed(100.1)
             val stringDeps: UDeps[Has[String]] = ZDeps.succeed("this string is 28 chars long")
             val intDeps = (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
@@ -221,14 +221,14 @@ object AutoWireSpec extends ZIOBaseSpec {
               result <- ref.get.toManaged
             } yield assert(result)(equalTo(1))).useNow
           },
-          test("reports missing top-level layers") {
+          test("reports missing top-level dependencies") {
             val program: ZManaged[Has[String] with Has[Int], Nothing, String] = ZManaged.succeed("test")
             val _                                                             = program
 
             val checked = typeCheck("program.inject(ZDeps.succeed(3))")
             assertM(checked)(isLeft(containsStringWithoutAnsi("missing String")))
           } @@ TestAspect.exceptDotty,
-          test("reports multiple missing top-level layers") {
+          test("reports multiple missing top-level dependencies") {
             val program: ZManaged[Has[String] with Has[Int], Nothing, String] = ZManaged.succeed("test")
             val _                                                             = program
 

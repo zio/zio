@@ -10,11 +10,11 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    *
    * {{{
    * val zio: ZIO[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyLayer: ZDeps[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZDeps[Blocking, Nothing, Fly] = ???
+   * val oldLadyDeps: ZDeps[Fly, Nothing, OldLady] = ???
+   * val flyDeps: ZDeps[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.injectCustom(oldLadyLayer, flyLayer)
+   * // The ZEnv you use later will provide both Blocking to flyDeps and Console to zio
+   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.injectCustom(oldLadyDeps, flyDeps)
    * }}}
    */
   inline def injectCustom[E1 >: E](inline deps: ZDeps[_,E1,_]*): ZIO[ZEnv, E1, A] =
@@ -22,21 +22,22 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
   /**
    * Splits the environment into two parts, assembling one part using the
-   * specified layers and leaving the remainder `R0`.
+   * specified set of dependencies and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZDeps[Any, Nothing, Clock] = ???
+   * val clockDeps: ZDeps[Any, Nothing, Clock] = ???
    *
    * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
    *
-   * val zio2 = zio.injectSome[Random](clockLayer)
+   * val zio2 = zio.injectSome[Random](clockDeps)
    * }}}
    */
   def injectSome[R0 <: Has[_]] =
     new InjectSomePartiallyApplied[R0, R, E, A](self)
 
   /**
-   * Automatically assembles a layer for the ZIO effect, which translates it to another level.
+   * Automatically assembles a set of dependencies for the ZIO effect, which
+   * translates it to another level.
    */
   inline def inject[E1 >: E](inline deps: ZDeps[_,E1,_]*): ZIO[Any, E1, A] =
     ${DepsMacros.injectImpl[Any,R,E1, A]('self, 'deps)}

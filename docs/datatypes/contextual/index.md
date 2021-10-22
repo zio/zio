@@ -55,7 +55,7 @@ val effect: ZIO[Has[Console] with Has[Random], Nothing, Unit] = for {
 val mainApp: ZIO[Any, Nothing, Unit] = effect.provideDeps(Console.live ++ Random.live)
 ```
 
-We don't need to provide live layers for built-in services (don't worry, we will discuss layers later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
+We don't need to provide dependencies for built-in services (don't worry, we will discuss dependencies later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
 
 ```scala mdoc:compile-only
 import zio._
@@ -103,9 +103,9 @@ ZIO wrap services with `Has` data type to:
 
 `ZDeps[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
 
-We can compose `layerA` and `layerB` _horizontally_ to build a layer that has the requirements of both layers, to provide the capabilities of both layers, through `layerA ++ layerB`
+We can compose `depsA` and `depsB` _horizontally_ to build a set of dependencies that has the requirements of both, to provide the capabilities of both, through `depsA ++ depsB`
 
-We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first, and the output of the second layer: `layerA >>> layerB`. When doing this, the first layer must output all the services required by the second layer, but we can defer creating some of these services and require them as part of the input of the final layer using `ZDeps.identity`.  
+We can also compose sets of dependencies _vertically_, meaning the output of one set of dependencies is used as input for the subsequent set of dependencies, resulting in one set of dependencies with the requirement of the first, and the output of the second: `depsA >>> depsB`. When doing this, the first set of dependencies must output all the services required by the second set of dependencies, but we can defer creating some of these services and require them as part of the input of the final set of dependencies using `ZDeps.identity`.  
 
 ## Defining Services in OOP
 
@@ -171,7 +171,7 @@ In the functional Scala as well as in object-oriented programming the best pract
 
 It is not mandatory but ZIO encourages us to follow this principle by bundling related functionality as an interface by using _Module Pattern_. 
 
-The core idea is that a layer depends upon the interfaces exposed by the layers immediately below itself, but is completely unaware of its dependencies' internal implementations.
+The core idea is that a set of dependencies depends upon the interfaces exposed by the dependencies immediately below itself, but is completely unaware of its dependencies' internal implementations.
 
 In object-oriented programming:
 
@@ -207,7 +207,7 @@ import zio.Console._
 ```
 
 ```scala mdoc:invisible
-import zio.{Has, UIO, Layer, ZDeps, ZIO, URIO}
+import zio.{Has, UIO, Deps, ZDeps, ZIO, URIO}
 ```
 
 ```scala mdoc:silent:nest
@@ -220,7 +220,7 @@ object logging {
       def log(line: String): UIO[Unit]
     }
 
-    val live: ULayer[Logging] = ZDeps.succeed {
+    val live: UDeps[Logging] = ZDeps.succeed {
       new Service {
         override def log(line: String): UIO[Unit] =
           ZIO.succeed(println(line))
@@ -279,7 +279,7 @@ object LoggingExample extends ZIOAppDefault {
 }
 ```
 
-During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provideLayer`.
+During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provideDeps`.
 
 ### Module Pattern 2.0
 
@@ -353,7 +353,7 @@ That's it! Very simple! ZIO encourages us to follow some of the best practices i
 >
 > So instead of writing `ZDeps[Console with Clock, Nothing, Logging]`, we write `ZDeps[Has[Console] with Has[Clock], Nothing, Has[Logging]]`.
 
-Finally, we provide required layers to our `app` effect:
+Finally, we provide required dependencies to our `app` effect:
 
 ```scala mdoc:silent:nest
  import zio._
@@ -378,7 +378,7 @@ By using ZDeps and ZIO Environment we can solve the propagation and wire-up prob
 
 ### Building Dependency Graph
 
-Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZDeps` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically. More information about how to compose layers is on the [ZDeps](zdeps.md) page.
+Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZDeps` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing dependencies horizontally and vertically. More information about how to compose dependencies is on the [ZDeps](zdeps.md) page.
 
 ### Dependency Propagation
 
@@ -435,11 +435,11 @@ val loggingImpl = Has(new Logging {
 val effect = app.provide(loggingImpl)
 ```
 
-Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZDeps` to construct the dependency graph of our application, then we use methods like `ZIO#provideLayer` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZDeps` to construct the dependency graph of our application, then we use methods like `ZIO#provideDeps` to propagate dependencies into the environment of our ZIO effect.
 
-#### Using `provideLayer` Method
+#### Using `provideDeps` Method
 
-Unlike the `ZIO#provide` which takes and an `R`, the `ZIO#provideLayer` takes a `ZDeps` to the ZIO effect and translates it to another level. 
+Unlike the `ZIO#provide` which takes and an `R`, the `ZIO#provideDeps` takes a `ZDeps` to the ZIO effect and translates it to another level. 
 
 Assume we have written this piece of program that requires Clock and Console services:
 
@@ -456,7 +456,7 @@ val myApp: ZIO[Has[Random] with Has[Console] with Has[Clock], Nothing, Unit] = f
 } yield ()
 ```
 
-We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provideLayer` method:
+We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provideDeps` method:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
@@ -465,30 +465,30 @@ val mainEffect: ZIO[Any, Nothing, Unit] =
 
 As we see, the type of our effect converted from `ZIO[Random with Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
 
-#### Using `provideSomeLayer` Method
+#### Using `provideSomeDeps` Method
 
-Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSomeLayer` to partially apply some layers to the `ZIO` effect.
+Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSomeDeps` to partially apply some dependencies to the `ZIO` effect.
 
-In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeLayer`:
+In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeDeps`:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Has[Random] with Has[Clock], Nothing, Unit] = 
-  myApp.provideSomeLayer[Has[Random] with Has[Clock]](Console.live)
+  myApp.provideSomeDeps[Has[Random] with Has[Clock]](Console.live)
 ```
 
 > **Note:**
 >
-> When using `ZIO#provideSomeLayer[R0 <: Has[_]]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
+> When using `ZIO#provideSomeDeps[R0 <: Has[_]]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
 
-#### Using `provideCustomLayer` Method
+#### Using `provideCustomDeps` Method
 
-`ZEnv` is a convenient type alias that provides several built-in ZIO layers that are useful in most applications.
+`ZEnv` is a convenient type alias that provides several built-in ZIO dependencies that are useful in most applications.
 
 Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.  
 
- As `ZEnv` provides us the implementation of built-in services, we just need to provide layers for those services that are not part of the `ZEnv`. 
+ As `ZEnv` provides us the implementation of built-in services, we just need to provide dependencies for those services that are not part of the `ZEnv`. 
 
-`ZIO#provideCustomLayer` helps us to do so and returns an effect that only depends on `ZEnv`.
+`ZIO#provideCustomDeps` helps us to do so and returns an effect that only depends on `ZEnv`.
 
 Let's write an effect that has some built-in services and also has a `Logging` service:
 
@@ -508,7 +508,7 @@ object Logging {
 }
 
 object LoggingLive {
-  val deps: ULayer[Has[Logging]] = ZDeps.succeed {
+  val deps: UDeps[Has[Logging]] = ZDeps.succeed {
     new Logging {
       override def log(str: String): UIO[Unit] = ???
     }
@@ -524,8 +524,8 @@ val myApp: ZIO[Has[Logging] with Has[Console] with Has[Clock], Nothing, Unit] = 
 
 This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
 
-By using `ZIO#provideCustomLayer` we only provide the `Logging` layer, and it returns a `ZIO` effect which only requires `ZEnv`:
+By using `ZIO#provideCustomDeps` we only provide the `Logging` dependecy, and it returns a `ZIO` effect which only requires `ZEnv`:
 
 ```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomLayer(LoggingLive.deps)
+val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomDeps(LoggingLive.deps)
 ```

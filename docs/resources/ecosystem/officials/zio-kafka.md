@@ -90,22 +90,22 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
     producer
       .merge(consumer)
       .runDrain
-      .provideCustomLayer(appLayer)
+      .provideCustomDeps(appDeps)
       .exitCode
 
-  def producerLayer = ZDeps.fromManaged(
+  def producerDeps = ZDeps.fromManaged(
     Producer.make(
       settings = ProducerSettings(List("localhost:29092"))
     )
   )
 
-  def consumerLayer = ZDeps.fromManaged(
+  def consumerDeps = ZDeps.fromManaged(
     Consumer.make(
       ConsumerSettings(List("localhost:29092")).withGroupId("group")
     )
   )
 
-  def appLayer = producerLayer ++ consumerLayer
+  def appDeps = producerDeps ++ consumerDeps
 }
 ```
 

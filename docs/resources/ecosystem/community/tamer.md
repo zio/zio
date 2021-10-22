@@ -57,7 +57,7 @@
        from = Instant.parse("2020-01-01T00:00:00.00Z"),
        tumblingStep = 5.days
      )
-     .runWith(dbLayerFromEnvironment ++ tamer.kafkaConfigFromEnvironment)
+     .runWith(dbDepsFromEnvironment ++ tamer.kafkaConfigFromEnvironment)
 
    override final def run(args: List[String]): URIO[ZEnv, ExitCode] =
      program.exitCode

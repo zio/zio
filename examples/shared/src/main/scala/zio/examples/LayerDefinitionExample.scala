@@ -1,7 +1,7 @@
 package zio.examples
 import zio._
 
-object LayerDefinitionExample extends ZIOAppDefault {
+object DepsDefinitionExample extends ZIOAppDefault {
   trait Foo {
     def bar: UIO[Unit]
   }

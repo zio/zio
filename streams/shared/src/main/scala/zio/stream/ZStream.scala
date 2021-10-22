@@ -2634,8 +2634,8 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * val stream2 = stream.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0]: ZStream.ProvideSomeLayer[R0, R, E, O] =
-    new ZStream.ProvideSomeLayer[R0, R, E, O](self)
+  final def provideSomeLayer[R0]: ZStream.ProvideSomeDeps[R0, R, E, O] =
+    new ZStream.ProvideSomeDeps[R0, R, E, O](self)
 
   /**
    * Re-chunks the elements of the stream into chunks of
@@ -5096,16 +5096,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
-  final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
+  final class ProvideSomeDeps[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
-      layer: ZDeps[R0, E1, R1]
+      deps: ZDeps[R0, E1, R1]
     )(implicit
       ev1: R0 with R1 <:< R,
       ev2: Has.Union[R0, R1],
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
-      self.provideDeps[E1, R0, R0 with R1](ZDeps.environment[R0] ++ layer)
+      self.provideDeps[E1, R0, R0 with R1](ZDeps.environment[R0] ++ deps)
   }
 
   final class UpdateService[-R, +E, +O, M](private val self: ZStream[R, E, O]) extends AnyVal {
