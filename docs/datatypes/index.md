@@ -42,11 +42,11 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## STM
  - **[STM](stm/stm.md)** - An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
- - **[TArray](stm/tarray.md)** - A `TArray[A]` is an array of mutable references that can participate in transactions.
+ - **[TArray](stm/tarray.md)** - A `TArray` is an array of mutable references that can participate in transactions.
  - **[TSet](stm/tset.md)** - A `TSet` is a mutable set that can participate in transactions.
- - **[TMap](stm/tmap.md)** - A `TMap[A]` is a mutable map that can participate in transactions.
+ - **[TMap](stm/tmap.md)** - A `TMap` is a mutable map that can participate in transactions.
  - **[TRef](stm/tref.md)** - A `TRef` is a mutable reference to an immutable value that can participate in transactions.
- - **[TPriorityQueue](stm/tpriorityqueue.md)** - A `TPriorityQueue[A]` is a mutable priority queue that can participate in transactions.
+ - **[TPriorityQueue](stm/tpriorityqueue.md)** - A `TPriorityQueue` is a mutable priority queue that can participate in transactions.
  - **[TPromise](stm/tpromise.md)** - A `TPromise` is a mutable reference that can be set exactly once and can participate in transactions.
  - **[TQueue](stm/tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
  - **[TReentrantLock](stm/treentrantlock.md)** - A `TReentrantLock` is a reentrant read / write lock that can be composed.
