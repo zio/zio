@@ -146,6 +146,23 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         normalizedRenames.flatMap(_.unapply(tree)).headOption
     }
   }
+  
+  case class AppRecognizer() {
+    object Matcher {
+      def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
+        tree match {
+          case t@ q"..$mods class $tname[..$tparams] ..$ctorMods (...$paramss) extends $template"  =>
+            template.tokens.foreach(println)
+            Some(Patch.replaceTree(t, s"${mods.mkString(" ")} class $tname[${tparams.mkString(",")}] ${ctorMods.mkString(" ")} (${paramss.mkString(",")} extends Foo$template"))
+          case t @ q"..$mods trait $tname[..$tparams] extends $template" =>
+            template.tokens.foreach(println)
+            Some(Patch.replaceTree(t, s"${mods.mkString(" ")} class $tname[${tparams.mkString(",")}]  extends Foo$template"))
+          case _ => None
+        }
+    }
+  }
+  
+  val AppRecognizerStable = AppRecognizer()
 
   val UniversalRenames = Renames(scopes, renames)
 
@@ -201,7 +218,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val TestRandom_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestRandom#")
   val TestRandomService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestRandom.Service#")
 
-  // TODO TestRandom
   val Blocking_Old_Exact   = SymbolMatcher.exact("zio/blocking/package.Blocking#")
   val Random_Old_Exact     = SymbolMatcher.exact("zio/random/package.Random#")
   val Clock_Old_Exact      = SymbolMatcher.exact("zio/clock/package.Clock#")
@@ -211,6 +227,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Sized_Old_Exact      = SymbolMatcher.exact("zio/test/package.Sized#")
   val SizedService_Old_Exact      = SymbolMatcher.exact("zio/test/package.Sized.Service#")
   val Live_Old_Exact       = SymbolMatcher.exact("zio/test/environment/package.Live#")
+  val LiveService_Old_Exact       = SymbolMatcher.exact("zio/test/environment/package.Live.Service#")
   val TestConfig_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig#")
   val TestConfigService_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig.Service#")
   val TestLogger_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestLogger#")
@@ -244,12 +261,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val Console_Old_Package = SymbolMatcher.normalized("zio.console")
   val System_Old_Package  = SymbolMatcher.normalized("zio.system")
 
-  // TODO Test environment.Live
-
-  // TODO Handle all of these
-  //  type Sized       = Has[Sized.Service]
-  //  type TestLogger  = Has[TestLogger.Service]
-
   val Test_Clock_Old_Service = SymbolMatcher.exact("zio/clock/environment/package.TestClock.Service#")
   val Clock_Old_Service      = SymbolMatcher.exact("zio/clock/package.Clock.Service#")
   val Random_Old_Service     = SymbolMatcher.exact("zio/random/package.Random.Service#")
@@ -280,8 +291,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.clock.localDateTime"   -> "zio.Clock.localDateTime",
     "zio.clock.currentTime"     -> "zio.Clock.currentTime",
     "zio.clock.currentDateTime" -> "zio.Clock.currentDateTime",
-    // Duration TODO Delete, probably.
-    "zio.duration.Duration"     -> "zio.Duration",
+    // Intentionally removed. It breaks because of the different depth. It was not forgotten
+    //    "zio.duration.Duration"     -> "zio.Duration",
     // Random
     "zio.random.nextString"        -> "zio.Random.nextString",
     "zio.random.nextBoolean"       -> "zio.Random.nextBoolean",
@@ -351,14 +362,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val reduceAllParN           = ParNRenamer("reduceAllPar", 3)
   val partitionParN           = ParNRenamer("partitionPar", 3)
   val mergeAllParN            = ParNRenamer("mergeAllPar", 4)
-  // TODO: Fill out remaining ParN stuff
 
-  // TODO: rename all anyGen things (anyString ->  @deprecated("use string", "2.0.0"))
   override def fix(implicit doc: SemanticDocument): Patch =
     doc.tree.collect {
       case ZIORenames.Matcher(patch)       => patch
       case ZManagedRenames.Matcher(patch)  => patch
       case UniversalRenames.Matcher(patch) => patch
+//      case AppRecognizerStable.Matcher(patch) => patch // TODO Decide if this is worth pursuing
 
       // Replace >>= with flatMap. For some reason, this doesn't work with the
       // technique used above.
@@ -369,9 +379,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
       case t @ q"$lhs.collectAllParN($n)($as)" =>
         Patch.replaceTree(t, s"$lhs.collectAllPar($as).withParallelism($n)")
-
-      case t @ q"implicit val runtime: Runtime[ZEnv] = $rhs" =>
-        Patch.removeTokens(t.tokens)
 
       case t @ q"$lhs.collectAllParN_($n)($as)" =>
         Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
@@ -443,6 +450,12 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ TestAnnotationsService_Old_Exact(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "Annotations") +
           Patch.addGlobalImport(newAnnotations)
+        
+      case t @ LiveService_Old_Exact(Name(_)) =>
+        Patch.addGlobalImport(hasImport) +
+          Patch.addGlobalImport(newLive) +
+          Patch.replaceTree(unwindSelect(t), s"Live")
+
 
       case t @ Console_Old_Service(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "Console") +
@@ -522,7 +535,11 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.addGlobalImport(newLive) +
           Patch.replaceTree(unwindSelect(t), s"Has[Live]")
 
-      case t @ ImporteeNameOrRename(Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | SizedService_Old(_) | Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) | TestConsole_Old(_) | TestConsoleService_Old(_) | TestRandom_Old(_) | TestRandomService_Old(_) | TestAnnotations_Old(_) | TestAnnotationsService_Old(_) | TestLogger_Old(_) | TestLoggerService_Old(_)) =>
+      case t @ ImporteeNameOrRename(
+        Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | SizedService_Old(_) | 
+        Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) | 
+        TestConsole_Old(_) | TestConsoleService_Old(_) | TestRandom_Old(_) | TestRandomService_Old(_) | 
+        TestAnnotations_Old(_) | TestAnnotationsService_Old(_) | TestLogger_Old(_) | TestLoggerService_Old(_)) =>
         Patch.removeImportee(t)
 
       case t @ q"import zio.console._" =>
