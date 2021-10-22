@@ -118,9 +118,9 @@ private final class InjectSomeSharedPartiallyApplied[R0 <: Has[_], -R, +E, +T](v
 
   @deprecated("use provideDepsShared", "2.0.0")
   def provideLayerShared[E1 >: E, R1](
-    deps: ZDeps[R0, E1, R1]
+    layer: ZDeps[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    self.provideDepsShared(deps)
+    provideDepsShared(layer)
 
   def apply[E1 >: E](deps: ZDeps[_, E1, _]*): Spec[R0, E1, T] =
     macro SpecDepsMacros.injectSomeSharedImpl[R0, R, E1, T]

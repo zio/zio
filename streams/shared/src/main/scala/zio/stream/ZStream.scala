@@ -2567,6 +2567,28 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * leaving a stream that only depends on the `ZEnv`.
    *
    * {{{
+   * val loggingDeps: ZDeps[Any, Nothing, Logging] = ???
+   *
+   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideCustomDeps(loggingDeps)
+   * }}}
+   */
+  def provideCustomDeps[E1 >: E, R1](
+    deps: ZDeps[ZEnv, E1, R1]
+  )(implicit
+    ev1: ZEnv with R1 <:< R,
+    ev2: Has.Union[ZEnv, R1],
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZStream[ZEnv, E1, O] =
+    provideSomeDeps[ZEnv](deps)
+
+  /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a stream that only depends on the `ZEnv`.
+   *
+   * {{{
    * val loggingLayer: ZDeps[Any, Nothing, Logging] = ???
    *
    * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
@@ -2574,6 +2596,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * val stream2 = stream.provideCustomLayer(loggingLayer)
    * }}}
    */
+  @deprecated("use provideCustomDeps", "2.0.0")
   def provideCustomLayer[E1 >: E, R1](
     layer: ZDeps[ZEnv, E1, R1]
   )(implicit
@@ -2582,10 +2605,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, O] =
-    provideSomeLayer[ZEnv](layer)
+    provideCustomDeps(layer)
 
   /**
-   * Provides a layer to the stream, which translates it to another level.
+   * Provides a set of dependencies to the stream, which translates it to
+   * another level.
    */
   final def provideDeps[E1 >: E, R0, R1](
     deps: ZDeps[R0, E1, R1]
@@ -2600,15 +2624,11 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Provides a layer to the stream, which translates it to another level.
    */
+  @deprecated("use provideDeps", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
     layer: ZDeps[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, O] =
-    ZStream.managed {
-      for {
-        r  <- layer.build.map(ev)
-        as <- self.process.provide(r)
-      } yield as.provide(r)
-    }.flatMap(ZStream.repeatZIOChunkOption)
+    provideDeps(layer)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -2624,6 +2644,21 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
   /**
    * Splits the environment into two parts, providing one part using the
+   * specified set of dependencies and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockDeps: ZDeps[Any, Nothing, Clock] = ???
+   *
+   * val stream: ZStream[Clock with Has[Random], Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideSomeDeps[Has[Random]](clockDeps)
+   * }}}
+   */
+  final def provideSomeDeps[R0]: ZStream.ProvideSomeDeps[R0, R, E, O] =
+    new ZStream.ProvideSomeDeps[R0, R, E, O](self)
+
+  /**
+   * Splits the environment into two parts, providing one part using the
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
@@ -2634,8 +2669,9 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * val stream2 = stream.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
+  @deprecated("use provideSomeDeps", "2.0.0")
   final def provideSomeLayer[R0]: ZStream.ProvideSomeDeps[R0, R, E, O] =
-    new ZStream.ProvideSomeDeps[R0, R, E, O](self)
+    provideSomeDeps
 
   /**
    * Re-chunks the elements of the stream into chunks of

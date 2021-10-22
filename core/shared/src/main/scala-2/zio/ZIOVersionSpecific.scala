@@ -71,7 +71,7 @@ private final class ProvideSomeDepsPartiallyApplied[R0 <: Has[_], -R, +E, +A](va
   def provideLayer[E1 >: E, R1](
     layer: ZDeps[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
-    self.provideDeps(layer)
+    provideDeps(layer)
 
   def provideSomeDeps[R0 <: Has[_]]: ZIO.ProvideSomeDeps[R0, R, E, A] =
     new ZIO.ProvideSomeDeps[R0, R, E, A](self)

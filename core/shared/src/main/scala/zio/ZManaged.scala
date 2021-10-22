@@ -171,7 +171,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Maps the success value of this effect to a service.
    */
-  @deprecated("use toLayer", "2.0.0")
+  @deprecated("use toDeps", "2.0.0")
   def asService[A1 >: A: Tag](implicit trace: ZTraceElement): ZManaged[R, E, Has[A1]] =
     map(Has(_))
 
@@ -830,7 +830,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
-    provideSomeLayer[ZEnv](deps)
+    provideSomeDeps[ZEnv](deps)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -853,7 +853,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
-    provideSomeLayer[ZEnv](layer)
+    provideCustomDeps(layer)
 
   /**
    * Provides a set of dependencies to the `ZManaged`, which translates it to
@@ -871,7 +871,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def provideLayer[E1 >: E, R0, R1](
     layer: => ZDeps[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    ZManaged.suspend(layer.build.map(ev).flatMap(r => self.provide(r)))
+    provideDeps(layer)
 
   /**
    * Provides some of the environment required to run this effect when the

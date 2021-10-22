@@ -77,7 +77,7 @@ ZIO Test provides a framework for mocking your modules.
 
 ## Creating a mock service
 
-We'll be assuming you've read about modules and layers in the [contextual types][doc-contextual-types] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose layer_.
+We'll be assuming you've read about modules and dependencies in the [contextual types][doc-contextual-types] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose dependency.
 
 ```scala mdoc:silent
 // main sources
@@ -144,7 +144,7 @@ We model input arguments according to following scheme:
 
 For overloaded methods we nest a list of numbered objects, each representing subsequent overloads.
 
-Finally we need to define a _compose layer_ that can create our environment from a `Proxy`.
+Finally we need to define a _compose dependency_ that can create our environment from a `Proxy`.
 A `Proxy` holds the mock state and serves predefined responses to calls.
 
 ```scala mdoc:invisible
@@ -177,7 +177,7 @@ val compose: URDeps[Has[Proxy], Example] =
 
 > **Note:** The `withRuntime` helper is defined in `Mock`. It accesses the Runtime via `ZIO.runtime` and if you're on JS platform, it will replace the executor to an unyielding one.
 
-A reference to this layer is passed to _capability tags_ so it can be used to automatically build environment for composed expectations on
+A reference to this dependency is passed to _capability tags_ so it can be used to automatically build environment for composed expectations on
 multiple services.
 
 > **Note:** for non-effectful capabilities you need to unsafely run the final effect to satisfy the required interface. For `ZSink` you also need to map the error into a failed sink as demonstrated above.
@@ -329,7 +329,7 @@ import zio.test._
 
 val event = new AccountEvent {}
 val app: URIO[AccountObserver, Unit] = AccountObserver.processEvent(event)
-val mockEnv: ULayer[Has[Console]] = (
+val mockEnv: UDeps[Has[Console]] = (
   MockConsole.PrintLine(equalTo(s"Got $event"), unit) ++
   MockConsole.ReadLine(value("42")) ++
   MockConsole.PrintLine(equalTo("You entered: 42"), unit)
@@ -352,7 +352,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     test("calls printLine > readLine > printLine and returns unit") {
-      val result = app.provideSomeLayer(mockEnv >>> AccountObserver.live)
+      val result = app.provideSomeDeps(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
   )
@@ -370,8 +370,8 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
-      val maybeTest1 = maybeConsole(false).unit.provideSomeLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).unit.provideSomeLayer(MockConsole.PrintLine(equalTo("foo"), unit))
+      val maybeTest1 = maybeConsole(false).unit.provideSomeDeps(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).unit.provideSomeDeps(MockConsole.PrintLine(equalTo("foo"), unit))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )
@@ -380,12 +380,12 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
 
 ## Mocking multiple collaborators
 
-In some cases we have more than one collaborating service being called. You can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlaying mocked layer will be updated.
+In some cases we have more than one collaborating service being called. You can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlying mocked dependency will be updated.
 
 ```scala mdoc:silent
 import zio.test.mock.MockRandom
 
-val combinedEnv: ULayer[Has[Console] with Has[Random]] = (
+val combinedEnv: UDeps[Has[Console] with Has[Random]] = (
   MockConsole.PrintLine(equalTo("What is your name?"), unit) ++
   MockConsole.ReadLine(value("Mike")) ++
   MockRandom.NextInt(value(42)) ++
@@ -400,7 +400,7 @@ val combinedApp =
     _    <- Console.printLine(s"$name, your lucky number today is $num!")
   } yield ()
 
-val result = combinedApp.provideSomeLayer(combinedEnv)
+val result = combinedApp.provideSomeDeps(combinedEnv)
 assertM(result)(isUnit)
 ```
 

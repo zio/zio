@@ -2487,6 +2487,28 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(channel.provide(r))
 
   /**
+   * Provides the set of dependencies that is not part of the `ZEnv`,
+   * leaving a stream that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingDeps: ZDeps[Any, Nothing, Logging] = ???
+   *
+   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideCustomDeps(loggingDeps)
+   * }}}
+   */
+  def provideCustomDeps[E1 >: E, R1](
+    deps: ZDeps[ZEnv, E1, R1]
+  )(implicit
+    ev1: ZEnv with R1 <:< R,
+    ev2: Has.Union[ZEnv, R1],
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZStream[ZEnv, E1, A] =
+    provideSomeDeps[ZEnv](deps)
+
+  /**
    * Provides the part of the environment that is not part of the `ZEnv`,
    * leaving a stream that only depends on the `ZEnv`.
    *
@@ -2498,6 +2520,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideCustomLayer(loggingLayer)
    * }}}
    */
+  @deprecated("use provideCustomDeps", "2.0.0")
   def provideCustomLayer[E1 >: E, R1](
     layer: ZDeps[ZEnv, E1, R1]
   )(implicit
@@ -2506,7 +2529,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
-    provideSomeLayer[ZEnv](layer)
+    provideCustomDeps(layer)
 
   /**
    * Provides a set of dependencies to the stream, which translates it to
@@ -2522,12 +2545,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Provides a layer to the stream, which translates it to another level.
    */
+  @deprecated("use provideDeps", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
     layer: ZDeps[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
-    new ZStream(ZChannel.managed(layer.build) { r =>
-      self.channel.provide(r)
-    })
+    provideDeps(layer)
 
   /**
    * Provides some of the environment required to run this effect,
@@ -2537,6 +2559,21 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     ZStream.environment[R0].flatMap { r0 =>
       self.provide(env(r0))
     }
+
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified set of dependencies and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockDeps: ZDeps[Any, Nothing, Has[Clock]] = ???
+   *
+   * val stream: ZStream[Has[Clock] with Has[Random], Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideSomeDeps[Has[Random]](clockDeps)
+   * }}}
+   */
+  final def provideSomeDeps[R0]: ZStream.ProvideSomeDeps[R0, R, E, A] =
+    new ZStream.ProvideSomeDeps[R0, R, E, A](self)
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -2550,8 +2587,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
+  @deprecated("use provideSomeDeps", "2.0.0")
   final def provideSomeLayer[R0]: ZStream.ProvideSomeDeps[R0, R, E, A] =
-    new ZStream.ProvideSomeDeps[R0, R, E, A](self)
+    provideSomeDeps
 
   /**
    * Re-chunks the elements of the stream into chunks of
