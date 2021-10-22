@@ -1643,3 +1643,166 @@ ZIO.logSpan("myspan") {
 ```
 
 ZIO Logging calculates the running duration of that span and includes that in the logging data corresponding to its span label.
+
+### Compile-time Execution Tracing
+
+ZIO 1.x's execution trace is full of junk and is often unable to provide specific information about the error location.
+
+Let's say we have the following application, in ZIO 1.x:
+
+```scala
+import zio._
+import zio.console.Console
+
+object TracingExample extends zio.App {
+
+  def doSomething(input: Int): ZIO[Console, String, Unit] =
+    for {
+      _ <- console.putStrLn(s"Do something $input").orDie // line number 8
+      _ <- ZIO.fail("Boom!")
+      _ <- console.putStrLn("Finished my job").orDie
+    } yield ()
+
+  def myApp: ZIO[Console, String, Unit] =
+    for {
+      _ <- console.putStrLn("Hello!").orDie
+      _ <- doSomething(5)
+      _ <- console.putStrLn("Bye Bye!").orDie
+    } yield ()
+
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+    myApp.exitCode
+}
+```
+
+The output would be something like this:
+
+```
+Hello!
+Do something 5
+Fiber failed.
+A checked error was not handled.
+Boom!
+
+Fiber:Id(1634884059941,1) was supposed to continue to:
+  a future continuation at TracingExample$.myApp(TracingExample.scala:16)
+  a future continuation at zio.ZIO.exitCode(ZIO.scala:606)
+
+Fiber:Id(1634884059941,1) execution trace:
+  at TracingExample$.doSomething(TracingExample.scala:8)
+  at zio.ZIO.orDieWith(ZIO.scala:1118)
+  at zio.ZIO.refineOrDieWith(ZIO.scala:1497)
+  at zio.console.package$Console$Service$.putStrLn(package.scala:44)
+  at zio.console.package$.putStrLn(package.scala:88)
+  at TracingExample$.myApp(TracingExample.scala:15)
+  at zio.ZIO.orDieWith(ZIO.scala:1118)
+  at zio.ZIO.refineOrDieWith(ZIO.scala:1497)
+  at zio.console.package$Console$Service$.putStrLn(package.scala:44)
+  at zio.console.package$.putStrLn(package.scala:88)
+
+Fiber:Id(1634884059941,1) was spawned by:
+
+Fiber:Id(1634884059516,0) was supposed to continue to:
+  a future continuation at zio.App.main(App.scala:59)
+  a future continuation at zio.App.main(App.scala:58)
+
+Fiber:Id(1634884059516,0) ZIO Execution trace: <empty trace>
+
+Fiber:Id(1634884059516,0) was spawned by: <empty trace>
+```
+
+The execution trace, is somehow at a good degree informative, but it doesn't lead us to the exact point where the failure happened. It's a little hard to see what is going here. 
+
+Let's rewrite the previous example in ZIO 2.0:
+
+```scala mdoc:compile-only
+import zio._
+
+object TracingExample extends ZIOAppDefault {
+
+  def doSomething(input: Int): ZIO[Has[Console], String, Unit] =
+    for {
+      _ <- Console.printLine(s"Do something $input").orDie
+      _ <- ZIO.fail("Boom!") // line number 8
+      _ <- Console.printLine("Finished my job").orDie
+    } yield ()
+
+  def myApp: ZIO[Has[Console], String, Unit] =
+    for {
+      _ <- Console.printLine("Hello!").orDie
+      _ <- doSomething(5)
+      _ <- Console.printLine("Bye Bye!").orDie
+    } yield ()
+
+  def run = myApp
+}
+```
+
+The output is more descriptive than the ZIO 1.x:
+
+```
+Hello!
+Do something 5
+timestamp=2021-10-22T06:24:57.958955503Z level=ERROR thread=#0 message="Fiber failed.
+A checked error was not handled.
+Boom!
+
+Fiber:FiberId(1634883897813,2) was supposed to continue to:
+  a future continuation at 
+  a future continuation at 
+  a future continuation at 
+  a future continuation at 
+  a future continuation at 
+  a future continuation at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:15:9)
+
+Fiber:FiberId(1634883897813,2) execution trace:
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:8:20)
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:9)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:54)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:9)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:40)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+```
+
+As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), line number 8 and column 20:
+
+```
+Fiber:FiberId(1634883897813,2) execution trace:
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:8:20)
+```
+
+Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterward. So it adds a huge amount of complexity at the runtime.
+
+Some users often turn off the tracing when they need more speed, so they lose this ability to trace their application when something breaks.
+
+In ZIO 2.x, we moved the execution tracing from the run-time to the compile-time. This was happened by capturing tracing information from source code at compile time using macros. So most tracing information is pre-allocated at startup and never needs garbage collected. As a result, we ended up with much better performance in the execution tracing.
