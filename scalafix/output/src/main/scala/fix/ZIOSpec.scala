@@ -11,7 +11,7 @@ import zio.test.environment.TestClock
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
-import zio.{ Clock, Clock, Has, Random, Random, _ }
+import zio.{ Clock, Clock, FiberId, Has, Random, Random, _ }
 import zio.test.{ Gen, Sized }
 import zio.test.environment.Live
 
@@ -249,7 +249,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("catchSomeCause")(
       test("catches matching cause") {
         ZIO.interrupt.catchSomeCause {
-          case c if c.interrupted => ZIO.succeed(true)
+          case c if c.isInterrupted => ZIO.succeed(true)
         }.sandbox.map(
           assert(_)(isTrue)
         )
@@ -257,7 +257,7 @@ object ZIOSpec extends DefaultRunnableSpec {
       test("halts if cause doesn't match") {
         ZIO.fiberId.flatMap { fiberId =>
           ZIO.interrupt.catchSomeCause {
-            case c if (!c.interrupted) => ZIO.succeed(true)
+            case c if (!c.isInterrupted) => ZIO.succeed(true)
           }.sandbox.either.map(
             assert(_)(isLeft(equalTo(Cause.interrupt(fiberId))))
           )
@@ -409,7 +409,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("done")(
       test("Check done lifts exit result into IO") {
 
-        val fiberId = Fiber.Id(0L, 123L)
+        val fiberId = FiberId(0L, 123L)
         val error   = exampleError
 
         for {
@@ -425,7 +425,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     ),
     suite("executor")(
       test("retrieves the current executor for this effect") {
-        val executor = zio.internal.Executor.fromExecutionContext(100) {
+        val executor = zio.Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         for {
@@ -711,7 +711,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     ),
     suite("foreach")(
       test("returns the list of results") {
-        checkAllM(functionIOGen, listGen) { (f, list) =>
+        checkAll(functionIOGen, listGen) { (f, list) =>
           val res = IO.foreach(list)(f)
           assertM(res)(isSubtype[List[Int]](anything) && hasSize(equalTo(100)))
         }
@@ -1001,9 +1001,9 @@ object ZIOSpec extends DefaultRunnableSpec {
         } yield {
           assert(result1)(equalTo(Cause.die(boom))) && {
             assert(result2)(equalTo(Cause.die(boom))) ||
-            (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.interrupted)(isTrue))
+            (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
           } && {
-            assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.interrupted)(isTrue)
+            assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.isInterrupted)(isTrue)
           }
         }
       } @@ nonFlaky,
@@ -1422,7 +1422,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           latch1 <- Promise.make[Nothing, Unit]
           latch2 <- Promise.make[Nothing, Unit]
           fiber <- (latch1.succeed(()) *> ZIO.never).onExit {
-                     case Exit.Failure(c) if c.interrupted => latch2.succeed(())
+                     case Exit.Failure(c) if c.isInterrupted => latch2.succeed(())
                      case _                                => UIO.unit
                    }.fork
           _ <- latch1.await
@@ -1464,7 +1464,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("orElse")(
       test("does not recover from defects") {
         val ex               = new Exception("Died")
-        val fiberId          = Fiber.Id(0L, 123L)
+        val fiberId          = FiberId(0L, 123L)
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> IO.unit).exit
@@ -2083,7 +2083,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           f    <- (p.succeed(()) *> IO.never).exit.fork
           _    <- p.await
           _    <- f.interrupt
-          test <- f.await.map(_.interrupted)
+          test <- f.await.map(_.isInterrupted)
         } yield assert(test)(isTrue)
       },
       test("run swallows inner interruption") {
@@ -2847,7 +2847,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           fiber <- withLatch { release =>
                      (release *> ZIO.never.interruptible)
                        .foldCauseZIO(
-                         cause => recovered.set(cause.interrupted),
+                         cause => recovered.set(cause.isInterrupted),
                          _ => recovered.set(false)
                        )
                        .uninterruptible
@@ -2956,7 +2956,7 @@ object ZIOSpec extends DefaultRunnableSpec {
             fiber    <- withLatch(release => (release *> ZIO.fail("foo")).catchAll(_ => finished.set(true)).fork)
             exit     <- fiber.interrupt
             finished <- finished.get
-          } yield exit.interrupted == true || finished == true
+          } yield exit.isInterrupted == true || finished == true
 
         assertM(io)(isTrue)
       } @@ jvm(nonFlaky),
@@ -3063,7 +3063,7 @@ object ZIOSpec extends DefaultRunnableSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       },
       test("executor is heritable") {
-        val executor = zio.internal.Executor.fromExecutionContext(100) {
+        val executor = zio.Executor.fromExecutionContext(100) {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         val pool = ZIO.succeed(Platform.getCurrentThreadGroup)
@@ -3592,7 +3592,7 @@ object ZIOSpec extends DefaultRunnableSpec {
       },
       test("does not report failure when interrupting loser after it succeeded") {
         val io          = ZIO.interrupt.zipPar(IO.succeed(1))
-        val interrupted = io.sandbox.either.map(_.left.map(_.interrupted))
+        val interrupted = io.sandbox.either.map(_.left.map(_.isInterrupted))
         assertM(interrupted)(isLeft(isTrue))
       },
       test("passes regression 1") {
