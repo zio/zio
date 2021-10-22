@@ -21,6 +21,7 @@ mv website/static/api website/static/api-1.x
 
 # No we need to checkout the branch that originally has triggered the site build
 git checkout $1
+git fetch --tags
 ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/unidoc docs/mdoc
 
 cd website 
