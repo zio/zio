@@ -38,8 +38,8 @@ object DepsMacros {
 
     val nodes = zEnvDeps ++ getNodes(deps)
 
-    val deps = buildMemoizedDeps(ctx)(ZDepsExprBuilder.fromNodes(ctx)(nodes), requirements)
-    '{$deps.asInstanceOf[ZDeps[R0,E,R]] }
+    val dep = buildMemoizedDeps(ctx)(ZDepsExprBuilder.fromNodes(ctx)(nodes), requirements)
+    '{$dep.asInstanceOf[ZDeps[R0,E,R]] }
   }
 }
 
