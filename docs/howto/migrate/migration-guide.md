@@ -46,17 +46,34 @@ As a contributor to ZIO ecosystem libraries, we also should cover these guidelin
 
 1. We should add _implicit trace parameter_ to all our codebase, this prevents the guts of our library from messing up the user's execution trace. 
  
-   Let's see an example of that in the ZIO source code:
+    Let's see an example of that in the ZIO source code:
 
-   ```diff
-   trait ZIO[-R, +E, +A] {
-   -  def map[B](f: A => B): ZIO[R, E, B] =
-        flatMap(a => ZIO.succeedNow(f(a)))
-   +  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
-        flatMap(a => ZIO.succeedNow(f(a)))
-   }
-   ```
-2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters).
+    ```diff
+    trait ZIO[-R, +E, +A] {
+    -  def map[B](f: A => B): ZIO[R, E, B] =
+         flatMap(a => ZIO.succeedNow(f(a)))
+    +  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
+         flatMap(a => ZIO.succeedNow(f(a)))
+    }
+    ```
+2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters). Also, we should be sure to capture any parameters that are referenced more than once as a lazy val in our implementation to prevent _double evaluation_. 
+    
+    The overall pattern in implementing such methods will be:
+
+    ```diff
+    - def foreachParN[A](n: Int)(a: Iterable[A]) = {
+        ... // The function body
+    - }
+    + def foreachParN[A](n0: => Int)(a0: => Iterable[A]) = 
+    +   ZIO.suspendSucceed {
+    +    val n = n0 
+    +    val a = a0
+          ... // The function body
+    +   }
+    ```
+   
+    As a result, the code will be robust to _double evaluation_ as well as to _side-effects embedded within parameters_.
+
 3. We should update names to match [ZIO 2.0 naming conventions](#zio-20-naming-conventions).
 4. ZIO 2.0 introduced [new structured concurrently operators](#compositional-concurrency) which helps us to change the regional parallelism settings of our application. So if applicable, we should use these operators instead of the old parallel operators.
 
