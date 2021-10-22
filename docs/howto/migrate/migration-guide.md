@@ -1646,7 +1646,7 @@ ZIO Logging calculates the running duration of that span and includes that in th
 
 ### Compile-time Execution Tracing
 
-ZIO 1.x's execution trace is full of junk and is often unable to provide specific information about the error location.
+ZIO 1.x's execution trace is not as useful as it could be because it contains tracing information for internal ZIO operators that it not helpful to the user is understanding where in their code an error occurred.
 
 Let's say we have the following application, in ZIO 1.x:
 
