@@ -1805,4 +1805,4 @@ Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slo
 
 Some users often turn off the tracing when they need more speed, so they lose this ability to trace their application when something breaks.
 
-In ZIO 2.x, we moved the execution tracing from the run-time to the compile-time. This was happened by capturing tracing information from source code at compile time using macros. So most tracing information is pre-allocated at startup and never needs garbage collected. As a result, we ended up with much better performance in the execution tracing.
+In ZIO 2.x, we moved execution tracing from the run-time to the compile-time. This is done by capturing tracing information from source code at compile time using macros. So most tracing information is pre-allocated at startup and never needs garbage collected. As a result, we end up with much better performance in execution tracing.
