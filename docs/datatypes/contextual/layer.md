@@ -1,10 +1,10 @@
 ---
-id: layer
-title: "Layer"
+id: deps
+title: "Deps"
 ---
 
-`Layer[+E, +ROut]` is a type alias for `ZLayer[Any, E, ROut]`, which represents a layer that doesn't require any services, it may fail with an error type of `E`, and returns `ROut` as its output.
+`Deps[+E, +ROut]` is a type alias for `ZDeps[Any, E, ROut]`, which represents a layer that doesn't require any services, it may fail with an error type of `E`, and returns `ROut` as its output.
 
 ```scala
-type Layer[+E, +ROut] = ZLayer[Any, E, ROut]
+type Deps[+E, +ROut] = ZDeps[Any, E, ROut]
 ```

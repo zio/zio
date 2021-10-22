@@ -48,12 +48,12 @@ trait Database {
 }
 
 object Database {
-  val layer: URLayer[Has[Logging], HasMany[String, Database]] = { (logger: Logging) =>
+  val deps: URDeps[Has[Logging], HasMany[String, Database]] = { (logger: Logging) =>
     Map(
       "persistent" -> PersistentDatabase(logger),
       "inmemory" -> InmemoryDatabase(logger)
     )
-  }.toLayer
+  }.toDeps
 }
 
 trait Logging {
@@ -66,8 +66,8 @@ case class ConsoleLogger(console: Console) extends Logging {
 }
 
 object ConsoleLogger {
-  val layer: URLayer[Has[Console], Has[Logging]] =
-    (ConsoleLogger.apply _).toLayer[Logging]
+  val deps: URDeps[Has[Console], Has[Logging]] =
+    (ConsoleLogger.apply _).toDeps[Logging]
 }
 
 case class InmemoryDatabase(logger: Logging) extends Database {
@@ -79,8 +79,8 @@ case class InmemoryDatabase(logger: Logging) extends Database {
 }
 
 object InmemoryDatabase {
-  val layer: URLayer[Has[Logging], Has[Database]] =
-    (InmemoryDatabase.apply _).toLayer[Database]
+  val deps: URDeps[Has[Logging], Has[Database]] =
+    (InmemoryDatabase.apply _).toDeps[Database]
 }
 
 case class PersistentDatabase(logger: Logging) extends Database {
@@ -92,7 +92,7 @@ case class PersistentDatabase(logger: Logging) extends Database {
 }
 
 object PersistentDatabase {
-  def layer: URLayer[Has[Logging], Has[Database]] = (PersistentDatabase.apply _).toLayer[Database]
+  def deps: URDeps[Has[Logging], Has[Database]] = (PersistentDatabase.apply _).toDeps[Database]
 }
 
 object HasManyExample extends ZIOAppDefault {
@@ -105,8 +105,8 @@ object HasManyExample extends ZIOAppDefault {
 
   def run =
     myApp.injectCustom(
-      Database.layer,
-      ConsoleLogger.layer
+      Database.deps,
+      ConsoleLogger.deps
     )
 }
 ```

@@ -33,12 +33,12 @@
     "Contextual Types": [
       "datatypes/contextual/index",
       "datatypes/contextual/has",
-      "datatypes/contextual/zlayer",
-      "datatypes/contextual/rlayer",
-      "datatypes/contextual/ulayer",
-      "datatypes/contextual/layer",
-      "datatypes/contextual/urlayer",
-      "datatypes/contextual/tasklayer"
+      "datatypes/contextual/zdeps",
+      "datatypes/contextual/rdeps",
+      "datatypes/contextual/udeps",
+      "datatypes/contextual/deps",
+      "datatypes/contextual/urdeps",
+      "datatypes/contextual/taskdeps"
     ],
     "Fiber Primitives": [
       "datatypes/fiber/index",

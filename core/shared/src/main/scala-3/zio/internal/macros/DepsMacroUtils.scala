@@ -6,56 +6,56 @@ import scala.compiletime._
 import zio.internal.macros.StringUtils.StringOps
 import zio.internal.ansi.AnsiStringOps
 
-private [zio] object LayerMacroUtils {
-  type LayerExpr = Expr[ZLayer[_,_,_]]
+private [zio] object DepsMacroUtils {
+  type DepsExpr = Expr[ZDeps[_,_,_]]
 
   def renderExpr[A](expr: Expr[A])(using Quotes): String = {
     import quotes.reflect._
     expr.asTerm.pos.sourceCode.getOrElse(expr.show)
   }
 
-  def buildMemoizedLayer(ctx: Quotes)(exprGraph: ZLayerExprBuilder[ctx.reflect.TypeRepr, LayerExpr], requirements: List[ctx.reflect.TypeRepr]) : LayerExpr = {
+  def buildMemoizedDeps(ctx: Quotes)(exprGraph: ZDepsExprBuilder[ctx.reflect.TypeRepr, DepsExpr], requirements: List[ctx.reflect.TypeRepr]) : DepsExpr = {
     import ctx.reflect._
 
     // This is run for its side effects: Reporting compile errors with the original source names.
-    val _ = exprGraph.buildLayerFor(requirements)
+    val _ = exprGraph.buildDepsFor(requirements)
 
-    val layerExprs = exprGraph.graph.nodes.map(_.value)
+    val depsExprs = exprGraph.graph.nodes.map(_.value)
 
-    ValDef.let(Symbol.spliceOwner, layerExprs.map(_.asTerm)) { idents =>
-      val exprMap = layerExprs.zip(idents).toMap
+    ValDef.let(Symbol.spliceOwner, depsExprs.map(_.asTerm)) { idents =>
+      val exprMap = depsExprs.zip(idents).toMap
       val valGraph = exprGraph.copy( graph =
         exprGraph.graph.map { node =>
           val ident = exprMap(node)
-          ident.asExpr.asInstanceOf[LayerExpr]
+          ident.asExpr.asInstanceOf[DepsExpr]
         }
       )
-      valGraph.buildLayerFor(requirements).asTerm
-    }.asExpr.asInstanceOf[LayerExpr]
+      valGraph.buildDepsFor(requirements).asTerm
+    }.asExpr.asInstanceOf[DepsExpr]
   }
 
-  def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
+  def getNodes(deps: Expr[Seq[ZDeps[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, DepsExpr]] = {
     import quotes.reflect._
-    layers match {
-      case Varargs(layers) =>
-        getNodes(layers)
+    deps match {
+      case Varargs(deps) =>
+        getNodes(deps)
 
       case other =>
         report.throwError(
-          "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
-          "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
+          "  ZDeps Wiring Error  ".yellow.inverted + "\n" +
+          "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the dependencies themselves into this method."
         )
     }
   }
 
 
-  def getNodes(layers: Seq[Expr[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
+  def getNodes(deps: Seq[Expr[ZDeps[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, DepsExpr]] = {
     import quotes.reflect._
-    layers.map {
-      case '{$layer: ZLayer[in, e, out]} =>
-      val inputs = getRequirements[in]("Input for " + layer.show.cyan.bold)
-      val outputs = getRequirements[out]("Output for " + layer.show.cyan.bold)
-      Node(inputs, outputs, layer)
+    deps.map {
+      case '{$deps: ZDeps[in, e, out]} =>
+      val inputs = getRequirements[in]("Input for " + deps.show.cyan.bold)
+      val outputs = getRequirements[out]("Output for " + deps.show.cyan.bold)
+      Node(inputs, outputs, deps)
     }.toList
   }
 
@@ -68,7 +68,7 @@ private [zio] object LayerMacroUtils {
       }
 
     if (nonHasTypes.nonEmpty) report.throwError(
-      "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
+      "  ZDeps Wiring Error  ".yellow.inverted + "\n" +
       s"${description} contains non-Has types:\n- ${nonHasTypes.mkString("\n- ")}"
     )
 
@@ -102,10 +102,10 @@ private [zio] object LayerMacroUtils {
 
 private[zio] object MacroUnitTestUtils {
 //  def getRequirements[R]: List[String] = '{
-//    LayerMacros.debugGetRequirements[R]
+//    DepsMacros.debugGetRequirements[R]
 //  }
 //
 //  def showTree(any: Any): String = '{
-//    LayerMacros.debugShowTree
+//    DepsMacros.debugShowTree
 //  }
 }

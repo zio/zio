@@ -7,7 +7,7 @@ import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.render.TestRenderer
-import zio.{Cause, Clock, Has, Layer, Promise, ZIO}
+import zio.{Cause, Clock, Has, Deps, Promise, ZIO}
 
 import java.util.regex.Pattern
 import scala.{Console => SConsole}
@@ -54,7 +54,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
+             .provideDeps[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
@@ -64,13 +64,13 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
+                   .provideDeps[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary.withNoLineNumbers
 
-  private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
+  private[this] def TestTestRunner(testEnvironment: Deps[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
       reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
@@ -248,20 +248,20 @@ object ReportingTestUtils {
     withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
   )
 
-  val mock5: ZSpec[Any, String] = test("Failing layer") {
+  val mock5: ZSpec[Any, String] = test("Failing dependencies") {
     for {
-      promise     <- Promise.make[Nothing, Unit]
-      failingLayer = (promise.await *> ZIO.fail("failed!")).toLayer[String]
-      mock = PureModuleMock.ZeroParams(value("mocked")).toLayer.tap { _ =>
+      promise    <- Promise.make[Nothing, Unit]
+      failingDeps = (promise.await *> ZIO.fail("failed!")).toDeps[String]
+      mock = PureModuleMock.ZeroParams(value("mocked")).toDeps.tap { _ =>
                promise.succeed(())
              }
       f       = ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
-      result <- f.provideLayer(failingLayer ++ mock).untraced
+      result <- f.provideDeps(failingDeps ++ mock).untraced
     } yield assert(result)(equalTo("mocked"))
   }
 
   val mock5Expected: Vector[String] = Vector(
-    """.*Failing layer.*""",
+    """.*Failing dependencies.*""",
     """.*- unsatisfied expectations.*""",
     """\s*zio\.test\.mock\.module\.PureModuleMock\.ZeroParams with arguments.*""",
     """\s*Fiber failed\.""",

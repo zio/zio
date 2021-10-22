@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 package object zio
     extends BuildFromCompat
     with EitherCompat
-    with FunctionToLayerOps
+    with FunctionToDepsOps
     with IntersectionTypeCompat
     with PlatformSpecific
     with VersionSpecific
@@ -43,11 +43,27 @@ package object zio
 
   val Managed: ZManaged.type = ZManaged
 
-  type RLayer[-RIn, +ROut]  = ZLayer[RIn, Throwable, ROut]
-  type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]
-  type Layer[+E, +ROut]     = ZLayer[Any, E, ROut]
-  type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
-  type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
+  type RDeps[-RIn, +ROut]  = ZDeps[RIn, Throwable, ROut]
+  type URDeps[-RIn, +ROut] = ZDeps[RIn, Nothing, ROut]
+  type Deps[+E, +ROut]     = ZDeps[Any, E, ROut]
+  type UDeps[+ROut]        = ZDeps[Any, Nothing, ROut]
+  type TaskDeps[+ROut]     = ZDeps[Any, Throwable, ROut]
+
+  @deprecated("use ZDeps", "2.0.0")
+  type ZLayer[-RIn, +E, +ROut] = ZDeps[RIn, E, ROut]
+  @deprecated("use ZDeps", "2.0.0")
+  val ZLayer: ZDeps.type = ZDeps
+
+  @deprecated("use RDeps", "2.0.0")
+  type RLayer[-RIn, +ROut] = ZDeps[RIn, Throwable, ROut]
+  @deprecated("use URDeps", "2.0.0")
+  type URLayer[-RIn, +ROut] = ZDeps[RIn, Nothing, ROut]
+  @deprecated("use Deps", "2.0.0")
+  type Layer[+E, +ROut] = ZDeps[Any, E, ROut]
+  @deprecated("use UDeps", "2.0.0")
+  type ULayer[+ROut] = ZDeps[Any, Nothing, ROut]
+  @deprecated("use TaskDeps", "2.0.0")
+  type TaskLayer[+ROut] = ZDeps[Any, Throwable, ROut]
 
   type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
   val Queue: ZQueue.type = ZQueue

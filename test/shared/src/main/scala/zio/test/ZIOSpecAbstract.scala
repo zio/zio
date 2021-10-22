@@ -33,14 +33,14 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {
     implicit val trace = Tracer.newTrace
-    runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ layer)
+    runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ deps)
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
-        self.layer +!+ that.layer
+      def deps: ZDeps[Has[ZIOAppArgs], Any, Environment] =
+        self.deps +!+ that.deps
       override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
@@ -89,11 +89,11 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       env <- ZIO.environment[Environment with TestEnvironment with Has[ZIOAppArgs]]
       runner =
         TestRunner(
-          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](ZLayer.succeedMany(env))
+          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](ZDeps.succeedMany(env))
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideDeps(runner.bootstrap)
       hasFailures = results.exists {
                       case ExecutedSpec.TestCase(test, _) => test.isLeft
                       case _                              => false
@@ -101,7 +101,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       _ <- TestLogger
              .logLine(SummaryBuilder.buildSummary(results).summary)
              .when(testArgs.printSummary)
-             .provideLayer(runner.bootstrap)
+             .provideDeps(runner.bootstrap)
     } yield if (hasFailures) 1 else 0
   }
 }

@@ -115,7 +115,7 @@ object AccessibleMacroExample {
     def withEx1(p: String): String
   }
 
-  val live: ZLayer[Has[Console], Nothing, Has[Service]] =
+  val live: ZDeps[Has[Console], Nothing, Has[Service]] =
     ZIO
       .service[Console]
       .map(console =>
@@ -138,7 +138,7 @@ object AccessibleMacroExample {
           def withEx1(p: String): String                                  = throw new Exception("test")
         }
       )
-      .toLayer
+      .toDeps
 
   // can use accessors even in the same compilation unit
   val program: URIO[

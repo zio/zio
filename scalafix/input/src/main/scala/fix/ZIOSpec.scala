@@ -1640,7 +1640,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     ),
     suite("provideCustomLayer")(
       testM("provides the part of the environment that is not part of the `ZEnv`") {
-        val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
+        val loggingLayer: ZDeps[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
         val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomLayer(loggingLayer)
         assertM(zio2)(anything)
@@ -1648,7 +1648,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     ),
     suite("provideSomeLayer")(
       testM("can split environment into two parts") {
-        val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
+        val clockLayer: ZDeps[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
         val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
@@ -3079,7 +3079,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("serviceWith")(
       testM("effectfully accesses a service in the environment") {
         val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
-        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo(3))
+        assertM(zio.provideDeps(ZDeps.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3362,7 +3362,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provideDeps(ZDeps.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(
@@ -3798,6 +3798,6 @@ object ZIOSpec extends DefaultRunnableSpec {
 
   object Logging {
     trait Service
-    val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
+    val live: ZDeps[Any, Nothing, Logging] = ZDeps.succeed(new Logging.Service {})
   }
 }

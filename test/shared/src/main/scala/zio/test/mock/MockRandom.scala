@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.{Chunk, Has, Random, UIO, URLayer, ZIO, ZTraceElement}
+import zio.{Chunk, Has, Random, UIO, URDeps, ZIO, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -40,7 +40,7 @@ object MockRandom extends Mock[Has[Random]] {
   object SetSeed           extends Effect[Long, Nothing, Unit]
   object Shuffle           extends Effect[Iterable[Any], Nothing, Iterable[Any]]
 
-  val compose: URLayer[Has[Proxy], Has[Random]] = {
+  val compose: URDeps[Has[Proxy], Has[Random]] = {
     implicit val trace = Tracer.newTrace
     ZIO
       .service[Proxy]
@@ -76,6 +76,6 @@ object MockRandom extends Mock[Has[Random]] {
             proxy(Shuffle, collection).asInstanceOf[UIO[Collection[A]]]
         }
       )
-      .toLayer
+      .toDeps
   }
 }

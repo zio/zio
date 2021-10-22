@@ -34,7 +34,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * {{{
  * import zio.test.environment._
  *
- * myProgram.provideLayer(testEnvironment)
+ * myProgram.provideDeps(testEnvironment)
  * }}}
  *
  * Then all environmental effects, such as printing to the console or
@@ -71,9 +71,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * to provide the implementation for test services that you mix in.
  */
 package object environment extends PlatformSpecific {
-  val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
+  val liveEnvironment: Deps[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironment: Layer[Nothing, TestEnvironment] = {
+  val testEnvironment: Deps[Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
     ZEnv.live >>> TestEnvironment.live
   }

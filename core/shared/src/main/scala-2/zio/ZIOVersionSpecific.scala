@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.LayerMacros
+import zio.internal.macros.DepsMacros
 
 private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
@@ -27,48 +27,59 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    *
    * {{{
    * val zio: ZIO[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
+   * val oldLadyDeps: ZDeps[Fly, Nothing, OldLady] = ???
+   * val flyDeps: ZDeps[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.injectCustom(oldLadyLayer, flyLayer)
+   * // The ZEnv you use later will provide both Blocking to flyDeps and Console to zio
+   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.injectCustom(oldLadyDeps, flyDeps)
    * }}}
    */
-  def injectCustom[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
-    macro LayerMacros.injectSomeImpl[ZIO, ZEnv, R, E1, A]
+  def injectCustom[E1 >: E](deps: ZDeps[_, E1, _]*): ZIO[ZEnv, E1, A] =
+    macro DepsMacros.injectSomeImpl[ZIO, ZEnv, R, E1, A]
 
   /**
    * Splits the environment into two parts, assembling one part using the
-   * specified layers and leaving the remainder `R0`.
+   * specified dependencies and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val clockDeps: ZDeps[Any, Nothing, Clock] = ???
    *
    * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
    *
-   * val zio2 = zio.injectSome[Random](clockLayer)
+   * val zio2 = zio.injectSome[Random](clockDeps)
    * }}}
    */
-  def injectSome[R0 <: Has[_]]: ProvideSomeLayerPartiallyApplied[R0, R, E, A] =
-    new ProvideSomeLayerPartiallyApplied[R0, R, E, A](self)
+  def injectSome[R0 <: Has[_]]: ProvideSomeDepsPartiallyApplied[R0, R, E, A] =
+    new ProvideSomeDepsPartiallyApplied[R0, R, E, A](self)
 
   /**
-   * Automatically assembles a layer for the ZIO effect.
+   * Automatically assembles a set of dependencies for the ZIO effect.
    */
-  def inject[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
-    macro LayerMacros.injectImpl[ZIO, R, E1, A]
+  def inject[E1 >: E](deps: ZDeps[_, E1, _]*): ZIO[Any, E1, A] =
+    macro DepsMacros.injectImpl[ZIO, R, E1, A]
 
 }
 
-private final class ProvideSomeLayerPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
-  def provideLayer[E1 >: E, R1](
-    layer: ZLayer[R0, E1, R1]
+private final class ProvideSomeDepsPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
+
+  def provideDeps[E1 >: E, R1](
+    deps: ZDeps[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
-    self.provideLayer(layer)
+    self.provideDeps(deps)
 
-  def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
-    new ZIO.ProvideSomeLayer[R0, R, E, A](self)
+  @deprecated("use provideDeps", "2.0.0")
+  def provideLayer[E1 >: E, R1](
+    layer: ZDeps[R0, E1, R1]
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
+    self.provideDeps(layer)
 
-  def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
-    macro LayerMacros.injectSomeImpl[ZIO, R0, R, E1, A]
+  def provideSomeDeps[R0 <: Has[_]]: ZIO.ProvideSomeDeps[R0, R, E, A] =
+    new ZIO.ProvideSomeDeps[R0, R, E, A](self)
+
+  @deprecated("use provideSomeDeps", "2.0.0")
+  def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeDeps[R0, R, E, A] =
+    provideSomeDeps
+
+  def apply[E1 >: E](deps: ZDeps[_, E1, _]*): ZIO[R0, E1, A] =
+    macro DepsMacros.injectSomeImpl[ZIO, R0, R, E1, A]
 }

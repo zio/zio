@@ -354,15 +354,15 @@ ZIO.withRuntimeConfig(newRuntimeConfiguration)(effect)
 ```
 After running the effect on the specified runtime configuration, it will restore the old runtime configuration.
 
-## ZLayer
+## ZDeps
 
 ### Functions to Layers
 
-In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZLayer.fromService*` variants with a lot of boilerplate:
+In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZDeps.fromService*` variants with a lot of boilerplate:
 
 ```scala
-val live: URLayer[Clock with Console, Logging] =
-  ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
+val live: URDeps[Clock with Console, Logging] =
+  ZDeps.fromServices[Clock.Service, Console.Service, Logging.Service] {
     (clock: Clock.Service, console: Console.Service) =>
       new Service {
         override def log(line: String): UIO[Unit] =
@@ -374,22 +374,22 @@ val live: URLayer[Clock with Console, Logging] =
   }
 ```
 
-ZIO 2.x deprecates all `ZLayer.fromService*` functions:
+ZIO 2.x deprecates all `ZDeps.fromService*` functions:
 
 | ZIO 1.0                          | ZIO 2.x   |
 |----------------------------------|-----------|
-| `ZLayer.fromService`             | `toLayer` |
-| `ZLayer.fromServices`            | `toLayer` |
-| `ZLayer.fromServiceM`            | `toLayer` |
-| `ZLayer.fromServicesM`           | `toLayer` |
-| `ZLayer.fromServiceManaged`      | `toLayer` |
-| `ZLayer.fromServicesManaged`     | `toLayer` |
-| `ZLayer.fromServiceMany`         | `toLayer` |
-| `ZLayer.fromServicesMany`        | `toLayer` |
-| `ZLayer.fromServiceManyM`        | `toLayer` |
-| `ZLayer.fromServicesManyM`       | `toLayer` |
-| `ZLayer.fromServiceManyManaged`  | `toLayer` |
-| `ZLayer.fromServicesManyManaged` | `toLayer` |
+| `ZDeps.fromService`             | `toLayer` |
+| `ZDeps.fromServices`            | `toLayer` |
+| `ZDeps.fromServiceM`            | `toLayer` |
+| `ZDeps.fromServicesM`           | `toLayer` |
+| `ZDeps.fromServiceManaged`      | `toLayer` |
+| `ZDeps.fromServicesManaged`     | `toLayer` |
+| `ZDeps.fromServiceMany`         | `toLayer` |
+| `ZDeps.fromServicesMany`        | `toLayer` |
+| `ZDeps.fromServiceManyM`        | `toLayer` |
+| `ZDeps.fromServicesManyM`       | `toLayer` |
+| `ZDeps.fromServiceManyManaged`  | `toLayer` |
+| `ZDeps.fromServicesManyManaged` | `toLayer` |
 
 Instead, it provides the `toLayer` extension methods for functions:
 
@@ -403,12 +403,12 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 }
 
 object LoggingLive {
-  val layer: URLayer[Has[Console] with Has[Clock], Has[Logging]] =
-    (LoggingLive(_, _)).toLayer[Logging]
+  val deps: URDeps[Has[Console] with Has[Clock], Has[Logging]] =
+    (LoggingLive(_, _)).toDeps[Logging]
 }
 ```
 
-Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toLayer` extension method for all `Function` arities, we can call the `toLayer` on any function to convert that to the `ZLayer`. Unlike the `ZLayer.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplates we have had in ZIO 1.x.
+Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toLayer` extension method for all `Function` arities, we can call the `toLayer` on any function to convert that to the `ZDeps`. Unlike the `ZDeps.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplates we have had in ZIO 1.x.
 
 ### Accessing a Service from the Environment
 
@@ -512,40 +512,40 @@ case class BlobStorageImpl(logging: Logging) extends BlobStorage {}
 case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo {}
 
 object Logging {
-  val live: URLayer[Has[Console], Has[Logging]] =
-    LoggerImpl.toLayer[Logging]
+  val live: URDeps[Has[Console], Has[Logging]] =
+    LoggerImpl.toDeps[Logging]
 }
 
 object Database {
-  val live: URLayer[Any, Has[Database]] =
-    DatabaseImp.toLayer[Database]
+  val live: URDeps[Any, Has[Database]] =
+    DatabaseImp.toDeps[Database]
 }
 
 object UserRepo {
-  val live: URLayer[Has[Logging] with Has[Database], Has[UserRepo]] =
-    (UserRepoImpl(_, _)).toLayer[UserRepo]
+  val live: URDeps[Has[Logging] with Has[Database], Has[UserRepo]] =
+    (UserRepoImpl(_, _)).toDeps[UserRepo]
 }
 
 
 object BlobStorage {
-  val live: URLayer[Has[Logging], Has[BlobStorage]] =
-    BlobStorageImpl.toLayer[BlobStorage]
+  val live: URDeps[Has[Logging], Has[BlobStorage]] =
+    BlobStorageImpl.toDeps[BlobStorage]
 }
 
 object DocRepo {
-  val live: URLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Has[DocRepo]] =
-    (DocRepoImpl(_, _, _)).toLayer[DocRepo]
+  val live: URDeps[Has[Logging] with Has[Database] with Has[BlobStorage], Has[DocRepo]] =
+    (DocRepoImpl(_, _, _)).toDeps[DocRepo]
 }
   
 val myApp: ZIO[Has[DocRepo] with Has[UserRepo], Nothing, Unit] = ZIO.succeed(???)
 ```
 
 ```scala mdoc:silent:nest
-val appLayer: URLayer[Any, Has[DocRepo] with Has[UserRepo]] =
+val appLayer: URDeps[Any, Has[DocRepo] with Has[UserRepo]] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
     
-val res: ZIO[Any, Nothing, Unit] = myApp.provideLayer(appLayer)
+val res: ZIO[Any, Nothing, Unit] = myApp.provideDeps(appLayer)
 ```
 
 As the development of our application progress, the number of layers will grow, and maintaining the dependency graph would be tedious and hard to debug.
@@ -553,7 +553,7 @@ As the development of our application progress, the number of layers will grow, 
 For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
 
 ```scala
-myApp.provideLayer(
+myApp.provideDeps(
   ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
     (Database.live >>> UserRepo.live)
 )
@@ -561,9 +561,9 @@ myApp.provideLayer(
 
 ```
 type mismatch;
- found   : zio.URLayer[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],zio.Has[DocRepo]]
-    (which expands to)  zio.ZLayer[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],Nothing,zio.Has[DocRepo]]
- required: zio.ZLayer[zio.Has[Database] with zio.Has[BlobStorage],?,?]
+ found   : zio.URDeps[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],zio.Has[DocRepo]]
+    (which expands to)  zio.ZDeps[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],Nothing,zio.Has[DocRepo]]
+ required: zio.ZDeps[zio.Has[Database] with zio.Has[BlobStorage],?,?]
     ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
 ```
 
@@ -610,7 +610,7 @@ val app: ZIO[Any, Nothing, Unit] =
 ```
 
 ```
-  ZLayer Wiring Error  
+  ZDeps Wiring Error  
 
 ❯ missing Logging
 ❯     for DocRepo.live
@@ -619,10 +619,10 @@ val app: ZIO[Any, Nothing, Unit] =
 ❯     for UserRepo.live
 ```
 
-We can also directly construct a layer using `ZLayer.wire`:
+We can also directly construct a layer using `ZDeps.wire`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.wire[Has[DocRepo] with Has[UserRepo]](
+val deps = ZDeps.wire[Has[DocRepo] with Has[UserRepo]](
   Console.live,
   Logging.live,
   DocRepo.live,
@@ -632,10 +632,10 @@ val layer = ZLayer.wire[Has[DocRepo] with Has[UserRepo]](
 )
 ```
 
-And also the `ZLayer.wireSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.wireSome[In, Out]`:
+And also the `ZDeps.wireSome` helps us to construct a layer which requires on some service and produces some other services (`URDeps[Int, Out]`) using `ZDeps.wireSome[In, Out]`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.wireSome[Has[Console], Has[DocRepo] with Has[UserRepo]](
+val deps = ZDeps.wireSome[Has[Console], Has[DocRepo] with Has[UserRepo]](
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -694,32 +694,32 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 > All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `inject`/`wire` methods.
 
 
-| ZIO 1.x and 2.x (manually)                    | ZIO 2.x (automatically) |
-|-----------------------------------------------|-------------------------|
-| `ZIO#provide`                                 | `ZIO#inject`            |
-| `ZIO#provideSomeLayer`                        | `ZIO#injectSome`        |
-| `ZIO#provideCustomLayer`                      | `ZIO#injectCustom`      |
-| Composing manually using `ZLayer` combinators | `ZLayer#wire`           |
-| Composing manually using `ZLayer` combinators | `ZLayer#wireSome`       |
+| ZIO 1.x and 2.x (manually)                   | ZIO 2.x (automatically) |
+|----------------------------------------------|-------------------------|
+| `ZIO#provide`                                | `ZIO#inject`            |
+| `ZIO#provideSomeLayer`                       | `ZIO#injectSome`        |
+| `ZIO#provideCustomLayer`                     | `ZIO#injectCustom`      |
+| Composing manually using `ZDeps` combinators | `ZDeps#wire`           |
+| Composing manually using `ZDeps` combinators | `ZDeps#wireSome`       |
 
-### ZLayer Debugging
+### ZDeps Debugging
 
-To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.tree` and `ZLayer.Debug.mermaid`. For example, by including `ZLayer.Debug.mermaid` into our layer construction, the compiler generates the following debug information:
+To debug ZDeps construction, we have two built-in layers, i.e., `ZDeps.Debug.tree` and `ZDeps.Debug.mermaid`. For example, by including `ZDeps.Debug.mermaid` into our layer construction, the compiler generates the following debug information:
 
 ```scala
-val layer = ZLayer.wire[Has[DocRepo] with Has[UserRepo]](
+val deps = ZDeps.wire[Has[DocRepo] with Has[UserRepo]](
   Console.live,
   Logging.live,
   DocRepo.live,
   Database.live,
   BlobStorage.live,
   UserRepo.live,
-  ZLayer.Debug.mermaid
+  ZDeps.Debug.mermaid
 )
 ```
 
 ```scala
-[info]   ZLayer Wiring Graph  
+[info]   ZDeps Wiring Graph  
 [info] 
 [info] ◉ DocRepo.live
 [info] ├─◑ Logging.live
@@ -754,8 +754,8 @@ object logging {
     }
     
     // Live implementation of the Logging service
-    val live: ZLayer[Clock with Console, Nothing, Logging] =
-      ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
+    val live: ZDeps[Clock with Console, Nothing, Logging] =
+      ZDeps.fromServices[Clock.Service, Console.Service, Logging.Service] {
         (clock: Clock.Service, console: Console.Service) =>
           new Logging.Service {
             override def log(line: String): UIO[Unit] =
@@ -802,10 +802,10 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
     } yield ()
 }
 
-// Converting the Service Implementation into the ZLayer
+// Converting the Service Implementation into the ZDeps
 object LoggingLive {
-  val layer: URLayer[Has[Console] with Has[Clock], Has[Logging]] =
-    (LoggingLive(_, _)).toLayer[Logging]
+  val deps: URDeps[Has[Console] with Has[Clock], Has[Logging]] =
+    (LoggingLive(_, _)).toDeps[Logging]
 }
 ```
 
@@ -813,9 +813,9 @@ As we see, we have the following changes:
 
 1. **Deprecation of Type Alias for `Has` Wrappers** — In _Module Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Module Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Console = Has[Console.Service]` removed and the `Console.Service` will just be `Console`. **We should explicitly wrap services with `Has` data types everywhere**. 
 
-2. **Introducing Constructor-based Dependency Injection** — In _Module Pattern 1.0_ when we wanted to create a service layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
+2. **Introducing Constructor-based Dependency Injection** — In _Module Pattern 1.0_ when we wanted to create a service layer that depends on other services, we had to use `ZDeps.fromService*` constructors. The problem with the `ZDeps` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
 
-    In _Module Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we call `toLayer` on the service implementation.
+    In _Module Pattern 2.0_ we don't worry about all these different `ZDeps` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZDeps` we call `toLayer` on the service implementation.
 
     > **_Note:_**
     > 
@@ -827,28 +827,28 @@ As we see, we have the following changes:
     > }
     > 
     > object LoggingLive {
-    >   val layer: URLayer[Any, Has[Logging]] = LoggingLive().toLayer
+    >   val deps: URDeps[Any, Has[Logging]] = LoggingLive().toDeps
     > }
     >``` 
     > Compiler Error:
     > ```
     > value toLayer is not a member of LoggingLive
-    > val layer: URLayer[Any, Has[Logging]] = LoggingLive().toLayer
+    > val deps: URDeps[Any, Has[Logging]] = LoggingLive().toDeps
     > ```
     > The problem here is that the companion object won't automatically extend `() => Logging`. So the workaround is doing that manually:
     > ```scala
     > object LoggingLive extends (() => Logging) {
-    >   val layer: URLayer[Any, Has[Logging]] = LoggingLive.toLayer
+    >   val deps: URDeps[Any, Has[Logging]] = LoggingLive.toDeps
     > }
     > ```
-    > Or we can just write the `val layer: URLayer[Any, Has[Logging]] = (() => Logging).toLayer` to fix that.
+    > Or we can just write the `val deps: URDeps[Any, Has[Logging]] = (() => Logging).toDeps` to fix that.
  
     > **_Note:_**
     > 
     > The new pattern encourages us to parametrize _case classes_ to introduce service dependencies and then using `toLayer` syntax as a very simple way that always works. But it doesn't enforce us to do that. We can also just pull whatever services we want from the environment using `ZIO.service` or `ZManaged.service` and then implement the service and call `toLayer` on it:
     > ```scala mdoc:silent:nest
     > object LoggingLive {
-    >   val layer: ZLayer[Has[Clock] with Has[Console], Nothing, Has[Logging]] =
+    >   val deps: ZDeps[Has[Clock] with Has[Console], Nothing, Has[Logging]] =
     >     (for {
     >       console <- ZIO.service[Console]
     >       clock   <- ZIO.service[Clock]
@@ -858,7 +858,7 @@ As we see, we have the following changes:
     >           time <- clock.currentDateTime
     >           _    <- console.printLine(s"$time--$line").orDie
     >         } yield ()
-    >     }).toLayer
+    >     }).toDeps
     > }
     > ```
 
@@ -876,7 +876,7 @@ As we see, we have the following changes:
    
    2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting layers in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
    
-    In Module Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
+    In Module Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.deps`.
 
 4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWith(_.log(line))`.
 
@@ -907,12 +907,12 @@ Here is list of other deprecated methods:
 
 | ZIO 1.x                    | ZIO 2.x                      |
 |----------------------------|------------------------------|
-| `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
-| `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
-| `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
-| `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
-| `ZLayer.identity`          | `ZLayer.environment`         |
-| `ZLayer.requires`          | `ZLayer.environment`         |
+| `ZDeps.fromEffect`        | `ZDeps.fromZIO`             |
+| `ZDeps.fromEffectMany`    | `ZDeps.fromZIOMany`         |
+| `ZDeps.fromFunctionM`     | `ZDeps.fromFunctionZIO`     |
+| `ZDeps.fromFunctionManyM` | `ZDeps.fromFunctionManyZIO` |
+| `ZDeps.identity`          | `ZDeps.environment`         |
+| `ZDeps.requires`          | `ZDeps.environment`         |
 
 ## ZManaged
 
@@ -1236,7 +1236,7 @@ There are two significant changes in ZIO Services:
 
 2. In ZIO 2.0 all type aliases like `type Logging = Has[Logging.Service]` removed. So we should explicitly use `Has` wrappers when we want to specify dependencies on ZIO services.
 
-So instead of writing `ZLayer[Console with Clock, Nothing, ConsoleLogger]`, we should write `ZLayer[Has[Console] with Has[Clock], Nothing, Has[ConsoleLogger]]`, or when accessing services instead of `ZIO.service[Console.Service]` we also now do `ZIO.service[Console]`.
+So instead of writing `ZDeps[Console with Clock, Nothing, ConsoleLogger]`, we should write `ZDeps[Has[Console] with Has[Clock], Nothing, Has[ConsoleLogger]]`, or when accessing services instead of `ZIO.service[Console.Service]` we also now do `ZIO.service[Console]`.
 
 ### Blocking Service
 

@@ -62,10 +62,10 @@ object LogStageExample extends zio.App {
   } yield ()
 
   val loggerLayer: ULayer[Has[LogIO2[IO]]] =
-    ZLayer.succeed(LogZIO.withFiberId(IzLogger()))
+    ZDeps.succeed(LogZIO.withFiberId(IzLogger()))
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideLayer(loggerLayer).exitCode
+    myApp.provideDeps(loggerLayer).exitCode
 }
 ```
 

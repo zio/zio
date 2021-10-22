@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.LayerMacros
+import zio.internal.macros.DepsMacros
 
 private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
 
@@ -27,49 +27,60 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
    *
    * {{{
    * val managed: ZManaged[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
+   * val oldLadyLayer: ZDeps[Fly, Nothing, OldLady] = ???
+   * val flyLayer: ZDeps[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to managed
    * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.injectCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def injectCustom[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[ZEnv, E1, A] =
-    macro LayerMacros.injectSomeImpl[ZManaged, ZEnv, R, E1, A]
+  def injectCustom[E1 >: E](deps: ZDeps[_, E1, _]*): ZManaged[ZEnv, E1, A] =
+    macro DepsMacros.injectSomeImpl[ZManaged, ZEnv, R, E1, A]
 
   /**
    * Splits the environment into two parts, assembling one part using the
    * specified layers and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val clockLayer: ZDeps[Any, Nothing, Clock] = ???
    *
    * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
    *
    * val managed2 = managed.injectSome[Random](clockLayer)
    * }}}
    */
-  def injectSome[R0 <: Has[_]]: ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A] =
-    new ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A](self)
+  def injectSome[R0 <: Has[_]]: ProvideSomeDepsManagedPartiallyApplied[R0, R, E, A] =
+    new ProvideSomeDepsManagedPartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a layer for the ZManaged effect.
    */
-  def inject[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[Any, E1, A] =
-    macro LayerMacros.injectImpl[ZManaged, R, E1, A]
+  def inject[E1 >: E](deps: ZDeps[_, E1, _]*): ZManaged[Any, E1, A] =
+    macro DepsMacros.injectImpl[ZManaged, R, E1, A]
 
 }
 
-private final class ProvideSomeLayerManagedPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZManaged[R, E, A])
+private final class ProvideSomeDepsManagedPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZManaged[R, E, A])
     extends AnyVal {
-  def provideLayer[E1 >: E, R1](
-    layer: ZLayer[R0, E1, R1]
+
+  def provideDeps[E1 >: E, R1](
+    deps: ZDeps[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    self.provideLayer(layer)
+    self.provideDeps(deps)
 
-  def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
-    new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
+  @deprecated("use provideDeps", "2.0.0")
+  def provideLayer[E1 >: E, R1](
+    deps: ZDeps[R0, E1, R1]
+  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
+    provideDeps(deps)
 
-  def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
-    macro LayerMacros.injectSomeImpl[ZManaged, R0, R, E1, A]
+  def provideSomeDeps[R0 <: Has[_]]: ZManaged.ProvideSomeDeps[R0, R, E, A] =
+    new ZManaged.ProvideSomeDeps[R0, R, E, A](self)
+
+  @deprecated("use provideSomeDeps", "2.0.0")
+  def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeDeps[R0, R, E, A] =
+    provideSomeDeps
+
+  def apply[E1 >: E](deps: ZDeps[_, E1, _]*): ZManaged[R0, E1, A] =
+    macro DepsMacros.injectSomeImpl[ZManaged, R0, R, E1, A]
 }

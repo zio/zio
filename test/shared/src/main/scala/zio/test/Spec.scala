@@ -351,14 +351,56 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * `TestEnvironment`.
    *
    * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   * val loggingLayer: ZDeps[Any, Nothing, Logging] = ???
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
    * val spec2 = spec.provideCustomLayer(loggingLayer)
    * }}}
    */
-  def provideCustomLayer[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
+  def provideCustomDeps[E1 >: E, R1](layer: ZDeps[TestEnvironment, E1, R1])(implicit
+    ev1: TestEnvironment with R1 <:< R,
+    ev2: Has.Union[TestEnvironment, R1],
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): Spec[TestEnvironment, E1, T] =
+    provideSomeDeps[TestEnvironment](layer)
+
+  /**
+   * Provides all tests with a shared version of the part of the environment
+   * that is not part of the `TestEnvironment`, leaving a spec that only
+   * depends on the `TestEnvironment`.
+   *
+   * {{{
+   * val loggingLayer: ZDeps[Any, Nothing, Logging] = ???
+   *
+   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   *
+   * val spec2 = spec.provideCustomLayerShared(loggingLayer)
+   * }}}
+   */
+  def provideCustomDepsShared[E1 >: E, R1](layer: ZDeps[TestEnvironment, E1, R1])(implicit
+    ev1: TestEnvironment with R1 <:< R,
+    ev2: Has.Union[TestEnvironment, R1],
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): Spec[TestEnvironment, E1, T] =
+    provideSomeDepsShared[TestEnvironment](layer)
+
+  /**
+   * Provides each test with the part of the environment that is not part of
+   * the `TestEnvironment`, leaving a spec that only depends on the
+   * `TestEnvironment`.
+   *
+   * {{{
+   * val loggingLayer: ZDeps[Any, Nothing, Logging] = ???
+   *
+   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   *
+   * val spec2 = spec.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  def provideCustomLayer[E1 >: E, R1](layer: ZDeps[TestEnvironment, E1, R1])(implicit
     ev1: TestEnvironment with R1 <:< R,
     ev2: Has.Union[TestEnvironment, R1],
     tagged: Tag[R1],
@@ -372,14 +414,14 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * depends on the `TestEnvironment`.
    *
    * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   * val loggingLayer: ZDeps[Any, Nothing, Logging] = ???
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
    * val spec2 = spec.provideCustomLayerShared(loggingLayer)
    * }}}
    */
-  def provideCustomLayerShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
+  def provideCustomLayerShared[E1 >: E, R1](layer: ZDeps[TestEnvironment, E1, R1])(implicit
     ev1: TestEnvironment with R1 <:< R,
     ev2: Has.Union[TestEnvironment, R1],
     tagged: Tag[R1],
@@ -390,8 +432,40 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Provides a layer to the spec, translating it up a level.
    */
+  final def provideDeps[E1 >: E, R0, R1](
+    layer: ZDeps[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
+    transform[R0, E1, T] {
+      case ExecCase(exec, spec)        => ExecCase(exec, spec)
+      case LabeledCase(label, spec)    => LabeledCase(label, spec)
+      case ManagedCase(managed)        => ManagedCase(managed.provideLayer(layer))
+      case MultipleCase(specs)         => MultipleCase(specs)
+      case TestCase(test, annotations) => TestCase(test.provideLayer(layer), annotations)
+    }
+
+  /**
+   * Provides a layer to the spec, sharing services between all tests.
+   */
+  final def provideDepsShared[E1 >: E, R0, R1](
+    layer: ZDeps[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
+    caseValue match {
+      case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideLayerShared(layer))
+      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
+      case ManagedCase(managed) =>
+        Spec.managed(layer.build.flatMap(r => managed.map(_.provide(r)).provide(r)))
+      case MultipleCase(specs) =>
+        Spec.managed(
+          layer.build.map(r => Spec.multiple(specs.map(_.provide(r))))
+        )
+      case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
+    }
+
+  /**
+   * Provides a layer to the spec, translating it up a level.
+   */
   final def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
+    layer: ZDeps[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     transform[R0, E1, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
@@ -405,18 +479,18 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Provides a layer to the spec, sharing services between all tests.
    */
   final def provideLayerShared[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
+    layer: ZDeps[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     caseValue match {
-      case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideLayerShared(layer))
-      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
+      case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideDepsShared(layer))
+      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideDepsShared(layer))
       case ManagedCase(managed) =>
         Spec.managed(layer.build.flatMap(r => managed.map(_.provide(r)).provide(r)))
       case MultipleCase(specs) =>
         Spec.managed(
           layer.build.map(r => Spec.multiple(specs.map(_.provide(r))))
         )
-      case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
+      case TestCase(test, annotations) => Spec.test(test.provideDeps(layer), annotations)
     }
 
   /**
@@ -437,15 +511,15 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * using the specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val clockLayer: ZDeps[Any, Nothing, Clock] = ???
    *
    * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
    * val spec2 = spec.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayer[R0]: Spec.ProvideSomeLayer[R0, R, E, T] =
-    new Spec.ProvideSomeLayer[R0, R, E, T](self)
+  final def provideSomeDeps[R0]: Spec.ProvideSomeDeps[R0, R, E, T] =
+    new Spec.ProvideSomeDeps[R0, R, E, T](self)
 
   /**
    * Splits the environment into two parts, providing all tests with a shared
@@ -453,15 +527,46 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val clockLayer: ZDeps[Any, Nothing, Clock] = ???
    *
    * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
    * val spec2 = spec.provideSomeLayerShared[Has[Random]](clockLayer)
    * }}}
    */
-  final def provideSomeLayerShared[R0]: Spec.ProvideSomeLayerShared[R0, R, E, T] =
-    new Spec.ProvideSomeLayerShared[R0, R, E, T](self)
+  final def provideSomeDepsShared[R0]: Spec.ProvideSomeDepsShared[R0, R, E, T] =
+    new Spec.ProvideSomeDepsShared[R0, R, E, T](self)
+
+  /**
+   * Splits the environment into two parts, providing each test with one part
+   * using the specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZDeps[Any, Nothing, Clock] = ???
+   *
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
+   *
+   * val spec2 = spec.provideSomeLayer[Has[Random]](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayer[R0]: Spec.ProvideSomeDeps[R0, R, E, T] =
+    new Spec.ProvideSomeDeps[R0, R, E, T](self)
+
+  /**
+   * Splits the environment into two parts, providing all tests with a shared
+   * version of one part using the specified layer and leaving the remainder
+   * `R0`.
+   *
+   * {{{
+   * val clockLayer: ZDeps[Any, Nothing, Clock] = ???
+   *
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
+   *
+   * val spec2 = spec.provideSomeLayerShared[Has[Random]](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayerShared[R0]: Spec.ProvideSomeDepsShared[R0, R, E, T] =
+    new Spec.ProvideSomeDepsShared[R0, R, E, T](self)
 
   /**
    * Computes the size of the spec, i.e. the number of tests in the spec.
@@ -628,16 +733,16 @@ object Spec {
   val empty: Spec[Any, Nothing, Nothing] =
     Spec.multiple(Chunk.empty)
 
-  final class ProvideSomeLayer[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+  final class ProvideSomeDeps[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1](
-      layer: ZLayer[R0, E1, R1]
+      layer: ZDeps[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      self.provideDeps[E1, R0, R0 with R1](ZDeps.environment[R0] ++ layer)
   }
 
-  final class ProvideSomeLayerShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+  final class ProvideSomeDepsShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1](
-      layer: ZLayer[R0, E1, R1]
+      layer: ZDeps[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
       self.caseValue match {
         case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeLayerShared(layer))
@@ -645,12 +750,12 @@ object Spec {
         case ManagedCase(managed) =>
           Spec.managed(
             layer.build.flatMap { r =>
-              managed.map(_.provideSomeLayer[R0](ZLayer.succeedMany(r))).provideSomeLayer[R0](ZLayer.succeedMany(r))
+              managed.map(_.provideSomeLayer[R0](ZDeps.succeedMany(r))).provideSomeLayer[R0](ZDeps.succeedMany(r))
             }
           )
         case MultipleCase(specs) =>
           Spec.managed(
-            layer.build.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedMany(r)))))
+            layer.build.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZDeps.succeedMany(r)))))
           )
         case TestCase(test, annotations) =>
           Spec.test(test.provideSomeLayer(layer), annotations)

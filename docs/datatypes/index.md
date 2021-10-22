@@ -29,12 +29,12 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## Contextual Data Types
 - **[Has](contextual/has.md)** — The trait `Has[A]` is used with the [ZIO environment](contextual/index.md#zio-environment) to express an effect's dependency on a service of type `A`. 
-- **[ZLayer](contextual/zlayer.md)** — The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
-    + **[RLayer](contextual/rlayer.md)** — `RLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Throwable, ROut]`, which represents a layer that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
-    + **[ULayer](contextual/ulayer.md)** — ULayer[+ROut] is a type alias for ZLayer[Any, Nothing, ROut], which represents a layer that doesn't require any services as its input, it can't fail, and returns ROut as its output.
-    + **[Layer](contextual/layer.md)** — Layer[+E, +ROut] is a type alias for ZLayer[Any, E, ROut], which represents a layer that doesn't require any services, it may fail with an error type of E, and returns ROut as its output.
-    + **[URLayer](contextual/urlayer.md)** — URLayer[-RIn, +ROut] is a type alias for ZLayer[RIn, Nothing, ROut], which represents a layer that requires RIn as its input, it can't fail, and returns ROut as its output.
-    + **[TaskLayer](contextual/task-layer.md)** — TaskLayer[+ROut] is a type alias for ZLayer[Any, Throwable, ROut], which represents a layer that doesn't require any services as its input, it may fail with Throwable value, and returns ROut as its output.
+- **[ZDeps](contextual/zdeps.md)** — The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
+    + **[RLayer](contextual/rlayer.md)** — `RLayer[-RIn, +ROut]` is a type alias for `ZDeps[RIn, Throwable, ROut]`, which represents a layer that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
+    + **[ULayer](contextual/ulayer.md)** — ULayer[+ROut] is a type alias for ZDeps[Any, Nothing, ROut], which represents a layer that doesn't require any services as its input, it can't fail, and returns ROut as its output.
+    + **[Layer](contextual/layer.md)** — Layer[+E, +ROut] is a type alias for ZDeps[Any, E, ROut], which represents a layer that doesn't require any services, it may fail with an error type of E, and returns ROut as its output.
+    + **[URDeps](contextual/urdeps.md)** — URDeps[-RIn, +ROut] is a type alias for ZDeps[RIn, Nothing, ROut], which represents a layer that requires RIn as its input, it can't fail, and returns ROut as its output.
+    + **[TaskLayer](contextual/task-layer.md)** — TaskLayer[+ROut] is a type alias for ZDeps[Any, Throwable, ROut], which represents a layer that doesn't require any services as its input, it may fail with Throwable value, and returns ROut as its output.
 
 ## Concurrency
 

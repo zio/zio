@@ -2567,7 +2567,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * leaving a stream that only depends on the `ZEnv`.
    *
    * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   * val loggingLayer: ZDeps[Any, Nothing, Logging] = ???
    *
    * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
    *
@@ -2575,7 +2575,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * }}}
    */
   def provideCustomLayer[E1 >: E, R1](
-    layer: ZLayer[ZEnv, E1, R1]
+    layer: ZDeps[ZEnv, E1, R1]
   )(implicit
     ev1: ZEnv with R1 <:< R,
     ev2: Has.Union[ZEnv, R1],
@@ -2587,8 +2587,21 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
   /**
    * Provides a layer to the stream, which translates it to another level.
    */
+  final def provideDeps[E1 >: E, R0, R1](
+    deps: ZDeps[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, O] =
+    ZStream.managed {
+      for {
+        r  <- deps.build.map(ev)
+        as <- self.process.provide(r)
+      } yield as.provide(r)
+    }.flatMap(ZStream.repeatZIOChunkOption)
+
+  /**
+   * Provides a layer to the stream, which translates it to another level.
+   */
   final def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
+    layer: ZDeps[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, O] =
     ZStream.managed {
       for {
@@ -2614,7 +2627,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val clockLayer: ZDeps[Any, Nothing, Clock] = ???
    *
    * val stream: ZStream[Clock with Has[Random], Nothing, Unit] = ???
    *
@@ -5085,14 +5098,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
-      layer: ZLayer[R0, E1, R1]
+      layer: ZDeps[R0, E1, R1]
     )(implicit
       ev1: R0 with R1 <:< R,
       ev2: Has.Union[R0, R1],
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
-      self.provideLayer[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      self.provideDeps[E1, R0, R0 with R1](ZDeps.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +O, M](private val self: ZStream[R, E, O]) extends AnyVal {

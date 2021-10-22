@@ -49,7 +49,7 @@ private[mock] object MockableMacro {
     val any: Type        = definitions.AnyTpe
     val throwable: Type  = c.typecheck(q"(??? : _root_.java.lang.Throwable)").tpe
     val unit: Type       = definitions.UnitTpe
-    val composeAsc: Tree = tq"_root_.zio.URLayer[_root_.zio.Has[_root_.zio.test.mock.Proxy], $env]"
+    val composeAsc: Tree = tq"_root_.zio.URDeps[_root_.zio.Has[_root_.zio.test.mock.Proxy], $env]"
     val taggedFcqns      = List("izumi.reflect.Tag")
 
     def bound(tpe: Type): Tree =
@@ -314,7 +314,7 @@ private[mock] object MockableMacro {
                 }
                 new $serviceClassName
               }
-            }.toLayer
+            }.toDeps
             
           ..$body
         }

@@ -3,7 +3,7 @@ package zio.internal.macros
 import zio._
 import zio.internal.ansi.AnsiStringOps
 
-final case class ZLayerExprBuilder[Key, A](
+final case class ZDepsExprBuilder[Key, A](
   graph: Graph[Key, A],
   showKey: Key => String,
   showExpr: A => String,
@@ -12,7 +12,7 @@ final case class ZLayerExprBuilder[Key, A](
   composeH: (A, A) => A,
   composeV: (A, A) => A
 ) {
-  def buildLayerFor(output: List[Key]): A =
+  def buildDepsFor(output: List[Key]): A =
     output match {
       case Nil => emptyExpr
       case output =>
@@ -27,8 +27,8 @@ final case class ZLayerExprBuilder[Key, A](
         }
     }
 
-  private def assertNoLeftovers(layerCompose: LayerCompose[A]): Unit = {
-    val used      = layerCompose.toSet
+  private def assertNoLeftovers(depsCompose: DepsCompose[A]): Unit = {
+    val used      = depsCompose.toSet
     val leftovers = graph.nodes.filterNot(node => used.contains(node.value))
 
     if (leftovers.nonEmpty) {
@@ -52,7 +52,7 @@ final case class ZLayerExprBuilder[Key, A](
 
     if (outputMap.nonEmpty) {
       val message = outputMap.map { case (output, nodes) =>
-        s"${output.toString.cyan} is provided by multiple layers:\n" +
+        s"${output.toString.cyan} is provided by multiple dependencies:\n" +
           nodes.map(node => "— " + showExpr(node.value).bold.cyan).mkString("\n")
       }
         .mkString("\n")
@@ -72,7 +72,7 @@ final case class ZLayerExprBuilder[Key, A](
 
     abort(s"""
 
-${s"  ZLayer Wiring Error  ".red.inverted.bold}
+${s"  ZDeps Wiring Error  ".red.inverted.bold}
 
 $body
 
@@ -124,9 +124,9 @@ $body
           s"""$prefix $styled"""
         }
           .mkString("\n")
-        val styledLayer = showExpr(node.value).blue
+        val styledDeps = showExpr(node.value).blue
         s"""$styledDependencies
-    ${"for".underlined} $styledLayer"""
+    ${"for".underlined} $styledDeps"""
 
       case GraphError.MissingTopLevelDependency(dependency) =>
         val styledDependency = showKey(dependency).blue.bold
@@ -141,4 +141,4 @@ $styledNode both requires ${"and".bold} is transitively required by $styledDepen
     }
 }
 
-object ZLayerExprBuilder extends ExprGraphCompileVariants {}
+object ZDepsExprBuilder extends ExprGraphCompileVariants {}

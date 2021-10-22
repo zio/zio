@@ -81,21 +81,21 @@ lazy val openTracingExample = Seq(
 )
 ```
 
-Let's create a `ZLayer` for `OpenTracing` which provides us Jaeger tracer. Each microservice uses this layer to send its tracing data to the _Jaeger Backend_:
+Let's create a `ZDeps` for `OpenTracing` which provides us Jaeger tracer. Each microservice uses this layer to send its tracing data to the _Jaeger Backend_:
 
 ```scala
 import io.jaegertracing.Configuration
 import io.jaegertracing.internal.samplers.ConstSampler
 import io.jaegertracing.zipkin.ZipkinV2Reporter
 import org.apache.http.client.utils.URIBuilder
-import zio.ZLayer
+import zio.ZDeps
 import zio.clock.Clock
 import zio.telemetry.opentracing.OpenTracing
 import zipkin2.reporter.AsyncReporter
 import zipkin2.reporter.okhttp3.OkHttpSender
 
 object JaegerTracer {
-  def makeJaegerTracer(host: String, serviceName: String): ZLayer[Clock, Throwable, Clock with OpenTracing] =
+  def makeJaegerTracer(host: String, serviceName: String): ZDeps[Clock, Throwable, Clock with OpenTracing] =
     OpenTracing.live(new Configuration(serviceName)
       .getTracerBuilder
       .withSampler(new ConstSampler(true))
@@ -157,7 +157,7 @@ object BackendServer extends CatsApp {
                   carrier = new TextMapAdapter(request.headers.toList.map(h => h.name.value -> h.value).toMap.asJava),
                   operation = "GET /"
                 )
-                .provideLayer(makeJaegerTracer(host = "0.0.0.0:9411", serviceName = "backend-service")) *> Ok("Ok!")
+                .provideDeps(makeJaegerTracer(host = "0.0.0.0:9411", serviceName = "backend-service")) *> Ok("Ok!")
             }
           ).orNotFound
         )
@@ -226,7 +226,7 @@ object ProxyServer extends CatsApp {
                     }
               } yield res)
                 .root(operation = "GET /")
-                .provideLayer(
+                .provideDeps(
                   makeJaegerTracer(host = "0.0.0.0:9411", serviceName = "proxy-server")
                 )
             }

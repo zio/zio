@@ -372,8 +372,8 @@ trait LoggingService {
   def log(msg: String): ZIO[Any, Exception, Unit]
 }
 
-val schedulingLayer: ZLayer[Has[Clock] with Has[LoggingService], Nothing, Has[SchedulingService]] =
-  ZLayer.fromFunction { env =>
+val schedulingLayer: ZDeps[Has[Clock] with Has[LoggingService], Nothing, Has[SchedulingService]] =
+  ZDeps.fromFunction { env =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
         (ZIO.sleep(10.seconds) *> promise.succeed(1))
@@ -383,7 +383,7 @@ val schedulingLayer: ZLayer[Has[Clock] with Has[LoggingService], Nothing, Has[Sc
 }
 
 test("One can control time for failing effects too") {
-  val failingLogger = ZLayer.succeed(new LoggingService {
+  val failingLogger = ZDeps.succeed(new LoggingService {
     override def log(msg: String): ZIO[Any, Exception, Unit] = ZIO.fail(new Exception("BOOM"))
   })
 

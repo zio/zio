@@ -198,7 +198,7 @@ val program: ZIO[Console, Throwable, Unit] =
     _ <- putStrLn("Thank you for " + a)
   } yield ()
 
-val diagnosticsLayer: ZLayer[ZEnv, Throwable, Has[Diagnostics]] =
+val diagnosticsLayer: ZDeps[ZEnv, Throwable, Has[Diagnostics]] =
   Diagnostics.make("localhost", 1111)
 
 val runtime: Runtime[ZEnv] =

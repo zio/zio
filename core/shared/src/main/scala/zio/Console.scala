@@ -52,13 +52,11 @@ trait Console extends Serializable {
 
 object Console extends Serializable {
 
-  // Layer Definitions
+  val any: ZDeps[Has[Console], Nothing, Has[Console]] =
+    ZDeps.service[Console](Tracer.newTrace)
 
-  val any: ZLayer[Has[Console], Nothing, Has[Console]] =
-    ZLayer.service[Console](Tracer.newTrace)
-
-  val live: Layer[Nothing, Has[Console]] =
-    ZLayer.succeed[Console](ConsoleLive)(Tag[Console], Tracer.newTrace)
+  val live: Deps[Nothing, Has[Console]] =
+    ZDeps.succeed[Console](ConsoleLive)(Tag[Console], Tracer.newTrace)
 
   object ConsoleLive extends Console {
 

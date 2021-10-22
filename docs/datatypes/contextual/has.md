@@ -43,7 +43,7 @@ val logger: Logging   = combined.get[Logging]
 val random: RandomInt = combined.get[RandomInt]
 ```
 
-These are implementation details. Usually, we don't create a `Has` directly. Instead, we create a `Has` using `ZLayer`.
+These are implementation details. Usually, we don't create a `Has` directly. Instead, we create a `Has` using `ZDeps`.
 
 ## Motivation
 Some components in an application might depend upon more than one service, so we might need to combine multiple services and feed them to the ZIO Environment. Services cannot directly be combined, they can be combined if they first wrapped in the `Has` data type. 
@@ -186,9 +186,9 @@ val effect: IO[Nothing, Unit] = myApp.provide(combined)
 zio.Runtime.default.unsafeRun(effect)
 ```
 
-That is how the `Has` data type helps us to combine services. The previous example was just for demonstrating purposes, and we rarely create `Has` data type directly. Instead, we create a `Has` via `ZLayer`.
+That is how the `Has` data type helps us to combine services. The previous example was just for demonstrating purposes, and we rarely create `Has` data type directly. Instead, we create a `Has` via `ZDeps`.
 
-Whenever we lift a service value into `ZLayer` with the `ZLayer.succeed` constructor or  `toLayer`, ZIO will wrap our service with `Has` data type.
+Whenever we lift a service value into `ZDeps` with the `ZDeps.succeed` constructor or  `toLayer`, ZIO will wrap our service with `Has` data type.
 
 Let's implement `Logging` and `RandomInt` services:
 
@@ -204,7 +204,7 @@ case class RandomIntLive() extends RandomInt {
 }
 ```
 
-Now, we can lift these two implementations into the `ZLayer`. The `ZLayer` will wrap our services into the `Has[_]` data type:
+Now, we can lift these two implementations into the `ZDeps`. The `ZDeps` will wrap our services into the `Has[_]` data type:
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -246,21 +246,21 @@ case class RandomIntLive() extends RandomInt {
 
 ```scala mdoc:silent
 object LoggingLive {
-  val layer: URLayer[Any, Has[Logging]] =
-    (LoggingLive.apply _).toLayer
+  val deps: URDeps[Any, Has[Logging]] =
+    (LoggingLive.apply _).toDeps
 }
 
 object RandomIntLive {
-  val layer: URLayer[Any, Has[RandomInt]] =
-    (RandomIntLive.apply _).toLayer
+  val deps: URDeps[Any, Has[RandomInt]] =
+    (RandomIntLive.apply _).toDeps
 }
 ```
 
 Now, when we combine multiple layers together, these services will combined via `with` intersection type:
 
 ```scala mdoc:silent:nest
-val myLayer: ZLayer[Any, Nothing, Has[Logging] with Has[RandomInt]] = 
-    LoggingLive.layer ++ RandomIntLive.layer
+val myLayer: ZDeps[Any, Nothing, Has[Logging] with Has[RandomInt]] = 
+    LoggingLive.deps ++ RandomIntLive.deps
 ```
 
 Finally, when we provide our layer into the ZIO effect, ZIO can access the binding configuration and extract each service. ZIO does internally these pieces of wiring machinery, we don't care about the implementation detail:

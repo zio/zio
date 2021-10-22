@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{FiberRef, Has, Layer, UIO, URIO, ZIO, ZLayer, ZTraceElement}
+import zio.{FiberRef, Has, Deps, UIO, URIO, ZIO, ZDeps, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait Sized extends Serializable {
@@ -10,8 +10,8 @@ trait Sized extends Serializable {
 
 object Sized {
 
-  def live(size: Int)(implicit trace: ZTraceElement): Layer[Nothing, Has[Sized]] =
-    ZLayer.fromZIO(FiberRef.make(size).map { fiberRef =>
+  def live(size: Int)(implicit trace: ZTraceElement): Deps[Nothing, Has[Sized]] =
+    ZDeps.fromZIO(FiberRef.make(size).map { fiberRef =>
       new Sized {
         def size(implicit trace: ZTraceElement): UIO[Int] =
           fiberRef.get

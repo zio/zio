@@ -34,10 +34,10 @@ private[zio] trait PlatformSpecific {
         )
     }
 
-    val any: ZLayer[ZEnv, Nothing, ZEnv] =
-      ZLayer.environment[ZEnv](Tracer.newTrace)
+    val any: ZDeps[ZEnv, Nothing, ZEnv] =
+      ZDeps.environment[ZEnv](Tracer.newTrace)
 
-    val live: Layer[Nothing, ZEnv] =
+    val live: Deps[Nothing, ZEnv] =
       Clock.live ++ Console.live ++ System.live ++ Random.live
   }
 }

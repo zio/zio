@@ -14,7 +14,7 @@ object CleanCodePrinterSpec extends ZIOBaseSpec {
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
 
   def spec: ZSpec[Environment, Failure] =
-    suite("AutoLayerSpec")(
+    suite("AutoDepsSpec")(
       suite(".showTree") {
         test("prints trees for expressions") {
           import nested.{Service => Nested}

@@ -5,7 +5,7 @@ import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnvironment}
 import zio.test.render.IntelliJRenderer
-import zio.{Clock, Has, Layer, ZIO}
+import zio.{Clock, Has, Deps, ZIO}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -262,13 +262,13 @@ object IntelliJRenderUtils {
     for {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
+             .provideDeps[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
     } yield output.mkString.withNoLineNumbers
 
-  private[this] def IntelliJTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
+  private[this] def IntelliJTestRunner(testEnvironment: Deps[Nothing, TestEnvironment]) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
       reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)

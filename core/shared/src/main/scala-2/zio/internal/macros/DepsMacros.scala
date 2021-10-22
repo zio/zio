@@ -4,18 +4,18 @@ import zio._
 
 import scala.reflect.macros.blackbox
 
-private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
+private[zio] class DepsMacros(val c: blackbox.Context) extends DepsMacroUtils {
   import c.universe._
 
   def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
-    layers: c.Expr[ZLayer[_, E, _]]*
+    deps: c.Expr[ZDeps[_, E, _]]*
   ): c.Expr[F[Any, E, A]] =
-    injectBaseImpl[F, Any, R, E, A](layers, "provideLayer")
+    injectBaseImpl[F, Any, R, E, A](deps, "provideDeps")
 
   def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
-    layers: c.Expr[ZLayer[_, E, _]]*
+    deps: c.Expr[ZDeps[_, E, _]]*
   ): c.Expr[F[R0, E, A]] =
-    injectBaseImpl[F, R0, R, E, A](layers, "provideLayer")
+    injectBaseImpl[F, R0, R, E, A](deps, "provideDeps")
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
     c.Expr[List[String]](q"${getRequirements[R]}")
@@ -27,7 +27,7 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
 }
 
 private[zio] object MacroUnitTestUtils {
-  def getRequirements[R]: List[String] = macro LayerMacros.debugGetRequirements[R]
+  def getRequirements[R]: List[String] = macro DepsMacros.debugGetRequirements[R]
 
-  def showTree(any: Any): String = macro LayerMacros.debugShowTree
+  def showTree(any: Any): String = macro DepsMacros.debugShowTree
 }

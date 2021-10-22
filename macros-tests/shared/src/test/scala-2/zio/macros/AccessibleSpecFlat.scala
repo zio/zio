@@ -330,8 +330,8 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           @throwing
           def test(): Unit = throw new Exception("ups")
         }
-        def layer = ZLayer.succeed(new Module {})
-        assertM(Module.test().flip.provideLayer(layer))(hasField("message", _.getMessage, equalTo("ups")))
+        def deps = ZDeps.succeed(new Module {})
+        assertM(Module.test().flip.provideDeps(deps))(hasField("message", _.getMessage, equalTo("ups")))
       }
     )
   )

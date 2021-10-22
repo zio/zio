@@ -19,8 +19,11 @@ trait DefaultJvmMetrics extends MultipleJvmMetrics {
       VersionInfo.withSchedule(collectionSchedule)
     )
 
-  /** Layer that starts collecting the same JVM metrics as the Prometheus Java client's default exporters */
-  lazy val live: ZLayer[Has[Clock] with Has[System], Throwable, Has[BufferPools] with Has[ClassLoading] with Has[
+  /**
+   * Set of dependencies that starts collecting the same JVM metrics as the
+   * Prometheus Java client's default exporters.
+   */
+  lazy val live: ZDeps[Has[Clock] with Has[System], Throwable, Has[BufferPools] with Has[ClassLoading] with Has[
     GarbageCollector
   ] with Has[MemoryAllocation] with Has[MemoryPools] with Has[Standard] with Has[Thread] with Has[VersionInfo]] = {
     BufferPools.live ++

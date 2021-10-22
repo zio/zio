@@ -33,7 +33,7 @@ import zio.logging.Logging
 import zio.redis._
 import zio.redis.codec.StringUtf8Codec
 import zio.schema.codec.Codec
-import zio.{ExitCode, URIO, ZIO, ZLayer}
+import zio.{ExitCode, URIO, ZIO, ZDeps}
 
 object ZIORedisExample extends zio.App {
 
@@ -46,11 +46,11 @@ object ZIORedisExample extends zio.App {
     _ <- sAdd("mySet", "a", "b", "a", "c")
   } yield ()
 
-  val layer: ZLayer[Any, RedisError.IOError, RedisExecutor] =
-    Logging.ignore ++ ZLayer.succeed(RedisConfig.Default) ++ ZLayer.succeed(StringUtf8Codec) >>> RedisExecutor.live
+  val deps: ZDeps[Any, RedisError.IOError, RedisExecutor] =
+    Logging.ignore ++ ZDeps.succeed(RedisConfig.Default) ++ ZDeps.succeed(StringUtf8Codec) >>> RedisExecutor.live
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideCustomLayer(layer).exitCode
+    myApp.provideCustomLayer(deps).exitCode
 }
 ```
 

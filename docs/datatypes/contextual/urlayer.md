@@ -1,10 +1,10 @@
 ---
-id: urlayer
-title: "URLayer"
+id: urdeps
+title: "URDeps"
 ---
 
-`URLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Nothing, ROut]`, which represents a layer that requires `RIn` as its input, it can't fail, and returns `ROut` as its output.
+`URDeps[-RIn, +ROut]` is a type alias for `ZDeps[RIn, Nothing, ROut]`, which represents a layer that requires `RIn` as its input, it can't fail, and returns `ROut` as its output.
 
 ```scala
-type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]
+type URDeps[-RIn, +ROut] = ZDeps[RIn, Nothing, ROut]
 ```

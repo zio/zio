@@ -50,7 +50,7 @@ object Annotations {
    */
   val live: ULayer[Has[Annotations]] = {
     implicit val trace = Tracer.newTrace
-    ZLayer.fromZIO(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
+    ZDeps.fromZIO(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
       new Annotations {
         def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): UIO[Unit] =
           fiberRef.update(_.annotate(key, value))

@@ -93,13 +93,13 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
       .provideCustomLayer(appLayer)
       .exitCode
 
-  def producerLayer = ZLayer.fromManaged(
+  def producerLayer = ZDeps.fromManaged(
     Producer.make(
       settings = ProducerSettings(List("localhost:29092"))
     )
   )
 
-  def consumerLayer = ZLayer.fromManaged(
+  def consumerLayer = ZDeps.fromManaged(
     Consumer.make(
       ConsumerSettings(List("localhost:29092")).withGroupId("group")
     )

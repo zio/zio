@@ -65,7 +65,7 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
                 sum == (f1Count + f2Count + 2) * 11.0
               )
 
-            test.provideLayer(Clock.live)
+            test.provideDeps(Clock.live)
           }
         }: _*
       ),

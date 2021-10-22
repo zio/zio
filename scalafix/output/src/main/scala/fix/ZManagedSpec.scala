@@ -1233,9 +1233,9 @@ object ZManagedSpec extends DefaultRunnableSpec {
     suite("toLayerMany")(
       test("converts a managed effect to a layer") {
         val managed = ZEnv.live.build
-        val layer   = managed.toLayerMany
+        val deps   = managed.toDepsMany
         val zio1    = ZIO.environment[ZEnv]
-        val zio2    = zio1.provideLayer(layer)
+        val zio2    = zio1.provideDeps(layer)
         assertM(zio2)(anything)
       }
     ),

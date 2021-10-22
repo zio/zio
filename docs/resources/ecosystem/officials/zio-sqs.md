@@ -35,13 +35,13 @@ import zio.sqs.producer.{Producer, ProducerEvent}
 import zio.sqs.serialization.Serializer
 import zio.sqs.{SqsStream, SqsStreamSettings, Utils}
 import zio.stream.ZStream
-import zio.{ExitCode, RIO, URIO, ZLayer, _}
+import zio.{ExitCode, RIO, URIO, ZDeps, _}
 
 object ProducerConsumerExample extends zio.App {
   val queueName = "MyQueue"
 
-  val client: ZLayer[Any, Throwable, Sqs] = zioaws.netty.default ++
-    ZLayer.succeed(
+  val client: ZDeps[Any, Throwable, Sqs] = zioaws.netty.default ++
+    ZDeps.succeed(
       CommonAwsConfig(
         region = Some(Region.of("ap-northeast-2")),
         credentialsProvider = StaticCredentialsProvider.create(

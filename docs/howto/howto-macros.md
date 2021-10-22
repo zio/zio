@@ -118,7 +118,7 @@ object AccountObserverMock
 Will result in:
 
 ```scala
-import zio.{ Has, UIO, URLayer, ZLayer }
+import zio.{ Has, UIO, URDeps, ZDeps }
 import zio.test.mock.{ Mock, Proxy }
 
 object AccountObserverMock extends Mock[Has[AccountObserver.Service]] {
@@ -126,8 +126,8 @@ object AccountObserverMock extends Mock[Has[AccountObserver.Service]] {
   object ProcessEvent extends Effect[AccountEvent, Nothing, Unit]
   object RunCommand   extends Effect[Unit, Nothing, Unit]
 
-  val compose: URLayer[Has[Proxy], AccountObserver] =
-    ZLayer.fromServiceM { proxy =>
+  val compose: URDeps[Has[Proxy], AccountObserver] =
+    ZDeps.fromServiceM { proxy =>
       withRuntime.map { rts =>
         new AccountObserver.Service {
           def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)

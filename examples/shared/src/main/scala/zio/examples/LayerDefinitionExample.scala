@@ -7,8 +7,8 @@ object LayerDefinitionExample extends ZIOAppDefault {
   }
 
   object Foo {
-    val live: URLayer[Has[Console] with Has[String] with Has[Int], Has[Foo]] =
-      (FooLive.apply _).toLayer
+    val live: URDeps[Has[Console] with Has[String] with Has[Int], Has[Foo]] =
+      (FooLive.apply _).toDeps
 
     case class FooLive(console: Console, string: String, int: Int) extends Foo {
       override def bar: UIO[Unit] = console.printLine(s"$string and $int").orDie
@@ -22,8 +22,8 @@ object LayerDefinitionExample extends ZIOAppDefault {
     program
       .inject(
         Console.live,
-        ZLayer.succeed("Hello"),
-        ZLayer.succeed(3),
+        ZDeps.succeed("Hello"),
+        ZDeps.succeed(3),
         Foo.live
       )
   }

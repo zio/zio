@@ -18,13 +18,13 @@ package zio
 
 import zio.internal.macros.{DummyK, WireMacros}
 
-private[zio] trait ZLayerCompanionVersionSpecific {
+private[zio] trait ZDepsCompanionVersionSpecific {
 
   /**
    * Automatically assembles a layer for the provided type.
    *
    * {{{
-   * ZLayer.wire[Car](carLayer, wheelsLayer, engineLayer)
+   * ZDeps.wire[Car](carLayer, wheelsLayer, engineLayer)
    * }}}
    */
   def wire[R <: Has[_]]: WirePartiallyApplied[R] =
@@ -35,10 +35,10 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * a remainder `R0`.
    *
    * {{{
-   * val carLayer: ZLayer[Engine with Wheels, Nothing, Car] = ???
-   * val wheelsLayer: ZLayer[Any, Nothing, Wheels] = ???
+   * val carLayer: ZDeps[Engine with Wheels, Nothing, Car] = ???
+   * val wheelsLayer: ZDeps[Any, Nothing, Wheels] = ???
    *
-   * val layer = ZLayer.wireSome[Engine, Car](carLayer, wheelsLayer)
+   * val deps = ZDeps.wireSome[Engine, Car](carLayer, wheelsLayer)
    * }}}
    */
   def wireSome[R0 <: Has[_], R <: Has[_]]: WireSomePartiallyApplied[R0, R] =
@@ -50,11 +50,11 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * with `ZEnv.any`, allowing them to be provided later.
    *
    * {{{
-   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
+   * val oldLadyLayer: ZDeps[Fly, Nothing, OldLady] = ???
+   * val flyLayer: ZDeps[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val layer : ZLayer[ZEnv, Nothing, OldLady] = ZLayer.wireCustom[OldLady](oldLadyLayer, flyLayer)
+   * val deps : ZDeps[ZEnv, Nothing, OldLady] = ZDeps.wireCustom[OldLady](oldLadyLayer, flyLayer)
    * }}}
    */
   def wireCustom[R <: Has[_]]: WireSomePartiallyApplied[ZEnv, R] =
@@ -63,13 +63,13 @@ private[zio] trait ZLayerCompanionVersionSpecific {
 }
 
 private[zio] final class WirePartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
-  def apply[E](layers: ZLayer[_, E, _]*)(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZLayer[Any, E, R] =
+  def apply[E](deps: ZDeps[_, E, _]*)(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZDeps[Any, E, R] =
     macro WireMacros.wireImpl[E, Any, R]
 }
 
 private[zio] final class WireSomePartiallyApplied[R0 <: Has[_], R <: Has[_]](
   val dummy: Boolean = true
 ) extends AnyVal {
-  def apply[E](layers: ZLayer[_, E, _]*)(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZLayer[R0, E, R] =
+  def apply[E](deps: ZDeps[_, E, _]*)(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZDeps[R0, E, R] =
     macro WireMacros.wireImpl[E, R0, R]
 }

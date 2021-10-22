@@ -31,7 +31,7 @@ import zio.logging.Logging
 import zio.{ExitCode, URIO, _}
 
 object ZIOKinesisConsumerExample extends zio.App {
-  val loggingLayer: ZLayer[Any, Nothing, Logging] =
+  val loggingLayer: ZDeps[Any, Nothing, Logging] =
     (Console.live ++ Clock.live) >>>
       Logging.console() >>>
       Logging.withRootLoggerName(getClass.getName)

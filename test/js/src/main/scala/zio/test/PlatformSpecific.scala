@@ -34,9 +34,9 @@ private[test] abstract class PlatformSpecific {
       with ZEnv
 
   object TestEnvironment {
-    val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
-      ZLayer.environment[TestEnvironment](Tracer.newTrace)
-    val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
+    val any: ZDeps[TestEnvironment, Nothing, TestEnvironment] =
+      ZDeps.environment[TestEnvironment](Tracer.newTrace)
+    val live: ZDeps[ZEnv, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
       Annotations.live ++
         Live.default ++
