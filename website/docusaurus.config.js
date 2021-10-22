@@ -42,10 +42,7 @@ module.exports = {
     },
     algolia: {
       apiKey: '0c94b59071da7001757d08ab43d9e033',
-      indexName: 'zio',
-      // This keeps the search in the pages of the version the user is currently browsing 
-      // see https://docusaurus.io/docs/search
-      contextualSearch: true
+      indexName: 'zio'
     },
     footer: {
       style: 'dark',
@@ -99,28 +96,11 @@ module.exports = {
           title: 'Additional resources',
           items: [
             {
-              html: `<a href="/api/zio/" target="_blank">Latest Scaladoc of ZIO</a>`
-            },
-            {
-              html: `<a href="/api-1.x/zio/" target="_blank">Scaladoc of ZIO-1.x</a>`
-            },
-            {
-              label: 'Scaladoc on javadoc.io',
-              href: 'https://javadoc.io/doc/dev.zio/'
+              label: 'Scaladoc of ZIO',
+              href: 'https://javadoc.io/doc/dev.zio/zio_2.12/'
             }
           ],
         },
-        {
-          items: [
-            {
-              html: `
-                <a href="https://www.netlify.com">
-                  <img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/>
-                </a>
-              `
-            }
-          ]
-        }
       ],
       copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://v2.docusaurus.io/">Docusaurus v2</a>`,
     },
@@ -139,13 +119,13 @@ module.exports = {
           sidebarPath: require.resolve('./sidebars.js'),
           lastVersion: "current",
           versions: {
-            current: { label: "ZIO 2.x" },
-            '1.x': { label: "ZIO 1.x" }
+            current: { label: "ZIO 2.x" }
           },
           remarkPlugins: [
             [require('blended-include-code-plugin'), { marker: 'CODE_INCLUDE' }],
             [require('remark-kroki-plugin'), { krokiBase: 'https://kroki.io', lang: "kroki", imgRefDir: "/img/kroki", imgDir: "static/img/kroki" }]
           ],
+          editUrl: 'https://github.com/zio/zio/edit/series/2.x', 
         },
         theme: {
           customCss: [require.resolve('./src/css/custom.css')],

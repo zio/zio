@@ -7,7 +7,7 @@ Include ZIO in your project by adding the following to your `build.sbt` file:
 
 ```scala mdoc:passthrough
 println(s"""```""")
-println(s"""libraryDependencies += "dev.zio" %% "zio" % "${zio.BuildInfo.version.split('+').head}"""")
+println(s"""libraryDependencies += "dev.zio" %% "zio" % "${java.lang.System.getenv("ZIO_LATEST_2")}"""")
 println(s"""```""")
 ```
 
@@ -15,7 +15,7 @@ If you want to use ZIO streams, you should also include the following dependency
 
 ```scala mdoc:passthrough
 println(s"""```""")
-println(s"""libraryDependencies += "dev.zio" %% "zio-streams" % "${zio.BuildInfo.version.split('+').head}"""")
+println(s"""libraryDependencies += "dev.zio" %% "zio-streams" % "${java.lang.System.getenv("ZIO_LATEST_2")}"""")
 println(s"""```""")
 ```
 

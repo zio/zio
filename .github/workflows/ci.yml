@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 60
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v2.3.4
+      uses: actions/checkout@v2.3.5
     - name: Setup Scala and Java
       uses: olafurpg/setup-scala@v13
     - name: Cache scala dependencies
@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
@@ -46,7 +46,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
@@ -59,20 +59,14 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Check Website Generation
         run: |
-          ./sbt docs/mdoc
-          cd website
-          mv version2-only-docusaurus.config.js docusaurus.config.js 
-          rm -f versions.json
-          yarn install 
-          yarn build 
-          cd ..
+          ./scripts/checkSite.sh
         
   test:
     runs-on: ubuntu-20.04
@@ -81,11 +75,11 @@ jobs:
       fail-fast: false
       matrix:
         java: ['8']
-        scala: ['2.11.12', '2.12.15', '2.13.6', '3.0.2']
+        scala: ['2.11.12', '2.12.15', '2.13.6', '3.1.0']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v2.3.4
+      uses: actions/checkout@v2.3.5
     - name: Setup Scala and Java
       uses: olafurpg/setup-scala@v13
       with:
@@ -93,16 +87,16 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Mima Checks
-      if: ${{ !startsWith(matrix.scala, '3.0.') }}
+      if: ${{ !startsWith(matrix.scala, '3.') }}
       run: ./sbt ++${{ matrix.scala }}! mimaChecks
     - name: Test 2.11.x
       if: ${{ startsWith(matrix.scala, '2.11.') }}
       run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
     - name: Test 2.12.x and 2.13.x
-      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.0.') }}
+      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.') }}
       run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
     - name: Test 3.x
-      if: ${{ startsWith(matrix.scala, '3.0.') }}
+      if: ${{ startsWith(matrix.scala, '3.') }}
       run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}Dotty
 
   testJvms:
@@ -115,7 +109,7 @@ jobs:
         platform: ['JVM']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
         with:
@@ -135,7 +129,7 @@ jobs:
         platform: ['JS', 'Native']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Scala and Java
         uses: olafurpg/setup-scala@v13
         with:
@@ -159,7 +153,7 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
         with:
           fetch-depth: 0
       - name: Setup Scala and Java
