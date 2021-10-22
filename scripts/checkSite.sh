@@ -2,6 +2,7 @@
 
 set -e 
 
+rm -Rf website/build website/docs
 ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/unidoc docs/mdoc
 cd website
 mv docusaurus.config.js docusaurus.config.js.org 
