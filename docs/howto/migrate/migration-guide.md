@@ -15,7 +15,7 @@ ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base 
 
 > **Note**: We shouldn't upgrade the ZIO version in our project, before running scalafix.
 
-1. First, we should make sure that all of direct and transitive dependencies are migrated to the ZIO 2.x version.
+1. First, we should ensure that all of our direct and transitive dependencies [have released their compatible versions with ZIO 2.x](https://docs.google.com/spreadsheets/d/1QIKgavognTRgh84xAqPTJriJ1VDGbaw8S1fmzMGgf98/).
 
 2. Next, we need to install the [Scalafix SBT Plugin](https://github.com/scalacenter/sbt-scalafix), by adding the following line into `project/plugins.sbt` file:
     ```scala
@@ -38,7 +38,7 @@ ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base 
 
    Other than ZIO, we should upgrade all other (official or community) ZIO libraries we are using in our `build.sbt` file.
 
-6. Now, we have performed most of the migration. Finally, we should fix the remaining compilation errors with the help of the remaining sections in this article.
+5. Now, we have performed most of the migration. Finally, we should fix the remaining compilation errors with the help of the remaining sections in this article.
 
 ## Guidelines for Library Authors
 
