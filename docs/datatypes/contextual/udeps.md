@@ -1,5 +1,5 @@
 ---
-id: undeps
+id: udeps
 title: "UDeps"
 ---
 
