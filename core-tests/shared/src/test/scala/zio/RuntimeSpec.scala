@@ -112,7 +112,8 @@ object RuntimeSpec extends ZIOBaseSpec {
   private def stackTraceSanitized(e: Throwable) = {
     val writer = new StringWriter()
     e.printStackTrace(new PrintWriter(writer))
-    writer.toString.split("\n")
+    writer.toString
+      .split("\n")
       .map(_.replaceAll("\\(.*\\)$", "(XXX)").trim)
       .mkString("\n")
   }
