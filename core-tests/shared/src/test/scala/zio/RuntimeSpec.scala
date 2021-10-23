@@ -42,7 +42,7 @@ object RuntimeSpec extends ZIOBaseSpec {
       },
       test("in unsafeRunToFuture") {
         for {
-          res <- ZIO.fromFuture(_ => CallSite.failingUnsafeRunToFuture(runtime)).run
+          res <- ZIO.fromFuture(_ => CallSite.failingUnsafeRunToFuture(runtime)).exit
         } yield {
           assert(res)(
             fails(
@@ -112,14 +112,14 @@ object RuntimeSpec extends ZIOBaseSpec {
   private def stackTraceSanitized(e: Throwable) = {
     val writer = new StringWriter()
     e.printStackTrace(new PrintWriter(writer))
-    writer.toString.linesIterator
+    writer.toString.split("\n")
       .map(_.replaceAll("\\(.*\\)$", "(XXX)").trim)
       .mkString("\n")
   }
 
   private def containsLinesInOrder(lines: String*): Assertion[String] =
     Assertion.assertion("containsLinesInOrder")(RenderParam.Value(lines)) { text =>
-      val filtered = text.linesIterator.toSeq.filter(l => lines.contains(l.trim))
+      val filtered = text.split("\n").toSeq.filter(l => lines.contains(l.trim))
       filtered.containsSlice(lines)
     }
 
