@@ -93,5 +93,6 @@ package object zio
       def unapply(trace: ZTraceElement): Option[(String, String, Int, Int)] =
         Tracer.instance.unapply(trace)
     }
+    def fromString(s: String) = Tracer.instance.fromString(s)
   }
 }

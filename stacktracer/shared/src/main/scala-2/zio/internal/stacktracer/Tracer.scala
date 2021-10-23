@@ -12,12 +12,13 @@ object Tracer {
 
   val instance: Tracer = new Tracer {
     type Type = String
-    val empty: Type with Traced = "".asInstanceOf[Type with Traced]
+    val empty: Type with Traced = fromString("")
     def unapply(trace: Type): Option[(String, String, Int, Int)] =
       trace match {
         case regex(location, file, line, column) => Some((location, file, line.toInt, column.toInt))
         case _                                   => None
       }
+    def fromString(s: String) = s.asInstanceOf[Type with Traced]
   }
 
   private[internal] def createTrace(location: String, file: String, line: Int, column: Int): String =
@@ -30,4 +31,5 @@ sealed trait Tracer {
   type Type <: AnyRef
   val empty: Type with Tracer.Traced
   def unapply(trace: Type): Option[(String, String, Int, Int)]
+  def fromString(trace: String): Type with Tracer.Traced
 }

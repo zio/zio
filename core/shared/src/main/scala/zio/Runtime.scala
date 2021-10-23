@@ -345,10 +345,9 @@ trait Runtime[+R] {
       Some(
         ZTrace(
           FiberId.None,
-          Thread.currentThread.getStackTrace
+          Thread.currentThread.getStackTrace.toList
             .drop(2)
-            .map(_.toString.asInstanceOf[ZTraceElement])
-            .toList,
+            .map(s => ZTraceElement.fromString(s.toString)),
           Nil,
           None
         )
