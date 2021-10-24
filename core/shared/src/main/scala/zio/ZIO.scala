@@ -1248,7 +1248,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Executes the effect on the specified `ExecutionContext` and then shifts back
    * to the default one.
    */
-  @deprecated("use lockExecutionContext", "2.0.0")
+  @deprecated("use onExecutionContext", "2.0.0")
   final def on(ec: => ExecutionContext)(implicit trace: ZTraceElement): ZIO[R, E, A] =
     self.onExecutionContext(ec)
 
