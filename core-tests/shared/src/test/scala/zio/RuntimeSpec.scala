@@ -23,8 +23,6 @@ object RuntimeSpec extends ZIOBaseSpec {
                 containsLinesInOrder(
                   // the exception
                   "java.lang.RuntimeException: kaboom!",
-                  // fiber trace of the effect
-                  "at zio.RuntimeSpec.EffectSite.failing(XXX)",
                   // parent stack trace - the stack up to unsafe run
                   "Fiber:FiberId(0,0) execution trace:",
                   "at zio.Runtime$$anon$3.unsafeRunTask(XXX)",
@@ -47,8 +45,6 @@ object RuntimeSpec extends ZIOBaseSpec {
                 stackTraceSanitized,
                 containsLinesInOrder(
                   "java.lang.RuntimeException: kaboom!",
-                  // fiber trace of the effect
-                  "at zio.RuntimeSpec.EffectSite.failing(XXX)",
                   // parent stack trace - the stack up to unsafe run
                   "Fiber:FiberId(0,0) execution trace:",
                   "at zio.Runtime$$anon$3.unsafeRunToFuture(XXX)",
