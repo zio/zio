@@ -33,7 +33,7 @@ object RuntimeSpec extends ZIOBaseSpec {
             )
           )
         }
-      } @@ TestAspect.jvmOnly,
+      },
       test("in unsafeRunToFuture") {
         for {
           res <- ZIO.fromFuture(_ => CallSite.failingUnsafeRunToFuture(runtime)).exit
@@ -74,7 +74,7 @@ object RuntimeSpec extends ZIOBaseSpec {
             )
           )
         }
-      } @@ TestAspect.jvmOnly,
+      },
       test("in unsafeRunToFuture") {
         for {
           res <- ZIO
