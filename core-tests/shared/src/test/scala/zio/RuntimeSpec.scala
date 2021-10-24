@@ -23,11 +23,7 @@ object RuntimeSpec extends ZIOBaseSpec {
                 containsLinesInOrder(
                   // the exception
                   "java.lang.RuntimeException: kaboom!",
-                  "at zio.RuntimeSpec$EffectSite$.$anonfun$failing$3(XXX)",
-                  "java.lang.RuntimeException: kaboom!",
                   // fiber trace of the effect
-                  "at zio.RuntimeSpec.EffectSite.failing(XXX)",
-                  "at zio.RuntimeSpec.EffectSite.failing(XXX)",
                   "at zio.RuntimeSpec.EffectSite.failing(XXX)",
                   // parent stack trace - the stack up to unsafe run
                   "Fiber:FiberId(0,0) execution trace:",
@@ -39,7 +35,7 @@ object RuntimeSpec extends ZIOBaseSpec {
             )
           )
         }
-      },
+      } @@ TestAspect.jvmOnly,
       test("in unsafeRunToFuture") {
         for {
           res <- ZIO.fromFuture(_ => CallSite.failingUnsafeRunToFuture(runtime)).exit
@@ -51,11 +47,7 @@ object RuntimeSpec extends ZIOBaseSpec {
                 stackTraceSanitized,
                 containsLinesInOrder(
                   "java.lang.RuntimeException: kaboom!",
-                  "at zio.RuntimeSpec$EffectSite$.$anonfun$failing$3(XXX)",
-                  "java.lang.RuntimeException: kaboom!",
                   // fiber trace of the effect
-                  "at zio.RuntimeSpec.EffectSite.failing(XXX)",
-                  "at zio.RuntimeSpec.EffectSite.failing(XXX)",
                   "at zio.RuntimeSpec.EffectSite.failing(XXX)",
                   // parent stack trace - the stack up to unsafe run
                   "Fiber:FiberId(0,0) execution trace:",
@@ -86,7 +78,7 @@ object RuntimeSpec extends ZIOBaseSpec {
             )
           )
         }
-      },
+      } @@ TestAspect.jvmOnly,
       test("in unsafeRunToFuture") {
         for {
           res <- ZIO
@@ -120,7 +112,7 @@ object RuntimeSpec extends ZIOBaseSpec {
 
   private def containsLinesInOrder(lines: String*): Assertion[String] =
     Assertion.assertion("containsLinesInOrder")(RenderParam.Value(lines)) { text =>
-      val filtered = text.split("\n").toSeq.filter(l => lines.contains(l.trim))
+      val filtered = text.split("\n").toSeq.filter(l => lines.contains(l.trim)).distinct
       filtered.containsSlice(lines)
     }
 
