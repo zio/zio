@@ -227,7 +227,8 @@ val config = TracingConfig(
   stackTraceLength = 100,
   ancestryLength = 10,
   ancestorExecutionTraceLength = 10,
-  ancestorStackTraceLength = 10
+  ancestorStackTraceLength = 10,
+  captureUnsafeRunStack = true
 )
 val rt3 = Runtime.default.mapRuntimeConfig(runtimeConfig => runtimeConfig.copy(tracing = runtimeConfig.tracing.copy(tracingConfig = config)))
 ```
