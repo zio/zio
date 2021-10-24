@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.tracing.{Tracing, TracingConfig}
+import zio.internal.tracing.TracingConfig
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
@@ -25,15 +25,10 @@ import scala.scalajs.js.Dynamic.{global => jsglobal}
 private[zio] trait RuntimeConfigPlatformSpecific {
 
   /**
-   * A Runtime with settings suitable for benchmarks, specifically with Tracing
-   * and auto-yielding disabled.
-   *
-   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
-   * optional feature and it's not valid to compare the performance of ZIO with
-   * enabled Tracing with effect types _without_ a comparable feature.
+   * A Runtime with settings suitable for benchmarks, specifically with
+   * auto-yielding disabled.
    */
-  lazy val benchmark: RuntimeConfig =
-    makeDefault(Int.MaxValue).copy(tracing = Tracing.disabled)
+  lazy val benchmark: RuntimeConfig = makeDefault(Int.MaxValue)
 
   /**
    * The default runtime configuration, with settings designed to work well for
@@ -92,7 +87,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       throw t
     }
 
-    val tracing = Tracing(TracingConfig.enabled)
+    val tracingConfig = TracingConfig.default
 
     val supervisor = Supervisor.none
 
@@ -101,7 +96,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     RuntimeConfig(
       blockingExecutor,
       executor,
-      tracing,
+      tracingConfig,
       fatal,
       reportFatal,
       supervisor,

@@ -61,6 +61,7 @@ object LogLevel {
   val Warning: LogLevel = LogLevel(30000, "WARN", 4)
   val Info: LogLevel    = LogLevel(20000, "INFO", 6)
   val Debug: LogLevel   = LogLevel(10000, "DEBUG", 7)
+  val Runtime: LogLevel = LogLevel(0, "RUNTIME", 7)
   val None: LogLevel    = LogLevel(Int.MaxValue, "OFF", 7)
 
   implicit val orderingLogLevel: Ordering[LogLevel] = Ordering.by(_.ordinal)

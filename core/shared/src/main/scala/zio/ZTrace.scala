@@ -22,69 +22,10 @@ import scala.annotation.tailrec
 
 final case class ZTrace(
   fiberId: FiberId,
-  executionTrace: List[ZTraceElement],
-  stackTrace: List[ZTraceElement],
-  parentTrace: Option[ZTrace]
+  stackTrace: Chunk[ZTraceElement]
 ) {
-  def prettyPrint: String = {
-    val execTrace  = this.executionTrace.nonEmpty
-    val stackTrace = this.stackTrace.nonEmpty
-
-    val stackPrint =
-      if (stackTrace)
-        s"Fiber:$fiberId was supposed to continue to:" ::
-          this.stackTrace.map(loc => s"  a future continuation at " + loc.toString)
-      else
-        s"Fiber:$fiberId was supposed to continue to: <empty trace>" :: Nil
-
-    val execPrint =
-      if (execTrace)
-        s"Fiber:$fiberId execution trace:" ::
-          executionTrace.map(loc => "  at " + loc.toString)
-      else s"Fiber:$fiberId ZIO Execution trace: <empty trace>" :: Nil
-
-    val ancestry: List[String] =
-      parentTrace
-        .map(trace => s"Fiber:$fiberId was spawned by:\n" :: trace.prettyPrint :: Nil)
-        .getOrElse(s"Fiber:$fiberId was spawned by: <empty trace>" :: Nil)
-
-    (stackPrint ++ ("" :: execPrint) ++ ("" :: ancestry)).mkString("\n")
-  }
-
-  /**
-   * Parent fiber traces flattened into a list.
-   *
-   * NOTE: `parentTrace` fields are still populated for members of this list,
-   * despite that the next trace in the list is equivalent to `parentTrace`
-   */
-  def parents: List[ZTrace] = {
-    val builder = List.newBuilder[ZTrace]
-    var parent  = parentTrace.orNull
-    while (parent ne null) {
-      builder += parent
-      parent = parent.parentTrace.orNull
-    }
-    builder.result()
-  }
-
-  def ancestryLength: Int = {
-    @tailrec
-    def go(i: Int, trace: ZTrace): Int =
-      trace.parentTrace match {
-        case Some(parent) => go(i + 1, parent)
-        case None         => i
-      }
-
-    go(0, this)
-  }
-}
-
-object ZTrace {
-  def truncatedParentTrace(trace: ZTrace, maxAncestors: Int): Option[ZTrace] =
-    if (trace.ancestryLength > maxAncestors)
-      trace.parents.iterator
-        .take(maxAncestors)
-        .foldRight(Option.empty[ZTrace])((trace, parent) => Some(trace.copy(parentTrace = parent)))
-    else
-      trace.parentTrace
+  def prettyPrint: String =
+    stackTrace.collect {
+      case s if s.toString.length > 0 => s"\tat ${s}"
+    }.mkString("\n")
 }
