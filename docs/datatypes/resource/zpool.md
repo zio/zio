@@ -54,5 +54,7 @@ object ZPool {
 ```scala mdoc:reset
 ```
 
-It takes a managed resource of type `A`, and the pre-defined `size` of the pool. It creates a new pool of fixed size and then returns a `UManaged` pool. Therefore, the life cycle of the pool will be managed automatically within the `UManaged` data type. So, as a client of `ZPool`, we do not require to shut down the pool manually.
+It takes a managed resource of type `A`, and the `size` of the pool. A fixed pool size will be used to pre-allocate pool entries, and the return type will be a managed `ZPool`.
+
+As the return type of the constructor is `UManaged[ZPool[E, A]]`, it will manage automatically the life cycle of the pool. So, as a client of `ZPool`, we do not require to shutdown the pool manually.
 
