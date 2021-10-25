@@ -26,7 +26,11 @@ To address these issues, we can create a pool of pre-initialized resources:
 
 `ZPool` is an asynchronous and concurrent generalized pool of reusable managed resources, that is used to create and manage a pool of objects.
 
-```scala
+```scala mdoc:invisible
+import zio._
+```
+
+```scala mdoc:nest
 trait ZPool[+Error, Item] {
   def get: Managed[Error, Item]
   def invalidate(item: Item): UIO[Unit]
@@ -37,10 +41,18 @@ The two fundamental operators on a `ZPool` is `get` and `invalidate`:
 - The `get` operator retrieves an item from the pool in a `Managed` effect.
 - The `invalidate` operator invalidates the specified item. This will cause the pool to eventually reallocate the item.
 
+## Constructing ZPools
+
 The `make` constructor is a common way to create a `ZPool`:
 
-```scala
+```scala mdoc:silent
 object ZPool {
   def make[E, A](get: Managed[E, A], size: Int): UManaged[ZPool[E, A]] = ???
 }
 ```
+
+```scala mdoc:reset
+```
+
+It takes a managed resource of type `A`, and the pre-defined `size` of the pool. It creates a new pool of fixed size and then returns a `UManaged` pool. Therefore, the life cycle of the pool will be managed automatically within the `UManaged` data type. So, as a client of `ZPool`, we do not require to shut down the pool manually.
+
