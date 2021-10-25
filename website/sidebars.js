@@ -117,7 +117,7 @@ module.exports = {
             ]
         },
     ],
-    "Resource Safety": [
+    "Resource Management": [
       "datatypes/resource/index",
       {
         type: "category",
