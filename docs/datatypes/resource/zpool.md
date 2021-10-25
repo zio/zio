@@ -51,7 +51,7 @@ object ZPool {
 }
 ```
 
-```scala mdoc:reset
+```scala mdoc:reset:invisible
 ```
 
 It takes a managed resource of type `A`, and the `size` of the pool. The return type will be a managed `ZPool`.
