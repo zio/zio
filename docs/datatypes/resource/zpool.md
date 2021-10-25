@@ -5,6 +5,23 @@ title: "ZPool"
 
 A `ZPool[E, A]` is a pool of items of type `A`, each of which may be associated with the acquisition and release of resources. An attempt to get an item `A` from a pool may fail with an error of type `E`.
 
+## Motivation
+
+Acquiring some resources is expensive to create and time-consuming. Such resources include network connections (sockets, database connections, remote services), threads.
+
+There are some cases that
+- We require a **fast and predictable** way of accessing resources.
+- We need a solution to **scale across the number of resources**.
+- On the other hand, each **resource consumption doesn't take a long time**.
+
+If we create a new resource for every resource acquisition, consequently we will find ourselves in a constant repetition of acquisition and release of resources. This might end up with thousands of resources (e.g. connection to a database) created within a short time, which will reduce the performance of our application.
+
+To address these issues, we can create a pool of pre-initialized resources:
+- Whenever we need a new resource, we acquire that from the existing resources of the pool. So the resource acquisition will be predictable, and it will avoid the overhead of acquisition.
+- When the resource is no longer needed, we release that back to the resource pool. So the released resources will be recyclable, and it will avoid the overhead of re-acquisition.
+
+`ZPool` is an implementation of such an idea with some excellent properties that we will cover on this page.
+
 ## Introduction
 
 `ZPool` is an asynchronous and concurrent generalized pool of reusable managed resources, that is used to create and manage a pool of objects.
