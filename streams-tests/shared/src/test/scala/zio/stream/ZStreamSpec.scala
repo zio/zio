@@ -1269,7 +1269,15 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          }
+          },
+          test("permit acquisition is interruptible") {
+            ZStream.fromIterable(1 to 50)
+              .flatMapPar(1)(n => ZStream.fromIterable(Chunk(n)))
+              .take(5)
+              .mapZIOParUnordered(8)(ZIO.succeed(_))
+              .runDrain
+              .as(assertCompletes)
+          } @@ nonFlaky
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {
