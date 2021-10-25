@@ -1337,43 +1337,26 @@ object ZSink {
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
   }
 
-  def utfDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
+  def utfDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+    sinkBasedOnStreamHeader[Err, Byte, Byte, String](
+      peekSize = 4,
+      {
+        case BOM.Utf32BE if Charset.isSupported("UTF-32BE") =>
+          Chunk.empty -> utf32BEDecode
+        case BOM.Utf32LE if Charset.isSupported("UTF-32LE") =>
+          Chunk.empty -> utf32LEDecode
+        case bytes if bytes.take(3) == BOM.Utf8 =>
+          bytes.drop(3) -> utf8Decode
+        case bytes if bytes.take(2) == BOM.Utf16BE =>
+          bytes.drop(2) -> utf16BEDecode
+        case bytes if bytes.take(2) == BOM.Utf16LE =>
+          bytes.drop(2) -> utf16LEDecode
+        case bytes =>
+          bytes -> utf8Decode
+      }
+    )
 
-    def decodeWithPrepending(
-      bytes: Chunk[Byte],
-      decoder: ZSink[Any, Err, Byte, Err, Byte, Option[String]]
-    ) =
-      if (bytes.isEmpty)
-        ZSink.succeed(None)
-      else
-        new ZSink((ZChannel.write(bytes) *> ZChannel.identity[Err, Chunk[Byte], Any]) >>> decoder.channel)
-
-    ZSink.take[Err, Byte](4).flatMap {
-      case BOM.Utf32BE if Charset.isSupported("UTF-32BE") =>
-        utf32BEDecode
-      case BOM.Utf32LE if Charset.isSupported("UTF-32LE") =>
-        utf32LEDecode
-      case bytes if bytes.take(3) == BOM.Utf8 =>
-        utf8Decode(bytes.drop(3))
-//        decodeWithPrepending(bytes.drop(3), utf8Decode())
-      case bytes if bytes.take(2) == BOM.Utf16BE =>
-        utfFixedLengthDecode(StandardCharsets.UTF_16BE, 2, bytes.drop(2))
-//        decodeWithPrepending(bytes.drop(2), utf16BEDecode)
-      case bytes if bytes.take(2) == BOM.Utf16LE =>
-        utfFixedLengthDecode(StandardCharsets.UTF_16LE, 2, bytes.drop(2))
-//        decodeWithPrepending(bytes.drop(2), utf16LEDecode)
-      case bytes =>
-//        decodeWithPrepending(bytes, utf8Decode())
-
-        if (bytes.isEmpty) {
-          ZSink.succeed(None)
-        } else {
-          utf8Decode(bytes)
-        }
-    }
-  }
-
-  def utf8Decode[Err](seed: Chunk[Byte] = Chunk.empty)(implicit
+  def utf8Decode[Err](implicit
     trace: ZTraceElement
   ): ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
     def is2ByteSequenceStart(b: Byte) = (b & 0xe0) == 0xc0
@@ -1439,18 +1422,21 @@ object ZSink {
           }
       )
 
-    new ZSink(channel(seed))
+    new ZSink(channel(Chunk.empty))
   }
 
   def utf16Decode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
-    ZSink.take[Err, Byte](2).flatMap {
-      case BOM.Utf16BE =>
-        utf16BEDecode
-      case BOM.Utf16LE =>
-        utf16LEDecode
-      case bytes =>
-        new ZSink(ZChannel.write(bytes) >>> utf16BEDecode.channel)
-    }
+    sinkBasedOnStreamHeader[Err, Byte, Byte, String](
+      peekSize = 2,
+      {
+        case BOM.Utf16BE =>
+          Chunk.empty -> utf16BEDecode
+        case BOM.Utf16LE =>
+          Chunk.empty -> utf16LEDecode
+        case bytes =>
+          bytes -> utf16BEDecode
+      }
+    )
 
   def utf16BEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
     utfFixedLengthDecode(StandardCharsets.UTF_16BE, 2)
@@ -1459,14 +1445,17 @@ object ZSink {
     utfFixedLengthDecode(StandardCharsets.UTF_16LE, 2)
 
   def utf32Decode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
-    ZSink.take[Err, Byte](4).flatMap {
-      case BOM.Utf32BE =>
-        utf32BEDecode
-      case BOM.Utf32LE =>
-        utf32LEDecode
-      case bytes =>
-        new ZSink(ZChannel.write(bytes) >>> utf32BEDecode.channel)
-    }
+    sinkBasedOnStreamHeader[Err, Byte, Byte, String](
+      peekSize = 4,
+      {
+        case BOM.Utf32BE =>
+          Chunk.empty -> utf32BEDecode
+        case BOM.Utf32LE =>
+          Chunk.empty -> utf32LEDecode
+        case bytes =>
+          bytes -> utf32BEDecode
+      }
+    )
 
   def utf32BEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
     utfFixedLengthDecode(CharsetUtf32BE, 4)
@@ -1474,7 +1463,65 @@ object ZSink {
   def utf32LEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
     utfFixedLengthDecode[Err](CharsetUtf32LE, 4)
 
-  private def utfFixedLengthDecode[Err](charset: Charset, width: Int, seed: Chunk[Byte] = Chunk.empty)(implicit
+  private def sinkBasedOnStreamHeader[Err, In, L, Z](
+    peekSize: Int,
+    sinkDecider: Chunk[In] => (Chunk[In], ZSink[Any, Err, In, Err, L, Option[Z]])
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Err, In, Err, L, Option[Z]] = {
+    var bufferSize      = 0
+    var isLookingForDom = true
+    var targetSink      = null.asInstanceOf[ZSink[Any, Err, In, Err, L, Option[Z]]]
+
+    val buffer = ChunkBuilder.make[In](peekSize)
+
+    def channelFromTo(chunk: Chunk[In], sink: ZSink[Any, Err, In, Err, L, Option[Z]]) =
+      ZChannel.write(chunk) *>
+        ZChannel.identity[Err, Chunk[In], Any] >>>
+        sink.channel
+
+    lazy val chan: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[L], Option[Z]] =
+      ZChannel.readWith(
+        input => {
+          if (isLookingForDom) {
+            val newBufferSize = bufferSize + input.size
+            if (newBufferSize < peekSize) {
+              buffer.addAll(input)
+              bufferSize = newBufferSize
+              chan
+            } else {
+              val remainingChunkSize = peekSize - bufferSize
+              val (chunkWithoutHeader, sink) = sinkDecider(
+                buffer
+                  .addAll(input.take(remainingChunkSize))
+                  .result()
+              )
+              val passThroughChunk = chunkWithoutHeader ++ input.drop(remainingChunkSize)
+              targetSink = sink
+              isLookingForDom = false
+
+              channelFromTo(passThroughChunk, targetSink)
+            }
+          } else {
+            channelFromTo(input, targetSink)
+          }
+        },
+        ZChannel.fail(_),
+        _ => {
+          // In case the stream ends before we get enough stuff of `peekSize`
+          if (isLookingForDom) {
+            val (chunkWithoutHeader, sink) = sinkDecider(buffer.result())
+            channelFromTo(chunkWithoutHeader, sink)
+          } else {
+            ZChannel.end(None)
+          }
+        }
+      )
+
+    new ZSink(chan)
+  }
+
+  private def utfFixedLengthDecode[Err](charset: Charset, width: Int)(implicit
     trace: ZTraceElement
   ) = {
     def reader(buffer: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Any, Err, Chunk[Byte], Option[String]] =
@@ -1499,7 +1546,7 @@ object ZSink {
           else ZChannel.end(Some(new String(buffer.toArray, charset)))
       )
 
-    new ZSink(reader(seed))
+    new ZSink(reader(Chunk.empty))
   }
 
   def usASCIIDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Nothing, Option[String]] = {

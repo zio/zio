@@ -17,15 +17,17 @@ object ZSinkSpec extends ZIOBaseSpec {
     Chunk.fromArray(source.getBytes(charset))
 
   private def testDecoderWithRandomStringUsing[Err](
-    decoderUnderTest: ZSink[Any, Err, Byte, Err, Byte, Option[String]],
+    decoderUnderTest: => ZSink[Any, Err, Byte, Err, Byte, Option[String]],
     sourceCharset: Charset,
     withBom: Chunk[Byte] => Chunk[Byte] = identity
   ) =
     check(
-      Gen.string.map(stringToByteChunkOf(sourceCharset, _))
-    ) { originalBytes =>
+      Gen.string.map(stringToByteChunkOf(sourceCharset, _)),
+      Gen.int
+    ) { (originalBytes, chunkSize) =>
       ZStream
         .fromChunk(withBom(originalBytes))
+        .rechunk(chunkSize)
         .transduce(decoderUnderTest.map(_.getOrElse("")))
         .mkString
         .map { decodedString =>
@@ -755,7 +757,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             check(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_8)))) { bytes =>
               ZStream
                 .fromChunk(bytes)
-                .run(ZSink.utf8Decode())
+                .run(ZSink.utf8Decode)
                 .map(result =>
                   assert(bytes)(isNonEmpty) implies assert(result)(
                     isSome(equalTo(new String(bytes.toArray, StandardCharsets.UTF_8)))
@@ -767,7 +769,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             check(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_8)))) { byteChunk =>
               ZStream
                 .fromChunk(byteChunk)
-                .transduce(ZSink.utf8Decode().map(_.getOrElse("")))
+                .transduce(ZSink.utf8Decode.map(_.getOrElse("")))
                 .run(ZSink.mkString)
                 .map { result =>
                   assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_8)))
@@ -776,7 +778,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           },
           test("transducing with regular strings with BOM") {
             testDecoderWithRandomStringUsing(
-              ZSink.utf8Decode(),
+              ZSink.utf8Decode,
               StandardCharsets.UTF_8,
               BOM.Utf8 ++ _
             )
@@ -786,12 +788,12 @@ object ZSinkSpec extends ZIOBaseSpec {
               ZSink.utfDecode,
               StandardCharsets.UTF_8
             )
-          }, // @@ TestAspect.ignore,
+          },
           test("empty byte chunk results with None") {
             val bytes = Chunk()
             ZStream
               .fromChunk(bytes)
-              .run(ZSink.utf8Decode())
+              .run(ZSink.utf8Decode)
               .map(assert(_)(isNone))
           },
           test("incomplete chunk 1") {
@@ -799,7 +801,7 @@ object ZSinkSpec extends ZIOBaseSpec {
 
             ZStream
               .fromChunks(BOM.Utf8, Chunk(data(0)), Chunk(data(1)))
-              .run(ZSink.utf8Decode().exposeLeftover)
+              .run(ZSink.utf8Decode.exposeLeftover)
               .map { case (string, bytes) =>
                 assert(string)(isSome(equalTo(new String(data, StandardCharsets.UTF_8)))) &&
                   assert(bytes)(isEmpty)
@@ -810,7 +812,7 @@ object ZSinkSpec extends ZIOBaseSpec {
 
             ZStream
               .fromChunks(BOM.Utf8, Chunk(data(0), data(1)), Chunk(data(2)))
-              .run(ZSink.utf8Decode().exposeLeftover)
+              .run(ZSink.utf8Decode.exposeLeftover)
               .map { case (string, bytes) =>
                 assert(string)(isSome(equalTo(new String(data, StandardCharsets.UTF_8)))) &&
                   assert(bytes)(isEmpty)
@@ -821,7 +823,7 @@ object ZSinkSpec extends ZIOBaseSpec {
 
             ZStream
               .fromChunks(BOM.Utf8, Chunk(data(0), data(1), data(2)), Chunk(data(3)))
-              .run(ZSink.utf8Decode().exposeLeftover)
+              .run(ZSink.utf8Decode.exposeLeftover)
               .map { case (string, bytes) =>
                 assert(string)(isSome(equalTo(new String(data, StandardCharsets.UTF_8)))) &&
                   assert(bytes)(isEmpty)
@@ -830,7 +832,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           test("chunk with leftover") {
             ZStream
               .fromChunk(Chunk(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte, 0xf0.toByte, 0x90.toByte))
-              .run(ZSink.utf8Decode())
+              .run(ZSink.utf8Decode)
               .map { result =>
                 assert(result.map(s => Chunk.fromArray(s.getBytes)))(
                   isSome(equalTo(Chunk.fromArray(Array(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte))))
@@ -841,7 +843,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             check(Gen.string) { s =>
               ZStream
                 .fromChunk(BOM.Utf8 ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_8)))
-                .transduce(ZSink.utf8Decode())
+                .transduce(ZSink.utf8Decode)
                 .runCollect
                 .map { result =>
                   assert(result.collect { case Some(s) => s }.mkString)(equalTo(s))
@@ -855,7 +857,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                 .transduce(ZSink.utfDecode)
                 .runCollect
                 .map { result =>
-                  assertTrue(result.collect { case Some(s) => s }.mkString == s)
+                  assert(result.collect { case Some(s) => s }.mkString)(equalTo(s))
                 }
             }
           }
