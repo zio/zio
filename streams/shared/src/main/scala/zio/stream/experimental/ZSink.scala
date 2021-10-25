@@ -1470,7 +1470,7 @@ object ZSink {
     trace: ZTraceElement
   ): ZSink[Any, Err, In, Err, L, Option[Z]] = {
     var bufferSize      = 0
-    var isLookingForDom = true
+    var isLookingForBom = true
     var targetSink      = null.asInstanceOf[ZSink[Any, Err, In, Err, L, Option[Z]]]
 
     val buffer = ChunkBuilder.make[In](peekSize)
@@ -1483,22 +1483,21 @@ object ZSink {
     lazy val chan: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[L], Option[Z]] =
       ZChannel.readWith(
         input => {
-          if (isLookingForDom) {
+          if (isLookingForBom) {
             val newBufferSize = bufferSize + input.size
             if (newBufferSize < peekSize) {
-              buffer.addAll(input)
+              buffer ++= input
               bufferSize = newBufferSize
               chan
             } else {
               val remainingChunkSize = peekSize - bufferSize
-              val (chunkWithoutHeader, sink) = sinkDecider(
-                buffer
-                  .addAll(input.take(remainingChunkSize))
-                  .result()
-              )
-              val passThroughChunk = chunkWithoutHeader ++ input.drop(remainingChunkSize)
+              buffer ++= input.take(remainingChunkSize)
+
+              val (chunkWithoutHeader, sink) = sinkDecider(buffer.result())
+              val passThroughChunk           = chunkWithoutHeader ++ input.drop(remainingChunkSize)
+
               targetSink = sink
-              isLookingForDom = false
+              isLookingForBom = false
 
               channelFromTo(passThroughChunk, targetSink)
             }
@@ -1509,7 +1508,7 @@ object ZSink {
         ZChannel.fail(_),
         _ => {
           // In case the stream ends before we get enough stuff of `peekSize`
-          if (isLookingForDom) {
+          if (isLookingForBom) {
             val (chunkWithoutHeader, sink) = sinkDecider(buffer.result())
             channelFromTo(chunkWithoutHeader, sink)
           } else {

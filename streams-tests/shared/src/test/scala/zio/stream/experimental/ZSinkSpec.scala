@@ -27,7 +27,7 @@ object ZSinkSpec extends ZIOBaseSpec {
     ) { (originalBytes, chunkSize) =>
       ZStream
         .fromChunk(withBom(originalBytes))
-        .rechunk(chunkSize)
+//        .rechunk(chunkSize)
         .transduce(decoderUnderTest.map(_.getOrElse("")))
         .mkString
         .map { decodedString =>
