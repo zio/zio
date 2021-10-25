@@ -176,11 +176,9 @@ object ProxyFactory {
                       findMatching(scopes ++ nextScopes, failedMatches)
                   }
 
-                case self @ Repeated(expectation, range, state, invocations, started, completed) =>
-                  val initialize = (state == Saturated) && completed < range.max
-                  val child      = if (initialize) resetTree(expectation) else expectation
+                case self @ Repeated(expectation, range, _, invocations, started, completed) =>
                   val scope = Scope[R](
-                    child,
+                    expectation,
                     id,
                     updatedChild => {
                       val updatedStarted =
