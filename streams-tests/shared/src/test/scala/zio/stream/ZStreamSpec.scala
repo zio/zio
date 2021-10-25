@@ -1271,7 +1271,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           },
           test("permit acquisition is interruptible") {
-            ZStream.fromIterable(1 to 50)
+            ZStream
+              .fromIterable(1 to 50)
               .flatMapPar(1)(n => ZStream.fromIterable(Chunk(n)))
               .take(5)
               .mapZIOParUnordered(8)(ZIO.succeed(_))
