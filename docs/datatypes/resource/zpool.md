@@ -71,3 +71,24 @@ def make[E, A](get: Managed[E, A],
 ```
 
 Having a lot of resources that are over our average requirement can waste space and degrade the performance. Therefore, this variant of `ZPool` has an _eviction policy_. By taking the `timeToLive` argument, it will evict excess items that have not been acquired for more than the `timeToLive` time, until it reaches the minimum size.
+
+Here is an example of creating pool of database connections:
+
+```scala mdoc:invisible
+import zio._
+
+case class Connection()
+
+val acquireDbConnection = ZManaged.succeed(Connection())
+
+def useConnection(i: Connection) = {
+  val _ = i
+  ZIO.unit
+}
+```
+
+```scala mdoc:silent
+ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).use { pool =>
+  pool.get.use { conn => useConnection(conn) }
+}
+```
