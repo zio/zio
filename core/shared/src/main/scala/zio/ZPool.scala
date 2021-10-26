@@ -78,10 +78,11 @@ object ZPool {
    * `Managed` is used, the individual items allocated by the pool will be
    * released in some unspecified order.
    * {{{
-   * for {
-   *   pool <- ZPool.make(acquireDbConnection, 10 to 20)(60.seconds)
-   *   _    <- pool.use { pool => pool.get.use { connection => useConnection(connection) } }
-   * } yield ()
+   * ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).use { pool =>
+   *   pool.get.use {
+   *     connection => useConnection(connection)
+   *   }
+   * }
    * }}}
    */
   def make[R, E, A](get: ZManaged[R, E, A], range: Range, timeToLive: Duration)(implicit
