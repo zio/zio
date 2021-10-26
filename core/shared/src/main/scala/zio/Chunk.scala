@@ -351,12 +351,6 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     }
 
   /**
-   * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
-   */
-  final def flatten[B](implicit ev: A <:< Chunk[B]): Chunk[B] =
-    flatMap(ev(_))
-
-  /**
    * Get the element at the specified index.
    */
   def float(index: Int)(implicit ev: A <:< Float): Float =

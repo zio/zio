@@ -298,6 +298,10 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(c.flatMap(f).toList)(equalTo(c.toList.flatMap(f.andThen(_.toList))))
       }
     },
+    test("flatten") {
+      val chunk = Chunk(Some(1), Some(2), None, None)
+      assertTrue(chunk.flatten == Chunk(1, 2))
+    },
     test("headOption") {
       check(mediumChunks(intGen))(c => assert(c.headOption)(equalTo(c.toList.headOption)))
     },
