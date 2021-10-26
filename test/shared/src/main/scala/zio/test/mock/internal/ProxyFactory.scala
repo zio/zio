@@ -265,6 +265,28 @@ object ProxyFactory {
                   )
 
                   findMatching(scope :: nextScopes, failedMatches)
+
+                case self @ Exactly(expectation, times, _, invocations, completed) =>
+                  val scope = Scope[R](
+                    expectation,
+                    id,
+                    updatedChild => {
+                      val updatedCompleted =
+                        if (updatedChild.state == Saturated) completed + 1
+                        else completed
+
+                      update(
+                        self.copy(
+                          child = if (updatedChild.state == Saturated) resetTree(updatedChild) else updatedChild,
+                          state = if (times == updatedCompleted) Saturated else PartiallySatisfied,
+                          invocations = id :: invocations,
+                          completed = updatedCompleted
+                        )
+                      )
+                    }
+                  )
+
+                  findMatching(scope :: nextScopes, failedMatches)
               }
           }
         }
@@ -313,6 +335,12 @@ object ProxyFactory {
               )
             case self: NoCalls[R] => self
             case self: Repeated[R] =>
+              self.copy(
+                child = resetTree(self.child),
+                state = Unsatisfied,
+                completed = 0
+              )
+            case self: Exactly[R] =>
               self.copy(
                 child = resetTree(self.child),
                 state = Unsatisfied,

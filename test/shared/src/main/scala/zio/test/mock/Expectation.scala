@@ -17,7 +17,7 @@
 package zio.test.mock
 
 import zio.test.Assertion
-import zio.test.mock.Expectation.{And, Chain, Or, Repeated}
+import zio.test.mock.Expectation.{And, Chain, Exactly, Or, Repeated}
 import zio.test.mock.Result.{Fail, Succeed}
 import zio.test.mock.internal.{ExpectationState, MockException, MockState, ProxyFactory}
 import zio.{Has, IO, Managed, Tag, ULayer, URLayer, ZLayer}
@@ -102,7 +102,31 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Alias for `atMost(1)`, produces a new expectation to satisfy itself at most once.
    */
   def optional: Expectation[R] =
-    Repeated(self, 0 to 1)
+    atMost(1)
+
+  /**
+   * Produces a new expectation to satisfy itself exactly the given number of times.
+   */
+  def exactly(times: Int): Expectation[R] =
+    Exactly(self, times)
+
+  /**
+   * Alias for `exactly(1)`, produces a new expectation to satisfy itself exactly one time.
+   */
+  def once: Expectation[R] =
+    exactly(1)
+
+  /**
+   * Alias for `exactly(2)`, produces a new expectation to satisfy itself exactly two times.
+   */
+  def twice: Expectation[R] =
+    exactly(2)
+
+  /**
+   * Alias for `exactly(3)`, produces a new expectation to satisfy itself exactly three times.
+   */
+  def thrice: Expectation[R] =
+    exactly(3)
 
   /**
    * Compose two expectations, producing a new expectation to satisfy one of them.
@@ -297,6 +321,25 @@ object Expectation {
     def apply[R <: Has[_]: Tag](child: Expectation[R], range: Range): Repeated[R] =
       if (range.step <= 0) throw MockException.InvalidRangeException(range)
       else Repeated(child, range, if (range.start == 0) Satisfied else Unsatisfied, List.empty, 0, 0)
+  }
+
+  /**
+   * Models expectation exactitude on environment `R`.
+   */
+  private[test] final case class Exactly[R <: Has[_]: Tag](
+    child: Expectation[R],
+    times: Int,
+    state: ExpectationState,
+    invocations: List[Int],
+    completed: Int
+  ) extends Expectation[R] {
+    val mock: Mock[R] = child.mock
+  }
+
+  private[test] object Exactly {
+
+    def apply[R <: Has[_]: Tag](child: Expectation[R], times: Int): Exactly[R] =
+      Exactly(child, times, if (times == 0) Saturated else Unsatisfied, List.empty, 0)
   }
 
   /**

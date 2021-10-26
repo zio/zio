@@ -267,6 +267,48 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
               hasUnexpectedCall(ImpureModuleMock.SingleParam, 1)
             )
           )
+        }, {
+          val expectation = A.once
+
+          suite("A.once")(
+            testDied("0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
+            testValue("1xA passes")(expectation, a, equalTo("A")),
+            testDied("2xA fails")(expectation, a *> a, hasUnexpectedCall(ImpureModuleMock.SingleParam, 1))
+          )
+        }, {
+          val expectation = A.twice
+
+          suite("A.twice")(
+            testDied("0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
+            testDied("1xA fails")(expectation, a, hasUnsatisfiedExpectations),
+            testValue("2xA passes")(expectation, a *> a, equalTo("A")),
+            testDied("3xA fails")(expectation, a *> a *> a, hasUnexpectedCall(ImpureModuleMock.SingleParam, 1))
+          )
+        }, {
+          val expectation = A.thrice
+
+          suite("A.thrice")(
+            testDied("0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
+            testDied("1xA fails")(expectation, a, hasUnsatisfiedExpectations),
+            testDied("2xA fails")(expectation, a *> a, hasUnsatisfiedExpectations),
+            testValue("3xA passes")(expectation, a *> a *> a, equalTo("A")),
+            testDied("4xA fails")(expectation, a *> a *> a *> a, hasUnexpectedCall(ImpureModuleMock.SingleParam, 1))
+          )
+        }, {
+          val expectation = A.exactly(4)
+
+          suite("A.exactly(4)")(
+            testDied("0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
+            testDied("1xA fails")(expectation, a, hasUnsatisfiedExpectations),
+            testDied("2xA fails")(expectation, a *> a, hasUnsatisfiedExpectations),
+            testDied("3xA fails")(expectation, a *> a *> a, hasUnsatisfiedExpectations),
+            testValue("4xA passes")(expectation, a *> a *> a *> a, equalTo("A")),
+            testDied("5xA fails")(
+              expectation,
+              a *> a *> a *> a *> a,
+              hasUnexpectedCall(ImpureModuleMock.SingleParam, 1)
+            )
+          )
         }
       )
     )
