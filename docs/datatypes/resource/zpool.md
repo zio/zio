@@ -7,7 +7,7 @@ A `ZPool[E, A]` is a pool of items of type `A`, each of which may be associated 
 
 ## Motivation
 
-Acquiring some resources is expensive to create and time-consuming. Such resources include network connections (sockets, database connections, remote services), threads.
+Acquiring some resources is expensive to create and time-consuming. This includes network connections (sockets, databases, remote services), threads, and so on.
 
 There are some cases that
 - We require a **fast and predictable** way of accessing resources.
