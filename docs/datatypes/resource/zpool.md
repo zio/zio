@@ -99,7 +99,7 @@ ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).use { pool =>
 
 ### Resource Acquisition
 
-After creating a pool, we can acquire a resource from the pool using `ZPool#get` operation:
+After creating a pool, we can retrieve a resource from the pool using `ZPool#get` operation:
 
 ```scala mdoc:nest
 trait ZPool[+Error, Item] {
@@ -110,7 +110,21 @@ trait ZPool[+Error, Item] {
 Here is how it works behind the scenes:
 - If there is any resource available in the pre-allocated entries, it will return one of those.
 - If the demand exceeds the available resources in the pool, one new resource will be allocated on-demand and returned to the client.
-- If the demand exceeds the maximum size of the pool, the returned effect will be failed with proper failure reason.
+- If the demand exceeds the maximum size of the pool, it will block while it waits for a resource to become available.
+- If the acquisition of a resource fails, then the returned effect will fail for the same reason.
+
+In case of failure, we can retry a failed acquisition. It will repeat the acquisition attempt:
+
+```scala mdoc:invisible
+val acquireDbConnection: ZManaged[Any, String, Connection] = 
+  ZManaged.fail("Boom!")
+```
+
+```scala mdoc:silent:nest
+ZPool.make(acquireDbConnection, 10).use { pool =>
+  pool.get.use( conn => useConnection(conn)).eventually
+}
+```
 
 ### Resource Invalidation
 
