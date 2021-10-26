@@ -111,3 +111,15 @@ Here is how it works behind the scenes:
 - If there is any resource available in the pre-allocated entries, it will return one of those.
 - If the demand exceeds the available resources in the pool, one new resource will be allocated on-demand and returned to the client.
 - If the demand exceeds the maximum size of the pool, the returned effect will be failed with proper failure reason.
+
+### Resource Invalidation
+
+When we are working with resources, especially the remote ones, they may become invalid or faulty. On the other hand, when the resource's life cycle ends, it will be automatically returned to the resource pool. So what happens if another client acquires a resource from the pool? The faulty resource can cause a problem for the next client. To prevent that, we can use the `ZPool#invalidate` to claim that the resource is invalid:
+
+```scala mdoc:nest
+trait ZPool[+Error, Item] {
+  def invalidate(item: Item): UIO[Unit]
+}
+```
+
+In this case, the pool will eventually reallocate the item, but this will happen lazily rather than eagerly.
