@@ -93,6 +93,12 @@ trait ChunkLike[+A]
   }
 
   /**
+   * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
+   */
+  override def flatten[B](implicit ev: A => IterableOnce[B]): Chunk[B] =
+    flatMap(ev(_))
+
+  /**
    * Returns a `SeqFactory` that can construct `Chunk` values. The
    * `SeqFactory` exposes a `newBuilder` method that is not referentially
    * transparent because it allocates mutable state.
