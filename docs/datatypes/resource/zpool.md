@@ -60,6 +60,8 @@ It takes a managed resource of type `A`, and the `size` of the pool. The return 
 - A fixed pool size will be used to pre-allocate pool entries, so all the entries of the pool will be acquired eagerly. As a client of the `ZPool` it is recommended to analyze requirements to find out the best suitable size for the resource pool. If we set up a pool with too many eagerly-acquired resources, that may reduce the performance due to the resource contention.
 - As the return type of the constructor is `UManaged[ZPool[E, A]]`, it will manage automatically the life cycle of the pool. So, as a client of `ZPool`, we do not require to shutdown the pool manually.
 
+There is another constructor called `ZPool.fromInterable` that is suitable when no cleanup or release actions are required.
+
 ### Dynamically-sized Pools
 
 The previous constructor creates a `ZPool` with a fixed size, so all of its entries are pre-allocated. There is another constructor that creates a pool with pre-allocated minimum entries (eagerly-acquired resources), plus it can increase its entries _on-demand_ (lazily-acquired resources) until reaches the specified maximum size:
