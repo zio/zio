@@ -22,7 +22,7 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
 
   val a: URIO[ImpureModule, String] = ImpureModule.singleParam(1)
   val b: URIO[ImpureModule, String] = ImpureModule.overloaded(2)
-  val c                             = ImpureModule.zeroParams
+  val c: URIO[ImpureModule, String] = ImpureModule.zeroParams
 
   type E = InvalidCallException
   type L = List[InvalidCall]
@@ -181,6 +181,19 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
               testDied("3xA fails")(expectation, a *> a *> a, hasUnsatisfiedExpectations),
               testDied("4xA fails")(expectation, a *> a *> a *> a, hasUnsatisfiedExpectations),
               testDied("5xA fails")(expectation, a *> a *> a *> a *> a, hasUnsatisfiedExpectations)
+            )
+          )
+        }, {
+          val expectation = (B atLeast 1) andThen (A atLeast 1)
+
+          suite("atLeast chained")(
+            suite("(B atLeast 1) andThen (A atLeast 1)")(
+              testDied("0xB/0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
+              testDied("1xB fails")(expectation, b, hasUnsatisfiedExpectations),
+              testDied("1xA fails")(expectation, a, hasFailedMatches(InvalidCapability(cmdA, cmdB, equalTo(2)))),
+              testValue("B->A passes")(expectation, b *> a, equalTo("A")),
+              testValue("B->B->A passes")(expectation, b *> b *> a, equalTo("A")),
+              testValue("B->A->A passes")(expectation, b *> a *> a, equalTo("A"))
             )
           )
         }, {
