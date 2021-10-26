@@ -179,7 +179,7 @@ object Expectation {
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): And[R] =
       And(
         children.asInstanceOf[List[Expectation[R]]],
-        if (children.forall(_.state == Satisfied)) Satisfied else Unsatisfied,
+        if (children.exists(_.state.isFailed)) Unsatisfied else Satisfied,
         List.empty,
         Mock.Composed(compose)
       )
@@ -230,7 +230,7 @@ object Expectation {
     def apply[R <: Has[_]: Tag](compose: URLayer[Has[Proxy], R])(children: List[Expectation[_]]): Chain[R] =
       Chain(
         children.asInstanceOf[List[Expectation[R]]],
-        if (children.forall(_.state == Satisfied)) Satisfied else Unsatisfied,
+        if (children.exists(_.state.isFailed)) Unsatisfied else Satisfied,
         List.empty,
         Mock.Composed(compose)
       )
