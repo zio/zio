@@ -53,6 +53,7 @@ ${indent(body.mkString(",\n"))}
       val surround = if (string.split("\n").length > 1) "\"\"\"" else "\""
       string.replace("\"", """\"""").mkString(surround, "", surround)
 
+    case null  => "<null>"
     case other => other.toString
   }
 

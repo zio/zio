@@ -1,9 +1,8 @@
 package zio.test
 
-import zio.durationInt
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
-import zio.{Chunk, NonEmptyChunk}
+import zio.{Chunk, NonEmptyChunk, durationInt}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -388,6 +387,12 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     suite("custom assertions")(
       test("reports source location of actual usage") {
         customAssertion("hello")
+      } @@ failing
+    ),
+    suite("null")(
+      test("does not blow up the renderer") {
+        final case class Foo(string: String, int: Int)
+        assertTrue(Foo(null, 1) == Foo("a", 1))
       } @@ failing
     )
   )
