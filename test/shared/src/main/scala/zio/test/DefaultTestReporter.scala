@@ -201,32 +201,28 @@ object DefaultTestReporter {
           renderFailureDetails(failureDetails, offset)
     }
 
-  def renderFailureCase(failureCase: FailureCase, offset: Int, isNested: Boolean = false): Chunk[Line] =
+  def renderFailureCase(failureCase: FailureCase, offset: Int): Chunk[Line] =
     failureCase match {
-      case FailureCase(errorMessage, _, _, path, _, _, _) if isNested =>
-        val errorMessageLines =
-          Chunk.fromIterable(errorMessage.lines) match {
-            case head +: tail => (error("• ") +: head) +: tail.map(error("  ") +: _)
-            case _            => Chunk.empty
-          }
-
-        errorMessageLines ++
-          Chunk.fromIterable(path.drop(path.length - 1).map { case (label, value) =>
-            dim(s"$label = ") + primary(value.toString)
-          })
-
       case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
         val errorMessageLines =
           Chunk.fromIterable(errorMessage.lines) match {
-            case head +: tail => (error("• ") +: head) +: tail.map(error("  ") +: _)
+            case head +: tail => (error("✗ ") +: head) +: tail.map(error("  ") +: _)
             case _            => Chunk.empty
           }
 
-        errorMessageLines ++ Chunk(Line.fromString(codeString, offset)) ++ (nested
-          .flatMap(renderFailureCase(_, offset, true))
-          .map(_.withOffset(offset + 1)) ++
-          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + primary(value.toString) }) ++
-          Chunk(detail(s"at $location").toLine))
+        val result =
+          errorMessageLines ++
+            Chunk(Line.fromString(codeString)) ++
+            nested.flatMap(renderFailureCase(_, offset)).map(_.withOffset(1)) ++
+            Chunk.fromIterable(path.flatMap { case (label, value) =>
+              Chunk.fromIterable(PrettyPrint(value).split("\n").map(primary(_).toLine)) match {
+                case head +: lines => (dim(s"${label.trim} = ") +: head) +: lines
+                case _             => Vector.empty
+              }
+            }) ++
+            Chunk(detail(s"at $location").toLine)
+
+        result.map(_.withOffset(offset + 1))
     }
 
   private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
@@ -268,12 +264,13 @@ object DefaultTestReporter {
         case TestTimeoutException(_) => true
         case _: MockException        => true
       }
-    val prefix = if (timeouts.nonEmpty) {
-      // In case of timeout we don't show the mock exceptions
-      timeouts.foldLeft(Message.empty)(_ ++ _)
-    } else {
-      mockExceptions.foldLeft(Message.empty)(_ ++ _)
-    }
+    val prefix =
+      if (timeouts.nonEmpty)
+        // In case of timeout we don't show the mock exceptions
+        timeouts.foldLeft(Message.empty)(_ ++ _)
+      else {
+        mockExceptions.foldLeft(Message.empty)(_ ++ _)
+      }
 
     remaining match {
       case Some(remainingCause) =>
@@ -404,7 +401,7 @@ object DefaultTestReporter {
     }
 
   private def renderFailure(label: String, offset: Int, details: AssertionResult): Message =
-    renderFailureLabel(label, offset) +: renderAssertionResult(details, offset)
+    renderFailureLabel(label, offset) +: renderAssertionResult(details, offset) :+ Line.empty
 
   def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(error("- " + label).toLine)

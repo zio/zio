@@ -90,7 +90,7 @@ object ReportingTestUtils {
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
     ),
-    withOffset(2)(assertSourceLocation() + "\n"),
+    withOffset(2)(assertSourceLocation() + "\n\n"),
     withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
     withOffset(2)(
       s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
@@ -184,6 +184,7 @@ object ReportingTestUtils {
   val suite3Expected: Vector[String] = Vector(expectedFailure("Suite3")) ++
     suite1Expected.map(withOffset(2)) ++
     suite2Expected.map(withOffset(2)) ++
+    Vector("\n") ++
     test3Expected.map(withOffset(2))
 
   val suite4: Spec[Any, TestFailure[Nothing], TestSuccess] = suite("Suite4")(suite1, suite("Empty")(), test3)
@@ -208,6 +209,7 @@ object ReportingTestUtils {
       s"${red("- zio.test.mock.module.PureModuleMock.ParameterizedCommand called with invalid arguments")}\n"
     ),
     withOffset(6)(s"${blue("2")} did not satisfy ${cyan("equalTo(1)")}\n"),
+    withOffset(4)("\n"),
     withOffset(4)(s"${red("- invalid call to zio.test.mock.module.PureModuleMock.SingleParam")}\n"),
     withOffset(6)(
       s"expected zio.test.mock.module.PureModuleMock.ParameterizedCommand with arguments ${cyan("equalTo(1)")}\n"

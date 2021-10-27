@@ -43,7 +43,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         assertM(runLog(test7))(equalTo(test7Expected.mkString))
       },
       test("correctly reports negated failures") {
-        assertM(runLog(test8))(equalTo(test8Expected.mkString))
+        runLog(test8).map(str => assertTrue(str == test8Expected.mkString))
       },
       test("correctly reports mock failure of invalid call") {
         assertM(runLog(mock1))(equalTo(mock1Expected.mkString))
@@ -79,11 +79,13 @@ object IntellijRendererSpec extends ZIOBaseSpec {
           s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
         ),
         withOffset(2)(assertSourceLocation() + "\n"),
+        "\n",
         withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
         withOffset(2)(
           s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
@@ -134,7 +136,8 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue(expressionIfNotRedundant(showExpression(1 + 1), 2))} did not satisfy ${cyan("equalTo(3)")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
@@ -151,7 +154,8 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
@@ -165,7 +169,8 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue("`c` = Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
@@ -179,7 +184,8 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
@@ -194,6 +200,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
           s"${red("- zio.test.mock.module.PureModuleMock.ParameterizedCommand called with invalid arguments")}\n"
         ),
         withOffset(6)(s"${blue("2")} did not satisfy ${cyan("equalTo(1)")}\n"),
+        withOffset(4)("\n"),
         withOffset(4)(s"${red("- invalid call to zio.test.mock.module.PureModuleMock.SingleParam")}\n"),
         withOffset(6)(
           s"expected zio.test.mock.module.PureModuleMock.ParameterizedCommand with arguments ${cyan("equalTo(1)")}"

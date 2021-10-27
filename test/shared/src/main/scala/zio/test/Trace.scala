@@ -169,7 +169,7 @@ object Trace {
 
   private[test] case class Node[+A](
     result: Result[A],
-    message: ErrorMessage = ErrorMessage.choice("Succeeded", "Failed"),
+    message: ErrorMessage = ErrorMessage.choice("Result was true", "Result was false"),
     children: Option[Trace[Boolean]] = None,
     span: Option[Span] = None,
     parentSpan: Option[Span] = None,

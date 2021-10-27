@@ -745,8 +745,7 @@ package object test extends CompileVariants {
   ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
     Spec.labeled(
       label,
-      if (specs.length == 0) Spec.empty
-      else if (specs.length == 1) suiteConstructor(specs.head)
+      if (specs.isEmpty) Spec.empty
       else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
     )
 
