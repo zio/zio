@@ -111,12 +111,6 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
     Exactly(self, times)
 
   /**
-   * Alias for `exactly(1)`, produces a new expectation to satisfy itself exactly one time.
-   */
-  def once: Expectation[R] =
-    exactly(1)
-
-  /**
    * Alias for `exactly(2)`, produces a new expectation to satisfy itself exactly two times.
    */
   def twice: Expectation[R] =

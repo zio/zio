@@ -63,7 +63,6 @@ object ExpectationSpec extends ZIOBaseSpec {
     ),
     suite("exactly and derived")(
       test("A exactly 5")(assert(A exactly 5)(equalTo(Exactly(A, 5)))),
-      test("A once")(assert(A.once)(equalTo(Exactly(A, 1)))),
       test("A twice")(assert(A.twice)(equalTo(Exactly(A, 2)))),
       test("A thrice")(assert(A.thrice)(equalTo(Exactly(A, 3))))
     )
