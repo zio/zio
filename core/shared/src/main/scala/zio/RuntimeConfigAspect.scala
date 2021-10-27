@@ -54,4 +54,9 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
    */
   def track(weak: Boolean): RuntimeConfigAspect =
     addSupervisor(Supervisor.unsafeTrack(weak))
+
+  def captureUnsafeRunStack: RuntimeConfigAspect =
+    RuntimeConfigAspect(self =>
+      self.copy(tracing = self.tracing.copy(tracingConfig = self.tracing.tracingConfig.withCaptureUnsafeRunStack(true)))
+    )
 }

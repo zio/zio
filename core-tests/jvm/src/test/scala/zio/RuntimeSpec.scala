@@ -8,12 +8,12 @@ import zio.test._
 import java.io.{PrintWriter, StringWriter}
 
 object RuntimeSpec extends ZIOBaseSpec {
-  private val runtime = Runtime.default
+  private val captureUnsafeRunStackRuntime = Runtime.default.withTracingConfig(_.withCaptureUnsafeRunStack(true))
   override def spec: ZSpec[Environment, Failure] = suite("RuntimeSpec")(
-    suite("By default include stack trace up to unsafeRun* in Fiber Trace")(
+    suite("When captureUnsafeRunStack enabled, trace up to unsafeRun* in Fiber Trace")(
       test("in unsafeRunTask") {
         for {
-          res <- attemptBlocking(CallSite.failingUnsafeRunTask(runtime)).exit
+          res <- attemptBlocking(CallSite.failingUnsafeRunTask(captureUnsafeRunStackRuntime)).exit
         } yield {
           assert(res)(
             fails(
@@ -36,7 +36,7 @@ object RuntimeSpec extends ZIOBaseSpec {
       },
       test("in unsafeRunToFuture") {
         for {
-          res <- ZIO.fromFuture(_ => CallSite.failingUnsafeRunToFuture(runtime)).exit
+          res <- ZIO.fromFuture(_ => CallSite.failingUnsafeRunToFuture(captureUnsafeRunStackRuntime)).exit
         } yield {
           assert(res)(
             fails(
@@ -57,11 +57,11 @@ object RuntimeSpec extends ZIOBaseSpec {
         }
       }
     ),
-    suite("when captureUnsafeRunStack = false, don't capture stack")(
+    suite("by default, don't capture stack")(
       test("in unsafeRunTask") {
         for {
           res <- attemptBlocking(
-                   CallSite.failingUnsafeRunTask(runtime.withTracingConfig(_.withCaptureUnsafeRunStack(false)))
+                   CallSite.failingUnsafeRunTask(Runtime.default)
                  ).exit
         } yield {
           assert(res)(
@@ -78,9 +78,7 @@ object RuntimeSpec extends ZIOBaseSpec {
       test("in unsafeRunToFuture") {
         for {
           res <- ZIO
-                   .fromFuture(_ =>
-                     CallSite.failingUnsafeRunToFuture(runtime.withTracingConfig(_.withCaptureUnsafeRunStack(false)))
-                   )
+                   .fromFuture(_ => CallSite.failingUnsafeRunToFuture(Runtime.default))
                    .exit
         } yield {
           assert(res)(

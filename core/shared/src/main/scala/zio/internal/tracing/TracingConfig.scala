@@ -57,13 +57,13 @@ final case class TracingConfig(
   ancestryLength: Int,
   ancestorExecutionTraceLength: Int,
   ancestorStackTraceLength: Int,
-  captureUnsafeRunStack: Boolean
+  captureUnsafeRunStack: Boolean = false
 ) {
   def withCaptureUnsafeRunStack(capture: Boolean) = copy(captureUnsafeRunStack = capture)
 }
 
 object TracingConfig {
-  def enabled: TracingConfig   = TracingConfig(true, true, true, 100, 100, 10, 10, 10, true)
-  def stackOnly: TracingConfig = TracingConfig(false, false, true, 100, 100, 10, 10, 10, true)
-  def disabled: TracingConfig  = TracingConfig(false, false, false, 0, 0, 0, 0, 10, false)
+  def enabled: TracingConfig   = TracingConfig(true, true, true, 100, 100, 10, 10, 10)
+  def stackOnly: TracingConfig = TracingConfig(false, false, true, 100, 100, 10, 10, 10)
+  def disabled: TracingConfig  = TracingConfig(false, false, false, 0, 0, 0, 0, 10)
 }
