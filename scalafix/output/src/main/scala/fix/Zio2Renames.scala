@@ -3,8 +3,10 @@ package fix
 import zio._
 
 
+
 import zio.Duration
 import zio.internal.Platform
+import zio.stream.ZStream
 import zio.test.Gen
 import zio.{ Console, FiberId, Has, Random }
 import zio.Console._
@@ -87,4 +89,12 @@ object Zio2Renames {
   
   zio.RuntimeConfig
     .fromExecutor(???)
+
+  Chunk.succeed(1).mapZIO(???)
+  ZStream.succeed("hi") flatMap (x => ZStream.succeed(x))
+
+  ZIO.executor.map(_.asExecutionContext)
+  
+  ZManaged.access( (x: Int) => x)
+  ZManaged.accessManaged( (x: Int) => ZManaged.succeed(x))
 }

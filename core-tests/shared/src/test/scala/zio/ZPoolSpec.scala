@@ -42,7 +42,7 @@ object ZPoolSpec extends ZIOBaseSpec {
           for {
             count   <- Ref.make(0)
             get      = ZManaged.acquireRelease(count.updateAndGet(_ + 1).flatMap(ZIO.fail(_)))(count.update(_ - 1))
-            reserve <- ZPool.make[Int, String](get, 10).reserve
+            reserve <- ZPool.make[Any, Int, String](get, 10).reserve
             pool    <- reserve.acquire
             _       <- count.get.repeatUntil(_ == 10)
             values  <- ZIO.collectAll(List.fill(10)(pool.get.reserve.flatMap(_.acquire.flip)))

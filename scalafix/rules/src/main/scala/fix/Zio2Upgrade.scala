@@ -10,6 +10,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val renames =
     Map(
       "accessM"                -> "accessZIO",
+      "asEC"                   -> "asExecutionContext",
       "bimap"                  -> "mapBoth",
       "bracket"                -> "acquireReleaseWith",
       "bracketExit"            -> "acquireReleaseExitWith",
@@ -106,6 +107,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.Exit",
     "zio.ZIO",
     "zio.Cause",
+    "zio.Chunk",
+    "zio.Executor",
     "zio.IO",
     "zio.Managed",
     "zio.RIO",
@@ -117,6 +120,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.ZRef",
     "zio.Ref",
     "zio.Promise",
+    "zio.internal.Executor",
     "zio.stream.ZSink",
     "zio.stream.ZStream",
     "zio.stream.ZTransducer",
@@ -161,6 +165,49 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     Map("run" -> "exit")
   )
 
+  val STMRenames = Renames(
+    List("zio.stm.ZSTM", "zio.stm.STM"),
+    Map(
+      "collectAll_"            -> "collectAllDiscard",
+      "foldM" -> "foldSTM",
+      "foreach_"               -> "foreachDiscard",
+      "fromFunction"              -> "access",
+      "fromFunctionM"             -> "accessSTM",
+      "ifM" -> "ifSTM",
+      "loop_"                  -> "loopDiscard",
+      "partial" -> "attempt",
+      "replicateM" -> "replicateSTM",
+      "replicateM_" -> "replicateSTMDiscard",
+      "require" -> "someOrFail",
+      "unlessM" -> "unlessSTM",
+      "whenCaseM" -> "whenCaseSTM",
+      "whenM" -> "whenSTM",
+    )
+  )
+  
+  val ScheduleRenames = Renames(
+    List("zio.Schedule", "zio.stm.STM"),
+    Map(
+      "addDelayM" -> "addDelayZIO",
+      "checkM" -> "checkZIO",
+      "contramapM"             -> "contramapZIO",
+      "delayedM" -> "delayedZIO",
+      "dimapM" -> "dimapZIO",
+      "foldM" -> "foldZIO",
+      "mapM" -> "mapZIO",
+      "modifyDelayM" -> "modifyDelayZIO",
+      "reconsiderM" -> "reconsiderZIO",
+      "untilInputM" -> "untilInputZIO",
+      "untilOutputM" -> "untilOutputZIO",
+      "whileInputM" -> "whileInputZIO",
+      "whileOutputM" -> "whileOutputZIO",
+      "collectWhileM" -> "collectWhileZIO",
+      "collectUntilM" -> "collectUntilZIO",
+      "recurWhileM" -> "recureWhileZIO",
+      "recurUntilM" -> "recureUntilZIO",
+    )
+  )
+
   val ZManagedRenames = Renames(
     List("zio.ZManaged", "zio.Managed"),
     Map(
@@ -168,7 +215,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "foldCauseM"                -> "foldCauseManaged",
       "foldM"                     -> "foldManaged",
       "fromEffectUninterruptible" -> "fromZIOUninterruptible",
-      "fromFunctionM"             -> "fromFunctionManaged",
+      "fromFunction"              -> "access",
+      "fromFunctionM"             -> "accessManaged",
       "ifM"                       -> "ifManaged",
       "make"                      -> "acquireReleaseWith",
       "makeEffect"                -> "acquireReleaseAttemptWith",
@@ -346,6 +394,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.TimeVariants.anyZoneId" -> "zio.test.Gen.zoneId",
     // App
     "zio.App" -> "zio.ZIOAppDefault",
+    "zio.Executor.asEC" -> "zio.Executor.asExecutionContext"
   )
 
   val foreachParN             = ParNRenamer("foreachPar", 3)
@@ -360,6 +409,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     doc.tree.collect {
       case ZIORenames.Matcher(patch)       => patch
       case ZManagedRenames.Matcher(patch)  => patch
+      case STMRenames.Matcher(patch) => patch
+      case ScheduleRenames.Matcher(patch) => patch
       case UniversalRenames.Matcher(patch) => patch
 
       // Replace >>= with flatMap. For some reason, this doesn't work with the
@@ -386,6 +437,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case mergeAllParN.Matcher(patch)            => patch
 
       case t @ q"import zio.blocking._" =>
+        Patch.removeTokens(t.tokens)
+        
+      case t @ q"import zio.blocking.Blocking" =>
         Patch.removeTokens(t.tokens)
 
       case t @ q"import zio.duration._" =>

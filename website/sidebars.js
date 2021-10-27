@@ -117,14 +117,21 @@ module.exports = {
             ]
         },
     ],
-    "Resource Safety": [
+    "Resource Management": [
       "datatypes/resource/index",
-      "datatypes/resource/zmanaged",
-      "datatypes/resource/managed",
-      "datatypes/resource/task-managed",
-      "datatypes/resource/rmanaged",
-      "datatypes/resource/umanaged",
-      "datatypes/resource/urmanaged"
+      {
+        type: "category",
+        label: "ZManaged",
+        items: [
+          "datatypes/resource/zmanaged",
+          "datatypes/resource/managed",
+          "datatypes/resource/task-managed",
+          "datatypes/resource/rmanaged",
+          "datatypes/resource/umanaged",
+          "datatypes/resource/urmanaged",
+        ]
+      },
+      "datatypes/resource/zpool",
     ],
     "Streaming": [
         "datatypes/stream/index",

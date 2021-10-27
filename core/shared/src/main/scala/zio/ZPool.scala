@@ -20,7 +20,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `ZPool[E, A]` is a pool of items of type `A`, each of which may be
- * associated with the acquisition and release of resources.
+ * associated with the acquisition and release of resources. An attempt to get
+ * an item `A` from a pool may fail with an error of type `E`.
  */
 trait ZPool[+Error, Item] {
 
@@ -66,8 +67,8 @@ object ZPool {
    * shutdown because the `Managed` is used, the individual items allocated by
    * the pool will be released in some unspecified order.
    */
-  def make[E, A](get: ZManaged[Any, E, A], min: Int)(implicit trace: ZTraceElement): UManaged[ZPool[E, A]] =
-    makeWith(get, min to min)(Strategy.None)
+  def make[R, E, A](get: ZManaged[R, E, A], size: Int)(implicit trace: ZTraceElement): URManaged[R, ZPool[E, A]] =
+    makeWith(get, size to size)(Strategy.None)
 
   /**
    * Makes a new pool with the specified minimum and maximum sizes and time to
@@ -77,15 +78,16 @@ object ZPool {
    * `Managed` is used, the individual items allocated by the pool will be
    * released in some unspecified order.
    * {{{
-   * for {
-   *   pool <- ZPool.make(acquireDbConnection, 10 to 20)(60.seconds)
-   *   _    <- pool.use { pool => pool.get.use { connection => useConnection(connection) } }
-   * } yield ()
+   * ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).use { pool =>
+   *   pool.get.use {
+   *     connection => useConnection(connection)
+   *   }
+   * }
    * }}}
    */
-  def make[E, A](get: ZManaged[Any, E, A], range: Range, timeToLive: Duration)(implicit
+  def make[R, E, A](get: ZManaged[R, E, A], range: Range, timeToLive: Duration)(implicit
     trace: ZTraceElement
-  ): ZManaged[Has[Clock], Nothing, ZPool[E, A]] =
+  ): ZManaged[R with Has[Clock], Nothing, ZPool[E, A]] =
     makeWith(get, range)(Strategy.TimeToLive(timeToLive))
 
   /**
@@ -93,16 +95,17 @@ object ZPool {
    * describes how a pool whose excess items are not being used will be shrunk
    * down to the minimum size.
    */
-  private def makeWith[R, E, A](get: ZManaged[Any, E, A], range: Range)(strategy: Strategy[R, E, A])(implicit
+  private def makeWith[R, R1, E, A](get: ZManaged[R, E, A], range: Range)(strategy: Strategy[R1, E, A])(implicit
     trace: ZTraceElement
-  ): ZManaged[R, Nothing, ZPool[E, A]] =
+  ): ZManaged[R with R1, Nothing, ZPool[E, A]] =
     for {
+      env     <- ZManaged.environment[R]
       down    <- Ref.make(false).toManaged
       state   <- Ref.make(State(0, 0)).toManaged
       items   <- Queue.bounded[Attempted[E, A]](range.end).toManaged
       inv     <- Ref.make(Set.empty[A]).toManaged
       initial <- strategy.initial.toManaged
-      pool     = DefaultPool(get, range, down, state, items, inv, strategy.track(initial))
+      pool     = DefaultPool(get.provide(env), range, down, state, items, inv, strategy.track(initial))
       fiber   <- pool.initialize.forkDaemon.toManaged
       shrink  <- strategy.run(initial, pool.excess, pool.shrink).forkDaemon.toManaged
       _       <- ZManaged.finalizer(fiber.interrupt *> shrink.interrupt *> pool.shutdown)

@@ -1547,12 +1547,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    latch <- Promise.make[Nothing, Unit]
                    // If the inner stream completed successfully, release the permit so another
                    // stream can be executed. Otherwise, signal failure to the outer stream.
-                   withPermitManaged = ZManaged.acquireReleaseExit(permits.acquire.commit)(
-                                         _.fold(
-                                           cause => innerFailure.fail(cause.stripFailures),
-                                           _ => permits.release.commit
+                   withPermitManaged = ZManaged
+                                         .fromZIO(permits.acquire.commit)
+                                         .onExitFirst(
+                                           _.fold(
+                                             cause => innerFailure.fail(cause.stripFailures),
+                                             _ => permits.release.commit
+                                           )
                                          )
-                                       )
                    innerStream = withPermitManaged
                                    .tap(_ => latch.succeed(()).toManaged)
                                    .useDiscard(
