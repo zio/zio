@@ -1337,7 +1337,15 @@ object ZSink {
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
   }
 
-  def utfDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
+  /**
+   * utfDecode determines the right encoder to use based on the Byte Order Mark (BOM).
+   * If it doesn't detect one, it defaults to utf8Decode. In the case of utf16 and utf32
+   * without BOM, utf16Decode and utf32Decode should be used instead as both default to
+   * their own default decoder respectively.
+   */
+  def utfDecode[Err](implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
     sinkBasedOnStreamHeader[Err, Byte, Byte, String](
       peekSize = 4,
       {
@@ -1482,7 +1490,7 @@ object ZSink {
 
     lazy val chan: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[L], Option[Z]] =
       ZChannel.readWith(
-        input => {
+        input =>
           if (isLookingForBom) {
             val newBufferSize = bufferSize + input.size
             if (newBufferSize < peekSize) {
@@ -1503,10 +1511,9 @@ object ZSink {
             }
           } else {
             channelFromTo(input, targetSink)
-          }
-        },
+          },
         ZChannel.fail(_),
-        _ => {
+        _ =>
           // In case the stream ends before we get enough stuff of `peekSize`
           if (isLookingForBom) {
             val (chunkWithoutHeader, sink) = sinkDecider(buffer.result())
@@ -1514,7 +1521,6 @@ object ZSink {
           } else {
             ZChannel.end(None)
           }
-        }
       )
 
     new ZSink(chan)

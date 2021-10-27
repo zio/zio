@@ -24,15 +24,22 @@ object ZSinkSpec extends ZIOBaseSpec {
     check(
       Gen.string.map(stringToByteChunkOf(sourceCharset, _)),
       Gen.int
-    ) { (originalBytes, chunkSize) =>
-      ZStream
-        .fromChunk(withBom(originalBytes))
+    ) {
+      // Enabling `rechunk(chunkSize)` makes this suite run for too long and
+      // could potentially cause OOM during builds. However, running the tests with
+      // `rechunk(chunkSize)` can guarantee that different chunks have no impact on
+      // the functionality of decoders. You should run it at least once locally before
+      // pushing your commit.
+      (originalBytes, _ /*chunkSize*/ ) =>
+        println(s">>> originalBytes is <$originalBytes>")
+        ZStream
+          .fromChunk(withBom(originalBytes))
 //        .rechunk(chunkSize)
-        .transduce(decoderUnderTest.map(_.getOrElse("")))
-        .mkString
-        .map { decodedString =>
-          assertTrue(originalBytes == stringToByteChunkOf(sourceCharset, decodedString))
-        }
+          .transduce(decoderUnderTest.map(_.getOrElse("")))
+          .mkString
+          .map { decodedString =>
+            assertTrue(originalBytes == stringToByteChunkOf(sourceCharset, decodedString))
+          }
     }
 
   private def runOnlyIfSupporting(charset: String) =
