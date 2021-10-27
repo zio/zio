@@ -268,14 +268,6 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
             )
           )
         }, {
-          val expectation = A.once
-
-          suite("A.once")(
-            testDied("0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
-            testValue("1xA passes")(expectation, a, equalTo("A")),
-            testDied("2xA fails")(expectation, a *> a, hasUnexpectedCall(ImpureModuleMock.SingleParam, 1))
-          )
-        }, {
           val expectation = A.twice
 
           suite("A.twice")(
