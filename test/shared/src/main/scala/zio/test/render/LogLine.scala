@@ -21,13 +21,24 @@ import zio.test.render.LogLine.Fragment.Style
 
 object LogLine {
   case class Message(lines: Vector[Line] = Vector.empty) {
+
+    def +(fragment: Fragment) =
+      this +++ Message(Vector(Line(Vector(fragment))))
+
     def +:(line: Line) = Message(line +: lines)
     def :+(fragment: Fragment): Message = Message(lines match {
       case line +: lines => (fragment +: line) +: lines
       case _             => Vector(fragment.toLine)
     })
-    def :+(line: Line)                   = Message(lines :+ line)
-    def ++(message: Message)             = Message(lines ++ message.lines)
+    def :+(line: Line)       = Message(lines :+ line)
+    def ++(message: Message) = Message(lines ++ message.lines)
+    def +++(message: Message) =
+      (lines.lastOption, message.lines.headOption) match {
+        case (Some(last), Some(head)) =>
+          Message(lines.dropRight(1) :+ (last ++ head)) ++ Message(message.lines.drop(1))
+        case _ =>
+          this ++ message
+      }
     def drop(n: Int): Message            = Message(lines.drop(n))
     def map(f: Line => Line): Message    = Message(lines = lines.map(f))
     def withOffset(offset: Int): Message = Message(lines.map(_.withOffset(offset)))

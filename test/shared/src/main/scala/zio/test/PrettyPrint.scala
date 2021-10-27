@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.{Chunk, NonEmptyChunk}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -9,12 +10,20 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  */
 private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
   def apply(any: Any): String = any match {
+//    case null => "null"
+    case nonEmptyChunk: NonEmptyChunk[_] =>
+      nonEmptyChunk.map(PrettyPrint.apply).mkString("NonEmptyChunk(", ", ", ")")
+    case chunk: Chunk[_] =>
+      chunk.map(PrettyPrint.apply).mkString("Chunk(", ", ", ")")
     case array: Array[_] =>
       array.map(PrettyPrint.apply).mkString("Array(", ", ", ")")
 
     case Some(a) => s"Some(${PrettyPrint(a)})"
     case None    => s"None"
     case Nil     => "Nil"
+
+    case set: Set[_] =>
+      set.map(PrettyPrint.apply).mkString(s"${className(set)}(", ", ", ")")
 
     case iterable: Seq[_] =>
       iterable.map(PrettyPrint.apply).mkString(s"${className(iterable)}(", ", ", ")")
