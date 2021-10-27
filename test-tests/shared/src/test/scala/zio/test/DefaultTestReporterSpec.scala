@@ -12,7 +12,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
         assertM(runLog(test1))(equalTo(test1Expected.mkString + reportStats(1, 0, 0)))
       },
       test("correctly reports a failed test") {
-        assertM(runLog(test3))(equalTo(test3Expected.mkString + reportStats(0, 0, 1)))
+        assertM(runLog(test3))(equalTo(test3Expected.mkString + "\n" + reportStats(0, 0, 1)))
       },
       test("correctly reports an error in a test") {
         assertM(runLog(test4))(equalTo(test4Expected.mkString + reportStats(0, 0, 1)))
@@ -21,31 +21,31 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
         assertM(runLog(suite1))(equalTo(suite1Expected.mkString + reportStats(2, 0, 0)))
       },
       test("correctly reports failed test suite") {
-        assertM(runLog(suite2))(equalTo(suite2Expected.mkString + reportStats(2, 0, 1)))
+        assertM(runLog(suite2))(equalTo(suite2Expected.mkString + "\n" + reportStats(2, 0, 1)))
       },
       test("correctly reports multiple test suites") {
-        assertM(runLog(suite3))(equalTo(suite3Expected.mkString + reportStats(4, 0, 2)))
+        assertM(runLog(suite3))(equalTo(suite3Expected.mkString + "\n" + reportStats(4, 0, 2)))
       },
       test("correctly reports empty test suite") {
-        assertM(runLog(suite4))(equalTo(suite4Expected.mkString + reportStats(2, 0, 1)))
+        assertM(runLog(suite4))(equalTo(suite4Expected.mkString + "\n" + reportStats(2, 0, 1)))
       },
       test("correctly reports failure of simple assertion") {
-        assertM(runLog(test5))(equalTo(test5Expected.mkString + reportStats(0, 0, 1)))
+        assertM(runLog(test5))(equalTo(test5Expected.mkString + "\n" + reportStats(0, 0, 1)))
       },
       test("correctly reports multiple nested failures") {
-        assertM(runLog(test6))(equalTo(test6Expected.mkString + reportStats(0, 0, 1)))
+        assertM(runLog(test6))(equalTo(test6Expected.mkString + "\n" + reportStats(0, 0, 1)))
       },
       test("correctly reports labeled failures") {
-        assertM(runLog(test7))(equalTo(test7Expected.mkString + reportStats(0, 0, 1)))
+        assertM(runLog(test7))(equalTo(test7Expected.mkString + "\n" + reportStats(0, 0, 1)))
       },
       test("correctly reports negated failures") {
-        assertM(runLog(test8))(equalTo(test8Expected.mkString + reportStats(0, 0, 1)))
+        assertM(runLog(test8))(equalTo(test8Expected.mkString + "\n" + reportStats(0, 0, 1)))
       },
       test("correctly reports mock failure of invalid call") {
-        assertM(runLog(mock1))(equalTo(mock1Expected.mkString + reportStats(0, 0, 1)))
+        runLog(mock1).map(str => assertTrue(str == mock1Expected.mkString + reportStats(0, 0, 1)))
       },
       test("correctly reports mock failure of unmet expectations") {
-        assertM(runLog(mock2))(equalTo(mock2Expected.mkString + reportStats(0, 0, 1)))
+        runLog(mock2).map(str => assertTrue(str == mock2Expected.mkString + reportStats(0, 0, 1)))
       },
       test("correctly reports mock failure of unexpected call") {
         assertM(runLog(mock3))(equalTo(mock3Expected.mkString + reportStats(0, 0, 1)))

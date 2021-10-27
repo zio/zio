@@ -7,7 +7,7 @@ import zio.test.TestAspect.silent
 object SummaryBuilderSpec extends ZIOBaseSpec {
 
   def summarize(log: Vector[String]): String =
-    log.filter(!_.contains(green("+"))).mkString.stripLineEnd
+    log.filter(!_.contains(green("+"))).mkString.stripLineEnd + "\n"
 
   def labelOnly(log: Vector[String]): String =
     log.take(1).mkString.stripLineEnd
@@ -18,7 +18,7 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
         assertM(runSummary(test1))(equalTo(""))
       },
       test("includes a failed test") {
-        assertM(runSummary(test3))(equalTo(summarize(test3Expected)))
+        runSummary(test3).map(str => assertTrue(str == summarize(test3Expected)))
       },
       test("correctly reports an error in a test") {
         assertM(runSummary(test4))(equalTo(labelOnly(test4Expected)))
@@ -30,10 +30,10 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
         assertM(runSummary(suite2))(equalTo(summarize(suite2Expected)))
       },
       test("correctly reports multiple test suites") {
-        assertM(runSummary(suite3))(equalTo(summarize(suite3Expected)))
+        runSummary(suite3).map(str => assertTrue(str == summarize(suite3Expected)))
       },
       test("correctly reports failure of simple assertion") {
-        assertM(runSummary(test5))(equalTo(summarize(test5Expected)))
+        runSummary(test5).map(str => assertTrue(str == summarize(test5Expected)))
       }
     ) @@ silent
 }
