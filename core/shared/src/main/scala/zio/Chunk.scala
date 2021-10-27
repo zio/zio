@@ -1219,7 +1219,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case vector: Vector[A]            => VectorChunk(vector)
       case iterable =>
         val builder = ChunkBuilder.make[A]()
-        builder.sizeHint(iterable.size)
+        builder.sizeHint(iterable)
         builder ++= iterable
         builder.result()
     }
