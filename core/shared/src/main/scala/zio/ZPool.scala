@@ -67,8 +67,8 @@ object ZPool {
    * shutdown because the `Managed` is used, the individual items allocated by
    * the pool will be released in some unspecified order.
    */
-  def make[R, E, A](get: ZManaged[R, E, A], min: Int)(implicit trace: ZTraceElement): URManaged[R, ZPool[E, A]] =
-    makeWith(get, min to min)(Strategy.None)
+  def make[R, E, A](get: ZManaged[R, E, A], size: Int)(implicit trace: ZTraceElement): URManaged[R, ZPool[E, A]] =
+    makeWith(get, size to size)(Strategy.None)
 
   /**
    * Makes a new pool with the specified minimum and maximum sizes and time to
