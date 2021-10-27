@@ -20,7 +20,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `ZPool[E, A]` is a pool of items of type `A`, each of which may be
- * associated with the acquisition and release of resources.
+ * associated with the acquisition and release of resources. An attempt to get
+ * an item `A` from a pool may fail with an error of type `E`.
  */
 trait ZPool[+Error, Item] {
 
@@ -66,8 +67,8 @@ object ZPool {
    * shutdown because the `Managed` is used, the individual items allocated by
    * the pool will be released in some unspecified order.
    */
-  def make[R, E, A](get: ZManaged[R, E, A], min: Int)(implicit trace: ZTraceElement): URManaged[R, ZPool[E, A]] =
-    makeWith(get, min to min)(Strategy.None)
+  def make[R, E, A](get: ZManaged[R, E, A], size: Int)(implicit trace: ZTraceElement): URManaged[R, ZPool[E, A]] =
+    makeWith(get, size to size)(Strategy.None)
 
   /**
    * Makes a new pool with the specified minimum and maximum sizes and time to
@@ -77,10 +78,11 @@ object ZPool {
    * `Managed` is used, the individual items allocated by the pool will be
    * released in some unspecified order.
    * {{{
-   * for {
-   *   pool <- ZPool.make(acquireDbConnection, 10 to 20)(60.seconds)
-   *   _    <- pool.use { pool => pool.get.use { connection => useConnection(connection) } }
-   * } yield ()
+   * ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).use { pool =>
+   *   pool.get.use {
+   *     connection => useConnection(connection)
+   *   }
+   * }
    * }}}
    */
   def make[R, E, A](get: ZManaged[R, E, A], range: Range, timeToLive: Duration)(implicit
