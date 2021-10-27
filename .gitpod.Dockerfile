@@ -8,3 +8,5 @@ RUN curl -fLo cs https://git.io/coursier-cli-"$(uname | tr LD ld)" && \
     ./cs install scala sbt scalafix scalafmt ammonite && \
     ./cs install bloop --only-prebuilt=true && \
     rm cs
+
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
