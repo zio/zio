@@ -2003,12 +2003,12 @@ object ZStreamSpec extends ZIOBaseSpec {
               for {
                 halt <- Promise.make[String, Nothing]
                 _    <- halt.fail("Fail")
-                result <- ZStream(1)
+                result <- ZStream.never
                             .interruptWhen(halt)
                             .runDrain
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
-            } @@ zioTag(errors) @@ nonFlaky(1000) @@ ignore // TODO: fix
+            } @@ zioTag(errors) @@ nonFlaky(1000)
           ) @@ zioTag(interruption),
           suite("interruptWhen(IO)")(
             test("interrupts the current element") {
