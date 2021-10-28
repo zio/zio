@@ -131,7 +131,7 @@ object CauseSpec extends ZIOBaseSpec {
         val failOrDie = Gen.elements[Throwable => Cause[Throwable]](Cause.fail, Cause.die)
         check(throwable, failOrDie) { (e, makeCause) =>
           val rootCause        = makeCause(e)
-          val cause            = Cause.traced(rootCause, ZTrace(FiberId(0L, 0L), Nil, Nil, None))
+          val cause            = Cause.traced(rootCause, ZTrace(FiberId(0L, 0L), Chunk.empty))
           val causeMessage     = e.getCause.getMessage
           val throwableMessage = e.getMessage
           val renderedCause    = Cause.stackless(cause).prettyPrint
@@ -169,7 +169,7 @@ object CauseSpec extends ZIOBaseSpec {
     (causes <*> causes <*> causes).flatMap { case (a, b, c) =>
       Gen.elements(
         (a, a),
-        (a, Cause.traced(a, ZTrace(FiberId(0L, 0L), Nil, Nil, None))),
+        (a, Cause.traced(a, ZTrace(FiberId(0L, 0L), Chunk.empty))),
         (Then(Then(a, b), c), Then(a, Then(b, c))),
         (Then(a, Both(b, c)), Both(Then(a, b), Then(a, c))),
         (Both(Both(a, b), c), Both(a, Both(b, c))),

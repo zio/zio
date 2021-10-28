@@ -26,6 +26,25 @@ final case class ZTrace(
 ) {
   def prettyPrint: String =
     stackTrace.collect {
-      case s if s.toString.length > 0 => s"\tat ${s}"
+      case s if s.toString.length > 0 => s"\tat ${s} on ${fiberId}"
     }.mkString("\n")
+
+  /**
+   * Converts the ZIO trace into a Java stack trace, by converting each trace element into a Java
+   * stack trace element.
+   */
+  def toJava: Chunk[StackTraceElement] =
+    stackTrace.collect { case ZTraceElement.SourceLocation(location, file, line, _) =>
+      val last = location.lastIndexOf(".")
+
+      val (before, after) = if (last < 0) ("", "." + location) else location.splitAt(last)
+
+      def stripSlash(file: String): String = {
+        val last = file.lastIndexOf("/")
+
+        if (last < 0) file else file.drop(last + 1)
+      }
+
+      new StackTraceElement(before, after.drop(1), stripSlash(file), line)
+    }
 }

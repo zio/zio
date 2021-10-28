@@ -255,6 +255,31 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       case Meta(c, data)    => c.keepDefects.map(Meta(_, data))
     }
 
+  def linearize[E1 >: E]: Set[Cause[E1]] = {
+    def loop[E](cause: Cause[E]): Set[Cause[E]] =
+      cause match {
+        case Empty => Set()
+
+        case Both(left, right) => loop(left) ++ loop(right)
+
+        case Meta(cause, data) => loop(cause).map(Meta(_, data))
+
+        case Traced(cause, trace) => loop(cause).map(Traced(_, trace))
+
+        case Then(left, right) =>
+          for {
+            l <- loop(left)
+            r <- loop(right)
+          } yield l ++ r
+
+        case cause @ Fail(_)      => Set(cause)
+        case cause @ Die(_)       => Set(cause)
+        case cause @ Interrupt(_) => Set(cause)
+      }
+
+    loop(self)
+  }
+
   final def map[E1](f: E => E1): Cause[E1] =
     flatMap(e => Fail(f(e)))
 
@@ -279,132 +304,68 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Returns a `String` with the cause pretty-printed.
    */
   final def prettyPrint: String = {
-    sealed abstract class Segment
-    sealed abstract class Step extends Segment
+    final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement])
 
-    final case class Sequential(all: List[Step])     extends Segment
-    final case class Parallel(all: List[Sequential]) extends Step
-    final case class Failure(lines: List[String])    extends Step
+    def unify(cause: Cause[E]): List[Unified] = {
+      def loop(
+        causes: List[Cause[E]],
+        fiberId: FiberId,
+        accum: Chunk[StackTraceElement],
+        stackless: Boolean,
+        result: List[Unified]
+      ): List[Unified] = {
+        def unifyFail(error: E): Unified =
+          Unified(fiberId, error.getClass.getName(), error.toString(), accum)
 
-    def prefixBlock[A](values: List[String], p1: String, p2: String): List[String] =
-      values match {
-        case Nil => Nil
-        case head :: tail =>
-          (p1 + head) :: tail.map(p2 + _)
+        def unifyDie(error: Throwable): Unified = {
+          val extra =
+            if (stackless) Chunk.empty else Chunk.fromArray(error.getStackTrace())
+
+          Unified(fiberId, error.getClass.getName(), error.getMessage(), extra ++ accum)
+        }
+
+        def unifyInterrupt(fiberId: FiberId): Unified = {
+          val message = s"Interrupted by thread \"${fiberId}\""
+
+          Unified(fiberId, classOf[InterruptedException].getName(), message, accum)
+        }
+
+        causes match {
+          case Nil => result
+
+          case Empty :: more             => loop(more, fiberId, accum, stackless, result)
+          case Both(left, right) :: more => loop(left :: right :: more, fiberId, accum, stackless, result)
+          case Meta(cause, data) :: more => loop(cause :: more, fiberId, accum, data.stackless, result)
+          case Traced(cause, trace) :: more =>
+            loop(cause :: more, trace.fiberId, accum ++ trace.toJava, stackless, result)
+          case Then(left, right) :: more => loop(left :: right :: more, fiberId, accum, stackless, result)
+          case (cause @ Fail(_)) :: more => loop(more, fiberId, accum, stackless, unifyFail(cause.value) :: result)
+          case (cause @ Die(_)) :: more  => loop(more, fiberId, accum, stackless, unifyDie(cause.value) :: result)
+          case (cause @ Interrupt(_)) :: more =>
+            loop(more, fiberId, accum, stackless, unifyInterrupt(cause.fiberId) :: result)
+        }
       }
 
-    def parallelSegments(cause: Cause[Any], maybeData: Option[Data]): List[Sequential] =
-      cause match {
-        case Both(left, right) => parallelSegments(left, maybeData) ++ parallelSegments(right, maybeData)
-        case _                 => List(causeToSequential(cause, maybeData))
-      }
-
-    def linearSegments(cause: Cause[Any], maybeData: Option[Data]): List[Step] =
-      cause match {
-        case Then(first, second) => linearSegments(first, maybeData) ++ linearSegments(second, maybeData)
-        case _                   => causeToSequential(cause, maybeData).all
-      }
-
-    // Inline definition of `StringOps.lines` to avoid calling either of `.linesIterator` or `.lines`
-    // since both are deprecated in either 2.11 or 2.13 respectively.
-    def lines(str: String): List[String] = augmentString(str).linesWithSeparators.map(_.stripLineEnd).toList
-
-    def renderThrowable(e: Throwable, maybeData: Option[Data]): List[String] = {
-      val stackless = maybeData.fold(false)(_.stackless)
-      if (stackless) List(e.toString)
-      else {
-        import java.io.{PrintWriter, StringWriter}
-        val sw = new StringWriter()
-        val pw = new PrintWriter(sw)
-        e.printStackTrace(pw)
-        lines(sw.toString)
-      }
+      loop(cause :: Nil, FiberId.None, Chunk.empty, false, Nil).reverse
     }
 
-    def renderTrace(maybeTrace: Option[ZTrace]): List[String] =
-      maybeTrace.fold("No ZIO Trace available." :: Nil)(trace => "" :: lines(trace.prettyPrint))
+    def renderCause(cause: Cause[E]): String = {
+      def renderUnified(indent: Int, prefix: String, unified: Unified) = {
+        val baseIndent  = "\t" * indent
+        val traceIndent = baseIndent + "\t"
 
-    def renderFail(error: List[String], maybeTrace: Option[ZTrace]): Sequential =
-      Sequential(
-        List(Failure("A checked error was not handled." :: error ++ renderTrace(maybeTrace)))
-      )
-
-    def renderFailThrowable(t: Throwable, maybeTrace: Option[ZTrace], maybeData: Option[Data]): Sequential =
-      renderFail(renderThrowable(t, maybeData), maybeTrace)
-
-    def renderDie(t: Throwable, maybeTrace: Option[ZTrace], maybeData: Option[Data]): Sequential =
-      Sequential(
-        List(Failure("An unchecked error was produced." :: renderThrowable(t, maybeData) ++ renderTrace(maybeTrace)))
-      )
-
-    def renderInterrupt(fiberId: FiberId, maybeTrace: Option[ZTrace]): Sequential =
-      Sequential(
-        List(Failure(s"An interrupt was produced by #${fiberId.seqNumber}." :: renderTrace(maybeTrace)))
-      )
-
-    def causeToSequential(cause: Cause[Any], maybeData: Option[Data]): Sequential =
-      cause match {
-        case Empty => Sequential(Nil)
-
-        case Fail(t: Throwable) =>
-          renderFailThrowable(t, None, maybeData)
-        case Fail(error) =>
-          renderFail(lines(error.toString), None)
-        case Die(t) =>
-          renderDie(t, None, maybeData)
-        case Interrupt(fid) =>
-          renderInterrupt(fid, None)
-
-        case t: Then[Any] => Sequential(linearSegments(t, maybeData))
-        case b: Both[Any] => Sequential(List(Parallel(parallelSegments(b, maybeData))))
-        case Traced(c, trace) =>
-          c match {
-            case Fail(t: Throwable) =>
-              renderFailThrowable(t, Some(trace), maybeData)
-            case Fail(error) =>
-              renderFail(lines(error.toString), Some(trace))
-            case Die(t) =>
-              renderDie(t, Some(trace), maybeData)
-            case Interrupt(fid) =>
-              renderInterrupt(fid, Some(trace))
-            case _ =>
-              Sequential(
-                Failure("An error was rethrown with a new trace." :: renderTrace(Some(trace))) ::
-                  causeToSequential(c, maybeData).all
-              )
-          }
-        case Meta(cause, data) =>
-          causeToSequential(cause, Some(data))
-
+        s"${baseIndent}${prefix}${unified.className}: ${unified.message}\n" +
+          unified.trace.map(trace => s"${traceIndent}at ${trace}").mkString("\n")
       }
 
-    def format(segment: Segment): List[String] =
-      segment match {
-        case Failure(lines) =>
-          prefixBlock(lines, "─", " ")
-        case Parallel(all) =>
-          List(("══╦" * (all.size - 1)) + "══╗") ++
-            all.foldRight[List[String]](Nil) { case (current, acc) =>
-              prefixBlock(acc, "  ║", "  ║") ++
-                prefixBlock(format(current), "  ", "  ")
-            }
-        case Sequential(all) =>
-          all.flatMap { segment =>
-            List("║") ++
-              prefixBlock(format(segment), "╠", "║")
-          } ++ List("▼")
-      }
+      unify(cause).zipWithIndex.map {
+        case (unified, 0) =>
+          renderUnified(0, s"Exception in thread \"zio-fiber-${unified.fiberId.seqNumber}\" ", unified)
+        case (unified, n) => renderUnified(n, s"Suppressed: ", unified)
+      }.mkString("\n")
+    }
 
-    val sequence = causeToSequential(this, None)
-
-    ("Fiber failed." :: {
-      sequence match {
-        // use simple report for single failures
-        case Sequential(List(Failure(cause))) => cause
-
-        case _ => format(sequence).updated(0, "╥")
-      }
-    }).mkString("\n")
+    self.linearize.map(renderCause).mkString("\n")
   }
 
   /**
@@ -739,7 +700,7 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Data(stackless: Boolean)
+  final case class Data(stackless: Boolean) // TODO: Rename to Stackless and make it unary operator
 
   private def empty(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
     case (Then(a, Empty), b) => a == b

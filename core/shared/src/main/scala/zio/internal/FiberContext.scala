@@ -76,19 +76,15 @@ private[zio] final class FiberContext[E, A](
   private[internal] def unsafeCurrentLogLevel(): LogLevel =
     getFiberRefValue(FiberRef.currentLogLevel)
 
-  /*
- fiberId: FiberId,
-        logLevel: LogLevel,
-        message: () => String,
-        context: Map[FiberRef.Runtime[_], AnyRef],
-        spans: List[LogSpan]
-   */
+  private[this] def captureTrace(prefix: List[ZTraceElement]): ZTrace = {
+    val chunkBuilder = ChunkBuilder.make[ZTraceElement]
 
-  private[this] def captureStackTrace(): Chunk[ZTraceElement] =
-    Chunk.fromIterable(stack.toList.reverse.map(_.trace))
+    chunkBuilder ++= prefix
 
-  private[this] def captureTrace(lastStack: String): ZTrace =
-    ZTrace(fiberId, captureStackTrace())
+    stack.foreach(k => chunkBuilder += k.trace)
+
+    ZTrace(fiberId, chunkBuilder.result())
+  }
 
   private[zio] def awaitAsync(k: Callback[E, A]): Any =
     register0(xx => k(Exit.flatten(xx))) match {
@@ -256,17 +252,7 @@ private[zio] final class FiberContext[E, A](
 
       // Store the trace of the immediate future flatMap during evaluation
       // of a 1-hop left bind, to show a stack trace closer to the point of failure
-      var fastPathFlatMapContinuationTrace: String = null
-
-      @noinline
-      def fastPathTrace(current: FlatMap[Any, Any, Any, Any]): Unit =
-        // record the nearest continuation for a better trace in case of failure
-        fastPathFlatMapContinuationTrace = current.trace.toString
-
-      @noinline
-      def fastPathTraceCleanup(current: FlatMap[Any, Any, Any, Any]): Unit =
-        // delete continuation trace as it was "popped" after success
-        fastPathFlatMapContinuationTrace = null
+      var fastPathFlatMapContinuationTrace: ZTraceElement = null.asInstanceOf[ZTraceElement]
 
       if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.set(this)
 
@@ -277,11 +263,7 @@ private[zio] final class FiberContext[E, A](
           while ({
             val tag = curZio.tag
 
-            if (logRuntime) {
-              implicit val trace = curZio.trace
-
-              unsafeLog(logLevel, curZio.unsafeLog)
-            }
+            if (logRuntime) unsafeLog(logLevel, curZio.unsafeLog)(curZio.trace)
 
             // Check to see if the fiber should continue executing or not:
             if (!shouldInterrupt()) {
@@ -311,9 +293,9 @@ private[zio] final class FiberContext[E, A](
                       case ZIO.Tags.Succeed =>
                         val io2 = nested.asInstanceOf[ZIO.Succeed[Any]]
 
-                        fastPathTrace(zio)
+                        fastPathFlatMapContinuationTrace = zio.trace
                         val value = io2.effect()
-                        fastPathTraceCleanup(zio)
+                        fastPathFlatMapContinuationTrace = null.asInstanceOf[ZTraceElement]
 
                         curZio = k(value)
 
@@ -321,16 +303,16 @@ private[zio] final class FiberContext[E, A](
                         val io2    = nested.asInstanceOf[ZIO.SucceedWith[Any]]
                         val effect = io2.effect
 
-                        fastPathTrace(zio)
+                        fastPathFlatMapContinuationTrace = zio.trace
                         val value = effect(runtimeConfig, fiberId)
-                        fastPathTraceCleanup(zio)
+                        fastPathFlatMapContinuationTrace = null.asInstanceOf[ZTraceElement]
 
                         curZio = k(value)
 
                       case ZIO.Tags.Yield =>
-                        fastPathTrace(zio)
+                        fastPathFlatMapContinuationTrace = zio.trace
                         evaluateLater(k(()))
-                        fastPathTraceCleanup(zio)
+                        fastPathFlatMapContinuationTrace = null.asInstanceOf[ZTraceElement]
 
                         curZio = null
 
@@ -364,10 +346,12 @@ private[zio] final class FiberContext[E, A](
                     val zio = curZio.asInstanceOf[ZIO.Fail[Any]]
 
                     // Put last trace into a val to avoid `ObjectRef` boxing.
-                    val fastPathTrace = fastPathFlatMapContinuationTrace
-                    fastPathFlatMapContinuationTrace = null
+                    val fastPathTrace =
+                      if (fastPathFlatMapContinuationTrace == null) Nil
+                      else fastPathFlatMapContinuationTrace :: Nil
+                    fastPathFlatMapContinuationTrace = null.asInstanceOf[ZTraceElement]
 
-                    val tracedCause = zio.fill(() => captureTrace(fastPathTrace))
+                    val tracedCause = zio.fill(() => captureTrace(zio.trace :: fastPathTrace))
 
                     val discardedFolds = unwindStack()
                     val fullCause =
@@ -503,7 +487,9 @@ private[zio] final class FiberContext[E, A](
                     curZio = zio.zio
 
                   case ZIO.Tags.Trace =>
-                    curZio = nextInstr(captureTrace(null))
+                    val zio = curZio.asInstanceOf[ZIO.Trace]
+
+                    curZio = nextInstr(captureTrace(zio.trace :: Nil))
 
                   case ZIO.Tags.FiberRefGetAll =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefGetAll[Any, Any, Any]]
@@ -833,7 +819,7 @@ private[zio] final class FiberContext[E, A](
 
   def status(implicit trace: ZTraceElement): UIO[Fiber.Status] = UIO(state.get.status)
 
-  def trace(implicit trace0: ZTraceElement): UIO[ZTrace] = UIO(captureTrace(null))
+  def trace(implicit trace0: ZTraceElement): UIO[ZTrace] = UIO(captureTrace(Nil))
 
   @tailrec
   private[this] def enterAsync(

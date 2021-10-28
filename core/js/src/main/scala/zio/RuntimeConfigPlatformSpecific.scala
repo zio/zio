@@ -93,6 +93,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val enableCurrentFiber = false
 
+    val enableLogRuntime = false
+
     RuntimeConfig(
       blockingExecutor,
       executor,
@@ -101,7 +103,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       reportFatal,
       supervisor,
       enableCurrentFiber,
-      logger.filterLogLevel(_ >= LogLevel.Info)
+      logger.filterLogLevel(_ >= LogLevel.Info),
+      enableLogRuntime
     )
   }
 
