@@ -4819,8 +4819,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     protected def key: A => ZIO[R, E, (K, V)]
     protected def buffer: Int
 
-    println("buffer = " + buffer)
-
     def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Exit[Option[E], V]])] =
       ZStream.unwrapManaged {
         for {
