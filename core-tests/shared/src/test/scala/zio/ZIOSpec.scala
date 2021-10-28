@@ -1009,12 +1009,12 @@ object ZIOSpec extends ZIOBaseSpec {
           fiber2 <- ZIO.forkAll(List(die, ZIO.succeed(42)))
           fiber3 <- ZIO.forkAll(List(die, ZIO.succeed(42), ZIO.never))
 
-          result1 <- joinDefect(fiber1)
-          result2 <- joinDefect(fiber2)
-          result3 <- joinDefect(fiber3)
+          result1 <- joinDefect(fiber1).map(_.untraced)
+          result2 <- joinDefect(fiber2).map(_.untraced)
+          result3 <- joinDefect(fiber3).map(_.untraced)
         } yield {
-          assert(result1)(equalTo(Cause.die(boom))) && {
-            assert(result2)(equalTo(Cause.die(boom))) ||
+          assert(result1.dieOption)(isSome(equalTo(boom))) && {
+            assert(result2.dieOption)(isSome(equalTo(boom))) ||
             (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
           } && {
             assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.isInterrupted)(isTrue)
@@ -3890,8 +3890,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
           result <- ZIO.fromFuture(_ => future).either
-          _       = println(result.left.toOption.get.getSuppressed.mkString("\n"))
-        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("FiberId("))))))
+        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("zio-fiber"))))))
       }
     ) @@ zioTag(future),
     suite("resurrect")(
