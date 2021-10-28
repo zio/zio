@@ -93,9 +93,6 @@ class LeftBindBenchmark {
   @Benchmark
   def zioLeftBindBenchmark: Int = zioLeftBindBenchmark(BenchmarkUtil)
 
-  @Benchmark
-  def zioTracedLeftBindBenchmark(): Int = zioLeftBindBenchmark(TracedRuntime)
-
   private[this] def zioLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     def loop(i: Int): UIO[Int] =
       if (i % depth == 0) IO.succeed[Int](i + 1).flatMap(loop)

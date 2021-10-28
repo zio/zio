@@ -2,7 +2,6 @@ package zio
 
 import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 
@@ -30,9 +29,6 @@ class ForkInterruptBenchmark {
 
   @Benchmark
   def zioForkInterrupt(): Unit = zioForkInterrupt(BenchmarkUtil)
-
-  @Benchmark
-  def zioTracedForkInterrupt(): Unit = zioForkInterrupt(TracedRuntime)
 
   private[this] def zioForkInterrupt(runtime: Runtime[Any]): Unit = {
     def loop(i: Int): UIO[Unit] =
