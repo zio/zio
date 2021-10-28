@@ -122,7 +122,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          (latch.succeed(()) *> ZIO.infinity)
                            .onInterrupt(cancelled.set(true))
                      }
-              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.untraced.fork
+              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -136,7 +136,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                        (latch.succeed(()) *> ZIO.infinity)
                          .onInterrupt(cancelled.set(true))
                      }
-              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.untraced.fork
+              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -251,7 +251,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               fiber <- ZStream(1, 1, 2)
                          .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                          .runCollect
-                         .untraced
                          .fork
               _      <- latch.await
               _      <- fiber.interrupt
@@ -269,7 +268,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               fiber <- ZStream(1, 1, 2)
                          .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                          .runCollect
-                         .untraced
                          .fork
               _      <- latch.await
               _      <- fiber.interrupt

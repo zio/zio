@@ -256,7 +256,7 @@ object ReportingTestUtils {
                promise.succeed(())
              }
       f       = ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
-      result <- f.provideLayer(failingLayer ++ mock).untraced
+      result <- f.provideLayer(failingLayer ++ mock)
     } yield assert(result)(equalTo("mocked"))
   }
 

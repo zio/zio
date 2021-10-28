@@ -18,7 +18,6 @@ package zio
 
 import zio.internal.Platform
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{TracingStatus => TracingS}
 
 import java.io.IOException
 import scala.annotation.implicitNotFound

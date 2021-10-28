@@ -203,24 +203,6 @@ object SerializableSpec extends ZIOBaseSpec {
         managed <- serializeAndBack(ZManaged.acquireReleaseWith(UIO.unit)(_ => UIO.unit))
         result  <- managed.use(_ => UIO.unit)
       } yield assert(result)(equalTo(()))
-    },
-    test("TracingStatus.Traced is serializable") {
-      val traced = TracingStatus.Traced
-      for {
-        result <- serializeAndBack(traced)
-      } yield assert(result)(equalTo(traced))
-    },
-    test("TracingStatus.Untraced is serializable") {
-      val traced = TracingStatus.Untraced
-      for {
-        result <- serializeAndBack(traced)
-      } yield assert(result)(equalTo(traced))
-    },
-    test("TracingStatus.Untraced is serializable") {
-      Live.live(for {
-        system <- ZIO.serviceWith[System](serializeAndBack(_))
-        result <- system.property("notpresent")
-      } yield assert(result)(equalTo(Option.empty[String])))
     }
   )
 }

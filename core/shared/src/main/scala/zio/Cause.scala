@@ -306,6 +306,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def prettyPrint: String = {
     final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement])
 
+    def renderFiberId(fiberId: FiberId): String = s"zio-fiber-${fiberId.seqNumber}"
+
     def unify(cause: Cause[E]): List[Unified] = {
       def loop(
         causes: List[Cause[E]],
@@ -325,7 +327,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         }
 
         def unifyInterrupt(fiberId: FiberId): Unified = {
-          val message = s"Interrupted by thread \"${fiberId}\""
+          val message = "Interrupted by thread \"" + renderFiberId(fiberId) + "\""
 
           Unified(fiberId, classOf[InterruptedException].getName(), message, accum)
         }
@@ -360,7 +362,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 
       unify(cause).zipWithIndex.map {
         case (unified, 0) =>
-          renderUnified(0, s"Exception in thread \"zio-fiber-${unified.fiberId.seqNumber}\" ", unified)
+          renderUnified(0, "Exception in thread \"" + renderFiberId(unified.fiberId) + "\" ", unified)
         case (unified, n) => renderUnified(n, s"Suppressed: ", unified)
       }.mkString("\n")
     }

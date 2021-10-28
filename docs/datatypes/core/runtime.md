@@ -253,7 +253,6 @@ It has the following constructors:
 | `RuntimeConfigAspect.identity`            |                               | `RuntimeConfigAspect` |
 | `RuntimeConfigAspect.setBlockingExecutor` | `executor: Executor`          | `RuntimeConfigAspect` |
 | `RuntimeConfigAspect.setExecutor`         | `executor: Executor`          | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.setTracing`          | `tracing: Tracing`            | `RuntimeConfigAspect` |
 
 
 The `ZIOAppDefault` (and also the `ZIOApp`) has a `hook` member of a type `RuntimeConfigAspect`. The following code illustrates how to hook into the ZIO runtime system by creating and composing multiple aspects:
@@ -264,14 +263,12 @@ val myAppLogic = ZIO.succeed(???)
 
 ```scala mdoc:compile-only
 import zio._
-import zio.internal.tracing.Tracing
 
 val loggly  = RuntimeConfigAspect.addLogger(???)
 val zmx     = RuntimeConfigAspect.addSupervisor(???)
-val tracing = RuntimeConfigAspect.setTracing(Tracing.enabled)
 
 object Main extends ZIOAppDefault {
-  override def hook = loggly >>> zmx >>> tracing
+  override def hook = loggly >>> zmx
   
   def run = myAppLogic
 }
