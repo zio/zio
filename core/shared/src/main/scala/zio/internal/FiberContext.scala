@@ -83,7 +83,7 @@ private[zio] final class FiberContext[E, A](
 
     stack.foreach(k => chunkBuilder += k.trace)
 
-    ZTrace(fiberId, chunkBuilder.result())
+    ZTrace(fiberId, chunkBuilder.result().dedupe)
   }
 
   private[zio] def awaitAsync(k: Callback[E, A]): Any =
