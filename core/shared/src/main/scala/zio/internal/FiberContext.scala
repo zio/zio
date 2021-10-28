@@ -77,7 +77,7 @@ private[zio] final class FiberContext[E, A](
     getFiberRefValue(FiberRef.currentLogLevel)
 
   private[this] def captureTrace(prefix: List[ZTraceElement]): ZTrace = {
-    val chunkBuilder = ChunkBuilder.make[ZTraceElement]
+    val chunkBuilder = ChunkBuilder.make[ZTraceElement]()
 
     chunkBuilder ++= prefix
 
