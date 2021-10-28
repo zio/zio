@@ -1641,8 +1641,8 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assert(sum)(equalTo(10))
         },
         suite("groupBy")(
-          test("values") {
-            val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
+          test("values XYZ") {
+            val words = List.fill(100)(0 to 100).flatten.map(_.toString())
             assertM(
               ZStream
                 .fromIterable(words)
@@ -1651,7 +1651,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 }
                 .runCollect
                 .map(_.toMap)
-            )(equalTo((0 to 100).map((_.toString -> 1000)).toMap))
+            )(equalTo((0 to 100).map((_.toString -> 100)).toMap))
           },
           test("first") {
             val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
