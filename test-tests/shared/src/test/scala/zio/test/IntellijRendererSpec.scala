@@ -18,9 +18,6 @@ object IntellijRendererSpec extends ZIOBaseSpec {
       test("correctly reports a failed test") {
         assertM(runLog(test3))(equalTo(test3Expected.mkString))
       },
-      test("correctly reports an error in a test") {
-        assertM(runLog(test4))(equalTo(test4Expected.mkString))
-      },
       test("correctly reports successful test suite") {
         assertM(runLog(suite1))(equalTo(suite1Expected.mkString))
       },
@@ -84,19 +81,6 @@ object IntellijRendererSpec extends ZIOBaseSpec {
           s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
         ),
         withOffset(2)(assertSourceLocation())
-      )
-    )
-  )
-
-  val test4Expected: Vector[String] = Vector(
-    testStarted("Failing test", location = None),
-    testFailed(
-      "Failing test",
-      Vector(
-        withOffset(2)("Fiber failed.\n") +
-          withOffset(2)("A checked error was not handled.\n") +
-          withOffset(2)("Fail\n") +
-          withOffset(2)("No ZIO Trace available.")
       )
     )
   )

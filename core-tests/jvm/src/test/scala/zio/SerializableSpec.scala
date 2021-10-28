@@ -203,6 +203,15 @@ object SerializableSpec extends ZIOBaseSpec {
         managed <- serializeAndBack(ZManaged.acquireReleaseWith(UIO.unit)(_ => UIO.unit))
         result  <- managed.use(_ => UIO.unit)
       } yield assert(result)(equalTo(()))
+    },
+    test("Chunk is serializable") {
+      val chunk =
+        Chunk(1, 2, 3, 4, 5).take(4) ++ Chunk(9, 92, 2, 3) ++ Chunk.fromIterable(List(1, 2, 3))
+
+      for {
+        chunk  <- ZIO.succeed(chunk)
+        result <- serializeAndBack(chunk)
+      } yield assertTrue(chunk == result)
     }
   )
 }

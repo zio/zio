@@ -702,7 +702,7 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Data(stackless: Boolean) // TODO: Rename to Stackless and make it unary operator
+  final case class Data(stackless: Boolean)
 
   private def empty(l: Cause[Any], r: Cause[Any]): Boolean = (l, r) match {
     case (Then(a, Empty), b) => a == b

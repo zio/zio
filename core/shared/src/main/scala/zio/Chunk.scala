@@ -39,8 +39,7 @@ import scala.reflect.{ClassTag, classTag}
  * result, it is not safe to construct chunks from heterogeneous primitive
  * types.
  */
-sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
-
+sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   def chunkIterator: Chunk.ChunkIterator[A]
 
   /**
