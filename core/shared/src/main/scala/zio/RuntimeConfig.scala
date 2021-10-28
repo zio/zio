@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.tracing.TracingConfig
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -26,7 +25,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 final case class RuntimeConfig(
   blockingExecutor: Executor,
   executor: Executor,
-  tracingConfig: TracingConfig,
   fatal: Throwable => Boolean,
   reportFatal: Throwable => Nothing,
   supervisor: Supervisor[Any],

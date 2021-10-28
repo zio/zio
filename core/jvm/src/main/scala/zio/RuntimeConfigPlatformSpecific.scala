@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.tracing.TracingConfig
 import zio.internal.Blocking
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -75,12 +74,9 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val supervisor = Supervisor.none
 
-    val tracingConfig = TracingConfig.default
-
     RuntimeConfig(
       blockingExecutor,
       executor,
-      tracingConfig,
       fatal,
       reportFatal,
       supervisor,

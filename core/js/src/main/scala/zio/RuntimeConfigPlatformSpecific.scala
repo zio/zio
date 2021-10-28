@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.tracing.TracingConfig
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
@@ -87,8 +86,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       throw t
     }
 
-    val tracingConfig = TracingConfig.default
-
     val supervisor = Supervisor.none
 
     val enableCurrentFiber = false
@@ -98,7 +95,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     RuntimeConfig(
       blockingExecutor,
       executor,
-      tracingConfig,
       fatal,
       reportFatal,
       supervisor,

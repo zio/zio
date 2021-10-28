@@ -20,7 +20,6 @@ import zio.internal.{FiberContext, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
-import zio.internal.tracing.TracingConfig
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -291,11 +290,6 @@ trait Runtime[+R] {
    */
   def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapRuntimeConfig(_.copy(reportFatal = f))
 
-  /**
-   * Constructs a new `Runtime` with the specified tracer and tracing configuration.
-   */
-  def withTracingConfig(t: TracingConfig): Runtime[R] = mapRuntimeConfig(_.copy(tracingConfig = t))
-
   private final def unsafeRunWith[E, A](
     zio: => ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
@@ -366,9 +360,6 @@ object Runtime {
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
       mapRuntimeConfig(_.copy(reportFatal = f))
-
-    override final def withTracingConfig(t: TracingConfig): Runtime.Managed[R] =
-      mapRuntimeConfig(_.copy(tracingConfig = t))
   }
 
   object Managed {
