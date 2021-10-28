@@ -168,7 +168,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
    * Deduplicates adjacent elements that are identical.
    */
   def dedupe: Chunk[A] = {
-    val builder = ChunkBuilder.make[A]
+    val builder = ChunkBuilder.make[A]()
 
     var lastA = null.asInstanceOf[A]
 
@@ -178,7 +178,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
       lastA = a
     }
 
-    builder.result
+    builder.result()
   }
 
   /**
