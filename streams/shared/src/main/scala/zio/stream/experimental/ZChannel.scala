@@ -1305,7 +1305,7 @@ object ZChannel {
         for {
           _           <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
           queue       <- Queue.bounded[ZIO[Env, Either[OutErr, OutDone], OutElem]](bufferSize).toManagedWith(_.shutdown)
-          cancelers   <- Queue.bounded[Promise[Nothing, Unit]](n).toManagedWith(_.shutdown)
+          cancelers   <- Queue.unbounded[Promise[Nothing, Unit]].toManagedWith(_.shutdown)
           lastDone    <- Ref.makeManaged[Option[OutDone]](None)
           errorSignal <- Promise.makeManaged[Nothing, Unit]
           permits     <- Semaphore.make(n.toLong).toManaged
