@@ -400,6 +400,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("BackPressure") {
             ZStream
               .range(0, 5)
+              .flatMap(ZStream.succeed(_))
               .broadcast(2, 2)
               .use {
                 case s1 :: s2 :: Nil =>
@@ -407,7 +408,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                     ref    <- Ref.make[List[Int]](Nil)
                     latch1 <- Promise.make[Nothing, Unit]
                     fib <- s1
-                             .tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 2))
+                             .tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 1))
                              .runDrain
                              .fork
                     _         <- latch1.await
@@ -415,13 +416,13 @@ object ZStreamSpec extends ZIOBaseSpec {
                     _         <- s2.runDrain
                     _         <- fib.await
                     snapshot2 <- ref.get
-                  } yield assert(snapshot1)(equalTo(List(2, 1, 0))) && assert(snapshot2)(
+                  } yield assert(snapshot1)(equalTo(List(1, 0))) && assert(snapshot2)(
                     equalTo(Range(0, 5).toList.reverse)
                   )
                 case _ =>
                   UIO(assert(())(Assertion.nothing))
               }
-          } @@ ignore, // TODO: fix
+          },
           test("Unsubscribe") {
             ZStream.range(0, 5).broadcast(2, 2).use {
               case s1 :: s2 :: Nil =>
@@ -2287,7 +2288,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .exit
                 .map(_.isInterrupted)
             )(equalTo(false))
-          } @@ TestAspect.ignore,
+          } @@ ignore,
           test("interrupts pending tasks when one of the tasks fails") {
             for {
               interrupted <- Ref.make(0)
