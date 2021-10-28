@@ -3491,12 +3491,16 @@ object ZStreamSpec extends ZIOBaseSpec {
               _ <-
                 ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).runIntoQueue(out).fork
               _      <- left.offer(Chunk(0))
-              _      <- right.offerAll(List(Chunk(0), Chunk(1)))
-              chunk1 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
+              _      <- right.offer(Chunk(0))
+              chunk1 <- ZIO.collectAll(ZIO.replicate(1)(out.take.flatMap(_.done))).map(_.flatten)
+              _      <- right.offer(Chunk(1))
+              chunk2 <- ZIO.collectAll(ZIO.replicate(1)(out.take.flatMap(_.done))).map(_.flatten)
               _      <- left.offerAll(List(Chunk(1), Chunk(2)))
-              chunk2 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
-            } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
-          } @@ nonFlaky(1000) @@ ignore, // TODO: fix
+              chunk3 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
+            } yield assert(chunk1)(equalTo(List((0, 0)))) &&
+              assert(chunk2)(equalTo(List((0, 1)))) &&
+              assert(chunk3)(equalTo(List((1, 1), (2, 1))))
+          } @@ nonFlaky(1000),
           test("handle empty pulls properly") {
             val stream0 = ZStream.fromChunks(Chunk(), Chunk(), Chunk(2))
             val stream1 = ZStream.fromChunks(Chunk(1), Chunk(1))
