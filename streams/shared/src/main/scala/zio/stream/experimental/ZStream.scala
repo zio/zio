@@ -3702,42 +3702,43 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def zipWithLatest[R1 <: R, E1 >: E, A2, A3](
     that: ZStream[R1, E1, A2]
   )(f: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
-    val mergedChannel: ZChannel[R1, Any, Any, Any, E1, Option[Either[A, A2]], Any] =
-      self.channel
-        .mapOut(_.lastOption.map(Left(_)))
-        .mergeWith(that.channel.mapOut(_.lastOption.map(Right(_))))(
-          exit => ZChannel.MergeDecision.done(ZIO.done(exit)),
-          exit => ZChannel.MergeDecision.done(ZIO.done(exit))
-        )
+    def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
+      pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else UIO.succeedNow(chunk))
 
-    def writer(
-      lastLeft: Option[A],
-      lastRight: Option[A2]
-    ): ZChannel[R1, E1, Option[Either[A, A2]], Any, E1, Chunk[A3], Unit] =
-      ZChannel.readWith[R1, E1, Option[Either[A, A2]], Any, E1, Chunk[A3], Unit](
-        {
-          case Some(Left(a1)) =>
-            lastRight match {
-              case Some(a2) =>
-                ZChannel.write(Chunk.single(f(a1, a2))) *> writer(Some(a1), lastRight)
-              case None =>
-                writer(Some(a1), lastRight)
-            }
-          case Some(Right(a2)) =>
-            lastLeft match {
-              case Some(a1) =>
-                ZChannel.write(Chunk.single(f(a1, a2))) *> writer(lastLeft, Some(a2))
-              case None =>
-                writer(lastLeft, Some(a2))
-            }
-          case None =>
-            writer(lastLeft, lastRight)
-        },
-        err => ZChannel.fail(err),
-        _ => ZChannel.unit
-      )
+    ZStream.fromPull {
+      for {
+        left  <- self.toPull.map(pullNonEmpty(_))
+        right <- that.toPull.map(pullNonEmpty(_))
+        pull <- (ZStream.fromZIOOption {
+                  left.raceWith(right)(
+                    (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
+                    (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
+                  )
+                }.flatMap { case (l, r, leftFirst) =>
+                  ZStream.fromZIO(Ref.make(l(l.size - 1) -> r(r.size - 1))).flatMap { latest =>
+                    ZStream.fromChunk(
+                      if (leftFirst) r.map(f(l(l.size - 1), _))
+                      else l.map(f(_, r(r.size - 1)))
+                    ) ++
+                      ZStream
+                        .repeatZIOOption(left)
+                        .mergeEither(ZStream.repeatZIOOption(right))
+                        .mapZIO {
+                          case Left(leftChunk) =>
+                            latest.modify { case (_, rightLatest) =>
+                              (leftChunk.map(f(_, rightLatest)), (leftChunk(leftChunk.size - 1), rightLatest))
+                            }
+                          case Right(rightChunk) =>
+                            latest.modify { case (leftLatest, _) =>
+                              (rightChunk.map(f(leftLatest, _)), (leftLatest, rightChunk(rightChunk.size - 1)))
+                            }
+                        }
+                        .flatMap(ZStream.fromChunk(_))
+                  }
+                }).toPull
 
-    new ZStream((mergedChannel >>> writer(None, None)))
+      } yield pull
+    }
   }
 
   /**

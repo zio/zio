@@ -3491,15 +3491,11 @@ object ZStreamSpec extends ZIOBaseSpec {
               _ <-
                 ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).runIntoQueue(out).fork
               _      <- left.offer(Chunk(0))
-              _      <- right.offer(Chunk(0))
-              chunk1 <- ZIO.collectAll(ZIO.replicate(1)(out.take.flatMap(_.done))).map(_.flatten)
-              _      <- right.offer(Chunk(1))
-              chunk2 <- ZIO.collectAll(ZIO.replicate(1)(out.take.flatMap(_.done))).map(_.flatten)
+              _      <- right.offerAll(List(Chunk(0), Chunk(1)))
+              chunk1 <- ZIO.replicateZIO(2)(out.take.flatMap(_.done)).map(_.flatten)
               _      <- left.offerAll(List(Chunk(1), Chunk(2)))
-              chunk3 <- ZIO.collectAll(ZIO.replicate(2)(out.take.flatMap(_.done))).map(_.flatten)
-            } yield assert(chunk1)(equalTo(List((0, 0)))) &&
-              assert(chunk2)(equalTo(List((0, 1)))) &&
-              assert(chunk3)(equalTo(List((1, 1), (2, 1))))
+              chunk2 <- ZIO.replicateZIO(2)(out.take.flatMap(_.done)).map(_.flatten)
+            } yield assert(chunk1)(equalTo(List((0, 0), (0, 1)))) && assert(chunk2)(equalTo(List((1, 1), (2, 1))))
           } @@ nonFlaky(1000),
           test("handle empty pulls properly") {
             val stream0 = ZStream.fromChunks(Chunk(), Chunk(), Chunk(2))
@@ -3519,7 +3515,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 result <- fiber.join
               } yield result
             )(equalTo(Chunk(1, 1, 1)))
-          } @@ nonFlaky(1000) @@ ignore, // TODO: fix
+          } @@ nonFlaky(1000),
           test("handle empty pulls properly (JVM Only)") {
             assertM(
               ZStream
@@ -3530,7 +3526,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .take(3)
                 .runCollect
             )(equalTo(Chunk(1, 1, 1)))
-          } @@ TestAspect.ignore,
+          },
           test("preserves partial ordering of stream elements") {
             val genSortedStream = for {
               chunk  <- Gen.chunkOf(Gen.int(1, 100)).map(_.sorted)
