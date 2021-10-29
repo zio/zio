@@ -2,7 +2,7 @@ package zio
 
 import zio.SerializableSpecHelpers._
 import zio.test.Assertion._
-import zio.test.TestAspect.scala2Only
+import zio.test.TestAspect._
 import zio.test.environment.Live
 import zio.test.{test => testSync, _}
 
@@ -104,7 +104,7 @@ object SerializableSpec extends ZIOBaseSpec {
       val fiberId = FiberId(0L, 0L)
       val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, Chunk.empty))
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
+    } @@ exceptDotty,
     testSync("Cause.&& is serializable") {
       val cause = Cause.fail("test") && Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
