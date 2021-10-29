@@ -99,14 +99,7 @@ object ReportingTestUtils {
   )
 
   val test4: Spec[Any, TestFailure[String], Nothing] =
-    Spec.labeled("Failing test", Spec.test(failed(Cause.fail("Fail")), TestAnnotationMap.empty))
-  val test4Expected: Vector[String] = Vector(
-    expectedFailure("Failing test"),
-    withOffset(2)("Fiber failed.\n") +
-      withOffset(2)("A checked error was not handled.\n") +
-      withOffset(2)("Fail\n") +
-      withOffset(2)("No ZIO Trace available.\n")
-  )
+    Spec.labeled("Failing test", Spec.test(failed(Cause.fail("Test 4 Fail")), TestAnnotationMap.empty))
 
   val test5: ZSpec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(3)))
   // the captured expression for `1+1` is different between dotty and 2.x
