@@ -18,7 +18,6 @@ package zio.profiling
 
 import com.github.ghik.silencer.silent
 import zio.ZTraceElement
-import zio.profiling.{ExperimentResult, ThroughputData}
 
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._

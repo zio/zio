@@ -16,8 +16,6 @@
 
 package zio
 
-import scala.util.Random
-
 package object profiling {
   private[profiling] final val SamplingNanos          = 1000000
   private[profiling] final val ExperimentMinTime      = 500000000L
@@ -49,6 +47,6 @@ package object profiling {
     }
 
   private[profiling] def selectSpeedUp(): Float =
-    if (Random.nextInt(ZeroSpeedupWeight) == 0) 0L
-    else (Random.nextInt(MaxConsideredSpeedUp) + 1).toFloat / 100
+    if (scala.util.Random.nextInt(ZeroSpeedupWeight) == 0) 0L
+    else (scala.util.Random.nextInt(MaxConsideredSpeedUp) + 1).toFloat / 100
 }
