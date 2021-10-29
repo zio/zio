@@ -36,6 +36,9 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
   def addSupervisor(supervisor: Supervisor[Any]): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(supervisor = self.supervisor ++ supervisor))
 
+  val enableCurrentFiber: RuntimeConfigAspect =
+    RuntimeConfigAspect(self => self.copy(enableCurrentFiber = true))
+
   val identity: RuntimeConfigAspect =
     RuntimeConfigAspect(Predef.identity(_))
 
@@ -47,6 +50,9 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
 
   def setTracing(tracing: Tracing): RuntimeConfigAspect =
     RuntimeConfigAspect(_.copy(tracing = tracing))
+
+  val superviseOperations: RuntimeConfigAspect =
+    RuntimeConfigAspect(self => self.copy(superviseOperations = true))
 
   /**
    * An aspect that adds a supervisor that tracks all forked fibers in a set.

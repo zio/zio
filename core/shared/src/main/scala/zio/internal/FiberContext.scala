@@ -293,7 +293,8 @@ private[zio] final class FiberContext[E, A](
       }
 
       if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.set(this)
-      if (runtimeConfig.supervisor ne null) runtimeConfig.supervisor.unsafeOnResume(self)
+      if (runtimeConfig.superviseOperations && (runtimeConfig.supervisor ne null))
+        runtimeConfig.supervisor.unsafeOnResume(self)
 
       while (curZio ne null) {
         try {

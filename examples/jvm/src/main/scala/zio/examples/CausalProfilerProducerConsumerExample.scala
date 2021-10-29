@@ -1,6 +1,7 @@
 package zio.examples
 
 import zio._
+import zio.profiling._
 
 object CausalProfilerProducerConsumerExample extends ZIOAppDefault {
 
@@ -25,7 +26,7 @@ object CausalProfilerProducerConsumerExample extends ZIOAppDefault {
     }
 
     CausalProfiler
-      .profile(200) {
+      .profile(ProfilerConfig.Default.copy(iterations = 200)) {
         program.forever
       }
       .flatMap(_.writeToFile("profile.coz"))

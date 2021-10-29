@@ -497,6 +497,15 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
         .value
   )
 
+lazy val profiling = crossProject(JVMPlatform)
+  .in(file("profiling"))
+  .settings(stdSettings("zio-profiling"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .dependsOn(core)
+
+lazy val profilingJVM = profiling.jvm.settings(dottySettings)
+
 /**
  * Examples sub-project that is not included in the root project.
  * To run tests :
@@ -515,7 +524,7 @@ lazy val examplesJS = examples.js
   .settings(dottySettings)
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
-  .dependsOn(testJunitRunnerJVM)
+  .dependsOn(testJunitRunnerJVM, profilingJVM)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM, testJVM)

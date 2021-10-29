@@ -86,7 +86,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       reportFatal,
       supervisor,
       false,
-      logger
+      logger,
+      false
     )
   }
 
