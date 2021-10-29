@@ -102,7 +102,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testSync("Cause.traced is serializable") {
       val fiberId = FiberId(0L, 0L)
-      val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, Chunk.empty))
+      val cause   = Cause.fail("test", ZTrace(fiberId, Chunk.empty))
       assert(serializeAndDeserialize(cause))(equalTo(cause))
     } @@ exceptDotty,
     testSync("Cause.&& is serializable") {

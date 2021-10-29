@@ -803,9 +803,9 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("catchSomeCause")(
           test("recovery from some errors") {
-            val s1 = ZStream(1, 2) ++ ZStream.failCause(Cause.Fail("Boom"))
+            val s1 = ZStream(1, 2) ++ ZStream.failCause(Cause.fail("Boom"))
             val s2 = ZStream(3, 4)
-            s1.catchSomeCause { case Cause.Fail("Boom") => s2 }.runCollect
+            s1.catchSomeCause { case Cause.Fail("Boom", _) => s2 }.runCollect
               .map(assert(_)(equalTo(Chunk(1, 2, 3, 4))))
           },
           test("halts stream when partial function does not match") {
@@ -3086,7 +3086,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runDrain
               .sandbox
               .either
-          )(equalTo(Left(Cause.Die(throwable))))
+          )(equalTo(Left(Cause.Die(throwable, ZTrace.none))))
         },
         suite("timeoutTo")(
           test("succeed") {

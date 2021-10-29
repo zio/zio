@@ -48,3 +48,9 @@ final case class ZTrace(
       new StackTraceElement(before, after.drop(1), stripSlash(file), line)
     }
 }
+
+object ZTrace {
+
+  val none: ZTrace =
+    ZTrace(FiberId.None, Chunk.empty)
+}
