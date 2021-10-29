@@ -12,6 +12,9 @@ final class ConcurrentSet[A] private (underlying: ConcurrentHashMap.KeySetView[A
   def addAll(xs: Iterable[A]): UIO[Boolean] =
     UIO(underlying.addAll(xs.asJavaCollection))
 
+  def remove(x: A): UIO[Boolean] =
+    UIO(underlying.remove(x))
+
   def clear: UIO[Unit] =
     UIO(underlying.clear())
 
