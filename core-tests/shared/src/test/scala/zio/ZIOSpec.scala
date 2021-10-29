@@ -1684,7 +1684,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val z2: Task[Nothing] = Task.die(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
           case Die(e: Throwable, _) => Task(e.getMessage == "2")
-          case _                            => Task(false)
+          case _                    => Task(false)
         }
         assertM(orElse)(equalTo(true))
       },
@@ -1693,7 +1693,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val z2: Task[Nothing] = Task.fail(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
           case Fail(e: Throwable, _) => Task(e.getMessage == "2")
-          case _                             => Task(false)
+          case _                     => Task(false)
         }
         assertM(orElse)(equalTo(true))
       },

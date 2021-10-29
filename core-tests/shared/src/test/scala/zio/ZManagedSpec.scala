@@ -97,7 +97,11 @@ object ZManagedSpec extends ZIOBaseSpec {
           exits  <- Ref.make[List[Exit[Any, Any]]](Nil)
           _      <- res(exits).useDiscard(ZIO.die(ex)).exit
           result <- exits.get
-        } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex, ZTrace.none)), Exit.Failure(Cause.Die(ex, ZTrace.none)))))
+        } yield assert(result)(
+          equalTo(
+            List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex, ZTrace.none)), Exit.Failure(Cause.Die(ex, ZTrace.none)))
+          )
+        )
       } @@ zioTag(errors),
       test("Invokes with the failure of the subsequent acquire") {
         val useEx     = new RuntimeException("Use died")
