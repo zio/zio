@@ -2468,6 +2468,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(self.channel >>> sink.channel)
 
   /**
+   * Pipes all the values from this stream through the provided channel
+   */
+  def pipeThroughChannel[R1 <: R, E2, A2](channel: ZChannel[R1, E, Chunk[A], Any, E2, Chunk[A2], Any])(implicit
+    trace: ZTraceElement
+  ): ZStream[R1, E2, A2] =
+    new ZStream(self.channel >>> channel)
+
+  /**
    * Provides the stream with its required environment, which eliminates
    * its dependency on `R`.
    */
@@ -3476,6 +3484,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def via[R2, E2, A2](f: ZStream[R, E, A] => ZStream[R2, E2, A2])(implicit
     trace: ZTraceElement
   ): ZStream[R2, E2, A2] = f(self)
+
+  /**
+   * Threads the stream through the pipeline `pipeline`.
+   */
+  final def viaPipeline[R2 <: R, E2 >: E, A2](pipeline: ZPipeline[R2, E2, A, A2])(implicit trace: ZTraceElement): ZStream[R2, E2, A2] =
+    pipeline.apply(self)
 
   /**
    * Equivalent to [[filter]] but enables the use of filter clauses in for-comprehensions

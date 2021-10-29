@@ -78,7 +78,7 @@ trait ZPipeline[-Env, +Err, -In, +Out] { self =>
   ): ZPipeline[Env1, Err1, In2, Out] =
     self <<< that
 }
-object ZPipeline {
+object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * A shorter version of [[ZPipeline.identity]], which can facilitate more compact definition
@@ -279,6 +279,19 @@ object ZPipeline {
             }
           }
           .collect { case Some(v) => v }
+    }
+
+  /**
+   * Creates a pipeline that sends all the elements through the given channel
+   */
+  def fromChannel[Env, InErr, OutErr, I, O](
+    channel: ZChannel[Env, InErr, Chunk[I], Any, OutErr, Chunk[O], Any]
+  ): ZPipeline[Env, InErr, I, O] =
+    new ZPipeline[Env, InErr, I, O] {
+      override def apply[Env1 <: Env, Err1 >: InErr](stream: ZStream[Env1, Err1, I])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, O] =
+        stream.pipeThroughChannel(channel)
     }
 
   /**

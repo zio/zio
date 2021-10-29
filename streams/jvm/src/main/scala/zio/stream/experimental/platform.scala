@@ -1,7 +1,7 @@
 package zio.stream.experimental
 
 import zio._
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.stream.compression.{CompressionException, CompressionLevel, CompressionStrategy, FlushMode}
 
 import java.io._
 import java.net.InetSocketAddress
@@ -502,4 +502,48 @@ trait ZStreamPlatformSpecificConstructors {
   }
 
   trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
+}
+
+trait ZPipelinePlatformSpecificConstructors {
+  def deflate(
+    bufferSize: Int = 64 * 1024,
+    noWrap: Boolean = false,
+    level: CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: FlushMode = FlushMode.NoFlush
+  )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, Byte] =
+    ZPipeline.fromChannel(
+      Deflate.makeDeflater(
+        bufferSize,
+        noWrap,
+        level,
+        strategy,
+        flushMode
+      )
+    )
+
+  def inflate(
+    bufferSize: Int = 64 * 1024,
+    noWrap: Boolean = false
+  )(implicit trace: ZTraceElement): ZPipeline[Any, CompressionException, Byte, Byte] =
+    ZPipeline.fromChannel(
+      Inflate.makeInflater(bufferSize, noWrap)
+    )
+
+  def gzip(
+    bufferSize: Int = 64 * 1024,
+    level: CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: FlushMode = FlushMode.NoFlush
+  )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, Byte] =
+    ZPipeline.fromChannel(
+      Gzip.makeGzipper(bufferSize, level, strategy, flushMode)
+    )
+
+  def gunzip(bufferSize: Int = 64 * 1024)(implicit
+    trace: ZTraceElement
+  ): ZPipeline[Any, CompressionException, Byte, Byte] =
+    ZPipeline.fromChannel(
+      Gunzip.makeGunzipper(bufferSize)
+    )
 }
