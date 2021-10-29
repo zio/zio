@@ -43,7 +43,7 @@ package object profiling {
 
   private[profiling] val GlobalTrackerRef: FiberRef[Tracker] =
     Runtime.default.unsafeRun {
-      FiberRef.make[Tracker](Tracker.NoOp)
+      FiberRef.make[Tracker](_ => ())
     }
 
   private[profiling] def selectSpeedUp(): Float =

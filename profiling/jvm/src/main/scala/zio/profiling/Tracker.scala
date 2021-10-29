@@ -19,9 +19,3 @@ package zio.profiling
 private trait Tracker {
   def progressPoint(name: String): Unit
 }
-
-private object Tracker {
-  object NoOp extends Tracker {
-    def progressPoint(name: String): Unit = ()
-  }
-}
