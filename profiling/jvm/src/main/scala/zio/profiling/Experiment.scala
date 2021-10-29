@@ -28,9 +28,11 @@ private final class Experiment(
   val duration: Long,
   val speedUp: Float,
   private val progressPoints: ConcurrentHashMap[String, Int],
-  @volatile private[this] var delays: Long,
-  @volatile private[this] var effectiveDuration: Long
+  delays0: Long,
+  effectiveDuration0: Long
 ) {
+  @volatile private[this] var delays: Long            = delays0
+  @volatile private[this] var effectiveDuration: Long = effectiveDuration0
 
   val endTime: Long =
     startTime + duration
