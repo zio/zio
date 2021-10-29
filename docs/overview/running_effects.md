@@ -15,12 +15,9 @@ This class provides Scala with a main function, so it can be called from IDEs an
 import zio._
 import zio.Console._
 
-object MyApp extends zio.App {
+object MyApp extends zio.ZIOAppDefault {
 
-  def run(args: List[String]) =
-    myAppLogic.exitCode
-
-  val myAppLogic =
+  def run =
     for {
       _    <- printLine("Hello! What is your name?")
       name <- readLine

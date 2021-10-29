@@ -141,7 +141,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroDefinitionSettings)
   .settings(
     scalacOptions ++= {
-      if (scalaVersion.value == ScalaDotty)
+      if (scalaVersion.value == Scala3)
         Seq.empty
       else
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
@@ -225,7 +225,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroDefinitionSettings)
   .settings(
     scalacOptions ++= {
-      if (scalaVersion.value == ScalaDotty)
+      if (scalaVersion.value == Scala3)
         Seq.empty
       else
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
@@ -280,7 +280,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
   .settings(
     scalacOptions ++= {
-      if (scalaVersion.value == ScalaDotty)
+      if (scalaVersion.value == Scala3)
         Seq.empty
       else
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
@@ -327,13 +327,13 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .settings(
     crossScalaVersions --= Seq(Scala211),
     scalacOptions ++= {
-      if (scalaVersion.value == ScalaDotty)
+      if (scalaVersion.value == Scala3)
         Seq.empty
       else
         Seq("-language:experimental.macros")
     },
     libraryDependencies ++= {
-      if (scalaVersion.value == ScalaDotty)
+      if (scalaVersion.value == Scala3)
         Seq.empty
       else
         Seq(
@@ -640,6 +640,7 @@ lazy val docs = project.module
       "dev.zio"                       %% "zio-schema"                    % "0.1.1",
       "dev.zio"                       %% "zio-sqs"                       % "0.4.2",
       "dev.zio"                       %% "zio-opentracing"               % "0.8.2",
+      "io.laserdisc"                  %% "tamer-db"                      % "0.16.1",
       "io.jaegertracing"               % "jaeger-core"                   % "1.6.0",
       "io.jaegertracing"               % "jaeger-client"                 % "1.6.0",
       "io.jaegertracing"               % "jaeger-zipkin"                 % "1.6.0",
@@ -666,10 +667,10 @@ lazy val docs = project.module
       "io.github.gaelrenoux"          %% "tranzactio"                    % "2.1.0",
       "io.github.neurodyne"           %% "zio-arrow"                     % "0.2.1",
       "nl.vroste"                     %% "zio-amqp"                      % "0.2.2",
-      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.56.1",
-      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.56.1",
-      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.56.1",
-      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.56.1",
+      "io.github.vigoo"               %% "zio-aws-core"                  % "3.17.58.1",
+      "io.github.vigoo"               %% "zio-aws-ec2"                   % "3.17.58.1",
+      "io.github.vigoo"               %% "zio-aws-elasticbeanstalk"      % "3.17.58.1",
+      "io.github.vigoo"               %% "zio-aws-netty"                 % "3.17.58.1",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
       "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
@@ -680,7 +681,8 @@ lazy val docs = project.module
       "com.typesafe.slick"            %% "slick-hikaricp"                % "3.3.3",
       "info.senia"                    %% "zio-test-akka-http"            % "1.0.3",
       "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0"
-    )
+    ),
+    resolvers += "Confluent" at "https://packages.confluent.io/maven"
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))

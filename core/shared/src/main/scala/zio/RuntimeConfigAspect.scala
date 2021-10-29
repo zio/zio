@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.tracing.Tracing
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
@@ -47,9 +46,6 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
 
   def setExecutor(executor: Executor): RuntimeConfigAspect =
     RuntimeConfigAspect(_.copy(executor = executor))
-
-  def setTracing(tracing: Tracing): RuntimeConfigAspect =
-    RuntimeConfigAspect(_.copy(tracing = tracing))
 
   val superviseOperations: RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(superviseOperations = true))

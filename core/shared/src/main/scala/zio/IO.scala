@@ -187,12 +187,6 @@ object IO {
     ZIO.checkInterruptible(f)
 
   /**
-   * @see See [[zio.ZIO.checkTraced]]
-   */
-  def checkTraced[E, A](f: TracingStatus => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
-    ZIO.checkTraced(f)
-
-  /**
    * @see See [[[zio.ZIO.collect[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collect[E, A, B, Collection[+Element] <: Iterable[Element]](
@@ -1295,12 +1289,6 @@ object IO {
     ZIO.trace
 
   /**
-   * @see See [[zio.ZIO.traced]]
-   */
-  def traced[E, A](zio: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
-    ZIO.traced(zio)
-
-  /**
    * @see See [[zio.ZIO.unit]]
    */
   val unit: UIO[Unit] =
@@ -1342,12 +1330,6 @@ object IO {
    */
   def unsandbox[E, A](v: => IO[Cause[E], A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.unsandbox(v)
-
-  /**
-   * @see See [[zio.ZIO.untraced]]
-   */
-  def untraced[E, A](zio: => IO[E, A])(implicit trace: ZTraceElement): IO[E, A] =
-    ZIO.untraced(zio)
 
   /**
    * @see See [[[zio.ZIO.validate[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]

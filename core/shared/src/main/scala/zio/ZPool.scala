@@ -16,9 +16,12 @@ package zio
  * limitations under the License.
  */
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 /**
  * A `ZPool[E, A]` is a pool of items of type `A`, each of which may be
- * associated with the acquisition and release of resources.
+ * associated with the acquisition and release of resources. An attempt to get
+ * an item `A` from a pool may fail with an error of type `E`.
  */
 trait ZPool[+Error, Item] {
 
@@ -55,40 +58,57 @@ object ZPool {
                 case head :: tail => (head, tail)
                 case Nil          => throw new IllegalArgumentException("No items in list!")
               }
-      pool <- ZPool.make(ZManaged.fromZIO(get), iterable.size to iterable.size)
+      pool <- ZPool.make(ZManaged.fromZIO(get), iterable.size)
     } yield pool
 
   /**
    * Makes a new pool of the specified fixed size. The pool is returned in a
-   * `Managed`, which governs the lifetime of the pool. When the pull is
+   * `Managed`, which governs the lifetime of the pool. When the pool is
    * shutdown because the `Managed` is used, the individual items allocated by
    * the pool will be released in some unspecified order.
    */
-  def make[E, A](get: ZManaged[Any, E, A], min: Int)(implicit trace: ZTraceElement): UManaged[ZPool[E, A]] =
-    make(get, min to min)
+  def make[R, E, A](get: ZManaged[R, E, A], size: Int)(implicit trace: ZTraceElement): URManaged[R, ZPool[E, A]] =
+    makeWith(get, size to size)(Strategy.None)
 
   /**
-   * Makes a new pool with the specified minimum and maximum sizes. The pool is
-   * returned in a `Managed`, which governs the lifetime of the pool. When the
-   * pull is shutdown because the `Managed` is used, the individual items
-   * allocated by the pool will be released in some unspecified order.
+   * Makes a new pool with the specified minimum and maximum sizes and time to
+   * live before a pool whose excess items are not being used will be shrunk
+   * down to the minimum size. The pool is returned in a `Managed`, which
+   * governs the lifetime of the pool. When the pool is shutdown because the
+   * `Managed` is used, the individual items allocated by the pool will be
+   * released in some unspecified order.
    * {{{
-   * for {
-   *   pool <- ZPool.make(acquireDbConnection, 10 to 20)
-   *   _    <- pool.use { pool => pool.get.use { connection => useConnection(connection) } }
-   * } yield ()
+   * ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).use { pool =>
+   *   pool.get.use {
+   *     connection => useConnection(connection)
+   *   }
+   * }
    * }}}
    */
-  def make[E, A](get: ZManaged[Any, E, A], range: Range)(implicit trace: ZTraceElement): UManaged[ZPool[E, A]] =
+  def make[R, E, A](get: ZManaged[R, E, A], range: Range, timeToLive: Duration)(implicit
+    trace: ZTraceElement
+  ): ZManaged[R with Has[Clock], Nothing, ZPool[E, A]] =
+    makeWith(get, range)(Strategy.TimeToLive(timeToLive))
+
+  /**
+   * A more powerful variant of `make` that allows specifying a `Strategy` that
+   * describes how a pool whose excess items are not being used will be shrunk
+   * down to the minimum size.
+   */
+  private def makeWith[R, R1, E, A](get: ZManaged[R, E, A], range: Range)(strategy: Strategy[R1, E, A])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R with R1, Nothing, ZPool[E, A]] =
     for {
-      down  <- Ref.make(false).toManaged
-      size  <- Ref.make(0).toManaged
-      free  <- Queue.bounded[Attempted[E, A]](range.start).toManaged
-      alloc <- Ref.make(0).toManaged
-      inv   <- Ref.make(Set.empty[A]).toManaged
-      pool   = DefaultPool(get, range, down, size, free, alloc, inv)
-      fiber <- pool.initialize.forkDaemon.toManaged
-      _     <- ZManaged.finalizer(fiber.interrupt *> pool.shutdown)
+      env     <- ZManaged.environment[R]
+      down    <- Ref.make(false).toManaged
+      state   <- Ref.make(State(0, 0)).toManaged
+      items   <- Queue.bounded[Attempted[E, A]](range.end).toManaged
+      inv     <- Ref.make(Set.empty[A]).toManaged
+      initial <- strategy.initial.toManaged
+      pool     = DefaultPool(get.provide(env), range, down, state, items, inv, strategy.track(initial))
+      fiber   <- pool.initialize.forkDaemon.toManaged
+      shrink  <- strategy.run(initial, pool.excess, pool.shrink).forkDaemon.toManaged
+      _       <- ZManaged.finalizer(fiber.interrupt *> shrink.interrupt *> pool.shutdown)
     } yield pool
 
   private case class Attempted[+E, +A](result: Exit[E, A], finalizer: UIO[Any]) {
@@ -100,94 +120,251 @@ object ZPool {
         case Exit.Success(a) => f(a)
       }
 
-    lazy val toManaged: ZManaged[Any, E, A] = ZIO.done(result).toManaged
+    def toManaged(implicit trace: ZTraceElement): ZManaged[Any, E, A] =
+      ZIO.done(result).toManaged
   }
 
-  private case class DefaultPool[E, A](
+  private case class DefaultPool[R, E, A, S](
     creator: ZManaged[Any, E, A],
     range: Range,
     isShuttingDown: Ref[Boolean],
-    size: Ref[Int],
-    free: Queue[Attempted[E, A]],
-    allocating: Ref[Int],
-    invalidated: Ref[Set[A]]
+    state: Ref[State],
+    items: Queue[Attempted[E, A]],
+    invalidated: Ref[Set[A]],
+    track: Exit[E, A] => UIO[Any]
   ) extends ZPool[E, A] {
 
     /**
-     * Triggers a single allocation in the background. Updates the data
-     * structures to ensure consistency.
+     * Returns the number of items in the pool in excess of the minimum size.
      */
-    private def allocate(implicit trace: ZTraceElement): UIO[Any] =
-      ZIO.unlessZIO(isShuttingDown.get) {
-        ZIO.uninterruptibleMask { restore =>
-          (for {
-            _           <- allocating.update(_ + 1)
-            reservation <- creator.reserve
-            exit        <- restore(reservation.acquire).exit
-            attempted   <- ZIO.succeed(Attempted(exit, reservation.release(Exit.succeed(()))))
-            _           <- free.offer(attempted) *> size.update(_ + 1)
-          } yield attempted).ensuring(allocating.update(_ - 1))
-        }
-      }
+    def excess(implicit trace: ZTraceElement): UIO[Int] =
+      state.get.map { case State(free, size) => size - range.start min free }
 
-    final def get(implicit trace: ZTraceElement): ZManaged[Any, E, A] = {
+    def get(implicit trace: ZTraceElement): ZManaged[Any, E, A] = {
 
-      /*
-       * If the attempted item has been invalidated, we have to reallocate and
-       * try again. Otherwise, we take the attempted item, whether or not the
-       * acquisition attempt was successful.
-       */
       def acquire: UIO[Attempted[E, A]] =
-        free.take.flatMap { acquired =>
-          acquired.result match {
-            case Exit.Success(item) =>
-              invalidated.get.flatMap { set =>
-                if (set.contains(item)) size.update(_ - 1) *> allocate *> acquire
-                else ZIO.succeed(acquired)
-              }
-            case _ => ZIO.succeed(acquired)
-          }
+        isShuttingDown.get.flatMap { down =>
+          if (down) ZIO.interrupt
+          else
+            state.modify { case State(size, free) =>
+              if (free > 0 || size >= range.end)
+                (
+                  items.take.flatMap { acquired =>
+                    acquired.result match {
+                      case Exit.Success(item) =>
+                        invalidated.get.flatMap { set =>
+                          if (set.contains(item))
+                            state.update(state => state.copy(free = state.free + 1)) *>
+                              allocate *>
+                              acquire
+                          else
+                            ZIO.succeedNow(acquired)
+                        }
+                      case _ =>
+                        ZIO.succeedNow(acquired)
+                    }
+                  },
+                  State(size, free - 1)
+                )
+              else
+                allocate *> acquire -> State(size + 1, free + 1)
+            }.flatten
         }
 
-      /*
-       * If a failure is released, we try to reallocate a new result, rather
-       * than putting the failure back into the queue (which would cause a
-       * secondary failure). This allows failures to propagate to `get`, but
-       * only one time, allowing retry behavior on `get` to behave as expected.
-       */
       def release(attempted: Attempted[E, A]): UIO[Any] =
-        if (attempted.isFailure) size.update(_ - 1) *> allocate
-        else free.offer(attempted)
+        if (attempted.isFailure)
+          state.modify { case State(size, free) =>
+            if (size <= range.start)
+              allocate -> State(size, free + 1)
+            else
+              ZIO.unit -> State(size - 1, free)
+          }.flatten
+        else
+          state.update(state => state.copy(free = state.free + 1)) *>
+            items.offer(attempted) *>
+            track(attempted.result) *>
+            getAndShutdown.whenZIO(isShuttingDown.get)
 
       ZManaged.acquireReleaseWith(acquire)(release(_)).flatMap(_.toManaged)
     }
 
     /**
-     * Gets an item from the pool and shuts it down, returning `true` if this
-     * was successful, or `false` if the pool was empty.
+     * Begins pre-allocating pool entries based on minimum pool size.
      */
-    private def getAndShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
-      size.get.map(_ > 0).tap { more =>
-        ZIO.when(more) {
-          free.take.flatMap { attempted =>
-            attempted.forEach(a => invalidated.update(_ - a)) *>
-              size.update(_ - 1) *>
-              attempted.finalizer
-          }
+    final def initialize(implicit trace: ZTraceElement): UIO[Unit] =
+      ZIO.replicateZIODiscard(range.start) {
+        ZIO.uninterruptibleMask { restore =>
+          state.modify { case State(size, free) =>
+            if (size < range.start)
+              (
+                for {
+                  reservation <- creator.reserve
+                  exit        <- restore(reservation.acquire).exit
+                  attempted   <- ZIO.succeed(Attempted(exit, reservation.release(Exit.succeed(()))))
+                  _           <- items.offer(attempted)
+                  _           <- track(attempted.result)
+                  _           <- getAndShutdown.whenZIO(isShuttingDown.get)
+                } yield attempted,
+                State(size + 1, free + 1)
+              )
+            else
+              ZIO.unit -> State(size, free)
+          }.flatten
         }
       }
 
-    /**
-     * Begins pre-allocating pool entries based on minimum pool size.
-     */
-    final def initialize(implicit trace: ZTraceElement): UIO[Unit] = ZIO.replicateZIODiscard(range.start)(allocate)
+    def invalidate(item: A)(implicit trace: zio.ZTraceElement): UIO[Unit] =
+      invalidated.update(_ + item)
 
-    final def invalidate(a: A)(implicit trace: ZTraceElement): UIO[Unit] = invalidated.update(_ + a)
+    /**
+     * Shrinks the pool down, but never to less than the minimum size.
+     */
+    def shrink(implicit trace: ZTraceElement): UIO[Any] =
+      ZIO.uninterruptible {
+        state.modify { case State(size, free) =>
+          if (size > range.start && free > 0)
+            (
+              items.take.flatMap { attempted =>
+                attempted.forEach(a => invalidated.update(_ - a)) *>
+                  attempted.finalizer *>
+                  state.update(state => state.copy(size = state.size - 1))
+              },
+              State(size, free - 1)
+            )
+          else
+            ZIO.unit -> State(size, free)
+        }.flatten
+      }
+
+    private def allocate(implicit trace: ZTraceElement): UIO[Any] =
+      ZIO.uninterruptibleMask { restore =>
+        for {
+          reservation <- creator.reserve
+          exit        <- restore(reservation.acquire).exit
+          attempted   <- ZIO.succeed(Attempted(exit, reservation.release(Exit.succeed(()))))
+          _           <- items.offer(attempted)
+          _           <- track(attempted.result)
+          _           <- getAndShutdown.whenZIO(isShuttingDown.get)
+        } yield attempted
+      }
+
+    /**
+     * Gets items from the pool and shuts them down as long as there are items
+     * free, signalling shutdown of the pool if the pool is empty.
+     */
+    private def getAndShutdown(implicit trace: ZTraceElement): UIO[Unit] =
+      state.modify { case State(size, free) =>
+        if (free > 0)
+          (
+            items.take.foldCauseZIO(
+              _ => ZIO.unit,
+              attempted =>
+                attempted.forEach(a => invalidated.update(_ - a)) *>
+                  attempted.finalizer *>
+                  state.update(state => state.copy(size = state.size - 1)) *>
+                  getAndShutdown
+            ),
+            State(size, free - 1)
+          )
+        else if (size > 0)
+          ZIO.unit -> State(size, free)
+        else
+          items.shutdown -> State(size, free)
+      }.flatten
 
     final def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
-      isShuttingDown.set(true) *>
-        getAndShutdown.repeatWhile(_ == true) *>
-        free.shutdown *>
-        free.awaitShutdown
+      isShuttingDown.modify { down =>
+        if (down)
+          ZIO.unit -> true
+        else
+          getAndShutdown *> items.awaitShutdown -> true
+      }.flatten
   }
+
+  private case class State(size: Int, free: Int)
+
+  /**
+   * A `Strategy` describes the protocol for how a pool whose excess items are
+   * not being used should shrink down to the minimum pool size.
+   */
+  private trait Strategy[-Environment, -Error, -Item] {
+
+    /**
+     * Describes the type of the state maintained by the strategy.
+     */
+    type State
+
+    /**
+     * Describes how the initial state of the strategy should be allocated.
+     */
+    def initial(implicit trace: ZTraceElement): URIO[Environment, State]
+
+    /**
+     * Describes how the state of the strategy should be updated when an item
+     * is added to the pool or returned to the pool.
+     */
+    def track(state: State)(item: Exit[Error, Item])(implicit trace: ZTraceElement): UIO[Unit]
+
+    /**
+     * Describes how excess items that are not being used should shrink down.
+     */
+    def run(state: State, getExcess: UIO[Int], shrink: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit]
+  }
+
+  private object Strategy {
+
+    /**
+     * A strategy that does nothing to shrink excess items. This is useful
+     * when the minimum size of the pool is equal to its maximum size and so
+     * there is nothing to do.
+     */
+    case object None extends Strategy[Any, Any, Any] {
+      type State = Unit
+      def initial(implicit trace: ZTraceElement): URIO[Any, Unit] =
+        ZIO.unit
+      def track(state: Unit)(attempted: Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit] =
+        ZIO.unit
+      def run(state: Unit, getExcess: UIO[Int], shrink: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+        ZIO.unit
+    }
+
+    /**
+     * A strategy that shrinks the pool down to its minimum size if items in
+     * the pool have not been used for the specified duration.
+     */
+    final case class TimeToLive(timeToLive: Duration) extends Strategy[Has[Clock], Any, Any] {
+      type State = (Clock, Ref[java.time.Instant])
+      def initial(implicit trace: ZTraceElement): URIO[Has[Clock], State] =
+        for {
+          clock <- ZIO.service[Clock]
+          now   <- Clock.instant
+          ref   <- Ref.make(now)
+        } yield (clock, ref)
+      def track(state: (Clock, Ref[java.time.Instant]))(attempted: Exit[Any, Any])(implicit
+        trace: ZTraceElement
+      ): UIO[Unit] = {
+        val (clock, ref) = state
+        for {
+          now <- clock.instant
+          _   <- ref.set(now)
+        } yield ()
+      }
+      def run(state: (Clock, Ref[java.time.Instant]), getExcess: UIO[Int], shrink: UIO[Any])(implicit
+        trace: ZTraceElement
+      ): UIO[Unit] = {
+        val (clock, ref) = state
+        getExcess.flatMap { excess =>
+          if (excess <= 0)
+            clock.sleep(timeToLive) *> run(state, getExcess, shrink)
+          else
+            ref.get.zip(clock.instant).flatMap { case (start, end) =>
+              val duration = java.time.Duration.between(start, end)
+              if (duration >= timeToLive) shrink *> run(state, getExcess, shrink)
+              else clock.sleep(timeToLive) *> run(state, getExcess, shrink)
+            }
+        }
+      }
+    }
+  }
+
 }

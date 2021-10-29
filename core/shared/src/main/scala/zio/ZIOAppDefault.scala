@@ -22,7 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * The entry point for a ZIO application.
  *
  * {{{
- * import zio.ZIOApp
+ * import zio.ZIOAppDefault
  * import zio.Console._
  *
  * object MyApp extends ZIOAppDefault {

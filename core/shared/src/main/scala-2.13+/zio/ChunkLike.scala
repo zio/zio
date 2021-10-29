@@ -59,12 +59,14 @@ trait ChunkLike[+A]
    * the specified function.
    */
   override final def flatMap[B](f: A => IterableOnce[B]): Chunk[B] = {
-    val iterator               = self.iterator
+    val iterator               = self.chunkIterator
+    var index                  = 0
     var chunks: List[Chunk[B]] = Nil
     var total                  = 0
     var B0: ClassTag[B]        = null.asInstanceOf[ClassTag[B]]
-    while (iterator.hasNext) {
-      val a     = iterator.next()
+    while (iterator.hasNextAt(index)) {
+      val a = iterator.nextAt(index)
+      index += 1
       val bs    = f(a)
       val chunk = ChunkLike.from(bs)
       if (chunk.length > 0) {
@@ -89,6 +91,12 @@ trait ChunkLike[+A]
       Chunk.fromArray(dest)
     }
   }
+
+  /**
+   * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
+   */
+  override def flatten[B](implicit ev: A => IterableOnce[B]): Chunk[B] =
+    flatMap(ev(_))
 
   /**
    * Returns a `SeqFactory` that can construct `Chunk` values. The
