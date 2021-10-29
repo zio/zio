@@ -26,14 +26,3 @@ private final class FiberState(
   @volatile var suspended: Boolean,
   @volatile var preSuspendGlobalDelay: Long
 )
-
-private object FiberState {
-  
-  def initial(localDelay: Long) =
-    new FiberState(
-      new AtomicLong(localDelay),
-      null.asInstanceOf[ZTraceElement],
-      false,
-      0
-    )
-}

@@ -157,6 +157,14 @@ object CausalProfiler {
           samplingLoop.repeat(Schedule.spaced(SamplingNanos.nanos)).forkManaged.as {
             new Supervisor[Result] {
 
+              def initial(localDelay: Long) =
+                new FiberState(
+                  new AtomicLong(localDelay),
+                  null.asInstanceOf[ZTraceElement],
+                  false,
+                  0
+                )
+
               def value(implicit trace: ZTraceElement): UIO[Result] = valuePromise.await
 
               def unsafeOnStart[R, E, A](
@@ -168,7 +176,7 @@ object CausalProfiler {
                 val delay =
                   parent.flatMap(f => Option(fibers.get(f.id)).map(_.localDelay.get())).getOrElse(globalDelay.get())
 
-                fibers.put(fiber.id, FiberState.initial(delay))
+                fibers.put(fiber.id, initial(delay))
                 ()
               }
 
@@ -208,7 +216,7 @@ object CausalProfiler {
                     state.preSuspendGlobalDelay = 0
                   }
                 } else {
-                  fibers.put(fiber.id, FiberState.initial(globalDelay.get()))
+                  fibers.put(fiber.id, initial(globalDelay.get()))
                   ()
                 }
                 activeFibers.add(fiber.id)
