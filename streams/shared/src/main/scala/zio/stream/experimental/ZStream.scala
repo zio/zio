@@ -248,8 +248,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Returns a stream whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
+  @deprecated("use mapBoth", "2.0.0")
   def bimap[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E], trace: ZTraceElement): ZStream[R, E1, A1] =
-    mapError(f).map(g)
+    mapBoth(f, g)
 
   /**
    * Fan out the stream, producing a list of streams that have the same
@@ -2043,6 +2044,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
     new ZStream(self.channel >>> accumulator(s))
   }
+
+  /**
+   * Returns a stream whose failure and success channels have been mapped by
+   * the specified pair of functions, `f` and `g`.
+   */
+  def mapBoth[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E], trace: ZTraceElement): ZStream[R, E1, A1] =
+    mapError(f).map(g)
 
   /**
    * Transforms the chunks emitted by this stream.
