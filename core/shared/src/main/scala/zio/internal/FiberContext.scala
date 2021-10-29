@@ -276,7 +276,8 @@ private[zio] final class FiberContext[E, A](
               } else {
                 // Fiber is neither being interrupted nor needs to yield. Execute
                 // the next instruction in the program:
-                if (runtimeConfig.superviseOperations && (runtimeConfig.supervisor ne null)) runtimeConfig.supervisor.unsafeOnEffect(self, curZio)
+                if (runtimeConfig.superviseOperations && (runtimeConfig.supervisor ne null))
+                  runtimeConfig.supervisor.unsafeOnEffect(self, curZio)
                 (tag: @switch) match {
                   case ZIO.Tags.FlatMap =>
                     val zio = curZio.asInstanceOf[ZIO.FlatMap[Any, Any, Any, Any]]
