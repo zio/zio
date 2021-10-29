@@ -2,7 +2,6 @@ package zio
 
 import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 
@@ -30,9 +29,6 @@ class EmptyRaceBenchmark {
 
   @Benchmark
   def zioEmptyRace(): Int = zioEmptyRace(BenchmarkUtil)
-
-  @Benchmark
-  def zioTracedEmptyRace(): Int = zioEmptyRace(TracedRuntime)
 
   private[this] def zioEmptyRace(runtime: Runtime[Any]): Int = {
     def loop(i: Int): UIO[Int] =

@@ -904,7 +904,7 @@ package object test extends CompileVariants {
       shrinkStream {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
           initial.foreach(input =>
-            test(input).traced
+            test(input)
               .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
               .either
           )
@@ -937,7 +937,6 @@ package object test extends CompileVariants {
             }
           )(ZIO.fromEither(_))
       }
-      .untraced
 
   private def checkStreamPar[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
@@ -947,7 +946,7 @@ package object test extends CompileVariants {
         stream.zipWithIndex
           .mapZIOPar(parallelism) { case (initial, index) =>
             initial.foreach { input =>
-              test(input).traced
+              test(input)
                 .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
                 .either
             // convert test failures to failures to terminate parallel tests on first failure

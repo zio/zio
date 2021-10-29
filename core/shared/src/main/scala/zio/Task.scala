@@ -181,12 +181,6 @@ object Task extends TaskPlatformSpecific {
     ZIO.checkInterruptible(f)
 
   /**
-   * @see See [[zio.ZIO.checkTraced]]
-   */
-  def checkTraced[A](f: TracingStatus => Task[A])(implicit trace: ZTraceElement): Task[A] =
-    ZIO.checkTraced(f)
-
-  /**
    * @see See [[[zio.ZIO.collect[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collect[A, B, Collection[+Element] <: Iterable[Element]](
@@ -1263,12 +1257,6 @@ object Task extends TaskPlatformSpecific {
     ZIO.trace
 
   /**
-   * @see See [[zio.ZIO.traced]]
-   */
-  def traced[A](task: => Task[A])(implicit trace: ZTraceElement): Task[A] =
-    ZIO.traced(task)
-
-  /**
    * @see See [[zio.ZIO.unit]]
    */
   val unit: UIO[Unit] =
@@ -1310,12 +1298,6 @@ object Task extends TaskPlatformSpecific {
    */
   def unsandbox[A](v: => IO[Cause[Throwable], A])(implicit trace: ZTraceElement): Task[A] =
     ZIO.unsandbox(v)
-
-  /**
-   * @see See [[zio.ZIO.untraced]]
-   */
-  def untraced[A](task: => Task[A])(implicit trace: ZTraceElement): Task[A] =
-    ZIO.untraced(task)
 
   /**
    * @see See [[zio.ZIO.when]]

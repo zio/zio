@@ -81,9 +81,6 @@ class BroadFlatMapBenchmark {
   @Benchmark
   def zioBroadFlatMap(): BigInt = zioBroadFlatMap(BenchmarkUtil)
 
-  @Benchmark
-  def zioTracedBroadFlatMap(): BigInt = zioBroadFlatMap(TracedRuntime)
-
   private[this] def zioBroadFlatMap(runtime: Runtime[Any]): BigInt = {
     def fib(n: Int): UIO[BigInt] =
       if (n <= 1) ZIO.succeed[BigInt](n)

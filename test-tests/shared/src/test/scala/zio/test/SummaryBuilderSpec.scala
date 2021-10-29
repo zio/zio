@@ -20,9 +20,6 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
       test("includes a failed test") {
         runSummary(test3).map(str => assertTrue(str == summarize(test3Expected)))
       },
-      test("correctly reports an error in a test") {
-        assertM(runSummary(test4))(equalTo(labelOnly(test4Expected)))
-      },
       test("doesn't generate summary for a successful test suite") {
         assertM(runSummary(suite1))(equalTo(""))
       },

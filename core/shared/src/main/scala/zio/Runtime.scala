@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.tracing.Tracing
 import zio.internal.{FiberContext, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -291,11 +290,6 @@ trait Runtime[+R] {
    */
   def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapRuntimeConfig(_.copy(reportFatal = f))
 
-  /**
-   * Constructs a new `Runtime` with the specified tracer and tracing configuration.
-   */
-  def withTracing(t: Tracing): Runtime[R] = mapRuntimeConfig(_.copy(tracing = t))
-
   private final def unsafeRunWith[E, A](
     zio: => ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
@@ -312,8 +306,6 @@ trait Runtime[+R] {
       runtimeConfig.executor,
       false,
       InterruptStatus.Interruptible,
-      None,
-      true,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),
       scope
     )
@@ -368,9 +360,6 @@ object Runtime {
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
       mapRuntimeConfig(_.copy(reportFatal = f))
-
-    override final def withTracing(t: Tracing): Runtime.Managed[R] =
-      mapRuntimeConfig(_.copy(tracing = t))
   }
 
   object Managed {

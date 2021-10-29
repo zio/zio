@@ -590,7 +590,7 @@ object Fiber extends FiberPlatformSpecific {
       interruptible: Boolean,
       epoch: Long,
       blockingOn: FiberId,
-      asyncTrace: Option[ZTraceElement]
+      asyncTrace: ZTraceElement
     ) extends Status
   }
 

@@ -53,17 +53,15 @@ object FiberState extends Serializable {
     startIStatus: InterruptStatus,
     startEnv: AnyRef,
     startExec: zio.Executor,
-    supervisor0: Supervisor[Any],
-    initialTracingStatus: TracingStatus
+    supervisor0: Supervisor[Any]
   ): FiberState[E, A] =
-    new FiberState(new Executing(startIStatus, startEnv, startExec, supervisor0, initialTracingStatus))
+    new FiberState(new Executing(startIStatus, startEnv, startExec, supervisor0))
 
   class Executing[E, A](
     startIStatus: InterruptStatus,
     startEnv: AnyRef,
     startExec: zio.Executor,
-    supervisor0: Supervisor[Any],
-    initialTracingStatus: TracingStatus
+    supervisor0: Supervisor[Any]
   ) {
     val stack: Stack[Any => IO[Any, Any]]                        = Stack()
     var status: Fiber.Status                                     = Status.Running(false)
@@ -75,7 +73,6 @@ object FiberState extends Serializable {
     var currentExecutor: zio.Executor                            = startExec
     var currentSupervisor: Supervisor[Any]                       = supervisor0
     var currentForkScopeOverride: Option[ZScope[Exit[Any, Any]]] = None
-    var currentTracingStatus: TracingStatus                      = initialTracingStatus
     var scopeKey: ZScope.Key                                     = null
   }
 }

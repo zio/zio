@@ -2,7 +2,7 @@ package zio
 
 import zio.SerializableSpecHelpers._
 import zio.test.Assertion._
-import zio.test.TestAspect.scala2Only
+import zio.test.TestAspect._
 import zio.test.environment.Live
 import zio.test.{test => testSync, _}
 
@@ -102,9 +102,9 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     testSync("Cause.traced is serializable") {
       val fiberId = FiberId(0L, 0L)
-      val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, List.empty, List.empty, None))
+      val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, Chunk.empty))
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
+    } @@ exceptDotty,
     testSync("Cause.&& is serializable") {
       val cause = Cause.fail("test") && Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
@@ -204,23 +204,14 @@ object SerializableSpec extends ZIOBaseSpec {
         result  <- managed.use(_ => UIO.unit)
       } yield assert(result)(equalTo(()))
     },
-    test("TracingStatus.Traced is serializable") {
-      val traced = TracingStatus.Traced
+    test("Chunk is serializable") {
+      val chunk =
+        Chunk(1, 2, 3, 4, 5).take(4) ++ Chunk(9, 92, 2, 3) ++ Chunk.fromIterable(List(1, 2, 3))
+
       for {
-        result <- serializeAndBack(traced)
-      } yield assert(result)(equalTo(traced))
-    },
-    test("TracingStatus.Untraced is serializable") {
-      val traced = TracingStatus.Untraced
-      for {
-        result <- serializeAndBack(traced)
-      } yield assert(result)(equalTo(traced))
-    },
-    test("TracingStatus.Untraced is serializable") {
-      Live.live(for {
-        system <- ZIO.serviceWith[System](serializeAndBack(_))
-        result <- system.property("notpresent")
-      } yield assert(result)(equalTo(Option.empty[String])))
+        chunk  <- ZIO.succeed(chunk)
+        result <- serializeAndBack(chunk)
+      } yield assertTrue(chunk == result)
     }
   )
 }

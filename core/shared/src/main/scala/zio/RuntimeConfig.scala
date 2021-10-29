@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.tracing.Tracing
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -26,12 +25,12 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 final case class RuntimeConfig(
   blockingExecutor: Executor,
   executor: Executor,
-  tracing: Tracing,
   fatal: Throwable => Boolean,
   reportFatal: Throwable => Nothing,
   supervisor: Supervisor[Any],
   enableCurrentFiber: Boolean,
-  logger: ZLogger[Any]
+  logger: ZLogger[Any],
+  logRuntime: Boolean
 ) { self =>
   def @@(aspect: RuntimeConfigAspect): RuntimeConfig = aspect(self)
 
@@ -49,9 +48,6 @@ final case class RuntimeConfig(
 
   @deprecated("2.0.0", "Use RuntimeConfig#copy instead")
   def withSupervisor(s0: Supervisor[Any]): RuntimeConfig = copy(supervisor = s0)
-
-  @deprecated("2.0.0", "Use RuntimeConfig#copy instead")
-  def withTracing(t: Tracing): RuntimeConfig = copy(tracing = t)
 }
 
 object RuntimeConfig extends RuntimeConfigPlatformSpecific

@@ -81,21 +81,7 @@ A detailed explanation of the ZIO runtime system can be found on the [runtime](r
 
 ## Installing Low-level Functionalities
 
-We can hook into the ZIO runtime configuration to install low-level functionalities into the ZIO application, such as _logging_, _profiling_, _tracing configurations_, and other similar foundational pieces of infrastructure.
-
-In the following example, we disabled application tracing in order to improve application performance:
-
-```scala mdoc:compile-only
-import zio._
-import zio.internal.tracing.Tracing
-
-object MyApp extends ZIOAppDefault {
-  override def hook: RuntimeConfigAspect =
-    RuntimeConfigAspect.setTracing(Tracing.enabled)
-
-  def run = myAppLogic
-}
-```
+We can hook into the ZIO runtime configuration to install low-level functionalities into the ZIO application, such as _logging_, _profiling_, and other similar foundational pieces of infrastructure.
 
 A detailed explanation of the `RuntimeConfigAspect` can be found on the [runtime](runtime.md#runtimeconfig-aspect) page.
 
@@ -110,12 +96,8 @@ val asyncProfiler, slf4j, loggly, newRelic = RuntimeConfigAspect.identity
 
 ```scala mdoc:compile-only
 import zio._
-import zio.internal.tracing.Tracing
 
-object MyApp1 extends ZIOAppDefault {
-  override def hook: RuntimeConfigAspect =
-    RuntimeConfigAspect.setTracing(Tracing.disabled)
-    
+object MyApp1 extends ZIOAppDefault {    
   def run = ZIO.succeed(???)
 }
 

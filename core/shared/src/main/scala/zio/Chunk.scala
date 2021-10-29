@@ -39,8 +39,7 @@ import scala.reflect.{ClassTag, classTag}
  * result, it is not safe to construct chunks from heterogeneous primitive
  * types.
  */
-sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
-
+sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   def chunkIterator: Chunk.ChunkIterator[A]
 
   /**
@@ -163,6 +162,23 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
       }
       equal
     }
+
+  /**
+   * Deduplicates adjacent elements that are identical.
+   */
+  def dedupe: Chunk[A] = {
+    val builder = ChunkBuilder.make[A]()
+
+    var lastA = null.asInstanceOf[A]
+
+    foreach { a =>
+      if (a != lastA) builder += a
+
+      lastA = a
+    }
+
+    builder.result()
+  }
 
   /**
    * Get the element at the specified index.

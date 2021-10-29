@@ -18,6 +18,9 @@ object Tracer {
         case regex(location, file, line, column) => Some((location, file, line.toInt, column.toInt))
         case _                                   => None
       }
+
+    def apply(location: String, file: String, line: Int, column: Int): Type with Traced =
+      createTrace(location, file, line, column).asInstanceOf[Type with Traced]
   }
 
   private[internal] def createTrace(location: String, file: String, line: Int, column: Int): String =
@@ -30,4 +33,5 @@ sealed trait Tracer {
   type Type <: AnyRef
   val empty: Type with Tracer.Traced
   def unapply(trace: Type): Option[(String, String, Int, Int)]
+  def apply(location: String, file: String, line: Int, column: Int): Type with Tracer.Traced
 }

@@ -77,7 +77,7 @@ private[zio] object FiberRenderer {
       case Suspended(_, interruptible, epoch, _, asyncTrace) =>
         val in = if (interruptible) "interruptible" else "uninterruptible"
         val ep = s"$epoch asyncs"
-        val as = asyncTrace.getOrElse(Tracer.newTrace).toString
+        val as = asyncTrace.toString
         s"Suspended($in, $ep, $as)"
     }
 

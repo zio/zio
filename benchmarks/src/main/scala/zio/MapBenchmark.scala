@@ -82,9 +82,6 @@ class MapBenchmark {
   @Benchmark
   def zioMap(): BigInt = zioMap(BenchmarkUtil)
 
-  @Benchmark
-  def zioTracedMap(): BigInt = zioMap(TracedRuntime)
-
   private[this] def zioMap(runtime: Runtime[Any]): BigInt = {
     @tailrec
     def sumTo(t: UIO[BigInt], n: Int): UIO[BigInt] =

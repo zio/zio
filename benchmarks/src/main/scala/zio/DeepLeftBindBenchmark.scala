@@ -2,7 +2,6 @@ package zio
 
 import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.annotations._
-import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
 
@@ -15,9 +14,6 @@ class DeepLeftBindBenchmark {
 
   @Benchmark
   def zioDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(BenchmarkUtil)
-
-  @Benchmark
-  def zioTracedDeepLeftBindBenchmark(): Int = zioDeepLeftBindBenchmark(TracedRuntime)
 
   def zioDeepLeftBindBenchmark(runtime: Runtime[Any]): Int = {
     var i  = 0
