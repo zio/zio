@@ -4,7 +4,12 @@ import java.util.concurrent.ConcurrentHashMap
 import zio.UIO
 
 final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashMap[K, V]) extends AnyVal {
-  def get(key: K): UIO[Option[V]]                             = ???
+  /**
+   * Retrieves the value associated with the given key.
+   */
+  def get(key: K): UIO[Option[V]] =
+    UIO(Option(underlying.get(key)))
+
   def putIfAbsent(key: K, value: V): UIO[Option[V]]           = ???
   def remove(key: K): UIO[Option[V]]                          = ???
   def replace(key: K, value: V): UIO[Option[V]]               = ???
