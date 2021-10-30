@@ -51,6 +51,6 @@ final case class ZTrace(
 
 object ZTrace {
 
-  val none: ZTrace =
+  lazy val none: ZTrace =
     ZTrace(FiberId.None, Chunk.empty)
 }
