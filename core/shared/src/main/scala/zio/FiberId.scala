@@ -17,7 +17,8 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import scala.collection.immutable
+
+import scala.annotation.tailrec
 
 /**
  * The identity of a Fiber, described by the time it began life, and a
@@ -27,6 +28,7 @@ sealed trait FiberId extends Serializable { self =>
 
   def ids: List[Int] = {
 
+    @tailrec
     def loop(stack: List[FiberId], result: List[Int]): List[Int] =
       stack match {
         case FiberId.None :: next              => loop(next, result)
