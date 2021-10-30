@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.UIO
+import zio.{UIO, ZTraceElement}
 import zio.internal.macros.CleanCodePrinter
 
 import scala.reflect.macros.{TypecheckException, blackbox}
@@ -36,36 +36,15 @@ private[test] object Macros {
 
   private[test] val fieldInAnonymousClassPrefix = "$anon.this."
 
-  private[test] def location(c: blackbox.Context): (String, Int) = {
-    val path = c.enclosingPosition.source.path
-    val line = c.enclosingPosition.line
-    (path, line)
-  }
-
   def assertM_impl(c: blackbox.Context)(effect: c.Tree)(assertion: c.Tree): c.Tree = {
     import c.universe._
-    val (fileName, line) = location(c)
-    val srcLocation      = s"$fileName:$line"
-    q"_root_.zio.test.CompileVariants.assertMProxy($effect, $srcLocation)($assertion)"
+    q"_root_.zio.test.CompileVariants.assertMProxy($effect)($assertion)"
   }
 
   def assert_impl(c: blackbox.Context)(expr: c.Tree)(assertion: c.Tree): c.Tree = {
     import c.universe._
-    val (fileName, line) = location(c)
-    val srcLocation      = s"$fileName:$line"
-    val code             = CleanCodePrinter.show(c)(expr)
-    q"_root_.zio.test.CompileVariants.assertProxy($expr, $code, $srcLocation)($assertion)"
-  }
-
-  def sourceLocation_impl(c: blackbox.Context): c.Expr[SourceLocation] = {
-    import c.universe._
-    val (path, line) = location(c)
-    c.Expr[SourceLocation](q"""${c.prefix}($path, $line)""")
-  }
-
-  def sourcePath_impl(c: blackbox.Context): c.Tree = {
-    import c.universe._
-    q"${c.enclosingPosition.source.path}"
+    val code = CleanCodePrinter.show(c)(expr)
+    q"_root_.zio.test.CompileVariants.assertProxy($expr, $code)($assertion)"
   }
 
   def showExpression_impl(c: blackbox.Context)(expr: c.Tree): c.Tree = {

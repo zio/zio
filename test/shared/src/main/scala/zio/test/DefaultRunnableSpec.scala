@@ -64,7 +64,6 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
     assertion: => In
   )(implicit
     testConstructor: TestConstructor[Nothing, In],
-    sourceLocation: SourceLocation,
     trace: ZTraceElement
   ): testConstructor.Out =
     zio.test.test(label)(assertion)
@@ -75,6 +74,6 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
   @deprecated("use test", "2.0.0")
   def testM[R, E](label: String)(
     assertion: => ZIO[R, E, TestResult]
-  )(implicit loc: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+  )(implicit trace: ZTraceElement): ZSpec[R, E] =
     test(label)(assertion)
 }
