@@ -12,7 +12,7 @@ import zio._
  * party arrives, but before any fibers are released. This barrier action is useful for updating shared-state before
  * any of the parties continue.
  */
-final class CyclicBarrier(
+final class CyclicBarrier private (
   private val _parties: Int,
   private val _waiting: Ref[Int],
   private val _lock: Ref[Promise[Unit, Unit]],
@@ -22,11 +22,11 @@ final class CyclicBarrier(
   private val break: UIO[Unit] =
     _broken.set(true) *> fail
 
-  private val fail: UIO[Unit] =
-    _lock.get.flatMap(_.fail(()).unit)
+  private val fail: UIO[Any] =
+    _lock.get.flatMap(_.fail(()))
 
-  private val succeed: UIO[Unit] =
-    _lock.get.flatMap(_.succeed(()).unit)
+  private val succeed: UIO[Any] =
+    _lock.get.flatMap(_.succeed(()))
 
   /** The number of parties required to trip this barrier. */
   def parties: Int = _parties
@@ -36,11 +36,13 @@ final class CyclicBarrier(
 
   /** Waits until all parties have invoked await on this barrier. Fails if the barrier is broken. */
   val await: IO[Unit, Int] =
-    _broken.get.flatMap(if (_) IO.fail(()) else UIO.unit) *>
-      _waiting.modify {
-        case n if n + 1 == parties => (_action *> succeed.as(_parties - n - 1) <* reset)                 -> 0
-        case n                     => _lock.get.flatMap(_.await.onInterrupt(break)).as(_parties - n - 1) -> (n + 1)
-      }.flatten
+    ZIO.uninterruptibleMask { restore =>
+      _broken.get.flatMap(if (_) IO.fail(()) else UIO.unit) *>
+        _waiting.modify {
+          case n if n + 1 == parties => (restore(_action) *> succeed.as(_parties - n - 1) <* reset)        -> 0
+          case n                     => _lock.get.flatMap(_.await.onInterrupt(break)).as(_parties - n - 1) -> (n + 1)
+        }.flatten
+    }
 
   /** Resets the barrier to its initial state. Breaks any waiting party. */
   val reset: UIO[Unit] =
