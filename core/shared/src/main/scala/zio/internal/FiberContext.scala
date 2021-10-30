@@ -33,7 +33,6 @@ private[zio] final class FiberContext[E, A](
   protected val fiberId: FiberId.Runtime,
   var runtimeConfig: RuntimeConfig,
   startEnv: AnyRef,
-  startExec: zio.Executor,
   startLocked: Boolean,
   startIStatus: InterruptStatus,
   val fiberRefLocals: FiberRefLocals,
@@ -60,7 +59,6 @@ private[zio] final class FiberContext[E, A](
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
 
   private[this] var currentEnvironment = startEnv
-  private[this] var currentExecutor    = startExec
   private[this] var currentLocked      = startLocked
 
   var scopeKey: ZScope.Key = null
@@ -175,7 +173,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] def executor: zio.Executor =
-    if (currentExecutor ne null) currentExecutor else runtimeConfig.executor
+    getFiberRefValue(currentExecutor).getOrElse(runtimeConfig.executor)
 
   @inline private[this] def raceWithImpl[R, EL, ER, E, A, B, C](
     race: ZIO.RaceWith[R, EL, ER, E, A, B, C]
@@ -636,7 +634,7 @@ private[zio] final class FiberContext[E, A](
     }
 
   private[this] def shift(executor: zio.Executor)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.succeed { currentExecutor = executor } *> ZIO.yieldNow
+    ZIO.succeed(setFiberRefValue(currentExecutor, Some(executor))) *> ZIO.yieldNow
 
   private[this] def getDescriptor(): Fiber.Descriptor =
     Fiber.Descriptor(
@@ -678,7 +676,6 @@ private[zio] final class FiberContext[E, A](
       childId,
       runtimeConfig,
       currentEnv,
-      currentExecutor,
       currentLocked,
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
       new AtomicReference(childFiberRefLocals),
@@ -1228,6 +1225,9 @@ private[zio] object FiberContext {
 
   lazy val forkScopeOverride: FiberRef.Runtime[Option[ZScope[Exit[Any, Any]]]] =
     FiberRef.unsafeMake(None, _ => None, (a, _) => a)
+
+  lazy val currentExecutor: FiberRef.Runtime[Option[zio.Executor]] =
+    FiberRef.unsafeMake(None, a => a, (a, _) => a)
 
   lazy val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failure-causes", "").setCount
 
