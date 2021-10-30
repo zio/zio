@@ -498,7 +498,7 @@ lazy val benchmarks = project.module
   .settings(replSettings)
   .settings(
     // skip 2.11 benchmarks because akka stop supporting scala 2.11 in 2.6.x
-    crossScalaVersions -= Scala211,
+    crossScalaVersions --= List(Scala211, Scala3),
     //
     publish / skip := true,
     libraryDependencies ++=
@@ -534,11 +534,7 @@ lazy val benchmarks = project.module
       "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
-    ),
-    resolvers += Resolver.url(
-      "bintray-scala-hedgehog",
-      url("https://dl.bintray.com/hedgehogqa/scala-hedgehog")
-    )(Resolver.ivyStylePatterns)
+    )
   )
 
 lazy val jsdocs = project
@@ -560,7 +556,7 @@ lazy val docs = project.module
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
-    crossScalaVersions --= List(Scala211),
+    crossScalaVersions --= List(Scala211, Scala3),
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
       coreJVM,
       streamsJVM,
