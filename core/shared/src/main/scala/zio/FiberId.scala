@@ -25,20 +25,24 @@ import scala.annotation.tailrec
  * monotonically increasing sequence number generated from an atomic counter.
  */
 sealed trait FiberId extends Serializable { self =>
+  import FiberId._
 
-  def ids: List[Int] = {
+  def combine(that: FiberId): FiberId =
+    (self, that) match {
+      case (None, that)                                 => that
+      case (that, None)                                 => that
+      case (Composite(self), Composite(that))           => Composite(self | that)
+      case (Composite(self), that @ Runtime(_, _))      => Composite(self + that)
+      case (self @ Runtime(_, _), Composite(that))      => Composite(that + self)
+      case (self @ Runtime(_, _), that @ Runtime(_, _)) => Composite(Set(self, that))
+    }
 
-    @tailrec
-    def loop(stack: List[FiberId], result: List[Int]): List[Int] =
-      stack match {
-        case FiberId.None :: next                   => loop(next, result)
-        case FiberId.Runtime(id, _) :: next         => loop(next, id :: result)
-        case FiberId.Composite(left, right) :: next => loop(left :: right :: next, result)
-        case Nil                                    => result.reverse
-      }
-
-    loop(List(self), List.empty)
-  }
+  def ids: Set[Int] =
+    self match {
+      case None                => Set.empty
+      case Runtime(id, _)      => Set(id)
+      case Composite(fiberIds) => fiberIds.map(_.id)
+    }
 }
 
 object FiberId {
@@ -46,7 +50,10 @@ object FiberId {
   def apply(id: Int, startTimeSeconds: Int): FiberId =
     Runtime(id, startTimeSeconds)
 
-  case object None                                          extends FiberId
-  final case class Runtime(id: Int, startTimeSeconds: Int)  extends FiberId
-  final case class Composite(left: FiberId, right: FiberId) extends FiberId
+  def combineAll(fiberIds: Set[FiberId]): FiberId =
+    fiberIds.foldLeft[FiberId](FiberId.None)(_ combine _)
+
+  case object None                                           extends FiberId
+  final case class Runtime(id: Int, startTimeSeconds: Int)   extends FiberId
+  final case class Composite(fiberIds: Set[FiberId.Runtime]) extends FiberId
 }

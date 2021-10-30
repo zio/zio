@@ -704,9 +704,9 @@ private[zio] final class FiberContext[E, A](
             val childContext = childContextRef()
 
             if (childContext ne null) {
-              val interruptors = exit.fold(_.interruptors, _ => Set.empty)
+              val interruptors: Set[FiberId] = exit.fold(_.interruptors, _ => Set.empty)
 
-              childContext.interruptAs(interruptors.headOption.getOrElse(fiberId))
+              childContext.interruptAs(FiberId.combineAll(interruptors))
             } else ZIO.unit
           },
         ZScope.Mode.Weak
@@ -718,7 +718,7 @@ private[zio] final class FiberContext[E, A](
           // We try to carry along the fiber who performed the interruption (whoever interrupted us,
           // or us, if that information is not available):
           val interruptor = exit match {
-            case Exit.Failure(cause) => cause.interruptors.headOption.getOrElse(fiberId)
+            case Exit.Failure(cause) => FiberId.combineAll(cause.interruptors)
             case Exit.Success(_)     => fiberId
           }
           ZIO.interruptAs(interruptor)
