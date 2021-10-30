@@ -5,7 +5,7 @@ import zio.{Chunk, ChunkBuilder, UIO}
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Wrapper over [[java.util.concurrent.ConcurrentHashMap]].
+ * Wrapper over `java.util.concurrent.ConcurrentHashMap`.
  */
 final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashMap[K, V]) extends AnyVal {
 
