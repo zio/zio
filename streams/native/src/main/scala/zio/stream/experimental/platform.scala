@@ -5,6 +5,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
 
+trait ZSinkPlatformSpecificConstructors
+
 trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
 
