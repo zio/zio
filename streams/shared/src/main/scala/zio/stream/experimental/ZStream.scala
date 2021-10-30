@@ -2709,6 +2709,37 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     )
 
   /**
+   * When the stream fails, retry it according to the given schedule
+   *
+   * This retries the entire stream, so will re-execute all of the stream's acquire operations.
+   *
+   * The schedule is reset as soon as the first element passes through the stream again.
+   *
+   * @param schedule Schedule receiving as input the errors of the stream
+   * @return Stream outputting elements of all attempts of the stream
+   */
+  def retry[R1 <: R](
+    schedule: Schedule[R1, E, _]
+  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E, A] =
+    ZStream.unwrap {
+      for {
+        driver <- schedule.driver
+      } yield {
+        def loop: ZStream[R1, E, A] = self.catchAll { e =>
+          ZStream.unwrap(
+            driver
+              .next(e)
+              .foldZIO(
+                _ => ZIO.fail(e),
+                _ => ZIO.succeed(loop.tap(_ => driver.reset))
+              )
+          )
+        }
+        loop
+      }
+    }
+
+  /**
    * Fails with the error `None` if value is `Left`.
    */
   final def right[A1, A2](implicit ev: A <:< Either[A1, A2], trace: ZTraceElement): ZStream[R, Option[E], A2] =
