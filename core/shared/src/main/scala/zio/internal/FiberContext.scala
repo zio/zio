@@ -59,10 +59,9 @@ private[zio] final class FiberContext[E, A](
 
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
 
-  private[this] var currentEnvironment       = startEnv
-  private[this] var currentExecutor          = startExec
-  private[this] var currentLocked            = startLocked
-  private[this] var currentForkScopeOverride = Option.empty[ZScope[Exit[Any, Any]]]
+  private[this] var currentEnvironment = startEnv
+  private[this] var currentExecutor    = startExec
+  private[this] var currentLocked      = startLocked
 
   var scopeKey: ZScope.Key = null
 
@@ -554,16 +553,16 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.GetForkScope =>
                     val zio = curZio.asInstanceOf[ZIO.GetForkScope[Any, Any, Any]]
 
-                    curZio = zio.f(currentForkScopeOverride.getOrElse(scope))
+                    curZio = zio.f(getFiberRefValue(forkScopeOverride).getOrElse(scope))
 
                   case ZIO.Tags.OverrideForkScope =>
                     val zio = curZio.asInstanceOf[ZIO.OverrideForkScope[Any, Any, Any]]
 
-                    val oldForkScopeOverride = currentForkScopeOverride
+                    val oldForkScopeOverride = getFiberRefValue(forkScopeOverride)
 
-                    currentForkScopeOverride = zio.forkScope()
+                    setFiberRefValue(forkScopeOverride, zio.forkScope())
 
-                    ensure(ZIO.succeed { currentForkScopeOverride = oldForkScopeOverride }(zio.trace))
+                    ensure(ZIO.succeed(setFiberRefValue(forkScopeOverride, oldForkScopeOverride))(zio.trace))
 
                     curZio = zio.zio
 
@@ -667,7 +666,7 @@ private[zio] final class FiberContext[E, A](
       fiberRef.fork(value.asInstanceOf[fiberRef.ValueType]).asInstanceOf[AnyRef]
     }
 
-    val parentScope = (forkScope orElse currentForkScopeOverride).getOrElse(scope)
+    val parentScope = (forkScope orElse getFiberRefValue(forkScopeOverride)).getOrElse(scope)
 
     val currentEnv = currentEnvironment
 
@@ -1226,6 +1225,9 @@ private[zio] object FiberContext {
     new AtomicBoolean(false)
 
   import zio.ZIOMetric
+
+  lazy val forkScopeOverride: FiberRef.Runtime[Option[ZScope[Exit[Any, Any]]]] =
+    FiberRef.unsafeMake(None, _ => None, (a, _) => a)
 
   lazy val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failure-causes", "").setCount
 
