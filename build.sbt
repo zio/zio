@@ -556,7 +556,7 @@ lazy val docs = project.module
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
-    crossScalaVersions --= List(Scala211),
+    crossScalaVersions --= List(Scala211, Scala3),
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
       coreJVM,
       streamsJVM,
