@@ -9,7 +9,7 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("ConcurrentMap")(
       suite("compute")(
-        testM("returns a computed value") {
+        testM("computes a new value") {
           for {
             map      <- ConcurrentMap.make(1 -> 100)
             computed <- map.compute(1, _ + _)
@@ -38,6 +38,22 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
             computed <- map.computeIfAbsent("abc", _ => 10)
             stored   <- map.get("abc")
           } yield assert(computed)(equalTo(3)) && assert(stored)(isSome(equalTo(computed)))
+        }
+      ),
+      suite("computeIfPresent")(
+        testM("computes a value of an existing key") {
+          for {
+            map      <- ConcurrentMap.make(1 -> 100)
+            computed <- map.computeIfPresent(1, _ + _)
+            stored   <- map.get(1)
+          } yield assert(computed)(isSome(equalTo(101))) && assert(computed)(equalTo(stored))
+        },
+        testM("returns None if key doesn't exist") {
+          for {
+            map      <- ConcurrentMap.empty[Int, String]
+            computed <- map.computeIfPresent(1, (_, _) => "test")
+            stored   <- map.get(1)
+          } yield assert(computed)(isNone) && assert(computed)(equalTo(stored))
         }
       ),
       suite("constructors")(

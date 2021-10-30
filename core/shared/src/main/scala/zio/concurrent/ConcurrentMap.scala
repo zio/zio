@@ -13,13 +13,19 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    * Attempts to compute a mapping for the given key and its current mapped value.
    */
   def compute(key: K, remap: (K, V) => V): UIO[Option[V]] =
-    UIO(Option(underlying.compute(key, (k, v) => if (v == null) null.asInstanceOf[V] else remap(k, v))))
+    UIO(Option(underlying.compute(key, (k, v) => if (v == null) v else remap(k, v))))
 
   /**
    * Computes a value of a non-existing key.
    */
   def computeIfAbsent(key: K, map: K => V): UIO[V] =
     UIO(underlying.computeIfAbsent(key, map(_)))
+
+  /**
+   * Attempts to compuate a new mapping of an existing key.
+   */
+  def computeIfPresent(key: K, remap: (K, V) => V): UIO[Option[V]] =
+    UIO(Option(underlying.computeIfPresent(key, (k, v) => if (v == null) v else remap(k, v))))
 
   /**
    * Retrieves the value associated with the given key.
