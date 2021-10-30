@@ -288,7 +288,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def prettyPrint: String = {
     final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement])
 
-    def renderFiberId(fiberId: FiberId): String = s"zio-fiber-${fiberId.seqNumber}"
+    def renderFiberId(fiberId: FiberId): String = s"zio-fiber-${fiberId.ids.mkString(", ")}"
 
     def unify(cause: Cause[E]): List[Unified] = {
       def loop(
@@ -366,7 +366,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       (if (isInterrupted)
          Some(
            new InterruptedException(
-             "Interrupted by fibers: " + interruptors.map(_.seqNumber.toString()).map("#" + _).mkString(", ")
+             "Interrupted by fibers: " + interruptors.flatMap(_.ids.toString()).map("#" + _).mkString(", ")
            )
          )
        else None) orElse

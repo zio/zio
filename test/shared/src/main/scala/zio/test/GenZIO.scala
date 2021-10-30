@@ -30,7 +30,7 @@ trait GenZIO {
     val failure           = e.map(Cause.fail(_))
     val die               = t.map(Cause.die(_))
     val empty             = Gen.const(Cause.empty)
-    val interrupt         = Gen.long.zipWith(Gen.long)((l, r) => Cause.interrupt(FiberId(l, r)))
+    val interrupt         = Gen.int.zipWith(Gen.int)((l, r) => Cause.interrupt(FiberId(l, r)))
     def stackless(n: Int) = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
 
     def sequential(n: Int) = Gen.suspend {

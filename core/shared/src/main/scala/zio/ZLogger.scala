@@ -5,7 +5,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 trait ZLogger[+A] { self =>
   def apply(
     trace: ZTraceElement,
-    fiberId: FiberId,
+    fiberId: FiberId.Runtime,
     logLevel: LogLevel,
     message: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -20,7 +20,7 @@ trait ZLogger[+A] { self =>
     new ZLogger[zippable.Out] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId,
+        fiberId: FiberId.Runtime,
         logLevel: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -40,7 +40,7 @@ trait ZLogger[+A] { self =>
     new ZLogger[Option[A]] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId,
+        fiberId: FiberId.Runtime,
         logLevel: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -55,7 +55,7 @@ trait ZLogger[+A] { self =>
     new ZLogger[B] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId,
+        fiberId: FiberId.Runtime,
         logLevel: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -66,7 +66,7 @@ trait ZLogger[+A] { self =>
 object ZLogger {
   val defaultFormatter: ZLogger[String] = (
     trace: ZTraceElement,
-    fiberId: FiberId,
+    fiberId: FiberId.Runtime,
     logLevel: LogLevel,
     message0: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -85,7 +85,7 @@ object ZLogger {
       .append(" level=")
       .append(logLevel.label)
       .append(" thread=#")
-      .append(fiberId.seqNumber.toString)
+      .append(fiberId.id.toString)
       .append(" message=\"")
       .append(message0())
       .append("\"")
@@ -135,7 +135,7 @@ object ZLogger {
   val none: ZLogger[Unit] = new ZLogger[Unit] {
     def apply(
       trace: ZTraceElement,
-      fiberId: FiberId,
+      fiberId: FiberId.Runtime,
       logLevel: LogLevel,
       message: () => String,
       context: Map[FiberRef.Runtime[_], AnyRef],
