@@ -271,5 +271,4 @@ object CauseSpec extends ZIOBaseSpec {
 
   val throwables: Gen[Random, Throwable] =
     Gen.throwable
-
 }
