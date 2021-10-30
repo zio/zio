@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.concurrent
 
 import zio.UIO
@@ -5,6 +21,16 @@ import zio.stm.TReentrantLock
 import zio.UManaged
 import zio.ZManaged
 
+/**
+ * A `ReentrantLock` is a reentrant read/write lock. Multiple readers may all
+ * concurrently acquire read locks. Only one writer is allowed to acquire a
+ * write lock at any given time. Read locks may be upgraded into write locks.
+ * A fiber that has a write lock may acquire other write locks or read locks.
+ *
+ * The two primary methods of this structure are `readLock`, which acquires a
+ * read lock in a managed context, and `writeLock`, which acquires a write lock
+ * in a managed context.
+ */
 trait ReentrantLock {
 
   /**
