@@ -1025,7 +1025,7 @@ private[zio] final class FiberContext[E, A](
           println("An exception was thrown by a logger:")
           t.printStackTrace
       }
-    case _                   =>
+    case _ =>
   }
 
   @tailrec
