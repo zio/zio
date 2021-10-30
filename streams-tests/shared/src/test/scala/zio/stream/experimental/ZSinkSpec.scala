@@ -531,28 +531,89 @@ object ZSinkSpec extends ZIOBaseSpec {
         }
       ),
       suite("fromQueue")(
-        test("should enqueues all elements") {
+        test("should enqueue all elements") {
 
           for {
             queue          <- ZQueue.unbounded[Int]
-            s               = ZSink.fromQueue(queue)
-            _              <- ZStream(1, 2, 3).run(s)
+            _              <- ZStream(1, 2, 3).run(ZSink.fromQueue(queue))
             enqueuedValues <- queue.takeAll
           } yield {
             assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3)))
           }
 
-        },
-        test("should enqueues all elements in case Error channel set on a stream") {
-          for {
-            queue          <- ZQueue.unbounded[Int]
-            stream          = ZStream.fromZIO(ZIO(List(1, 2, 3))).flattenIterables
-            sink            = ZSink.fromQueue(queue)
-            _              <- stream.run(sink)
-            enqueuedValues <- queue.takeAll
-          } yield {
-            assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3)))
+        }
+      ),
+      suite("fromQueueWithShutdown")(
+        test("should enqueue all elements and shutsdown queue") {
+
+          def createQueueSpy[A](q: Queue[A]) = new ZQueue[Any, Any, Nothing, Nothing, A, A] {
+
+            @volatile
+            private var isShutDown = false
+
+            override def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] = q.awaitShutdown
+
+            override def capacity: Int = q.capacity
+
+            override def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] = UIO(this.isShutDown)
+
+            override def offer(a: A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Boolean] = q.offer(a)
+
+            override def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[Any, Nothing, Boolean] =
+              q.offerAll(as)
+
+            override def shutdown(implicit trace: ZTraceElement): UIO[Unit] = UIO(this.isShutDown = true)
+
+            override def size(implicit trace: ZTraceElement): UIO[Int] = q.size
+
+            override def take(implicit trace: ZTraceElement): ZIO[Any, Nothing, A] = q.take
+
+            override def takeAll(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] = q.takeAll
+
+            override def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] =
+              q.takeUpTo(max)
+
           }
+
+          for {
+            queue          <- ZQueue.unbounded[Int].map(createQueueSpy)
+            _              <- ZStream(1, 2, 3).run(ZSink.fromQueueWithShutdown(queue))
+            enqueuedValues <- queue.takeAll
+            isShutdown     <- queue.isShutdown
+          } yield {
+            assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3))) && assert(isShutdown)(isTrue)
+          }
+
+        }
+      ),
+      suite("fromHub")(
+        test("should publish all elements") {
+
+          for {
+            promise1       <- Promise.make[Nothing, Unit]
+            promise2       <- Promise.make[Nothing, Unit]
+            hub            <- ZHub.unbounded[Int]
+            f              <- hub.subscribe.use(s => promise1.succeed(()) *> promise2.await *> s.takeAll).fork
+            _              <- promise1.await
+            _              <- ZStream(1, 2, 3).run(ZSink.fromHub(hub))
+            _              <- promise2.succeed(())
+            publisedValues <- f.join
+          } yield {
+            assert(publisedValues)(hasSameElementsDistinct(List(1, 2, 3)))
+          }
+
+        }
+      ),
+      suite("fromHubWithShutdown")(
+        test("should shutdown hub") {
+          for {
+            hub        <- ZHub.unbounded[Int]
+            _          <- ZStream(1, 2, 3).run(ZSink.fromHubWithShutdown(hub))
+            isShutdown <- hub.isShutdown
+          } yield {
+            assert(isShutdown)(isTrue)
+          }
+
         }
       ),
       suite("succeed")(
