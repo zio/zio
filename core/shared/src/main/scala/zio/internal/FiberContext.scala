@@ -1227,15 +1227,14 @@ private[zio] object FiberContext {
 
   import zio.ZIOMetric
 
-  val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failures", "").setCount
+  lazy val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failures", "").setCount
 
-  val fibersStarted  = ZIOMetric.count("zio-fiber-started").counter
-  val fiberSuccesses = ZIOMetric.count("zio-fiber-successes").counter
-  val fiberFailures  = ZIOMetric.count("zio-fiber-failures").counter
-  val fiberLifetimes = ZIOMetric.observeHistogram("zio-fiber-lifetimes", fiberLifetimeBoundaries)
+  lazy val fibersStarted  = ZIOMetric.count("zio-fiber-started").counter
+  lazy val fiberSuccesses = ZIOMetric.count("zio-fiber-successes").counter
+  lazy val fiberFailures  = ZIOMetric.count("zio-fiber-failures").counter
+  lazy val fiberLifetimes = ZIOMetric.observeHistogram("zio-fiber-lifetimes", fiberLifetimeBoundaries)
 
-  val fiberLifetimeBoundaries =
-    ZIOMetric.Histogram.Boundaries.exponential(1.0, 2.0, 100)
+  lazy val fiberLifetimeBoundaries = ZIOMetric.Histogram.Boundaries.exponential(1.0, 2.0, 100)
 
   val combineUnit = (a: Unit, b: Unit) => ()
 }
