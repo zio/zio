@@ -37,7 +37,6 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
 
   def replace(key: K, value: V): UIO[Option[V]]               = ???
   def replace(key: K, oldValue: V, newValue: V): UIO[Boolean] = ???
-  def update(key: K, value: V): UIO[Any]                      = ???
 
   /**
    * Collects all bindings into a chunk.
