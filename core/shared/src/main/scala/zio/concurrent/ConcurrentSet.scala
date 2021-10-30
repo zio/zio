@@ -3,15 +3,19 @@ package zio.concurrent
 import zio.UIO
 
 import java.util.concurrent.ConcurrentHashMap
-import scala.jdk.CollectionConverters._
 
 final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.KeySetView[A, java.lang.Boolean])
     extends AnyVal {
+
   def add(x: A): UIO[Boolean] =
     UIO(underlying.add(x))
 
   def addAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(underlying.addAll(xs.asJavaCollection))
+    UIO {
+      var added = false
+      xs.foreach(x => added = underlying.add(x))
+      added
+    }
 
   def remove(x: A): UIO[Boolean] =
     UIO(underlying.remove(x))
@@ -23,7 +27,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.contains(x))
 
   def containsAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(underlying.containsAll(xs.asJavaCollection))
+    UIO(xs.forall(x => underlying.contains(x)))
 
   def size: UIO[Int] =
     UIO(underlying.size())
@@ -38,7 +42,7 @@ object ConcurrentSet {
     UIO.effectSuspendTotal {
       UIO {
         val keySetView = ConcurrentHashMap.newKeySet[A]()
-        keySetView.addAll(xs.asJavaCollection)
+        xs.foreach(x => keySetView.add(x))
         new ConcurrentSet(keySetView)
       }
     }
