@@ -530,6 +530,31 @@ object ZSinkSpec extends ZIOBaseSpec {
           )
         }
       ),
+      suite("fromQueue")(
+        test("should enqueues all elements") {
+
+          for {
+            queue          <- ZQueue.unbounded[Int]
+            s               = ZSink.fromQueue(queue)
+            _              <- ZStream(1, 2, 3).run(s)
+            enqueuedValues <- queue.takeAll
+          } yield {
+            assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3)))
+          }
+
+        },
+        test("should enqueues all elements in case Error channel set on a stream") {
+          for {
+            queue          <- ZQueue.unbounded[Int]
+            stream          = ZStream.fromZIO(ZIO(List(1, 2, 3))).flattenIterables
+            sink            = ZSink.fromQueue(queue)
+            _              <- stream.run(sink)
+            enqueuedValues <- queue.takeAll
+          } yield {
+            assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3)))
+          }
+        }
+      ),
       suite("succeed")(
         test("result is ok") {
           assertM(ZStream(1, 2, 3).run(ZSink.succeed("ok")))(

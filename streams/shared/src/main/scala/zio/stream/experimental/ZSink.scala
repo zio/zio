@@ -1238,6 +1238,13 @@ object ZSink {
     new ZSink(ZChannel.fromZIO(b))
 
   /**
+   * Create a sink which enqueues each element into the specified queue.
+   */
+  // TODO Result should probably be ZSink[R, E, I, E, Nothing, Unit]
+  def fromQueue[R, E, I](queue: ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, E, I, Unit] =
+    foreachChunk(queue.offerAll)
+
+  /**
    * Creates a sink halting with a specified cause.
    */
   @deprecated("use failCause", "2.0.0")
