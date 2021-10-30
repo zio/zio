@@ -89,12 +89,16 @@ private[zio] class ConcurrentState {
     val counter = value.asInstanceOf[ConcurrentMetricState.Counter]
     new Counter {
       override def count(implicit trace: ZTraceElement): UIO[Double] =
-        ZIO.succeed(counter.count)
+        ZIO.succeed(unsafeCount())
       override def increment(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
-        ZIO.succeed {
-          val (v, d) = counter.increment(value)
-          listener.unsafeCounterChanged(key, v, d)
-        }
+        ZIO.succeed(unsafeIncrement(value))
+
+      private[zio] def unsafeCount(): Double = counter.count
+
+      private[zio] def unsafeIncrement(value: Double): Unit = {
+        val (v, d) = counter.increment(value)
+        listener.unsafeCounterChanged(key, v, d)
+      }
     }
   }
 
@@ -143,12 +147,15 @@ private[zio] class ConcurrentState {
       def count(implicit trace: ZTraceElement): UIO[Long] =
         ZIO.succeed(histogram.histogram.getCount())
       def observe(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
-        ZIO.succeed {
-          histogram.observe(value)
-          listener.unsafeHistogramChanged(key, histogram.toMetricState)
-        }
+        ZIO.succeed(unsafeObserve(value))
+
       def sum(implicit trace: ZTraceElement): UIO[Double] =
         ZIO.succeed(histogram.histogram.getSum())
+
+      def unsafeObserve(value: Double): Unit = {
+        histogram.observe(value)
+        listener.unsafeHistogramChanged(key, histogram.toMetricState)
+      }
     }
   }
 
@@ -195,12 +202,15 @@ private[zio] class ConcurrentState {
     val setCount = value.asInstanceOf[ConcurrentMetricState.SetCount]
     new SetCount {
       def observe(word: String)(implicit trace: ZTraceElement): UIO[Unit] =
-        ZIO.succeed {
-          setCount.observe(word)
-          listener.unsafeSetChanged(key, setCount.toMetricState)
-        }
+        ZIO.succeed(unsafeObserve(word))
+
       def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]] =
         ZIO.succeed(setCount.setCount.snapshot())
+
+      def unsafeObserve(word: String): Unit = {
+        setCount.observe(word)
+        listener.unsafeSetChanged(key, setCount.toMetricState)
+      }
     }
   }
 }

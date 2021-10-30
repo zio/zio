@@ -47,6 +47,8 @@ private[zio] final class FiberContext[E, A](
   import FiberContext._
   import FiberState._
 
+  fibersStarted.unsafeCount()
+
   // Accessed from multiple threads:
   private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
 
@@ -975,6 +977,33 @@ private[zio] final class FiberContext[E, A](
             reportUnhandled(newExit, trace)
             notifyObservers(newExit, observers)
 
+            val startTimeSeconds = fiberId.startTimeSeconds
+            val endTimeSeconds   = java.lang.System.currentTimeMillis() / 1000
+
+            val lifetime = endTimeSeconds - startTimeSeconds
+
+            fiberLifetimes.observe(lifetime.toDouble)
+
+            newExit match {
+              case Exit.Success(_) => fiberSuccesses.unsafeCount()
+
+              case Exit.Failure(cause) =>
+                fiberFailures.unsafeCount()
+
+                cause.fold[Unit](
+                  "<empty>",
+                  (failure, _) => {
+                    fiberFailureCauses.observe(failure.getClass.getName)
+                  },
+                  (defect, _) => {
+                    fiberFailureCauses.observe(defect.getClass.getName)
+                  },
+                  (fiberId, _) => {
+                    fiberFailureCauses.observe(classOf[InterruptedException].getName)
+                  }
+                )(combineUnit, combineUnit)
+            }
+
             null
           }
         } else {
@@ -1195,4 +1224,18 @@ private[zio] object FiberContext {
 
   val fatal: AtomicBoolean =
     new AtomicBoolean(false)
+
+  import zio.ZIOMetric
+
+  val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failures", "").setCount
+
+  val fibersStarted  = ZIOMetric.count("zio-fiber-started").counter
+  val fiberSuccesses = ZIOMetric.count("zio-fiber-successes").counter
+  val fiberFailures  = ZIOMetric.count("zio-fiber-failures").counter
+  val fiberLifetimes = ZIOMetric.observeHistogram("zio-fiber-lifetimes", fiberLifetimeBoundaries)
+
+  val fiberLifetimeBoundaries =
+    ZIOMetric.Histogram.Boundaries.exponential(1.0, 2.0, 100)
+
+  val combineUnit = (a: Unit, b: Unit) => ()
 }
