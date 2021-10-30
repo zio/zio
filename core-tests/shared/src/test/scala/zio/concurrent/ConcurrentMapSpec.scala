@@ -20,6 +20,22 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
             res <- map.get(1)
           } yield assert(res)(isNone)
         }
+      ),
+      suite("putIfAbsent")(
+        testM("associates the non-existing key with a given value") {
+          for {
+            map    <- ConcurrentMap.make(1 -> "a")
+            putRes <- map.putIfAbsent(2, "b")
+            getRes <- map.get(2)
+          } yield assert(putRes)(isNone) && assert(getRes)(isSome(equalTo("b")))
+        },
+        testM("preserves the existing mappings") {
+          for {
+            map    <- ConcurrentMap.make(1 -> "a")
+            putRes <- map.putIfAbsent(1, "b")
+            getRes <- map.get(1)
+          } yield assert(putRes)(isSome(equalTo("a"))) && assert(getRes)(isSome(equalTo("a")))
+        }
       )
     )
 }
