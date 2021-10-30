@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-package zio.internal.tracing
+package zio.profiling
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import scala.reflect.ClassTag
 
-final case class Tracing(tracingConfig: TracingConfig)
+private final class VolatileArray[A: ClassTag](val length: Int) {
 
-object Tracing {
-  def enabled: Tracing =
-    Tracing(TracingConfig.enabled)
+  private[this] val array = new Array[A](length)
 
-  def enabledWith(tracingConfig: TracingConfig): Tracing =
-    Tracing(tracingConfig)
+  @volatile
+  private[this] var marker = 0;
 
-  def disabled: Tracing = Tracing(TracingConfig.disabled)
+  def apply(i: Int): A           = { marker; array(i) }
+  def update(i: Int, x: A): Unit = { array(i) = x; marker = 0 }
+  def toList: List[A]            = { marker; array.toList }
 }

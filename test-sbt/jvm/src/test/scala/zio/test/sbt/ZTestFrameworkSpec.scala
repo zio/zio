@@ -79,6 +79,7 @@ object ZTestFrameworkSpec {
           s"${reset("info:")}   ${red("- failing test")}",
           s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
           s"${reset("info:")}     ${cyan(assertLocation)}",
+          reset("info: "),
           s"${reset("info:")}   ${green("+")} passing test",
           s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
         ).mkString("\n")
@@ -95,14 +96,16 @@ object ZTestFrameworkSpec {
         "logged messages",
         messages.mkString.split("\n").dropRight(1).mkString("\n").withNoLineNumbers,
         List(
-          s"${red("- multi-line test")}",
-          s"  ${Console.BLUE}Hello,",
-          s"${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-          s"  ${cyan(assertLocation)}"
+          s"${reset("info: ")}${red("- multi-line test")}",
+          s"${reset("info: ")}  ${Console.BLUE}Hello,",
+          s"${reset("info: ")}${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
+          s"${reset("info: ")}  ${cyan(assertLocation)}",
+          s"${reset("info: ")}"
         ).mkString("\n")
-          .split('\n')
-          .map(s"${reset("info:")} " + _)
-          .mkString("\n")
+//          .mkString("\n")
+//          .split('\n')
+//          .map(s"${reset("info:")} " + _)
+//          .mkString("\n")
       )
     )
   }

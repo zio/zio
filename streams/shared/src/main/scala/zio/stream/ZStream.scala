@@ -1547,12 +1547,14 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                    latch <- Promise.make[Nothing, Unit]
                    // If the inner stream completed successfully, release the permit so another
                    // stream can be executed. Otherwise, signal failure to the outer stream.
-                   withPermitManaged = ZManaged.acquireReleaseExit(permits.acquire.commit)(
-                                         _.fold(
-                                           cause => innerFailure.fail(cause.stripFailures),
-                                           _ => permits.release.commit
+                   withPermitManaged = ZManaged
+                                         .fromZIO(permits.acquire.commit)
+                                         .onExitFirst(
+                                           _.fold(
+                                             cause => innerFailure.fail(cause.stripFailures),
+                                             _ => permits.release.commit
+                                           )
                                          )
-                                       )
                    innerStream = withPermitManaged
                                    .tap(_ => latch.succeed(()).toManaged)
                                    .useDiscard(
@@ -3429,7 +3431,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     d: Duration
   )(that: ZStream[R1, E1, O2])(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, O2] = {
     object StreamTimeout extends Throwable
-    self.timeoutErrorCause(Cause.die(StreamTimeout))(d).catchSomeCause { case Cause.Die(StreamTimeout) => that }
+    self.timeoutErrorCause(Cause.die(StreamTimeout))(d).catchSomeCause { case Cause.Die(StreamTimeout, _) => that }
   }
 
   /**

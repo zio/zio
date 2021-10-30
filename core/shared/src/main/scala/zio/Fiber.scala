@@ -422,7 +422,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * The identity of the fiber.
      */
-    def id: FiberId
+    def id: FiberId.Runtime
 
     def scope: ZScope[Exit[E, A]]
 
@@ -440,7 +440,7 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] object Runtime {
 
     implicit def fiberOrdering[E, A]: Ordering[Fiber.Runtime[E, A]] =
-      Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeMillis, fiber.id.seqNumber))
+      Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeSeconds, fiber.id.id))
 
     abstract class Internal[+E, +A] extends Runtime[E, A]
   }
@@ -497,7 +497,7 @@ object Fiber extends FiberPlatformSpecific {
 
   sealed abstract class Dump extends Serializable { self =>
 
-    def fiberId: FiberId
+    def fiberId: FiberId.Runtime
 
     def fiberName: Option[String]
 
@@ -521,13 +521,13 @@ object Fiber extends FiberPlatformSpecific {
 
   object Dump {
     def apply(
-      fiberId0: FiberId,
+      fiberId0: FiberId.Runtime,
       fiberName0: Option[String],
       status0: Status,
       trace0: Option[ZTrace]
     ): Dump =
       new Dump {
-        def fiberId: FiberId          = fiberId0
+        def fiberId: FiberId.Runtime  = fiberId0
         def fiberName: Option[String] = fiberName0
         def status: Status            = status0
         def trace: Option[ZTrace]     = trace0
@@ -590,7 +590,7 @@ object Fiber extends FiberPlatformSpecific {
       interruptible: Boolean,
       epoch: Long,
       blockingOn: FiberId,
-      asyncTrace: Option[ZTraceElement]
+      asyncTrace: ZTraceElement
     ) extends Status
   }
 
@@ -777,7 +777,7 @@ object Fiber extends FiberPlatformSpecific {
    * @return `UIO[Unit]`
    */
   def joinAll[E](fs: Iterable[Fiber[E, Any]])(implicit trace: ZTraceElement): IO[E, Unit] =
-    collectAll(fs).join.unit.refailWithTrace
+    collectAll(fs).join.unit
 
   /**
    * A fiber that never fails or succeeds.
@@ -824,11 +824,11 @@ object Fiber extends FiberPlatformSpecific {
   def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
-  private[zio] def newFiberId(): FiberId =
-    FiberId(java.lang.System.currentTimeMillis(), _fiberCounter.getAndIncrement())
+  private[zio] def newFiberId(): FiberId.Runtime =
+    FiberId.Runtime((java.lang.System.currentTimeMillis / 1000).toInt, _fiberCounter.getAndIncrement())
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
 
-  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicLong(0L)
+  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 }

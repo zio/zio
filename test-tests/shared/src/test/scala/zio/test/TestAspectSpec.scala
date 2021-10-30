@@ -297,10 +297,7 @@ object TestAspectSpec extends ZIOBaseSpec {
                ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
         result <- succeeded(spec)
       } yield assert(result)(isFalse)
-    },
-    test("untraced disables tracing") {
-      assertM(ZIO.checkTraced(ZIO.succeed(_)))(equalTo(TracingStatus.Untraced))
-    } @@ untraced
+    }
   )
 
   def diesWithSubtypeOf[E](implicit ct: ClassTag[E]): TestFailure[E] => Boolean =

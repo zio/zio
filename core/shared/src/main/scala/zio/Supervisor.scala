@@ -66,6 +66,21 @@ abstract class Supervisor[+A] { self =>
         self.unsafeOnEnd(value, fiber)
         that.unsafeOnEnd(value, fiber)
       }
+
+      override def unsafeOnEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _]): Unit = {
+        self.unsafeOnEffect(fiber, effect)
+        that.unsafeOnEffect(fiber, effect)
+      }
+
+      override def unsafeOnSuspend[E, A](fiber: Fiber.Runtime[E, A]): Unit = {
+        self.unsafeOnSuspend(fiber)
+        that.unsafeOnSuspend(fiber)
+      }
+
+      override def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit = {
+        self.unsafeOnResume(fiber)
+        that.unsafeOnResume(fiber)
+      }
     }
 
   private[zio] def unsafeOnStart[R, E, A](
@@ -76,6 +91,12 @@ abstract class Supervisor[+A] { self =>
   ): Unit
 
   private[zio] def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit
+
+  private[zio] def unsafeOnEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _]): Unit = ()
+
+  private[zio] def unsafeOnSuspend[E, A](fiber: Fiber.Runtime[E, A]): Unit = ()
+
+  private[zio] def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit = ()
 }
 object Supervisor {
   import zio.internal._
@@ -130,7 +151,7 @@ object Supervisor {
       ): Unit = started.increment()
 
       def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit = {
-        val startTime = fiber.id.startTimeMillis
+        val startTime = (fiber.id.startTimeSeconds * 1000).toLong
         val endTime   = java.lang.System.currentTimeMillis()
 
         val millis  = endTime - startTime
@@ -267,5 +288,14 @@ object Supervisor {
 
     def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit =
       underlying.unsafeOnEnd(value, fiber)
+
+    override private[zio] def unsafeOnEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _]): Unit =
+      underlying.unsafeOnEffect(fiber, effect)
+
+    override private[zio] def unsafeOnSuspend[E, A](fiber: Fiber.Runtime[E, A]): Unit =
+      underlying.unsafeOnSuspend(fiber)
+
+    override private[zio] def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit =
+      underlying.unsafeOnResume(fiber)
   }
 }

@@ -932,13 +932,6 @@ object TestAspect extends TimeoutVariants {
    */
   val unix: TestAspectAtLeastR[Has[Annotations]] = os(_.isUnix)
 
-  val untraced: TestAspectPoly = new PerTest[Nothing, Any, Nothing, Any] {
-    override def perTest[R >: Nothing <: Any, E >: Nothing <: Any](
-      test: ZIO[R, TestFailure[E], TestSuccess]
-    )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-      test.untraced
-  }
-
   /**
    * Runs only on Windows operating systems.
    */

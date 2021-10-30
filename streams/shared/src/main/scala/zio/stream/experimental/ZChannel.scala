@@ -761,7 +761,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ): ZManaged[Env, OutErr, OutDone] =
     ZManaged
       .acquireReleaseExitWith(
-        UIO(new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](() => self, null))
+        UIO(
+          new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+            () => self,
+            null,
+            executeCloseLastSubstream = identity[URIO[Env, Any]]
+          )
+        )
       ) { (exec, exit) =>
         val finalize = exec.close(exit)
         if (finalize ne null) finalize
@@ -799,7 +805,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def toPull(implicit trace: ZTraceElement): ZManaged[Env, Nothing, ZIO[Env, Either[OutErr, OutDone], OutElem]] =
     ZManaged
       .acquireReleaseExitWith(
-        UIO(new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](() => self, null))
+        UIO(
+          new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+            () => self,
+            null,
+            identity[URIO[Env, Any]]
+          )
+        )
       ) { (exec, exit) =>
         val finalize = exec.close(exit)
         if (finalize ne null) finalize
@@ -1220,14 +1232,13 @@ object ZChannel {
     }
 
   def managedOut[R, E, A](m: ZManaged[R, E, A])(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
-    acquireReleaseOutExitWith(ReleaseMap.make)((releaseMap, exit) =>
-      releaseMap.releaseAll(
-        exit,
-        ExecutionStrategy.Sequential
-      )
-    ).concatMap { releaseMap =>
-      fromZIO(m.zio.provideSome[R]((_, releaseMap)).map(_._2)).flatMap(write(_))
-    }
+    acquireReleaseOutExitWith(
+      ReleaseMap.make.flatMap { releaseMap =>
+        m.zio.provideSome[R]((_, releaseMap)).map { case (_, out) => (out, releaseMap) }
+      }
+    ) { case ((_, releaseMap), exit) =>
+      releaseMap.releaseAll(exit, ExecutionStrategy.Sequential)
+    }.mapOut(_._1)
 
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: ZChannel[
@@ -1294,7 +1305,7 @@ object ZChannel {
         for {
           _           <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
           queue       <- Queue.bounded[ZIO[Env, Either[OutErr, OutDone], OutElem]](bufferSize).toManagedWith(_.shutdown)
-          cancelers   <- Queue.bounded[Promise[Nothing, Unit]](n).toManagedWith(_.shutdown)
+          cancelers   <- Queue.unbounded[Promise[Nothing, Unit]].toManagedWith(_.shutdown)
           lastDone    <- Ref.makeManaged[Option[OutDone]](None)
           errorSignal <- Promise.makeManaged[Nothing, Unit]
           permits     <- Semaphore.make(n.toLong).toManaged

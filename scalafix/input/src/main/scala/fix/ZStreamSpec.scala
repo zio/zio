@@ -31,6 +31,10 @@ object ZStreamSpec extends DefaultRunnableSpec {
             val stream = ZStream.fromIterable(xs.map(Right(_)))
             assertM(stream.absolve.runCollect)(equalTo(xs))
           }),
+          testM("happy path all")(checkAllM(tinyChunkOf(Gen.anyInt)) { xs =>
+            val stream = ZStream.fromIterable(xs.map(Right(_)))
+            assertM(stream.absolve.runCollect)(equalTo(xs))
+          }),
           testM("failure")(checkM(tinyChunkOf(Gen.anyInt)) { xs =>
             val stream = ZStream.fromIterable(xs.map(Right(_))) ++ ZStream.succeed(Left("Ouch"))
             assertM(stream.absolve.runCollect.run)(fails(equalTo("Ouch")))

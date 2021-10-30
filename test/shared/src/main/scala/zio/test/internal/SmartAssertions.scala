@@ -211,8 +211,8 @@ object SmartAssertions {
         Trace.boolean(result) {
           diff.value match {
             case Some(diff) if !diff.isLowPriority && !result =>
-              M.custom(ConsoleUtils.underlined("Expected")) + "\n" +/ M.pretty(that) + "\n" +/
-                M.custom(ConsoleUtils.underlined("Diff")) + "\n" +/
+              M.custom(ConsoleUtils.underlined("Expected")) ++ M.pretty(that) ++
+                M.custom(ConsoleUtils.underlined("Diff")) ++
                 M.custom(ConsoleUtils.red(diff.diff(that, a).render))
             case _ =>
               M.pretty(a) + M.equals + M.pretty(that)

@@ -2,15 +2,12 @@ package zio
 
 import cats._
 import cats.effect.{Fiber => CFiber, IO => CIO}
-import zio.internal.tracing.Tracing
 
 import scala.concurrent.ExecutionContext
 
 object BenchmarkUtil extends Runtime[ZEnv] {
   val environment   = Runtime.default.environment
   val runtimeConfig = RuntimeConfig.benchmark
-
-  val TracedRuntime: Runtime[ZEnv] = Runtime(environment, RuntimeConfig.benchmark.copy(tracing = Tracing.enabled))
 
   implicit val futureExecutionContext: ExecutionContext =
     ExecutionContext.global

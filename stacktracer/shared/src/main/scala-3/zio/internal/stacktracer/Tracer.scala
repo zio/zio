@@ -28,6 +28,9 @@ object Tracer {
         case _                                   => None
       }
     }
+
+    def apply(location: String, file: String, line: Int, column: Int): Type with Traced =
+      createTrace(location, file, line, column).asInstanceOf[Type with Traced]
   }
 
   private[internal] def createTrace(location: String, file: String, line: Int, column: Int): String =
@@ -40,4 +43,5 @@ sealed trait Tracer {
   type Type <: AnyRef
   val empty: Type
   def unapply(trace: Type): Option[(String, String, Int, Int)]
+  def apply(location: String, file: String, line: Int, column: Int): Type with Tracer.Traced 
 }

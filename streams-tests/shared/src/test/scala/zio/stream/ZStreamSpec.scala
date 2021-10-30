@@ -122,7 +122,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          (latch.succeed(()) *> ZIO.infinity)
                            .onInterrupt(cancelled.set(true))
                      }
-              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.untraced.fork
+              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -136,7 +136,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                        (latch.succeed(()) *> ZIO.infinity)
                          .onInterrupt(cancelled.set(true))
                      }
-              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.untraced.fork
+              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -251,7 +251,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               fiber <- ZStream(1, 1, 2)
                          .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                          .runCollect
-                         .untraced
                          .fork
               _      <- latch.await
               _      <- fiber.interrupt
@@ -269,7 +268,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               fiber <- ZStream(1, 1, 2)
                          .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
                          .runCollect
-                         .untraced
                          .fork
               _      <- latch.await
               _      <- fiber.interrupt
@@ -716,9 +714,9 @@ object ZStreamSpec extends ZIOBaseSpec {
         ),
         suite("catchSomeCause")(
           test("recovery from some errors") {
-            val s1 = ZStream(1, 2) ++ ZStream.failCause(Cause.Fail("Boom"))
+            val s1 = ZStream(1, 2) ++ ZStream.failCause(Cause.fail("Boom"))
             val s2 = ZStream(3, 4)
-            s1.catchSomeCause { case c if c.contains(Cause.Fail("Boom")) => s2 }.runCollect
+            s1.catchSomeCause { case c if c.contains(Cause.fail("Boom")) => s2 }.runCollect
               .map(assert(_)(equalTo(Chunk(1, 2, 3, 4))))
           },
           test("fails stream when partial function does not match") {
@@ -1269,7 +1267,16 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(
               equalTo(List("OuterRelease", "InnerRelease", "InnerAcquire", "OuterAcquire"))
             )
-          }
+          },
+          test("permit acquisition is interruptible") {
+            ZStream
+              .fromIterable(1 to 50)
+              .flatMapPar(1)(n => ZStream.fromIterable(Chunk(n)))
+              .take(5)
+              .mapZIOParUnordered(8)(ZIO.succeed(_))
+              .runDrain
+              .as(assertCompletes)
+          } @@ nonFlaky
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {
@@ -1501,7 +1508,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         suite("groupBy")(
           test("values") {
-            val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
+            val words = List.fill(100)(0 to 100).flatten.map(_.toString())
             assertM(
               ZStream
                 .fromIterable(words)
@@ -1510,7 +1517,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 }
                 .runCollect
                 .map(_.toMap)
-            )(equalTo((0 to 100).map((_.toString -> 1000)).toMap))
+            )(equalTo((0 to 100).map((_.toString -> 100)).toMap))
           },
           test("first") {
             val words = List.fill(1000)(0 to 100).flatten.map(_.toString())
@@ -3042,7 +3049,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runDrain
               .sandbox
               .either
-          )(equalTo(Left(Cause.Die(throwable))))
+          )(equalTo(Left(Cause.die(throwable))))
         },
         suite("timeoutTo")(
           test("succeed") {

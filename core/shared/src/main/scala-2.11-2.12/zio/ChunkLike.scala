@@ -71,6 +71,12 @@ private[zio] trait ChunkLike[+A]
     else super.flatMap(f)
 
   /**
+   * Flattens a chunk of chunks into a single chunk by concatenating all chunks.
+   */
+  override def flatten[B](implicit ev: A => GenTraversableOnce[B]): Chunk[B] =
+    flatMap(ev(_))
+
+  /**
    * Returns the first index for which the given predicate is satisfied.
    */
   override final def indexWhere(f: A => Boolean): Int =

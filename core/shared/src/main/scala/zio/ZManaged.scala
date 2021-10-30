@@ -3269,7 +3269,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
   def unsandbox[R, E, A](v: => ZManaged[R, Cause[E], A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
-    ZManaged.suspend(v.mapErrorCause(_.flatten))
+    ZManaged.suspend(v.catchAll(ZManaged.failCause(_)))
 
   /**
    * Unwraps a `ZManaged` that is inside a `ZIO`.

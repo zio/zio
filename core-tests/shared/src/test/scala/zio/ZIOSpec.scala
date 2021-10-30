@@ -423,7 +423,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("done")(
       test("Check done lifts exit result into IO") {
 
-        val fiberId = FiberId(0L, 123L)
+        val fiberId = FiberId(0, 123)
         val error   = exampleError
 
         for {
@@ -1009,12 +1009,12 @@ object ZIOSpec extends ZIOBaseSpec {
           fiber2 <- ZIO.forkAll(List(die, ZIO.succeed(42)))
           fiber3 <- ZIO.forkAll(List(die, ZIO.succeed(42), ZIO.never))
 
-          result1 <- joinDefect(fiber1)
-          result2 <- joinDefect(fiber2)
-          result3 <- joinDefect(fiber3)
+          result1 <- joinDefect(fiber1).map(_.untraced)
+          result2 <- joinDefect(fiber2).map(_.untraced)
+          result3 <- joinDefect(fiber3).map(_.untraced)
         } yield {
-          assert(result1)(equalTo(Cause.die(boom))) && {
-            assert(result2)(equalTo(Cause.die(boom))) ||
+          assert(result1.dieOption)(isSome(equalTo(boom))) && {
+            assert(result2.dieOption)(isSome(equalTo(boom))) ||
             (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
           } && {
             assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.isInterrupted)(isTrue)
@@ -1667,7 +1667,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("orElse")(
       test("does not recover from defects") {
         val ex               = new Exception("Died")
-        val fiberId          = FiberId(0L, 123L)
+        val fiberId          = FiberId(0, 123)
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> IO.unit).exit
@@ -1683,8 +1683,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val z1                = Task.fail(new Throwable("1"))
         val z2: Task[Nothing] = Task.die(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-          case Traced(Die(e: Throwable), _) => Task(e.getMessage == "2")
-          case _                            => Task(false)
+          case Die(e: Throwable, _) => Task(e.getMessage == "2")
+          case _                    => Task(false)
         }
         assertM(orElse)(equalTo(true))
       },
@@ -1692,8 +1692,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val z1                = Task.fail(new Throwable("1"))
         val z2: Task[Nothing] = Task.fail(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-          case Traced(Fail(e: Throwable), _) => Task(e.getMessage == "2")
-          case _                             => Task(false)
+          case Fail(e: Throwable, _) => Task(e.getMessage == "2")
+          case _                     => Task(false)
         }
         assertM(orElse)(equalTo(true))
       },
@@ -3706,11 +3706,11 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO(1).validateWith(ZIO(2))(_ + _))(equalTo(3))
       },
       test("fails") {
-        assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2))))
+        assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2, ZTrace.none))))
       },
       test("combines both cause") {
         assertM(ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either)(
-          isLeft(equalTo(Cause.Then(Cause.Fail(1), Cause.Fail(2))))
+          isLeft(equalTo(Cause.Then(Cause.Fail(1, ZTrace.none), Cause.Fail(2, ZTrace.none))))
         )
       }
     ),
@@ -3890,7 +3890,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
           result <- ZIO.fromFuture(_ => future).either
-        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("Fiber:FiberId("))))))
+        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("zio-fiber"))))))
       }
     ) @@ zioTag(future),
     suite("resurrect")(

@@ -49,9 +49,6 @@ class ParallelMergeSortBenchmark {
   def zioSort(): Unit = benchMergeSort(BenchmarkUtil)
 
   @Benchmark
-  def zioSortTraced(): Unit = benchMergeSort(BenchmarkUtil.TracedRuntime)
-
-  @Benchmark
   def scalaCollectionSort(): Unit = {
     val sortOutput = sortInput.map(_.sorted)
     sortInput.zip(sortOutput).foreach(verifySorted)

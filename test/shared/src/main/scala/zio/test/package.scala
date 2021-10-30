@@ -745,8 +745,7 @@ package object test extends CompileVariants {
   ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
     Spec.labeled(
       label,
-      if (specs.length == 0) Spec.empty
-      else if (specs.length == 1) suiteConstructor(specs.head)
+      if (specs.isEmpty) Spec.empty
       else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
     )
 
@@ -905,7 +904,7 @@ package object test extends CompileVariants {
       shrinkStream {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
           initial.foreach(input =>
-            test(input).traced
+            test(input)
               .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
               .either
           )
@@ -938,7 +937,6 @@ package object test extends CompileVariants {
             }
           )(ZIO.fromEither(_))
       }
-      .untraced
 
   private def checkStreamPar[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
@@ -948,7 +946,7 @@ package object test extends CompileVariants {
         stream.zipWithIndex
           .mapZIOPar(parallelism) { case (initial, index) =>
             initial.foreach { input =>
-              test(input).traced
+              test(input)
                 .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
                 .either
             // convert test failures to failures to terminate parallel tests on first failure

@@ -179,22 +179,4 @@ object ZIOAspect {
       def apply[R <: Has[Clock], E >: E1, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.timeoutFail(e)(d)
     }
-
-  /**
-   * As aspect that enables tracing for effects.
-   */
-  val traced: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.traced
-    }
-
-  /**
-   * As aspect that disables tracing for effects.
-   */
-  val untraced: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.untraced
-    }
 }
