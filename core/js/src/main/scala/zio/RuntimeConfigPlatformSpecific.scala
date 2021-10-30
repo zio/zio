@@ -60,7 +60,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     val logger: ZLogger[Unit] =
       (
         trace: ZTraceElement,
-        fiberId: FiberId,
+        fiberId: FiberId.Runtime,
         level: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
