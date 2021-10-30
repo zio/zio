@@ -3,6 +3,9 @@ package zio.concurrent
 import java.util.concurrent.ConcurrentHashMap
 import zio.UIO
 
+/**
+ * Wrapper over [[java.util.concurrent.ConcurrentHashMap]].
+ */
 final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashMap[K, V]) extends AnyVal {
 
   /**
