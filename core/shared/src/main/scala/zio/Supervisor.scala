@@ -130,7 +130,7 @@ object Supervisor {
       ): Unit = started.increment()
 
       def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit = {
-        val startTime = fiber.id.startTimeMillis
+        val startTime = (fiber.id.startTime * 1000).toLong
         val endTime   = java.lang.System.currentTimeMillis()
 
         val millis  = endTime - startTime

@@ -30,7 +30,7 @@ import scala.annotation.{switch, tailrec}
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
-  protected val fiberId: FiberId,
+  protected val fiberId: FiberId.Runtime,
   var runtimeConfig: RuntimeConfig,
   startEnv: AnyRef,
   startExec: zio.Executor,
@@ -802,7 +802,7 @@ private[zio] final class FiberContext[E, A](
 
   def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]] = ZIO.succeed(poll0)
 
-  def id: FiberId = fiberId
+  def id: FiberId.Runtime = fiberId
 
   def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = UIO.suspendSucceed {
     val locals = fiberRefLocals.get
