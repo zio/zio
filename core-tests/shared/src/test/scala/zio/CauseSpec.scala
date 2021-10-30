@@ -174,7 +174,7 @@ object CauseSpec extends ZIOBaseSpec {
     Gen.string
 
   val fiberIds: Gen[Has[Random], FiberId] =
-    Gen.int.zipWith(Gen.int)(FiberId.Runtime(_, _))
+    Gen.int.zipWith(Gen.int)(FiberId(_, _))
 
   val throwables: Gen[Has[Random], Throwable] =
     Gen.throwable

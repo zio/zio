@@ -42,7 +42,11 @@ sealed trait FiberId extends Serializable { self =>
 }
 
 object FiberId {
+
+  def apply(id: Int, startTimeSeconds: Int): FiberId =
+    Runtime(id, startTimeSeconds)
+
   case object None                                          extends FiberId
-  final case class Runtime(id: Int, startTime: Int)         extends FiberId
+  final case class Runtime(id: Int, startTimeSeconds: Int)  extends FiberId
   final case class Composite(left: FiberId, right: FiberId) extends FiberId
 }

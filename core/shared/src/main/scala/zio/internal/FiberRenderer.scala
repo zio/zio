@@ -45,7 +45,7 @@ private[zio] object FiberRenderer {
     }
 
   private def prettyPrint(dump: Fiber.Dump, now: Long): String = {
-    val millis  = (now - dump.fiberId.startTime * 1000).toLong
+    val millis  = (now - dump.fiberId.startTimeSeconds * 1000).toLong
     val seconds = millis / 1000L
     val minutes = seconds / 60L
     val hours   = minutes / 60L
