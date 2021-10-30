@@ -8,6 +8,11 @@ import java.util.concurrent.ConcurrentHashMap
  * Wrapper over [[java.util.concurrent.ConcurrentHashMap]].
  */
 final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashMap[K, V]) extends AnyVal {
+  /**
+   * Attempts to compute a mapping for the given key and its current mapped value.
+   */
+  def compute(key: K, remap: (K, V) => V): UIO[Option[V]] =
+    UIO(Option(underlying.compute(key, remap(_, _))))
 
   /**
    * Retrieves the value associated with the given key.

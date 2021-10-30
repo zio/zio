@@ -8,6 +8,22 @@ import zio.{Chunk, UIO}
 object ConcurrentMapSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("ConcurrentMap")(
+      suite("compute")(
+        testM("returns a computed value") {
+          for {
+            map      <- ConcurrentMap.make(1 -> 100)
+            computed <- map.compute(1, _ + _)
+            stored   <- map.get(1)
+          } yield assert(computed)(isSome(equalTo(101))) && assert(computed)(equalTo(stored))
+        },
+        testM("returns None if remap produced null (e.g. missing key)") {
+          for {
+            map      <- ConcurrentMap.empty[Int, String]
+            computed <- map.compute(1, (_, v) => v)
+            stored   <- map.get(1)
+          } yield assert(computed)(isNone) && assert(computed)(equalTo(stored))
+        }
+      ),
       suite("constructors")(
         testM("empty") {
           for {
