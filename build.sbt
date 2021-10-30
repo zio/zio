@@ -23,7 +23,7 @@ inThisBuild(
   )
 )
 
-addCommandAlias("build", "; fmt; testJVM")
+addCommandAlias("build", "; prepare; testJVM")
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
