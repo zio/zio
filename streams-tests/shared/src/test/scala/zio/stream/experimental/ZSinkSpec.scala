@@ -31,7 +31,6 @@ object ZSinkSpec extends ZIOBaseSpec {
       // the functionality of decoders. You should run it at least once locally before
       // pushing your commit.
       (originalBytes, _ /*chunkSize*/ ) =>
-        println(s">>> originalBytes is <$originalBytes>")
         ZStream
           .fromChunk(withBom(originalBytes))
 //        .rechunk(chunkSize)
