@@ -13,19 +13,19 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    * Attempts to compute a mapping for the given key and its current mapped value.
    */
   def compute(key: K, remap: (K, V) => V): UIO[Option[V]] =
-    UIO(Option(underlying.compute(key, (k, v) => if (v == null) v else remap(k, v))))
+    UIO(Option(underlying.compute(key, remapWith(remap))))
 
   /**
    * Computes a value of a non-existing key.
    */
   def computeIfAbsent(key: K, map: K => V): UIO[V] =
-    UIO(underlying.computeIfAbsent(key, map(_)))
+    UIO(underlying.computeIfAbsent(key, mapWith(map)))
 
   /**
    * Attempts to compuate a new mapping of an existing key.
    */
   def computeIfPresent(key: K, remap: (K, V) => V): UIO[Option[V]] =
-    UIO(Option(underlying.computeIfPresent(key, (k, v) => if (v == null) v else remap(k, v))))
+    UIO(Option(underlying.computeIfPresent(key, remapWith(remap))))
 
   /**
    * Retrieves the value associated with the given key.
@@ -92,6 +92,16 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    */
   def toList: UIO[List[(K, V)]] =
     toChunk.map(_.toList)
+
+  private[this] def mapWith(map: K => V): java.util.function.Function[K, V] =
+    new java.util.function.Function[K, V] {
+      def apply(k: K): V = map(k)
+    }
+
+  private[this] def remapWith(remap: (K, V) => V): java.util.function.BiFunction[K, V, V] =
+    new java.util.function.BiFunction[K, V, V] {
+      def apply(k: K, v: V): V = if (v == null) v else remap(k, v)
+    }
 }
 
 object ConcurrentMap {
