@@ -31,10 +31,10 @@ sealed trait FiberId extends Serializable { self =>
     @tailrec
     def loop(stack: List[FiberId], result: List[Int]): List[Int] =
       stack match {
-        case FiberId.None :: next              => loop(next, result)
-        case FiberId.Runtime(id, _) :: next    => loop(next, id :: result)
-        case FiberId.Both(left, right) :: next => loop(left :: right :: next, result)
-        case Nil                               => result.reverse
+        case FiberId.None :: next                   => loop(next, result)
+        case FiberId.Runtime(id, _) :: next         => loop(next, id :: result)
+        case FiberId.Composite(left, right) :: next => loop(left :: right :: next, result)
+        case Nil                                    => result.reverse
       }
 
     loop(List(self), List.empty)
@@ -42,7 +42,7 @@ sealed trait FiberId extends Serializable { self =>
 }
 
 object FiberId {
-  case object None                                     extends FiberId
-  final case class Runtime(id: Int, startTime: Int)    extends FiberId
-  final case class Both(left: FiberId, right: FiberId) extends FiberId
+  case object None                                          extends FiberId
+  final case class Runtime(id: Int, startTime: Int)         extends FiberId
+  final case class Composite(left: FiberId, right: FiberId) extends FiberId
 }
