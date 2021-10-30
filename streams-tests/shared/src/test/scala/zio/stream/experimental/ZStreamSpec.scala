@@ -3622,6 +3622,135 @@ object ZStreamSpec extends ZIOBaseSpec {
               "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
             assertM(result)(isLeft(equalTo(expected)))
           } @@ scala2Only
+        ),
+        suite("when")(
+          test("returns the stream if the condition is satisfied") {
+            check(pureStreamOfInts) { stream =>
+              for {
+                result1  <- stream.when(true).runCollect
+                result2  <- ZStream.when(true)(stream).runCollect
+                expected <- stream.runCollect
+              } yield assert(result1)(equalTo(expected)) && assert(result2)(equalTo(expected))
+            }
+          },
+          test("returns an empty stream if the condition is not satisfied") {
+            check(pureStreamOfInts) { stream =>
+              for {
+                result1 <- stream.when(false).runCollect
+                result2 <- ZStream.when(false)(stream).runCollect
+                expected = Chunk[Int]()
+              } yield assert(result1)(equalTo(expected)) && assert(result2)(equalTo(expected))
+            }
+          },
+          test("dies if the condition throws an exception") {
+            check(pureStreamOfInts) { stream =>
+              val exception     = new Exception
+              def cond: Boolean = throw exception
+              assertM(stream.when(cond).runDrain.exit)(dies(equalTo(exception)))
+            }
+          }
+        ),
+        suite("whenCase")(
+          test("returns the resulting stream if the given partial function is defined for the given value") {
+            check(Gen.int) { int =>
+              for {
+                result  <- ZStream.whenCase(Some(int)) { case Some(v) => ZStream(v) }.runCollect
+                expected = Chunk(int)
+              } yield assert(result)(equalTo(expected))
+            }
+          },
+          test("returns an empty stream if the given partial function is not defined for the given value") {
+            for {
+              result  <- ZStream.whenCase(Option.empty[Int]) { case Some(v) => ZStream(v) }.runCollect
+              expected = Chunk.empty
+            } yield assert(result)(equalTo(expected))
+          },
+          test("dies if evaluating the given value throws an exception") {
+            val exception   = new Exception
+            def badInt: Int = throw exception
+            assertM(ZStream.whenCase(badInt) { case _ => ZStream.empty }.runDrain.exit)(dies(equalTo(exception)))
+          },
+          test("dies if the partial function throws an exception") {
+            val exception = new Exception
+            assertM(ZStream.whenCase(()) { case _ => throw exception }.runDrain.exit)(dies(equalTo(exception)))
+          }
+        ),
+        suite("whenCaseZIO")(
+          test("returns the resulting stream if the given partial function is defined for the given effectful value") {
+            check(Gen.int) { int =>
+              for {
+                result  <- ZStream.whenCaseZIO(ZIO.succeed(Some(int))) { case Some(v) => ZStream(v) }.runCollect
+                expected = Chunk(int)
+              } yield assert(result)(equalTo(expected))
+            }
+          },
+          test("returns an empty stream if the given partial function is not defined for the given effectful value") {
+            for {
+              result  <- ZStream.whenCaseZIO(ZIO.succeed(Option.empty[Int])) { case Some(v) => ZStream(v) }.runCollect
+              expected = Chunk.empty
+            } yield assert(result)(equalTo(expected))
+          },
+          test("fails if the effectful value is a failure") {
+            val exception                   = new Exception
+            val failure: IO[Exception, Int] = ZIO.fail(exception)
+            assertM(ZStream.whenCaseZIO(failure) { case _ => ZStream.empty }.runDrain.exit)(fails(equalTo(exception)))
+          },
+          test("dies if the given partial function throws an exception") {
+            val exception = new Exception
+            assertM(ZStream.whenCaseZIO(ZIO.unit) { case _ => throw exception }.runDrain.exit)(dies(equalTo(exception)))
+          },
+          test("infers types correctly") {
+            trait R
+            trait R1 extends R
+            trait E1
+            trait E extends E1
+            trait A
+            trait O
+            val o                                          = new O {}
+            val b: ZIO[R, E, A]                            = ZIO.succeed(new A {})
+            val pf: PartialFunction[A, ZStream[R1, E1, O]] = { case _ => ZStream(o) }
+            val s: ZStream[R1, E1, O]                      = ZStream.whenCaseZIO(b)(pf)
+            assertM(s.runDrain.provide(new R1 {}))(isUnit)
+          }
+        ),
+        suite("whenZIO")(
+          test("returns the stream if the effectful condition is satisfied") {
+            check(pureStreamOfInts) { stream =>
+              for {
+                result1  <- stream.whenZIO(ZIO.succeed(true)).runCollect
+                result2  <- ZStream.whenZIO(ZIO.succeed(true))(stream).runCollect
+                expected <- stream.runCollect
+              } yield assert(result1)(equalTo(expected)) && assert(result2)(equalTo(expected))
+            }
+          },
+          test("returns an empty stream if the effectful condition is not satisfied") {
+            check(pureStreamOfInts) { stream =>
+              for {
+                result1 <- stream.whenZIO(ZIO.succeed(false)).runCollect
+                result2 <- ZStream.whenZIO(ZIO.succeed(false))(stream).runCollect
+                expected = Chunk[Int]()
+              } yield assert(result1)(equalTo(expected)) && assert(result2)(equalTo(expected))
+            }
+          },
+          test("fails if the effectful condition fails") {
+            check(pureStreamOfInts) { stream =>
+              val exception = new Exception
+              assertM(stream.whenZIO(ZIO.fail(exception)).runDrain.exit)(fails(equalTo(exception)))
+            }
+          },
+          test("infers types correctly") {
+            trait R
+            trait R1 extends R
+            trait E1
+            trait E extends E1
+            trait O
+            val o                          = new O {}
+            val b: ZIO[R, E, Boolean]      = ZIO.succeed(true)
+            val stream: ZStream[R1, E1, O] = ZStream(o)
+            val s1: ZStream[R1, E1, O]     = ZStream.whenZIO(b)(stream)
+            val s2: ZStream[R1, E1, O]     = stream.whenZIO(b)
+            assertM((s1 ++ s2).runDrain.provide(new R1 {}))(isUnit)
+          }
         )
       ),
       suite("Constructors")(
