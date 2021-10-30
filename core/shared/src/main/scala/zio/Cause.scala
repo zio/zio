@@ -243,13 +243,13 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     @tailrec
     def loop(in: List[Cause[E]], out: List[Either[Step, Set[Cause[E1]]]]): List[Set[Cause[E1]]] =
       in match {
-        case Cause.Both(left, right) :: causes         => loop(left :: right :: causes, Left(Both) :: out)
-        case Cause.Then(left, right) :: causes         => loop(left :: right :: causes, Left(Then) :: out)
-        case Cause.Stackless(cause, stackless) :: causes    => loop(cause :: causes,Left(Stackless(stackless)) :: out)
-        case (cause @ Cause.Fail(_, _)) :: causes      => loop(causes, Right(Set[Cause[E1]](cause)) :: out)
-        case (cause @ Cause.Die(_, _)) :: causes       => loop(causes, Right(Set[Cause[E1]](cause)) :: out)
-        case (cause @ Cause.Interrupt(_, _)) :: causes => loop(causes, Right(Set[Cause[E1]](cause)) :: out)
-        case _ :: causes                               => loop(causes, Right(Set.empty[Cause[E1]]) :: out)
+        case Cause.Both(left, right) :: causes           => loop(left :: right :: causes, Left(Both) :: out)
+        case Cause.Then(left, right) :: causes           => loop(left :: right :: causes, Left(Then) :: out)
+        case Cause.Stackless(cause, stackless) :: causes => loop(cause :: causes, Left(Stackless(stackless)) :: out)
+        case (cause @ Cause.Fail(_, _)) :: causes        => loop(causes, Right(Set[Cause[E1]](cause)) :: out)
+        case (cause @ Cause.Die(_, _)) :: causes         => loop(causes, Right(Set[Cause[E1]](cause)) :: out)
+        case (cause @ Cause.Interrupt(_, _)) :: causes   => loop(causes, Right(Set[Cause[E1]](cause)) :: out)
+        case _ :: causes                                 => loop(causes, Right(Set.empty[Cause[E1]]) :: out)
         case Nil =>
           out.foldLeft[List[Set[Cause[E1]]]](List.empty) {
             case (acc, Right(causes)) => causes :: acc
