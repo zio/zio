@@ -23,23 +23,33 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     UIO(Option(underlying.putIfAbsent(key, value)))
 
   /**
-   * Removes binding for the given key, optionally returning value associated
+   * Removes the entry for the given key, optionally returning value associated
    * with it.
    */
-  def remove(key: K): UIO[Option[V]] = 
+  def remove(key: K): UIO[Option[V]] =
     UIO(Option(underlying.remove(key)))
 
   /**
-   * Removes binding for the given key if it is mapped to a given value.
+   * Removes the entry for the given key if it is mapped to a given value.
    */
   def remove(key: K, value: V): UIO[Boolean] =
     UIO(underlying.remove(key, value))
 
-  def replace(key: K, value: V): UIO[Option[V]]               = ???
-  def replace(key: K, oldValue: V, newValue: V): UIO[Boolean] = ???
+  /**
+   * Replaces the entry for the given key only if it is mapped to some value.
+   */
+  def replace(key: K, value: V): UIO[Option[V]] =
+    UIO(Option(underlying.replace(key, value)))
 
   /**
-   * Collects all bindings into a chunk.
+   * Replaces the entry for the given key only if it was previously mapped
+   * to a given value.
+   */
+  def replace(key: K, oldValue: V, newValue: V): UIO[Boolean] =
+    UIO(underlying.replace(key, oldValue, newValue))
+
+  /**
+   * Collects all entries into a chunk.
    */
   def toChunk: UIO[Chunk[(K, V)]] =
     UIO {
@@ -55,7 +65,7 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     }
 
   /**
-   * Collects all bindings into a list.
+   * Collects all entries into a list.
    */
   def toList: UIO[List[(K, V)]] =
     toChunk.map(_.toList)
@@ -70,7 +80,8 @@ object ConcurrentMap {
     UIO(new ConcurrentMap(new ConcurrentHashMap()))
 
   /**
-   * Makes a new `ConcurrentMap` initialized with provided collection of key-value pairs.
+   * Makes a new `ConcurrentMap` initialized with provided collection of
+   * key-value pairs.
    */
   def fromIterable[K, V](pairs: Iterable[(K, V)]): UIO[ConcurrentMap[K, V]] =
     UIO {
