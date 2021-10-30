@@ -515,7 +515,7 @@ lazy val examplesJS = examples.js
   .settings(dottySettings)
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
-  .dependsOn(testJunitRunnerJVM, profilingJVM)
+  .dependsOn(testJunitRunnerJVM)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM, testJVM)
