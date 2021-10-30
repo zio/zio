@@ -4668,6 +4668,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
+   * Accesses the specified service in the environment of the stream in the
+   * context of an effect.
+   */
+  def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Accesses the specified service in the environment of the stream in the
+   * context of a stream.
+   */
+  def serviceWithStream[Service]: ServiceWithStreamPartiallyApplied[Service] =
+    new ServiceWithStreamPartiallyApplied[Service]
+
+  /**
    * Creates a single-valued pure stream
    */
   def succeed[A](a: => A)(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
@@ -4812,6 +4826,22 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       trace: ZTraceElement
     ): ZStream[HasMany[Key, Service], Nothing, Option[Service]] =
       ZStream.access(_.getAt(key))
+  }
+
+  final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R <: Has[Service], E, A](f: Service => ZIO[R, E, A])(implicit
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZStream[R with Has[Service], E, A] =
+      ZStream.fromZIO(ZIO.serviceWith(f))
+  }
+
+  final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R <: Has[Service], E, A](f: Service => ZStream[R, E, A])(implicit
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZStream[R with Has[Service], E, A] =
+      ZStream.service[Service].flatMap(f)
   }
 
   /**
