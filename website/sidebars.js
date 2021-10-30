@@ -181,7 +181,8 @@ module.exports = {
                   "datatypes/metrics/setcount"
               ]
           },
-          "datatypes/metrics/metriclabel"
+          "datatypes/metrics/metriclabel",
+          "datatypes/metrics/jvm",
       ],
     "Miscellaneous": [
       "datatypes/misc/chunk",
