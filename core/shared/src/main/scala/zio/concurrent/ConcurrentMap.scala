@@ -1,7 +1,8 @@
 package zio.concurrent
 
-import java.util.concurrent.ConcurrentHashMap
 import zio.{Chunk, ChunkBuilder, UIO}
+
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Wrapper over [[java.util.concurrent.ConcurrentHashMap]].
