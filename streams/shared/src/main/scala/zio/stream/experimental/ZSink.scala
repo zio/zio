@@ -1258,6 +1258,44 @@ object ZSink {
     new ZSink(ZChannel.fromZIO(b))
 
   /**
+   * Create a sink which enqueues each element into the specified queue.
+   */
+  // TODO Result type should probably be ZSink[R, InError, I, E, Nothing, Unit]
+  def fromQueue[R, E, I](queue: ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, E, I, Unit] =
+    foreachChunk(queue.offerAll)
+
+  /**
+   * Create a sink which enqueues each element into the specified queue.
+   * The queue will be shutdown once the stream is closed.
+   */
+  // TODO Result type should probably be ZSink[R, InError, I, E, Nothing, Unit]
+  def fromQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, I, E, I, Unit] =
+    ZSink.unwrapManaged(
+      ZManaged.acquireReleaseWith(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I])
+    )
+
+  /**
+   * Create a sink which publishes each element to the specified hub.
+   */
+  // TODO Result type should probably be ZSink[R, InError, I, E, Nothing, Unit]
+  def fromHub[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, I, E, I, Unit] =
+    fromQueue(hub.toQueue)
+
+  /**
+   * Create a sink which publishes each element to the specified hub.
+   * The hub will be shutdown once the stream is closed.
+   */
+  // TODO Result type should probably be ZSink[R, InError, I, E, Nothing, Unit]
+  def fromHubWithShutdown[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, I, E, I, Unit] =
+    fromQueueWithShutdown(hub.toQueue)
+
+  /**
    * Creates a sink halting with a specified cause.
    */
   @deprecated("use failCause", "2.0.0")
