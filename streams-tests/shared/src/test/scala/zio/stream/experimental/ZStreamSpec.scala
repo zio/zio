@@ -2714,10 +2714,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               for {
                 finalized <- Ref.make(0)
                 stream = ZStream.unwrapManaged(
-                  ZManaged
-                    .finalizer(finalized.getAndUpdate(_ + 1))
-                    .as(ZStream.fromZIO(finalized.get) ++ ZStream.fail(None))
-                )
+                           ZManaged
+                             .finalizer(finalized.getAndUpdate(_ + 1))
+                             .as(ZStream.fromZIO(finalized.get) ++ ZStream.fail(None))
+                         )
                 results <- stream.retry(Schedule.forever).take(2).runCollect
               } yield results
             )(equalTo(Chunk(0, 1)))
@@ -2748,10 +2748,10 @@ object ZStreamSpec extends ZIOBaseSpec {
                   }
                   .forever
               streamFib <- stream
-                .retry(Schedule.exponential(1.second))
-                .take(2)
-                .runDrain
-                .fork
+                             .retry(Schedule.exponential(1.second))
+                             .take(2)
+                             .runDrain
+                             .fork
               _       <- TestClock.adjust(1.second)
               _       <- TestClock.adjust(2.second)
               _       <- TestClock.adjust(1.second)
