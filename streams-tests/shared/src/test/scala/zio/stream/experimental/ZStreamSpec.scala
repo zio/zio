@@ -2699,6 +2699,67 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk("A", "A", "B")))
           )
         ),
+        suite("retry")(
+          test("retry a failing stream") {
+            assertM(
+              for {
+                ref     <- Ref.make(0)
+                stream   = ZStream.fromZIO(ref.getAndUpdate(_ + 1)) ++ ZStream.fail(None)
+                results <- stream.retry(Schedule.forever).take(2).runCollect
+              } yield results
+            )(equalTo(Chunk(0, 1)))
+          },
+          test("cleanup resources before restarting the stream") {
+            assertM(
+              for {
+                finalized <- Ref.make(0)
+                stream = ZStream.unwrapManaged(
+                  ZManaged
+                    .finalizer(finalized.getAndUpdate(_ + 1))
+                    .as(ZStream.fromZIO(finalized.get) ++ ZStream.fail(None))
+                )
+                results <- stream.retry(Schedule.forever).take(2).runCollect
+              } yield results
+            )(equalTo(Chunk(0, 1)))
+          },
+          test("retry a failing stream according to a schedule") {
+            for {
+              times <- Ref.make(List.empty[java.time.Instant])
+              stream =
+                ZStream
+                  .fromZIO(Clock.instant.flatMap(time => times.update(time +: _)))
+                  .flatMap(_ => ZStream.fail(None))
+              streamFib <- stream.retry(Schedule.exponential(1.second)).take(3).runDrain.fork
+              _         <- TestClock.adjust(1.second)
+              _         <- TestClock.adjust(2.second)
+              _         <- streamFib.interrupt
+              results   <- times.get.map(_.map(_.getEpochSecond.toInt))
+            } yield assert(results)(equalTo(List(3, 1, 0)))
+          },
+          test("reset the schedule after a successful pull") {
+            for {
+              times <- Ref.make(List.empty[java.time.Instant])
+              ref   <- Ref.make(0)
+              stream =
+                ZStream
+                  .fromZIO(Clock.instant.flatMap(time => times.update(time +: _) *> ref.updateAndGet(_ + 1)))
+                  .flatMap { attemptNr =>
+                    if (attemptNr == 3 || attemptNr == 5) ZStream.succeed(attemptNr) else ZStream.fail(None)
+                  }
+                  .forever
+              streamFib <- stream
+                .retry(Schedule.exponential(1.second))
+                .take(2)
+                .runDrain
+                .fork
+              _       <- TestClock.adjust(1.second)
+              _       <- TestClock.adjust(2.second)
+              _       <- TestClock.adjust(1.second)
+              _       <- streamFib.join
+              results <- times.get.map(_.map(_.getEpochSecond.toInt))
+            } yield assert(results)(equalTo(List(4, 3, 3, 1, 0)))
+          }
+        ),
         test("some") {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.some.runCollect.either.map(assert(_)(isLeft(isNone)))
