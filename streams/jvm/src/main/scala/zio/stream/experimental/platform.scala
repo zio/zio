@@ -503,3 +503,43 @@ trait ZStreamPlatformSpecificConstructors {
 
   trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
 }
+
+trait ZSinkPlatformSpecificConstructors {
+  self: ZSink.type =>
+
+  /**
+   * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
+   * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
+   *
+   * The caller of this function is responsible for closing the `OutputStream`.
+   */
+  final def fromOutputStream(
+    os: OutputStream
+  )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, IOException, Byte, Long] = fromOutputStreamManaged(
+    ZManaged.succeedNow(os)
+  )
+
+  /**
+   * Uses the provided `OutputStream` resource to create a [[ZSink]] that consumes byte chunks
+   * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
+   *
+   * The `OutputStream` will be automatically closed after the stream is finished or an error occurred.
+   */
+  final def fromOutputStreamManaged(
+    os: ZManaged[Any, IOException, OutputStream]
+  )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, IOException, Byte, Long] =
+    ZSink.unwrapManaged {
+      os.map { out =>
+        ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+          ZIO.attemptBlockingInterrupt {
+            val bytes = byteChunk.toArray
+            out.write(bytes)
+            bytesWritten + bytes.length
+          }.refineOrDie { case e: IOException =>
+            e
+          }
+        }
+      }
+    }
+
+}

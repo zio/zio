@@ -499,7 +499,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
     new ZSink(channel.provide(r))
 }
 
-object ZSink {
+object ZSink extends ZSinkPlatformSpecificConstructors {
 
   /**
    * Accesses the environment of the sink in the context of a sink.
