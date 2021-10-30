@@ -13,7 +13,34 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
 }
 
 object ConcurrentMap {
-  def empty[K, V]: UIO[ConcurrentMap[K, V]] = ???
 
-  def make[K, V](pairs: (K, V)*): UIO[ConcurrentMap[K, V]] = ???
+  /**
+   * Makes an empty `ConcurrentMap`.
+   */
+  def empty[K, V]: UIO[ConcurrentMap[K, V]] =
+    UIO(new ConcurrentMap(new ConcurrentHashMap()))
+
+  /**
+   * Makes a new `ConcurrentMap` initialized with provided collection of key-value pairs.
+   */
+  def fromIterable[K, V](pairs: Iterable[(K, V)]): UIO[ConcurrentMap[K, V]] =
+    UIO {
+      val underlying = new ConcurrentHashMap[K, V]()
+
+      pairs.foreach(kv => underlying.put(kv._1, kv._2))
+
+      new ConcurrentMap(underlying)
+    }
+
+  /**
+   * Makes a new `ConcurrentMap` initialized with provided key-value pairs.
+   */
+  def make[K, V](pairs: (K, V)*): UIO[ConcurrentMap[K, V]] =
+    UIO {
+      val underlying = new ConcurrentHashMap[K, V]()
+
+      pairs.foreach(kv => underlying.put(kv._1, kv._2))
+
+      new ConcurrentMap(underlying)
+    }
 }
