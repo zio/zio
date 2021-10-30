@@ -1077,6 +1077,19 @@ private[zio] final class FiberContext[E, A](
     // For improved fairness, we resume in order of submission:
     observers.reverse.foreach(k => k(result))
   }
+
+  override def toString(): String =
+    s"""${super.toString()}
+       |  fiberId:         $fiberId
+       |  platform:        
+       |    executor:
+       |      yieldOpCount:   ${platform.executor.yieldOpCount}
+       |      metrics:        ${platform.executor.metrics.getOrElse("not tracked")}
+       |    tracing:       ${platform.tracing}
+       |  state:           $state
+       |  interruptStatus: ${InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true))}
+       |  scopeKey:        ${scopeKey}
+    """.stripMargin
 }
 private[zio] object FiberContext {
   sealed abstract class FiberState[+E, +A] extends Serializable with Product {

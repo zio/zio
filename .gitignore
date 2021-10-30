@@ -4,6 +4,7 @@ project/secrets.tar.xz
 target
 test-output/
 .sbtopts
+.jvmopts
 project/.sbt
 test-output/
 .bloop

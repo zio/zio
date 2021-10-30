@@ -66,6 +66,8 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
       if (submit(command)) ()
       else throw new java.util.concurrent.RejectedExecutionException
 
+  override def toString: String =
+    s"Executor(yieldOpCount=$yieldOpCount, metrics=${metrics.mkString})"
 }
 
 object Executor extends DefaultExecutors with Serializable {

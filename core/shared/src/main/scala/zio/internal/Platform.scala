@@ -109,6 +109,9 @@ abstract class Platform { self =>
     new Platform.Proxy(self) {
       override def supervisor: Supervisor[Any] = s0
     }
+
+  override def toString: String =
+    s"Platform(executor=$executor, tracing=$tracing)"
 }
 object Platform extends PlatformSpecific {
   abstract class Proxy(self: Platform) extends Platform {

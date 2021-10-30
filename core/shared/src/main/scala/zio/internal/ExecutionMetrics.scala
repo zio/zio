@@ -47,4 +47,7 @@ abstract class ExecutionMetrics {
    * The number of current live worker threads.
    */
   def workersCount: Int
+
+  override def toString: String =
+    s"""ExecutionMetrics(concurrency=$concurrency, capacity=$capacity, size=$size, enqueuedCount=$enqueuedCount, dequeuedCount=$dequeuedCount, workersCount=$workersCount)""".stripMargin
 }
