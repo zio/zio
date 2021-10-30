@@ -11,9 +11,8 @@ object SupervisorSpec extends ZIOBaseSpec {
   private val initialValue = "initial-value"
 
   private val fiberRef = FiberRef.unsafeMake(initialValue)
-  val runtime = Runtime.default.mapRuntimeConfig(_ @@ RuntimeConfigAspect.trackFiberRef(fiberRef)(
-    a => threadLocal.set(Some(a)),
-  ))
+  val runtime =
+    Runtime.default.mapRuntimeConfig(_ @@ RuntimeConfigAspect.trackFiberRef(fiberRef)(a => threadLocal.set(Some(a))))
 
   def spec: ZSpec[Environment, Failure] = suite("SupervisorSpec")(
     suite("fiberRefTrackingSupervisor")(
@@ -68,9 +67,9 @@ object SupervisorSpec extends ZIOBaseSpec {
         for {
           a <- threadLocalGet
           (b, c) <- fiberRef.locally(newValue1) {
-            threadLocalGet zipPar
-              fiberRef.locally(newValue2)(threadLocalGet)
-          }
+                      threadLocalGet zipPar
+                        fiberRef.locally(newValue2)(threadLocalGet)
+                    }
           d <- threadLocalGet
         } yield assertTrue(
           a.contains(initialValue),
@@ -82,12 +81,9 @@ object SupervisorSpec extends ZIOBaseSpec {
     }
   )
 
-  def threadLocalGet = {
+  def threadLocalGet =
     Task(threadLocal.get)
-  }
 
-  private def runIn[E, A](rt: Runtime[Any])(a: IO[E, A]) = {
-    ZIO.async[Any, E, A](callback => rt.unsafeRunAsyncWith(a)(exit =>
-      callback(exit.fold(ZIO.failCause(_), UIO(_)))))
-  }
+  private def runIn[E, A](rt: Runtime[Any])(a: IO[E, A]) =
+    ZIO.async[Any, E, A](callback => rt.unsafeRunAsyncWith(a)(exit => callback(exit.fold(ZIO.failCause(_), UIO(_)))))
 }
