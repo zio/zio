@@ -1683,8 +1683,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val z1                = Task.fail(new Throwable("1"))
         val z2: Task[Nothing] = Task.die(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-          case Traced(Die(e: Throwable), _) => Task(e.getMessage == "2")
-          case _                            => Task(false)
+          case Die(e: Throwable, _) => Task(e.getMessage == "2")
+          case _                    => Task(false)
         }
         assertM(orElse)(equalTo(true))
       },
@@ -1692,8 +1692,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val z1                = Task.fail(new Throwable("1"))
         val z2: Task[Nothing] = Task.fail(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-          case Traced(Fail(e: Throwable), _) => Task(e.getMessage == "2")
-          case _                             => Task(false)
+          case Fail(e: Throwable, _) => Task(e.getMessage == "2")
+          case _                     => Task(false)
         }
         assertM(orElse)(equalTo(true))
       },
@@ -3706,11 +3706,11 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO(1).validateWith(ZIO(2))(_ + _))(equalTo(3))
       },
       test("fails") {
-        assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2))))
+        assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2, ZTrace.none))))
       },
       test("combines both cause") {
         assertM(ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either)(
-          isLeft(equalTo(Cause.Then(Cause.Fail(1), Cause.Fail(2))))
+          isLeft(equalTo(Cause.Then(Cause.Fail(1, ZTrace.none), Cause.Fail(2, ZTrace.none))))
         )
       }
     ),

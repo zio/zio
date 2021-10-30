@@ -95,24 +95,19 @@ object SerializableSpec extends ZIOBaseSpec {
     testSync("Cause.die is serializable") {
       val cause = Cause.die(TestException("test"))
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
+    } @@ exceptDotty,
     testSync("Cause.fail is serializable") {
       val cause = Cause.fail("test")
-      assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
-    testSync("Cause.traced is serializable") {
-      val fiberId = FiberId.None
-      val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, Chunk.empty))
       assert(serializeAndDeserialize(cause))(equalTo(cause))
     } @@ exceptDotty,
     testSync("Cause.&& is serializable") {
       val cause = Cause.fail("test") && Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
+    } @@ exceptDotty,
     testSync("Cause.++ is serializable") {
       val cause = Cause.fail("test") ++ Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
+    } @@ exceptDotty,
     testSync("Exit.succeed is serializable") {
       val exit = Exit.succeed("test")
       assert(serializeAndDeserialize(exit))(equalTo(exit))
@@ -120,15 +115,15 @@ object SerializableSpec extends ZIOBaseSpec {
     testSync("Exit.fail is serializable") {
       val exit = Exit.fail("test")
       assert(serializeAndDeserialize(exit))(equalTo(exit))
-    },
+    } @@ exceptDotty,
     testSync("Exit.die is serializable") {
       val exit = Exit.die(TestException("test"))
       assert(serializeAndDeserialize(exit))(equalTo(exit))
-    },
+    } @@ exceptDotty,
     testSync("FiberFailure is serializable") {
       val failure = FiberFailure(Cause.fail("Uh oh"))
       assert(serializeAndDeserialize(failure))(equalTo(failure))
-    },
+    } @@ exceptDotty,
     testSync("InterruptStatus.interruptible is serializable") {
       val interruptStatus = InterruptStatus.interruptible
       assert(serializeAndDeserialize(interruptStatus))(equalTo(interruptStatus))

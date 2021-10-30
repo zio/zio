@@ -255,6 +255,8 @@ private[zio] final class FiberContext[E, A](
       var fastPathFlatMapContinuationTrace: ZTraceElement = null.asInstanceOf[ZTraceElement]
 
       if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.set(this)
+      if (runtimeConfig.superviseOperations && (runtimeConfig.supervisor ne null))
+        runtimeConfig.supervisor.unsafeOnResume(self)
 
       while (curZio ne null) {
         try {
@@ -274,6 +276,8 @@ private[zio] final class FiberContext[E, A](
               } else {
                 // Fiber is neither being interrupted nor needs to yield. Execute
                 // the next instruction in the program:
+                if (runtimeConfig.superviseOperations && (runtimeConfig.supervisor ne null))
+                  runtimeConfig.supervisor.unsafeOnEffect(self, curZio)
                 (tag: @switch) match {
                   case ZIO.Tags.FlatMap =>
                     val zio = curZio.asInstanceOf[ZIO.FlatMap[Any, Any, Any, Any]]
@@ -625,7 +629,10 @@ private[zio] final class FiberContext[E, A](
             }
         }
       }
-    } finally if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.remove()
+    } finally {
+      if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.remove()
+      if (runtimeConfig.supervisor ne null) runtimeConfig.supervisor.unsafeOnSuspend(self)
+    }
 
   private[this] def shift(executor: zio.Executor)(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.succeed { currentExecutor = executor } *> ZIO.yieldNow

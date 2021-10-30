@@ -777,7 +777,7 @@ object Fiber extends FiberPlatformSpecific {
    * @return `UIO[Unit]`
    */
   def joinAll[E](fs: Iterable[Fiber[E, Any]])(implicit trace: ZTraceElement): IO[E, Unit] =
-    collectAll(fs).join.unit.refailWithTrace
+    collectAll(fs).join.unit
 
   /**
    * A fiber that never fails or succeeds.
