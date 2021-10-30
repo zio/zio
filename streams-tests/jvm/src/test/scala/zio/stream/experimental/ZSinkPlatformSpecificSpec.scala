@@ -19,7 +19,6 @@ object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
           str    <- Task(os.toString("UTF-8"))
         } yield assert(data)(equalTo(str)) && assert(bytes.length.toLong)(equalTo(length))
       }
-
     )
   )
 
