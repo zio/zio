@@ -5,26 +5,31 @@ import zio.UIO
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters._
 
-final class KeySetView[A](val inner: ConcurrentHashMap.KeySetView[A, java.lang.Boolean]) extends AnyVal
-
-final class ConcurrentSet[A] private (keySetView: KeySetView[A]) {
+final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.KeySetView[A, java.lang.Boolean])
+    extends AnyVal {
   def add(x: A): UIO[Boolean] =
-    UIO(keySetView.inner.add(x))
+    UIO(underlying.add(x))
 
   def addAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(keySetView.inner.addAll(xs.asJavaCollection))
+    UIO(underlying.addAll(xs.asJavaCollection))
 
   def remove(x: A): UIO[Boolean] =
-    UIO(keySetView.inner.remove(x))
+    UIO(underlying.remove(x))
 
   def clear: UIO[Unit] =
-    UIO(keySetView.inner.clear())
+    UIO(underlying.clear())
 
   def contains(x: A): UIO[Boolean] =
-    UIO(keySetView.inner.contains(x))
+    UIO(underlying.contains(x))
 
   def containsAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(keySetView.inner.containsAll(xs.asJavaCollection))
+    UIO(underlying.containsAll(xs.asJavaCollection))
+
+  def size: UIO[Int] =
+    UIO(underlying.size())
+
+  def isEmpty: UIO[Boolean] =
+    UIO(underlying.isEmpty)
 }
 
 object ConcurrentSet {
@@ -32,8 +37,8 @@ object ConcurrentSet {
   def make[A](xs: A*): UIO[ConcurrentSet[A]] =
     UIO.effectSuspendTotal {
       UIO {
-        val keySetView = new KeySetView(ConcurrentHashMap.newKeySet[A]())
-        keySetView.inner.addAll(xs.asJavaCollection)
+        val keySetView = ConcurrentHashMap.newKeySet[A]()
+        keySetView.addAll(xs.asJavaCollection)
         new ConcurrentSet(keySetView)
       }
     }
@@ -41,7 +46,7 @@ object ConcurrentSet {
   def make[A](size: Int): UIO[ConcurrentSet[A]] =
     UIO.effectSuspendTotal {
       UIO {
-        val keySetView = new KeySetView(ConcurrentHashMap.newKeySet[A](size))
+        val keySetView = ConcurrentHashMap.newKeySet[A](size)
         new ConcurrentSet(keySetView)
       }
     }
