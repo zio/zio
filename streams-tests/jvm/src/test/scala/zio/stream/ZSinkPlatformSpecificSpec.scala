@@ -5,6 +5,7 @@ import zio.test.Assertion._
 import zio.test._
 
 import java.nio.file.Files
+import java.io.ByteArrayOutputStream
 
 object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
   override def spec: Spec[Any, TestFailure[Throwable], TestSuccess] = suite("ZSink JVM")(
@@ -21,6 +22,18 @@ object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
             } yield assert(data)(equalTo(str)) && assert(bytes.length.toLong)(equalTo(length))
           }
 
+      }
+    ),
+    suite("fromOutputStream")(
+      test("writes to byte array ouput stream") {
+        val data = (0 to 100).mkString
+
+        for {
+          bytes  <- Task(data.getBytes("UTF-8"))
+          os      = new ByteArrayOutputStream(data.length)
+          length <- ZStream.fromIterable(bytes).run(ZSink.fromOutputStream(os))
+          str    <- Task(os.toString())
+        } yield assert(data)(equalTo(str)) && assert(bytes.length.toLong)(equalTo(length))
       }
     )
   )
