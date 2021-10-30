@@ -22,7 +22,19 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
   def putIfAbsent(key: K, value: V): UIO[Option[V]] =
     UIO(Option(underlying.putIfAbsent(key, value)))
 
-  def remove(key: K): UIO[Option[V]]                          = ???
+  /**
+   * Removes binding for the given key, optionally returning value associated
+   * with it.
+   */
+  def remove(key: K): UIO[Option[V]] = 
+    UIO(Option(underlying.remove(key)))
+
+  /**
+   * Removes binding for the given key if it is mapped to a given value.
+   */
+  def remove(key: K, value: V): UIO[Boolean] =
+    UIO(underlying.remove(key, value))
+
   def replace(key: K, value: V): UIO[Option[V]]               = ???
   def replace(key: K, oldValue: V, newValue: V): UIO[Boolean] = ???
   def update(key: K, value: V): UIO[Any]                      = ???

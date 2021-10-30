@@ -59,6 +59,36 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
             getRes <- map.get(1)
           } yield assert(putRes)(isSome(equalTo("a"))) && assert(getRes)(isSome(equalTo("a")))
         }
+      ),
+      suite("remove")(
+        testM("returns the value associated with removed key") {
+          for {
+            map    <- ConcurrentMap.make(1 -> "a")
+            remRes <- map.remove(1)
+            getRes <- map.get(1)
+          } yield assert(remRes)(isSome(equalTo("a"))) && assert(getRes)(isNone)
+        },
+        testM("returns None if map didn't contain the given key") {
+          for {
+            map    <- ConcurrentMap.empty[Int, String]
+            remRes <- map.remove(1)
+            getRes <- map.get(1)
+          } yield assert(remRes)(isNone) && assert(getRes)(isNone)
+        },
+        testM("succeeds if the key was mapped to the given value") {
+          for {
+            map    <- ConcurrentMap.make(1 -> "a")
+            remRes <- map.remove(1, "a")
+            getRes <- map.get(1)
+          } yield assert(remRes)(isTrue) && assert(getRes)(isNone)
+        },
+        testM("fails if the key wasn't mapped to the given value") {
+          for {
+            map    <- ConcurrentMap.make(1 -> "a")
+            remRes <- map.remove(1, "b")
+            getRes <- map.get(1)
+          } yield assert(remRes)(isFalse) && assert(getRes)(isSome(equalTo("a")))
+        }
       )
     )
 }
