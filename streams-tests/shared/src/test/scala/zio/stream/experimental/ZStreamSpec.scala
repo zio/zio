@@ -1602,25 +1602,53 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         suite("foreach")(
-          test("foreach") {
-            for {
-              ref <- Ref.make(0)
-              _   <- ZStream(1, 1, 1, 1, 1).foreach[Any, Nothing](a => ref.update(_ + a))
-              sum <- ref.get
-            } yield assert(sum)(equalTo(5))
-          },
-          test("foreachWhile") {
-            for {
-              ref <- Ref.make(0)
-              _ <- ZStream(1, 1, 1, 1, 1, 1).runForeachWhile[Any, Nothing](a =>
-                     ref.modify(sum =>
-                       if (sum >= 3) (false, sum)
-                       else (true, sum + a)
+          suite("foreach")(
+            test("with small data set") {
+              for {
+                ref <- Ref.make(0)
+                _   <- ZStream(1, 1, 1, 1, 1).foreach[Any, Nothing](a => ref.update(_ + a))
+                sum <- ref.get
+              } yield assert(sum)(equalTo(5))
+            },
+            test("with bigger data set") {
+              for {
+                ref <- Ref.make(0L)
+                _ <-
+                  ZStream.fromIterable(List.fill(1000)(1L)).foreach[Any, Nothing](a => ref.update(_ + a))
+                sum <- ref.get
+              } yield assert(sum)(equalTo(1000L))
+            }
+          ),
+          suite("foreachWhile")(
+            test("with small data set") {
+              val expected = 3
+              for {
+                ref <- Ref.make(0)
+                _ <- ZStream(1, 1, 1, 1, 1, 1).runForeachWhile[Any, Nothing](a =>
+                       ref.modify(sum =>
+                         if (sum >= expected) (false, sum)
+                         else (true, sum + a)
+                       )
                      )
-                   )
-              sum <- ref.get
-            } yield assert(sum)(equalTo(3))
-          },
+                sum <- ref.get
+              } yield assert(sum)(equalTo(expected))
+            },
+            test("with bigger data set") {
+              val expected = 500L
+              for {
+                ref <- Ref.make(0L)
+                _ <- ZStream
+                       .fromIterable[Long](List.fill(1000)(1L))
+                       .runForeachWhile[Any, Nothing](a =>
+                         ref.modify(sum =>
+                           if (sum >= expected) (false, sum)
+                           else (true, sum + a)
+                         )
+                       )
+                sum <- ref.get
+              } yield assert(sum)(equalTo(expected))
+            }
+          ),
           test("foreachWhile short circuits") {
             for {
               flag <- Ref.make(true)

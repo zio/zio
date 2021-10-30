@@ -1162,16 +1162,35 @@ object ZSink {
   /**
    * A sink that executes the provided effectful function for every element fed to it.
    */
-  def foreach[R, Err, In](f: In => ZIO[R, Err, Any])(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, Unit] =
-    foreachWhile(f(_).as(true))
+  def foreach[R, Err, In](
+    f: In => ZIO[R, Err, Any]
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, Nothing, Unit] = {
+
+    lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
+      ZChannel.readWithCause[R, Err, Chunk[In], Any, Err, Nothing, Unit](
+        in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(f(_))) *> process,
+        halt => ZChannel.failCause(halt),
+        _ => ZChannel.end(())
+      )
+
+    new ZSink(process)
+  }
 
   /**
    * A sink that executes the provided effectful function for every chunk fed to it.
    */
   def foreachChunk[R, Err, In](
     f: Chunk[In] => ZIO[R, Err, Any]
-  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, Unit] =
-    foreachChunkWhile(f(_).as(true))
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, Nothing, Unit] = {
+    lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
+      ZChannel.readWithCause(
+        in => ZChannel.fromZIO(f(in)) *> process,
+        halt => ZChannel.failCause(halt),
+        _ => ZChannel.end(())
+      )
+
+    new ZSink(process)
+  }
 
   /**
    * A sink that executes the provided effectful function for every element fed to it
