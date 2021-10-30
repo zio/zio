@@ -32,7 +32,7 @@ object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
           bytes  <- Task(data.getBytes("UTF-8"))
           os      = new ByteArrayOutputStream(data.length)
           length <- ZStream.fromIterable(bytes).run(ZSink.fromOutputStream(os))
-          str    <- Task(os.toString())
+          str    <- Task(os.toString("UTF-8"))
         } yield assert(data)(equalTo(str)) && assert(bytes.length.toLong)(equalTo(length))
       }
     )
