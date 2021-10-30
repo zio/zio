@@ -498,7 +498,7 @@ lazy val benchmarks = project.module
   .settings(replSettings)
   .settings(
     // skip 2.11 benchmarks because akka stop supporting scala 2.11 in 2.6.x
-    crossScalaVersions -= Scala211,
+    crossScalaVersions --= List(Scala211, Scala3),
     //
     publish / skip := true,
     libraryDependencies ++=
