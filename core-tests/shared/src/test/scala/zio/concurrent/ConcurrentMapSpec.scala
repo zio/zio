@@ -24,6 +24,22 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
           } yield assert(computed)(isNone) && assert(computed)(equalTo(stored))
         }
       ),
+      suite("computeIfAbsent")(
+        testM("computes a value of a non-existing key") {
+          for {
+            map      <- ConcurrentMap.empty[String, Int]
+            computed <- map.computeIfAbsent("abc", _.length)
+            stored   <- map.get("abc")
+          } yield assert(computed)(equalTo(3)) && assert(stored)(isSome(equalTo(computed)))
+        },
+        testM("preserves the existing bindings") {
+          for {
+            map      <- ConcurrentMap.make("abc" -> 3)
+            computed <- map.computeIfAbsent("abc", _ => 10)
+            stored   <- map.get("abc")
+          } yield assert(computed)(equalTo(3)) && assert(stored)(isSome(equalTo(computed)))
+        }
+      ),
       suite("constructors")(
         testM("empty") {
           for {
