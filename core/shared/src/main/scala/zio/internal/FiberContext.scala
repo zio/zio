@@ -1017,7 +1017,14 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] def reportUnhandled(v: Exit[E, A], trace: ZTraceElement): Unit = v match {
-    case Exit.Failure(cause) => log(() => cause.prettyPrint, ZIO.someDebug, trace = trace)
+    case Exit.Failure(cause) =>
+      try {
+        log(() => cause.prettyPrint, ZIO.someDebug, trace = trace)
+      } catch {
+        case t: Throwable =>
+          println("An exception was thrown by a logger:")
+          t.printStackTrace
+      }
     case _                   =>
   }
 
