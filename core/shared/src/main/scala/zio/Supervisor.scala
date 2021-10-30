@@ -17,9 +17,12 @@
 package zio
 
 import zio.Exit._
+import zio.ZIO.{FiberRefDelete, FiberRefLocally, FiberRefModify, FiberRefWith}
+import zio.Supervisor.FiberRefTrackingSupervisor
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicReference, LongAdder}
+import scala.annotation.switch
 import scala.collection.immutable.SortedSet
 
 /**
@@ -153,6 +156,9 @@ object Supervisor {
    */
   val none: Supervisor[Unit] = new ConstSupervisor(_ => ZIO.unit)
 
+  def trackFiberRef[A](fiberRef: FiberRef[A])(link: A => Unit): Supervisor[Unit] =
+    new FiberRefTrackingSupervisor[A](fiberRef, link)
+
   private class ConstSupervisor[A](value0: Trace => UIO[A]) extends Supervisor[A] {
     def value(implicit trace: Trace): UIO[A] = value0(trace)
 
@@ -215,5 +221,70 @@ object Supervisor {
 
     override def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit =
       underlying.unsafeOnResume(fiber)
+  }
+
+  private class FiberRefTrackingSupervisor[A](fiberRef: FiberRef[A], link: A => Unit) extends Supervisor[Unit] {
+    private val runtime = Runtime.default
+
+    // Option.get here is safe as initialValue as is of type Either[Nothing,A]
+    private val initialValue = fiberRef.initialValue.toOption.get
+    /**
+     * Returns an effect that succeeds with the value produced by this
+     * supervisor. This value may change over time, reflecting what the
+     * supervisor produces as it supervises fibers.
+     */
+    override def value(implicit trace: ZTraceElement): UIO[Unit] = UIO()
+
+    override private[zio] def unsafeOnStart[R, E, A1](environment: R,
+                                                     effect: ZIO[R, E, A1],
+                                                     parent: Option[Fiber.Runtime[Any, Any]],
+                                                     fiber: Fiber.Runtime[E, A1]): Unit = ()
+
+    override private[zio] def unsafeOnEnd[R, E, A1](value: Exit[E, A1],
+                                                   fiber: Fiber.Runtime[E, A1]): Unit = ()
+
+    override private[zio] def unsafeOnSuspend[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = {
+      reset()
+    }
+
+    override private[zio] def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = {
+      val a = getFiberRefValue(fiber)
+      link(a)
+    }
+
+
+    override private[zio] def unsafeOnEffect[E, A1](fiber: Fiber.Runtime[E, A1],
+                                                   effect: ZIO[_, _, _]): Unit = {
+      (effect.tag: @switch) match {
+        case ZIO.Tags.FiberRefModify =>
+          val modify = effect.asInstanceOf[FiberRefModify[A, _]]
+          if (modify.fiberRef == fiberRef) {
+            link(modify.f(getFiberRefValue(fiber))._2)
+          }
+        case ZIO.Tags.FiberRefDelete =>
+          val delete = effect.asInstanceOf[FiberRefDelete]
+          if(delete.fiberRef == fiberRef) {
+            fiberRef.initialValue.foreach(link)
+          }
+        case ZIO.Tags.FiberRefLocally =>
+          val locally = effect.asInstanceOf[FiberRefLocally[_, _, _, _]]
+          if(locally.fiberRef == fiberRef) {
+            link(locally.localValue.asInstanceOf[A])
+          }
+
+        case _ =>
+      }
+    }
+
+    private def getFiberRefValue[E, A1](fiber: Fiber.Runtime[E, A1]): A = {
+      implicit val trace = ZTraceElement.empty
+      runtime.unsafeRun(
+        fiber.getRef(fiberRef.asInstanceOf[ZFiberRef.Runtime[A]])
+      )
+    }
+
+    private def reset() = {
+      link(initialValue)
+    }
   }
 }
