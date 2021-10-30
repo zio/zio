@@ -4785,8 +4785,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Returns the resulting stream when the given `PartialFunction` is defined for the given value, otherwise returns an empty stream.
    */
-  def whenCase[R, E, A, O](a: => A)(pf: PartialFunction[A, ZStream[R, E, O]])
-                          (implicit trace: ZTraceElement): ZStream[R, E, O] =
+  def whenCase[R, E, A, O](a: => A)(pf: PartialFunction[A, ZStream[R, E, O]])(implicit
+    trace: ZTraceElement
+  ): ZStream[R, E, O] =
     whenCaseZIO(ZIO.succeed(a))(pf)
 
   /**
@@ -5375,8 +5376,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class WhenCaseZIO[R, E, A](private val a: ZIO[R, E, A]) extends AnyVal {
-    def apply[R1 <: R, E1 >: E, O](pf: PartialFunction[A, ZStream[R1, E1, O]])
-                                  (implicit trace: ZTraceElement): ZStream[R1, E1, O] =
+    def apply[R1 <: R, E1 >: E, O](pf: PartialFunction[A, ZStream[R1, E1, O]])(implicit
+      trace: ZTraceElement
+    ): ZStream[R1, E1, O] =
       fromZIO(a).flatMap(pf.applyOrElse(_, (_: A) => ZStream.empty))
   }
 
