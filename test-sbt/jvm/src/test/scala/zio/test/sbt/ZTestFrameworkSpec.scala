@@ -1,6 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.test.assertCompletes
 import zio.test.environment.Live
 import zio.test.sbt.TestingSupport._
 import zio.test.{
@@ -15,8 +16,9 @@ import zio.test.{
   TestSuccess,
   ZSpec
 }
-import zio.{Has, ZIO, durationInt}
+import zio.{Has, ZIO, ZLayer, durationInt}
 
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -34,12 +36,13 @@ object ZTestFrameworkSpec {
     test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
     test("should return summary when done")(testSummary()),
+    test("should use a shared layer without re-initializing it")(testSharedLayers()),
     test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
   def testFingerprints(): Unit = {
     val fingerprints = new ZTestFramework().fingerprints.toSeq
-    assertEquals("fingerprints", fingerprints, Seq(RunnableSpecFingerprint))
+    assertEquals("fingerprints", fingerprints, Seq(RunnableSpecFingerprint, ZioSpecFingerprint))
   }
 
   def testReportEvents(): Unit = {
@@ -127,6 +130,39 @@ object ZTestFrameworkSpec {
     )
   }
 
+  private val counter = new AtomicInteger(0)
+
+  lazy val sharedLayer: ZLayer[Any, Nothing, Has[Int]] = {
+    ZLayer.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
+  }
+
+  lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
+  object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Has[Int]] {
+    override def layer = sharedLayer
+
+    def spec =
+      zio.test.test("test completes with shared layer 1") {
+        assertCompletes
+      }
+  }
+
+  lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
+  object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Has[Int]] {
+    override def layer = sharedLayer
+
+    def spec =
+      zio.test.test("test completes with shared layer 2") {
+        assertCompletes
+      }
+  }
+
+  def testSharedLayers(): Unit = {
+    val reported = ArrayBuffer[Event]()
+    loadAndExecuteAll(Seq(spec1UsingSharedLayer, spec2UsingSharedLayer), reported.append(_))
+
+    assert(counter.get() == 1)
+  }
+
   def testSummary(): Unit = {
     val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
@@ -138,7 +174,8 @@ object ZTestFrameworkSpec {
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provide(Summary(1, 0, 0, "foo")),
-          TestArgs.empty
+          TestArgs.empty,
+          zTestTask.spec
         )
       }
       .head
@@ -159,7 +196,8 @@ object ZTestFrameworkSpec {
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provide(Summary(0, 0, 0, "foo")),
-          TestArgs.empty
+          TestArgs.empty,
+          zTestTask.spec
         )
       }
       .head
@@ -174,11 +212,27 @@ object ZTestFrameworkSpec {
     eventHandler: EventHandler = _ => (),
     loggers: Seq[Logger] = Nil,
     testArgs: Array[String] = Array.empty
+  ) =
+    loadAndExecuteAll(Seq(fqn), eventHandler, loggers, testArgs)
+
+  private def loadAndExecuteAll(
+    fqns: Seq[String],
+    eventHandler: EventHandler,
+    loggers: Seq[Logger] = Nil,
+    testArgs: Array[String] = Array.empty
   ) = {
-    val taskDef = new TaskDef(fqn, RunnableSpecFingerprint, false, Array(new SuiteSelector))
+    val tasks =
+      fqns
+        .map(fqn =>
+          if (fqn.contains("Shared"))
+            new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector))
+          else
+            new TaskDef(fqn, RunnableSpecFingerprint, false, Array(new SuiteSelector))
+        )
+        .toArray
     val task = new ZTestFramework()
       .runner(testArgs, Array(), getClass.getClassLoader)
-      .tasks(Array(taskDef))
+      .tasks(tasks)
       .head
 
     @scala.annotation.tailrec

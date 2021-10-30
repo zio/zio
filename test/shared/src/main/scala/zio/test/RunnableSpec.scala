@@ -29,6 +29,7 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
   private def run(spec: ZSpec[Environment, Failure], testArgs: TestArgs)(implicit
     trace: ZTraceElement
   ): URIO[Has[TestLogger] with Has[Clock], Int] = {
+    println("RunnableSpec.run")
     val filteredSpec = FilteredSpec(spec, testArgs)
     val testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
     for {
@@ -60,9 +61,11 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
     }
   }
 
-  private def doExit(exitCode: Int): Unit =
+  private def doExit(exitCode: Int): Unit = {
+    println("About to exit legacy")
     try if (!isAmmonite) sys.exit(exitCode)
     catch { case _: SecurityException => }
+  }
 
   private def isAmmonite: Boolean =
     sys.env.exists { case (k, v) =>

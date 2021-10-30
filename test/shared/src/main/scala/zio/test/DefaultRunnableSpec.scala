@@ -37,8 +37,10 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]
-  )(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
+  )(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] = {
+    println("DefaultRunnableSpec.runSpec")
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
+  }
 
   /**
    * Builds a suite containing a number of other specs.
