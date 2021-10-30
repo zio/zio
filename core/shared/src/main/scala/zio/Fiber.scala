@@ -824,8 +824,8 @@ object Fiber extends FiberPlatformSpecific {
   def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
-  private[zio] def newFiberId(): FiberId.Runtime =
-    FiberId.Runtime((java.lang.System.currentTimeMillis / 1000).toInt, _fiberCounter.getAndIncrement())
+  private[zio] def newFiberId(): Long =
+    (_fiberCounter.getAndIncrement().toLong << 32) | (java.lang.System.currentTimeMillis / 1000)
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()

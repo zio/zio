@@ -30,7 +30,7 @@ import scala.annotation.{switch, tailrec}
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
-  protected val fiberId: FiberId.Runtime,
+  private val fiberIdCompact: Long,
   var runtimeConfig: RuntimeConfig,
   startEnv: AnyRef,
   startExec: zio.Executor,
@@ -49,6 +49,13 @@ private[zio] final class FiberContext[E, A](
 
   // Accessed from multiple threads:
   private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
+
+  protected def fiberId: FiberId.Runtime =
+    FiberId.Runtime(fiberIdFromCompact, fiberStartTimeFromCompact)
+
+  private def fiberIdFromCompact: Int = (fiberIdCompact >> 32).toInt
+
+  private def fiberStartTimeFromCompact: Int = fiberIdCompact.toInt
 
   @volatile
   private[this] var asyncEpoch: Long = 0L
