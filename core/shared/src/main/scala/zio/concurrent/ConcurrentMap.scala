@@ -16,8 +16,13 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     UIO(Option(underlying.get(key)))
 
   /**
-   * Associates the given key with a given value, unless the key was already
-   * associated with some other value.
+   * Adds a new key-value pair and optionally returns previously bound value.
+   */
+  def put(key: K, value: V): UIO[Option[V]] =
+    UIO(Option(underlying.put(key, value)))
+
+  /**
+   * Adds a new key-value pair, unless the key is already bound to some other value.
    */
   def putIfAbsent(key: K, value: V): UIO[Option[V]] =
     UIO(Option(underlying.putIfAbsent(key, value)))
