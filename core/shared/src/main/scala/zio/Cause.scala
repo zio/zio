@@ -141,6 +141,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       acc + fiberId
     }
 
+  final def interruptOption: Option[FiberId] =
+    find { case Interrupt(fiberId, _) => fiberId }
+
   final def isDie: Boolean =
     dieOption.isDefined
 

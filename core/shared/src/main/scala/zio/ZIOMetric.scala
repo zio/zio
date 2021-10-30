@@ -215,7 +215,7 @@ object ZIOMetric {
    * the quantity of interest is the value as of a specific point in time.
    */
   abstract class Counter[-A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
-    private[this] val counter = internal.metrics.Counter(name, tags)
+    private[zio] val counter = internal.metrics.Counter(name, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -346,7 +346,7 @@ object ZIOMetric {
     final val boundaries: Histogram.Boundaries,
     final val tags: Chunk[MetricLabel]
   ) extends ZIOMetric[A] { self =>
-    private[this] val histogram = internal.metrics.Histogram(name, boundaries, tags)
+    private[zio] val histogram = internal.metrics.Histogram(name, boundaries, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -539,7 +539,7 @@ object ZIOMetric {
    */
   abstract class SetCount[A](final val name: String, final val setTag: String, final val tags: Chunk[MetricLabel])
       extends ZIOMetric[A] { self =>
-    private[this] val setCount = internal.metrics.SetCount(name, setTag, tags)
+    private[zio] val setCount = internal.metrics.SetCount(name, setTag, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
