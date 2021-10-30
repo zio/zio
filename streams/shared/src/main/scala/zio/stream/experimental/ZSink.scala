@@ -342,7 +342,12 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   final def raceBoth[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
   )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] =
-    ???
+    new ZSink(
+      self.channel.mergeWith(that.channel)(
+        selfDone => ZChannel.MergeDecision.done(ZIO.done(selfDone).map(Left(_))),
+        thatDone => ZChannel.MergeDecision.done(ZIO.done(thatDone).map(Right(_)))
+      )
+    )
 
   /**
    * Returns the sink that executes this one and times its execution.
