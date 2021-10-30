@@ -1,8 +1,7 @@
 package zio.stream
 
-import ZTransducer.{BOM, CharsetUtf32, CharsetUtf32BE, CharsetUtf32LE}
-
 import zio._
+import zio.stream.internal.CharacterSet._
 import zio.test._
 
 import java.io.{IOException, InputStream}

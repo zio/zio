@@ -18,6 +18,7 @@ package zio.stream
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.stream.internal.CharacterSet._
 
 import java.nio.charset.{Charset, StandardCharsets}
 import scala.collection.mutable
@@ -185,10 +186,6 @@ abstract class ZTransducer[-R, +E, -I, +O](val push: ZManaged[R, Nothing, Option
 object ZTransducer extends ZTransducerPlatformSpecificConstructors {
 
   type TransduceStringToByte = ZTransducer[Any, Nothing, String, Byte]
-
-  val CharsetUtf32: Charset   = Charset.forName("UTF-32")
-  val CharsetUtf32BE: Charset = Charset.forName("UTF-32BE")
-  val CharsetUtf32LE: Charset = Charset.forName("UTF-32LE")
 
   def apply[R, E, I, O](
     push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, E, Chunk[O]]]
@@ -1027,14 +1024,6 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     trace: ZTraceElement
   ): ZTransducer[R, E, I, O] =
     ZTransducer(managed.fold(e => ZTransducer.fail(e), Predef.identity).flatMap(_.push))
-
-  object BOM {
-    val Utf8: Chunk[Byte]    = Chunk(-17, -69, -65)
-    val Utf16BE: Chunk[Byte] = Chunk(-2, -1)
-    val Utf16LE: Chunk[Byte] = Chunk(-1, -2)
-    val Utf32BE: Chunk[Byte] = Chunk(0, 0, -2, -1)
-    val Utf32LE: Chunk[Byte] = Chunk(-1, -2, 0, 0)
-  }
 
   /**
    * Decodes chunks of Unicode bytes into strings.
