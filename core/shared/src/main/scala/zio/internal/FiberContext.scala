@@ -263,9 +263,10 @@ private[zio] final class FiberContext[E, A](
           var opCount: Int = 0
 
           while ({
-            val tag = curZio.tag
+            val tag   = curZio.tag
+            val trace = curZio.trace
 
-            if (logRuntime) unsafeLog(logLevel, curZio.unsafeLog)(curZio.trace)
+            if (logRuntime) unsafeLog(logLevel, curZio.unsafeLog)(trace)
 
             // Check to see if the fiber should continue executing or not:
             if (!shouldInterrupt()) {
@@ -373,7 +374,7 @@ private[zio] final class FiberContext[E, A](
                       // Error not caught, stack is empty:
                       setInterrupting(true)
 
-                      curZio = done(Exit.failCause(fullCause.asInstanceOf[Cause[E]]))(curZio.trace)
+                      curZio = done(Exit.failCause(fullCause.asInstanceOf[Cause[E]]))(zio.trace)
                     } else {
                       setInterrupting(false)
 
@@ -407,7 +408,7 @@ private[zio] final class FiberContext[E, A](
                     if (interruptStatus.peekOrElse(true) != boolFlag) {
                       interruptStatus.push(boolFlag)
 
-                      restoreInterrupt()(curZio.trace)
+                      restoreInterrupt()(zio.trace)
                     }
 
                     curZio = zio.zio
@@ -464,7 +465,7 @@ private[zio] final class FiberContext[E, A](
                       curZio = ZIO.unit
                     } else {
                       currentLocked = true
-                      curZio = if (executor eq currentExecutor) ZIO.unit else shift(executor)(curZio.trace)
+                      curZio = if (executor eq currentExecutor) ZIO.unit else shift(executor)(zio.trace)
                     }
 
                   case ZIO.Tags.Yield =>
@@ -517,8 +518,7 @@ private[zio] final class FiberContext[E, A](
 
                     setFiberRefValue(fiberRef, zio.localValue)
 
-                    curZio =
-                      zio.zio.ensuring(ZIO.succeed(setFiberRefValue(fiberRef, oldValue))(curZio.trace))(curZio.trace)
+                    curZio = zio.zio.ensuring(ZIO.succeed(setFiberRefValue(fiberRef, oldValue))(zio.trace))(zio.trace)
 
                   case ZIO.Tags.FiberRefDelete =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefDelete]
@@ -589,7 +589,8 @@ private[zio] final class FiberContext[E, A](
               }
             } else {
               // Fiber was interrupted
-              curZio = ZIO.failCause(clearSuppressedCause())(curZio.trace)
+              val trace = curZio.trace
+              curZio = ZIO.failCause(clearSuppressedCause())(trace)
 
               // Prevent interruption of interruption:
               setInterrupting(true)
