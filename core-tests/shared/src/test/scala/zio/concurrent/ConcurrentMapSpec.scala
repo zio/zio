@@ -3,10 +3,33 @@ package zio.concurrent
 import zio.ZIOBaseSpec
 import zio.test._
 import zio.test.Assertion._
+import zio.{Chunk, UIO}
 
 object ConcurrentMapSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("ConcurrentMap")(
+      suite("constructors")(
+        testM("empty") {
+          for {
+            map   <- ConcurrentMap.empty[Int, String]
+            items <- map.toChunk
+          } yield assert(items)(isEmpty)
+        },
+        testM("fromIterable") {
+          for {
+            data  <- UIO(Chunk(1 -> "a", 2 -> "b", 3 -> "c"))
+            map   <- ConcurrentMap.fromIterable(data)
+            items <- map.toChunk
+          } yield assert(items)(equalTo(data))
+        },
+        testM("make") {
+          for {
+            data  <- UIO(Chunk(1 -> "a", 2 -> "b", 3 -> "c"))
+            map   <- ConcurrentMap.make(data: _*)
+            items <- map.toChunk
+          } yield assert(items)(equalTo(data))
+        }
+      ),
       suite("get")(
         testM("retrieves an existing key") {
           for {

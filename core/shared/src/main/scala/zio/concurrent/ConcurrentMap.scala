@@ -1,7 +1,7 @@
 package zio.concurrent
 
 import java.util.concurrent.ConcurrentHashMap
-import zio.UIO
+import zio.{Chunk, ChunkBuilder, UIO}
 
 /**
  * Wrapper over [[java.util.concurrent.ConcurrentHashMap]].
@@ -25,6 +25,28 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
   def replace(key: K, value: V): UIO[Option[V]]               = ???
   def replace(key: K, oldValue: V, newValue: V): UIO[Boolean] = ???
   def update(key: K, value: V): UIO[Any]                      = ???
+
+  /**
+   * Collects all bindings into a chunk.
+   */
+  def toChunk: UIO[Chunk[(K, V)]] =
+    UIO {
+      val builder = ChunkBuilder.make[(K, V)]()
+
+      val it = underlying.entrySet().iterator()
+      while (it.hasNext()) {
+        val entry = it.next()
+        builder += entry.getKey() -> entry.getValue()
+      }
+
+      builder.result()
+    }
+
+  /**
+   * Collects all bindings into a list.
+   */
+  def toList: UIO[List[(K, V)]] =
+    toChunk.map(_.toList)
 }
 
 object ConcurrentMap {
