@@ -377,10 +377,11 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStreamEffect[R, A](
-    stream: ZIO[R, Throwable, java.util.stream.Stream[A]]
-  )(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorZIO(stream.flatMap(s => UIO(s.iterator())))
+  @deprecated("use fromJavaStreamZIO", "2.0.0")
+  final def fromJavaStreamEffect[R, A](stream: ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
+    trace: ZTraceElement
+  ): ZStream[R, Throwable, A] =
+    fromJavaStreamZIO(stream)
 
   /**
    * Creates a stream from a managed Java stream
@@ -393,10 +394,27 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java stream
    */
+  final def fromJavaStreamSucceed[R, A](stream: => java.util.stream.Stream[A])(implicit
+    trace: ZTraceElement
+  ): ZStream[R, Nothing, A] =
+    ZStream.fromJavaIteratorSucceed(stream.iterator())
+
+  /**
+   * Creates a stream from a Java stream
+   */
+  @deprecated("use fromJavaStreamSucceed", "2.0.0")
   final def fromJavaStreamTotal[A](stream: => java.util.stream.Stream[A])(implicit
     trace: ZTraceElement
   ): ZStream[Any, Nothing, A] =
-    ZStream.fromJavaIteratorSucceed(stream.iterator())
+    fromJavaStreamSucceed(stream)
+
+  /**
+   * Creates a stream from a Java stream
+   */
+  final def fromJavaStreamZIO[R, A](stream: ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
+    trace: ZTraceElement
+  ): ZStream[R, Throwable, A] =
+    ZStream.fromJavaIteratorZIO(stream.flatMap(s => UIO(s.iterator())))
 
   /**
    * Create a stream of accepted connection from server socket
@@ -501,5 +519,43 @@ trait ZStreamPlatformSpecificConstructors {
       Managed.acquireReleaseWith(ZIO.succeed(new Connection(socket)))(_.close())
   }
 
-  trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
+  trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1 {
+
+    /**
+     * Constructs a `ZStream[Any, Throwable, A]` from a
+     * `java.util.stream.Stream[A]`.
+     */
+    implicit def JavaStreamConstructor[A, StreamLike[A] <: java.util.stream.Stream[A]]
+      : WithOut[StreamLike[A], ZStream[Any, Throwable, A]] =
+      new ZStreamConstructor[StreamLike[A]] {
+        type Out = ZStream[Any, Throwable, A]
+        def make(input: => StreamLike[A])(implicit trace: ZTraceElement): ZStream[Any, Throwable, A] =
+          ZStream.fromJavaStream(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Throwable, A]` from a
+     * `ZManaged[R, Throwable, java.util.stream.Stream[A]]`.
+     */
+    implicit def JavaStreamManagedConstructor[R, E <: Throwable, A, StreamLike[A] <: java.util.stream.Stream[A]]
+      : WithOut[ZManaged[R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZManaged[R, E, StreamLike[A]]] {
+        type Out = ZStream[R, Throwable, A]
+        def make(input: => ZManaged[R, E, StreamLike[A]])(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
+          ZStream.fromJavaStreamManaged(input)
+      }
+
+    /**
+     * Constructs a `ZStream[Any, Throwable, A]` from a
+     * `ZIO[R, Throwable, java.util.stream.Stream[A]]`.
+     */
+    implicit def JavaStreamZIOConstructor[R, E <: Throwable, A, StreamLike[A] <: java.util.stream.Stream[A]]
+      : WithOut[ZIO[R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
+      new ZStreamConstructor[ZIO[R, E, StreamLike[A]]] {
+        type Out = ZStream[R, Throwable, A]
+        def make(input: => ZIO[R, E, StreamLike[A]])(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
+          ZStream.fromJavaStreamZIO(input)
+      }
+
+  }
 }
