@@ -43,6 +43,24 @@ object CyclicBarrierSpec extends ZIOBaseSpec {
           isComplete <- promise.isDone
         } yield assert(isComplete)(isTrue)
       },
+      testM("Releases the barrier and cycles") {
+        for {
+          barrier <- CyclicBarrier.make(2)
+          f1      <- barrier.await.fork
+          _       <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+          f2      <- barrier.await.fork
+          ticket1 <- f1.join
+          ticket2 <- f2.join
+          f3      <- barrier.await.fork
+          _       <- f3.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+          f4      <- barrier.await.fork
+          ticket3 <- f3.join
+          ticket4 <- f4.join
+        } yield assert(ticket1)(equalTo(1)) &&
+          assert(ticket2)(equalTo(0)) &&
+          assert(ticket3)(equalTo(1)) &&
+          assert(ticket4)(equalTo(0))
+      },
       testM("Breaks on reset") {
         for {
           barrier <- CyclicBarrier.make(parties)

@@ -2,6 +2,16 @@ package zio.concurrent
 
 import zio._
 
+/**
+ * A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
+ *
+ * CyclicBarriers are useful in programs involving a fixed sized party of fibers that must occasionally wait for each
+ * other. The barrier is called cyclic because it can be re-used after the waiting fibers are released.
+ *
+ * A CyclicBarrier supports an optional action command that is run once per barrier point, after the last fiber in the
+ * party arrives, but before any fibers are released. This barrier action is useful for updating shared-state before
+ * any of the parties continue.
+ */
 final class CyclicBarrier(
   private val _parties: Int,
   private val _waiting: Ref[Int],
@@ -9,6 +19,14 @@ final class CyclicBarrier(
   private val _action: UIO[Any],
   private val _broken: Ref[Boolean]
 ) {
+  private val break: UIO[Unit] =
+    _broken.set(true) *> fail
+
+  private val fail: UIO[Unit] =
+    _lock.get.flatMap(_.fail(()).unit)
+
+  private val succeed: UIO[Unit] =
+    _lock.get.flatMap(_.succeed(()).unit)
 
   /** The number of parties required to trip this barrier. */
   def parties: Int = _parties
@@ -20,32 +38,19 @@ final class CyclicBarrier(
   val await: IO[Unit, Int] =
     _broken.get.flatMap(if (_) IO.fail(()) else UIO.unit) *>
       _waiting.modify {
-        case n if n + 1 == parties => _action *> succeed.as(_parties - n - 1)                            -> (n + 1)
+        case n if n + 1 == parties => (_action *> succeed.as(_parties - n - 1) <* reset)                 -> 0
         case n                     => _lock.get.flatMap(_.await.onInterrupt(break)).as(_parties - n - 1) -> (n + 1)
       }.flatten
 
   /** Resets the barrier to its initial state. Breaks any waiting party. */
   val reset: UIO[Unit] =
-    for {
-      w <- waiting
-      _ <- if (w > 0)
-             (fail *>
-               Promise.make[Unit, Unit].flatMap(_lock.set) *>
-               _waiting.set(0) *>
-               _broken.set(false)).uninterruptible
-           else UIO.unit
-    } yield ()
+    (fail.whenM(waiting.map(_ > 0)) *>
+      Promise.make[Unit, Unit].flatMap(_lock.set) *>
+      _waiting.set(0) *>
+      _broken.set(false)).uninterruptible
 
+  /** Queries if this barrier is in a broken state. */
   val isBroken: UIO[Boolean] = _broken.get
-
-  private val break: UIO[Unit] =
-    _broken.set(true) *> fail
-
-  private val fail: UIO[Unit] =
-    _lock.get.flatMap(_.fail(()).unit)
-
-  private val succeed: UIO[Unit] =
-    _lock.get.flatMap(_.succeed(()).unit)
 }
 
 object CyclicBarrier {
