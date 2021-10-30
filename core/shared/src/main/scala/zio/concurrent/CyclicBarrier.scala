@@ -19,7 +19,7 @@ final class CyclicBarrier private (
   private val _action: UIO[Any],
   private val _broken: Ref[Boolean]
 ) {
-  private val break: UIO[Unit] =
+  private val break: UIO[Any] =
     _broken.set(true) *> fail
 
   private val fail: UIO[Any] =
