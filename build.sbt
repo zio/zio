@@ -534,11 +534,7 @@ lazy val benchmarks = project.module
       "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
-    ),
-    resolvers += Resolver.url(
-      "bintray-scala-hedgehog",
-      url("https://dl.bintray.com/hedgehogqa/scala-hedgehog")
-    )(Resolver.ivyStylePatterns)
+    )
   )
 
 lazy val jsdocs = project
