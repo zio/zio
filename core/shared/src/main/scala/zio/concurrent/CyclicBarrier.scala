@@ -39,8 +39,8 @@ final class CyclicBarrier private (
     ZIO.uninterruptibleMask { restore =>
       _broken.get.flatMap(if (_) IO.fail(()) else UIO.unit) *>
         _waiting.modify {
-          case n if n + 1 == parties => (restore(_action) *> succeed.as(_parties - n - 1) <* reset)        -> 0
-          case n                     => _lock.get.flatMap(_.await.onInterrupt(break)).as(_parties - n - 1) -> (n + 1)
+          case n if n + 1 == parties => (restore(_action) *> succeed.as(_parties - n - 1) <* reset)                      -> 0
+          case n                     => _lock.get.flatMap(l => restore(l.await).onInterrupt(break)).as(_parties - n - 1) -> (n + 1)
         }.flatten
     }
 
