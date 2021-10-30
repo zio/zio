@@ -127,13 +127,13 @@ trait Runtime[+R] {
    * This method is effectful and should only be used at the edges of your program.
    */
   final def unsafeRunToFuture[E <: Throwable, A](zio: ZIO[R, E, A]): CancelableFuture[A] = {
-    val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
+    val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
     val canceler = unsafeRunWith(zio)(_.fold(cause => p.failure(cause.squashTraceWith(identity)), p.success))
 
     new CancelableFuture[A](p.future) {
       def cancel(): Future[Exit[Throwable, A]] = {
-        val p: concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
+        val p: scala.concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
         canceler(Fiber.Id.None)(p.success)
         p.future
       }
