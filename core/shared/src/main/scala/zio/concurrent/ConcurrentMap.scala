@@ -4,10 +4,18 @@ import zio.{Chunk, ChunkBuilder, UIO}
 
 import java.util.concurrent.ConcurrentHashMap
 
+import scala.collection.JavaConverters._
+
 /**
  * Wrapper over `java.util.concurrent.ConcurrentHashMap`.
  */
 final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashMap[K, V]) extends AnyVal {
+
+  /**
+   * Finds the first element of a map for which the partial function is defined and applies the function to it.
+   */
+  def collectFirst[B](pf: PartialFunction[(K, V), B]): UIO[Option[B]] =
+    UIO(underlying.asScala.collectFirst(pf))
 
   /**
    * Attempts to compute a mapping for the given key and its current mapped value.
@@ -26,6 +34,28 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    */
   def computeIfPresent(key: K, remap: (K, V) => V): UIO[Option[V]] =
     UIO(Option(underlying.computeIfPresent(key, remapWith(remap))))
+
+  /**
+   * Tests whether a given predicate holds true for at least one element in a map.
+   */
+  def exists(p: ((K, V)) => Boolean): UIO[Boolean] =
+    UIO(
+      underlying.asScala.exists(p)
+    )
+
+  /**
+   * Folds the elements of a map using the given binary operator.
+   */
+  def fold[S](zero: S)(f: (S, (K, V)) => S): UIO[S] =
+    UIO(underlying.asScala.foldLeft(zero)(f))
+
+  /**
+   * Tests whether a predicate is satisfied by all elements of a map.
+   */
+  def forall(p: ((K, V)) => Boolean): UIO[Boolean] =
+    UIO(
+      underlying.asScala.forall(p)
+    )
 
   /**
    * Retrieves the value associated with the given key.
@@ -57,6 +87,26 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    */
   def remove(key: K, value: V): UIO[Boolean] =
     UIO(underlying.remove(key, value))
+
+  /**
+   * Removes all elements which do not satisfy the given predicate.
+   */
+  def removeIf(p: ((K, V)) => Boolean): UIO[Unit] =
+    UIO(
+      underlying.forEach { (k: K, v: V) =>
+        if (p((k, v))) underlying.remove(k)
+      }
+    )
+
+  /**
+   * Removes all elements which do not satisfy the given predicate.
+   */
+  def retainIf(p: ((K, V)) => Boolean): UIO[Unit] =
+    UIO(
+      underlying.forEach { (k: K, v: V) =>
+        if (!p((k, v))) underlying.remove(k)
+      }
+    )
 
   /**
    * Replaces the entry for the given key only if it is mapped to some value.
