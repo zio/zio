@@ -61,11 +61,12 @@ private[zio] object FiberRenderer {
       case _ => ""
     }
     val statMsg = renderStatus(dump.status)
+    val trace   = dump.trace.fold("")(trace => zio.Cause.traced(zio.Cause.empty, trace).prettyPrint)
 
     s"""
        |$name#${dump.fiberId.seqNumber} ($lifeMsg) $waitMsg
        |   Status: $statMsg
-       |${dump.trace.fold("")(_.prettyPrint)}
+       |$trace
        |""".stripMargin
   }
 
