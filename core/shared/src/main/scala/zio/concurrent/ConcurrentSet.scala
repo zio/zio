@@ -3,9 +3,7 @@ package zio.concurrent
 import zio.{UIO, ZIO}
 
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function.Predicate
-import collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.KeySetView[A, java.lang.Boolean])
     extends AnyVal {

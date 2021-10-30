@@ -1,8 +1,7 @@
 package zio.concurrent
 
-import zio.test._
-import zio.test.Assertion._
 import zio._
+import zio.test._
 
 object ConcurrentSetSpec extends ZIOBaseSpec {
 
