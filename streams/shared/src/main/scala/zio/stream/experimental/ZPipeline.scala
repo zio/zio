@@ -90,6 +90,12 @@ object ZPipeline {
    */
   def apply[I]: ZPipeline[Any, Nothing, I, I] = identity[I]
 
+  def branchAfter[R, E, I](n: Int)(f: Chunk[I] => ZPipeline[R, E, I, I]): ZPipeline[R, E, I, I] =
+    new ZPipeline[R, E, I, I] {
+      def apply[R1 <: R, E1 >: E](stream: ZStream[R1, E1, I])(implicit trace: ZTraceElement): ZStream[R1, E1, I] =
+        stream.branchAfter(n)(f)
+    }
+
   /**
    * Creates a pipeline that collects elements with the specified partial function.
    *
@@ -366,6 +372,15 @@ object ZPipeline {
         trace: ZTraceElement
       ): ZStream[Env1, Err1, Out] =
         stream.mapZIO(f)
+    }
+
+  /**
+   * Emits the provided chunk before emitting any other value.
+   */
+  def prepend[A](values: Chunk[A]): ZPipeline[Any, Nothing, A, A] =
+    new ZPipeline[Any, Nothing, A, A] {
+      def apply[R, E](stream: ZStream[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+        ZStream.fromChunk(values) ++ stream
     }
 
   /**
