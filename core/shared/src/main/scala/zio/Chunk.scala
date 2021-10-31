@@ -1766,17 +1766,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override private[zio] def reverseArrayIterator[A1 >: Boolean]: Iterator[Array[A1]] =
       arrayIterator
 
-    def &(that: BitChunk): BitChunk = binaryOp(that)(_ => 0, _ => 0)((a: Byte, b: Byte) => (a & b).toByte)
+    def &(that: BitChunk): BitChunk = byteWiseOp(that)(_ => 0, _ => 0)((a: Byte, b: Byte) => (a & b).toByte)
 
-    def |(that: BitChunk): BitChunk = binaryOp(that)(identity, identity)((a: Byte, b: Byte) => (a | b).toByte)
+    def |(that: BitChunk): BitChunk = byteWiseOp(that)(identity, identity)((a: Byte, b: Byte) => (a | b).toByte)
 
-    def ^(that: BitChunk): BitChunk = binaryOp(that)(identity, identity)((a: Byte, b: Byte) => (a ^ b).toByte)
+    def ^(that: BitChunk): BitChunk = byteWiseOp(that)(identity, identity)((a: Byte, b: Byte) => (a ^ b).toByte)
 
     def unary_~ : BitChunk =
       BitChunk(bytes.mapChunk(b => (~b).toByte), minBitIndex, maxBitIndex)
 
-    private def binaryOp(that: BitChunk)(left: Byte => Byte, right: Byte => Byte)(both: (Byte, Byte) => Byte): BitChunk =
-      BitChunk(this.bytes.zipAllWith(that.bytes)(left, right)(both), this.minBitIndex.min(that.minBitIndex), this.maxBitIndex.max(that.maxBitIndex))
+    private def byteWiseOp(that: BitChunk)(left: Byte => Byte, right: Byte => Byte)(both: (Byte, Byte) => Byte): BitChunk =
+      BitChunk(this.bytes.zipAllWith(that.bytes)(left, right)(both), minBitIndex min that.minBitIndex, maxBitIndex max that.maxBitIndex)
   }
 
   private case object Empty extends Chunk[Nothing] { self =>
