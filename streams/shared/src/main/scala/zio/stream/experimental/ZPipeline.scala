@@ -72,6 +72,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       type OutElem[Elem] = Out0[Elem]
     }
 
+  type Identity[A] = A
+
   /**
    * Creates a pipeline that collects elements with the specified partial function.
    *
@@ -364,7 +366,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         stream.takeWhile(f)
     }
 
-  trait Compose[LeftLower, LeftUpper, LeftOut[In], RightLower, RightUpper, RightOut[In]] {
+  trait Compose[+LeftLower, -LeftUpper, LeftOut[In], +RightLower, -RightUpper, RightOut[In]] {
     type Lower
     type Upper
     type Out[In]
@@ -412,21 +414,21 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     implicit def identity[LeftLower <: RightLower, LeftUpper, RightLower, RightUpper]: Compose.WithOut[
       LeftLower,
       LeftUpper,
-      ({ type Out[In] = In })#Out,
+      Identity,
       RightLower,
       RightUpper,
-      ({ type Out[In] = In })#Out,
+      Identity,
       RightLower,
       LeftUpper with RightUpper,
-      ({ type Out[In] = In })#Out
+      Identity
     ] =
       new Compose[
         LeftLower,
         LeftUpper,
-        ({ type Out[In] = In })#Out,
+        Identity,
         RightLower,
         RightUpper,
-        ({ type Out[In] = In })#Out
+        Identity
       ] {
         type Lower   = RightLower
         type Upper   = LeftUpper with RightUpper
@@ -436,7 +438,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     implicit def leftIdentity[LeftLower <: RightLower, LeftUpper, RightLower, RightUpper, RightOut]: Compose.WithOut[
       LeftLower,
       LeftUpper,
-      ({ type Out[In] = In })#Out,
+      Identity,
       RightLower,
       RightUpper,
       ({ type Out[In] = RightOut })#Out,
@@ -447,7 +449,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       new Compose[
         LeftLower,
         LeftUpper,
-        ({ type Out[In] = In })#Out,
+        Identity,
         RightLower,
         RightUpper,
         ({ type Out[In] = RightOut })#Out
@@ -464,7 +466,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         ({ type Out[In] = LeftOut })#Out,
         RightLower,
         RightUpper,
-        ({ type Out[In] = In })#Out,
+        Identity,
         LeftLower,
         LeftUpper,
         ({ type Out[In] = LeftOut })#Out
@@ -475,7 +477,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         ({ type Out[In] = LeftOut })#Out,
         RightLower,
         RightUpper,
-        ({ type Out[In] = In })#Out
+        Identity
       ] {
         type Lower   = LeftLower
         type Upper   = LeftUpper
@@ -489,21 +491,21 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       : Compose.WithOut[
         LeftLowerElem,
         LeftUpperElem,
-        ({ type Out[In] = In })#Out,
+        Identity,
         RightLowerElem,
         RightUpperElem,
-        ({ type Out[In] = In })#Out,
+        Identity,
         LeftLowerElem,
         LeftUpperElem with RightUpperElem,
-        ({ type Out[In] = In })#Out
+        Identity
       ] =
       new Compose[
         LeftLowerElem,
         LeftUpperElem,
-        ({ type Out[In] = In })#Out,
+        Identity,
         RightLowerElem,
         RightUpperElem,
-        ({ type Out[In] = In })#Out
+        Identity
       ] {
         type Lower   = LeftLowerElem
         type Upper   = LeftUpperElem with RightUpperElem
@@ -514,7 +516,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       : Compose.WithOut[
         LeftLower,
         LeftUpper,
-        ({ type Out[In] = In })#Out,
+        Identity,
         RightLower,
         RightUpper,
         ({ type Out[In] = RightOut })#Out,
@@ -525,7 +527,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       new Compose[
         LeftLower,
         LeftUpper,
-        ({ type Out[In] = In })#Out,
+        Identity,
         RightLower,
         RightUpper,
         ({ type Out[In] = RightOut })#Out

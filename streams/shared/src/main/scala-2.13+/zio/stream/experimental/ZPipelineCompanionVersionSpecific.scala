@@ -42,19 +42,24 @@ trait ZPipelineCompanionVersionSpecific {
      * transformation of the specified pipeline, and then applying the
      * transformation of this pipeline.
      */
-    def <<<[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2](
-      that: ZPipeline[
+    def <<<[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[Err], OutElem2[
+      Elem
+    ]](
+      that: ZPipeline.WithOut[
         LowerEnv2,
         UpperEnv2,
         LowerErr2,
         UpperErr2,
         LowerElem2,
-        UpperElem2
+        UpperElem2,
+        OutEnv2,
+        OutErr2,
+        OutElem2
       ]
     )(implicit
-      composeEnv: Compose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv],
-      composeErr: Compose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr],
-      composeElem: Compose[LowerElem2, UpperElem2, that.OutElem, LowerElem, UpperElem, OutElem]
+      composeEnv: Compose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
+      composeErr: Compose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr],
+      composeElem: Compose[LowerElem2, UpperElem2, OutElem2, LowerElem, UpperElem, OutElem]
     ): ZPipeline.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -73,19 +78,24 @@ trait ZPipelineCompanionVersionSpecific {
      * transformation of this pipeline, and then applying the transformation of
      * the specified pipeline.
      */
-    def >>>[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2](
-      that: ZPipeline[
+    def >>>[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[Err], OutElem2[
+      Elem
+    ]](
+      that: ZPipeline.WithOut[
         LowerEnv2,
         UpperEnv2,
         LowerErr2,
         UpperErr2,
         LowerElem2,
-        UpperElem2
+        UpperElem2,
+        OutEnv2,
+        OutErr2,
+        OutElem2
       ]
     )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr],
-      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, that.OutElem]
+      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
+      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
+      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
     ): ZPipeline.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -124,19 +134,24 @@ trait ZPipelineCompanionVersionSpecific {
     /**
      * A named version of the `>>>` operator.
      */
-    def andThen[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2](
-      that: ZPipeline[
+    def andThen[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[
+      Err
+    ], OutElem2[Elem]](
+      that: ZPipeline.WithOut[
         LowerEnv2,
         UpperEnv2,
         LowerErr2,
         UpperErr2,
         LowerElem2,
-        UpperElem2
+        UpperElem2,
+        OutEnv2,
+        OutErr2,
+        OutElem2
       ]
     )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr],
-      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, that.OutElem]
+      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
+      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
+      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
     ): ZPipeline.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -153,19 +168,24 @@ trait ZPipelineCompanionVersionSpecific {
     /**
      * A named version of the `<<<` operator.
      */
-    def compose[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2](
-      that: ZPipeline[
+    def compose[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[
+      Err
+    ], OutElem2[Elem]](
+      that: ZPipeline.WithOut[
         LowerEnv2,
         UpperEnv2,
         LowerErr2,
         UpperErr2,
         LowerElem2,
-        UpperElem2
+        UpperElem2,
+        OutEnv2,
+        OutErr2,
+        OutElem2
       ]
     )(implicit
-      composeEnv: Compose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv],
-      composeErr: Compose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr],
-      composeElem: Compose[LowerElem2, UpperElem2, that.OutElem, LowerElem, UpperElem, OutElem]
+      composeEnv: Compose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
+      composeErr: Compose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr],
+      composeElem: Compose[LowerElem2, UpperElem2, OutElem2, LowerElem, UpperElem, OutElem]
     ): ZPipeline.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
