@@ -4,6 +4,7 @@ import com.github.ghik.silencer.silent
 import zio.UIO
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.function.Consumer
 import scala.collection.JavaConverters._
 
 final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.KeySetView[A, java.lang.Boolean])
@@ -18,9 +19,11 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
   def collectFirst[B](pf: PartialFunction[A, B]): UIO[Option[B]] =
     UIO {
       var result = Option.empty[B]
-      underlying.forEach { (a: A) =>
-        if (result.isEmpty && pf.isDefinedAt(a)) {
-          result = Some(pf(a))
+      underlying.forEach {
+        makeConsumer { (a: A) =>
+          if (result.isEmpty && pf.isDefinedAt(a)) {
+            result = Some(pf(a))
+          }
         }
       }
       result
@@ -29,9 +32,11 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
   def exists(p: A => Boolean): UIO[Boolean] =
     UIO {
       var result = false
-      underlying.forEach { (a: A) =>
-        if (!result && p(a))
-          result = true
+      underlying.forEach {
+        makeConsumer { (a: A) =>
+          if (!result && p(a))
+            result = true
+        }
       }
       result
     }
@@ -39,8 +44,10 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
   def fold[R, E, S](zero: S)(f: (S, A) => S): UIO[S] =
     UIO {
       var result: S = zero
-      underlying.forEach { (a: A) =>
-        result = f(result, a)
+      underlying.forEach {
+        makeConsumer { (a: A) =>
+          result = f(result, a)
+        }
       }
       result
     }
@@ -48,9 +55,11 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
   def forall(p: A => Boolean): UIO[Boolean] =
     UIO {
       var result = true
-      underlying.forEach { (a: A) =>
-        if (result && !p(a))
-          result = false
+      underlying.forEach {
+        makeConsumer { (a: A) =>
+          if (result && !p(a))
+            result = false
+        }
       }
       result
     }
@@ -58,9 +67,11 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
   def find[B](p: A => Boolean): UIO[Option[A]] =
     UIO {
       var result = Option.empty[A]
-      underlying.forEach { (a: A) =>
-        if (result.isEmpty && p(a))
-          result = Some(a)
+      underlying.forEach {
+        makeConsumer { (a: A) =>
+          if (result.isEmpty && p(a))
+            result = Some(a)
+        }
       }
       result
     }
@@ -104,6 +115,11 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     underlying.removeAll(set.asJavaCollection)
     val _ = underlying.addAll(set.map(f).asJavaCollection)
   }
+
+  private def makeConsumer(f: A => Unit): Consumer[A] =
+    new java.util.function.Consumer[A] {
+      override def accept(t: A): Unit = f(t)
+    }
 }
 
 object ConcurrentSet {
