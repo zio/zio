@@ -20,11 +20,13 @@ import zio.clock.Clock
 import zio.console.Console
 import zio.duration._
 import zio.random.Random
+import zio.random.Random.nextUUIDWith
 import zio.system.System
 import zio.{PlatformSpecific => _, _}
 
 import java.io.{EOFException, IOException}
 import java.time.{Instant, OffsetDateTime, ZoneId}
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable.{Queue, SortedSet}
 import scala.math.{log, sqrt}
@@ -975,6 +977,7 @@ package object environment extends PlatformSpecific {
       def clearInts: UIO[Unit]
       def clearLongs: UIO[Unit]
       def clearStrings: UIO[Unit]
+      def clearUUIDs: UIO[Unit]
       def feedBooleans(booleans: Boolean*): UIO[Unit]
       def feedBytes(bytes: Chunk[Byte]*): UIO[Unit]
       def feedChars(chars: Char*): UIO[Unit]
@@ -983,6 +986,7 @@ package object environment extends PlatformSpecific {
       def feedInts(ints: Int*): UIO[Unit]
       def feedLongs(longs: Long*): UIO[Unit]
       def feedStrings(strings: String*): UIO[Unit]
+      def feedUUIDs(UUIDs: UUID*): UIO[Unit]
       def getSeed: UIO[Long]
       def setSeed(seed: Long): UIO[Unit]
     }
@@ -1041,6 +1045,12 @@ package object environment extends PlatformSpecific {
        */
       val clearStrings: UIO[Unit] =
         bufferState.update(_.copy(strings = List.empty))
+
+      /**
+       * Clears the buffer of UUIDs.
+       */
+      val clearUUIDs: UIO[Unit] =
+        bufferState.update(_.copy(UUIDs = List.empty))
 
       /**
        * Feeds the buffer with specified sequence of booleans. The first value in
@@ -1105,6 +1115,14 @@ package object environment extends PlatformSpecific {
        */
       def feedStrings(strings: String*): UIO[Unit] =
         bufferState.update(data => data.copy(strings = strings.toList ::: data.strings))
+
+      /**
+       * Feeds the buffer with specified sequence of UUIDs. The first value in
+       * the sequence will be the first to be taken. These values will be taken
+       * before any values that were previously in the buffer.
+       */
+      def feedUUIDs(UUIDs: UUID*): UIO[Unit] =
+        bufferState.update(data => data.copy(UUIDs = UUIDs.toList ::: data.UUIDs))
 
       /**
        * Gets the seed of this `TestRandom`.
@@ -1223,6 +1241,13 @@ package object environment extends PlatformSpecific {
         getOrElse(bufferedString)(randomString(length))
 
       /**
+       * Takes a UUID from the buffer if one exists or else generates a
+       * pseudo-random UUID.
+       */
+      override lazy val nextUUID: UIO[UUID] =
+        getOrElse(bufferedUUID)(nextUUIDWith(nextLong))
+
+      /**
        * Saves the `TestRandom`'s current state in an effect which, when run,
        * will restore the `TestRandom` state to the saved state.
        */
@@ -1297,6 +1322,12 @@ package object environment extends PlatformSpecific {
         (
           buffer.strings.headOption,
           buffer.copy(strings = buffer.strings.drop(1))
+        )
+
+      private def bufferedUUID(buffer: Buffer): (Option[UUID], Buffer) =
+        (
+          buffer.UUIDs.headOption,
+          buffer.copy(UUIDs = buffer.UUIDs.drop(1))
         )
 
       private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: UIO[A]): UIO[A] =
@@ -1499,6 +1530,13 @@ package object environment extends PlatformSpecific {
       ZIO.accessM(_.get.clearStrings)
 
     /**
+     * Accesses a `TestRandom` instance in the environment and clears the buffer
+     * of UUIDs.
+     */
+    val clearUUIDs: URIO[TestRandom, Unit] =
+      ZIO.accessM(_.get.clearUUIDs)
+
+    /**
      * Accesses a `TestRandom` instance in the environment and feeds the buffer
      * with the specified sequence of booleans.
      */
@@ -1553,6 +1591,13 @@ package object environment extends PlatformSpecific {
      */
     def feedStrings(strings: String*): URIO[TestRandom, Unit] =
       ZIO.accessM(_.get.feedStrings(strings: _*))
+
+    /**
+     * Accesses a `TestRandom` instance in the environment and feeds the buffer
+     * with the specified sequence of UUIDs.
+     */
+    def feedUUIDs(UUIDs: UUID*): URIO[TestRandom, Unit] =
+      ZIO.accessM(_.get.feedUUIDs(UUIDs: _*))
 
     /**
      * Accesses a `TestRandom` instance in the environment and gets the seed.
@@ -1626,7 +1671,8 @@ package object environment extends PlatformSpecific {
       floats: List[Float] = List.empty,
       integers: List[Int] = List.empty,
       longs: List[Long] = List.empty,
-      strings: List[String] = List.empty
+      strings: List[String] = List.empty,
+      UUIDs: List[UUID] = List.empty
     )
   }
 
