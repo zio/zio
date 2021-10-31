@@ -119,6 +119,23 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     ev(apply(index))
 
   /**
+   * Pads to the specified number of bits.
+   *   - if n > size, chunk is 0-padded to length n.
+   *   - if n <= size, chunk is left intact.
+   *
+   * @example
+   * {{{
+   *   Chunk(true, false).padToMod(8) => Chunk(true, false, false, false, false, false, false, false)
+   * }}}
+   */
+  def padToMod(n: Int)(implicit ev: A <:< Boolean): Chunk[Boolean] =
+    if (n <= length) self.map(ev)
+    else {
+      val paddedBits = Chunk.fill(n - length)(false)
+      self.map(ev) ++ paddedBits
+    }
+
+  /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a
    * .
    */
