@@ -17,12 +17,12 @@ object ZPipelineSpec extends ZIOBaseSpec {
           def verifyInside(in: Chunk[(Boolean, NonEmptyChunk[Int])]) =
             in.map { case (k, xs) => xs.forall(keyFn(_) == k) }
 
-          def verifyAdjacent(in: Chunk[(Boolean, Any)]): Boolean =
-            in.sliding(2, 1).foldLeft(true)((res, chunk) => res && (chunk.length == 1 || chunk(0) != chunk(1)))
+          def verifyAdjacentKeys(in: Chunk[(Boolean, Any)]): Boolean =
+            in.sliding(2, 1).foldLeft(true)((res, chunk) => res && (chunk.length == 1 || chunk(0)._1 != chunk(1)._1))
 
           assert(splat)(equalTo(iss.flatten)) &&
           assert(verifyInside(oss))(forall(isTrue)) &&
-          assert(verifyAdjacent(oss))(isTrue)
+          assert(verifyAdjacentKeys(oss))(isTrue)
         }
       })
     )
