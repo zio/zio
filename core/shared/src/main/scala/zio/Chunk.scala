@@ -101,35 +101,67 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     Chunk.BitChunk(self.map(ev), 0, length << 3)
 
   /**
-   * Converts a chunk of longs to a chunk of bits using the specified endianness.
+   * Converts a chunk of longs to a chunk of bits using the specified [[java.nio.ByteOrder endianness]].
    */
   final def longsAsBits(endian: ByteOrder)(implicit ev: A <:< Long): Chunk[Boolean] = {
     val byteChunk: Chunk[Byte] = self
       .map(ev)
-      .flatMap(
-        ByteBuffer
-          .allocate(java.lang.Long.BYTES)
-          .order(endian)
-          .putLong(_)
-          .array()
-      )
+      .flatMap { num =>
+        endian match {
+          case ByteOrder.LITTLE_ENDIAN =>
+            val b = new Array[Byte](8)
+            b(0) = (num & 0xff).toByte
+            b(1) = ((num >> 8) & 0xff).toByte
+            b(2) = ((num >> 16) & 0xff).toByte
+            b(3) = ((num >> 24) & 0xff).toByte
+            b(4) = ((num >> 32) & 0xff).toByte
+            b(5) = ((num >> 40) & 0xff).toByte
+            b(6) = ((num >> 48) & 0xff).toByte
+            b(7) = ((num >> 56) & 0xff).toByte
+            b
+          case ByteOrder.BIG_ENDIAN =>
+            val b = new Array[Byte](8)
+            b(0) = ((num >> 56) & 0xff).toByte
+            b(1) = ((num >> 48) & 0xff).toByte
+            b(2) = ((num >> 40) & 0xff).toByte
+            b(3) = ((num >> 32) & 0xff).toByte
+            b(4) = ((num >> 24) & 0xff).toByte
+            b(5) = ((num >> 16) & 0xff).toByte
+            b(6) = ((num >> 8) & 0xff).toByte
+            b(7) = (num & 0xff).toByte
+            b
+          case _ => throw new IllegalArgumentException(s"Unrecognized endianness $endian")
+        }
+      }
 
     Chunk.BitChunk(byteChunk, 0, length << 6)
   }
 
   /**
-   * Converts a chunk of ints to a chunk of bits using the specified endianness.
+   * Converts a chunk of ints to a chunk of bits using the specified [[java.nio.ByteOrder endianness]].
    */
   final def intsAsBits(endian: ByteOrder)(implicit ev: A <:< Int): Chunk[Boolean] = {
     val byteChunk: Chunk[Byte] = self
       .map(ev)
-      .flatMap(
-        ByteBuffer
-          .allocate(Integer.BYTES)
-          .order(endian)
-          .putInt(_)
-          .array()
-      )
+      .flatMap { num =>
+        endian match {
+          case ByteOrder.LITTLE_ENDIAN =>
+            val b = new Array[Byte](4)
+            b(0) = (num & 0xff).toByte
+            b(1) = ((num >> 8) & 0xff).toByte
+            b(2) = ((num >> 16) & 0xff).toByte
+            b(3) = ((num >> 24) & 0xff).toByte
+            b
+          case ByteOrder.BIG_ENDIAN =>
+            val b = new Array[Byte](4)
+            b(0) = ((num >> 24) & 0xff).toByte
+            b(1) = ((num >> 16) & 0xff).toByte
+            b(2) = ((num >> 8) & 0xff).toByte
+            b(3) = (num & 0xff).toByte
+            b
+          case _ => throw new IllegalArgumentException(s"Unrecognized endianness $endian")
+        }
+      }
 
     Chunk.BitChunk(byteChunk, 0, length << 5)
   }
