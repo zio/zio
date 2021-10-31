@@ -3,8 +3,6 @@ import zio.Supervisor.Propagation
 import zio.duration.durationInt
 import zio.test._
 
-import java.util.concurrent.atomic.AtomicReference
-
 object SupervisorSpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Failure] = suite("SupervisorSpec")(
     suite("supervise resume / suspend")(
