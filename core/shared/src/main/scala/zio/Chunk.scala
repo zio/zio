@@ -94,10 +94,22 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
     that.prepend(self)
 
+  def &(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk[Boolean] =
+    zipAllWith(that)(_ => false, _ => false)(_ & _)
+
+  def |(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk[Boolean] =
+    zipAllWith[Boolean, Boolean](that)(ev(_), identity)(_ | _)
+
+  def ^(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk[Boolean] =
+    zipAllWith(that)(ev(_), identity)(_ ^ _)
+
+  def unary_~(implicit ev: A <:< Boolean): Chunk[Boolean] =
+    mapChunk(!_)
+
   /**
    * Converts a chunk of bytes to a chunk of bits.
    */
-  final def asBits(implicit ev: A <:< Byte): Chunk.BitChunk =
+  final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
     Chunk.BitChunk(self.map(ev), 0, length << 3)
 
   /**
@@ -1112,9 +1124,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   override def apply[A](as: A*): Chunk[A] =
     fromIterable(as)
 
-  def fromBits(bits: Boolean*): Chunk.BitChunk =
-    fromIterator(bits.reverse.grouped(8).map(_.foldRight(0)((b, i) => (i << 1) | (if (b) 1 else 0)).toByte)).asBits
-
   /**
    * Returns a chunk backed by an array.
    *
@@ -1766,13 +1775,22 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override private[zio] def reverseArrayIterator[A1 >: Boolean]: Iterator[Array[A1]] =
       arrayIterator
 
-    def &(that: BitChunk): BitChunk = byteWiseOp(that)(_ => 0, _ => 0)((a: Byte, b: Byte) => (a & b).toByte)
+    override def &(that: Chunk[Boolean])(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = that match {
+      case thatBitChunk: BitChunk => byteWiseOp(thatBitChunk)(_ => 0, _ => 0)((a: Byte, b: Byte) => (a & b).toByte)
+      case that => super.&(that)
+    }
 
-    def |(that: BitChunk): BitChunk = byteWiseOp(that)(identity, identity)((a: Byte, b: Byte) => (a | b).toByte)
+    override def |(that: Chunk[Boolean])(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = that match {
+      case thatBitChunk: BitChunk => byteWiseOp(thatBitChunk)(identity, identity)((a: Byte, b: Byte) => (a | b).toByte)
+      case that => super.|(that)
+    }
 
-    def ^(that: BitChunk): BitChunk = byteWiseOp(that)(identity, identity)((a: Byte, b: Byte) => (a ^ b).toByte)
+    override def ^(that: Chunk[Boolean])(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = that match {
+      case thatBitChunk: BitChunk => byteWiseOp(thatBitChunk)(identity, identity)((a: Byte, b: Byte) => (a ^ b).toByte)
+      case that => super.^(that)
+    }
 
-    def unary_~ : BitChunk =
+    override def unary_~(implicit ev: Boolean <:< Boolean) : BitChunk =
       BitChunk(bytes.mapChunk(b => (~b).toByte), minBitIndex, maxBitIndex)
 
     private def byteWiseOp(that: BitChunk)(left: Byte => Byte, right: Byte => Byte)(both: (Byte, Byte) => Byte): BitChunk =

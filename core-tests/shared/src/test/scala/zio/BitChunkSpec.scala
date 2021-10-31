@@ -11,11 +11,27 @@ object BitChunkSpec extends ZIOBaseSpec {
       bytes <- Gen.listOf(Gen.anyByte)
     } yield Chunk.fromIterable(bytes)
 
+  def genInefficientBooleanChunk(multipleOf: Int = 1): Gen[Random with Sized, Chunk[Boolean]] = Gen.listOf(Gen.listOfN(multipleOf)(Gen.boolean)).map(bits => Chunk.fromIterable(bits.flatten))
+
+  val genByteSizedBitChunk: Gen[Random with Sized, Chunk[Boolean]] = {
+    val inefficientStorage = Gen.listOf(Gen.listOfN(8)(Gen.boolean)).map(bits => Chunk.fromIterable(bits.flatten))
+    val efficientStorage = genByteChunk.map(_.asBits)
+    Gen.oneOf(inefficientStorage, efficientStorage)
+  }
+
   val genInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_))
 
   def toBinaryString(byte: Byte): String =
     String.format("%8s", (byte.toInt & 0xff).toBinaryString).replace(' ', '0')
+
+  def byteChunkFromBitChunk(chunk: Chunk[Boolean]): Chunk[Byte] =
+    Chunk.fromIterator(chunk.iterator.grouped(8).map(_.foldLeft(0)((i, b) => (i << 1) | (if (b) 1 else 0)).toByte))
+
+  def bytesFromBigEndianBits(bits: Boolean*): Chunk[Byte] =
+    Chunk.fromIterator(bits.reverse.grouped(8).map(_.foldRight(0)((b, i) => (i << 1) | (if (b) 1 else 0)).toByte))
+
+  def compressed(chunk: Chunk[Boolean]): Chunk[Boolean] = byteChunkFromBitChunk(chunk).asBits
 
   def spec: ZSpec[Environment, Failure] = suite("BitChunkSpec")(
     testM("drop") {
@@ -67,54 +83,50 @@ object BitChunkSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     },
-    test("from bits") {
-      assert(Chunk.fromBits(true, false))(equalTo(Chunk.fromBits(false, false, false, false, false, false, true, false))) &&
-        assert(Chunk.fromBits(true).toBinaryString)(equalTo("00000001"))
-    },
     suite("bitwise operations")(
       test("& simple") {
-        val l = Chunk.fromBits(true, false, true, false, true, false, true, false, true)
-        val r = Chunk.fromBits(true, false, false, false, true, true, true, false, true)
-        val e = Chunk.fromBits(true, false, false, false, true, false, true, false, true)
+        val l = bytesFromBigEndianBits(true, false, true, false, true, false, true, false, true).asBits
+        val r = bytesFromBigEndianBits(true, false, false, false, true, true, true, false, true).asBits
+        val e = bytesFromBigEndianBits(true, false, false, false, true, false, true, false, true).asBits
         assert(l & r)(equalTo(e))
       },
       testM("&") {
-        check(genByteChunk, genByteChunk) { case (leftBytes, rightBytes) =>
-          val actual = (leftBytes.asBits & rightBytes.asBits).toBinaryString
-          val expected = leftBytes.zipAllWith[Byte, Byte](rightBytes)(_ => 0, _ => 0)((a: Byte, b: Byte) => (a & b).toByte).map(toBinaryString).mkString
+        check(genInefficientBooleanChunk(8), genInefficientBooleanChunk(8)) { case (leftBits, rightBits) =>
+          val actual = (compressed(leftBits) & compressed(rightBits)).toBinaryString
+          val expected = (leftBits & rightBits).toBinaryString
           assert(actual)(equalTo(expected))
         }
       },
       test("| simple") {
-        val l = Chunk.fromBits(true, false, true, false, true, false, true, false, true)
-        val r = Chunk.fromBits(true, false, false, false, true, true, true, false, true)
-        val e = Chunk.fromBits(true, false, true, false, true, true, true, false, true)
+        val l = bytesFromBigEndianBits(true, false, true, false, true, false, true, false, true).asBits
+        val r = bytesFromBigEndianBits(true, false, false, false, true, true, true, false, true).asBits
+        val e = bytesFromBigEndianBits(true, false, true, false, true, true, true, false, true).asBits
         assert(l | r)(equalTo(e))
       },
       testM("|") {
-        check(genByteChunk, genByteChunk) { case (leftBytes, rightBytes) =>
-          val actual = (leftBytes.asBits | rightBytes.asBits).toBinaryString
-          val expected = leftBytes.zipAllWith[Byte, Byte](rightBytes)(identity, identity)((a: Byte, b: Byte) => (a | b).toByte).map(toBinaryString).mkString
+        check(genInefficientBooleanChunk(8), genInefficientBooleanChunk(8)) { case (leftBits, rightBits) =>
+          val actual = (compressed(leftBits) | compressed(rightBits)).toBinaryString
+          val expected = (leftBits | rightBits).toBinaryString
           assert(actual)(equalTo(expected))
         }
       },
       test("^ simple") {
-        val l = Chunk.fromBits(true, false, true, false, true, false, true, false, true)
-        val r = Chunk.fromBits(true, false, false, false, true, true, true, false, true)
-        val e = Chunk.fromBits(false, false, true, false, false, true, false, false, false)
+        val l = bytesFromBigEndianBits(true, false, true, false, true, false, true, false, true).asBits
+        val r = bytesFromBigEndianBits(true, false, false, false, true, true, true, false, true).asBits
+        val e = bytesFromBigEndianBits(false, false, true, false, false, true, false, false, false).asBits
         assert(l ^ r)(equalTo(e))
       },
       testM("^") {
-        check(genByteChunk, genByteChunk) { case (leftBytes, rightBytes) =>
-          val actual = (leftBytes.asBits ^ rightBytes.asBits).toBinaryString
-          val expected = leftBytes.zipAllWith[Byte, Byte](rightBytes)(identity, identity)((a: Byte, b: Byte) => (a ^ b).toByte).map(toBinaryString).mkString
+        check(genInefficientBooleanChunk(8), genInefficientBooleanChunk(8)) { case (leftBits, rightBits) =>
+          val actual = (compressed(leftBits) ^ compressed(rightBits)).toBinaryString
+          val expected = (leftBits ^ rightBits).toBinaryString
           assert(actual)(equalTo(expected))
         }
       },
       test("~ simple") {
-        val bits = Chunk.fromBits(true, false, true, false, true, true, true, false, true)
-        val e = Chunk.fromBits(true, true, true, true, true, true, true,
-          false, true, false, true, false, false, false, true, false)
+        val bits = bytesFromBigEndianBits(true, false, true, false, true, true, true, false, true).asBits
+        val e = bytesFromBigEndianBits(true, true, true, true, true, true, true,
+          false, true, false, true, false, false, false, true, false).asBits
         assert(~bits)(equalTo(e))
       },
       testM("~") {
@@ -124,6 +136,20 @@ object BitChunkSpec extends ZIOBaseSpec {
           assert(actual)(equalTo(expected))
         }
       },
+      testM("compressed bit chunk composes with non-compressed") {
+        val genOperator = Gen.elements(
+          (left: Chunk[Boolean], right: Chunk[Boolean]) => left & right,
+          (left: Chunk[Boolean], right: Chunk[Boolean]) => left | right,
+          (left: Chunk[Boolean], right: Chunk[Boolean]) => left ^ right,
+        )
+        checkM(genOperator, genInefficientBooleanChunk(8), genInefficientBooleanChunk(8)) { case (bitwiseOp, leftBits, rightBits) =>
+          val expected = bitwiseOp(leftBits, rightBits).toBinaryString
+          check(Gen.elements(compressed(leftBits) -> rightBits, leftBits -> compressed(rightBits))) { case (left, right) =>
+            val actual = bitwiseOp(left, right).toBinaryString
+            assert(actual)(equalTo(expected))
+          }
+        }
+      }
     )
   )
 }
