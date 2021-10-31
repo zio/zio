@@ -59,6 +59,16 @@ abstract class Supervisor[+A] { self =>
 
       def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Propagation =
         self.unsafeOnEnd(value, fiber) && that.unsafeOnEnd(value, fiber)
+
+      override private[zio] def unsafeOnSuspend[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = {
+        self.unsafeOnSuspend(fiber)
+        that.unsafeOnSuspend(fiber)
+      }
+
+      override private[zio] def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = {
+        self.unsafeOnResume(fiber)
+        that.unsafeOnResume(fiber)
+      }
     }
 
   /**
@@ -86,6 +96,16 @@ abstract class Supervisor[+A] { self =>
 
       def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Propagation =
         self.unsafeOnEnd(value, fiber) || that.unsafeOnEnd(value, fiber)
+
+      override private[zio] def unsafeOnSuspend[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = {
+        self.unsafeOnSuspend(fiber)
+        that.unsafeOnSuspend(fiber)
+      }
+
+      override private[zio] def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = {
+        self.unsafeOnResume(fiber)
+        that.unsafeOnResume(fiber)
+      }
     }
 
   private[zio] def unsafeOnStart[R, E, A](
@@ -96,6 +116,10 @@ abstract class Supervisor[+A] { self =>
   ): Propagation
 
   private[zio] def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Propagation
+
+  private[zio] def unsafeOnSuspend[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = ()
+
+  private[zio] def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = ()
 }
 object Supervisor {
 
