@@ -234,31 +234,6 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
   /**
-   * Creates a stream from a `java.io.InputStream`.
-   * Note: the input stream will not be explicitly closed after it is exhausted.
-   */
-  def fromInputStream(
-    is: => InputStream,
-    chunkSize: Int = ZStream.DefaultChunkSize
-  )(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
-    ZStream.fromZIO(UIO(is)).flatMap { capturedIs =>
-      ZStream.repeatZIOChunkOption {
-        for {
-          bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
-          bytesRead <- ZIO.attemptBlockingIO(capturedIs.read(bufArray)).asSomeError
-          bytes <- if (bytesRead < 0)
-                     ZIO.fail(None)
-                   else if (bytesRead == 0)
-                     UIO(Chunk.empty)
-                   else if (bytesRead < chunkSize)
-                     UIO(Chunk.fromArray(bufArray).take(bytesRead))
-                   else
-                     UIO(Chunk.fromArray(bufArray))
-        } yield bytes
-      }
-    }
-
-  /**
    * Creates a stream from the resource specified in `path`
    */
   final def fromResource(
@@ -275,25 +250,6 @@ trait ZStreamPlatformSpecificConstructors {
         }
       }
     }.flatMap(is => fromInputStream(is, chunkSize = chunkSize))
-
-  /**
-   * Creates a stream from a `java.io.InputStream`. Ensures that the input
-   * stream is closed after it is exhausted.
-   */
-  def fromInputStreamEffect[R](
-    is: ZIO[R, IOException, InputStream],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
-    fromInputStreamManaged(is.toManagedWith(is => ZIO.succeed(is.close())), chunkSize)
-
-  /**
-   * Creates a stream from a managed `java.io.InputStream` value.
-   */
-  def fromInputStreamManaged[R](
-    is: ZManaged[R, IOException, InputStream],
-    chunkSize: Int = ZStream.DefaultChunkSize
-  )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
-    ZStream.managed(is).flatMap(fromInputStream(_, chunkSize))
 
   /**
    * Creates a stream from `java.io.Reader`.
@@ -321,11 +277,12 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from an effect producing `java.io.Reader`.
    */
+  @deprecated("use fromReaderZIO", "2.0.0")
   def fromReaderEffect[R](
     reader: => ZIO[R, IOException, Reader],
     chunkSize: Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
-    fromReaderManaged(reader.toManagedWith(r => ZIO.succeed(r.close())), chunkSize)
+    fromReaderZIO(reader, chunkSize)
 
   /**
    * Creates a stream from managed `java.io.Reader`.
@@ -335,6 +292,15 @@ trait ZStreamPlatformSpecificConstructors {
     chunkSize: Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
     ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
+
+  /**
+   * Creates a stream from an effect producing `java.io.Reader`.
+   */
+  def fromReaderZIO[R](
+    reader: => ZIO[R, IOException, Reader],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
+    fromReaderManaged(reader.toManagedWith(r => ZIO.succeed(r.close())), chunkSize)
 
   /**
    * Creates a stream from a callback that writes to `java.io.OutputStream`.
