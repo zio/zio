@@ -34,4 +34,20 @@ object SinkUtils {
         }
       }
     }
+
+  def zipParLaw[A, B, C, L, E](
+    s: ZStream[Any, Nothing, A],
+    sink1: ZSink[Any, Nothing, A, E, A, B],
+    sink2: ZSink[Any, Nothing, A, E, A, C]
+  ): UIO[TestResult] =
+    for {
+      zb  <- s.run(sink1).either
+      zc  <- s.run(sink2).either
+      zbc <- s.run(sink1.zipPar(sink2)).either
+    } yield {
+      zbc match {
+        case Left(e)       => assert(zb)(equalTo(Left(e))) || assert(zc)(equalTo(Left(e)))
+        case Right((b, c)) => assert(zb)(equalTo(Right(b))) && assert(zc)(equalTo(Right(c)))
+      }
+    }
 }
