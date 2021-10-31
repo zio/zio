@@ -341,7 +341,7 @@ object ZPipeline {
             halt = ZChannel.failCause(_),
             done = _ =>
               buffer match {
-                case Some(o) => ZChannel.write(Chunk.single(o)) *> ZChannel.unit
+                case Some(o) => ZChannel.write(Chunk.single(o))
                 case None    => ZChannel.unit
               }
           )
