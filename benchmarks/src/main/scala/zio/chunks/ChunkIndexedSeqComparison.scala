@@ -86,9 +86,6 @@ class ChunkIndexedSeqComparison {
   @Benchmark
   def dropRight(): Chunk[Int] = chunk.dropRight(1)
 
-  // @Benchmark
-  // def elementWise(): ElementWiseExtractor = chunk.elementWise
-
   @Benchmark
   def endsWith(): Boolean = chunk.endsWith(Seq(size - 1, size))
 
@@ -149,10 +146,7 @@ class ChunkIndexedSeqComparison {
   
   @Benchmark
   def isTraversableAgain(): Boolean = chunk.isTraversableAgain
-  
-  // @Benchmark
-  // def iterableFactory(): SeqFactory[Chunk[Int]] = chunk.iterableFactory()
-  
+    
   @Benchmark
   def iterator(): Iterator[Int] = chunk.iterator
   
@@ -306,20 +300,11 @@ class ChunkIndexedSeqComparison {
   @Benchmark
   def tapEach(): Chunk[Int] = chunk.tapEach(num => num + 1)
   
-  // @Benchmark
-  // def to(): Seq[Int] = chunk.to(SeqFactory())
-
-  // @Benchmark
-  // def toBuffer(): Buffer[Int] = chunk.toBuffer
-  
   @Benchmark
   def toIndexedSeq(): IndexedSeq[Int] = chunk.toIndexedSeq
   
   @Benchmark
   def toIterable(): Chunk[Int] = chunk.toIterable
-  
-  // @Benchmark
-  // def toMap(): Map[]
   
   @Benchmark
   def toSeq(): Chunk[Int] = chunk.toSeq
@@ -338,8 +323,4 @@ class ChunkIndexedSeqComparison {
   
   @Benchmark
   def view(): IndexedSeqView[Int] = chunk.view
-  
-  // needs some withFilter stuff for this method to work
-  // @Benchmark
-  // def withFilter(): WithFilter[Int] = chunk.withFilter(num => num > size / 2)
 }
