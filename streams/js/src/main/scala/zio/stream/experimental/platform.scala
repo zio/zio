@@ -3,6 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.io.{IOException, InputStream}
 import scala.concurrent.Future
 
 trait ZStreamPlatformSpecificConstructors {
@@ -198,5 +199,17 @@ trait ZStreamPlatformSpecificConstructors {
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncMaybe(register, outputBuffer)
 
-  trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
+  trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1 {
+
+    /**
+     * Constructs a `ZStream[Any, IOException, Byte]` from a
+     * `java.io.InputStream`.
+     */
+    implicit val InputStreamConstructor: WithOut[InputStream, ZStream[Any, IOException, Byte]] =
+      new ZStreamConstructor[InputStream] {
+        type Out = ZStream[Any, IOException, Byte]
+        def make(input: => InputStream)(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
+          ZStream.fromInputStream(input)
+      }
+  }
 }

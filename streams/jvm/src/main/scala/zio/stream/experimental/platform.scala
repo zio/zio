@@ -234,31 +234,6 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
   /**
-   * Creates a stream from a `java.io.InputStream`.
-   * Note: the input stream will not be explicitly closed after it is exhausted.
-   */
-  def fromInputStream(
-    is: => InputStream,
-    chunkSize: Int = ZStream.DefaultChunkSize
-  )(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
-    ZStream.fromZIO(UIO(is)).flatMap { capturedIs =>
-      ZStream.repeatZIOChunkOption {
-        for {
-          bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
-          bytesRead <- ZIO.attemptBlockingIO(capturedIs.read(bufArray)).asSomeError
-          bytes <- if (bytesRead < 0)
-                     ZIO.fail(None)
-                   else if (bytesRead == 0)
-                     UIO(Chunk.empty)
-                   else if (bytesRead < chunkSize)
-                     UIO(Chunk.fromArray(bufArray).take(bytesRead))
-                   else
-                     UIO(Chunk.fromArray(bufArray))
-        } yield bytes
-      }
-    }
-
-  /**
    * Creates a stream from the resource specified in `path`
    */
   final def fromResource(

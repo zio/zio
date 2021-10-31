@@ -8,6 +8,7 @@ import zio.stream.experimental.ZStream.{DebounceState, HandoffSignal}
 import zio.stream.experimental.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
 
+import java.io.{IOException, InputStream}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.reflect.ClassTag
 
@@ -4208,6 +4209,30 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     maxChunkSize: Int = DefaultChunkSize
   )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[R, E, A]] =
     fromHubManaged(hub, maxChunkSize).map(_.ensuring(hub.shutdown))
+
+  /**
+   * Creates a stream from a `java.io.InputStream`
+   */
+  def fromInputStream(
+    is: => InputStream,
+    chunkSize: Int = ZStream.DefaultChunkSize
+  )(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
+    ZStream.fromZIO(UIO(is)).flatMap { capturedIs =>
+      ZStream.repeatZIOChunkOption {
+        for {
+          bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
+          bytesRead <- ZIO.attemptBlockingIO(capturedIs.read(bufArray)).asSomeError
+          bytes <- if (bytesRead < 0)
+                     ZIO.fail(None)
+                   else if (bytesRead == 0)
+                     UIO(Chunk.empty)
+                   else if (bytesRead < chunkSize)
+                     UIO(Chunk.fromArray(bufArray).take(bytesRead))
+                   else
+                     UIO(Chunk.fromArray(bufArray))
+        } yield bytes
+      }
+    }
 
   /**
    * Creates a stream from an iterable collection of values
