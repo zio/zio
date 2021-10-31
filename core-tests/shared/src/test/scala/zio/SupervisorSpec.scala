@@ -76,7 +76,8 @@ object SupervisorSpec extends ZIOBaseSpec {
   )
 
   private class RecordingSupervisor extends Supervisor[Unit] {
-    private val logRef = new AtomicReference(Seq.empty[String])
+    @volatile
+    private var logRef = Seq.empty[String]
 
     override def value: UIO[Unit] = UIO.unit
 
@@ -95,11 +96,10 @@ object SupervisorSpec extends ZIOBaseSpec {
     override private[zio] def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit =
       log(s"unsafeOnResume(${fiber.id})")
 
-    def logged = logRef.get
+    def logged = logRef
 
     def log(message: String): Unit = {
-      logRef.updateAndGet(_ :+ message)
-      ()
+      logRef = logRef :+ message
     }
   }
 
