@@ -314,40 +314,11 @@ object ZPipeline {
   /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
    */
-  def groupAdjacentBy[I, K](
-    f: I => K
-  )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, I, (K, NonEmptyChunk[I])] =
+  def groupAdjacentBy[I, K](f: I => K): ZPipeline[Any, Nothing, I, (K, NonEmptyChunk[I])] =
     new ZPipeline[Any, Nothing, I, (K, NonEmptyChunk[I])] {
       type O = (K, NonEmptyChunk[I])
-      def go(in: Chunk[I], state: Option[O]): (Chunk[O], Option[O]) =
-        in.foldLeft[(Chunk[O], Option[O])]((Chunk.empty, state)) {
-          case ((os, None), i) =>
-            (os, Some((f(i), NonEmptyChunk(i))))
-          case ((os, Some(agg @ (k, aggregated))), i) =>
-            val k2 = f(i)
-            if (k == k2)
-              (os, Some((k, aggregated :+ i)))
-            else
-              (os :+ agg, Some((k2, NonEmptyChunk(i))))
-        }
-
-      def apply[R, E](stream: ZStream[R, E, I])(implicit trace: ZTraceElement): ZStream[R, E, O] = {
-        def chunkAdjacent(buffer: Option[O]): ZChannel[R, E, Chunk[I], Any, E, Chunk[O], Unit] =
-          ZChannel.readWithCause[R, E, Chunk[I], Any, E, Chunk[O], Unit](
-            in = chunk => {
-              val (outputs, newBuffer) = go(chunk, buffer)
-              ZChannel.write(outputs) *> chunkAdjacent(newBuffer)
-            },
-            halt = ZChannel.failCause(_),
-            done = _ =>
-              buffer match {
-                case Some(o) => ZChannel.write(Chunk.single(o))
-                case None    => ZChannel.unit
-              }
-          )
-
-        new ZStream(stream.channel >>> chunkAdjacent(None))
-      }
+      def apply[R, E](stream: ZStream[R, E, I])(implicit trace: ZTraceElement): ZStream[R, E, O] =
+        stream.groupAdjacentBy(f)
     }
 
   /**
