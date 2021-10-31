@@ -303,7 +303,6 @@ trait Runtime[+R] {
       fiberId,
       runtimeConfig,
       environment.asInstanceOf[AnyRef],
-      false,
       InterruptStatus.Interruptible,
       new java.util.concurrent.atomic.AtomicReference(Map.empty),
       scope

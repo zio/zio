@@ -33,7 +33,6 @@ private[zio] final class FiberContext[E, A](
   protected val fiberId: FiberId.Runtime,
   var runtimeConfig: RuntimeConfig,
   startEnv: AnyRef,
-  startLocked: Boolean,
   startIStatus: InterruptStatus,
   val fiberRefLocals: FiberRefLocals,
   openScope: ZScope.Open[Exit[E, A]]
@@ -59,7 +58,6 @@ private[zio] final class FiberContext[E, A](
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
 
   private[this] var currentEnvironment = startEnv
-  private[this] var currentLocked      = startLocked
 
   var scopeKey: ZScope.Key = null
 
@@ -458,12 +456,20 @@ private[zio] final class FiberContext[E, A](
 
                     val executor = zio.executor()
 
-                    if (executor eq null) {
-                      currentLocked = false
-                      curZio = ZIO.unit
+                    curZio = if (executor eq null) {
+                      setFiberRefValue(currentExecutor, None)
+                      ZIO.unit
                     } else {
-                      currentLocked = true
-                      curZio = if (executor eq currentExecutor) ZIO.unit else shift(executor)(curZio.trace)
+                      getFiberRefValue(currentExecutor) match {
+                        case None =>
+                          setFiberRefValue(currentExecutor, Some(executor))
+
+                          ZIO.unit
+
+                        case Some(currentExecutor) =>
+                          if (executor eq currentExecutor) ZIO.unit
+                          else shift(executor)(curZio.trace)
+                      }
                     }
 
                   case ZIO.Tags.Yield =>
@@ -643,7 +649,7 @@ private[zio] final class FiberContext[E, A](
       state.get.interruptors,
       InterruptStatus.fromBoolean(isInterruptible()),
       executor,
-      currentLocked,
+      getFiberRefValue(currentExecutor).isDefined,
       scope
     )
 
@@ -676,7 +682,6 @@ private[zio] final class FiberContext[E, A](
       childId,
       runtimeConfig,
       currentEnv,
-      currentLocked,
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
       new AtomicReference(childFiberRefLocals),
       childScope
