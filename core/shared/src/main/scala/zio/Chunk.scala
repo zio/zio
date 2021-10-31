@@ -97,7 +97,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   /**
    * Converts a chunk of bytes to a chunk of bits.
    */
-  final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
+  final def asBits(implicit ev: A <:< Byte): Chunk.BitChunk =
     Chunk.BitChunk(self.map(ev), 0, length << 3)
 
   /**
@@ -1112,6 +1112,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   override def apply[A](as: A*): Chunk[A] =
     fromIterable(as)
 
+  def fromBits(bits: Boolean*): Chunk.BitChunk =
+    fromIterator(bits.reverse.grouped(8).map(_.foldRight(0)((b, i) => (i << 1) | (if (b) 1 else 0)).toByte)).asBits
+
   /**
    * Returns a chunk backed by an array.
    *
@@ -1763,6 +1766,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override private[zio] def reverseArrayIterator[A1 >: Boolean]: Iterator[Array[A1]] =
       arrayIterator
 
+    def &(that: BitChunk): BitChunk = binaryOp(that)(_ => 0, _ => 0)((a: Byte, b: Byte) => (a & b).toByte)
+
+    def |(that: BitChunk): BitChunk = binaryOp(that)(identity, identity)((a: Byte, b: Byte) => (a | b).toByte)
+
+    def ^(that: BitChunk): BitChunk = binaryOp(that)(identity, identity)((a: Byte, b: Byte) => (a ^ b).toByte)
+
+    def unary_~ : BitChunk =
+      BitChunk(bytes.mapChunk(b => (~b).toByte), minBitIndex, maxBitIndex)
+
+    private def binaryOp(that: BitChunk)(left: Byte => Byte, right: Byte => Byte)(both: (Byte, Byte) => Byte): BitChunk =
+      BitChunk(this.bytes.zipAllWith(that.bytes)(left, right)(both), this.minBitIndex.min(that.minBitIndex), this.maxBitIndex.max(that.maxBitIndex))
   }
 
   private case object Empty extends Chunk[Nothing] { self =>

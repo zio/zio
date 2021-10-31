@@ -66,6 +66,64 @@ object BitChunkSpec extends ZIOBaseSpec {
         val expected = bytes.map(toBinaryString).mkString
         assert(actual)(equalTo(expected))
       }
-    }
+    },
+    test("from bits") {
+      assert(Chunk.fromBits(true, false))(equalTo(Chunk.fromBits(false, false, false, false, false, false, true, false))) &&
+        assert(Chunk.fromBits(true).toBinaryString)(equalTo("00000001"))
+    },
+    suite("bitwise operations")(
+      test("& simple") {
+        val l = Chunk.fromBits(true, false, true, false, true, false, true, false, true)
+        val r = Chunk.fromBits(true, false, false, false, true, true, true, false, true)
+        val e = Chunk.fromBits(true, false, false, false, true, false, true, false, true)
+        assert(l & r)(equalTo(e))
+      },
+      testM("&") {
+        check(genByteChunk, genByteChunk) { case (leftBytes, rightBytes) =>
+          val actual = (leftBytes.asBits & rightBytes.asBits).toBinaryString
+          val expected = leftBytes.zipAllWith[Byte, Byte](rightBytes)(_ => 0, _ => 0)((a: Byte, b: Byte) => (a & b).toByte).map(toBinaryString).mkString
+          assert(actual)(equalTo(expected))
+        }
+      },
+      test("| simple") {
+        val l = Chunk.fromBits(true, false, true, false, true, false, true, false, true)
+        val r = Chunk.fromBits(true, false, false, false, true, true, true, false, true)
+        val e = Chunk.fromBits(true, false, true, false, true, true, true, false, true)
+        assert(l | r)(equalTo(e))
+      },
+      testM("|") {
+        check(genByteChunk, genByteChunk) { case (leftBytes, rightBytes) =>
+          val actual = (leftBytes.asBits | rightBytes.asBits).toBinaryString
+          val expected = leftBytes.zipAllWith[Byte, Byte](rightBytes)(identity, identity)((a: Byte, b: Byte) => (a | b).toByte).map(toBinaryString).mkString
+          assert(actual)(equalTo(expected))
+        }
+      },
+      test("^ simple") {
+        val l = Chunk.fromBits(true, false, true, false, true, false, true, false, true)
+        val r = Chunk.fromBits(true, false, false, false, true, true, true, false, true)
+        val e = Chunk.fromBits(false, false, true, false, false, true, false, false, false)
+        assert(l ^ r)(equalTo(e))
+      },
+      testM("^") {
+        check(genByteChunk, genByteChunk) { case (leftBytes, rightBytes) =>
+          val actual = (leftBytes.asBits ^ rightBytes.asBits).toBinaryString
+          val expected = leftBytes.zipAllWith[Byte, Byte](rightBytes)(identity, identity)((a: Byte, b: Byte) => (a ^ b).toByte).map(toBinaryString).mkString
+          assert(actual)(equalTo(expected))
+        }
+      },
+      test("~ simple") {
+        val bits = Chunk.fromBits(true, false, true, false, true, true, true, false, true)
+        val e = Chunk.fromBits(true, true, true, true, true, true, true,
+          false, true, false, true, false, false, false, true, false)
+        assert(~bits)(equalTo(e))
+      },
+      testM("~") {
+        check(genByteChunk) { bytes =>
+          val actual = (~bytes.asBits).toBinaryString
+          val expected = bytes.map(b => (~b).toByte).map(toBinaryString).mkString
+          assert(actual)(equalTo(expected))
+        }
+      },
+    )
   )
 }
