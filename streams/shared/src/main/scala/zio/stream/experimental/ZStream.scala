@@ -645,6 +645,42 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self.asInstanceOf[ZStream[R, E, Either[L1, A1]]].collect { case Right(a) => a }
   }
 
+  /**
+   * Creates a pipeline that groups on adjacent keys, calculated by function f.
+   */
+  final def groupAdjacentBy[K](
+    f: A => K
+  )(implicit trace: ZTraceElement): ZStream[R, E, (K, NonEmptyChunk[A])] = {
+    type O = (K, NonEmptyChunk[A])
+    def go(in: Chunk[A], state: Option[O]): (Chunk[O], Option[O]) =
+      in.foldLeft[(Chunk[O], Option[O])]((Chunk.empty, state)) {
+        case ((os, None), a) =>
+          (os, Some((f(a), NonEmptyChunk(a))))
+        case ((os, Some(agg @ (k, aggregated))), a) =>
+          val k2 = f(a)
+          if (k == k2)
+            (os, Some((k, aggregated :+ a)))
+          else
+            (os :+ agg, Some((k2, NonEmptyChunk(a))))
+      }
+
+    def chunkAdjacent(buffer: Option[O]): ZChannel[R, E, Chunk[A], Any, E, Chunk[O], Unit] =
+      ZChannel.readWithCause[R, E, Chunk[A], Any, E, Chunk[O], Unit](
+        in = chunk => {
+          val (outputs, newBuffer) = go(chunk, buffer)
+          ZChannel.write(outputs) *> chunkAdjacent(newBuffer)
+        },
+        halt = ZChannel.failCause(_),
+        done = _ =>
+          buffer match {
+            case Some(o) => ZChannel.write(Chunk.single(o))
+            case None    => ZChannel.unit
+          }
+      )
+
+    new ZStream(self.channel >>> chunkAdjacent(None))
+  }
+
   private def loopOnChunks[R1 <: R, E1 >: E, A1](
     f: Chunk[A] => ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[A1], Boolean]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A1] = {
