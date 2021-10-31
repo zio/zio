@@ -20,9 +20,8 @@ There are five categories of JVM metrics. Let's look at them one by one:
     - `jvm_gc_collection_seconds_sum` — Time spent in a given JVM garbage collector in seconds.
     - `jvm_gc_collection_seconds_count`
 - Memory Allocation
-    - `jvm_memory_pool_allocated_bytes_total` — Total bytes allocated in a given JVM memory pool. Only updated after GC,
-      not continuously.
-- Me`mory` Pools
+    - `jvm_memory_pool_allocated_bytes_total` — Total bytes allocated in a given JVM memory pool. Only updated after GC, not continuously.
+- Memory Pools
     - `jvm_memory_bytes_used` — Used bytes of a given JVM memory area.
     - `jvm_memory_bytes_committed` — Committed (bytes) of a given JVM memory area.
     - `jvm_memory_bytes_max` — Max (bytes) of a given JVM memory area.
