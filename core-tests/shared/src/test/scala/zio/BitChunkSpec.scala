@@ -11,7 +11,8 @@ object BitChunkSpec extends ZIOBaseSpec {
       bytes <- Gen.listOf(Gen.anyByte)
     } yield Chunk.fromIterable(bytes)
 
-  def genInefficientBooleanChunk(multipleOf: Int = 1): Gen[Random with Sized, Chunk[Boolean]] = Gen.listOf(Gen.listOfN(multipleOf)(Gen.boolean)).map(bits => Chunk.fromIterable(bits.flatten))
+  def genInefficientBooleanChunk(multipleOf: Int = 1): Gen[Random with Sized, Chunk[Boolean]] =
+    Gen.listOf(Gen.listOfN(multipleOf)(Gen.boolean)).map(bits => Chunk.fromIterable(bits.flatten))
 
   val genInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_))
@@ -86,7 +87,7 @@ object BitChunkSpec extends ZIOBaseSpec {
       },
       testM("&") {
         check(genInefficientBooleanChunk(8), genInefficientBooleanChunk(8)) { case (leftBits, rightBits) =>
-          val actual = (compressed(leftBits) & compressed(rightBits)).toBinaryString
+          val actual   = (compressed(leftBits) & compressed(rightBits)).toBinaryString
           val expected = (leftBits & rightBits).toBinaryString
           assert(actual)(equalTo(expected))
         }
@@ -99,7 +100,7 @@ object BitChunkSpec extends ZIOBaseSpec {
       },
       testM("|") {
         check(genInefficientBooleanChunk(8), genInefficientBooleanChunk(8)) { case (leftBits, rightBits) =>
-          val actual = (compressed(leftBits) | compressed(rightBits)).toBinaryString
+          val actual   = (compressed(leftBits) | compressed(rightBits)).toBinaryString
           val expected = (leftBits | rightBits).toBinaryString
           assert(actual)(equalTo(expected))
         }
@@ -112,20 +113,20 @@ object BitChunkSpec extends ZIOBaseSpec {
       },
       testM("^") {
         check(genInefficientBooleanChunk(8), genInefficientBooleanChunk(8)) { case (leftBits, rightBits) =>
-          val actual = (compressed(leftBits) ^ compressed(rightBits)).toBinaryString
+          val actual   = (compressed(leftBits) ^ compressed(rightBits)).toBinaryString
           val expected = (leftBits ^ rightBits).toBinaryString
           assert(actual)(equalTo(expected))
         }
       },
       test("~ simple") {
         val bits = bytesFromBigEndianBits(true, false, true, false, true, true, true, false, true).asBits
-        val e = bytesFromBigEndianBits(true, true, true, true, true, true, true,
-          false, true, false, true, false, false, false, true, false).asBits
+        val e = bytesFromBigEndianBits(true, true, true, true, true, true, true, false, true, false, true, false, false,
+          false, true, false).asBits
         assert(~bits)(equalTo(e))
       },
       testM("~") {
         check(genByteChunk) { bytes =>
-          val actual = (~bytes.asBits).toBinaryString
+          val actual   = (~bytes.asBits).toBinaryString
           val expected = bytes.map(b => (~b).toByte).map(toBinaryString).mkString
           assert(actual)(equalTo(expected))
         }
@@ -134,14 +135,16 @@ object BitChunkSpec extends ZIOBaseSpec {
         val genOperator = Gen.elements(
           (left: Chunk[Boolean], right: Chunk[Boolean]) => left & right,
           (left: Chunk[Boolean], right: Chunk[Boolean]) => left | right,
-          (left: Chunk[Boolean], right: Chunk[Boolean]) => left ^ right,
+          (left: Chunk[Boolean], right: Chunk[Boolean]) => left ^ right
         )
-        checkM(genOperator, genInefficientBooleanChunk(8), genInefficientBooleanChunk(8)) { case (bitwiseOp, leftBits, rightBits) =>
-          val expected = bitwiseOp(leftBits, rightBits).toBinaryString
-          check(Gen.elements(compressed(leftBits) -> rightBits, leftBits -> compressed(rightBits))) { case (left, right) =>
-            val actual = bitwiseOp(left, right).toBinaryString
-            assert(actual)(equalTo(expected))
-          }
+        checkM(genOperator, genInefficientBooleanChunk(8), genInefficientBooleanChunk(8)) {
+          case (bitwiseOp, leftBits, rightBits) =>
+            val expected = bitwiseOp(leftBits, rightBits).toBinaryString
+            check(Gen.elements(compressed(leftBits) -> rightBits, leftBits -> compressed(rightBits))) {
+              case (left, right) =>
+                val actual = bitwiseOp(left, right).toBinaryString
+                assert(actual)(equalTo(expected))
+            }
         }
       }
     )

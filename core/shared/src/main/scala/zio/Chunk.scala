@@ -1777,24 +1777,30 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override def &(that: Chunk[Boolean])(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = that match {
       case thatBitChunk: BitChunk => byteWiseOp(thatBitChunk)(_ => 0, _ => 0)((a: Byte, b: Byte) => (a & b).toByte)
-      case that => super.&(that)
+      case that                   => super.&(that)
     }
 
     override def |(that: Chunk[Boolean])(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = that match {
       case thatBitChunk: BitChunk => byteWiseOp(thatBitChunk)(identity, identity)((a: Byte, b: Byte) => (a | b).toByte)
-      case that => super.|(that)
+      case that                   => super.|(that)
     }
 
     override def ^(that: Chunk[Boolean])(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = that match {
       case thatBitChunk: BitChunk => byteWiseOp(thatBitChunk)(identity, identity)((a: Byte, b: Byte) => (a ^ b).toByte)
-      case that => super.^(that)
+      case that                   => super.^(that)
     }
 
-    override def unary_~(implicit ev: Boolean <:< Boolean) : BitChunk =
+    override def unary_~(implicit ev: Boolean <:< Boolean): BitChunk =
       BitChunk(bytes.mapChunk(b => (~b).toByte), minBitIndex, maxBitIndex)
 
-    private def byteWiseOp(that: BitChunk)(left: Byte => Byte, right: Byte => Byte)(both: (Byte, Byte) => Byte): BitChunk =
-      BitChunk(this.bytes.zipAllWith(that.bytes)(left, right)(both), minBitIndex min that.minBitIndex, maxBitIndex max that.maxBitIndex)
+    private def byteWiseOp(
+      that: BitChunk
+    )(left: Byte => Byte, right: Byte => Byte)(both: (Byte, Byte) => Byte): BitChunk =
+      BitChunk(
+        this.bytes.zipAllWith(that.bytes)(left, right)(both),
+        minBitIndex min that.minBitIndex,
+        maxBitIndex max that.maxBitIndex
+      )
   }
 
   private case object Empty extends Chunk[Nothing] { self =>
