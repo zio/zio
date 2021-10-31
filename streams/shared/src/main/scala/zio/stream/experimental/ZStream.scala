@@ -2709,6 +2709,37 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     )
 
   /**
+   * When the stream fails, retry it according to the given schedule
+   *
+   * This retries the entire stream, so will re-execute all of the stream's acquire operations.
+   *
+   * The schedule is reset as soon as the first element passes through the stream again.
+   *
+   * @param schedule Schedule receiving as input the errors of the stream
+   * @return Stream outputting elements of all attempts of the stream
+   */
+  def retry[R1 <: R](
+    schedule: Schedule[R1, E, _]
+  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E, A] =
+    ZStream.unwrap {
+      for {
+        driver <- schedule.driver
+      } yield {
+        def loop: ZStream[R1, E, A] = self.catchAll { e =>
+          ZStream.unwrap(
+            driver
+              .next(e)
+              .foldZIO(
+                _ => ZIO.fail(e),
+                _ => ZIO.succeed(loop.tap(_ => driver.reset))
+              )
+          )
+        }
+        loop
+      }
+    }
+
+  /**
    * Fails with the error `None` if value is `Left`.
    */
   final def right[A1, A2](implicit ev: A <:< Either[A1, A2], trace: ZTraceElement): ZStream[R, Option[E], A2] =
@@ -3276,7 +3307,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     d: Duration
   )(that: ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, A2] = {
     final case class StreamTimeout() extends Throwable
-    self.timeoutFailCause(Cause.die(StreamTimeout()))(d).catchSomeCause { case Cause.Die(StreamTimeout()) => that }
+    self.timeoutFailCause(Cause.die(StreamTimeout()))(d).catchSomeCause { case Cause.Die(StreamTimeout(), _) => that }
   }
 
   /**
@@ -3476,6 +3507,25 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def via[R2, E2, A2](f: ZStream[R, E, A] => ZStream[R2, E2, A2])(implicit
     trace: ZTraceElement
   ): ZStream[R2, E2, A2] = f(self)
+
+  /**
+   * Returns this stream if the specified condition is satisfied, otherwise returns an empty stream.
+   */
+  def when(b: => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    ZStream.when(b)(self)
+
+  /**
+   * Returns this stream if the specified effectful condition is satisfied, otherwise returns an empty stream.
+   */
+  @deprecated("use whenZIO", "2.0.0")
+  def whenM[R1 <: R, E1 >: E](b: ZIO[R1, E1, Boolean])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
+    whenZIO(b)
+
+  /**
+   * Returns this stream if the specified effectful condition is satisfied, otherwise returns an empty stream.
+   */
+  def whenZIO[R1 <: R, E1 >: E](b: ZIO[R1, E1, Boolean])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
+    ZStream.whenZIO(b)(self)
 
   /**
    * Equivalent to [[filter]] but enables the use of filter clauses in for-comprehensions
@@ -4772,6 +4822,46 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     managed(fa).flatten
 
   /**
+   * Returns the specified stream if the given condition is satisfied, otherwise returns an empty stream.
+   */
+  def when[R, E, O](b: => Boolean)(zStream: => ZStream[R, E, O])(implicit trace: ZTraceElement): ZStream[R, E, O] =
+    whenZIO(ZIO.succeed(b))(zStream)
+
+  /**
+   * Returns the resulting stream when the given `PartialFunction` is defined for the given value, otherwise returns an empty stream.
+   */
+  def whenCase[R, E, A, O](a: => A)(pf: PartialFunction[A, ZStream[R, E, O]])(implicit
+    trace: ZTraceElement
+  ): ZStream[R, E, O] =
+    whenCaseZIO(ZIO.succeed(a))(pf)
+
+  /**
+   * Returns the resulting stream when the given `PartialFunction` is defined for the given effectful value, otherwise returns an empty stream.
+   */
+  @deprecated("use whenCaseZIO", "2.0.0")
+  def whenCaseM[R, E, A](a: ZIO[R, E, A]): WhenCaseZIO[R, E, A] =
+    whenCaseZIO(a)
+
+  /**
+   * Returns the resulting stream when the given `PartialFunction` is defined for the given effectful value, otherwise returns an empty stream.
+   */
+  def whenCaseZIO[R, E, A](a: ZIO[R, E, A]): WhenCaseZIO[R, E, A] =
+    new WhenCaseZIO(a)
+
+  /**
+   * Returns the specified stream if the given effectful condition is satisfied, otherwise returns an empty stream.
+   */
+  @deprecated("use whenZIO", "2.0.0")
+  def whenM[R, E](b: ZIO[R, E, Boolean]): WhenZIO[R, E] =
+    whenZIO(b)
+
+  /**
+   * Returns the specified stream if the given effectful condition is satisfied, otherwise returns an empty stream.
+   */
+  def whenZIO[R, E](b: ZIO[R, E, Boolean]) =
+    new WhenZIO(b)
+
+  /**
    * Zips the specified streams together with the specified function.
    */
   @deprecated("use zip", "2.0.0")
@@ -5339,6 +5429,18 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       case class Empty(notifyConsumer: Promise[Nothing, Unit])          extends State[Nothing]
       case class Full[+A](a: A, notifyProducer: Promise[Nothing, Unit]) extends State[A]
     }
+  }
+
+  final class WhenZIO[R, E](private val b: ZIO[R, E, Boolean]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, O](zStream: ZStream[R1, E1, O])(implicit trace: ZTraceElement): ZStream[R1, E1, O] =
+      fromZIO(b).flatMap(if (_) zStream else ZStream.empty)
+  }
+
+  final class WhenCaseZIO[R, E, A](private val a: ZIO[R, E, A]) extends AnyVal {
+    def apply[R1 <: R, E1 >: E, O](pf: PartialFunction[A, ZStream[R1, E1, O]])(implicit
+      trace: ZTraceElement
+    ): ZStream[R1, E1, O] =
+      fromZIO(a).flatMap(pf.applyOrElse(_, (_: A) => ZStream.empty))
   }
 
   sealed trait TerminationStrategy

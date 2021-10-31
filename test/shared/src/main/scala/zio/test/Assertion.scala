@@ -516,8 +516,8 @@ object Assertion extends AssertionVariants {
    */
   def isJustInterrupted: Assertion[Exit[Any, Any]] =
     Assertion.assertion("isJustInterrupted")() {
-      case Exit.Failure(Cause.Interrupt(_)) => true
-      case _                                => false
+      case Exit.Failure(Cause.Interrupt(_, _)) => true
+      case _                                   => false
     }
 
   /**
