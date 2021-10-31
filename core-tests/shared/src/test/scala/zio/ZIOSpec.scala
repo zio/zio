@@ -1381,8 +1381,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("onExecutor")(
       test("effects continue on current executor if no executor is specified") {
-        val getExecutor = ZIO.descriptor.map(_.executor)
-        val thread      = ZIO.succeed(Thread.currentThread())
+        val thread = ZIO.succeed(Thread.currentThread())
 
         val global =
           Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
