@@ -17,14 +17,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   import ZStream.TerminationStrategy
 
   /**
-   * Syntax for adding aspects.
-   */
-  final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
-    aspect: ZStreamAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
-  )(implicit trace: ZTraceElement): ZStream[UpperR, LowerE, LowerA] =
-    aspect(self)
-
-  /**
    * Symbolic alias for [[ZStream#cross]].
    */
   final def <*>[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2])(implicit
@@ -6150,5 +6142,36 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
       self.combineChunks[R1, E1, State, (K, B), (K, C)](that)(PullBoth)(pull)
     }
+  }
+
+  /**
+   * Provides syntax for applying pipelines to streams.
+   */
+  implicit class PipelineSyntax[Env, Err, Elem](private val self: ZStream[Env, Err, Elem]) extends AnyVal {
+
+    /**
+     * Symbolic alias for [[ZStream#via]].
+     */
+    @deprecated("2.0.0", "use @@")
+    def >>>[LowerEnv <: Env, UpperEnv >: Env, LowerErr <: Err, UpperErr >: Err, LowerElem <: Elem, UpperElem >: Elem](
+      pipeline: ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem]
+    )(implicit trace: ZTraceElement): ZStream[pipeline.OutEnv[Env], pipeline.OutErr[Err], pipeline.OutElem[Elem]] =
+      pipeline(self)
+
+    /**
+     * Syntax for applying pipelines.
+     */
+    def @@[LowerEnv <: Env, UpperEnv >: Env, LowerErr <: Err, UpperErr >: Err, LowerElem <: Elem, UpperElem >: Elem](
+      pipeline: ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem]
+    )(implicit trace: ZTraceElement): ZStream[pipeline.OutEnv[Env], pipeline.OutErr[Err], pipeline.OutElem[Elem]] =
+      pipeline(self)
+
+    /**
+     * Threads the stream through a transformation pipeline.
+     */
+    def via[LowerEnv <: Env, UpperEnv >: Env, LowerErr <: Err, UpperErr >: Err, LowerElem <: Elem, UpperElem >: Elem](
+      pipeline: ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem]
+    )(implicit trace: ZTraceElement): ZStream[pipeline.OutEnv[Env], pipeline.OutErr[Err], pipeline.OutElem[Elem]] =
+      pipeline(self)
   }
 }

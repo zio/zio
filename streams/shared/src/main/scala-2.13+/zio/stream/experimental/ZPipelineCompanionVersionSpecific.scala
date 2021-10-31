@@ -132,6 +132,42 @@ trait ZPipelineCompanionVersionSpecific {
       }
 
     /**
+     * Composes two pipelines into one pipeline, by first applying the
+     * transformation of this pipeline, and then applying the transformation of
+     * the specified pipeline.
+     */
+    def @@[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[Err], OutElem2[
+      Elem
+    ]](
+      that: ZPipeline.WithOut[
+        LowerEnv2,
+        UpperEnv2,
+        LowerErr2,
+        UpperErr2,
+        LowerElem2,
+        UpperElem2,
+        OutEnv2,
+        OutErr2,
+        OutElem2
+      ]
+    )(implicit
+      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
+      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
+      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
+    ): ZPipeline.WithOut[
+      composeEnv.Lower,
+      composeEnv.Upper,
+      composeErr.Lower,
+      composeErr.Upper,
+      composeElem.Lower,
+      composeElem.Upper,
+      composeEnv.Out,
+      composeErr.Out,
+      composeElem.Out
+    ] =
+      self >>> that
+
+    /**
      * A named version of the `>>>` operator.
      */
     def andThen[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[

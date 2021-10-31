@@ -267,6 +267,30 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     }
 
   /**
+   * A pipeline that rechunks the stream into chunks of the specified size.
+   */
+  def rechunk(n: Int): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Elem })#OutElem
+  ] =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Any] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = Err
+      type OutElem[Elem] = Elem
+      def apply[Env, Err, Elem](stream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, Elem] =
+        stream.rechunk(n)
+    }
+
+  /**
    * Creates a pipeline that scans elements with the specified function.
    */
   def scan[In, Out](
