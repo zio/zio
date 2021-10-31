@@ -128,9 +128,9 @@ object RandomSpec extends ZIOBaseSpec {
     Chunk.fromArray(arr)
   }
 
-  def nextUUID(scalaRandom: SRandom): UUID = {
-    val mostSigBits  = scalaRandom.nextLong()
-    val leastSigBits = scalaRandom.nextLong()
+  def nextUUID(random: SRandom): UUID = {
+    val mostSigBits  = random.nextLong()
+    val leastSigBits = random.nextLong()
     new UUID(
       (mostSigBits & ~0x0000f000) | 0x00004000,
       (leastSigBits & ~(0xc0000000L << 32)) | (0x80000000L << 32)
