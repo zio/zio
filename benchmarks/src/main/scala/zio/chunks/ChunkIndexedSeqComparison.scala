@@ -8,10 +8,6 @@ import scala.collection.IntStepper
 import scala.collection.IndexedSeqView
 
 @BenchmarkMode(Array(Mode.AverageTime))
-@Fork(1)
-@Threads(1)
-@Warmup(iterations = 1)
-@Measurement(iterations = 1)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Benchmark)
 class ChunkIndexedSeqComparison {
