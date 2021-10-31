@@ -1,6 +1,7 @@
 package zio.chunks
 
 import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.infra.Blackhole
 import zio._
 
 import java.util.concurrent.TimeUnit
@@ -47,10 +48,14 @@ class ChunkIndexedSeqComparison {
   def canEqual(): Boolean = chunk.canEqual(chunk)
 
   @Benchmark
-  def collect(): Chunk[Int] = chunk.collect(num => num + 1)
+  def collect(): Chunk[Int] = {
+    chunk.collect { case num: Int if num > (size / 2) => num + 1 }
+  }
 
   @Benchmark
-  def collectFirst(): Option[Int] = chunk.collectFirst(num => num + 1)
+  def collectFirst(): Option[Int] = {
+    chunk.collectFirst { case num: Int if num > (size / 2) => num + 1 }
+  }
 
   @Benchmark
   def combinations(): Iterator[Chunk[Int]] = chunk.combinations(size)
@@ -65,7 +70,7 @@ class ChunkIndexedSeqComparison {
   def containsSlice(): Boolean = chunk.containsSlice(Seq(1, 2, 3))
 
   @Benchmark
-  def copyToArray(): Int = chunk.copyToArray(Array())
+  def copyToArray(): Unit = chunk.copyToArray(Array[Int]())
 
   @Benchmark
   def count(): Int = chunk.count(num => num < size)
@@ -249,7 +254,7 @@ class ChunkIndexedSeqComparison {
   def scanRight(): Chunk[Int] = chunk.scanRight(0)((num1, num2) => num1 + num2)
 
   @Benchmark
-  def segmentLength(): Int = chunk.segmentLength(num => num < size)
+  def segmentLength(): Int = chunk.segmentLength((num => num < size), 0)
 
   @Benchmark
   def sizeBenchmark(): Int = chunk.size
@@ -297,13 +302,13 @@ class ChunkIndexedSeqComparison {
   def tapEach(): Chunk[Int] = chunk.tapEach(num => num + 1)
 
   @Benchmark
-  def toIndexedSeq(): IndexedSeq[Int] = chunk.toIndexedSeq
+  def toIndexedSeq(bh: Blackhole): Unit = bh.consume(chunk.toIndexedSeq)
 
   @Benchmark
-  def toIterable(): Chunk[Int] = chunk.toIterable
+  def toIterable(): Iterable[Int] = chunk.toIterable
 
   @Benchmark
-  def toSeq(): Chunk[Int] = chunk.toSeq
+  def toSeq(): Seq[Int] = chunk.toSeq
 
   @Benchmark
   def transpose(): Chunk[Chunk[Int]] = transposable.transpose
@@ -318,5 +323,5 @@ class ChunkIndexedSeqComparison {
   def updated(): Chunk[Int] = chunk.updated(0, 0)
 
   @Benchmark
-  def view(): IndexedSeqView[Int] = chunk.view
+  def view(bh: Blackhole): Unit = bh.consume(chunk.view)
 }
