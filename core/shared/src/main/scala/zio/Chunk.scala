@@ -125,6 +125,26 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     ev(apply(index))
 
   /**
+   * Shift left the specified number of bits.
+   */
+  def <<(n: Int)(implicit ev: A <:< Boolean): Chunk[Boolean] =
+    if (n >= length) Chunk.fill(length)(false)
+    else {
+      val paddedBits = Chunk.fill(n)(false)
+      self.map(ev).drop(n) ++ paddedBits
+    }
+
+  /**
+   * Shift right the specified number of bits.
+   */
+  def >>(n: Int)(implicit ev: A <:< Boolean): Chunk[Boolean] =
+    if (n >= length) Chunk.fill(length)(false)
+    else {
+      val paddedBits = Chunk.fill(n)(false)
+      paddedBits ++ self.map(ev).dropRight(n)
+    }
+
+  /**
    * Returns a filtered, mapped subset of the elements of this chunk based on a
    * .
    */

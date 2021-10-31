@@ -11,6 +11,10 @@ object BitChunkSpec extends ZIOBaseSpec {
       bytes <- Gen.listOf(Gen.anyByte)
     } yield Chunk.fromIterable(bytes)
 
+  val genBitChunk: Gen[Random with Sized, Chunk[Boolean]] = for {
+    bits <- Gen.listOf(Gen.boolean)
+  } yield Chunk.fromIterable(bits)
+
   val genInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_))
 
@@ -64,6 +68,20 @@ object BitChunkSpec extends ZIOBaseSpec {
       check(genByteChunk) { bytes =>
         val actual   = bytes.asBits.toBinaryString
         val expected = bytes.map(toBinaryString).mkString
+        assert(actual)(equalTo(expected))
+      }
+    },
+    testM("<<") {
+      check(genBitChunk, genInt) { (bits, n) =>
+        val actual   = (bits << n).toBinaryString
+        val expected = bits.takeRight(bits.size - n).toBinaryString + (if (bits.size <= n) "0" * bits.size else "0" * n)
+        assert(actual)(equalTo(expected))
+      }
+    },
+    testM(">>") {
+      check(genBitChunk, genInt) { (bits, n) =>
+        val actual   = (bits >> n).toBinaryString
+        val expected = (if (bits.size <= n) "0" * bits.size else "0" * n) + bits.take(bits.size - n).toBinaryString
         assert(actual)(equalTo(expected))
       }
     }
