@@ -2789,7 +2789,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         suite("serviceWith")(
-          test("serviceWith"){
+          test("serviceWith") {
             trait A {
               def live: UIO[Int]
             }
@@ -2804,12 +2804,12 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runCollect
               .map(result => assertTrue(result == ref))
           },
-          test("serviceWithStream"){
-            val numbers = 0 to 10
-
+          test("serviceWithStream") {
             trait A {
               def live: ZStream[Any, Nothing, Int]
             }
+
+            val numbers = 0 to 10
 
             ZStream
               .serviceWithStream[A](_.live)
