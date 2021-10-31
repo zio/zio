@@ -1,17 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.test.{
-  AbstractRunnableSpec,
-  FilteredSpec,
-  LegacySpecWrapper,
-  NewOrLegacySpec,
-  NewSpecWrapper,
-  SummaryBuilder,
-  TestArgs,
-  TestLogger,
-  ZIOSpecAbstract
-}
+import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger, ZIOSpecAbstract}
 import zio.{Chunk, Clock, Has, Layer, Runtime, UIO, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.environment.TestEnvironment
 
@@ -64,7 +54,6 @@ abstract class BaseTestTask(
         case NewSpecWrapper(zioSpec) =>
           Runtime((), zioSpec.runtime.runtimeConfig).unsafeRun {
             run(eventHandler, zioSpec, loggers)
-              .provideLayer(sbtTestLayer(loggers))
               .onError(e => UIO(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>

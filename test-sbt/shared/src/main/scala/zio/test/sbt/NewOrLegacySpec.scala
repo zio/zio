@@ -1,4 +1,6 @@
-package zio.test
+package zio.test.sbt
+
+import zio.test.{AbstractRunnableSpec, ZIOSpecAbstract}
 
 sealed trait NewOrLegacySpec
 

@@ -20,7 +20,6 @@ import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ExecutedSpec.LabeledCase
 import zio.test.environment.TestEnvironment
 import zio.test.render._
 
@@ -65,7 +64,6 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
                       case _                              => false
                     }
       exitCode = if (hasFailures) 1 else 0
-      _       <- ZIO.debug("About to exit")
       _       <- doExit(exitCode)
     } yield ()
   }
@@ -104,12 +102,10 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)
-//          .catchAll{ case ex: NoSuchElementException => ZIO.succeed(LabeledCase(label = "NoSuchElement", spec="Ooof"))}
       _ <- TestLogger
              .logLine(SummaryBuilder.buildSummary(results).summary)
              .when(testArgs.printSummary)
              .provideLayer(runner.bootstrap)
     } yield results
-//  } yield if (hasFailures) 1 else 0
   }
 }

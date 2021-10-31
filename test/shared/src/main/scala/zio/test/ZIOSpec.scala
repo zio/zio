@@ -19,9 +19,6 @@ package zio.test
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
-
-@EnableReflectiveInstantiation
 abstract class ZIOSpec[R <: Has[_]: Tag] extends ZIOSpecAbstract { self =>
   type Environment = R
 

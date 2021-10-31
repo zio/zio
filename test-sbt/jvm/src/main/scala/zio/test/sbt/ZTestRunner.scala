@@ -18,16 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.ZIO
-import zio.test.{
-  AbstractRunnableSpec,
-  LegacySpecWrapper,
-  NewOrLegacySpec,
-  NewSpecWrapper,
-  Summary,
-  TestArgs,
-  ZIOSpec,
-  ZIOSpecAbstract
-}
+import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -85,7 +76,7 @@ final class ZTestTaskLegacy(
   sendSummary: SendSummary,
   testArgs: TestArgs,
   spec: AbstractRunnableSpec
-) extends ZTestTask(taskDef, testClassLoader, sendSummary, testArgs, LegacySpecWrapper(spec))
+) extends ZTestTask(taskDef, testClassLoader, sendSummary, testArgs, sbt.LegacySpecWrapper(spec))
 
 final class ZTestTaskNew(
   taskDef: TaskDef,
@@ -93,7 +84,7 @@ final class ZTestTaskNew(
   sendSummary: SendSummary,
   testArgs: TestArgs,
   val newSpec: ZIOSpecAbstract
-) extends ZTestTask(taskDef, testClassLoader, sendSummary, testArgs, NewSpecWrapper(newSpec))
+) extends ZTestTask(taskDef, testClassLoader, sendSummary, testArgs, sbt.NewSpecWrapper(newSpec))
 
 object ZTestTask {
   def apply(
@@ -119,10 +110,10 @@ object ZTestTask {
         .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
         .loadModule()
         .asInstanceOf[ZIOSpec[_]]
-      NewSpecWrapper(res)
+      sbt.NewSpecWrapper(res)
     } catch {
       case _: ClassCastException =>
-        LegacySpecWrapper(
+        sbt.LegacySpecWrapper(
           Reflect
             .lookupLoadableModuleClass(fqn, testClassLoader)
             .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
