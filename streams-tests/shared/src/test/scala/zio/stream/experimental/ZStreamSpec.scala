@@ -2815,10 +2815,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               .serviceWithStream[A](_.live)
               .provideCustomLayer(ZLayer.succeed(new A {
                 override def live: ZStream[Any, Nothing, Int] =
-                  ZStream.fromIterable(numbers).map(_ * 2)
+                  ZStream.fromIterable(numbers)
               }))
               .runCollect
-              .map(result => assertTrue(result == Chunk.fromIterable(numbers).map(_ * 2)))
+              .map(result => assertTrue(result == Chunk.fromIterable(numbers)))
           }
         ),
         test("some") {
