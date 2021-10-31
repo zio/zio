@@ -50,6 +50,8 @@ private[zio] trait Histogram {
    * The current sum of values in the histogram.
    */
   def sum(implicit trace: ZTraceElement): UIO[Double]
+
+  private[zio] def unsafeObserve(value: Double): Unit
 }
 
 private[zio] object Histogram {
