@@ -3814,6 +3814,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Threads the stream through the transformation function `f`.
    */
+  final def via[R2, E2, A2](f: ZStream[R, E, A] => ZStream[R2, E2, A2])(implicit
+    trace: ZTraceElement
+  ): ZStream[R2, E2, A2] =
+    f(self)
+
+  /**
+   * Threads the stream through a transformation pipeline.
+   */
   final def via[R2 <: R, E2 >: E, A2 >: A, A3](pipeline: ZPipeline[R2, E2, A2, A3])(implicit
     trace: ZTraceElement
   ): ZStream[R2, E2, A3] =
