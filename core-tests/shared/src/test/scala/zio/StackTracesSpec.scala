@@ -107,7 +107,7 @@ object StackTracesSpec extends ZIOBaseSpec {
   )
 
   // set to true to print traces
-  private val debug = true
+  private val debug = false
 
   private def show(trace: => Cause[Any]): Unit = if (debug) println(trace.prettyPrint)
 
