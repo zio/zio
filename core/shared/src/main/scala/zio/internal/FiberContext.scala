@@ -32,7 +32,6 @@ import scala.annotation.{switch, tailrec}
 private[zio] final class FiberContext[E, A](
   protected val fiberId: FiberId.Runtime,
   var runtimeConfig: RuntimeConfig,
-  startEnv: AnyRef,
   startIStatus: InterruptStatus,
   val fiberRefLocals: FiberRefLocals,
   openScope: ZScope.Open[Exit[E, A]]
@@ -56,8 +55,6 @@ private[zio] final class FiberContext[E, A](
   private[this] val stack = Stack[ErasedTracedCont]()
 
   private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
-
-  private[this] var currentEnvironment = startEnv
 
   var scopeKey: ZScope.Key = null
 
@@ -482,16 +479,16 @@ private[zio] final class FiberContext[E, A](
 
                     val k = zio.k
 
-                    curZio = k(currentEnvironment)
+                    curZio = k(getFiberRefValue(currentEnvironment))
 
                   case ZIO.Tags.Provide =>
                     val zio = curZio.asInstanceOf[ZIO.Provide[Any, Any, Any]]
 
-                    val oldEnvironment = currentEnvironment
+                    val oldEnvironment = getFiberRefValue(currentEnvironment)
 
-                    currentEnvironment = zio.r().asInstanceOf[AnyRef]
+                    setFiberRefValue(currentEnvironment, zio.r())
 
-                    ensure(ZIO.succeed { currentEnvironment = oldEnvironment }(zio.trace))
+                    ensure(ZIO.succeed(setFiberRefValue(currentEnvironment, oldEnvironment))(zio.trace))
 
                     curZio = zio.zio
 
@@ -681,7 +678,6 @@ private[zio] final class FiberContext[E, A](
     val childContext = new FiberContext[E, A](
       childId,
       runtimeConfig,
-      currentEnv,
       InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
       new AtomicReference(childFiberRefLocals),
       childScope
@@ -1233,6 +1229,9 @@ private[zio] object FiberContext {
 
   lazy val currentExecutor: FiberRef.Runtime[Option[zio.Executor]] =
     FiberRef.unsafeMake(None, a => a, (a, _) => a)
+
+  lazy val currentEnvironment: FiberRef.Runtime[Any] =
+    FiberRef.unsafeMake((), a => a, (a, _) => a)
 
   lazy val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failure-causes", "").setCount
 

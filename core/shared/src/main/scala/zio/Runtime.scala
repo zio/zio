@@ -302,9 +302,10 @@ trait Runtime[+R] {
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       runtimeConfig,
-      environment.asInstanceOf[AnyRef],
       InterruptStatus.Interruptible,
-      new java.util.concurrent.atomic.AtomicReference(Map.empty),
+      new java.util.concurrent.atomic.AtomicReference(
+        Map(FiberContext.currentEnvironment -> environment.asInstanceOf[AnyRef])
+      ),
       scope
     )
 
