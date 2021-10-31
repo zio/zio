@@ -226,15 +226,15 @@ object Supervisor {
   private class FiberRefTrackingSupervisor[A](fiberRef: FiberRef[A], link: A => Unit) extends Supervisor[Unit] {
     private val runtime = Runtime.default
 
-    // Option.get here is safe as initialValue as is of type Either[Nothing,A]
-    private val initialValue = fiberRef.initialValue.toOption.get
+    // ??? is safe here as initialVale is of type Either[Nothing, A]
+    private val initialValue = fiberRef.initialValue.fold(_ => ???, identity)
 
     /**
      * Returns an effect that succeeds with the value produced by this
      * supervisor. This value may change over time, reflecting what the
      * supervisor produces as it supervises fibers.
      */
-    override def value(implicit trace: ZTraceElement): UIO[Unit] = UIO()
+    override def value(implicit trace: ZTraceElement): UIO[Unit] = UIO.unit
 
     override private[zio] def unsafeOnStart[R, E, A1](
       environment: R,
@@ -263,7 +263,7 @@ object Supervisor {
         case ZIO.Tags.FiberRefDelete =>
           val delete = effect.asInstanceOf[FiberRefDelete]
           if (delete.fiberRef == fiberRef) {
-            fiberRef.initialValue.foreach(link)
+            reset()
           }
         case ZIO.Tags.FiberRefLocally =>
           val locally = effect.asInstanceOf[FiberRefLocally[_, _, _, _]]

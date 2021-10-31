@@ -60,7 +60,7 @@ object SupervisorSpec extends ZIOBaseSpec {
         }
       }
     ),
-    test("track in FiberRef.local") {
+    test("track in FiberRef.locally") {
       val newValue1 = "new-value1"
       val newValue2 = "new-value2"
       runIn(runtime) {
