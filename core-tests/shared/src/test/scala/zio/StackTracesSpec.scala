@@ -115,7 +115,7 @@ object StackTracesSpec extends ZIOBaseSpec {
   // set to true to print traces
   private val debug = false
 
-  private def show(trace: String): Unit = if (debug) println(trace)
+  private def show(trace: => String): Unit = if (debug) println(trace)
 
   private def includesAll(texts: Seq[String]): String => Boolean = stack => texts.map(stack.contains).forall(r => r)
 
