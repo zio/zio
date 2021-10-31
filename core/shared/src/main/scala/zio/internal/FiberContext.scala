@@ -121,7 +121,6 @@ private[zio] final class FiberContext[E, A](
     while (unwinding && !stack.isEmpty) {
       stack.pop() match {
         case _: InterruptExit =>
-          // do not remove InterruptExit from stack trace as it was not added
           interruptStatus.popDrop(())
 
         case finalizer: Finalizer =>
