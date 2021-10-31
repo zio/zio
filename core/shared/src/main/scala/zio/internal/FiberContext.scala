@@ -30,9 +30,9 @@ import scala.annotation.{switch, tailrec}
  * An implementation of Fiber that maintains context necessary for evaluation.
  */
 private[zio] final class FiberContext[E, A](
-  protected val fiberId: FiberId.Runtime,
+  val fiberId: FiberId.Runtime,
   var runtimeConfig: RuntimeConfig,
-  startIStatus: InterruptStatus,
+  val interruptStatus: StackBool,
   val fiberRefLocals: FiberRefLocals,
   openScope: ZScope.Open[Exit[E, A]]
 ) extends Fiber.Runtime.Internal[E, A]
@@ -53,8 +53,6 @@ private[zio] final class FiberContext[E, A](
   private[this] var asyncEpoch: Long = 0L
 
   private[this] val stack = Stack[ErasedTracedCont]()
-
-  private[this] val interruptStatus = StackBool(startIStatus.toBoolean)
 
   var scopeKey: ZScope.Key = null
 
@@ -677,7 +675,7 @@ private[zio] final class FiberContext[E, A](
     val childContext = new FiberContext[E, A](
       childId,
       runtimeConfig,
-      InterruptStatus.fromBoolean(interruptStatus.peekOrElse(true)),
+      StackBool(interruptStatus.peekOrElse(true)),
       new AtomicReference(childFiberRefLocals),
       childScope
     )

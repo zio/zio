@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberContext, Platform}
+import zio.internal.{FiberContext, Platform, StackBool}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -302,7 +302,7 @@ trait Runtime[+R] {
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       runtimeConfig,
-      InterruptStatus.Interruptible,
+      StackBool(InterruptStatus.Interruptible.toBoolean),
       new java.util.concurrent.atomic.AtomicReference(
         Map(FiberContext.currentEnvironment -> environment.asInstanceOf[AnyRef])
       ),
