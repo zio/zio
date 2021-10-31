@@ -14,7 +14,7 @@ object StackTracesSpec extends ZIOBaseSpec {
         } yield {
           assertTrue(stackTrace.startsWith("Exception in thread")) &&
             assertTrue(includesAll(Seq("zio-fiber", "java.lang.String: Oh no!"))(stackTrace))
-          assertTrue(excludesAll(Seq("An unchecked error was produced"))(stackTrace))
+          assertTrue(excludesAll(Seq("Suppressed:"))(stackTrace))
         }
       }
     ),
