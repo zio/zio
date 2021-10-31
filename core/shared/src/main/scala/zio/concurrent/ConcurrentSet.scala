@@ -1,6 +1,6 @@
 package zio.concurrent
 
-import zio.{UIO, ZIO}
+import zio.UIO
 
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
@@ -15,28 +15,54 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.addAll(xs.asJavaCollection))
 
   def collectFirst[B](pf: PartialFunction[A, B]): UIO[Option[B]] =
-    UIO(underlying.asScala.toSet.collectFirst(pf))
+    UIO {
+      var result = Option.empty[B]
+      underlying.forEach { (a: A) =>
+        if (result.isEmpty && pf.isDefinedAt(a)) {
+          result = Some(pf(a))
+        }
+      }
+      result
+    }
 
   def exists(p: A => Boolean): UIO[Boolean] =
-    UIO(underlying.asScala.toSet.exists(p))
+    UIO {
+      var result = false
+      underlying.forEach { (a: A) =>
+        if (!result && p(a))
+          result = true
+      }
+      result
+    }
 
   def fold[R, E, S](zero: S)(f: (S, A) => S): UIO[S] =
-    UIO(underlying.asScala.toSet.foldLeft(zero)(f))
-
-  def foldZIO[R, E, S](zero: S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S] =
-    ZIO.foldLeft(underlying.asScala.toSet)(zero)(f)
-
-  def foreach[R, E, B](f: A => ZIO[R, E, B]): ZIO[R, E, Set[B]] =
-    ZIO.foreach(underlying.asScala.toSet)(f)
-
-  def foreach_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
-    ZIO.foreach_(underlying.asScala.toSet)(f)
+    UIO {
+      var result: S = zero
+      underlying.forEach { (a: A) =>
+        result = f(result, a)
+      }
+      result
+    }
 
   def forall(p: A => Boolean): UIO[Boolean] =
-    UIO(underlying.asScala.toSet.forall(p))
+    UIO {
+      var result = true
+      underlying.forEach { (a: A) =>
+        if (result && !p(a))
+          result = false
+      }
+      result
+    }
 
   def find[B](p: A => Boolean): UIO[Option[A]] =
-    UIO(underlying.asScala.toSet.find(p))
+    UIO {
+      var result = Option.empty[A]
+      underlying.forEach { (a: A) =>
+        if (result.isEmpty && p(a))
+          result = Some(a)
+      }
+      result
+    }
 
   def remove(x: A): UIO[Boolean] =
     UIO(underlying.remove(x))
@@ -74,7 +100,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
   def transform(f: A => A): UIO[Unit] = UIO {
     val set = underlying.asScala.toSet
     underlying.removeAll(set.asJavaCollection)
-    underlying.addAll(set.map(f).asJavaCollection)
+    val _ = underlying.addAll(set.map(f).asJavaCollection)
   }
 }
 

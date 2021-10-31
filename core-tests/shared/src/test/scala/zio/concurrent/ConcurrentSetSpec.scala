@@ -120,24 +120,10 @@ object ConcurrentSetSpec extends ZIOBaseSpec {
         result <- set.toSet
       } yield assertTrue(result == Set(11, 12, 13, 14, 15))
     },
-    testM("foreach") {
-      for {
-        ref    <- Ref.make(0)
-        set    <- ConcurrentSet.make(1, 2, 3, 4, 5)
-        _      <- set.foreach_(int => ref.update(_ + int))
-        result <- ref.get
-      } yield assertTrue(result == 15)
-    },
     testM("fold") {
       for {
         set    <- ConcurrentSet.make(1, 2, 3, 4, 5)
         result <- set.fold(0)(_ + _)
-      } yield assertTrue(result == 15)
-    },
-    testM("foldZIO") {
-      for {
-        set    <- ConcurrentSet.make(1, 2, 3, 4, 5)
-        result <- set.foldZIO(0)((x, y) => UIO(x + y))
       } yield assertTrue(result == 15)
     }
   )
