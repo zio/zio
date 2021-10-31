@@ -18,10 +18,10 @@ class ChunkIndexedSeqComparison {
   @Param(Array("1000"))
   var size: Int = _
 
-  var chunk: Chunk[Int] = _
-  var zipped: Chunk[(Int, Int)] = _
+  var chunk: Chunk[Int]                    = _
+  var zipped: Chunk[(Int, Int)]            = _
   var tripleZipped: Chunk[(Int, Int, Int)] = _
-  var transposable: Chunk[Chunk[Int]] = _
+  var transposable: Chunk[Chunk[Int]]      = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
@@ -66,7 +66,7 @@ class ChunkIndexedSeqComparison {
   def contains(): Boolean = chunk.contains(1)
 
   @Benchmark
-  def containsSlice(): Boolean = chunk.containsSlice(Seq(1,2,3))
+  def containsSlice(): Boolean = chunk.containsSlice(Seq(1, 2, 3))
 
   @Benchmark
   def copyToArray(): Int = chunk.copyToArray(Array())
@@ -75,7 +75,7 @@ class ChunkIndexedSeqComparison {
   def count(): Int = chunk.count(num => num < size)
 
   @Benchmark
-  def diff(): Chunk[Int] = chunk.diff(Seq(1,2,3))
+  def diff(): Chunk[Int] = chunk.diff(Seq(1, 2, 3))
 
   @Benchmark
   def distinct(): Chunk[Int] = chunk.distinct
@@ -105,210 +105,210 @@ class ChunkIndexedSeqComparison {
   def foreach(): Unit = chunk.foreach(num => num + 1)
 
   @Benchmark
-  def groupBy(): Map[Boolean, Chunk[Int]] = 
+  def groupBy(): Map[Boolean, Chunk[Int]] =
     chunk.groupBy(num => num > 15)
 
   @Benchmark
   def groupMap(): Map[Boolean, Chunk[Int]] =
     chunk.groupMap(num => num > 15)(num => num + 2)
-  
+
   @Benchmark
   def groupMapReduce(): Map[Boolean, Int] = {
     val grouper: (Int) => Boolean = (num => num > 15)
-    val mapper: (Int) => Int = (num => num - 1)
-    val reducer = (num1: Int, num2: Int) => num1 + num2
+    val mapper: (Int) => Int      = (num => num - 1)
+    val reducer                   = (num1: Int, num2: Int) => num1 + num2
     chunk.groupMapReduce(grouper)(mapper)(reducer)
   }
 
   @Benchmark
   def grouped(): Iterator[Chunk[Int]] = chunk.grouped(size / 2)
-  
+
   @Benchmark
   def indexOf(): Int = chunk.indexOf(1)
-  
+
   @Benchmark
-  def indexOfSlice(): Int = chunk.indexOfSlice(Seq(5,6,7)) 
-  
+  def indexOfSlice(): Int = chunk.indexOfSlice(Seq(5, 6, 7))
+
   @Benchmark
   def indices(): Range = chunk.indices
-  
+
   @Benchmark
   def init(): Chunk[Int] = chunk.init
-  
+
   @Benchmark
   def inits(): Iterator[Chunk[Int]] = chunk.inits
-  
+
   @Benchmark
   def intersect(): Chunk[Int] = chunk.intersect(Array(1))
-  
+
   @Benchmark
-  def isDefinedAt(): Boolean = chunk.isDefinedAt(size) 
-  
+  def isDefinedAt(): Boolean = chunk.isDefinedAt(size)
+
   @Benchmark
   def isTraversableAgain(): Boolean = chunk.isTraversableAgain
-    
+
   @Benchmark
   def iterator(): Iterator[Int] = chunk.iterator
-  
+
   @Benchmark
   def knownSize(): Int = chunk.knownSize
-  
+
   @Benchmark
   def last(): Int = chunk.last
-  
+
   @Benchmark
   def lastIndexOf(): Int = chunk.lastIndexOf(size)
-  
+
   @Benchmark
   def lastIndexOfSlice(): Int = chunk.lastIndexOfSlice(Seq(size - 1, size))
-  
+
   @Benchmark
   def lastIndexWhere(): Int = chunk.lastIndexWhere(num => num == size)
-  
+
   @Benchmark
   def lengthCompare(): Int = chunk.lengthCompare(size)
 
   @Benchmark
   def max(): Int = chunk.max
-  
+
   @Benchmark
   def maxBy(): Int = chunk.maxBy(num => num)
-  
+
   @Benchmark
   def maxByOption(): Option[Int] = chunk.maxByOption(num => num)
-  
+
   @Benchmark
   def maxOption(): Option[Int] = chunk.maxOption
-  
+
   @Benchmark
   def min(): Int = chunk.min
-  
+
   @Benchmark
   def minBy(): Int = chunk.minBy(num => num)
-  
+
   @Benchmark
   def minByOption(): Option[Int] = chunk.minByOption(num => num)
-  
+
   @Benchmark
   def minOption(): Option[Int] = chunk.minOption
-  
+
   @Benchmark
   def mkString(): String = chunk.mkString
-  
+
   @Benchmark
   def padTo(): Chunk[Int] = chunk.padTo(2 * size, 1)
-  
+
   @Benchmark
   def partition(): (Chunk[Int], Chunk[Int]) = chunk.partition(num => num > (size / 2))
-  
+
   @Benchmark
-  def patch(): Chunk[Int] = chunk.patch(0, Seq(1,2,3,4,5), 5)
-  
+  def patch(): Chunk[Int] = chunk.patch(0, Seq(1, 2, 3, 4, 5), 5)
+
   @Benchmark
   def permutations(): Iterator[Chunk[Int]] = chunk.permutations
-  
+
   @Benchmark
   def prepended(): Chunk[Int] = chunk.prepended(0)
-  
+
   @Benchmark
-  def prependedAll(): Chunk[Int] = chunk.prependedAll(Seq(-1,0))
-  
+  def prependedAll(): Chunk[Int] = chunk.prependedAll(Seq(-1, 0))
+
   @Benchmark
   def product(): Int = chunk.product
-  
+
   @Benchmark
   def reduce(): Int = chunk.reduce((curr, acc) => curr + acc)
-  
+
   @Benchmark
   def reduceLeft(): Int = chunk.reduceLeft((curr, acc) => curr + acc)
-  
+
   @Benchmark
   def reduceLeftOption(): Option[Int] = chunk.reduceLeftOption((curr, acc) => curr + acc)
-  
+
   @Benchmark
   def reduceOption(): Option[Int] = chunk.reduceOption((curr, acc) => curr + acc)
-  
+
   @Benchmark
   def reduceRight(): Int = chunk.reduceRight((curr, acc) => curr + acc)
-  
+
   @Benchmark
   def reduceRightOption(): Option[Int] = chunk.reduceRightOption((curr, acc) => curr + acc)
-  
+
   @Benchmark
   def reverse(): Chunk[Int] = chunk.reverse
-  
+
   @Benchmark
   def reverseIterator(): Iterator[Int] = chunk.reverseIterator
-  
+
   @Benchmark
   def sameElements(): Boolean = chunk.sameElements(chunk)
-  
+
   @Benchmark
   def scan(): Chunk[Int] = chunk.scan(0)((num1, num2) => num1 + num2)
-  
+
   @Benchmark
   def scanLeft(): Chunk[Int] = chunk.scanLeft(0)((num1, num2) => num1 + num2)
-  
+
   @Benchmark
   def scanRight(): Chunk[Int] = chunk.scanRight(0)((num1, num2) => num1 + num2)
-  
+
   @Benchmark
   def segmentLength(): Int = chunk.segmentLength(num => num < size)
-  
+
   @Benchmark
   def sizeBenchmark(): Int = chunk.size
-  
+
   @Benchmark
   def sizeCompare(): Int = chunk.sizeCompare(size - 1)
-  
+
   @Benchmark
   def slice(): Chunk[Int] = chunk.slice(0, size)
-  
+
   @Benchmark
-  def sliding(): Iterator[Chunk[Int]] = chunk.sliding(2,3)
-  
+  def sliding(): Iterator[Chunk[Int]] = chunk.sliding(2, 3)
+
   @Benchmark
   def sortBy(): Chunk[Int] = chunk.sortBy(num => num)
-  
+
   @Benchmark
   def sortWith(): Chunk[Int] = chunk.sortWith((num1, num2) => num1 > num2)
-  
+
   @Benchmark
   def sorted(): Chunk[Int] = chunk.sorted
-  
+
   @Benchmark
   def span(): (Chunk[Int], Chunk[Int]) = chunk.span(num => num > (size / 2))
-  
+
   @Benchmark
   def startsWith(): Boolean = chunk.startsWith(Seq(1, 2))
-  
+
   @Benchmark
   def stepper(): IntStepper = chunk.stepper
-  
+
   @Benchmark
   def sum(): Int = chunk.sum
-  
+
   @Benchmark
   def tail(): Chunk[Int] = chunk.tail
-  
+
   @Benchmark
   def tails(): Iterator[Chunk[Int]] = chunk.tails
-  
+
   @Benchmark
   def takeRight(): Chunk[Int] = chunk.takeRight(size)
 
   @Benchmark
   def tapEach(): Chunk[Int] = chunk.tapEach(num => num + 1)
-  
+
   @Benchmark
   def toIndexedSeq(): IndexedSeq[Int] = chunk.toIndexedSeq
-  
+
   @Benchmark
   def toIterable(): Chunk[Int] = chunk.toIterable
-  
+
   @Benchmark
   def toSeq(): Chunk[Int] = chunk.toSeq
-  
+
   @Benchmark
   def transpose(): Chunk[Chunk[Int]] = transposable.transpose
 
@@ -320,7 +320,7 @@ class ChunkIndexedSeqComparison {
 
   @Benchmark
   def updated(): Chunk[Int] = chunk.updated(0, 0)
-  
+
   @Benchmark
   def view(): IndexedSeqView[Int] = chunk.view
 }
