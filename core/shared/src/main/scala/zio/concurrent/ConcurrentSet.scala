@@ -1,5 +1,6 @@
 package zio.concurrent
 
+import com.github.ghik.silencer.silent
 import zio.UIO
 
 import java.util.concurrent.ConcurrentHashMap
@@ -12,7 +13,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.add(x))
 
   def addAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(underlying.addAll(xs.asJavaCollection))
+    UIO(underlying.addAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   def collectFirst[B](pf: PartialFunction[A, B]): UIO[Option[B]] =
     UIO {
@@ -68,13 +69,13 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.remove(x))
 
   def removeAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(underlying.removeAll(xs.asJavaCollection))
+    UIO(underlying.removeAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   def removeIf(p: A => Boolean): UIO[Boolean] =
     UIO(underlying.removeIf((t: A) => !p(t)))
 
   def retainAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(underlying.retainAll(xs.asJavaCollection))
+    UIO(underlying.retainAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   def retainIf(p: A => Boolean): UIO[Boolean] =
     UIO(underlying.removeIf((t: A) => p(t)))
@@ -95,8 +96,9 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.isEmpty)
 
   def toSet: UIO[Set[A]] =
-    UIO(underlying.asScala.toSet)
+    UIO(underlying.asScala.toSet: @silent("JavaConverters"))
 
+  @silent("JavaConverters")
   def transform(f: A => A): UIO[Unit] = UIO {
     val set = underlying.asScala.toSet
     underlying.removeAll(set.asJavaCollection)
