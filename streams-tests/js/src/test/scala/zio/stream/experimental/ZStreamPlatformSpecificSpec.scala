@@ -1,13 +1,11 @@
 package zio.stream.experimental
 
 import zio.test.Assertion.{containsCause, equalTo, failsCause, isFalse, isTrue}
-import zio.test._
+import zio.test.{Gen, ZSpec, assert, assertM, check}
 import zio.{Cause, Chunk, IO, Promise, Ref, Schedule, Task, UIO, ZIO, ZIOBaseSpec}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
-import java.io._
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("ZStream JS experimental")(
@@ -215,15 +213,6 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           exit   <- run.interrupt
         } yield assert(isDone)(isFalse) &&
           assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
-      }
-    ),
-    suite("from")(
-      test("InputStream") {
-        lazy val inputStream: InputStream                  = ???
-        lazy val actual                                    = ZStream.from(inputStream)
-        lazy val expected: ZStream[Any, IOException, Byte] = actual
-        lazy val _                                         = expected
-        assertCompletes
       }
     )
   )
