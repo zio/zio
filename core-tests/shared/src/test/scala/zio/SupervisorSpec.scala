@@ -93,7 +93,10 @@ object SupervisorSpec extends ZIOBaseSpec {
 
     def logged = logRef.get
 
-    def log(message: String) = logRef.updateAndGet(_ :+ message)
+    def log(message: String): Unit = {
+      logRef.updateAndGet(_ :+ message)
+      ()
+    }
   }
 
   private def runIn[R, E, A](rt: Runtime[R])(a: ZIO[R, E, A]) =

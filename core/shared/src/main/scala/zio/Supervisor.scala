@@ -16,6 +16,7 @@
 
 package zio
 
+import com.github.ghik.silencer.silent
 import zio.internal.{Platform, Sync}
 
 import scala.collection.immutable.SortedSet
@@ -117,8 +118,10 @@ abstract class Supervisor[+A] { self =>
 
   private[zio] def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Propagation
 
+  @silent("parameter .* is never used")
   private[zio] def unsafeOnSuspend[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = ()
 
+  @silent("parameter .* is never used")
   private[zio] def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit = ()
 }
 object Supervisor {
