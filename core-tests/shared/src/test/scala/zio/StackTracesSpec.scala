@@ -8,12 +8,12 @@ object StackTracesSpec extends ZIOBaseSpec {
     suite("captureSimpleCause")(
       test("captures a simple failure") {
         for {
-          _          <- ZIO.succeed(15)
+          _          <- ZIO.succeed(25)
           value       = ZIO.fail("Oh no!")
-            stackTrace <- matchPrettyPrintCause(value)
+          stackTrace <- matchPrettyPrintCause(value)
         } yield {
           assertTrue(stackTrace.startsWith("Exception in thread")) &&
-            assertTrue(includesAll(Seq("zio-fiber", "java.lang.String: Oh no!"))(stackTrace))
+          assertTrue(includesAll(Seq("zio-fiber", "java.lang.String: Oh no!"))(stackTrace))
           assertTrue(excludesAll(Seq("Suppressed:"))(stackTrace))
         }
       }
@@ -33,7 +33,7 @@ object StackTracesSpec extends ZIOBaseSpec {
           } yield f
 
         for {
-          _          <- ZIO.succeed(15)
+          _          <- ZIO.succeed(25)
           value       = underlyingFailure
           stackTrace <- matchPrettyPrintCause(value)
         } yield {
@@ -58,7 +58,7 @@ object StackTracesSpec extends ZIOBaseSpec {
           } yield f
 
         for {
-          _          <- ZIO.succeed(15)
+          _          <- ZIO.succeed(25)
           value       = underlyingFailure
           stackTrace <- matchPrettyPrintCause(value)
         } yield {
