@@ -17,9 +17,7 @@ object StackTracesSpec extends ZIOBaseSpec {
         }
         val checkExpectations: String => Boolean = {
           case stack: String =>
-            stack.startsWith("Exception in thread") &&
-              stack.contains("zio-fiber") &&
-              stack.contains("java.lang.String: Oh no!")
+            stack.startsWith("Exception in thread") && includesAll(Seq("zio-fiber", "java.lang.String: Oh no!"))(stack)
           case _ => false
         }
         for {
@@ -30,6 +28,8 @@ object StackTracesSpec extends ZIOBaseSpec {
       }
     )
   )
+
+  private def includesAll(texts: Seq[String]): String => Boolean = stack => texts.map(stack.contains).forall(r => r)
 
   private val UnsupportedTestPath = ZIO.fail("not considered scenario")
 }
