@@ -13,12 +13,6 @@ object BitChunkSpec extends ZIOBaseSpec {
 
   def genInefficientBooleanChunk(multipleOf: Int = 1): Gen[Random with Sized, Chunk[Boolean]] = Gen.listOf(Gen.listOfN(multipleOf)(Gen.boolean)).map(bits => Chunk.fromIterable(bits.flatten))
 
-  val genByteSizedBitChunk: Gen[Random with Sized, Chunk[Boolean]] = {
-    val inefficientStorage = Gen.listOf(Gen.listOfN(8)(Gen.boolean)).map(bits => Chunk.fromIterable(bits.flatten))
-    val efficientStorage = genByteChunk.map(_.asBits)
-    Gen.oneOf(inefficientStorage, efficientStorage)
-  }
-
   val genInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_))
 
