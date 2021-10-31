@@ -95,13 +95,13 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
         testM("returns true when element which satisfies given predicate exists within the map") {
           for {
             map    <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
-            exists <- map.exists { case (k, _) => k % 2 == 0 }
+            exists <- map.exists((k, _) => k % 2 == 0)
           } yield assertTrue(exists)
         },
         testM("returns false when no elements in the map satisfy the predicate") {
           for {
             map    <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
-            exists <- map.exists { case (k, _) => k == 4 }
+            exists <- map.exists((k, _) => k == 4)
           } yield assertTrue(!exists)
         }
       ),
@@ -117,13 +117,13 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
         testM("returns true when predicate holds for all elements of the map") {
           for {
             map    <- ConcurrentMap.make(("A", 1), ("B", 2), ("C", 3))
-            result <- map.forall { case (_, v) => v < 4 }
+            result <- map.forall((_, v) => v < 4)
           } yield assertTrue(result)
         },
         testM("returns false when predicate fails for any element of the map") {
           for {
             map    <- ConcurrentMap.make(("A", 1), ("B", 2), ("C", 3))
-            result <- map.forall { case (_, v) => v < 3 }
+            result <- map.forall((_, v) => v < 3)
           } yield assertTrue(!result)
         }
       ),
@@ -207,7 +207,7 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
         testM("removes the values that match a given predicate") {
           for {
             map  <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
-            _    <- map.removeIf { case (k, _) => k != 1 }
+            _    <- map.removeIf((k, _) => k != 1)
             aRes <- map.get(1)
             bRes <- map.get(2)
             cRes <- map.get(3)
@@ -248,18 +248,20 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
           } yield assert(repRes)(isFalse) && assert(getRes)(isSome(equalTo("a")))
         }
       ),
-      testM("retainIf") {
-        for {
-          map  <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
-          _    <- map.retainIf { case (k, _) => k == 1 }
-          aRes <- map.get(1)
-          bRes <- map.get(2)
-          cRes <- map.get(3)
-        } yield assertTrue(
-          aRes.get == "A",
-          bRes.isEmpty,
-          cRes.isEmpty
-        )
-      }
+      suite("retainIf")(
+        testM("retains values that satisfy a given predicate") {
+          for {
+            map  <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            _    <- map.retainIf((k, _) => k == 1)
+            aRes <- map.get(1)
+            bRes <- map.get(2)
+            cRes <- map.get(3)
+          } yield assertTrue(
+            aRes.get == "A",
+            bRes.isEmpty,
+            cRes.isEmpty
+          )
+        }
+      )
     )
 }

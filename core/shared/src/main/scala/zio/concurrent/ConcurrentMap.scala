@@ -4,8 +4,6 @@ import zio.{Chunk, ChunkBuilder, UIO}
 
 import java.util.concurrent.ConcurrentHashMap
 
-import scala.collection.JavaConverters._
-
 /**
  * Wrapper over `java.util.concurrent.ConcurrentHashMap`.
  */
@@ -15,7 +13,14 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    * Finds the first element of a map for which the partial function is defined and applies the function to it.
    */
   def collectFirst[B](pf: PartialFunction[(K, V), B]): UIO[Option[B]] =
-    UIO(underlying.asScala.collectFirst(pf))
+    UIO {
+      var result = Option.empty[B]
+      underlying.forEach { (k: K, v: V) =>
+        if (result.isEmpty && pf.isDefinedAt((k, v)))
+          result = Some(pf((k, v)))
+      }
+      result
+    }
 
   /**
    * Attempts to compute a mapping for the given key and its current mapped value.
@@ -32,30 +37,48 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
   /**
    * Attempts to compuate a new mapping of an existing key.
    */
+
   def computeIfPresent(key: K, remap: (K, V) => V): UIO[Option[V]] =
     UIO(Option(underlying.computeIfPresent(key, remapWith(remap))))
 
   /**
    * Tests whether a given predicate holds true for at least one element in a map.
    */
-  def exists(p: ((K, V)) => Boolean): UIO[Boolean] =
-    UIO(
-      underlying.asScala.exists(p)
-    )
+
+  def exists(p: (K, V) => Boolean): UIO[Boolean] =
+    UIO {
+      var result = false
+      underlying.forEach { (k: K, v: V) =>
+        if (!result && p(k, v))
+          result = true
+      }
+      result
+    }
 
   /**
    * Folds the elements of a map using the given binary operator.
    */
   def fold[S](zero: S)(f: (S, (K, V)) => S): UIO[S] =
-    UIO(underlying.asScala.foldLeft(zero)(f))
+    UIO {
+      var result: S = zero
+      underlying.forEach { (k: K, v: V) =>
+        result = f(result, (k, v))
+      }
+      result
+    }
 
   /**
    * Tests whether a predicate is satisfied by all elements of a map.
    */
-  def forall(p: ((K, V)) => Boolean): UIO[Boolean] =
-    UIO(
-      underlying.asScala.forall(p)
-    )
+  def forall(p: (K, V) => Boolean): UIO[Boolean] =
+    UIO {
+      var result = true
+      underlying.forEach { (k: K, v: V) =>
+        if (result && !p(k, v))
+          result = false
+      }
+      result
+    }
 
   /**
    * Retrieves the value associated with the given key.
@@ -91,20 +114,20 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
   /**
    * Removes all elements which do not satisfy the given predicate.
    */
-  def removeIf(p: ((K, V)) => Boolean): UIO[Unit] =
+  def removeIf(p: (K, V) => Boolean): UIO[Unit] =
     UIO(
       underlying.forEach { (k: K, v: V) =>
-        if (p((k, v))) underlying.remove(k)
+        if (p(k, v)) underlying.remove(k)
       }
     )
 
   /**
    * Removes all elements which do not satisfy the given predicate.
    */
-  def retainIf(p: ((K, V)) => Boolean): UIO[Unit] =
+  def retainIf(p: (K, V) => Boolean): UIO[Unit] =
     UIO(
       underlying.forEach { (k: K, v: V) =>
-        if (!p((k, v))) underlying.remove(k)
+        if (!p(k, v)) underlying.remove(k)
       }
     )
 
