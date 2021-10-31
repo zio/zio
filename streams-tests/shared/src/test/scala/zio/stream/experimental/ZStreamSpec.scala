@@ -3159,7 +3159,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               error <- ZStream
                          .fail("OriginalError")
-                         .timeoutFail("TimeoutError")(15.minutes)
+                         .timeoutFail("TimeoutFail")(15.minutes)
                          .runDrain
                          .flip
             } yield assertTrue(error == "OriginalError")

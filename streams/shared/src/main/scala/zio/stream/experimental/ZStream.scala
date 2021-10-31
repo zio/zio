@@ -1230,8 +1230,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
    */
+  @deprecated("use runFold", "2.0.0")
+  final def fold[S](s: S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
+    runFold(s)(f)
+
+  /**
+   * Executes a pure fold over the stream of values - reduces all elements in the stream to a value of type `S`.
+   */
   final def runFold[S](s: S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
     runFoldWhileManaged(s)(_ => true)((s, a) => f(s, a)).use(ZIO.succeedNow)
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   */
+  @deprecated("use runFoldZIO", "2.0.0")
+  final def foldM[R1 <: R, E1 >: E, S](s: S)(f: (S, A) => ZIO[R1, E1, S])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E1, S] =
+    runFoldZIO[R1, E1, S](s)(f)
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1246,8 +1262,26 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Executes a pure fold over the stream of values.
    * Returns a Managed value that represents the scope of the stream.
    */
+  @deprecated("user runFoldManaged", "2.0.0")
+  final def foldManaged[S](s: S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZManaged[R, E, S] =
+    runFoldManaged(s)(f)
+
+  /**
+   * Executes a pure fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   */
   final def runFoldManaged[S](s: S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZManaged[R, E, S] =
     runFoldWhileManaged(s)(_ => true)((s, a) => f(s, a))
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   */
+  @deprecated("use runFoldManagedZIO", "2.0.0")
+  final def foldManagedM[R1 <: R, E1 >: E, S](s: S)(f: (S, A) => ZIO[R1, E1, S])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, S] =
+    runFoldManagedZIO[R1, E1, S](s)(f)
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1263,10 +1297,32 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Executes an effectful fold over the stream of values.
    * Returns a Managed value that represents the scope of the stream.
    */
+  @deprecated("use runFoldManagedZIO", "2.0.0")
+  final def foldManagedZIO[R1 <: R, E1 >: E, S](s: S)(f: (S, A) => ZIO[R1, E1, S])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, S] =
+    runFoldManagedZIO[R1, E1, S](s)(f)
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   */
   final def runFoldManagedZIO[R1 <: R, E1 >: E, S](s: S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: ZTraceElement
   ): ZManaged[R1, E1, S] =
     runFoldWhileManagedZIO[R1, E1, S](s)(_ => true)(f)
+
+  /**
+   * Reduces the elements in the stream to a value of type `S`.
+   * Stops the fold early when the condition is not fulfilled.
+   * Example:
+   * {{{
+   *  Stream(1).forever.foldWhile(0)(_ <= 4)(_ + _) // UIO[Int] == 5
+   * }}}
+   */
+  @deprecated("use runFoldWhile", "2.0.0")
+  final def foldWhile[S](s: S)(cont: S => Boolean)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
+    runFoldWhile(s)(cont)(f)
 
   /**
    * Reduces the elements in the stream to a value of type `S`.
@@ -1292,10 +1348,48 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @param cont function which defines the early termination condition
    */
   @deprecated("use runFoldWhileZIO", "2.0.0")
+  final def foldWhileM[R1 <: R, E1 >: E, S](s: S)(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E1, S] =
+    runFoldWhileZIO[R1, E1, S](s)(cont)(f)
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Stops the fold early when the condition is not fulfilled.
+   * Example:
+   * {{{
+   *   Stream(1)
+   *     .forever                                // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // UIO[Int] == 5
+   * }}}
+   *
+   * @param cont function which defines the early termination condition
+   */
+  @deprecated("use runFoldWhileZIO", "2.0.0")
   final def runFoldWhileM[R1 <: R, E1 >: E, S](s: S)(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, S] =
     runFoldWhileZIO[R1, E1, S](s)(cont)(f)
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   * Stops the fold early when the condition is not fulfilled.
+   * Example:
+   * {{{
+   *   Stream(1)
+   *     .forever                                // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
+   *     .use(ZIO.succeed)                       // UIO[Int] == 5
+   * }}}
+   *
+   * @param cont function which defines the early termination condition
+   */
+  @deprecated("use runFoldWhileManagedZIO", "2.0.0")
+  final def foldWhileManagedM[R1 <: R, E1 >: E, S](
+    s: S
+  )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZManaged[R1, E1, S] =
+    runFoldWhileManagedZIO[R1, E1, S](s)(cont)(f)
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1331,10 +1425,48 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * @param cont function which defines the early termination condition
    */
+  @deprecated("use runFoldWhileManagedZIO", "2.0.0")
+  final def foldWhileManagedZIO[R1 <: R, E1 >: E, S](
+    s: S
+  )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZManaged[R1, E1, S] =
+    runFoldWhileManagedZIO[R1, E1, S](s)(cont)(f)
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   * Stops the fold early when the condition is not fulfilled.
+   * Example:
+   * {{{
+   *   Stream(1)
+   *     .forever                                // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
+   *     .use(ZIO.succeed)                       // UIO[Int] == 5
+   * }}}
+   *
+   * @param cont function which defines the early termination condition
+   */
   final def runFoldWhileManagedZIO[R1 <: R, E1 >: E, S](
     s: S
   )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZManaged[R1, E1, S] =
     runManaged(ZSink.foldZIO(s)(cont)(f))
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   * Stops the fold early when the condition is not fulfilled.
+   * Example:
+   * {{{
+   *   Stream(1)
+   *     .forever                                // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // UIO[Int] == 5
+   * }}}
+   *
+   * @param cont function which defines the early termination condition
+   */
+  @deprecated("use runFoldWhileZIO", "2.0.0")
+  final def foldWhileZIO[R1 <: R, E1 >: E, S](s: S)(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E1, S] =
+    runFoldWhileZIO[R1, E1, S](s)(cont)(f)
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1358,10 +1490,30 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Returns a Managed value that represents the scope of the stream.
    * Stops the fold early when the condition is not fulfilled.
    */
-  def runFoldWhileManaged[S](s: S)(cont: S => Boolean)(f: (S, A) => S)(implicit
+  @deprecated("use runFoldWhileManaged", "2.0.0")
+  final def foldWhileManaged[S](s: S)(cont: S => Boolean)(f: (S, A) => S)(implicit
+    trace: ZTraceElement
+  ): ZManaged[R, E, S] =
+    runFoldWhileManaged(s)(cont)(f)
+
+  /**
+   * Executes a pure fold over the stream of values.
+   * Returns a Managed value that represents the scope of the stream.
+   * Stops the fold early when the condition is not fulfilled.
+   */
+  final def runFoldWhileManaged[S](s: S)(cont: S => Boolean)(f: (S, A) => S)(implicit
     trace: ZTraceElement
   ): ZManaged[R, E, S] =
     runManaged(ZSink.fold(s)(cont)(f))
+
+  /**
+   * Executes an effectful fold over the stream of values.
+   */
+  @deprecated("use runFoldZIO", "2.0.0")
+  final def foldZIO[R1 <: R, E1 >: E, S](s: S)(f: (S, A) => ZIO[R1, E1, S])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E1, S] =
+    runFoldZIO[R1, E1, S](s)(f)
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1386,19 +1538,48 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Consumes all elements of the stream, passing them to the specified callback.
    */
+  @deprecated("use runForeachChunk", "2.0.0")
+  final def foreachChunk[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E1, Unit] =
+    runForeachChunk[R1, E1](f)
+
+  /**
+   * Consumes all elements of the stream, passing them to the specified callback.
+   */
   final def runForeachChunk[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, Unit] =
     run(ZSink.foreachChunk(f))
 
   /**
-   * Like [[ZStream#foreachChunk]], but returns a `ZManaged` so the finalization order
+   * Like [[ZStream#runForeachChunk]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  @deprecated("use runForeachChunkManaged", "2.0.0")
+  final def foreachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, Unit] =
+    runForeachChunkManaged[R1, E1](f)
+
+  /**
+   * Like [[ZStream#runForeachChunk]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
   final def runForeachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZManaged[R1, E1, Unit] =
     runManaged(ZSink.foreachChunk(f))
+
+  /**
+   * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  @deprecated("run runForeachManaged", "2.0.0")
+  final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, Unit] =
+    runForeachManaged[R1, E1](f)
 
   /**
    * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization order
@@ -1413,13 +1594,33 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Consumes elements of the stream, passing them to the specified callback,
    * and terminating consumption when the callback returns `false`.
    */
+  @deprecated("use runForeachWhile", "2.0.0")
+  final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E1, Unit] =
+    runForeachWhile[R1, E1](f)
+
+  /**
+   * Consumes elements of the stream, passing them to the specified callback,
+   * and terminating consumption when the callback returns `false`.
+   */
   final def runForeachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, Unit] =
     run(ZSink.foreachWhile(f))
 
   /**
-   * Like [[ZStream#foreachWhile]], but returns a `ZManaged` so the finalization order
+   * Like [[ZStream#runForeachWhile]], but returns a `ZManaged` so the finalization order
+   * can be controlled.
+   */
+  @deprecated("use runForeachWhileManaged", "2.0.0")
+  final def foreachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZManaged[R1, E1, Unit] =
+    runForeachWhileManaged[R1, E1](f)
+
+  /**
+   * Like [[ZStream#runForeachWhile]], but returns a `ZManaged` so the finalization order
    * can be controlled.
    */
   final def runForeachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
@@ -1889,10 +2090,30 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Publishes elements of this stream to a hub. Stream failure and ending will
    * also be signalled.
    */
+  @deprecated("use runIntoHub", "2.0.0")
+  final def intoHub[R1 <: R, E1 >: E](
+    hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+  )(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
+    runIntoHub(hub)
+
+  /**
+   * Publishes elements of this stream to a hub. Stream failure and ending will
+   * also be signalled.
+   */
   final def runIntoHub[R1 <: R, E1 >: E](
     hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
     runIntoQueue(hub.toQueue)
+
+  /**
+   * Like [[ZStream#intoHub]], but provides the result as a [[ZManaged]] to
+   * allow for scope composition.
+   */
+  @deprecated("use runIntoHubManaged", "2.0.0")
+  final def intoHubManaged[R1 <: R, E1 >: E](
+    hub: ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, Unit] =
+    runIntoHubManaged(hub)
 
   /**
    * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
@@ -1904,10 +2125,20 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     runIntoQueueManaged(hub.toQueue)
 
   /**
+   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to
+   * allow for scope composition.
+   */
+  @deprecated("use runIntoQueueManaged", "2.0.0")
+  final def intoManaged[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, Unit] =
+    runIntoQueueManaged(queue)
+
+  /**
    * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
    * allow for scope composition.
    */
-  @deprecated("use runIntoQueueQueue", "2.0.0")
+  @deprecated("use runIntoQueueManaged", "2.0.0")
   final def runIntoManaged[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZManaged[R1, E1, Unit] =
@@ -1917,10 +2148,30 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Enqueues elements of this stream into a queue. Stream failure and ending
    * will also be signalled.
    */
+  @deprecated("use runIntoQueue", "2.0.0")
+  final def intoQueue[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+  )(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
+    runIntoQueue(queue)
+
+  /**
+   * Enqueues elements of this stream into a queue. Stream failure and ending
+   * will also be signalled.
+   */
   final def runIntoQueue[R1 <: R, E1 >: E](
     queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
     runIntoQueueManaged(queue).useDiscard(UIO.unit)
+
+  /**
+   * Like [[ZStream#ntoQueue]], but provides the result as a [[ZManaged]]
+   * to allow for scope composition.
+   */
+  @deprecated("use runIntoQueueManaged", "2.0.0")
+  final def intoQueueManaged[R1 <: R, E1 >: E](
+    queue: ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, Unit] =
+    runIntoQueueManaged(queue)
 
   /**
    * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]]
@@ -2284,7 +2535,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     that: ZStream[R1, E1, A2],
     strategy: TerminationStrategy = TerminationStrategy.Both
   )(l: A => A3, r: A2 => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
-    import TerminationStrategy.{Left, Right, Either}
+    import TerminationStrategy.{Either, Left, Right}
 
     def handler(terminate: Boolean)(exit: Exit[E1, Any]): ZChannel.MergeDecision[R1, E1, Any, E1, Any] =
       if (terminate || !exit.isSuccess) ZChannel.MergeDecision.done(ZIO.done(exit))
@@ -3185,8 +3436,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *          so as to not prematurely recommend results.
    */
   final def debounce(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E, A] = {
-    import HandoffSignal._
     import DebounceState._
+    import HandoffSignal._
 
     ZStream.unwrap(
       for {
@@ -3276,10 +3527,28 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Fails the stream with given error if it does not produce a value after d duration.
    */
+  @deprecated("use timeoutFail", "2.0.0")
+  final def timeoutError[E1 >: E](e: => E1)(d: Duration)(implicit
+    trace: ZTraceElement
+  ): ZStream[R with Has[Clock], E1, A] =
+    timeoutFail(e)(d)
+
+  /**
+   * Fails the stream with given error if it does not produce a value after d duration.
+   */
   final def timeoutFail[E1 >: E](e: => E1)(d: Duration)(implicit
     trace: ZTraceElement
   ): ZStream[R with Has[Clock], E1, A] =
     timeoutFailCause(Cause.fail(e))(d)
+
+  /**
+   * Fails the stream with given cause if it does not produce a value after d duration.
+   */
+  @deprecated("use timeoutFailCause", "2.0.0")
+  final def timeoutErrorCause[E1 >: E](
+    cause: Cause[E1]
+  )(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E1, A] =
+    timeoutFailCause(cause)(d)
 
   /**
    * Fails the stream with given cause if it does not produce a value after d duration.
