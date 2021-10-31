@@ -1,6 +1,6 @@
 package zio
 
-import zio.test.{AssertionValue, BoolAlgebra, ZSpec, assertTrue}
+import zio.test.{ZSpec, assertTrue}
 
 object StackTracesSpec extends ZIOBaseSpec {
 
