@@ -69,15 +69,15 @@ object StackTracesSpec extends ZIOBaseSpec {
           stackTrace <- matchPrettyPrintCause(value)
         } yield {
           assertTrue(stackTrace.startsWith("Exception in thread")) &&
-            assertTrue(
-              includesAll(
-                Seq(
-                  "zio-fiber",
-                  "java.lang.String: Oh no!",
-                  "Suppressed: java.lang.RuntimeException: deep failure"
-                )
-              )(stackTrace)
-            )
+          assertTrue(
+            includesAll(
+              Seq(
+                "zio-fiber",
+                "java.lang.String: Oh no!",
+                "Suppressed: java.lang.RuntimeException: deep failure"
+              )
+            )(stackTrace)
+          )
         }
       },
       test("captures the embedded failure") {
