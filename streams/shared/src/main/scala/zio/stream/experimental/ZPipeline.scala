@@ -398,6 +398,15 @@ object ZPipeline {
     }
 
   /**
+   * Emits the provided chunk before emitting any other value.
+   */
+  def prepend[A](values: Chunk[A]): ZPipeline[Any, Nothing, A, A] =
+    new ZPipeline[Any, Nothing, A, A] {
+      def apply[R, E](stream: ZStream[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+        ZStream.fromChunk(values) ++ stream
+    }
+
+  /**
    * Creates a pipeline that always succeeds with the specified value.
    */
   def succeed[A](a: => A): ZPipeline[Any, Nothing, Any, A] =
