@@ -8,7 +8,7 @@ import zio.test.TestAspect.{exceptJS, flaky, ignore, nonFlaky, scala2Only, timeo
 import zio.test._
 import zio.test.environment.TestClock
 
-import java.io.IOException
+import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
@@ -4148,6 +4148,20 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("do not emit any element") {
             val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
             assertM(ZStream.fromZIOOption(fa).runCollect)(equalTo(Chunk()))
+          }
+        ),
+        suite("fromInputStream")(
+          test("example 1") {
+            val chunkSize = ZStream.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            def is        = new ByteArrayInputStream(data)
+            ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
+          },
+          test("example 2") {
+            check(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
+              val is = new ByteArrayInputStream(bytes.toArray)
+              ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
+            }
           }
         ),
         test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
