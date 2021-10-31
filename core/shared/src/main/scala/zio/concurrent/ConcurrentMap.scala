@@ -35,7 +35,7 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     UIO(underlying.computeIfAbsent(key, mapWith(map)))
 
   /**
-   * Attempts to compuate a new mapping of an existing key.
+   * Attempts to compute a new mapping of an existing key.
    */
 
   def computeIfPresent(key: K, remap: (K, V) => V): UIO[Option[V]] =
@@ -93,6 +93,14 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     UIO(Option(underlying.put(key, value)))
 
   /**
+   * Adds all new key-value pairs
+   */
+  def putAll(keyValues: (K, V)*): UIO[Unit] =
+    UIO(keyValues.foreach { case (k: K, v: V) =>
+      underlying.put(k, v)
+    })
+
+  /**
    * Adds a new key-value pair, unless the key is already bound to some other value.
    */
   def putIfAbsent(key: K, value: V): UIO[Option[V]] =
@@ -117,7 +125,9 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
   def removeIf(p: (K, V) => Boolean): UIO[Unit] =
     UIO(
       underlying.forEach { (k: K, v: V) =>
-        if (p(k, v)) underlying.remove(k)
+        if (p(k, v)) {
+          val _ = underlying.remove(k)
+        }
       }
     )
 
@@ -127,7 +137,9 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
   def retainIf(p: (K, V) => Boolean): UIO[Unit] =
     UIO(
       underlying.forEach { (k: K, v: V) =>
-        if (!p(k, v)) underlying.remove(k)
+        if (!p(k, v)) {
+          val _ = underlying.remove(k)
+        }
       }
     )
 

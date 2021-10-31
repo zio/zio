@@ -173,6 +173,21 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
           } yield assert(putRes)(isSome(equalTo("a"))) && assert(getRes)(isSome(equalTo("a")))
         }
       ),
+      suite("putAll")(
+        testM("associates all non-existent keys with given value") {
+          for {
+            map    <- ConcurrentMap.empty[Int, String]
+            putRes <- map.putAll((1, "A"), (2, "B"), (3, "C"))
+            resA   <- map.get(1)
+            resB   <- map.get(2)
+            resC   <- map.get(3)
+          } yield assertTrue(
+            resA.get == "A",
+            resB.get == "B",
+            resC.get == "C"
+          )
+        }
+      ),
       suite("remove")(
         testM("returns the value associated with removed key") {
           for {
