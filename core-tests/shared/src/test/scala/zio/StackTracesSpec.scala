@@ -7,7 +7,7 @@ object StackTracesSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] = suite("StackTracesSpec")(
     suite("captureSimpleCause")(
       test("captures a simple failure") {
-        val checkExpectations: String => Boolean = {
+        val meetsExpectations: String => Boolean = {
           case stack: String =>
             stack.startsWith("Exception in thread") && includesAll(Seq("zio-fiber", "java.lang.String: Oh no!"))(stack)
           case _ => false
@@ -22,8 +22,7 @@ object StackTracesSpec extends ZIOBaseSpec {
                             }
                           case _ => UnsupportedTestPath
                         }
-          result = checkExpectations(stackTrace)
-        } yield assertTrue(result)
+        } yield assertTrue(meetsExpectations(stackTrace))
       }
     )
   )
