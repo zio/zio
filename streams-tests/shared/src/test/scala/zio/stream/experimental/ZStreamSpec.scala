@@ -8,7 +8,7 @@ import zio.test.TestAspect.{exceptJS, flaky, ignore, nonFlaky, scala2Only, timeo
 import zio.test._
 import zio.test.environment.TestClock
 
-import java.io.IOException
+import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
@@ -1602,25 +1602,53 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         suite("foreach")(
-          test("foreach") {
-            for {
-              ref <- Ref.make(0)
-              _   <- ZStream(1, 1, 1, 1, 1).foreach[Any, Nothing](a => ref.update(_ + a))
-              sum <- ref.get
-            } yield assert(sum)(equalTo(5))
-          },
-          test("foreachWhile") {
-            for {
-              ref <- Ref.make(0)
-              _ <- ZStream(1, 1, 1, 1, 1, 1).runForeachWhile[Any, Nothing](a =>
-                     ref.modify(sum =>
-                       if (sum >= 3) (false, sum)
-                       else (true, sum + a)
+          suite("foreach")(
+            test("with small data set") {
+              for {
+                ref <- Ref.make(0)
+                _   <- ZStream(1, 1, 1, 1, 1).foreach[Any, Nothing](a => ref.update(_ + a))
+                sum <- ref.get
+              } yield assert(sum)(equalTo(5))
+            },
+            test("with bigger data set") {
+              for {
+                ref <- Ref.make(0L)
+                _ <-
+                  ZStream.fromIterable(List.fill(1000)(1L)).foreach[Any, Nothing](a => ref.update(_ + a))
+                sum <- ref.get
+              } yield assert(sum)(equalTo(1000L))
+            }
+          ),
+          suite("foreachWhile")(
+            test("with small data set") {
+              val expected = 3
+              for {
+                ref <- Ref.make(0)
+                _ <- ZStream(1, 1, 1, 1, 1, 1).runForeachWhile[Any, Nothing](a =>
+                       ref.modify(sum =>
+                         if (sum >= expected) (false, sum)
+                         else (true, sum + a)
+                       )
                      )
-                   )
-              sum <- ref.get
-            } yield assert(sum)(equalTo(3))
-          },
+                sum <- ref.get
+              } yield assert(sum)(equalTo(expected))
+            },
+            test("with bigger data set") {
+              val expected = 500L
+              for {
+                ref <- Ref.make(0L)
+                _ <- ZStream
+                       .fromIterable[Long](List.fill(1000)(1L))
+                       .runForeachWhile[Any, Nothing](a =>
+                         ref.modify(sum =>
+                           if (sum >= expected) (false, sum)
+                           else (true, sum + a)
+                         )
+                       )
+                sum <- ref.get
+              } yield assert(sum)(equalTo(expected))
+            }
+          ),
           test("foreachWhile short circuits") {
             for {
               flag <- Ref.make(true)
@@ -2699,6 +2727,67 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk("A", "A", "B")))
           )
         ),
+        suite("retry")(
+          test("retry a failing stream") {
+            assertM(
+              for {
+                ref     <- Ref.make(0)
+                stream   = ZStream.fromZIO(ref.getAndUpdate(_ + 1)) ++ ZStream.fail(None)
+                results <- stream.retry(Schedule.forever).take(2).runCollect
+              } yield results
+            )(equalTo(Chunk(0, 1)))
+          },
+          test("cleanup resources before restarting the stream") {
+            assertM(
+              for {
+                finalized <- Ref.make(0)
+                stream = ZStream.unwrapManaged(
+                           ZManaged
+                             .finalizer(finalized.getAndUpdate(_ + 1))
+                             .as(ZStream.fromZIO(finalized.get) ++ ZStream.fail(None))
+                         )
+                results <- stream.retry(Schedule.forever).take(2).runCollect
+              } yield results
+            )(equalTo(Chunk(0, 1)))
+          },
+          test("retry a failing stream according to a schedule") {
+            for {
+              times <- Ref.make(List.empty[java.time.Instant])
+              stream =
+                ZStream
+                  .fromZIO(Clock.instant.flatMap(time => times.update(time +: _)))
+                  .flatMap(_ => ZStream.fail(None))
+              streamFib <- stream.retry(Schedule.exponential(1.second)).take(3).runDrain.fork
+              _         <- TestClock.adjust(1.second)
+              _         <- TestClock.adjust(2.second)
+              _         <- streamFib.interrupt
+              results   <- times.get.map(_.map(_.getEpochSecond.toInt))
+            } yield assert(results)(equalTo(List(3, 1, 0)))
+          },
+          test("reset the schedule after a successful pull") {
+            for {
+              times <- Ref.make(List.empty[java.time.Instant])
+              ref   <- Ref.make(0)
+              stream =
+                ZStream
+                  .fromZIO(Clock.instant.flatMap(time => times.update(time +: _) *> ref.updateAndGet(_ + 1)))
+                  .flatMap { attemptNr =>
+                    if (attemptNr == 3 || attemptNr == 5) ZStream.succeed(attemptNr) else ZStream.fail(None)
+                  }
+                  .forever
+              streamFib <- stream
+                             .retry(Schedule.exponential(1.second))
+                             .take(2)
+                             .runDrain
+                             .fork
+              _       <- TestClock.adjust(1.second)
+              _       <- TestClock.adjust(2.second)
+              _       <- TestClock.adjust(1.second)
+              _       <- streamFib.join
+              results <- times.get.map(_.map(_.getEpochSecond.toInt))
+            } yield assert(results)(equalTo(List(4, 3, 3, 1, 0)))
+          }
+        ),
         test("some") {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.some.runCollect.either.map(assert(_)(isLeft(isNone)))
@@ -3070,7 +3159,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               error <- ZStream
                          .fail("OriginalError")
-                         .timeoutFail("TimeoutError")(15.minutes)
+                         .timeoutFail("TimeoutFail")(15.minutes)
                          .runDrain
                          .flip
             } yield assertTrue(error == "OriginalError")
@@ -3622,6 +3711,135 @@ object ZStreamSpec extends ZIOBaseSpec {
               "type arguments [Error] do not conform to method refineToOrDie's type parameter bounds [E1 <: RuntimeException]"
             assertM(result)(isLeft(equalTo(expected)))
           } @@ scala2Only
+        ),
+        suite("when")(
+          test("returns the stream if the condition is satisfied") {
+            check(pureStreamOfInts) { stream =>
+              for {
+                result1  <- stream.when(true).runCollect
+                result2  <- ZStream.when(true)(stream).runCollect
+                expected <- stream.runCollect
+              } yield assert(result1)(equalTo(expected)) && assert(result2)(equalTo(expected))
+            }
+          },
+          test("returns an empty stream if the condition is not satisfied") {
+            check(pureStreamOfInts) { stream =>
+              for {
+                result1 <- stream.when(false).runCollect
+                result2 <- ZStream.when(false)(stream).runCollect
+                expected = Chunk[Int]()
+              } yield assert(result1)(equalTo(expected)) && assert(result2)(equalTo(expected))
+            }
+          },
+          test("dies if the condition throws an exception") {
+            check(pureStreamOfInts) { stream =>
+              val exception     = new Exception
+              def cond: Boolean = throw exception
+              assertM(stream.when(cond).runDrain.exit)(dies(equalTo(exception)))
+            }
+          }
+        ),
+        suite("whenCase")(
+          test("returns the resulting stream if the given partial function is defined for the given value") {
+            check(Gen.int) { int =>
+              for {
+                result  <- ZStream.whenCase(Some(int)) { case Some(v) => ZStream(v) }.runCollect
+                expected = Chunk(int)
+              } yield assert(result)(equalTo(expected))
+            }
+          },
+          test("returns an empty stream if the given partial function is not defined for the given value") {
+            for {
+              result  <- ZStream.whenCase(Option.empty[Int]) { case Some(v) => ZStream(v) }.runCollect
+              expected = Chunk.empty
+            } yield assert(result)(equalTo(expected))
+          },
+          test("dies if evaluating the given value throws an exception") {
+            val exception   = new Exception
+            def badInt: Int = throw exception
+            assertM(ZStream.whenCase(badInt) { case _ => ZStream.empty }.runDrain.exit)(dies(equalTo(exception)))
+          },
+          test("dies if the partial function throws an exception") {
+            val exception = new Exception
+            assertM(ZStream.whenCase(()) { case _ => throw exception }.runDrain.exit)(dies(equalTo(exception)))
+          }
+        ),
+        suite("whenCaseZIO")(
+          test("returns the resulting stream if the given partial function is defined for the given effectful value") {
+            check(Gen.int) { int =>
+              for {
+                result  <- ZStream.whenCaseZIO(ZIO.succeed(Some(int))) { case Some(v) => ZStream(v) }.runCollect
+                expected = Chunk(int)
+              } yield assert(result)(equalTo(expected))
+            }
+          },
+          test("returns an empty stream if the given partial function is not defined for the given effectful value") {
+            for {
+              result  <- ZStream.whenCaseZIO(ZIO.succeed(Option.empty[Int])) { case Some(v) => ZStream(v) }.runCollect
+              expected = Chunk.empty
+            } yield assert(result)(equalTo(expected))
+          },
+          test("fails if the effectful value is a failure") {
+            val exception                   = new Exception
+            val failure: IO[Exception, Int] = ZIO.fail(exception)
+            assertM(ZStream.whenCaseZIO(failure) { case _ => ZStream.empty }.runDrain.exit)(fails(equalTo(exception)))
+          },
+          test("dies if the given partial function throws an exception") {
+            val exception = new Exception
+            assertM(ZStream.whenCaseZIO(ZIO.unit) { case _ => throw exception }.runDrain.exit)(dies(equalTo(exception)))
+          },
+          test("infers types correctly") {
+            trait R
+            trait R1 extends R
+            trait E1
+            trait E extends E1
+            trait A
+            trait O
+            val o                                          = new O {}
+            val b: ZIO[R, E, A]                            = ZIO.succeed(new A {})
+            val pf: PartialFunction[A, ZStream[R1, E1, O]] = { case _ => ZStream(o) }
+            val s: ZStream[R1, E1, O]                      = ZStream.whenCaseZIO(b)(pf)
+            assertM(s.runDrain.provide(new R1 {}))(isUnit)
+          }
+        ),
+        suite("whenZIO")(
+          test("returns the stream if the effectful condition is satisfied") {
+            check(pureStreamOfInts) { stream =>
+              for {
+                result1  <- stream.whenZIO(ZIO.succeed(true)).runCollect
+                result2  <- ZStream.whenZIO(ZIO.succeed(true))(stream).runCollect
+                expected <- stream.runCollect
+              } yield assert(result1)(equalTo(expected)) && assert(result2)(equalTo(expected))
+            }
+          },
+          test("returns an empty stream if the effectful condition is not satisfied") {
+            check(pureStreamOfInts) { stream =>
+              for {
+                result1 <- stream.whenZIO(ZIO.succeed(false)).runCollect
+                result2 <- ZStream.whenZIO(ZIO.succeed(false))(stream).runCollect
+                expected = Chunk[Int]()
+              } yield assert(result1)(equalTo(expected)) && assert(result2)(equalTo(expected))
+            }
+          },
+          test("fails if the effectful condition fails") {
+            check(pureStreamOfInts) { stream =>
+              val exception = new Exception
+              assertM(stream.whenZIO(ZIO.fail(exception)).runDrain.exit)(fails(equalTo(exception)))
+            }
+          },
+          test("infers types correctly") {
+            trait R
+            trait R1 extends R
+            trait E1
+            trait E extends E1
+            trait O
+            val o                          = new O {}
+            val b: ZIO[R, E, Boolean]      = ZIO.succeed(true)
+            val stream: ZStream[R1, E1, O] = ZStream(o)
+            val s1: ZStream[R1, E1, O]     = ZStream.whenZIO(b)(stream)
+            val s2: ZStream[R1, E1, O]     = stream.whenZIO(b)
+            assertM((s1 ++ s2).runDrain.provide(new R1 {}))(isUnit)
+          }
         )
       ),
       suite("Constructors")(
@@ -3930,6 +4148,20 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("do not emit any element") {
             val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
             assertM(ZStream.fromZIOOption(fa).runCollect)(equalTo(Chunk()))
+          }
+        ),
+        suite("fromInputStream")(
+          test("example 1") {
+            val chunkSize = ZStream.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            def is        = new ByteArrayInputStream(data)
+            ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
+          },
+          test("example 2") {
+            check(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
+              val is = new ByteArrayInputStream(bytes.toArray)
+              ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
+            }
           }
         ),
         test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>

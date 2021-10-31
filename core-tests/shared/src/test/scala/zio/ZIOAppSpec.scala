@@ -36,7 +36,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
       val logger1 = new ZLogger[Unit] {
         def apply(
           trace: ZTraceElement,
-          fiberId: zio.FiberId,
+          fiberId: zio.FiberId.Runtime,
           logLevel: zio.LogLevel,
           message: () => String,
           context: Map[zio.FiberRef.Runtime[_], AnyRef],
