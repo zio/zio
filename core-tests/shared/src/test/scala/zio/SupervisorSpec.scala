@@ -1,9 +1,7 @@
 package zio
 import zio.Supervisor.Propagation
-import zio.SupervisorSpec.{currentFiberId, runIn}
 import zio.duration.durationInt
 import zio.test._
-import zio.test.environment.Live
 
 import java.util.concurrent.atomic.AtomicReference
 
