@@ -1793,7 +1793,7 @@ And, to recover from a specific cause, we should use `ZStream#catchSomeCause` me
 ```scala mdoc:silent:nest
 val s1 = ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5)
 val s2 = ZStream(7, 8, 9)
-val stream = s1.catchSomeCause { case Die(value) => s2 }
+val stream = s1.catchSomeCause { case Die(value, _) => s2 }
 ```
 
 ### Recovering to ZIO Effect

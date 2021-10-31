@@ -3,7 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.{Gen, ZSpec, assert, assertM, check}
+import zio.test.{Gen, ZSpec, assert, assertCompletes, assertM, check}
 
 import java.io.{ByteArrayInputStream, FileNotFoundException, FileReader, IOException, OutputStream, Reader}
 import java.net.InetSocketAddress
@@ -103,7 +103,6 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             stream = ZStream.asyncZIO[Any, Throwable, Int](
                        cb => {
                          global.execute { () =>
-                           println("Rawr")
                            // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
                            (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
                            cb(refDone.set(true) *> ZIO.fail(None))
@@ -384,6 +383,41 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             val is = new ByteArrayInputStream(bytes.toArray)
             ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
           }
+        }
+      )
+    ),
+    suite("from")(
+      suite("java.util.stream.Stream")(
+        test("JavaStream") {
+          trait A
+          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
+          lazy val javaStream: JavaStreamLike[A]        = ???
+          lazy val actual                               = ZStream.from(javaStream)
+          lazy val expected: ZStream[Any, Throwable, A] = actual
+          lazy val _                                    = expected
+          assertCompletes
+        },
+        test("JavaStreamManaged") {
+          trait R
+          trait E extends Throwable
+          trait A
+          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
+          lazy val javaStreamManaged: ZManaged[R, E, JavaStreamLike[A]] = ???
+          lazy val actual                                               = ZStream.from(javaStreamManaged)
+          lazy val expected: ZStream[R, Throwable, A]                   = actual
+          lazy val _                                                    = expected
+          assertCompletes
+        },
+        test("JavaStreamZIO") {
+          trait R
+          trait E extends Throwable
+          trait A
+          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
+          lazy val javaStreamZIO: ZIO[R, E, JavaStreamLike[A]] = ???
+          lazy val actual                                      = ZStream.from(javaStreamZIO)
+          lazy val expected: ZStream[R, Throwable, A]          = actual
+          lazy val _                                           = expected
+          assertCompletes
         }
       )
     )

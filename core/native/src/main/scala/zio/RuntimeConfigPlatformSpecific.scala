@@ -61,7 +61,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       supervisor = Supervisor.none,
       enableCurrentFiber = false,
       logger = ZLogger.defaultFormatter.map(println(_)).filterLogLevel(_ >= LogLevel.Info),
-      logRuntime = false
+      logRuntime = false,
+      superviseOperations = false
     )
 
   /**
