@@ -33,12 +33,14 @@ object StackTracesSpec extends ZIOBaseSpec {
           } yield f
 
         for {
-          _          <- ZIO.succeed(25)
-          value       = underlyingFailure
-          stackTrace <- matchPrettyPrintCause(value)
+          _     <- ZIO.succeed(25)
+          value  = underlyingFailure
+          trace <- matchPrettyPrintCause(value)
         } yield {
-          assertTrue(stackTrace.startsWith("Exception in thread")) &&
-          assertTrue(numberOfOccurrences("Suppressed")(stackTrace) == 2) &&
+          show(trace)
+
+          assertTrue(trace.startsWith("Exception in thread")) &&
+          assertTrue(numberOfOccurrences("Suppressed")(trace) == 2) &&
           assertTrue(
             includesAll(
               Seq(
@@ -47,7 +49,7 @@ object StackTracesSpec extends ZIOBaseSpec {
                 "Suppressed: java.lang.RuntimeException: deep failure",
                 "Suppressed: java.lang.RuntimeException: other failure"
               )
-            )(stackTrace)
+            )(trace)
           )
         }
       },
@@ -65,12 +67,14 @@ object StackTracesSpec extends ZIOBaseSpec {
           } yield f
 
         for {
-          _          <- ZIO.succeed(25)
-          value       = underlyingFailure
-          stackTrace <- matchPrettyPrintCause(value)
+          _     <- ZIO.succeed(25)
+          value  = underlyingFailure
+          trace <- matchPrettyPrintCause(value)
         } yield {
-          assertTrue(stackTrace.startsWith("Exception in thread")) &&
-          assertTrue(numberOfOccurrences("Suppressed")(stackTrace) == 1) &&
+          show(trace)
+
+          assertTrue(trace.startsWith("Exception in thread")) &&
+          assertTrue(numberOfOccurrences("Suppressed")(trace) == 1) &&
           assertTrue(
             includesAll(
               Seq(
@@ -78,7 +82,7 @@ object StackTracesSpec extends ZIOBaseSpec {
                 "java.lang.String: Oh no!",
                 "Suppressed: java.lang.RuntimeException: deep failure"
               )
-            )(stackTrace)
+            )(trace)
           )
         }
       },
@@ -90,21 +94,28 @@ object StackTracesSpec extends ZIOBaseSpec {
           } yield f
 
         for {
-          _          <- ZIO.succeed(25)
-          value       = underlyingFailure
-          stackTrace <- matchPrettyPrintCause(value)
+          _     <- ZIO.succeed(25)
+          value  = underlyingFailure
+          trace <- matchPrettyPrintCause(value)
         } yield {
-          assertTrue(stackTrace.startsWith("Exception in thread")) &&
-          assertTrue(numberOfOccurrences("Suppressed")(stackTrace) == 1) &&
+          show(trace)
+
+          assertTrue(trace.startsWith("Exception in thread")) &&
+          assertTrue(numberOfOccurrences("Suppressed")(trace) == 1) &&
           assertTrue(
             includesAll(
               Seq("zio-fiber", "java.lang.String: Oh no!", "Suppressed: java.lang.RuntimeException: other failure")
-            )(stackTrace)
+            )(trace)
           )
         }
       }
     )
   )
+
+  // set to true to print traces
+  private val debug = false
+
+  private def show(trace: String): Unit = if (debug) println(trace)
 
   private def includesAll(texts: Seq[String]): String => Boolean = stack => texts.map(stack.contains).forall(r => r)
 
