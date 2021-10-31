@@ -9,7 +9,7 @@ object SupervisorSpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Failure] = suite("SupervisorSpec")(
     suite("supervise resume / suspend")(
       testM("track resume and suspend (based on superviseOperations)") {
-        checkM(Gen.boolean) { superviseOperations =>
+        checkAllM(superviseOperationsGen) { case (_, superviseOperations) =>
           val supervisor = new RecordingSupervisor
           val runtime =
             Runtime.default.mapPlatform(_.withSuperviseOperations(superviseOperations).withSupervisor(supervisor))
@@ -18,24 +18,25 @@ object SupervisorSpec extends ZIOBaseSpec {
               fiber1 <- currentFiberId
               forked <- (currentFiberId <* ZIO.sleep(20.millis)).fork
               fiber2 <- forked.join
-            } yield {
-              val recorded = supervisor.logged
-              assertTrue(
-                recorded.toSet == (Set(
-                  s"unsafeOnResume($fiber1)",
-                  s"unsafeOnResume($fiber2)"
-                ).filter(_ => superviseOperations) ++
-                  Set(
-                    s"unsafeOnSuspend($fiber1)",
-                    s"unsafeOnSuspend($fiber2)"
-                  ))
-              )
-            }
+            } yield (fiber1, fiber2)
+          } map { case (fiber1, fiber2) =>
+            val recorded = supervisor.logged
+            assertTrue(
+              recorded.toSet == (Set(
+                s"unsafeOnResume($fiber1)",
+                s"unsafeOnResume($fiber2)"
+              ).filter(_ => superviseOperations) ++
+                Set(
+                  s"unsafeOnSuspend($fiber1)",
+                  s"unsafeOnSuspend($fiber2)"
+                ))
+            )
           }
         }
       },
       testM("combined supervisors are both notified on resume / suspend") {
-        checkM(combineSupervisorsGen) { combine =>
+        checkAllM(combineSupervisorsGen) { combine =>
+          println(s"combine: $combine")
           val supervisor1 = new RecordingSupervisor
           val supervisor2 = new RecordingSupervisor
           val runtime =
@@ -44,28 +45,31 @@ object SupervisorSpec extends ZIOBaseSpec {
                 .withSupervisor(combine.combine(supervisor1, supervisor2))
             )
           runIn(runtime) {
-            for {
-              fiber1 <- currentFiberId
-            } yield {
-              assertTrue(
-                supervisor1.logged.toSet == Set(s"unsafeOnSuspend($fiber1)", s"unsafeOnResume($fiber1)") &&
-                  supervisor2.logged.toSet == Set(s"unsafeOnSuspend($fiber1)", s"unsafeOnResume($fiber1)")
-              )
-            }
+            currentFiberId
+          } map { fiber1 =>
+            assertTrue(
+              supervisor1.logged.toSet == Set(s"unsafeOnSuspend($fiber1)", s"unsafeOnResume($fiber1)") &&
+                supervisor2.logged.toSet == Set(s"unsafeOnSuspend($fiber1)", s"unsafeOnResume($fiber1)")
+            )
           }
         }
       }
     )
   )
 
-  case class Combine(tag: String, combine: (Supervisor[Unit], Supervisor[Unit]) => Supervisor[_]) {
+  private case class Combine(tag: String, combine: (Supervisor[Unit], Supervisor[Unit]) => Supervisor[_]) {
     override def toString: String = tag
   }
 
-  private val combineSupervisorsGen = Gen.boolean.map { and =>
-    if (and) Combine("combining with &&", _ && _)
-    else Combine("combining with ||", _ || _)
-  }
+  private val combineSupervisorsGen = Gen.fromIterable(
+    Seq(
+      Combine("combining with &&", _ && _),
+      Combine("combining with ||", _ || _)
+    )
+  )
+
+  private val superviseOperationsGen =
+    Gen.fromIterable(Seq("superviseOperations" -> true, "superviseOperations" -> false))
 
   private def currentFiberId = Task(
     Fiber.unsafeCurrentFiber().fold("None")(_.asInstanceOf[Fiber.Runtime[_, _]].id.toString)
