@@ -2873,6 +2873,39 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(results)(equalTo(List(4, 3, 3, 1, 0)))
           }
         ),
+        suite("serviceWith")(
+          test("serviceWith") {
+            trait A {
+              def live: UIO[Int]
+            }
+
+            val ref: Chunk[Int] = Chunk(10)
+
+            ZStream
+              .serviceWith[A](_.live)
+              .provideCustomLayer(ZLayer.succeed(new A {
+                override def live: UIO[Int] = UIO(10)
+              }))
+              .runCollect
+              .map(result => assertTrue(result == ref))
+          },
+          test("serviceWithStream") {
+            trait A {
+              def live: ZStream[Any, Nothing, Int]
+            }
+
+            val numbers = 0 to 10
+
+            ZStream
+              .serviceWithStream[A](_.live)
+              .provideCustomLayer(ZLayer.succeed(new A {
+                override def live: ZStream[Any, Nothing, Int] =
+                  ZStream.fromIterable(numbers)
+              }))
+              .runCollect
+              .map(result => assertTrue(result == Chunk.fromIterable(numbers)))
+          }
+        ),
         test("some") {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.some.runCollect.either.map(assert(_)(isLeft(isNone)))
