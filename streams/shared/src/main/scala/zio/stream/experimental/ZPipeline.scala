@@ -1,3 +1,19 @@
+/*
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.stream.experimental
 
 import zio._
@@ -32,7 +48,8 @@ import zio._
  * of a sink). However, the companion object has lots of other pipeline
  * constructors based on the methods of stream.
  */
-trait ZPipeline[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem] { self =>
+trait ZPipeline[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem]
+    extends ZPipelineVersionSpecific[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem] { self =>
   type OutEnv[Env]
   type OutErr[Err]
   type OutElem[Elem]
@@ -44,7 +61,7 @@ trait ZPipeline[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperEl
   ): ZStream[OutEnv[Env], OutErr[Err], OutElem[Elem]]
 }
 
-object ZPipeline {
+object ZPipeline extends ZPipelineCompanionVersionSpecific {
 
   type WithOut[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem, OutEnv0[Env], OutErr0[Err], Out0[
     Elem
@@ -54,189 +71,6 @@ object ZPipeline {
       type OutErr[Err]   = OutErr0[Err]
       type OutElem[Elem] = Out0[Elem]
     }
-
-  implicit final class ZPipelineSyntax[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem, OutEnv[
-    Env
-  ], OutErr[Err], OutElem[Elem]](
-    private val self: ZPipeline.WithOut[
-      LowerEnv,
-      UpperEnv,
-      LowerErr,
-      UpperErr,
-      LowerElem,
-      UpperElem,
-      OutEnv,
-      OutErr,
-      OutElem
-    ]
-  ) extends AnyVal {
-
-    /**
-     * Composes two pipelines into one pipeline, by first applying the
-     * transformation of the specified pipeline, and then applying the
-     * transformation of this pipeline.
-     */
-    def <<<[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[Err], OutElem2[
-      In
-    ]](
-      that: ZPipeline.WithOut[
-        LowerEnv2,
-        UpperEnv2,
-        LowerErr2,
-        UpperErr2,
-        LowerElem2,
-        UpperElem2,
-        OutEnv2,
-        OutErr2,
-        OutElem2
-      ]
-    )(implicit
-      composeEnv: Compose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
-      composeErr: Compose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr],
-      composeElem: Compose[LowerElem2, UpperElem2, OutElem2, LowerElem, UpperElem, OutElem]
-    ): ZPipeline.WithOut[
-      composeEnv.Lower,
-      composeEnv.Upper,
-      composeErr.Lower,
-      composeErr.Upper,
-      composeElem.Lower,
-      composeElem.Upper,
-      composeEnv.Out,
-      composeErr.Out,
-      composeElem.Out
-    ] =
-      that >>> self
-
-    /**
-     * Composes two pipelines into one pipeline, by first applying the
-     * transformation of this pipeline, and then applying the transformation of
-     * the specified pipeline.
-     */
-    def >>>[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[Err], OutElem2[
-      In
-    ]](
-      that: ZPipeline.WithOut[
-        LowerEnv2,
-        UpperEnv2,
-        LowerErr2,
-        UpperErr2,
-        LowerElem2,
-        UpperElem2,
-        OutEnv2,
-        OutErr2,
-        OutElem2
-      ]
-    )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
-      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
-    ): ZPipeline.WithOut[
-      composeEnv.Lower,
-      composeEnv.Upper,
-      composeErr.Lower,
-      composeErr.Upper,
-      composeElem.Lower,
-      composeElem.Upper,
-      composeEnv.Out,
-      composeErr.Out,
-      composeElem.Out
-    ] =
-      new ZPipeline[
-        composeEnv.Lower,
-        composeEnv.Upper,
-        composeErr.Lower,
-        composeErr.Upper,
-        composeElem.Lower,
-        composeElem.Upper
-      ] {
-        type OutEnv[Env]   = composeEnv.Out[Env]
-        type OutErr[Err]   = composeErr.Out[Err]
-        type OutElem[Elem] = composeElem.Out[Elem]
-        def apply[
-          Env >: composeEnv.Lower <: composeEnv.Upper,
-          Err >: composeErr.Lower <: composeErr.Upper,
-          Elem >: composeElem.Lower <: composeElem.Upper
-        ](
-          stream: ZStream[Env, Err, Elem]
-        )(implicit trace: ZTraceElement): ZStream[OutEnv[Env], OutErr[Err], OutElem[Elem]] = {
-          val left  = self.asInstanceOf[ZPipeline[Nothing, Any, Nothing, Any, Nothing, Any]](stream)
-          val right = that.asInstanceOf[ZPipeline[Nothing, Any, Nothing, Any, Nothing, Any]](left)
-          right.asInstanceOf[ZStream[OutEnv[Env], OutErr[Err], OutElem[Elem]]]
-        }
-      }
-
-    /**
-     * A named version of the `>>>` operator.
-     */
-    def andThen[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[
-      Err
-    ], OutElem2[
-      In
-    ]](
-      that: ZPipeline.WithOut[
-        LowerEnv2,
-        UpperEnv2,
-        LowerErr2,
-        UpperErr2,
-        LowerElem2,
-        UpperElem2,
-        OutEnv2,
-        OutErr2,
-        OutElem2
-      ]
-    )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
-      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
-    ): ZPipeline.WithOut[
-      composeEnv.Lower,
-      composeEnv.Upper,
-      composeErr.Lower,
-      composeErr.Upper,
-      composeElem.Lower,
-      composeElem.Upper,
-      composeEnv.Out,
-      composeErr.Out,
-      composeElem.Out
-    ] =
-      self >>> that
-
-    /**
-     * A named version of the `<<<` operator.
-     */
-    def compose[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, LowerElem2, UpperElem2, OutEnv2[Env], OutErr2[
-      Err
-    ], OutElem2[
-      In
-    ]](
-      that: ZPipeline.WithOut[
-        LowerEnv2,
-        UpperEnv2,
-        LowerErr2,
-        UpperErr2,
-        LowerElem2,
-        UpperElem2,
-        OutEnv2,
-        OutErr2,
-        OutElem2
-      ]
-    )(implicit
-      composeEnv: Compose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
-      composeErr: Compose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr],
-      composeElem: Compose[LowerElem2, UpperElem2, OutElem2, LowerElem, UpperElem, OutElem]
-    ): ZPipeline.WithOut[
-      composeEnv.Lower,
-      composeEnv.Upper,
-      composeErr.Lower,
-      composeErr.Upper,
-      composeElem.Lower,
-      composeElem.Upper,
-      composeEnv.Out,
-      composeErr.Out,
-      composeElem.Out
-    ] =
-      self <<< that
-  }
 
   /**
    * Creates a pipeline that collects elements with the specified partial function.
@@ -529,176 +363,176 @@ object ZPipeline {
       ): ZStream[Env, Err, Elem] =
         stream.takeWhile(f)
     }
-}
 
-trait Compose[-LeftLower, -LeftUpper, LeftOut[In], -RightLower, -RightUpper, RightOut[In]] {
-  type Lower
-  type Upper
-  type Out[In]
-}
+  trait Compose[LeftLower, LeftUpper, LeftOut[In], RightLower, RightUpper, RightOut[In]] {
+    type Lower
+    type Upper
+    type Out[In]
+  }
 
-object Compose extends ComposeLowPriorityImplicits {
-  type WithOut[LeftLower, LeftUpper, LeftOut[In], RightLower, RightUpper, RightOut[In], Lower0, Upper0, Out0[In]] =
-    Compose[LeftLower, LeftUpper, LeftOut, RightLower, RightUpper, RightOut] {
-      type Lower   = Lower0
-      type Upper   = Upper0
-      type Out[In] = Out0[In]
-    }
+  object Compose extends ComposeLowPriorityImplicits {
+    type WithOut[LeftLower, LeftUpper, LeftOut[In], RightLower, RightUpper, RightOut[In], Lower0, Upper0, Out0[In]] =
+      Compose[LeftLower, LeftUpper, LeftOut, RightLower, RightUpper, RightOut] {
+        type Lower   = Lower0
+        type Upper   = Upper0
+        type Out[In] = Out0[In]
+      }
 
-  implicit def compose[
-    LeftLower,
-    LeftUpper,
-    LeftOut >: RightLower <: RightUpper,
-    RightLower,
-    RightUpper,
-    RightOut
-  ]: Compose.WithOut[
-    LeftLower,
-    LeftUpper,
-    ({ type Out[In] = LeftOut })#Out,
-    RightLower,
-    RightUpper,
-    ({ type Out[In] = RightOut })#Out,
-    LeftLower,
-    LeftUpper,
-    ({ type Out[In] = RightOut })#Out
-  ] =
-    new Compose[
+    implicit def compose[
+      LeftLower,
+      LeftUpper,
+      LeftOut >: RightLower <: RightUpper,
+      RightLower,
+      RightUpper,
+      RightOut
+    ]: Compose.WithOut[
       LeftLower,
       LeftUpper,
       ({ type Out[In] = LeftOut })#Out,
       RightLower,
       RightUpper,
+      ({ type Out[In] = RightOut })#Out,
+      LeftLower,
+      LeftUpper,
       ({ type Out[In] = RightOut })#Out
-    ] {
-      type Lower   = LeftLower
-      type Upper   = LeftUpper
-      type Out[In] = RightOut
-    }
-
-  implicit def identity[LeftLower <: RightLower, LeftUpper, RightLower, RightUpper]: Compose.WithOut[
-    LeftLower,
-    LeftUpper,
-    ({ type Out[In] = In })#Out,
-    RightLower,
-    RightUpper,
-    ({ type Out[In] = In })#Out,
-    RightLower,
-    LeftUpper with RightUpper,
-    ({ type Out[In] = In })#Out
-  ] =
-    new Compose[
-      LeftLower,
-      LeftUpper,
-      ({ type Out[In] = In })#Out,
-      RightLower,
-      RightUpper,
-      ({ type Out[In] = In })#Out
-    ] {
-      type Lower   = RightLower
-      type Upper   = LeftUpper with RightUpper
-      type Out[In] = In
-    }
-
-  implicit def leftIdentity[LeftLower <: RightLower, LeftUpper, RightLower, RightUpper, RightOut]: Compose.WithOut[
-    LeftLower,
-    LeftUpper,
-    ({ type Out[In] = In })#Out,
-    RightLower,
-    RightUpper,
-    ({ type Out[In] = RightOut })#Out,
-    RightLower,
-    LeftUpper with RightUpper,
-    ({ type Out[In] = RightOut })#Out
-  ] =
-    new Compose[
-      LeftLower,
-      LeftUpper,
-      ({ type Out[In] = In })#Out,
-      RightLower,
-      RightUpper,
-      ({ type Out[In] = RightOut })#Out
-    ] {
-      type Lower   = RightLower
-      type Upper   = LeftUpper with RightUpper
-      type Out[In] = RightOut
-    }
-
-  implicit def rightIdentity[LeftLower, LeftUpper, LeftOut >: RightLower <: RightUpper, RightLower, RightUpper]
-    : Compose.WithOut[
-      LeftLower,
-      LeftUpper,
-      ({ type Out[In] = LeftOut })#Out,
-      RightLower,
-      RightUpper,
-      ({ type Out[In] = In })#Out,
-      LeftLower,
-      LeftUpper,
-      ({ type Out[In] = LeftOut })#Out
     ] =
-    new Compose[
+      new Compose[
+        LeftLower,
+        LeftUpper,
+        ({ type Out[In] = LeftOut })#Out,
+        RightLower,
+        RightUpper,
+        ({ type Out[In] = RightOut })#Out
+      ] {
+        type Lower   = LeftLower
+        type Upper   = LeftUpper
+        type Out[In] = RightOut
+      }
+
+    implicit def identity[LeftLower <: RightLower, LeftUpper, RightLower, RightUpper]: Compose.WithOut[
       LeftLower,
       LeftUpper,
-      ({ type Out[In] = LeftOut })#Out,
+      ({ type Out[In] = In })#Out,
       RightLower,
       RightUpper,
-      ({ type Out[In] = In })#Out
-    ] {
-      type Lower   = LeftLower
-      type Upper   = LeftUpper
-      type Out[In] = LeftOut
-    }
-}
-
-trait ComposeLowPriorityImplicits {
-
-  implicit def identityLowPriority[LeftLowerElem, LeftUpperElem, RightLowerElem <: LeftLowerElem, RightUpperElem]
-    : Compose.WithOut[
-      LeftLowerElem,
-      LeftUpperElem,
       ({ type Out[In] = In })#Out,
-      RightLowerElem,
-      RightUpperElem,
-      ({ type Out[In] = In })#Out,
-      LeftLowerElem,
-      LeftUpperElem with RightUpperElem,
+      RightLower,
+      LeftUpper with RightUpper,
       ({ type Out[In] = In })#Out
     ] =
-    new Compose[
-      LeftLowerElem,
-      LeftUpperElem,
-      ({ type Out[In] = In })#Out,
-      RightLowerElem,
-      RightUpperElem,
-      ({ type Out[In] = In })#Out
-    ] {
-      type Lower   = LeftLowerElem
-      type Upper   = LeftUpperElem with RightUpperElem
-      type Out[In] = In
-    }
+      new Compose[
+        LeftLower,
+        LeftUpper,
+        ({ type Out[In] = In })#Out,
+        RightLower,
+        RightUpper,
+        ({ type Out[In] = In })#Out
+      ] {
+        type Lower   = RightLower
+        type Upper   = LeftUpper with RightUpper
+        type Out[In] = In
+      }
 
-  implicit def leftIdentityLowPriority[LeftLower, LeftUpper, RightLower <: LeftLower, RightUpper, RightOut]
-    : Compose.WithOut[
+    implicit def leftIdentity[LeftLower <: RightLower, LeftUpper, RightLower, RightUpper, RightOut]: Compose.WithOut[
       LeftLower,
       LeftUpper,
       ({ type Out[In] = In })#Out,
       RightLower,
       RightUpper,
       ({ type Out[In] = RightOut })#Out,
-      LeftLower,
+      RightLower,
       LeftUpper with RightUpper,
       ({ type Out[In] = RightOut })#Out
     ] =
-    new Compose[
-      LeftLower,
-      LeftUpper,
-      ({ type Out[In] = In })#Out,
-      RightLower,
-      RightUpper,
-      ({ type Out[In] = RightOut })#Out
-    ] {
-      type Lower   = LeftLower
-      type Upper   = LeftUpper with RightUpper
-      type Out[In] = RightOut
-    }
+      new Compose[
+        LeftLower,
+        LeftUpper,
+        ({ type Out[In] = In })#Out,
+        RightLower,
+        RightUpper,
+        ({ type Out[In] = RightOut })#Out
+      ] {
+        type Lower   = RightLower
+        type Upper   = LeftUpper with RightUpper
+        type Out[In] = RightOut
+      }
+
+    implicit def rightIdentity[LeftLower, LeftUpper, LeftOut >: RightLower <: RightUpper, RightLower, RightUpper]
+      : Compose.WithOut[
+        LeftLower,
+        LeftUpper,
+        ({ type Out[In] = LeftOut })#Out,
+        RightLower,
+        RightUpper,
+        ({ type Out[In] = In })#Out,
+        LeftLower,
+        LeftUpper,
+        ({ type Out[In] = LeftOut })#Out
+      ] =
+      new Compose[
+        LeftLower,
+        LeftUpper,
+        ({ type Out[In] = LeftOut })#Out,
+        RightLower,
+        RightUpper,
+        ({ type Out[In] = In })#Out
+      ] {
+        type Lower   = LeftLower
+        type Upper   = LeftUpper
+        type Out[In] = LeftOut
+      }
+  }
+
+  trait ComposeLowPriorityImplicits {
+
+    implicit def identityLowPriority[LeftLowerElem, LeftUpperElem, RightLowerElem <: LeftLowerElem, RightUpperElem]
+      : Compose.WithOut[
+        LeftLowerElem,
+        LeftUpperElem,
+        ({ type Out[In] = In })#Out,
+        RightLowerElem,
+        RightUpperElem,
+        ({ type Out[In] = In })#Out,
+        LeftLowerElem,
+        LeftUpperElem with RightUpperElem,
+        ({ type Out[In] = In })#Out
+      ] =
+      new Compose[
+        LeftLowerElem,
+        LeftUpperElem,
+        ({ type Out[In] = In })#Out,
+        RightLowerElem,
+        RightUpperElem,
+        ({ type Out[In] = In })#Out
+      ] {
+        type Lower   = LeftLowerElem
+        type Upper   = LeftUpperElem with RightUpperElem
+        type Out[In] = In
+      }
+
+    implicit def leftIdentityLowPriority[LeftLower, LeftUpper, RightLower <: LeftLower, RightUpper, RightOut]
+      : Compose.WithOut[
+        LeftLower,
+        LeftUpper,
+        ({ type Out[In] = In })#Out,
+        RightLower,
+        RightUpper,
+        ({ type Out[In] = RightOut })#Out,
+        LeftLower,
+        LeftUpper with RightUpper,
+        ({ type Out[In] = RightOut })#Out
+      ] =
+      new Compose[
+        LeftLower,
+        LeftUpper,
+        ({ type Out[In] = In })#Out,
+        RightLower,
+        RightUpper,
+        ({ type Out[In] = RightOut })#Out
+      ] {
+        type Lower   = LeftLower
+        type Upper   = LeftUpper with RightUpper
+        type Out[In] = RightOut
+      }
+  }
 }
