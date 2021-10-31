@@ -100,7 +100,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
     Chunk.BitChunk(self.map(ev), 0, length << 3)
 
-  /** Converts a chunk of longs to a chunk of bits using the specified endianness */
+  /**
+   * Converts a chunk of longs to a chunk of bits using the specified endianness.
+   */
   final def longsAsBits(endian: ByteOrder)(implicit ev: A <:< Long): Chunk[Boolean] = {
     val byteChunk: Chunk[Byte] = self
       .map(ev)
@@ -115,7 +117,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     Chunk.BitChunk(byteChunk, 0, length << 6)
   }
 
-  /** Converts a chunk of ints to a chunk of bits using the specified endianness */
+  /**
+   * Converts a chunk of ints to a chunk of bits using the specified endianness.
+   */
   final def intsAsBits(endian: ByteOrder)(implicit ev: A <:< Int): Chunk[Boolean] = {
     val byteChunk: Chunk[Byte] = self
       .map(ev)
