@@ -50,6 +50,36 @@ object StackTracesSpec extends ZIOBaseSpec {
           )
         }
       },
+      test("captures a deep embedded failure without suppressing the underlying cause") {
+        val deepUnderlyingFailure =
+          for {
+            _ <- ZIO.succeed(5)
+            f <- ZIO.fail("Oh no!").ensuring(ZIO.dieMessage("deep failure"))
+          } yield f
+
+        val underlyingFailure =
+          for {
+            _ <- ZIO.succeed(15)
+            f <- deepUnderlyingFailure
+          } yield f
+
+        for {
+          _          <- ZIO.succeed(25)
+          value       = underlyingFailure
+          stackTrace <- matchPrettyPrintCause(value)
+        } yield {
+          assertTrue(stackTrace.startsWith("Exception in thread")) &&
+            assertTrue(
+              includesAll(
+                Seq(
+                  "zio-fiber",
+                  "java.lang.String: Oh no!",
+                  "Suppressed: java.lang.RuntimeException: deep failure"
+                )
+              )(stackTrace)
+            )
+        }
+      },
       test("captures the embedded failure") {
         val underlyingFailure =
           for {

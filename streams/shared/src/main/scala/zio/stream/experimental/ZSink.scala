@@ -1162,16 +1162,35 @@ object ZSink {
   /**
    * A sink that executes the provided effectful function for every element fed to it.
    */
-  def foreach[R, Err, In](f: In => ZIO[R, Err, Any])(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, Unit] =
-    foreachWhile(f(_).as(true))
+  def foreach[R, Err, In](
+    f: In => ZIO[R, Err, Any]
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, Nothing, Unit] = {
+
+    lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
+      ZChannel.readWithCause[R, Err, Chunk[In], Any, Err, Nothing, Unit](
+        in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(f(_))) *> process,
+        halt => ZChannel.failCause(halt),
+        _ => ZChannel.end(())
+      )
+
+    new ZSink(process)
+  }
 
   /**
    * A sink that executes the provided effectful function for every chunk fed to it.
    */
   def foreachChunk[R, Err, In](
     f: Chunk[In] => ZIO[R, Err, Any]
-  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, In, Unit] =
-    foreachChunkWhile(f(_).as(true))
+  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Err, Nothing, Unit] = {
+    lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
+      ZChannel.readWithCause(
+        in => ZChannel.fromZIO(f(in)) *> process,
+        halt => ZChannel.failCause(halt),
+        _ => ZChannel.end(())
+      )
+
+    new ZSink(process)
+  }
 
   /**
    * A sink that executes the provided effectful function for every element fed to it
@@ -1237,6 +1256,40 @@ object ZSink {
    */
   def fromZIO[R, E, Z](b: => ZIO[R, E, Z])(implicit trace: ZTraceElement): ZSink[R, Any, Any, E, Nothing, Z] =
     new ZSink(ZChannel.fromZIO(b))
+
+  /**
+   * Create a sink which enqueues each element into the specified queue.
+   */
+  def fromQueue[R, E, I](queue: ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, E, Nothing, Unit] =
+    foreachChunk(queue.offerAll)
+
+  /**
+   * Create a sink which enqueues each element into the specified queue.
+   * The queue will be shutdown once the stream is closed.
+   */
+  def fromQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, I, E, Nothing, Unit] =
+    ZSink.unwrapManaged(
+      ZManaged.acquireReleaseWith(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I])
+    )
+
+  /**
+   * Create a sink which publishes each element to the specified hub.
+   */
+  def fromHub[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, I, E, Nothing, Unit] =
+    fromQueue(hub.toQueue)
+
+  /**
+   * Create a sink which publishes each element to the specified hub.
+   * The hub will be shutdown once the stream is closed.
+   */
+  def fromHubWithShutdown[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, I, E, Nothing, Unit] =
+    fromQueueWithShutdown(hub.toQueue)
 
   /**
    * Creates a sink halting with a specified cause.

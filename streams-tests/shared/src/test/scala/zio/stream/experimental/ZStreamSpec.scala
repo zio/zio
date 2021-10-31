@@ -8,7 +8,7 @@ import zio.test.TestAspect.{exceptJS, flaky, ignore, nonFlaky, scala2Only, timeo
 import zio.test._
 import zio.test.environment.TestClock
 
-import java.io.IOException
+import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
@@ -1602,25 +1602,53 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         suite("foreach")(
-          test("foreach") {
-            for {
-              ref <- Ref.make(0)
-              _   <- ZStream(1, 1, 1, 1, 1).foreach[Any, Nothing](a => ref.update(_ + a))
-              sum <- ref.get
-            } yield assert(sum)(equalTo(5))
-          },
-          test("foreachWhile") {
-            for {
-              ref <- Ref.make(0)
-              _ <- ZStream(1, 1, 1, 1, 1, 1).runForeachWhile[Any, Nothing](a =>
-                     ref.modify(sum =>
-                       if (sum >= 3) (false, sum)
-                       else (true, sum + a)
+          suite("foreach")(
+            test("with small data set") {
+              for {
+                ref <- Ref.make(0)
+                _   <- ZStream(1, 1, 1, 1, 1).foreach[Any, Nothing](a => ref.update(_ + a))
+                sum <- ref.get
+              } yield assert(sum)(equalTo(5))
+            },
+            test("with bigger data set") {
+              for {
+                ref <- Ref.make(0L)
+                _ <-
+                  ZStream.fromIterable(List.fill(1000)(1L)).foreach[Any, Nothing](a => ref.update(_ + a))
+                sum <- ref.get
+              } yield assert(sum)(equalTo(1000L))
+            }
+          ),
+          suite("foreachWhile")(
+            test("with small data set") {
+              val expected = 3
+              for {
+                ref <- Ref.make(0)
+                _ <- ZStream(1, 1, 1, 1, 1, 1).runForeachWhile[Any, Nothing](a =>
+                       ref.modify(sum =>
+                         if (sum >= expected) (false, sum)
+                         else (true, sum + a)
+                       )
                      )
-                   )
-              sum <- ref.get
-            } yield assert(sum)(equalTo(3))
-          },
+                sum <- ref.get
+              } yield assert(sum)(equalTo(expected))
+            },
+            test("with bigger data set") {
+              val expected = 500L
+              for {
+                ref <- Ref.make(0L)
+                _ <- ZStream
+                       .fromIterable[Long](List.fill(1000)(1L))
+                       .runForeachWhile[Any, Nothing](a =>
+                         ref.modify(sum =>
+                           if (sum >= expected) (false, sum)
+                           else (true, sum + a)
+                         )
+                       )
+                sum <- ref.get
+              } yield assert(sum)(equalTo(expected))
+            }
+          ),
           test("foreachWhile short circuits") {
             for {
               flag <- Ref.make(true)
@@ -2699,6 +2727,67 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk("A", "A", "B")))
           )
         ),
+        suite("retry")(
+          test("retry a failing stream") {
+            assertM(
+              for {
+                ref     <- Ref.make(0)
+                stream   = ZStream.fromZIO(ref.getAndUpdate(_ + 1)) ++ ZStream.fail(None)
+                results <- stream.retry(Schedule.forever).take(2).runCollect
+              } yield results
+            )(equalTo(Chunk(0, 1)))
+          },
+          test("cleanup resources before restarting the stream") {
+            assertM(
+              for {
+                finalized <- Ref.make(0)
+                stream = ZStream.unwrapManaged(
+                           ZManaged
+                             .finalizer(finalized.getAndUpdate(_ + 1))
+                             .as(ZStream.fromZIO(finalized.get) ++ ZStream.fail(None))
+                         )
+                results <- stream.retry(Schedule.forever).take(2).runCollect
+              } yield results
+            )(equalTo(Chunk(0, 1)))
+          },
+          test("retry a failing stream according to a schedule") {
+            for {
+              times <- Ref.make(List.empty[java.time.Instant])
+              stream =
+                ZStream
+                  .fromZIO(Clock.instant.flatMap(time => times.update(time +: _)))
+                  .flatMap(_ => ZStream.fail(None))
+              streamFib <- stream.retry(Schedule.exponential(1.second)).take(3).runDrain.fork
+              _         <- TestClock.adjust(1.second)
+              _         <- TestClock.adjust(2.second)
+              _         <- streamFib.interrupt
+              results   <- times.get.map(_.map(_.getEpochSecond.toInt))
+            } yield assert(results)(equalTo(List(3, 1, 0)))
+          },
+          test("reset the schedule after a successful pull") {
+            for {
+              times <- Ref.make(List.empty[java.time.Instant])
+              ref   <- Ref.make(0)
+              stream =
+                ZStream
+                  .fromZIO(Clock.instant.flatMap(time => times.update(time +: _) *> ref.updateAndGet(_ + 1)))
+                  .flatMap { attemptNr =>
+                    if (attemptNr == 3 || attemptNr == 5) ZStream.succeed(attemptNr) else ZStream.fail(None)
+                  }
+                  .forever
+              streamFib <- stream
+                             .retry(Schedule.exponential(1.second))
+                             .take(2)
+                             .runDrain
+                             .fork
+              _       <- TestClock.adjust(1.second)
+              _       <- TestClock.adjust(2.second)
+              _       <- TestClock.adjust(1.second)
+              _       <- streamFib.join
+              results <- times.get.map(_.map(_.getEpochSecond.toInt))
+            } yield assert(results)(equalTo(List(4, 3, 3, 1, 0)))
+          }
+        ),
         test("some") {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.some.runCollect.either.map(assert(_)(isLeft(isNone)))
@@ -3070,7 +3159,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               error <- ZStream
                          .fail("OriginalError")
-                         .timeoutFail("TimeoutError")(15.minutes)
+                         .timeoutFail("TimeoutFail")(15.minutes)
                          .runDrain
                          .flip
             } yield assertTrue(error == "OriginalError")
@@ -4059,6 +4148,20 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("do not emit any element") {
             val fa: ZIO[Any, Option[Int], Int] = ZIO.fail(None)
             assertM(ZStream.fromZIOOption(fa).runCollect)(equalTo(Chunk()))
+          }
+        ),
+        suite("fromInputStream")(
+          test("example 1") {
+            val chunkSize = ZStream.DefaultChunkSize
+            val data      = Array.tabulate[Byte](chunkSize * 5 / 2)(_.toByte)
+            def is        = new ByteArrayInputStream(data)
+            ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
+          },
+          test("example 2") {
+            check(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
+              val is = new ByteArrayInputStream(bytes.toArray)
+              ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
+            }
           }
         ),
         test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
