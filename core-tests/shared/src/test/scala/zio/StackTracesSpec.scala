@@ -38,6 +38,7 @@ object StackTracesSpec extends ZIOBaseSpec {
           stackTrace <- matchPrettyPrintCause(value)
         } yield {
           assertTrue(stackTrace.startsWith("Exception in thread")) &&
+          assertTrue(numberOfOccurrences("Suppressed")(stackTrace) == 2) &&
           assertTrue(
             includesAll(
               Seq(
@@ -69,6 +70,7 @@ object StackTracesSpec extends ZIOBaseSpec {
           stackTrace <- matchPrettyPrintCause(value)
         } yield {
           assertTrue(stackTrace.startsWith("Exception in thread")) &&
+          assertTrue(numberOfOccurrences("Suppressed")(stackTrace) == 1) &&
           assertTrue(
             includesAll(
               Seq(
@@ -93,6 +95,7 @@ object StackTracesSpec extends ZIOBaseSpec {
           stackTrace <- matchPrettyPrintCause(value)
         } yield {
           assertTrue(stackTrace.startsWith("Exception in thread")) &&
+          assertTrue(numberOfOccurrences("Suppressed")(stackTrace) == 1) &&
           assertTrue(
             includesAll(
               Seq("zio-fiber", "java.lang.String: Oh no!", "Suppressed: java.lang.RuntimeException: other failure")
@@ -104,6 +107,9 @@ object StackTracesSpec extends ZIOBaseSpec {
   )
 
   private def includesAll(texts: Seq[String]): String => Boolean = stack => texts.map(stack.contains).forall(r => r)
+
+  private def numberOfOccurrences(text: String): String => Int = stack =>
+    (stack.length - stack.replace(text, "").length) / text.length
 
   private def excludesAll(texts: Seq[String]): String => Boolean = stack => texts.map(stack.contains).forall(!_)
 
