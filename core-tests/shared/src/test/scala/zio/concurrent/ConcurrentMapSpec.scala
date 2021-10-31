@@ -176,11 +176,11 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
       suite("putAll")(
         testM("associates all non-existent keys with given value") {
           for {
-            map    <- ConcurrentMap.empty[Int, String]
-            putRes <- map.putAll((1, "A"), (2, "B"), (3, "C"))
-            resA   <- map.get(1)
-            resB   <- map.get(2)
-            resC   <- map.get(3)
+            map  <- ConcurrentMap.empty[Int, String]
+            _    <- map.putAll((1, "A"), (2, "B"), (3, "C"))
+            resA <- map.get(1)
+            resB <- map.get(2)
+            resC <- map.get(3)
           } yield assertTrue(
             resA.get == "A",
             resB.get == "B",
