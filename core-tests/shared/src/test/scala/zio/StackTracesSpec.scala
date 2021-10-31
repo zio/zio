@@ -37,8 +37,6 @@ object StackTracesSpec extends ZIOBaseSpec {
           value  = underlyingFailure
           trace <- matchPrettyPrintCause(value)
         } yield {
-          show(trace)
-
           assertTrue(trace.startsWith("Exception in thread")) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 2) &&
           assertTrue(
@@ -71,8 +69,6 @@ object StackTracesSpec extends ZIOBaseSpec {
           value  = underlyingFailure
           trace <- matchPrettyPrintCause(value)
         } yield {
-          show(trace)
-
           assertTrue(trace.startsWith("Exception in thread")) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 1) &&
           assertTrue(
@@ -98,8 +94,6 @@ object StackTracesSpec extends ZIOBaseSpec {
           value  = underlyingFailure
           trace <- matchPrettyPrintCause(value)
         } yield {
-          show(trace)
-
           assertTrue(trace.startsWith("Exception in thread")) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 1) &&
           assertTrue(
@@ -115,7 +109,7 @@ object StackTracesSpec extends ZIOBaseSpec {
   // set to true to print traces
   private val debug = false
 
-  private def show(trace: => String): Unit = if (debug) println(trace)
+  private def show(trace: => Cause[Any]): Unit = if (debug) println(trace.prettyPrint)
 
   private def includesAll(texts: Seq[String]): String => Boolean = stack => texts.map(stack.contains).forall(r => r)
 
@@ -129,7 +123,7 @@ object StackTracesSpec extends ZIOBaseSpec {
   private val matchPrettyPrintCause: ZIO[Any, String, Nothing] => ZIO[Any, Throwable, String] = {
     case fail: IO[String, Nothing] =>
       fail.catchAllCause {
-        case c: Cause[String] => ZIO(c.prettyPrint)
+        case c: Cause[String] => show(c); ZIO(c.prettyPrint)
         case _                => UnsupportedTestPath
       }
     case _ => UnsupportedTestPath
