@@ -42,12 +42,12 @@ abstract class BaseTestTask(
       zEnvLayerThatIsNotBeingRecognizedByScala3 >>> TestEnvironment.live
 
     val layer: Layer[Error, spec.Environment] =
-      (argsLayer ++ filledTestLayer) >>> spec.layer.mapError(e => new Error(e.toString))
+      (argsLayer +!+ filledTestLayer) >>> spec.layer.mapError(e => new Error(e.toString))
 
     val fullLayer: Layer[Error, spec.Environment with Has[ZIOAppArgs] with TestEnvironment with zio.Has[
       zio.Clock
     ] with zio.Has[zio.Console] with zio.Has[zio.System] with zio.Has[zio.Random]] =
-      layer ++ argsLayer ++ filledTestLayer ++ zEnvLayerThatIsNotBeingRecognizedByScala3
+      layer +!+ argsLayer +!+ filledTestLayer +!+ zEnvLayerThatIsNotBeingRecognizedByScala3
 
     for {
       spec <- spec
