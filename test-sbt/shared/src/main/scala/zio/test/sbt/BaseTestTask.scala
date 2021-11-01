@@ -2,7 +2,7 @@ package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
 import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger, ZIOSpecAbstract}
-import zio.{Chunk, Clock, Has, Layer, Runtime, UIO, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{Chunk, Clock, Has, Layer, Runtime, UIO, ULayer, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.environment.TestEnvironment
 
 abstract class BaseTestTask(
@@ -27,20 +27,38 @@ abstract class BaseTestTask(
 
   protected def run(
     eventHandler: EventHandler,
-    spec: ZIOSpecAbstract,
-    loggers: Array[Logger]
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    (for {
+    spec: ZIOSpecAbstract
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
+    val argsLayer: ULayer[Has[ZIOAppArgs]] =
+      ZLayer.succeed(
+        ZIOAppArgs(Chunk.empty)
+      )
+
+    val zEnvLayerThatIsNotBeingRecognizedByScala3 // Only here to make types more explicit
+      : Layer[Nothing, zio.Has[zio.Clock] with zio.Has[zio.Console] with zio.Has[zio.System] with zio.Has[zio.Random]] =
+      zio.ZEnv.live
+
+    val filledTestLayer: Layer[Nothing, TestEnvironment] =
+      zEnvLayerThatIsNotBeingRecognizedByScala3 >>> TestEnvironment.live
+
+    val layer: Layer[Error, spec.Environment] =
+      (argsLayer ++ filledTestLayer) >>> spec.layer.mapError(e => new Error(e.toString))
+
+    val fullLayer: Layer[Error, spec.Environment with Has[ZIOAppArgs] with TestEnvironment with zio.Has[
+      zio.Clock
+    ] with zio.Has[zio.Console] with zio.Has[zio.System] with zio.Has[zio.Random]] =
+      layer ++ argsLayer ++ filledTestLayer ++ zEnvLayerThatIsNotBeingRecognizedByScala3
+
+    for {
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args)
                 .provideLayer(
-                  spec.layer.mapError(e => new Error(e.toString)) >+> ZLayer.succeed(
-                    ZIOAppArgs(Chunk.empty)
-                  ) >+> zio.ZEnv.live >+> sbtTestLayer(loggers) >+> TestEnvironment.live
+                  zEnvLayerThatIsNotBeingRecognizedByScala3 >>> fullLayer
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
-    } yield ()).provideLayer(ZLayer.succeed(ZIOAppArgs(Chunk.empty)) >+> zio.ZEnv.live)
+    } yield ()
+  }
 
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, Has[TestLogger] with Has[Clock]] =
     ZLayer.succeed[TestLogger](new TestLogger {
@@ -53,7 +71,7 @@ abstract class BaseTestTask(
       spec match {
         case NewSpecWrapper(zioSpec) =>
           Runtime((), zioSpec.runtime.runtimeConfig).unsafeRun {
-            run(eventHandler, zioSpec, loggers)
+            run(eventHandler, zioSpec)
               .onError(e => UIO(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>
