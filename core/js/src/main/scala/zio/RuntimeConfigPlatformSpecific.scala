@@ -60,7 +60,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     val logger: ZLogger[Unit] =
       (
         trace: ZTraceElement,
-        fiberId: FiberId,
+        fiberId: FiberId.Runtime,
         level: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -92,6 +92,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val enableLogRuntime = false
 
+    val enableSuperviseOperations = false
+
     RuntimeConfig(
       blockingExecutor,
       executor,
@@ -100,7 +102,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       supervisor,
       enableCurrentFiber,
       logger.filterLogLevel(_ >= LogLevel.Info),
-      enableLogRuntime
+      enableLogRuntime,
+      enableSuperviseOperations
     )
   }
 

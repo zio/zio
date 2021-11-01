@@ -39,6 +39,8 @@ private[zio] trait SetCount {
    * set count.
    */
   def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]]
+
+  private[zio] def unsafeObserve(word: String): Unit
 }
 
 private[zio] object SetCount {

@@ -30,7 +30,8 @@ final case class RuntimeConfig(
   supervisor: Supervisor[Any],
   enableCurrentFiber: Boolean,
   logger: ZLogger[Any],
-  logRuntime: Boolean
+  logRuntime: Boolean,
+  superviseOperations: Boolean
 ) { self =>
   def @@(aspect: RuntimeConfigAspect): RuntimeConfig = aspect(self)
 

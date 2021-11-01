@@ -26,7 +26,7 @@ object Tracer {
   private[internal] def createTrace(location: String, file: String, line: Int, column: Int): String =
     s"$location($file:$line:$column)".intern
 
-  private val regex = """(.*?)\((.*?):(.*?):(.*?)\)""".r
+  private val regex = """(.*?)\((.*?):([^:]*?):([^:]*?)\)""".r
 }
 
 sealed trait Tracer {

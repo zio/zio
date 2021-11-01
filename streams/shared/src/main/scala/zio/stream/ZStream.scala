@@ -3431,7 +3431,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
     d: Duration
   )(that: ZStream[R1, E1, O2])(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, O2] = {
     object StreamTimeout extends Throwable
-    self.timeoutErrorCause(Cause.die(StreamTimeout))(d).catchSomeCause { case Cause.Die(StreamTimeout) => that }
+    self.timeoutErrorCause(Cause.die(StreamTimeout))(d).catchSomeCause { case Cause.Die(StreamTimeout, _) => that }
   }
 
   /**
