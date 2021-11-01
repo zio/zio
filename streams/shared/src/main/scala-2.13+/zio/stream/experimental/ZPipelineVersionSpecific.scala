@@ -16,4 +16,6 @@
 
 package zio.stream.experimental
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 trait ZPipelineVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem]

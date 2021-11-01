@@ -16,6 +16,6 @@
 
 package zio.stream.experimental
 
-import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait ZPipelineCompanionVersionSpecific
