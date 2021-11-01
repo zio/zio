@@ -1,7 +1,7 @@
 package zio.internal
 
 import zio.test.Assertion.equalTo
-import zio.test.{Gen, Sized, ZSpec, assert, checkAll}
+import zio.test._
 import zio.{Has, Random, ZIOBaseSpec}
 
 object StackSpec extends ZIOBaseSpec {
@@ -37,6 +37,26 @@ object StackSpec extends ZIOBaseSpec {
           result && assert(peeked)(equalTo(popped))
         }
       }
+    },
+    test("concurrent reads") {
+      import zio._
+
+      def makeWriter(stack: Stack[String], upRef: Ref[scala.Boolean]) =
+        for {
+          up <- upRef.get
+          _ <- if (stack.size >= 100) upRef.set(false)
+               else if (stack.size <= 50) upRef.set(true)
+               else if (up) ZIO.succeed(stack.push("1"))
+               else ZIO.succeed(stack.pop())
+        } yield ()
+
+      for {
+        stack   <- ZIO.succeed(Stack[String]())
+        up      <- Ref.make(true)
+        fiber   <- makeWriter(stack, up).forever.fork
+        readers <- ZIO.forkAll(List.fill(10)(ZIO.succeed(stack.toList.forall(_ != null)).repeatN(100)))
+        noNulls <- readers.join.map(_.forall(identity(_))) <* fiber.interrupt
+      } yield assertTrue(noNulls)
     }
   )
 

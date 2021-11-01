@@ -35,29 +35,61 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
 
   def iterator: Iterator[A] =
     new Iterator[A] {
-      var currentArray   = self.array
-      var currentIndex   = getUsed - 1
-      var iterated       = 0
-      var currentNesting = self.getNesting
+      var currentArray = self.array
+      var currentIndex = findNonNull(currentArray)
+      var _next        = computeNext()
 
-      def hasNext: Boolean = iterated < self.size
+      private def isMoreChunks(): Boolean = (currentArray ne null) && currentArray(0).isInstanceOf[Array[_]]
 
-      def next(): A =
+      def hasNext: Boolean = _next ne null
+
+      def next(): A = {
         if (!hasNext) throw new NoSuchElementException("There are no elements to iterate")
+
+        val value = _next
+
+        var result = null.asInstanceOf[A]
+
+        while (result == null && currentIndex >= 0) {
+          result = computeNext()
+        }
+
+        _next = result
+
+        value
+      }
+
+      private def computeNext(): A =
+        if (currentIndex < 0) null.asInstanceOf[A]
         else {
-          if (currentIndex == 0 && currentNesting > 0) {
+          if (currentIndex == 0 && isMoreChunks()) {
             currentArray = currentArray(0).asInstanceOf[Array[AnyRef]]
             currentIndex = 12
-            currentNesting = currentNesting - 1
           }
 
-          val a = currentArray(currentIndex).asInstanceOf[A]
+          val value = currentArray(currentIndex).asInstanceOf[A]
 
-          iterated = iterated + 1
           currentIndex = currentIndex - 1
 
-          a
+          value
         }
+
+      private def findNonNull[A <: AnyRef](array: Array[A]): Int = {
+        var index = -1
+
+        var i = array.length - 1
+
+        while (i >= 0) {
+          if (array(i) ne null) {
+            index = i
+            i = -1 // Terminate loop
+          } else {
+            i = i - 1
+          }
+        }
+
+        index
+      }
     }
 
   /**
