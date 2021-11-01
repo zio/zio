@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
+import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpecAbstract, sbt}
 import zio.{Chunk, Exit, Runtime, UIO, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
@@ -129,23 +129,20 @@ object ZTestTask {
   def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
-    try {
-      val res = Reflect
+    val module =
+      Reflect
         .lookupLoadableModuleClass(fqn, testClassLoader)
         .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
         .loadModule()
-        .asInstanceOf[ZIOSpec[_]]
-      sbt.NewSpecWrapper(res)
-    } catch {
-      case _: ClassCastException =>
+    module match {
+      case specAbstract: ZIOSpecAbstract => sbt.NewSpecWrapper(specAbstract)
+      case _ =>
         sbt.LegacySpecWrapper(
-          Reflect
-            .lookupLoadableModuleClass(fqn, testClassLoader)
-            .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
-            .loadModule()
+          module
             .asInstanceOf[AbstractRunnableSpec]
         )
     }
+
   }
 }
 

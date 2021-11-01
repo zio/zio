@@ -37,14 +37,17 @@ abstract class BaseTestTask(
         ZIOAppArgs(Chunk.empty)
       ) >+> zio.ZEnv.live >+> zio.Console.live >+> sbtTestLayer(loggers) >+> TestEnvironment.live >+> spec.layer
         .mapError(e => new Error(e.toString))
-    for {
+    (for {
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args)
                 .provideLayer(layer)
-                .provideLayer(zio.Console.live ++ ZLayer.succeed(ZIOAppArgs(Chunk.empty)))
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
-    } yield ()
+    } yield ()).provideLayer(
+      ZLayer.succeed(
+        ZIOAppArgs(Chunk.empty)
+      )
+    )
   }
 
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, Has[TestLogger] with Has[Clock]] =
