@@ -261,7 +261,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
               left.flatMap(l => right.map(r => l ++ r)) :: causes
             case (acc, Left(Stackless(stackless))) =>
               val cause :: causes = acc
-              cause.map[Cause[E1]](Cause.Stackless(_, stackless)) :: causes
+              cause.map(Cause.Stackless(_, stackless): Cause[E1]) :: causes
           }
       }
     loop(List(self), List.empty).head
