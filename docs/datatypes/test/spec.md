@@ -33,3 +33,33 @@ We can think of a spec as just a collection of tests. It is essentially a recurs
     )
   ```
   
+## Operations
+
+In ZIO Test, specs are just values like other data types in ZIO. So we can filter, map or manipulate these data types. In this section, we are going to learn some of the most important operations on the `Spec` data type:
+
+### Test Aspects
+
+We can think of a test aspect as a polymorphic function from one test to another test. Well, we have a nice `@@` syntax for applying test aspects:
+
+```scala
+test @@ testAspect
+```
+
+#### Timing Out
+
+We can easily time out a long-running test:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test._
+import zio.test.test
+import zio.test.TestAspect._
+
+test("effects can be safely interrupted") {
+  for {
+    r <- ZIO.attempt(println("Still going ...")).forever
+  } yield assert(r)(Assertion.isSuccess)
+} @@ timeout(1.second)
+```
+
+By applying a `timeout(1.second)` test aspect, this will work with ZIO's interruption mechanism. So when we run this test, you can see a tone of print lines, and after a second, the `timeout` aspect will interrupt that.
