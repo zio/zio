@@ -17,7 +17,6 @@
 package zio.stream.experimental
 
 import zio._
-import zio.internal.stacktracer.Tracer
 
 /**
  * A `ZPipeline` is a polymorphic stream transformer. Pipelines
