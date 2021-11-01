@@ -72,7 +72,7 @@ test("effects can be safely interrupted") {
 
 By applying a `timeout(1.second)` test aspect, this will work with ZIO's interruption mechanism. So when we run this test, you can see a tone of print lines, and after a second, the `timeout` aspect will interrupt that.
 
-### Non Flaky
+#### Non Flaky
 
 Whenever we deal with concurrency issues or race conditions, we should ensure that our tests pass consistently. The `nonFlaky` is a test aspect to do that. 
 
@@ -86,7 +86,7 @@ test("random value is always greater than zero") {
 } @@ nonFlaky
 ```
 
-### Platform-specific Tests
+#### Platform-specific Tests
 
 Sometimes we have platform-specific tests. Instead of creating separate sources for each platform to test those tests, we can use a proper aspect to run those tests on a specific platform. 
 
