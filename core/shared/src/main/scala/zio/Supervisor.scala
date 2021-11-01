@@ -271,7 +271,7 @@ object Supervisor {
 
     override def setEither(a: A): Either[Nothing, A] = Right(a)
 
-    override val value: Runtime[S] = fiberRef
+    override val value: FiberRef.Runtime[A] = fiberRef
 
     override def locally[R, EC >: Nothing, C](
       value: A
