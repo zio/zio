@@ -74,6 +74,39 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
 
   type Identity[A] = A
 
+  def branchAfter[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem, OutElem0[Elem]](n: Int)(
+    f: Chunk[UpperElem] => ZPipeline.WithOut[
+      LowerEnv,
+      UpperEnv,
+      LowerErr,
+      UpperErr,
+      LowerElem,
+      UpperElem,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr,
+      ({ type OutElem[Elem] = Elem })#OutElem
+    ]
+  ): ZPipeline.WithOut[
+    LowerEnv,
+    UpperEnv,
+    LowerErr,
+    UpperErr,
+    LowerElem,
+    UpperElem,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Elem })#OutElem
+  ] =
+    new ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = Err
+      type OutElem[Elem] = Elem
+      def apply[Env >: LowerEnv <: UpperEnv, Err >: LowerErr <: UpperErr, Elem >: LowerElem <: UpperElem](
+        stream: ZStream[Env, Err, Elem]
+      )(implicit trace: ZTraceElement): ZStream[Env, Err, Elem] =
+        stream.branchAfter(n)(f)
+    }
+
   /**
    * Creates a pipeline that collects elements with the specified partial function.
    *
