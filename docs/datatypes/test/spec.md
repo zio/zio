@@ -53,6 +53,14 @@ suite("suite of multiple tests") {
 } @@ testAspect
 ```
 
+The great thing about test aspects is that they are very composable. So we chain them one after another. We can even have test aspects that modify other test aspects.
+
+So let's say we have a challenge that we need to run a test, and we want to make sure there is no flaky on the JVM, and then we want to make sure it doesn't take more than 60 seconds:
+
+```scala
+test @@ jvm(nonFlaky) @@ timeout(60.seconds)
+```
+
 #### Timing Out
 
 We can easily time out a long-running test:
