@@ -91,7 +91,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
   def retainIf(p: A => Boolean): UIO[Boolean] =
     UIO(underlying.removeIf((t: A) => p(t)))
 
-  def clear: UIO[Unit] =
+  def clear: UIO[Any] =
     UIO(underlying.clear())
 
   def contains(x: A): UIO[Boolean] =
@@ -110,10 +110,10 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.asScala.toSet: @silent("JavaConverters"))
 
   @silent("JavaConverters")
-  def transform(f: A => A): UIO[Unit] = UIO {
+  def transform(f: A => A): UIO[Any] = UIO {
     val set = underlying.asScala.toSet
     underlying.removeAll(set.asJavaCollection)
-    val _ = underlying.addAll(set.map(f).asJavaCollection)
+    underlying.addAll(set.map(f).asJavaCollection)
   }
 
   private def makeConsumer(f: A => Unit): Consumer[A] =
