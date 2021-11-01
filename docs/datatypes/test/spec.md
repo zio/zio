@@ -39,10 +39,18 @@ In ZIO Test, specs are just values like other data types in ZIO. So we can filte
 
 ### Test Aspects
 
-We can think of a test aspect as a polymorphic function from one test to another test. Well, we have a nice `@@` syntax for applying test aspects:
+We can think of a test aspect as a polymorphic function from one test to another test. They are used to change existing tests or even entire suites that you have already created.
+
+Test aspects are applied to a test or suite using the `@@` operator:
 
 ```scala
-test @@ testAspect
+test("a single test") {
+  ...
+} @@ testAspect
+
+suite("suite of multiple tests") {
+  ...
+} @@ testAspect
 ```
 
 #### Timing Out
