@@ -40,7 +40,7 @@ abstract class BaseTestTask(
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
-    } yield ()).provideLayer(ZLayer.succeed(ZIOAppArgs(Chunk.empty)))
+    } yield ()).provideLayer(ZLayer.succeed(ZIOAppArgs(Chunk.empty)) >+> zio.ZEnv.live)
 
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, Has[TestLogger] with Has[Clock]] =
     ZLayer.succeed[TestLogger](new TestLogger {
