@@ -566,14 +566,6 @@ object Task extends TaskPlatformSpecific {
     ZIO.failCause(cause)
 
   /**
-   * @see See [[zio.ZIO.failCauseWith]]
-   */
-  def failCauseWith[E <: Throwable](function: (() => ZTrace) => Cause[E])(implicit
-    trace: ZTraceElement
-  ): Task[Nothing] =
-    ZIO.failCauseWith(function)
-
-  /**
    * @see [[zio.ZIO.fiberId]]
    */
   def fiberId(implicit trace: ZTraceElement): UIO[FiberId] =
@@ -907,13 +899,6 @@ object Task extends TaskPlatformSpecific {
   @deprecated("use failCause", "2.0.0")
   def halt(cause: => Cause[Throwable])(implicit trace: ZTraceElement): Task[Nothing] =
     ZIO.halt(cause)
-
-  /**
-   * @see See [[zio.ZIO.haltWith]]
-   */
-  @deprecated("use failCauseWith", "2.0.0")
-  def haltWith[E <: Throwable](function: (() => ZTrace) => Cause[E])(implicit trace: ZTraceElement): Task[Nothing] =
-    ZIO.haltWith(function)
 
   /**
    * @see [[zio.ZIO.ifM]]
