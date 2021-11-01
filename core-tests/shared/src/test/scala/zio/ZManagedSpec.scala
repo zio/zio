@@ -501,23 +501,18 @@ object ZManagedSpec extends ZIOBaseSpec {
           assert(after)(equalTo(default))
       },
       test("does not shift back to original executor if it was not locked") {
-        val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
-        val global                  = Executor.fromExecutionContext(100)(ExecutionContext.global)
+        val thread = ZIO.succeed(Thread.currentThread())
+
+        val global =
+          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         for {
-          default <- executor
-          ref1    <- Ref.make[Executor](default)
-          ref2    <- Ref.make[Executor](default)
-          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).onExecutor(global)
-          before  <- executor
-          use     <- managed.useDiscard(executor)
-          acquire <- ref1.get
-          release <- ref2.get
-          after   <- executor
-        } yield assert(before)(equalTo(default)) &&
-          assert(acquire)(equalTo(global)) &&
-          assert(use)(equalTo(global)) &&
-          assert(release)(equalTo(global)) &&
-          assert(after)(equalTo(global))
+          which   <- Ref.make[Option[Thread]](None)
+          beforeL <- ZIO.descriptor.map(_.isLocked)
+          _       <- thread.flatMap(t => which.set(Some(t))).toManaged.onExecutor(global).useDiscard(ZIO.unit)
+          after   <- thread
+          during  <- which.get.some
+          afterL  <- ZIO.descriptor.map(_.isLocked)
+        } yield assert(beforeL)(isFalse) && assert(afterL)(isFalse) && assert(during)(equalTo(after))
       }
     ),
     suite("mergeAll")(

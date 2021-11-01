@@ -1381,12 +1381,18 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("onExecutor")(
       test("effects continue on current executor if no executor is specified") {
+        val thread = ZIO.succeed(Thread.currentThread())
+
         val global =
           Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
         for {
-          _        <- ZIO.unit.onExecutor(global)
-          executor <- ZIO.descriptor.map(_.executor)
-        } yield assert(executor)(equalTo(global))
+          which   <- Ref.make[Option[Thread]](None)
+          beforeL <- ZIO.descriptor.map(_.isLocked)
+          _       <- thread.flatMap(t => which.set(Some(t))).onExecutor(global)
+          after   <- thread
+          during  <- which.get.some
+          afterL  <- ZIO.descriptor.map(_.isLocked)
+        } yield assert(beforeL)(isFalse) && assert(afterL)(isFalse) && assert(during)(equalTo(after))
       },
       test("effects are shifted back if executor is specified") {
         val default = RuntimeConfig.default.executor
