@@ -458,7 +458,7 @@ private[zio] final class FiberContext[E, A](
                         case None =>
                           setFiberRefValue(currentExecutor, Some(executor))
 
-                          ZIO.unit
+                          shift(executor)(curZio.trace)
 
                         case Some(currentExecutor) =>
                           if (executor eq currentExecutor) ZIO.unit
