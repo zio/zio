@@ -3423,7 +3423,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * detected in the code.
    */
   def die(t: => Throwable)(implicit trace: ZTraceElement): UIO[Nothing] =
-    failCauseWith(trace => Cause.Die(t, trace()))
+    failCause(Cause.Die(t, ZTrace.none))
 
   /**
    * Returns an effect that dies with a [[java.lang.RuntimeException]] having the
@@ -3655,22 +3655,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * The moral equivalent of `throw` for pure code.
    */
   def fail[E](error: => E)(implicit trace: ZTraceElement): IO[E, Nothing] =
-    failCauseWith(trace => Cause.Fail(error, trace()))
+    failCause(Cause.Fail(error, ZTrace.none))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
   def failCause[E](cause: => Cause[E])(implicit trace: ZTraceElement): IO[E, Nothing] =
-    new ZIO.Fail(_ => cause, trace)
-
-  /**
-   * Returns an effect that models failure with the specified `Cause`.
-   *
-   * This version takes in a lazily-evaluated trace that can be attached to the `Cause`
-   * via `Cause.Traced`.
-   */
-  def failCauseWith[E](function: (() => ZTrace) => Cause[E])(implicit trace: ZTraceElement): IO[E, Nothing] =
-    new ZIO.Fail(function, trace)
+    new ZIO.Fail(() => cause, trace)
 
   /**
    * Returns the `FiberId` of the fiber executing the effect that calls this method.
@@ -4334,16 +4325,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     failCause(cause)
 
   /**
-   * Returns an effect that models failure with the specified `Cause`.
-   *
-   * This version takes in a lazily-evaluated trace that can be attached to the `Cause`
-   * via `Cause.Traced`.
-   */
-  @deprecated("use failCauseWith", "2.0.0")
-  def haltWith[E](function: (() => ZTrace) => Cause[E])(implicit trace: ZTraceElement): IO[E, Nothing] =
-    failCauseWith(function)
-
-  /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   @deprecated("use ifZIO", "2.0.0")
@@ -4376,7 +4357,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect that is interrupted as if by the specified fiber.
    */
   def interruptAs(fiberId: => FiberId)(implicit trace: ZTraceElement): UIO[Nothing] =
-    failCauseWith(trace => Cause.interrupt(fiberId, trace()))
+    failCause(Cause.interrupt(fiberId))
 
   /**
    * Prefix form of `ZIO#interruptible`.
@@ -6237,10 +6218,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.CheckInterrupt
   }
 
-  private[zio] final class Fail[E](val fill: (() => ZTrace) => Cause[E], val trace: ZTraceElement)
-      extends IO[E, Nothing] { self =>
+  private[zio] final class Fail[E](val cause: () => Cause[E], val trace: ZTraceElement) extends IO[E, Nothing] { self =>
     def unsafeLog: () => String =
-      () => s"Fail at ${trace}"
+      () => s"Fail ${cause()} at ${trace}"
 
     override def tag = Tags.Fail
 

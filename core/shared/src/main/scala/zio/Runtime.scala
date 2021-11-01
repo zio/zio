@@ -169,7 +169,7 @@ trait Runtime[+R] {
             case ZIO.Tags.Fail =>
               val zio = curZio.asInstanceOf[ZIO.Fail[E]]
 
-              done = Exit.failCause(zio.fill(() => null))
+              done = Exit.failCause(zio.cause())
 
             case ZIO.Tags.Succeed =>
               val zio = curZio.asInstanceOf[ZIO.Succeed[A]]

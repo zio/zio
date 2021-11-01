@@ -350,7 +350,10 @@ private[zio] final class FiberContext[E, A](
                       else fastPathFlatMapContinuationTrace :: Nil
                     fastPathFlatMapContinuationTrace = null.asInstanceOf[ZTraceElement]
 
-                    val tracedCause = zio.fill(() => captureTrace(zio.trace :: fastPathTrace))
+                    val cause = zio.cause()
+                    val tracedCause = 
+                      if (cause.isTraced) cause 
+                      else cause.traced(captureTrace(zio.trace :: fastPathTrace))
 
                     val discardedFolds = unwindStack()
                     val fullCause =
