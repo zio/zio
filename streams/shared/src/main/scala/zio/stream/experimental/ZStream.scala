@@ -6176,7 +6176,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       LowerErr <: Err,
       UpperErr >: Err,
       LowerElem <: Elem,
-      UpperElem >: Elem
+      UpperElem >: Elem,
+      OutElem[Elem]
     ](
       n: Int
     )(
@@ -6189,10 +6190,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         UpperElem,
         ({ type OutEnv[Env] = Env })#OutEnv,
         ({ type OutErr[Err] = Err })#OutErr,
-        ({ type OutElem[Elem] = Elem })#OutElem
+        OutElem
       ]
-    )(implicit trace: ZTraceElement): ZStream[Env, Err, Elem] = {
-      def collecting(buf: Chunk[Elem]): ZChannel[Env, Err, Chunk[Elem], Any, Err, Chunk[Elem], Any] =
+    )(implicit trace: ZTraceElement): ZStream[Env, Err, OutElem[Elem]] = {
+      def collecting(buf: Chunk[Elem]): ZChannel[Env, Err, Chunk[Elem], Any, Err, Chunk[OutElem[Elem]], Any] =
         ZChannel.readWithCause(
           (chunk: Chunk[Elem]) => {
             val newBuf = buf ++ chunk
@@ -6209,7 +6210,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               ZChannel.unit
             else {
               val pipeline = f(buf)
-              pipeline(ZStream.empty).channel
+              pipeline[UpperEnv, LowerErr, Elem](ZStream.empty).channel
             }
         )
 
@@ -6223,9 +6224,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           UpperElem,
           ({ type OutEnv[Env] = Env })#OutEnv,
           ({ type OutErr[Err] = Err })#OutErr,
-          ({ type OutElem[Elem] = Elem })#OutElem
+          OutElem
         ]
-      ): ZChannel[Env, Err, Chunk[Elem], Any, Err, Chunk[Elem], Any] =
+      ): ZChannel[Env, Err, Chunk[Elem], Any, Err, Chunk[OutElem[Elem]], Any] =
         ZChannel.readWithCause(
           (chunk: Chunk[Elem]) => pipeline(ZStream.fromChunk(chunk)).channel *> emitting(pipeline),
           (cause: Cause[Err]) => ZChannel.failCause(cause),

@@ -17,6 +17,7 @@
 package zio.stream.experimental
 
 import zio._
+import zio.internal.stacktracer.Tracer
 
 /**
  * A `ZPipeline` is a polymorphic stream transformer. Pipelines
@@ -73,6 +74,39 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     }
 
   type Identity[A] = A
+
+  def branchAfter[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem, OutElem0[Elem]](n: Int)(
+    f: Chunk[UpperElem] => ZPipeline.WithOut[
+      LowerEnv,
+      UpperEnv,
+      LowerErr,
+      UpperErr,
+      LowerElem,
+      UpperElem,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr,
+      OutElem0
+    ]
+  ): ZPipeline.WithOut[
+    LowerEnv,
+    UpperEnv,
+    LowerErr,
+    UpperErr,
+    LowerElem,
+    UpperElem,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    OutElem0
+  ] =
+    new ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = Err
+      type OutElem[Elem] = OutElem0[Elem]
+      def apply[Env >: LowerEnv <: UpperEnv, Err >: LowerErr <: UpperErr, Elem >: LowerElem <: UpperElem](
+        stream: ZStream[Env, Err, Elem]
+      )(implicit trace: ZTraceElement): ZStream[Env, Err, OutElem[Elem]] =
+        stream.branchAfter(n)(f)
+    }
 
   /**
    * Creates a pipeline that collects elements with the specified partial function.
