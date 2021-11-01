@@ -4,7 +4,7 @@ import com.github.ghik.silencer.silent
 import zio.UIO
 
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function.Consumer
+import java.util.function.{Consumer, Predicate}
 import scala.collection.JavaConverters._
 
 final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.KeySetView[A, java.lang.Boolean])
@@ -83,13 +83,13 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.removeAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   def removeIf(p: A => Boolean): UIO[Boolean] =
-    UIO(underlying.removeIf((t: A) => !p(t)))
+    UIO(underlying.removeIf(makePredicate(a => !p(a))))
 
   def retainAll(xs: Iterable[A]): UIO[Boolean] =
     UIO(underlying.retainAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   def retainIf(p: A => Boolean): UIO[Boolean] =
-    UIO(underlying.removeIf((t: A) => p(t)))
+    UIO(underlying.removeIf(makePredicate(p)))
 
   def clear: UIO[Any] =
     UIO(underlying.clear())
@@ -117,8 +117,13 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
   }
 
   private def makeConsumer(f: A => Unit): Consumer[A] =
-    new java.util.function.Consumer[A] {
+    new Consumer[A] {
       override def accept(t: A): Unit = f(t)
+    }
+
+  private def makePredicate(f: A => Boolean): Predicate[A] =
+    new Predicate[A] {
+      def test(a: A): Boolean = f(a)
     }
 }
 
