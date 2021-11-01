@@ -85,3 +85,20 @@ test("random value is always greater than zero") {
   } yield assert(random)(Assertion.isGreaterThan(0))
 } @@ nonFlaky
 ```
+
+### Platform-specific Tests
+
+Sometimes we have platform-specific tests. Instead of creating separate sources for each platform to test those tests, we can use a proper aspect to run those tests on a specific platform. 
+
+To do that we can use `jvmOnly`, `jsOnly` or `nativeOnly` aspects:
+
+```scala mdoc:silent:nest
+import zio.test.environment.live
+
+test("Java virtual machine name can be accessed") {
+  for {
+    vm <- live(System.property("java.vm.name"))
+  } yield
+    assert(vm)(Assertion.isSome(Assertion.containsString("VM")))
+} @@ jvmOnly
+```
