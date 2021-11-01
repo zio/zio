@@ -516,8 +516,7 @@ private[zio] final class FiberContext[E, A](
 
                     setFiberRefValue(fiberRef, zio.localValue)
 
-                    curZio =
-                      zio.zio.ensuring(ZIO.succeed(setFiberRefValue(fiberRef, oldValue))(curZio.trace))(curZio.trace)
+                    curZio = zio.zio.ensuring(ZIO.succeed(setFiberRefValue(fiberRef, oldValue))(zio.trace))(zio.trace)
 
                   case ZIO.Tags.FiberRefDelete =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefDelete]
