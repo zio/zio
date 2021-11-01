@@ -2,45 +2,66 @@ package zio.stream.experimental
 
 import zio._
 import zio.test._
-import zio.test.Assertion._
 
 object ZPipelineSpec extends ZIOBaseSpec {
-  val spec: ZSpec[Environment, Failure] =
-    suite("ZPipelineSpec")(
-      suite("groupAdjacentBy")(
-        test("groupAdjacentBy 1")(check(Gen.chunkOf(Gen.chunkOf(Gen.int))) { iss =>
-          val keyFn    = (x: Int) => x % 2 == 0
-          val pipeline = ZPipeline.groupAdjacentBy(keyFn)
 
-          pipeline(ZStream.fromChunk(iss).flattenChunks).runCollect.map { oss =>
-            val splat = oss.foldLeft[Chunk[Int]](Chunk.empty) { case (acc, (_, is)) => acc ++ is.toChunk }
-
-            def verifyInside(in: Chunk[(Boolean, NonEmptyChunk[Int])]) =
-              in.map { case (k, xs) => xs.forall(keyFn(_) == k) }
-
-            def verifyAdjacentKeys(in: Chunk[(Boolean, Any)]): Boolean =
-              in.sliding(2, 1).foldLeft(true)((res, chunk) => res && (chunk.length == 1 || chunk(0)._1 != chunk(1)._1))
-
-            assert(splat)(equalTo(iss.flatten)) &&
-            assert(verifyInside(oss))(forall(isTrue)) &&
-            assert(verifyAdjacentKeys(oss))(isTrue)
-          }
-        }),
-        test("groupAdjacentBy 2") {
-          def pipeline[A] = ZPipeline.groupAdjacentBy[(A, Any), A](_._1)
-
-          assertM(
-            pipeline(ZStream((1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (1, 4))).runCollect
-          )(
-            equalTo(
-              Chunk(
-                (1, NonEmptyChunk((1, 1), (1, 2), (1, 3))),
-                (2, NonEmptyChunk((2, 1), (2, 2))),
-                (1, NonEmptyChunk((1, 4)))
-              )
-            )
-          )
-        }
-      )
-    )
+  def spec = suite("ZPipelineSpec")(
+    test("pipelines are polymorphic") {
+      val pipeline = ZPipeline.identity
+      val stream1  = ZStream(1, 2, 3)
+      val stream2  = ZStream("foo", "bar", "baz")
+      for {
+        result1 <- pipeline(stream1).runCollect
+        result2 <- pipeline(stream2).runCollect
+      } yield assertTrue(result1 == Chunk(1, 2, 3)) &&
+        assertTrue(result2 == Chunk("foo", "bar", "baz"))
+    },
+    test("polymorphic pipelines can be composed") {
+      val pipeline1 = ZPipeline.identity
+      val pipeline2 = ZPipeline.identity
+      val pipeline3 = pipeline1 >>> pipeline2
+      val stream    = ZStream(1, 2, 3)
+      for {
+        result <- pipeline3(stream).runCollect
+      } yield assertTrue(result == Chunk(1, 2, 3))
+    },
+    test("monomorphic pipelines can be composed") {
+      val pipeline1 = ZPipeline.map[String, Double](_.toDouble)
+      val pipeline2 = ZPipeline.map[Double, Int](_.toInt)
+      val pipeline3 = pipeline1 >>> pipeline2
+      val stream    = ZStream("1", "2", "3")
+      for {
+        result <- pipeline3(stream).runCollect
+      } yield assertTrue(result == Chunk(1, 2, 3))
+    },
+    test("monomorphic and polymorphic pipelines can be composed") {
+      val pipeline1 = ZPipeline.map[String, Double](_.toDouble)
+      val pipeline2 = ZPipeline.map[Double, Int](_.toInt)
+      val pipeline3 = pipeline1 >>> pipeline2
+      val pipeline4 = ZPipeline.identity
+      val pipeline5 = pipeline3 >>> pipeline4
+      val stream    = ZStream("1", "2", "3")
+      for {
+        result <- pipeline5(stream).runCollect
+      } yield assertTrue(result == Chunk(1, 2, 3))
+    },
+    test("polymorphic and monomorphic pipelines can be composed") {
+      val pipeline1 = ZPipeline.map[String, Double](_.toDouble)
+      val pipeline2 = ZPipeline.map[Double, Int](_.toInt)
+      val pipeline3 = pipeline1 >>> pipeline2
+      val pipeline4 = ZPipeline.identity
+      val pipeline5 = pipeline4 >>> pipeline3
+      val stream    = ZStream("1", "2", "3")
+      for {
+        result <- pipeline5(stream).runCollect
+      } yield assertTrue(result == Chunk(1, 2, 3))
+    },
+    test("pipelines can provide the environment") {
+      val pipeline = ZPipeline.provide(42)
+      val stream   = ZStream.environment[Int]
+      for {
+        result <- pipeline(stream).runCollect
+      } yield assertTrue(result == Chunk(42))
+    }
+  )
 }

@@ -17,14 +17,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   import ZStream.TerminationStrategy
 
   /**
-   * Syntax for adding aspects.
-   */
-  final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
-    aspect: ZStreamAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
-  )(implicit trace: ZTraceElement): ZStream[UpperR, LowerE, LowerA] =
-    aspect(self)
-
-  /**
    * Symbolic alias for [[ZStream#cross]].
    */
   final def <*>[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2])(implicit
@@ -72,14 +64,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   @deprecated("use flatMap", "2.0.0")
   def >>=[R1 <: R, E1 >: E, A2](f0: A => ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A2] =
     flatMap(f0)
-
-  /**
-   * Symbolic alias for [[ZStream#via]].
-   */
-  def >>>[R1 <: R, E1 >: E, A2 >: A, A3](pipeline: ZPipeline[R1, E1, A2, A3])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A3] =
-    via(pipeline)
 
   /**
    * Symbolic alias for [[[zio.stream.ZStream!.run[R1<:R,E1>:E,B]*]]].
@@ -246,44 +230,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def as[A2](A2: => A2)(implicit trace: ZTraceElement): ZStream[R, E, A2] =
     map(_ => A2)
-
-  /**
-   * Reads the first n values from the stream and uses them to choose the pipeline that will be
-   * used for the remainder of the stream.
-   */
-  def branchAfter[R1 <: R, E1 >: E, A1 >: A](
-    n: Int
-  )(f: Chunk[A1] => ZPipeline[R1, E1, A1, A1])(implicit trace: ZTraceElement): ZStream[R1, E1, A1] = {
-    def collecting(buf: Chunk[A1]): ZChannel[R1, E1, Chunk[A1], Any, E1, Chunk[A1], Any] =
-      ZChannel.readWithCause(
-        (chunk: Chunk[A1]) => {
-          val newBuf = buf ++ chunk
-          if (newBuf.length >= n) {
-            val (is, is1) = newBuf.splitAt(n)
-            val pipeline  = f(is)
-            pipeline(ZStream.fromChunk(is1)).channel *> emitting(pipeline)
-          } else
-            collecting(newBuf)
-        },
-        (cause: Cause[E1]) => ZChannel.failCause(cause),
-        (_: Any) =>
-          if (buf.isEmpty)
-            ZChannel.unit
-          else {
-            val pipeline = f(buf)
-            pipeline(ZStream.empty).channel
-          }
-      )
-
-    def emitting(pipeline: ZPipeline[R1, E1, A1, A1]): ZChannel[R1, E1, Chunk[A1], Any, E1, Chunk[A1], Any] =
-      ZChannel.readWithCause(
-        (chunk: Chunk[A1]) => pipeline(ZStream.fromChunk(chunk)).channel *> emitting(pipeline),
-        (cause: Cause[E1]) => ZChannel.failCause(cause),
-        (_: Any) => ZChannel.unit
-      )
-
-    new ZStream(self.channel >>> collecting(Chunk.empty))
-  }
 
   /**
    * Returns a stream whose failure and success channels have been mapped by
@@ -3856,14 +3802,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     f(self)
 
   /**
-   * Threads the stream through a transformation pipeline.
-   */
-  final def via[R2 <: R, E2 >: E, A2 >: A, A3](pipeline: ZPipeline[R2, E2, A2, A3])(implicit
-    trace: ZTraceElement
-  ): ZStream[R2, E2, A3] =
-    pipeline(self)
-
-  /**
    * Returns this stream if the specified condition is satisfied, otherwise returns an empty stream.
    */
   def when(b: => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
@@ -6234,5 +6172,105 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
       self.combineChunks[R1, E1, State, (K, B), (K, C)](that)(PullBoth)(pull)
     }
+  }
+
+  /**
+   * Provides syntax for applying pipelines to streams.
+   */
+  implicit class PipelineSyntax[Env, Err, Elem](private val self: ZStream[Env, Err, Elem]) extends AnyVal {
+
+    /**
+     * Symbolic alias for [[ZStream#via]].
+     */
+    @deprecated("2.0.0", "use @@")
+    def >>>[LowerEnv <: Env, UpperEnv >: Env, LowerErr <: Err, UpperErr >: Err, LowerElem <: Elem, UpperElem >: Elem](
+      pipeline: ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem]
+    )(implicit trace: ZTraceElement): ZStream[pipeline.OutEnv[Env], pipeline.OutErr[Err], pipeline.OutElem[Elem]] =
+      pipeline(self)
+
+    /**
+     * Syntax for applying pipelines.
+     */
+    def @@[LowerEnv <: Env, UpperEnv >: Env, LowerErr <: Err, UpperErr >: Err, LowerElem <: Elem, UpperElem >: Elem](
+      pipeline: ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem]
+    )(implicit trace: ZTraceElement): ZStream[pipeline.OutEnv[Env], pipeline.OutErr[Err], pipeline.OutElem[Elem]] =
+      pipeline(self)
+
+    /**
+     * Reads the first n values from the stream and uses them to choose the pipeline that will be
+     * used for the remainder of the stream.
+     */
+    def branchAfter[
+      LowerEnv <: Env,
+      UpperEnv >: Env,
+      LowerErr <: Err,
+      UpperErr >: Err,
+      LowerElem <: Elem,
+      UpperElem >: Elem
+    ](
+      n: Int
+    )(
+      f: Chunk[Elem] => ZPipeline.WithOut[
+        LowerEnv,
+        UpperEnv,
+        LowerErr,
+        UpperErr,
+        LowerElem,
+        UpperElem,
+        ({ type OutEnv[Env] = Env })#OutEnv,
+        ({ type OutErr[Err] = Err })#OutErr,
+        ({ type OutElem[Elem] = Elem })#OutElem
+      ]
+    )(implicit trace: ZTraceElement): ZStream[Env, Err, Elem] = {
+      def collecting(buf: Chunk[Elem]): ZChannel[Env, Err, Chunk[Elem], Any, Err, Chunk[Elem], Any] =
+        ZChannel.readWithCause(
+          (chunk: Chunk[Elem]) => {
+            val newBuf = buf ++ chunk
+            if (newBuf.length >= n) {
+              val (is, is1) = newBuf.splitAt(n)
+              val pipeline  = f(is)
+              pipeline(ZStream.fromChunk(is1)).channel *> emitting(pipeline)
+            } else
+              collecting(newBuf)
+          },
+          (cause: Cause[Err]) => ZChannel.failCause(cause),
+          (_: Any) =>
+            if (buf.isEmpty)
+              ZChannel.unit
+            else {
+              val pipeline = f(buf)
+              pipeline(ZStream.empty).channel
+            }
+        )
+
+      def emitting(
+        pipeline: ZPipeline.WithOut[
+          LowerEnv,
+          UpperEnv,
+          LowerErr,
+          UpperErr,
+          LowerElem,
+          UpperElem,
+          ({ type OutEnv[Env] = Env })#OutEnv,
+          ({ type OutErr[Err] = Err })#OutErr,
+          ({ type OutElem[Elem] = Elem })#OutElem
+        ]
+      ): ZChannel[Env, Err, Chunk[Elem], Any, Err, Chunk[Elem], Any] =
+        ZChannel.readWithCause(
+          (chunk: Chunk[Elem]) => pipeline(ZStream.fromChunk(chunk)).channel *> emitting(pipeline),
+          (cause: Cause[Err]) => ZChannel.failCause(cause),
+          (_: Any) => ZChannel.unit
+        )
+
+      new ZStream(self.channel >>> collecting(Chunk.empty))
+    }
+
+    /**
+     * Threads the stream through a transformation pipeline.
+     */
+    def via[LowerEnv <: Env, UpperEnv >: Env, LowerErr <: Err, UpperErr >: Err, LowerElem <: Elem, UpperElem >: Elem](
+      pipeline: ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem]
+    )(implicit trace: ZTraceElement): ZStream[pipeline.OutEnv[Env], pipeline.OutErr[Err], pipeline.OutElem[Elem]] =
+      pipeline(self)
   }
 }

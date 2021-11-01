@@ -375,8 +375,8 @@ object ZStreamSpec extends ZIOBaseSpec {
                   .fromChunk(0 +: data)
                   .branchAfter(1) { values =>
                     values.toList match {
-                      case 0 :: Nil => ZPipeline[Int]
-                      case _        => ZPipeline.fail("boom")
+                      case 0 :: Nil => ZPipeline.identity
+                      case _        => ???
                     }
                   }
                   .runCollect
