@@ -2,7 +2,7 @@ package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
 import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestLogger, ZIOSpecAbstract}
-import zio.{Chunk, Clock, Has, Layer, Runtime, UIO, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{Chunk, Clock, Console, Has, Layer, Runtime, UIO, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.environment.TestEnvironment
 
 abstract class BaseTestTask(
@@ -29,18 +29,23 @@ abstract class BaseTestTask(
     eventHandler: EventHandler,
     spec: ZIOSpecAbstract,
     loggers: Array[Logger]
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    (for {
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
+    val layer: ZLayer[Has[ZIOAppArgs], Error, spec.Environment with Has[ZIOAppArgs] with Has[Console] with Has[
+      TestLogger
+    ] with Has[Clock] with TestEnvironment] =
+      ZLayer.succeed(
+        ZIOAppArgs(Chunk.empty)
+      ) >+> zio.ZEnv.live >+> zio.Console.live >+> sbtTestLayer(loggers) >+> TestEnvironment.live >+> spec.layer
+        .mapError(e => new Error(e.toString))
+    for {
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args)
-                .provideLayer(
-                  spec.layer.mapError(e => new Error(e.toString)) >+> ZLayer.succeed(
-                    ZIOAppArgs(Chunk.empty)
-                  ) >+> zio.ZEnv.live >+> sbtTestLayer(loggers) >+> TestEnvironment.live
-                )
+                .provideLayer(layer)
+                .provideLayer(zio.Console.live ++ ZLayer.succeed(ZIOAppArgs(Chunk.empty)))
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
-    } yield ()).provideLayer(ZLayer.succeed(ZIOAppArgs(Chunk.empty)) >+> zio.ZEnv.live)
+    } yield ()
+  }
 
   protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, Has[TestLogger] with Has[Clock]] =
     ZLayer.succeed[TestLogger](new TestLogger {
