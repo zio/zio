@@ -297,41 +297,40 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       def loop(
         causes: List[Cause[E]],
         fiberId: FiberId,
-        accum: Chunk[StackTraceElement],
         stackless: Boolean,
         result: List[Unified]
       ): List[Unified] = {
-        def unifyFail(error: E): Unified =
-          Unified(fiberId, error.getClass.getName(), error.toString(), accum)
+        def unifyFail(fail: Cause.Fail[E]): Unified =
+          Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
 
-        def unifyDie(error: Throwable): Unified = {
+        def unifyDie(die: Cause.Die): Unified = {
           val extra =
-            if (stackless) Chunk.empty else Chunk.fromArray(error.getStackTrace())
+            if (stackless) Chunk.empty else Chunk.fromArray(die.value.getStackTrace())
 
-          Unified(fiberId, error.getClass.getName(), error.getMessage(), extra ++ accum)
+          Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
         }
 
-        def unifyInterrupt(fiberId: FiberId): Unified = {
+        def unifyInterrupt(interrupt: Cause.Interrupt): Unified = {
           val message = "Interrupted by thread \"" + renderFiberId(fiberId) + "\""
 
-          Unified(fiberId, classOf[InterruptedException].getName(), message, accum)
+          Unified(interrupt.trace.fiberId, classOf[InterruptedException].getName(), message, interrupt.trace.toJava)
         }
 
         causes match {
           case Nil => result
 
-          case Empty :: more                       => loop(more, fiberId, accum, stackless, result)
-          case Both(left, right) :: more           => loop(left :: right :: more, fiberId, accum, stackless, result)
-          case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, accum, stackless, result)
-          case Then(left, right) :: more           => loop(left :: right :: more, fiberId, accum, stackless, result)
-          case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, accum, stackless, unifyFail(cause.value) :: result)
-          case (cause @ Die(_, _)) :: more         => loop(more, fiberId, accum, stackless, unifyDie(cause.value) :: result)
+          case Empty :: more                       => loop(more, fiberId, stackless, result)
+          case Both(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
+          case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
+          case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
+          case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) :: result)
+          case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) :: result)
           case (cause @ Interrupt(_, _)) :: more =>
-            loop(more, fiberId, accum, stackless, unifyInterrupt(cause.fiberId) :: result)
+            loop(more, fiberId, stackless, unifyInterrupt(cause) :: result)
         }
       }
 
-      loop(cause :: Nil, FiberId.None, Chunk.empty, false, Nil).reverse
+      loop(cause :: Nil, FiberId.None, false, Nil).reverse
     }
 
     def renderCause(cause: Cause[E]): String = {
