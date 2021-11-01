@@ -22,7 +22,6 @@ import zio.Supervisor.FiberRefTrackingSupervisor
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicReference, LongAdder}
-import scala.annotation.switch
 import scala.collection.immutable.SortedSet
 
 /**
@@ -156,8 +155,16 @@ object Supervisor {
    */
   val none: Supervisor[Unit] = new ConstSupervisor(_ => ZIO.unit)
 
-  def trackFiberRef[A](fiberRef: FiberRef[A])(link: A => Unit): Supervisor[Unit] =
-    new FiberRefTrackingSupervisor[A](fiberRef, link)
+  /**
+   * Creates a [[Supervisor]] and a [[FiberRef[A]].
+   * The supervisor ensures that `link` function is called with the current value of the [[FiberRef]] at the beginning of every async boundary,
+   * and is called with `initialValue` just before an async boundary.
+   * The [[FiberRef]] returned, will call `link` on every change applied to it, as well as at the beginning and the end of the effect passed to `FiberRef.locally`.
+   */
+  def trackFiberRef[A](initialValue: A)(link: A => Unit): (Supervisor[Unit], FiberRef[A]) = {
+    val fiberRef = FiberRef.unsafeMake(initialValue)
+    (new FiberRefTrackingSupervisor[A](fiberRef, initialValue, link), new TrackingFiberRef[A](fiberRef, link))
+  }
 
   private class ConstSupervisor[A](value0: Trace => UIO[A]) extends Supervisor[A] {
     def value(implicit trace: Trace): UIO[A] = value0(trace)
@@ -223,17 +230,10 @@ object Supervisor {
       underlying.unsafeOnResume(fiber)
   }
 
-  private class FiberRefTrackingSupervisor[A](fiberRef: FiberRef[A], link: A => Unit) extends Supervisor[Unit] {
+  private class FiberRefTrackingSupervisor[A](fiberRef: FiberRef.Runtime[A], initialValue: A, link: A => Unit)
+      extends Supervisor[Unit] {
     private val runtime = Runtime.default
 
-    // ??? is safe here as initialVale is of type Either[Nothing, A]
-    private val initialValue = fiberRef.initialValue.fold(_ => ???, identity)
-
-    /**
-     * Returns an effect that succeeds with the value produced by this
-     * supervisor. This value may change over time, reflecting what the
-     * supervisor produces as it supervises fibers.
-     */
     override def value(implicit trace: ZTraceElement): UIO[Unit] = UIO.unit
 
     override private[zio] def unsafeOnStart[R, E, A1](
@@ -253,35 +253,47 @@ object Supervisor {
       link(a)
     }
 
-    override private[zio] def unsafeOnEffect[E, A1](fiber: Fiber.Runtime[E, A1], effect: ZIO[_, _, _]): Unit =
-      (effect.tag: @switch) match {
-        case ZIO.Tags.FiberRefModify =>
-          val modify = effect.asInstanceOf[FiberRefModify[A, _]]
-          if (modify.fiberRef == fiberRef) {
-            link(modify.f(getFiberRefValue(fiber))._2)
-          }
-        case ZIO.Tags.FiberRefDelete =>
-          val delete = effect.asInstanceOf[FiberRefDelete]
-          if (delete.fiberRef == fiberRef) {
-            reset()
-          }
-        case ZIO.Tags.FiberRefLocally =>
-          val locally = effect.asInstanceOf[FiberRefLocally[_, _, _, _]]
-          if (locally.fiberRef == fiberRef) {
-            link(locally.localValue.asInstanceOf[A])
-          }
-
-        case _ =>
-      }
-
     private def getFiberRefValue[E, A1](fiber: Fiber.Runtime[E, A1]): A = {
       implicit val trace = ZTraceElement.empty
-      runtime.unsafeRun(
-        fiber.getRef(fiberRef.asInstanceOf[ZFiberRef.Runtime[A]])
-      )
+      runtime.unsafeRun(fiber.getRef(fiberRef))
     }
 
     private def reset() =
       link(initialValue)
+  }
+
+  private class TrackingFiberRef[A](fiberRef: FiberRef.Runtime[A], link: A => Unit)
+      extends Derived[Nothing, Nothing, A, A] {
+
+    override type S = A
+
+    override def getEither(s: A): Either[Nothing, A] = Right(s)
+
+    override def setEither(a: A): Either[Nothing, A] = Right(a)
+
+    override val value: Runtime[S] = fiberRef
+
+    override def locally[R, EC >: Nothing, C](
+      value: A
+    )(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
+      fiberRef.get.flatMap { before =>
+        fiberRef.locally(value) {
+          (linkM(value) *> use)
+            .ensuring(linkM(before))
+        }
+      }
+
+    override def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+      fiberRef.get.toManaged.flatMap { before =>
+        linkM(value).toManaged *>
+          fiberRef
+            .locallyManaged(value)
+            .ensuring(linkM(before))
+      }
+
+    override def set(value: A)(implicit trace: ZTraceElement): IO[Nothing, Unit] =
+      fiberRef.set(value) <* linkM(value)
+
+    private def linkM(a: A) = UIO(link(a))(ZTraceElement.empty)
   }
 }

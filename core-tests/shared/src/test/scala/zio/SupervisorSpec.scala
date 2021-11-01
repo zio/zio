@@ -10,9 +10,10 @@ object SupervisorSpec extends ZIOBaseSpec {
 
   private val initialValue = "initial-value"
 
-  private val fiberRef = FiberRef.unsafeMake(initialValue)
-  val runtime =
-    Runtime.default.mapRuntimeConfig(_ @@ RuntimeConfigAspect.trackFiberRef(fiberRef)(a => threadLocal.set(Some(a))))
+  private val (traceFiberRefAspect, fiberRef) =
+    RuntimeConfigAspect.trackFiberRef[String](initialValue)(a => threadLocal.set(Some(a)))
+
+  val runtime = Runtime.default.mapRuntimeConfig(_ @@ traceFiberRefAspect)
 
   def spec: ZSpec[Environment, Failure] = suite("SupervisorSpec")(
     suite("fiberRefTrackingSupervisor")(
@@ -45,40 +46,45 @@ object SupervisorSpec extends ZIOBaseSpec {
           }
         }
       },
-      test("track FiberRef.delete") {
+      test("track in FiberRef.locally") {
         val newValue1 = "new-value1"
+        val newValue2 = "new-value2"
         runIn(runtime) {
           for {
-            _ <- fiberRef.set(newValue1)
             a <- threadLocalGet
-            _ <- fiberRef.delete
-            b <- threadLocalGet
+            (b, c) <- fiberRef.locally(newValue1) {
+                        threadLocalGet zipPar
+                          fiberRef.locally(newValue2)(threadLocalGet)
+                      }
+            d <- threadLocalGet
           } yield assertTrue(
-            a.contains(newValue1),
-            b.contains(initialValue)
+            a.contains(initialValue),
+            b.contains(newValue1),
+            c.contains(newValue2),
+            d.contains(initialValue)
+          )
+        }
+      },
+      test("track in FiberRef.locallyManaged") {
+        val newValue1 = "new-value1"
+        val newValue2 = "new-value2"
+        runIn(runtime) {
+          for {
+            a <- threadLocalGet
+            (b, c) <- fiberRef.locallyManaged(newValue1).useDiscard {
+                        threadLocalGet zipPar
+                          fiberRef.locallyManaged(newValue2).useDiscard(threadLocalGet)
+                      }
+            d <- threadLocalGet
+          } yield assertTrue(
+            a.contains(initialValue),
+            b.contains(newValue1),
+            c.contains(newValue2),
+            d.contains(initialValue)
           )
         }
       }
-    ),
-    test("track in FiberRef.locally") {
-      val newValue1 = "new-value1"
-      val newValue2 = "new-value2"
-      runIn(runtime) {
-        for {
-          a <- threadLocalGet
-          (b, c) <- fiberRef.locally(newValue1) {
-                      threadLocalGet zipPar
-                        fiberRef.locally(newValue2)(threadLocalGet)
-                    }
-          d <- threadLocalGet
-        } yield assertTrue(
-          a.contains(initialValue),
-          b.contains(newValue1),
-          c.contains(newValue2),
-          d.contains(initialValue)
-        )
-      }
-    }
+    )
   )
 
   def threadLocalGet =
