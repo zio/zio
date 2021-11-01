@@ -191,6 +191,31 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     }
 
   /**
+   * Creates a pipeline that groups on adjacent keys, calculated by the
+   * specified keying function.
+   */
+  def groupAdjacentBy[In, Key](f: In => Key): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    In,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = (Key, NonEmptyChunk[Elem]) })#OutElem
+  ] =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = Err
+      type OutElem[Elem] = (Key, NonEmptyChunk[Elem])
+      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, (Key, NonEmptyChunk[Elem])] =
+        stream.groupAdjacentBy(f)
+    }
+
+  /**
    * The identity pipeline, which does not modify streams in any way.
    */
   val identity: ZPipeline.WithOut[
@@ -238,6 +263,30 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         trace: ZTraceElement
       ): ZStream[Env, Err, Out] =
         stream.map(f)
+    }
+
+  /**
+   * Emits the provided chunk before emitting any other value.
+   */
+  def prepend[In](values: Chunk[In]): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    In,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Elem })#OutElem
+  ] =
+    new ZPipeline[Nothing, Any, Nothing, Any, In, Any] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = Err
+      type OutElem[Elem] = Elem
+      def apply[Env, Err, Elem >: In](stream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, Elem] =
+        ZStream.fromChunk(values) ++ stream
     }
 
   /**

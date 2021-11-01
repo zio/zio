@@ -6167,6 +6167,75 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       pipeline(self)
 
     /**
+     * Reads the first n values from the stream and uses them to choose the pipeline that will be
+     * used for the remainder of the stream.
+     */
+    def branchAfter[
+      LowerEnv <: Env,
+      UpperEnv >: Env,
+      LowerErr <: Err,
+      UpperErr >: Err,
+      LowerElem <: Elem,
+      UpperElem >: Elem
+    ](
+      n: Int
+    )(
+      f: Chunk[Elem] => ZPipeline.WithOut[
+        LowerEnv,
+        UpperEnv,
+        LowerErr,
+        UpperErr,
+        LowerElem,
+        UpperElem,
+        ({ type OutEnv[Env] = Env })#OutEnv,
+        ({ type OutErr[Err] = Err })#OutErr,
+        ({ type OutElem[Elem] = Elem })#OutElem
+      ]
+    )(implicit trace: ZTraceElement): ZStream[Env, Err, Elem] = {
+      def collecting(buf: Chunk[Elem]): ZChannel[Env, Err, Chunk[Elem], Any, Err, Chunk[Elem], Any] =
+        ZChannel.readWithCause(
+          (chunk: Chunk[Elem]) => {
+            val newBuf = buf ++ chunk
+            if (newBuf.length >= n) {
+              val (is, is1) = newBuf.splitAt(n)
+              val pipeline  = f(is)
+              pipeline(ZStream.fromChunk(is1)).channel *> emitting(pipeline)
+            } else
+              collecting(newBuf)
+          },
+          (cause: Cause[Err]) => ZChannel.failCause(cause),
+          (_: Any) =>
+            if (buf.isEmpty)
+              ZChannel.unit
+            else {
+              val pipeline = f(buf)
+              pipeline(ZStream.empty).channel
+            }
+        )
+
+      def emitting(
+        pipeline: ZPipeline.WithOut[
+          LowerEnv,
+          UpperEnv,
+          LowerErr,
+          UpperErr,
+          LowerElem,
+          UpperElem,
+          ({ type OutEnv[Env] = Env })#OutEnv,
+          ({ type OutErr[Err] = Err })#OutErr,
+          ({ type OutElem[Elem] = Elem })#OutElem
+        ]
+      ): ZChannel[Env, Err, Chunk[Elem], Any, Err, Chunk[Elem], Any] =
+        ZChannel.readWithCause(
+          (chunk: Chunk[Elem]) => pipeline(ZStream.fromChunk(chunk)).channel *> emitting(pipeline),
+          (cause: Cause[Err]) => ZChannel.failCause(cause),
+          (_: Any) => ZChannel.unit
+        )
+
+      new ZStream(self.channel >>> collecting(Chunk.empty))
+    }
+
+    /**
      * Threads the stream through a transformation pipeline.
      */
     def via[LowerEnv <: Env, UpperEnv >: Env, LowerErr <: Err, UpperErr >: Err, LowerElem <: Elem, UpperElem >: Elem](

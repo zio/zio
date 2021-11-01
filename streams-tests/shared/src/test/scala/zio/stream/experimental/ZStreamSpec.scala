@@ -367,6 +367,91 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(leftAssoc -> rightAssoc)(equalTo(true -> true))
           )
         ),
+        suite("branchAfter")(
+          test("switches pipelines") {
+            check(Gen.chunkOf(Gen.int)) { data =>
+              val test =
+                ZStream
+                  .fromChunk(0 +: data)
+                  .branchAfter(1) { values =>
+                    values.toList match {
+                      case 0 :: Nil => ZPipeline.identity
+                      case _        => ???
+                    }
+                  }
+                  .runCollect
+              assertM(test.exit)(succeeds(equalTo(data)))
+            }
+          },
+          // test("finalizes transducers") {
+          //   check(Gen.chunkOf(Gen.int)) { data =>
+          //     val test =
+          //       Ref.make(0).flatMap { ref =>
+          //         ZStream
+          //           .fromChunk(data)
+          //           .branchAfter(1) { values =>
+          //             values.toList match {
+          //               case _ =>
+          //                 ZTransducer {
+          //                   Managed.acquireReleaseWith(
+          //                     ref
+          //                       .update(_ + 1)
+          //                       .as[Option[Chunk[Int]] => UIO[Chunk[Int]]] {
+          //                         case None    => ZIO.succeedNow(Chunk.empty)
+          //                         case Some(c) => ZIO.succeedNow(c)
+          //                       }
+          //                   )(_ => ref.update(_ - 1))
+          //                 }
+          //             }
+          //           }
+          //           .runDrain *> ref.get
+          //       }
+          //     assertM(test.exit)(succeeds(equalTo(0)))
+          //   }
+          // },
+          // test("finalizes transducers - inner transducer fails") {
+          //   check(Gen.chunkOf(Gen.int)) { data =>
+          //     val test =
+          //       Ref.make(0).flatMap { ref =>
+          //         ZStream
+          //           .fromChunk(data)
+          //           .branchAfter(1) { values =>
+          //             values.toList match {
+          //               case _ =>
+          //                 ZTransducer {
+          //                   Managed.acquireReleaseWith(
+          //                     ref
+          //                       .update(_ + 1)
+          //                       .as[Option[Chunk[Int]] => IO[String, Chunk[Int]]] { case _ =>
+          //                         ZIO.fail("boom")
+          //                       }
+          //                   )(_ => ref.update(_ - 1))
+          //                 }
+          //             }
+          //           }
+          //           .runDrain
+          //           .ignore *> ref.get
+          //       }
+          //     assertM(test.exit)(succeeds(equalTo(0)))
+          //   }
+          // },
+          test("emits data if less than n are collected") {
+            val gen =
+              for {
+                data <- Gen.chunkOf(Gen.int)
+                n    <- Gen.int.filter(_ > data.length)
+              } yield (data, n)
+
+            check(gen) { case (data, n) =>
+              val test =
+                ZStream
+                  .fromChunk(data)
+                  .branchAfter(n)(ZPipeline.prepend)
+                  .runCollect
+              assertM(test.exit)(succeeds(equalTo(data)))
+            }
+          }
+        ),
         suite("broadcast")(
           test("Values") {
             ZStream
