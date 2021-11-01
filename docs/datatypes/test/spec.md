@@ -7,9 +7,9 @@ A `Spec[R, E, T]` is the backbone of _ZIO Test_. All specs require an environmen
 
 ## Constructors
 
-Every spec is either a `test` or a `suite of tests`:
+We can think of a spec as just a collection of tests. It is essentially a recursive data structure where every spec is just one individual test or a suite that itself can have multiple specs inside that each could be tests or sub suites. We can go down as far as we want in a recursive tree-like data structure:
 
-- The **`test`** constructor creates one single spec (test):
+- **A Single Test** — The `test` constructor creates one single spec (test):
 
   ```scala mdoc:silent:nest
   import zio.test._
@@ -19,7 +19,7 @@ Every spec is either a `test` or a `suite of tests`:
   }
   ```
 
-- The **`suite`** — creates a suite which contains other specs (tests):
+- **Collection of Multiple Tests** — The `suite` creates a suite which contains other specs (tests):
 
   ```scala mdoc:silent:nest
   val mySuite =
@@ -32,4 +32,4 @@ Every spec is either a `test` or a `suite of tests`:
       }
     )
   ```
-
+  
