@@ -236,26 +236,38 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     }
 
   def linearize[E1 >: E]: Set[Cause[E1]] = {
-    def loop[E](cause: Cause[E]): Set[Cause[E]] =
-      cause match {
-        case Empty => Set()
 
-        case Both(left, right) => loop(left) ++ loop(right)
+    sealed trait Step
 
-        case Stackless(cause, stackless) => loop(cause).map(Stackless(_, stackless))
+    case object Both                               extends Step
+    case object Then                               extends Step
+    final case class Stackless(stackless: Boolean) extends Step
 
-        case Then(left, right) =>
-          for {
-            l <- loop(left)
-            r <- loop(right)
-          } yield l ++ r
-
-        case cause @ Fail(_, _)      => Set(cause)
-        case cause @ Die(_, _)       => Set(cause)
-        case cause @ Interrupt(_, _) => Set(cause)
+    @tailrec
+    def loop(in: List[Cause[E]], out: List[Either[Step, Set[Cause[E1]]]]): List[Set[Cause[E1]]] =
+      in match {
+        case Cause.Both(left, right) :: causes           => loop(left :: right :: causes, Left(Both) :: out)
+        case Cause.Then(left, right) :: causes           => loop(left :: right :: causes, Left(Then) :: out)
+        case Cause.Stackless(cause, stackless) :: causes => loop(cause :: causes, Left(Stackless(stackless)) :: out)
+        case (cause @ Cause.Fail(_, _)) :: causes        => loop(causes, Right(Set[Cause[E1]](cause)) :: out)
+        case (cause @ Cause.Die(_, _)) :: causes         => loop(causes, Right(Set[Cause[E1]](cause)) :: out)
+        case (cause @ Cause.Interrupt(_, _)) :: causes   => loop(causes, Right(Set[Cause[E1]](cause)) :: out)
+        case _ :: causes                                 => loop(causes, Right(Set.empty[Cause[E1]]) :: out)
+        case Nil =>
+          out.foldLeft[List[Set[Cause[E1]]]](List.empty) {
+            case (acc, Right(causes)) => causes :: acc
+            case (acc, Left(Both)) =>
+              val left :: right :: causes = (acc: @unchecked)
+              (left ++ right) :: causes
+            case (acc, Left(Then)) =>
+              val left :: right :: causes = (acc: @unchecked)
+              left.flatMap(l => right.map(r => l ++ r)) :: causes
+            case (acc, Left(Stackless(stackless))) =>
+              val cause :: causes = acc
+              cause.map(Cause.Stackless(_, stackless): Cause[E1]) :: causes
+          }
       }
-
-    loop(self)
+    loop(List(self), List.empty).head
   }
 
   final def map[E1](f: E => E1): Cause[E1] =
@@ -294,6 +306,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     def renderFiberId(fiberId: FiberId): String = s"zio-fiber-${fiberId.ids.mkString(", ")}"
 
     def unify(cause: Cause[E]): List[Unified] = {
+      @tailrec
       def loop(
         causes: List[Cause[E]],
         fiberId: FiberId,
