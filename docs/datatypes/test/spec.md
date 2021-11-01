@@ -57,7 +57,7 @@ suite("suite of multiple tests") {
 
 We can easily time out a long-running test:
 
-```scala mdoc:compile-only
+```scala mdoc:silent:nest
 import zio._
 import zio.test._
 import zio.test.test
@@ -71,3 +71,17 @@ test("effects can be safely interrupted") {
 ```
 
 By applying a `timeout(1.second)` test aspect, this will work with ZIO's interruption mechanism. So when we run this test, you can see a tone of print lines, and after a second, the `timeout` aspect will interrupt that.
+
+### Non Flaky
+
+Whenever we deal with concurrency issues or race conditions, we should ensure that our tests pass consistently. The `nonFlaky` is a test aspect to do that. 
+
+It will run a test several times, by default 100 times, and if all those times pass, it will pass, otherwise, it will fail:
+
+```scala mdoc:silent:nest
+test("random value is always greater than zero") {
+  for {
+    random <- Random.nextIntBounded(100)
+  } yield assert(random)(Assertion.isGreaterThan(0))
+} @@ nonFlaky
+```
