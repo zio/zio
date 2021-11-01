@@ -26,11 +26,11 @@ final class CountdownLatch private (_count: Ref[Int], _waiters: Promise[Nothing,
   val await: UIO[Unit] = _waiters.await
 
   /** Decrements the count of the latch, releasing all waiting fibers if the count reaches zero */
-  val countDown: UIO[Any] = _count.modify {
+  val countDown: UIO[Unit] = _count.modify {
     case 0 => IO.unit              -> 0
     case 1 => _waiters.succeed(()) -> 0
     case n => IO.unit              -> (n - 1)
-  }.flatten
+  }.flatten.unit
 
   /** Returns the current count */
   val count: UIO[Int] = _count.get
