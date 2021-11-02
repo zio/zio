@@ -263,13 +263,23 @@ $Assert($ast.withCode($codeString).withLocation)
     def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
       all.reduce(_ orElse _).unapply(method)
 
-    val asInstance: ASTConverter =
+    val asInstanceOf: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "asInstanceOf", List(tpe), _, _) =>
         AssertAST("as", List(lhsTpe, tpe))
       }
 
-    val isInstance: ASTConverter =
+    val isInstanceOf: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "isInstanceOf", List(tpe), _, _) =>
+        AssertAST("is", List(lhsTpe, tpe))
+      }
+
+    val asInstance: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "as", List(tpe), _, _) =>
+        AssertAST("as", List(lhsTpe, tpe))
+      }
+
+    val isInstance: ASTConverter =
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "is", List(tpe), _, _) =>
         AssertAST("is", List(lhsTpe, tpe))
       }
 
@@ -469,7 +479,9 @@ $Assert($ast.withCode($codeString).withLocation)
       leftGet,
       asLeft,
       asInstance,
-      isInstance
+      isInstance,
+      asInstanceOf,
+      isInstanceOf
     )
   }
 }

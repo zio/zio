@@ -3,7 +3,7 @@ package zio.test
 import zio.duration.durationInt
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
-import zio.{Chunk, NonEmptyChunk}
+import zio.{Cause, Chunk, NonEmptyChunk}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -355,6 +355,34 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("failure") {
         val res: Color = Blue("Hello")
         assertTrue(res.asInstanceOf[Red].foo > 10)
+      } @@ failing
+    ),
+    suite("is")(
+      test("success") {
+        val res = MyClass("coo")
+        assertTrue(res.is[MyClass])
+      },
+      test("failure") {
+        val res: Any = OtherClass("")
+        assertTrue(res.is[MyClass])
+      } @@ failing
+    ),
+    suite("as")(
+      test("success") {
+        val res: Color = Red(12)
+        assertTrue(res.as[Red].foo > 10)
+      },
+      test("failure") {
+        val res: Color = Blue("Hello")
+        assertTrue(res.as[Red].foo > 10)
+      } @@ failing,
+      test("success 2") {
+        val res: Either[Int, String] = Right("Hello")
+        assertTrue(res.as[Right[Int, String]].value == "Hello")
+      },
+      test("failure 2") {
+        val res: Either[Int, String] = Left(123)
+        assertTrue(res.as[Right[Int, String]].value == "Hello")
       } @@ failing
     ),
     suite("Map")(

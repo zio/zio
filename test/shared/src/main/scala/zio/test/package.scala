@@ -947,4 +947,15 @@ package object test extends CompileVariants {
   private def reassociate[A, B, C, D, E, F, G](fn: (A, B, C, D, E, F) => G): ((((((A, B), C), D), E), F)) => G = {
     case (((((a, b), c), d), e), f) => fn(a, b, c, d, e, f)
   }
+
+  implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
+    def as[Subtype <: A]: Subtype = throw SmartAssertionExtensionError()
+
+    def is[Subtype <: A]: Boolean = throw SmartAssertionExtensionError()
+  }
+
+  private case class SmartAssertionExtensionError() extends Throwable {
+    override def getMessage: String =
+      s"This method can only be called inside of `assertTrue`"
+  }
 }
