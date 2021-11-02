@@ -1457,7 +1457,7 @@ object ZChannel {
   def fromHubManaged[Err, Done, Elem](
     hub: Hub[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
-    hub.subscribe.map(queue => fromQueue(queue)
+    hub.subscribe.map(fromQueue)
 
   def fromInput[Err, Elem, Done](
     input: AsyncInputConsumer[Err, Elem, Done]
