@@ -7,7 +7,7 @@ ZIO Test has out of the box test implementations for all standard ZIO environmen
 - [`TestConsole`](./console.md)
 - [`TestClock`](./clock.md)
 - [`TestRandom`](./random.md)
-- `TestSystem`
+- [`TestSystem`](./system.md)
 
 If we are using ZIO Test and extending `RunnableSpec` a `TestEnvironment` containing all of them will be automatically provided to each of our tests. Otherwise, the easiest way to use the test implementations in ZIO Test is by providing the `TestEnvironment` to our program:
 

@@ -190,8 +190,9 @@ module.exports = {
           items: [
             "datatypes/test/environment/index",
             "datatypes/test/environment/console",
-            "datatypes/test/environment/clock", 
+            "datatypes/test/environment/clock",
             "datatypes/test/environment/random",
+            "datatypes/test/environment/system",
           ]
         },
       ],
