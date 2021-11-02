@@ -63,7 +63,7 @@ test @@ jvm(nonFlaky) @@ timeout(60.seconds)
 
 This is an example of a test suite showing the use of aspects to modify test behavior:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 import zio.{test => _, _}
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -146,4 +146,49 @@ test("Java virtual machine name can be accessed") {
   } yield
     assert(vm)(Assertion.isSome(Assertion.containsString("VM")))
 } @@ jvmOnly
+```
+
+#### Tagging
+
+ZIO Test allows us to define some arbitrary tags. By labeling tests with one or more tags, we can categorize them, and then, when running tests, we can filter tests according to their tags.
+
+Let's tag all slow tests and run them separately:
+
+```scala mdoc:invisible
+val longRunningAssertion        = assertTrue(true)
+val anotherLongRunningAssertion = assertTrue(true)
+```
+
+```scala mdoc:compile-only
+object TaggedSpecsExample extends DefaultRunnableSpec {
+  def spec =
+    suite("a suite containing tagged tests")(
+      test("a slow test") {
+        longRunningAssertion
+      } @@ tag("slow", "math"),
+      test("a simple test") {
+        assertTrue(1 + 1 == 2)
+      } @@ tag("math"),
+      test("another slow test") {
+        anotherLongRunningAssertion
+      } @@ tag("slow")
+    )
+}
+```
+
+By adding the `-tags slow` argument to the command line, we will only run the slow tests:
+
+```
+sbt> test:runMain TaggedSpecsExample -tags slow
+```
+
+The output would be:
+
+```
+[info] running (fork) TaggedSpecsExample -tags slow
+[info] + a suite containing tagged tests - tagged: "slow", "math"
+[info]   + a slow test - tagged: "slow", "math"
+[info]   + another slow test - tagged: "slow"
+[info] Ran 2 tests in 162 ms: 2 succeeded, 0 ignored, 0 failed
+[success] Total time: 1 s, completed Nov 2, 2021, 12:36:36 PM
 ```
