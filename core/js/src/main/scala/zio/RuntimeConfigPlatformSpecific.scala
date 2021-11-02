@@ -88,22 +88,14 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val supervisor = Supervisor.none
 
-    val enableCurrentFiber = false
-
-    val enableLogRuntime = false
-
-    val enableSuperviseOperations = false
-
     RuntimeConfig(
       blockingExecutor,
       executor,
       fatal,
       reportFatal,
       supervisor,
-      enableCurrentFiber,
       logger.filterLogLevel(_ >= LogLevel.Info),
-      enableLogRuntime,
-      enableSuperviseOperations
+      RuntimeConfigFlags.empty
     )
   }
 

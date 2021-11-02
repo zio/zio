@@ -11,7 +11,9 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
     else List(TestAspect.sequential, TestAspect.timeout(120.seconds))
 
   override def runner: TestRunner[Environment, Any] =
-    defaultTestRunner.withRuntimeConfig(_.copy(enableCurrentFiber = true))
+    defaultTestRunner.withRuntimeConfig(self =>
+      self.copy(runtimeConfigFlags = self.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
+    )
 
   sealed trait ZIOTag {
     val value: String
