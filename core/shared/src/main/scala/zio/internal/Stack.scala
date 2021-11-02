@@ -39,7 +39,7 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
       var currentIndex = findNonNull(currentArray)
       var _next        = computeNext()
 
-      private def isMoreChunks(): Boolean = (currentArray ne null) && currentArray(0).isInstanceOf[Array[_]]
+      private def hasMoreChunks(): Boolean = (currentArray ne null) && currentArray(0).isInstanceOf[Array[_]]
 
       def hasNext: Boolean = _next ne null
 
@@ -62,7 +62,7 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
       private def computeNext(): A =
         if (currentIndex < 0) null.asInstanceOf[A]
         else {
-          if (currentIndex == 0 && isMoreChunks()) {
+          if (currentIndex == 0 && hasMoreChunks()) {
             currentArray = currentArray(0).asInstanceOf[Array[AnyRef]]
             currentIndex = 12
           }
