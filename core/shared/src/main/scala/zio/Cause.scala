@@ -574,30 +574,6 @@ object Cause extends Serializable {
       (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
     )
 
-  /**
-   * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by
-   * recursively stripping out any failures with the error `None`.
-   */
-  def flipCauseEither[E, A](cause: Cause[Either[E, A]]): Either[Cause[E], A] =
-    cause.fold[Either[Cause[E], A]](
-      Left(Empty),
-      (failureEither, trace) => failureEither.left.map(Fail(_, trace)),
-      (t, trace) => Left(Die(t, trace)),
-      (fiberId, trace) => Left(Interrupt(fiberId, trace))
-    )(
-      {
-        case (Left(e), Left(e1)) => Left(Then(e, e1))
-        case (Right(a), _)       => Right(a)
-        case (_, Right(a))       => Right(a)
-      },
-      {
-        case (Left(e), Left(e1)) => Left(Both(e, e1))
-        case (Right(a), _)       => Right(a)
-        case (_, Right(a))       => Right(a)
-      },
-      (causeEither, stackless) => causeEither.left.map(Stackless(_, stackless))
-    )
-
   case object Empty extends Cause[Nothing] { self =>
     override def equals(that: Any): Boolean = that match {
       case _: Empty.type      => true
