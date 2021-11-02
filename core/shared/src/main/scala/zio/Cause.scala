@@ -537,7 +537,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Returns a `Cause` that has been stripped of all tracing information.
    */
   final def untraced: Cause[E] =
-    traced(ZTrace.none)
+    mapTrace(_ => ZTrace.none)
 
   private def attachTrace(e: Throwable): Throwable = {
     val trace = Cause.FiberTrace(Cause.stackless(this).prettyPrint)
