@@ -230,7 +230,7 @@ private[zio] final class FiberContext[E, A](
   override final def runUntil(maxOpCount: Int): Unit =
     try {
       val logLevel   = unsafeCurrentLogLevel()
-      val logRuntime = runtimeConfig.logRuntime
+      val logRuntime = runtimeConfig.runtimeConfigFlags(RuntimeConfigFlag.LogRuntime)
 
       // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
       // it in `ObjectRef` and performance will plummet.
@@ -245,8 +245,8 @@ private[zio] final class FiberContext[E, A](
       // of a 1-hop left bind, to show a stack trace closer to the point of failure
       var extraTrace: ZTraceElement = null.asInstanceOf[ZTraceElement]
 
-      if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.set(this)
-      if (runtimeConfig.superviseOperations && (runtimeConfig.supervisor ne null))
+      if (runtimeConfig.runtimeConfigFlags(RuntimeConfigFlag.EnableCurrentFiber)) Fiber._currentFiber.set(this)
+      if (runtimeConfig.runtimeConfigFlags(RuntimeConfigFlag.SuperviseOperations) && (runtimeConfig.supervisor ne null))
         runtimeConfig.supervisor.unsafeOnResume(self)
 
       while (curZio ne null) {
@@ -271,7 +271,11 @@ private[zio] final class FiberContext[E, A](
               } else {
                 // Fiber is neither being interrupted nor needs to yield. Execute
                 // the next instruction in the program:
-                if (runtimeConfig.superviseOperations && (runtimeConfig.supervisor ne null))
+                if (
+                  runtimeConfig.runtimeConfigFlags(
+                    RuntimeConfigFlag.SuperviseOperations
+                  ) && (runtimeConfig.supervisor ne null)
+                )
                   runtimeConfig.supervisor.unsafeOnEffect(self, curZio)
                 (tag: @switch) match {
                   case ZIO.Tags.FlatMap =>
@@ -638,7 +642,7 @@ private[zio] final class FiberContext[E, A](
         }
       }
     } finally {
-      if (runtimeConfig.enableCurrentFiber) Fiber._currentFiber.remove()
+      if (runtimeConfig.runtimeConfigFlags(RuntimeConfigFlag.EnableCurrentFiber)) Fiber._currentFiber.remove()
       if (runtimeConfig.supervisor ne null) runtimeConfig.supervisor.unsafeOnSuspend(self)
     }
 

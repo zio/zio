@@ -80,10 +80,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       fatal,
       reportFatal,
       supervisor,
-      false,
       logger,
-      false,
-      false
+      RuntimeConfigFlags.empty
     )
   }
 
