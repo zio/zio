@@ -357,33 +357,31 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(res.asInstanceOf[Red].foo > 10)
       } @@ failing
     ),
-    suite("is")(
-      test("success") {
-        val res = MyClass("coo")
-        assertTrue(res.is[MyClass])
-      },
-      test("failure") {
-        val res: Any = OtherClass("")
-        assertTrue(res.is[MyClass])
-      } @@ failing
-    ),
     suite("as")(
-      test("success") {
-        val res: Color = Red(12)
-        assertTrue(res.as[Red].foo > 10)
+      test("Some") {
+        val option: Option[Option[Int]] = Some(None)
+        assertTrue(option.as(_.some.some) == 19)
       },
-      test("failure") {
-        val res: Color = Blue("Hello")
-        assertTrue(res.as[Red].foo > 10)
-      } @@ failing,
-      test("success 2") {
-        val res: Either[Int, String] = Right("Hello")
-        assertTrue(res.as[Right[Int, String]].value == "Hello")
+      test("Some Some") {
+        val option: Option[Option[Int]] = Some(Some(39))
+        assertTrue(option.as(_.some.some) == 19)
       },
-      test("failure 2") {
-        val res: Either[Int, String] = Left(123)
-        assertTrue(res.as[Right[Int, String]].value == "Hello")
-      } @@ failing
+      test("Success") {
+        val option: Option[Option[Int]] = Some(Some(18))
+        assertTrue(option.as(_.some.some) == 18)
+      },
+      test("Some Right") {
+        val option: Option[Either[String, Int]] = Some(Right(34))
+        assertTrue(option.as(_.some.right) == 18)
+      },
+      test("Some Left") {
+        val option: Option[Either[String, Int]] = Some(Left("Howdy"))
+        assertTrue(option.as(_.some.right) == 18)
+      },
+      test("Some Left") {
+        val option: Option[Either[String, Int]] = Some(Left("Howdy"))
+        assertTrue(option.as(_.some.left) == "Howddy")
+      }
     ),
     suite("Map")(
       suite(".apply")(

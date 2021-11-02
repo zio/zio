@@ -62,6 +62,21 @@ class SmartAssertMacros(val c: blackbox.Context) {
     }
   }
 
+  def parseAsAssertion(ast: AST)(start: c.Tree)(implicit positionContext: PositionContext): c.Tree =
+    ast match {
+      case AST.Method(lhs, _, _, "some", _, _, span) =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.isSome.span($span)"
+
+      case AST.Method(lhs, _, _, "right", _, _, span) =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asRight.span($span)"
+
+      case AST.Method(lhs, _, _, "left", _, _, span) =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asLeft.span($span)"
+
+      case _ =>
+        start
+    }
+
   def astToAssertion(ast: AST)(implicit positionContext: PositionContext): c.Tree =
     ast match {
       case AST.Not(ast, _, _) =>
@@ -72,6 +87,15 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
       case AST.Or(lhs, rhs, _, ls, rs) =>
         q"${astToAssertion(lhs)}.withParentSpan($ls) || ${astToAssertion(rhs)}.withParentSpan($rs)"
+
+      // Matches `zio.test.SmartAssertionOps.as`
+      case AST.Method(lhs, _, _, "as", _, Some(List(arg)), _)
+          if arg.tpe.typeArgs.head <:< weakTypeOf[SmartAssertion[_]] =>
+        val assertion = astToAssertion(lhs)
+        parseExpr(arg) match {
+          case AST.Function(_, rhs, _, _) => parseAsAssertion(rhs)(assertion)
+          case _                          => throw new Error("This is not possible.")
+        }
 
       case AST.Method(lhs, lhsTpe, _, "forall", _, Some(args), span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assertion = astToAssertion(parseExpr(args.head))
@@ -273,16 +297,6 @@ $Assert($ast.withCode($codeString).withLocation)
         AssertAST("is", List(lhsTpe, tpe))
       }
 
-    val asInstance: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "as", List(tpe), _, _) =>
-        AssertAST("as", List(lhsTpe, tpe))
-      }
-
-    val isInstance: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "is", List(tpe), _, _) =>
-        AssertAST("is", List(lhsTpe, tpe))
-      }
-
     val equalTo: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "$eq$eq", _, Some(args), _) =>
         AssertAST("equalTo", List(lhsTpe), args)
@@ -478,8 +492,6 @@ $Assert($ast.withCode($codeString).withLocation)
       rightGet,
       leftGet,
       asLeft,
-      asInstance,
-      isInstance,
       asInstanceOf,
       isInstanceOf
     )

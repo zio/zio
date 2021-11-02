@@ -948,10 +948,28 @@ package object test extends CompileVariants {
     case (((((a, b), c), d), e), f) => fn(a, b, c, d, e, f)
   }
 
-  implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
-    def as[Subtype <: A]: Subtype = throw SmartAssertionExtensionError()
+  final case class SmartAssertion[+A]()
 
-    def is[Subtype <: A]: Boolean = throw SmartAssertionExtensionError()
+  implicit final class SmartAssertionOptionOps[A](private val self: SmartAssertion[Option[A]]) extends AnyVal {
+    def some: SmartAssertion[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class SmartAssertionEitherOps[E, A](private val self: SmartAssertion[Either[E, A]]) extends AnyVal {
+    def left: SmartAssertion[E]  = throw SmartAssertionExtensionError()
+    def right: SmartAssertion[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class SmartAssertionEitherOps[E](private val self: SmartAssertion[Cause[E]]) extends AnyVal {
+    def failure: SmartAssertion[E]          = throw SmartAssertionExtensionError()
+    def die: SmartAssertion[Throwable]      = throw SmartAssertionExtensionError()
+    def interrupt: SmartAssertion[Fiber.Id] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
+    def as[B](f: SmartAssertion[A] => SmartAssertion[B]): B = {
+      val _ = f
+      throw SmartAssertionExtensionError()
+    }
   }
 
   private case class SmartAssertionExtensionError() extends Throwable {
