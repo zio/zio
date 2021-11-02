@@ -186,8 +186,9 @@ module.exports = {
         "datatypes/test/spec",
         {
           type: "category",
-          label: "TestEnvironment",
+          label: "Test Services",
           items: [
+            "datatypes/test/environment/index",
             "datatypes/test/environment/console",
             "datatypes/test/environment/clock",
           ]
