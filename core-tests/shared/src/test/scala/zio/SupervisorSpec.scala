@@ -10,15 +10,20 @@ object SupervisorSpec extends ZIOBaseSpec {
 
   private val initialValue = "initial-value"
 
-  private val (traceFiberRefAspect, fiberRef) =
-    RuntimeConfigAspect.trackFiberRef[String](initialValue)(a => threadLocal.set(Some(a)))
-
-  val runtime = Runtime.default.mapRuntimeConfig(_ @@ traceFiberRefAspect)
-
   def spec: ZSpec[Environment, Failure] = suite("SupervisorSpec")(
     suite("fiberRefTrackingSupervisor")(
-      test("track initial value") {
-        runIn(runtime) {
+      fiberRefTrackingSupervisorSuite(InstrumentRuntime) ++
+        fiberRefTrackingSupervisorSuite(InstrumentEffect): _*
+    )
+  )
+
+  private def fiberRefTrackingSupervisorSuite[In](
+    runInstrumented: RunInstrumented
+  )(implicit testConstructor: TestConstructor[Nothing, In]): Seq[ZSpec[Environment, Failure]] = {
+    val run = runInstrumented.runIn[Throwable, Assert](initialValue, a => threadLocal.set(Some(a))) _
+    Seq(
+      test(s"[${runInstrumented.show}] track initial value") {
+        run { _ =>
           for {
             (a, b) <- threadLocalGet zipPar threadLocalGet
           } yield {
@@ -29,10 +34,10 @@ object SupervisorSpec extends ZIOBaseSpec {
           }
         }
       },
-      test("track FiberRef.set / modify") {
+      test(s"[${runInstrumented.show}] track FiberRef.set / modify") {
         val newValue1 = "new-value1"
         val newValue2 = "new-value2"
-        runIn(runtime) {
+        run { fiberRef =>
           for {
             _ <- fiberRef.modify(_ => () -> newValue1)
             (a, b) <-
@@ -46,10 +51,10 @@ object SupervisorSpec extends ZIOBaseSpec {
           }
         }
       },
-      test("track in FiberRef.locally") {
+      test(s"[${runInstrumented.show}] track in FiberRef.locally") {
         val newValue1 = "new-value1"
         val newValue2 = "new-value2"
-        runIn(runtime) {
+        run { fiberRef =>
           for {
             a <- threadLocalGet
             (b, c) <- fiberRef.locally(newValue1) {
@@ -65,10 +70,10 @@ object SupervisorSpec extends ZIOBaseSpec {
           )
         }
       },
-      test("track in FiberRef.locallyManaged") {
+      test(s"[${runInstrumented.show}] track in -> FiberRef.locallyManaged") {
         val newValue1 = "new-value1"
         val newValue2 = "new-value2"
-        runIn(runtime) {
+        run { fiberRef =>
           for {
             a <- threadLocalGet
             (b, c) <- fiberRef.locallyManaged(newValue1).useDiscard {
@@ -85,11 +90,38 @@ object SupervisorSpec extends ZIOBaseSpec {
         }
       }
     )
-  )
+  }
+
+  private sealed trait RunInstrumented {
+    def runIn[E, A](initialValue: String, link: String => Unit)(f: FiberRef[String] => IO[E, A]): IO[E, A]
+    def show: String
+  }
+
+  private case object InstrumentRuntime extends RunInstrumented {
+    override def runIn[E, A](initialValue: String, link: String => Unit)(f: FiberRef[String] => IO[E, A]): IO[E, A] = {
+      val (aspect, fiberRef) = RuntimeConfigAspect.trackFiberRef(initialValue)(link)
+      val runtime            = Runtime.default.mapRuntimeConfig(_ @@ aspect)
+      ZIO.async[Any, E, A](callback =>
+        runtime.unsafeRunAsyncWith(f(fiberRef))(exit => callback(exit.fold(ZIO.failCause(_), UIO(_))))
+      )
+    }
+
+    override def show: String = "Instrument Runtime"
+  }
+
+  private case object InstrumentEffect extends RunInstrumented {
+    override def runIn[E, A](initialValue: String, link: String => Unit)(f: FiberRef[String] => IO[E, A]): IO[E, A] = {
+      val (aspect, fiberRef) = RuntimeConfigAspect.trackFiberRef(initialValue)(link)
+      (
+        //force suspend and resume
+        ZIO.sleep(1.milli).provideLayer(Clock.live) *>
+          f(fiberRef)
+      ).withRuntimeConfig(Runtime.default.runtimeConfig @@ aspect)
+    }
+
+    override def show: String = "Instrumenting effect"
+  }
 
   def threadLocalGet =
     Task(threadLocal.get)
-
-  private def runIn[E, A](rt: Runtime[Any])(a: IO[E, A]) =
-    ZIO.async[Any, E, A](callback => rt.unsafeRunAsyncWith(a)(exit => callback(exit.fold(ZIO.failCause(_), UIO(_)))))
 }
