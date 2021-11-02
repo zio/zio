@@ -1384,7 +1384,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val thread = ZIO.succeed(Thread.currentThread())
 
         val global =
-          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+          Executor.fromExecutionContext(Int.MaxValue)(scala.concurrent.ExecutionContext.global)
         for {
           which   <- Ref.make[Option[Thread]](None)
           beforeL <- ZIO.descriptor.map(_.isLocked)
