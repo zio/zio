@@ -107,7 +107,7 @@ private[mock] object MockableMacro {
       val a: Type = capability match {
         case Capability.Effect(_, _, a)      => a
         case Capability.Sink(_, e, a0, a, b) => tq"_root_.zio.stream.ZSink[$any, $e, $a0, $a, $b]".tpe
-        case Capability.Stream(_, e, a)      => tq"_root_.zio.stream.ZStream[$any, $e, $a]".tpe
+        case Capability.Stream(_, _, a)      => a
         case Capability.Method(a)            => a
       }
 
@@ -159,6 +159,8 @@ private[mock] object MockableMacro {
       val (i, e, a) = (info.i, info.e, info.a)
 
       (info.capability, info.polyI, info.polyE, info.polyA) match {
+        case (_: Capability.Stream, false, false, false) =>
+          q"case object $tagName extends Stream[$i, $e, $a]"
         case (_: Capability.Method, false, false, false) =>
           q"case object $tagName extends Method[$i, $e, $a]"
         case (_: Capability.Method, true, false, false) =>
@@ -223,8 +225,9 @@ private[mock] object MockableMacro {
         else Modifiers(Flag.FINAL | Flag.OVERRIDE)
 
       val returnType = info.capability match {
-        case Capability.Method(t) => tq"$t"
-        case _                    => tq"_root_.zio.ZIO[$r, $e, $a]"
+        case Capability.Method(t)       => tq"$t"
+        case Capability.Stream(r, e, a) => tq"_root_.zio.stream.ZStream[$r, $e, $a]"
+        case _                          => tq"_root_.zio.ZIO[$r, $e, $a]"
       }
       val returnValue =
         (info.capability, info.params.map(_.name)) match {

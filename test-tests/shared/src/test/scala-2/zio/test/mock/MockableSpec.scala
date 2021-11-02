@@ -109,6 +109,25 @@ object MockableSpec extends DefaultRunnableSpec {
           Check
         })(anything)
       },
+      test("generates mocks for stream methods") {
+        assert({
+          @mockable[StreamDefsModule.Service]
+          object ModuleMock
+
+          object Check {
+            val mock: Mock[StreamDefsModule] = ModuleMock
+
+            val Static: ModuleMock.Stream[Unit, String, String]                        = ModuleMock.Static
+            val ZeroParams: ModuleMock.Stream[Unit, String, String]                    = ModuleMock.ZeroParams
+            val ZeroParamsWithParens: ModuleMock.Stream[Unit, String, String]          = ModuleMock.ZeroParamsWithParens
+            val SingleParam: ModuleMock.Stream[Int, String, String]                    = ModuleMock.SingleParam
+            val ManyParams: ModuleMock.Stream[(Int, String, Long), String, String]     = ModuleMock.ManyParams
+            val ManyParamLists: ModuleMock.Stream[(Int, String, Long), String, String] = ModuleMock.ManyParamLists
+          }
+
+          Check
+        })(anything)
+      },
       test("generates mocks for simple impure methods") {
         assert({
           @mockable[SimpleImpureDefsModule.Service]
