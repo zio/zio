@@ -1,5 +1,6 @@
 package zio.test.internal
 
+import zio.{Cause, Exit}
 import zio.test._
 import zio.test.diff.Diff
 
@@ -13,21 +14,21 @@ object SmartAssertions {
     Arrow
       .make[Option[A], A] {
         case Some(value) => Trace.succeed(value)
-        case None        => Trace.halt("Option was None")
+        case None        => Trace.fail("Option was None")
       }
 
   def asRight[A]: Arrow[Either[_, A], A] =
     Arrow
       .make[Either[_, A], A] {
         case Right(value) => Trace.succeed(value)
-        case Left(_)      => Trace.halt("Either was Left")
+        case Left(_)      => Trace.fail("Either was Left")
       }
 
   def asLeft[A]: Arrow[Either[A, _], A] =
     Arrow
       .make[Either[A, _], A] {
         case Left(value) => Trace.succeed(value)
-        case Right(_)    => Trace.halt("Either was Right")
+        case Right(_)    => Trace.fail("Either was Right")
       }
 
   def isEmptyIterable[A]: Arrow[Iterable[A], Boolean] =
@@ -123,7 +124,7 @@ object SmartAssertions {
         Try(as(index)).toOption match {
           case Some(value) => Trace.succeed(value)
           case None =>
-            Trace.halt(
+            Trace.fail(
               M.text("Invalid index") + M.value(index) + "for" + className(as) + "of size" + M.value(as.length)
             )
         }
@@ -135,7 +136,7 @@ object SmartAssertions {
         Try(mapKV(key)).toOption match {
           case Some(value) => Trace.succeed(value)
           case None =>
-            Trace.halt(
+            Trace.fail(
               M.text("Missing key") + M.pretty(key)
             )
         }
@@ -147,7 +148,7 @@ object SmartAssertions {
         as.headOption match {
           case Some(value) => Trace.succeed(value)
           case None =>
-            Trace.halt(className(as) + "was empty")
+            Trace.fail(className(as) + "was empty")
         }
       }
 
@@ -219,10 +220,88 @@ object SmartAssertions {
         }
       }
 
+  def asCauseDie[E]: Arrow[Cause[E], Throwable] =
+    Arrow
+      .make[Cause[E], Throwable] {
+        case cause if cause.dieOption.isDefined =>
+          Trace.succeed(cause.dieOption.get)
+        case _ =>
+          Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Die"))
+      }
+
+  def asCauseFailure[E]: Arrow[Cause[E], E] =
+    Arrow
+      .make[Cause[E], E] {
+        case cause if cause.failureOption.isDefined =>
+          Trace.succeed(cause.failureOption.get)
+        case _ =>
+          Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Fail"))
+      }
+
+  def asCauseInterrupted[E]: Arrow[Cause[E], Boolean] =
+    Arrow
+      .make[Cause[E], Boolean] {
+        case cause if cause.interrupted =>
+          Trace.succeed(true)
+        case _ =>
+          Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Interrupt"))
+      }
+
+  def asExitDie[E, A]: Arrow[Exit[E, A], Throwable] =
+    Arrow
+      .make[Exit[E, A], Throwable] {
+        case Exit.Failure(cause) if cause.dieOption.isDefined =>
+          Trace.succeed(cause.dieOption.get)
+        case Exit.Success(_) =>
+          Trace.fail(M.value("Exit.Success") + M.was + "a" + M.value("Cause.Die"))
+        case Exit.Failure(_) =>
+          Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Die"))
+      }
+
+  def asExitCause[E, A]: Arrow[Exit[E, A], Cause[E]] =
+    Arrow
+      .make[Exit[E, A], Cause[E]] {
+        case Exit.Failure(cause) =>
+          Trace.succeed(cause)
+        case Exit.Success(_) =>
+          Trace.fail(M.value("Exit.Success") + M.did + "contain a" + M.value("Cause"))
+      }
+
+  def asExitFailure[E, A]: Arrow[Exit[E, A], E] =
+    Arrow
+      .make[Exit[E, A], E] {
+        case Exit.Failure(cause) if cause.failureOption.isDefined =>
+          Trace.succeed(cause.failureOption.get)
+        case Exit.Success(_) =>
+          Trace.fail(M.value("Exit.Success") + M.was + "a" + M.value("Failure"))
+        case Exit.Failure(_) =>
+          Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Fail"))
+      }
+
+  def asExitInterrupted[E, A]: Arrow[Exit[E, A], Boolean] =
+    Arrow
+      .make[Exit[E, A], Boolean] {
+        case Exit.Failure(cause) if cause.interrupted =>
+          Trace.succeed(true)
+        case Exit.Success(_) =>
+          Trace.fail(M.value("Exit.Success") + M.was + "interrupted")
+        case Exit.Failure(_) =>
+          Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Interrupt"))
+      }
+
+  def asExitSuccess[E, A]: Arrow[Exit[E, A], A] =
+    Arrow
+      .make[Exit[E, A], A] {
+        case Exit.Success(value) =>
+          Trace.succeed(value)
+        case Exit.Failure(_) =>
+          Trace.fail(M.value("Exit") + M.was + "a" + M.value("Success"))
+      }
+
   val throws: Arrow[Any, Throwable] =
     Arrow.makeEither(
       Trace.succeed,
-      _ => Trace.halt("Expected failure")
+      _ => Trace.fail("Expected failure")
     )
 
   def as[A, B](implicit CB: ClassTag[B]): Arrow[A, B] =
@@ -230,7 +309,7 @@ object SmartAssertions {
       .make[A, B] { a =>
         CB.unapply(a) match {
           case Some(value) => Trace.succeed(value)
-          case None        => Trace.halt(M.value(a.getClass.getSimpleName) + "is not an instance of" + M.value(className(CB)))
+          case None        => Trace.fail(M.value(a.getClass.getSimpleName) + "is not an instance of" + M.value(className(CB)))
         }
       }
 

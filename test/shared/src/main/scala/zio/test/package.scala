@@ -957,14 +957,26 @@ package object test extends CompileVariants {
     def right: SmartAssertion[A] = throw SmartAssertionExtensionError()
   }
 
+  implicit final class SmartAssertionExitOps[E, A](private val self: SmartAssertion[Exit[E, A]]) extends AnyVal {
+    def die: SmartAssertion[Throwable] = throw SmartAssertionExtensionError()
+
+    def failure: SmartAssertion[E] = throw SmartAssertionExtensionError()
+
+    def success: SmartAssertion[A] = throw SmartAssertionExtensionError()
+
+    def cause: SmartAssertion[Cause[E]] = throw SmartAssertionExtensionError()
+
+    def interrupted: SmartAssertion[Boolean] = throw SmartAssertionExtensionError()
+  }
+
   implicit final class SmartAssertionCauseOps[E](private val self: SmartAssertion[Cause[E]]) extends AnyVal {
-    def failure: SmartAssertion[E]          = throw SmartAssertionExtensionError()
-    def die: SmartAssertion[Throwable]      = throw SmartAssertionExtensionError()
-    def interrupt: SmartAssertion[Fiber.Id] = throw SmartAssertionExtensionError()
+    def die: SmartAssertion[Throwable]       = throw SmartAssertionExtensionError()
+    def failure: SmartAssertion[E]           = throw SmartAssertionExtensionError()
+    def interrupted: SmartAssertion[Boolean] = throw SmartAssertionExtensionError()
   }
 
   implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
-    def as[B](f: SmartAssertion[A] => SmartAssertion[B]): B = {
+    def is[B](f: SmartAssertion[A] => SmartAssertion[B]): B = {
       val _ = f
       throw SmartAssertionExtensionError()
     }

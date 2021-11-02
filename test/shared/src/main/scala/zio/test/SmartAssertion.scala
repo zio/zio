@@ -1,7 +1,5 @@
 package zio.test
 
-import zio.{Cause, Fiber}
-
 final case class SmartAssertion[+A]()
 
 private case class SmartAssertionExtensionError() extends Throwable {

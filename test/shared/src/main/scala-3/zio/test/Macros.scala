@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{UIO, ZIO}
+import zio._
 import zio.test.internal.SmartAssertions
 import scala.quoted._
 
@@ -64,8 +64,8 @@ class SmartAssertMacros(ctx: Quotes)  {
     }
   }
 
-  def transformAs[Start, End](expr: Expr[SmartAssertion[End]])(start: Expr[Arrow[Any, Start]])(using Type[Start], Type[End], PositionContext) : Expr[Arrow[Any, End]] = 
-   expr match {
+  def transformAs[Start, End](expr: Expr[SmartAssertion[End]])(start: Expr[Arrow[Any, Start]])(using Type[Start], Type[End], PositionContext) : Expr[Arrow[Any, End]] = {
+   val res = expr match {
       case '{ SmartAssertionOptionOps($lhs: SmartAssertion[Option[End]]).some } =>
         val arrow = transformAs[Start, Option[End]](lhs.asInstanceOf[Expr[SmartAssertion[Option[End]]]])(start)
         '{ $arrow >>> SmartAssertions.isSome }
@@ -78,13 +78,43 @@ class SmartAssertMacros(ctx: Quotes)  {
         val arrow = transformAs[Start, Either[End, e]](lhs.asInstanceOf[Expr[SmartAssertion[Either[End, e]]]])(start)
         '{ $arrow >>> SmartAssertions.asLeft }
 
-      case other =>
-        start.asInstanceOf[Expr[Arrow[Any, End]]] 
+     case '{ SmartAssertionCauseOps($lhs: SmartAssertion[Cause[End]]).failure } =>
+       val arrow = transformAs[Start, Cause[End]](lhs.asInstanceOf[Expr[SmartAssertion[Cause[End]]]])(start)
+       '{ $arrow >>> SmartAssertions.asCauseFailure }
+
+     case '{ type a; SmartAssertionCauseOps($lhs: SmartAssertion[Cause[`a`]]).die } =>
+       val arrow = transformAs[Start, Cause[a]](lhs.asInstanceOf[Expr[SmartAssertion[Cause[a]]]])(start)
+       '{ $arrow >>> SmartAssertions.asCauseDie }
+
+     case '{ type a; SmartAssertionCauseOps($lhs: SmartAssertion[Cause[`a`]]).interrupted } =>
+       val arrow = transformAs[Start, Cause[a]](lhs.asInstanceOf[Expr[SmartAssertion[Cause[a]]]])(start)
+       '{ $arrow >>> SmartAssertions.asCauseInterrupted }
+
+     case '{ type a; SmartAssertionExitOps($lhs: SmartAssertion[Exit[End, `a`]]).failure } =>
+       val arrow = transformAs[Start, Exit[End, a]](lhs.asInstanceOf[Expr[SmartAssertion[Exit[End, a]]]])(start)
+       '{ $arrow >>> SmartAssertions.asExitFailure }
+
+     case '{ type a; SmartAssertionExitOps($lhs: SmartAssertion[Exit[`a`, End]]).success } =>
+       val arrow = transformAs[Start, Exit[a, End]](lhs.asInstanceOf[Expr[SmartAssertion[Exit[a, End]]]])(start)
+       '{ $arrow >>> SmartAssertions.asExitSuccess }
+
+     case '{ type e; type a; SmartAssertionExitOps($lhs: SmartAssertion[Exit[`e`, `a`]]).die } =>
+       val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[SmartAssertion[Exit[e, a]]]])(start)
+       '{ $arrow >>> SmartAssertions.asExitDie }
+
+     case '{ type e; type a; SmartAssertionExitOps($lhs: SmartAssertion[Exit[`e`, `a`]]).interrupted } =>
+       val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[SmartAssertion[Exit[e, a]]]])(start)
+       '{ $arrow >>> SmartAssertions.asExitInterrupted }
+
+     case other =>
+       start
     }
+    res.asInstanceOf[Expr[Arrow[Any, End]]]
+  }
 
   def transform[A](expr: Expr[A])(using Type[A], PositionContext) : Expr[Arrow[Any, A]] =
     expr match {
-      case '{ type t; type v; zio.test.SmartAssertionOps[`t`](${something}: `t`).as[`v`](${Unseal(Lambda(terms, body))}) } =>
+      case '{ type t; type v; zio.test.SmartAssertionOps[`t`](${something}: `t`).is[`v`](${Unseal(Lambda(terms, body))}) } =>
         val lhs = transform(something).asInstanceOf[Expr[Arrow[Any, t]]]
         val res = transformAs(body.asExprOf[SmartAssertion[v]])(lhs)
         res.asInstanceOf[Expr[Arrow[Any, A]]]
@@ -117,12 +147,6 @@ class SmartAssertMacros(ctx: Quotes)  {
           case '[l] => 
             '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[Arrow[Any, A]]
         }
-
-        
-
-      // case method @AST.Method(lhs, lhsTpe, rhsTpe, name, tpeArgs, args, span) =>
-      case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) if name == "as" =>
-        throw new Error("OH")
 
 
       case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) =>
@@ -191,7 +215,7 @@ class SmartAssertMacros(ctx: Quotes)  {
 object Macros {
   def location(ctx: Quotes): (String, Int) = {
     import ctx.reflect._
-    val path = Position.ofMacroExpansion.sourceFile.jpath.toString
+    val path = Position.ofMacroExpansion.sourceFile.getJPath.toString
     val line = Position.ofMacroExpansion.startLine + 1
     (path, line)
   }
@@ -227,7 +251,7 @@ object Macros {
 
   def sourcePath_impl(using ctx: Quotes): Expr[String] = {
     import quotes.reflect._
-    Expr(Position.ofMacroExpansion.sourceFile.jpath.toString)
+    Expr(Position.ofMacroExpansion.sourceFile.getJPath.toString)
   }
 
   def showExpression_impl[A](value: Expr[A])(using ctx: Quotes): Expr[String] = {

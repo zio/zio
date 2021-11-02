@@ -1,6 +1,7 @@
 package zio.test
 
 import com.github.ghik.silencer.silent
+import zio.{Cause, Exit}
 
 import scala.annotation.tailrec
 import scala.reflect.macros.blackbox
@@ -73,6 +74,27 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case AST.Method(lhs, _, _, "left", _, _, span) =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asLeft.span($span)"
 
+      case AST.Method(lhs, lhsTpe, _, "die", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitDie.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "failure", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitFailure.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "success", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitSuccess.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitInterrupted.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "die", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Cause[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseDie.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "failure", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Cause[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseFailure.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Cause[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseInterrupted.span($span)"
+
       case _ =>
         start
     }
@@ -89,7 +111,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
         q"${astToAssertion(lhs)}.withParentSpan($ls) || ${astToAssertion(rhs)}.withParentSpan($rs)"
 
       // Matches `zio.test.SmartAssertionOps.as`
-      case AST.Method(lhs, _, _, "as", _, Some(List(arg)), _)
+      case AST.Method(lhs, _, _, "is", _, Some(List(arg)), _)
           if arg.tpe.typeArgs.head <:< weakTypeOf[SmartAssertion[_]] =>
         val assertion = astToAssertion(lhs)
         parseExpr(arg) match {
