@@ -634,6 +634,17 @@ object ChunkSpec extends ZIOBaseSpec {
         assert(Chunk.fromIterator(as.iterator))(equalTo(as))
       }
     },
+    test("fromIterable should works with Iterables traversing only once") {
+      val traversableOnceIterable = new Iterable[Int] {
+        val it = new Iterator[Int] {
+          var c: Int                    = 3
+          override def hasNext: Boolean = c > 0
+          override def next(): Int      = { c = c - 1; c }
+        }
+        override def iterator: Iterator[Int] = it
+      }
+      assert(Chunk.fromIterable(traversableOnceIterable))(equalTo(Chunk(2, 1, 0)))
+    },
     suite("unapplySeq")(
       test("matches a nonempty chunk") {
         val chunk = Chunk(1, 2, 3)

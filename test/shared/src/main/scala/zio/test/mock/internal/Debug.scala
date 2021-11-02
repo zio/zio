@@ -61,6 +61,10 @@ private[mock] object Debug {
         val progress = s"progress = $started out of $completed,"
         ("Repeated(" :: state :: s"range = $range," :: progress :: invoked :: prettify(child, 1) :: ")" :: Nil)
           .mkString(s"\n$ident")
+      case Expectation.Exactly(child, times, _, _, completed) =>
+        val progress = s"progress = completed $completed iterations,"
+        ("Exactly(" :: state :: s"times = $times," :: progress :: invoked :: prettify(child, 1) :: ")" :: Nil)
+          .mkString(s"\n$ident")
     }
   }
 

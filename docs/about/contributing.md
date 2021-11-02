@@ -60,7 +60,7 @@ compile
 You can compile the test source code with the following sbt command:
 
 ```bash
-test:compile
+Test/compile
 ```
 
 [Learn more](https://www.scala-sbt.org) about sbt to understand how you can list projects, switch projects, and otherwise manage an sbt project.
@@ -147,15 +147,15 @@ At this point, you should re-run all tests to make sure everything is passing:
 sbt test
 ```
 
-If all the tests are passing, then you can prepare your code to be shipped:
+If all the tests are passing, then you can format your code to be shipped:
 
 ```bash
-# If you are already in a SBT session you can type only 'prepare'
+# If you are already in a SBT session you can type only 'fmt'
 
-sbt prepare
+sbt fmt
 ```
 
-For simplicity, there is a command that does everything. Prepares code, compiles it and runs tests:
+For simplicity, there is a command that does everything. Formats the code, compiles it and runs tests:
 
 ```bash
 # If you are already in a SBT session you can type only 'build'

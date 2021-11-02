@@ -300,6 +300,11 @@ private[zio] final class FiberContext[E, A](
         } else null
 
       Fiber._currentFiber.set(this)
+      if (platform.superviseOperations) {
+        val currentSupervisor = supervisors.peek()
+        if ((currentSupervisor ne null) && (currentSupervisor ne Supervisor.none))
+          currentSupervisor.unsafeOnResume(self)
+      }
 
       while (curZio ne null) {
         try {
@@ -660,7 +665,12 @@ private[zio] final class FiberContext[E, A](
             }
         }
       }
-    } finally Fiber._currentFiber.remove()
+    } finally {
+      Fiber._currentFiber.remove()
+      val currentSupervisor = supervisors.peek()
+      if ((currentSupervisor ne null) && (currentSupervisor ne Supervisor.none))
+        currentSupervisor.unsafeOnSuspend(self)
+    }
 
   private[this] def shift(executor: Executor): UIO[Unit] =
     ZIO.effectTotal { currentExecutor = executor } *> ZIO.yieldNow

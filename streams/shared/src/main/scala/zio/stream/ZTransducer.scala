@@ -630,9 +630,8 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
     ZTransducer(Managed.succeed(push))
 
   /**
-   * Creates a transducer that groups on adjacent keys, calculated by function f.<br>
-   * With this transducer we can mimic fs2 groupAdjacentBy.<br>
-   * This can be used like e.g. zstream.aggregate(groupAdjacentBy(_._1))
+   * Creates a transducer that groups adjacent elements by key, using the
+   * keying function `f`.
    */
   def groupAdjacentBy[I, K](f: I => K): ZTransducer[Any, Nothing, I, (K, NonEmptyChunk[I])] =
     ZTransducer {
