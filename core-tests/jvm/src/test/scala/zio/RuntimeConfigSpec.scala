@@ -1,6 +1,5 @@
 package zio
 
-import zio.{RuntimeConfig, ZIOBaseSpec}
 import zio.test.Assertion._
 import zio.test._
 
