@@ -1004,7 +1004,7 @@ private[zio] final class FiberContext[E, A](
                   (fiberId, _) => {
                     fiberFailureCauses.observe(classOf[InterruptedException].getName)
                   }
-                )(combineUnit, combineUnit)
+                )(combineUnit, combineUnit, leftUnit)
             }
 
             null
@@ -1249,4 +1249,5 @@ private[zio] object FiberContext {
   lazy val fiberLifetimeBoundaries = ZIOMetric.Histogram.Boundaries.exponential(1.0, 2.0, 100)
 
   val combineUnit = (a: Unit, b: Unit) => ()
+  val leftUnit    = (a: Unit, b: Any) => a
 }
