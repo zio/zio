@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberContext, Platform}
+import zio.internal.{FiberContext, Platform, StackBool}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -169,7 +169,7 @@ trait Runtime[+R] {
             case ZIO.Tags.Fail =>
               val zio = curZio.asInstanceOf[ZIO.Fail[E]]
 
-              done = Exit.failCause(zio.fill(() => null))
+              done = Exit.failCause(zio.cause())
 
             case ZIO.Tags.Succeed =>
               val zio = curZio.asInstanceOf[ZIO.Succeed[A]]
@@ -302,11 +302,10 @@ trait Runtime[+R] {
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       runtimeConfig,
-      environment.asInstanceOf[AnyRef],
-      runtimeConfig.executor,
-      false,
-      InterruptStatus.Interruptible,
-      new java.util.concurrent.atomic.AtomicReference(Map.empty),
+      StackBool(InterruptStatus.Interruptible.toBoolean),
+      new java.util.concurrent.atomic.AtomicReference(
+        Map(FiberContext.currentEnvironment -> environment.asInstanceOf[AnyRef])
+      ),
       scope
     )
 

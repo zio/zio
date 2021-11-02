@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio.stream.experimental
 
-import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-abstract class ZIOSpec[R <: Has[_]: Tag] extends ZIOSpecAbstract { self =>
-  type Environment = R
-
-  final val tag: Tag[R] = Tag[R]
-}
+trait ZPipelineCompanionVersionSpecific

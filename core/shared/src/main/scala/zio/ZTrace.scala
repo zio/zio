@@ -23,7 +23,11 @@ import scala.annotation.tailrec
 final case class ZTrace(
   fiberId: FiberId,
   stackTrace: Chunk[ZTraceElement]
-) {
+) { self =>
+
+  def ++(that: ZTrace): ZTrace =
+    ZTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
+
   def prettyPrint: String =
     stackTrace.collect {
       case s if s.toString.length > 0 => s"\tat ${s} on ${fiberId}"
