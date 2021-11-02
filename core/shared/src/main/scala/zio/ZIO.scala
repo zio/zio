@@ -5221,7 +5221,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * exists. Otherwise extracts the contained `IO[E, A]`
    */
   def unsandbox[R, E, A](v: => ZIO[R, Cause[E], A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.suspendSucceed(v.catchAll(ZIO.failCause(_)))
+    ZIO.suspendSucceed(v.mapErrorCause(_.flatten))
 
   /**
    * Returns an effect indicating that execution is no longer required to be

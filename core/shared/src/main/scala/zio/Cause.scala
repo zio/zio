@@ -140,6 +140,32 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     loop(self, Nil)
   }
 
+  /**
+   * Transforms each error value in this cause to a new cause with the
+   * specified function and then flattens the nested causes into a single
+   * cause.
+   */
+  final def flatMap[E2](f: E => Cause[E2]): Cause[E2] =
+    fold[Cause[E2]](
+      Empty,
+      (e, trace) => f(e).mapTrace(trace ++ _),
+      (t, trace) => Die(t, trace),
+      (fiberId, trace) => Interrupt(fiberId, trace)
+    )(
+      (left, right) => Then(left, right),
+      (left, right) => Both(left, right),
+      (cause, stackless) => Stackless(cause, stackless)
+    )
+
+  /**
+   * Flattens a nested cause.
+   */
+  final def flatten[E1](implicit ev: E <:< Cause[E1]): Cause[E1] =
+    self.flatMap(ev)
+
+  /**
+   * Folds over the cases of this cause with the specified functions.
+   */
   final def fold[Z](
     empty: => Z,
     failCase: (E, ZTrace) => Z,
@@ -299,6 +325,10 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       case Stackless(c, data) => c.keepDefects.map(Stackless(_, data))
     }
 
+  /**
+   * Linearizes this cause to a set of parallel causes where each parallel
+   * cause contains a linear sequence of failures.
+   */
   def linearize[E1 >: E]: Set[Cause[E1]] =
     fold[Set[Cause[E1]]](
       Set.empty,
@@ -311,16 +341,26 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       (cause, stackless) => cause.map(Stackless(_, stackless))
     )
 
+  /**
+   * Transforms the error type of this cause with the specified function.
+   */
   final def map[E1](f: E => E1): Cause[E1] =
-    self match {
-      case Empty                       => Empty
-      case Fail(value, trace)          => Fail(f(value), trace)
-      case c @ Die(_, _)               => c
-      case Interrupt(id, trace)        => Interrupt(id, trace)
-      case Then(left, right)           => Then(left.map(f), right.map(f))
-      case Both(left, right)           => Both(left.map(f), right.map(f))
-      case Stackless(cause, stackless) => Stackless(cause.map(f), stackless)
-    }
+    flatMap(e => Fail(f(e), ZTrace.none))
+
+  /**
+   * Transforms the traces in this cause with the specified function.
+   */
+  final def mapTrace(f: ZTrace => ZTrace): Cause[E] =
+    fold[Cause[E]](
+      Empty,
+      (e, trace) => Fail(e, f(trace)),
+      (t, trace) => Die(t, f(trace)),
+      (fiberId, trace) => Interrupt(fiberId, f(trace))
+    )(
+      (left, right) => Then(left, right),
+      (left, right) => Both(left, right),
+      (cause, stackless) => Stackless(cause, stackless)
+    )
 
   /**
    * Returns a `String` with the cause pretty-printed.
@@ -491,16 +531,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Replaces traces with the specified trace.
    */
   final def traced(trace: ZTrace): Cause[E] =
-    fold[Cause[E]](
-      Empty,
-      (e, _) => Fail(e, trace),
-      (t, _) => Die(t, trace),
-      (fiberId, _) => Interrupt(fiberId, trace)
-    )(
-      (left, right) => left ++ right,
-      (left, right) => left && right,
-      (cause, stackless) => Stackless(cause, stackless)
-    )
+    mapTrace(_ => trace)
 
   /**
    * Returns a `Cause` that has been stripped of all tracing information.
