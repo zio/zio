@@ -14,7 +14,8 @@ object StackTracesSpec extends ZIOBaseSpec {
           trace <- matchPrettyPrintCause(value)
         } yield {
           assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
-          assertTrue(excludesAll(Seq("Suppressed"))(trace))
+          assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
+          assertTrue(!trace.contains("Suppressed"))
         }
       }
     ),
@@ -38,7 +39,9 @@ object StackTracesSpec extends ZIOBaseSpec {
           trace <- matchPrettyPrintCause(value)
         } yield {
           assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
-          assert(trace)(matchesRegex("""(?s).*\tat zio.StackTracesSpec.spec.deepUnderlyingFailure\(.*:\d*\).*""")) &&
+          assertHasStacktraceFor(trace)("spec.deepUnderlyingFailure") &&
+          assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
+          assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: deep failure")) &&
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: other failure")) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 2)
@@ -63,7 +66,13 @@ object StackTracesSpec extends ZIOBaseSpec {
           trace <- matchPrettyPrintCause(value)
         } yield {
           assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+          assertHasStacktraceFor(trace)("spec.deepUnderlyingFailure") &&
+          assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
+          assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: deep failure")) &&
+          assert(trace)(
+            matchesRegex(s"""(?s).*at zio.StackTracesSpec.spec.deepUnderlyingFailure.*\\(.*:\\d*\\).*""")
+          ) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 1)
         }
       },
@@ -80,6 +89,8 @@ object StackTracesSpec extends ZIOBaseSpec {
           trace <- matchPrettyPrintCause(value)
         } yield {
           assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+          assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
+          assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: other failure")) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 1)
         }
@@ -95,10 +106,11 @@ object StackTracesSpec extends ZIOBaseSpec {
   private def assertHasExceptionInThreadZioFiber(trace: String): String => TestResult =
     errorMessage => assert(trace)(matchesRegex(s"""(?s)^Exception in thread\\s"zio-fiber-\\d*"\\s$errorMessage.*"""))
 
+  private def assertHasStacktraceFor(trace: String): String => TestResult = subject =>
+    assert(trace)(matchesRegex(s"""(?s).*at zio\\.StackTracesSpec\\.$subject.*\\(.*:\\d*\\).*"""))
+
   private def numberOfOccurrences(text: String): String => Int = stack =>
     (stack.length - stack.replace(text, "").length) / text.length
-
-  private def excludesAll(texts: Seq[String]): String => Boolean = stack => texts.map(stack.contains).forall(!_)
 
   private val UnsupportedTestPath: Task[String] = ZIO("not considered scenario")
 
