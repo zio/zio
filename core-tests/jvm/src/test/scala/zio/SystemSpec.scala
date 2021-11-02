@@ -1,5 +1,4 @@
 package zio
-package system
 
 import zio.test.Assertion._
 import zio.test._
