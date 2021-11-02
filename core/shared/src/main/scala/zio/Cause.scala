@@ -488,7 +488,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    */
   final def stripSomeDefects(pf: PartialFunction[Throwable, Any]): Option[Cause[E]] =
     fold[Option[Cause[E]]](
-      None,
+      Some(Empty),
       (e, trace) => Some(Fail(e, trace)),
       (t, trace) => if (pf.isDefinedAt(t)) None else Some(Die(t, trace)),
       (fiberId, trace) => Some(Interrupt(fiberId, trace))
