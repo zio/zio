@@ -300,30 +300,26 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * return only `Die` cause/finalizer defects.
    */
   final def keepDefects: Option[Cause[Nothing]] =
-    self match {
-      case Empty           => None
-      case Interrupt(_, _) => None
-      case Fail(_, _)      => None
-      case d @ Die(_, _)   => Some(d)
-
-      case Both(l, r) =>
-        (l.keepDefects, r.keepDefects) match {
-          case (Some(l), Some(r)) => Some(Both(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-
-      case Then(l, r) =>
-        (l.keepDefects, r.keepDefects) match {
-          case (Some(l), Some(r)) => Some(Then(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-
-      case Stackless(c, data) => c.keepDefects.map(Stackless(_, data))
-    }
+    fold[Option[Cause[Nothing]]](
+      None,
+      (_, _) => None,
+      (t, trace) => Some(Die(t, trace)),
+      (_, _) => None
+    )(
+      {
+        case (Some(l), Some(r)) => Some(Then(l, r))
+        case (Some(l), None)    => Some(l)
+        case (None, Some(r))    => Some(r)
+        case (None, None)       => None
+      },
+      {
+        case (Some(l), Some(r)) => Some(Both(l, r))
+        case (Some(l), None)    => Some(l)
+        case (None, Some(r))    => Some(r)
+        case (None, None)       => None
+      },
+      (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
+    )
 
   /**
    * Linearizes this cause to a set of parallel causes where each parallel
@@ -474,17 +470,16 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Discards all typed failures kept on this `Cause`.
    */
   final def stripFailures: Cause[Nothing] =
-    self match {
-      case Empty               => Empty
-      case c @ Interrupt(_, _) => c
-      case Fail(_, _)          => Empty
-      case c @ Die(_, _)       => c
-
-      case Both(l, r) => l.stripFailures && r.stripFailures
-      case Then(l, r) => l.stripFailures ++ r.stripFailures
-
-      case Stackless(c, data) => Stackless(c.stripFailures, data)
-    }
+    fold[Cause[Nothing]](
+      Empty,
+      (e, trace) => Empty,
+      (t, trace) => Die(t, trace),
+      (fiberId, trace) => Interrupt(fiberId, trace)
+    )(
+      (left, right) => Then(left, right),
+      (left, right) => Both(left, right),
+      (cause, stackless) => Stackless(cause, stackless)
+    )
 
   /**
    * Remove all `Die` causes that the specified partial function is defined at,
@@ -492,27 +487,26 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * remaining causes.
    */
   final def stripSomeDefects(pf: PartialFunction[Throwable, Any]): Option[Cause[E]] =
-    self match {
-      case Empty                     => None
-      case Interrupt(fiberId, trace) => Some(Interrupt(fiberId, trace))
-      case Fail(e, trace)            => Some(Fail(e, trace))
-      case Die(t, trace)             => if (pf.isDefinedAt(t)) None else Some(Die(t, trace))
-      case Both(l, r) =>
-        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
-          case (Some(l), Some(r)) => Some(Both(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-      case Then(l, r) =>
-        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
-          case (Some(l), Some(r)) => Some(Then(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-      case Stackless(c, data) => c.stripSomeDefects(pf).map(Stackless(_, data))
-    }
+    fold[Option[Cause[E]]](
+      None,
+      (e, trace) => Some(Fail(e, trace)),
+      (t, trace) => if (pf.isDefinedAt(t)) None else Some(Die(t, trace)),
+      (fiberId, trace) => Some(Interrupt(fiberId, trace))
+    )(
+      {
+        case (Some(l), Some(r)) => Some(Then(l, r))
+        case (Some(l), None)    => Some(l)
+        case (None, Some(r))    => Some(r)
+        case (None, None)       => None
+      },
+      {
+        case (Some(l), Some(r)) => Some(Both(l, r))
+        case (Some(l), None)    => Some(l)
+        case (None, Some(r))    => Some(r)
+        case (None, None)       => None
+      },
+      (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
+    )
 
   /**
    * Grabs a list of execution traces from the cause.
@@ -558,59 +552,53 @@ object Cause extends Serializable {
    * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by
    * recursively stripping out any failures with the error `None`.
    */
-  def flipCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
-    c match {
-      case Empty                  => Some(Empty)
-      case Stackless(cause, data) => flipCauseOption(cause).map(Stackless(_, data))
-      case Interrupt(id, trace)   => Some(Interrupt(id, trace))
-      case d @ Die(_, _)          => Some(d)
-      case Fail(Some(e), trace)   => Some(Fail(e, trace))
-      case Fail(None, _)          => None
-      case Then(left, right) =>
-        (flipCauseOption(left), flipCauseOption(right)) match {
-          case (Some(cl), Some(cr)) => Some(Then(cl, cr))
-          case (None, Some(cr))     => Some(cr)
-          case (Some(cl), None)     => Some(cl)
-          case (None, None)         => None
-        }
-
-      case Both(left, right) =>
-        (flipCauseOption(left), flipCauseOption(right)) match {
-          case (Some(cl), Some(cr)) => Some(Both(cl, cr))
-          case (None, Some(cr))     => Some(cr)
-          case (Some(cl), None)     => Some(cl)
-          case (None, None)         => None
-        }
-    }
+  def flipCauseOption[E](cause: Cause[Option[E]]): Option[Cause[E]] =
+    cause.fold[Option[Cause[E]]](
+      Some(Empty),
+      (failureOption, trace) => failureOption.map(Fail(_, trace)),
+      (t, trace) => Some(Die(t, trace)),
+      (fiberId, trace) => Some(Interrupt(fiberId, trace))
+    )(
+      {
+        case (Some(l), Some(r)) => Some(Then(l, r))
+        case (None, Some(r))    => Some(r)
+        case (Some(l), None)    => Some(l)
+        case (None, None)       => None
+      },
+      {
+        case (Some(l), Some(r)) => Some(Both(l, r))
+        case (None, Some(r))    => Some(r)
+        case (Some(l), None)    => Some(l)
+        case (None, None)       => None
+      },
+      (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
+    )
 
   /**
    * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by
    * recursively stripping out any failures with the error `None`.
    */
-  def flipCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
-    c match {
-      case Empty                  => Left(Empty)
-      case Stackless(cause, data) => flipCauseEither(cause).left.map(Stackless(_, data))
-      case Interrupt(id, trace)   => Left(Interrupt(id, trace))
-      case d @ Die(_, _)          => Left(d)
-      case Fail(Left(e), trace)   => Left(Fail(e, trace))
-      case Fail(Right(a), _)      => Right(a)
-      case Then(left, right) =>
-        (flipCauseEither(left), flipCauseEither(right)) match {
-          case (Left(cl), Left(cr)) => Left(Then(cl, cr))
-          case (Right(a), _)        => Right(a)
-          case (_, Right(a))        => Right(a)
-        }
+  def flipCauseEither[E, A](cause: Cause[Either[E, A]]): Either[Cause[E], A] =
+    cause.fold[Either[Cause[E], A]](
+      Left(Empty),
+      (failureEither, trace) => failureEither.left.map(Fail(_, trace)),
+      (t, trace) => Left(Die(t, trace)),
+      (fiberId, trace) => Left(Interrupt(fiberId, trace))
+    )(
+      {
+        case (Left(e), Left(e1)) => Left(Then(e, e1))
+        case (Right(a), _)       => Right(a)
+        case (_, Right(a))       => Right(a)
+      },
+      {
+        case (Left(e), Left(e1)) => Left(Both(e, e1))
+        case (Right(a), _)       => Right(a)
+        case (_, Right(a))       => Right(a)
+      },
+      (causeEither, stackless) => causeEither.left.map(Stackless(_, stackless))
+    )
 
-      case Both(left, right) =>
-        (flipCauseEither(left), flipCauseEither(right)) match {
-          case (Left(cl), Left(cr)) => Left(Both(cl, cr))
-          case (Right(a), _)        => Right(a)
-          case (_, Right(a))        => Right(a)
-        }
-    }
-
-  case object Empty extends Cause[Nothing] {
+  case object Empty extends Cause[Nothing] { self =>
     override def equals(that: Any): Boolean = that match {
       case _: Empty.type      => true
       case Then(left, right)  => this == left && this == right
