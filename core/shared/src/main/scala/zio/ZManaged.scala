@@ -1777,9 +1777,7 @@ object ZManaged extends ZManagedPlatformSpecific {
           ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
 
         ZIO
-          .foreachPar(as.toIterable)(a =>
-            makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
-          )
+          .foreachPar(as)(a => makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap))))
           .map(bf.fromSpecific(as))
       }
 
@@ -1799,9 +1797,7 @@ object ZManaged extends ZManagedPlatformSpecific {
           ReleaseMap.makeManaged(ExecutionStrategy.Sequential).zio.map(_._2).provideSome[Any]((_, parallelReleaseMap))
 
         ZIO
-          .foreachParN(n)(as.toIterable)(a =>
-            makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap)))
-          )
+          .foreachParN(n)(as)(a => makeInnerMap.flatMap(innerMap => f(a).zio.map(_._2).provideSome[R]((_, innerMap))))
           .map(bf.fromSpecific(as))
       }
 
