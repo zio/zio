@@ -8,6 +8,8 @@ import zio.{Cause, Chunk, NonEmptyChunk}
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
 
+import zio.test.internal.SmartAssertions
+
 object SmartAssertionSpec extends ZIOBaseSpec {
 
   /* Developer Note:
@@ -366,10 +368,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val option: Option[Option[Int]] = Some(Some(39))
         assertTrue(option.as(_.some.some) == 19)
       },
-      test("Success") {
-        val option: Option[Option[Int]] = Some(Some(18))
-        assertTrue(option.as(_.some.some) == 18)
-      },
       test("Some Right") {
         val option: Option[Either[String, Int]] = Some(Right(34))
         assertTrue(option.as(_.some.right) == 18)
@@ -382,7 +380,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val option: Option[Either[String, Int]] = Some(Left("Howdy"))
         assertTrue(option.as(_.some.left) == "Howddy")
       }
-    ),
+    ) @@ failing,
     suite("Map")(
       suite(".apply")(
         test("success") {
@@ -424,10 +422,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     assertTrue(string == "coool")
 
   // Test Types
-  private sealed trait Color
-  private final case class Red(foo: Int)     extends Color
-  private final case class Blue(bar: String) extends Color
+  sealed private trait Color
+  final private case class Red(foo: Int)     extends Color
+  final private case class Blue(bar: String) extends Color
 
-  private final case class MyClass(name: String)
-  private final case class OtherClass(name: String)
+  final private case class MyClass(name: String)
+  final private case class OtherClass(name: String)
 }

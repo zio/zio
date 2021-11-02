@@ -64,8 +64,31 @@ class SmartAssertMacros(ctx: Quotes)  {
     }
   }
 
+  def transformAs[Start, End](expr: Expr[SmartAssertion[End]])(start: Expr[Arrow[Any, Start]])(using Type[Start], Type[End], PositionContext) : Expr[Arrow[Any, End]] = 
+   expr match {
+      case '{ SmartAssertionOptionOps($lhs: SmartAssertion[Option[End]]).some } =>
+        val arrow = transformAs[Start, Option[End]](lhs.asInstanceOf[Expr[SmartAssertion[Option[End]]]])(start)
+        '{ $arrow >>> SmartAssertions.isSome }
+
+      case '{ type e; SmartAssertionEitherOps[`e`, End]($lhs: SmartAssertion[Either[`e`, End]]).right }  =>
+        val arrow = transformAs[Start, Either[e, End]](lhs.asInstanceOf[Expr[SmartAssertion[Either[e, End]]]])(start)
+        '{ $arrow >>> SmartAssertions.asRight }
+
+      case '{ type e; SmartAssertionEitherOps[End, `e`]($lhs: SmartAssertion[Either[End, `e`]]).left }  =>
+        val arrow = transformAs[Start, Either[End, e]](lhs.asInstanceOf[Expr[SmartAssertion[Either[End, e]]]])(start)
+        '{ $arrow >>> SmartAssertions.asLeft }
+
+      case other =>
+        start.asInstanceOf[Expr[Arrow[Any, End]]] 
+    }
+
   def transform[A](expr: Expr[A])(using Type[A], PositionContext) : Expr[Arrow[Any, A]] =
     expr match {
+      case '{ type t; type v; zio.test.SmartAssertionOps[`t`](${something}: `t`).as[`v`](${Unseal(Lambda(terms, body))}) } =>
+        val lhs = transform(something).asInstanceOf[Expr[Arrow[Any, t]]]
+        val res = transformAs(body.asExprOf[SmartAssertion[v]])(lhs)
+        res.asInstanceOf[Expr[Arrow[Any, A]]]
+
       case Unseal(Inlined(_, _, expr)) => transform(expr.asExprOf[A])
 
       case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
@@ -95,7 +118,13 @@ class SmartAssertMacros(ctx: Quotes)  {
             '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[Arrow[Any, A]]
         }
 
+        
+
       // case method @AST.Method(lhs, lhsTpe, rhsTpe, name, tpeArgs, args, span) =>
+      case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) if name == "as" =>
+        throw new Error("OH")
+
+
       case Unseal(method @ MethodCall(lhs, name, tpeArgs, args)) =>
         def body(param: Term) =
           (tpeArgs, args) match {

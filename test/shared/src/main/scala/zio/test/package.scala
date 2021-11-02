@@ -948,8 +948,6 @@ package object test extends CompileVariants {
     case (((((a, b), c), d), e), f) => fn(a, b, c, d, e, f)
   }
 
-  final case class SmartAssertion[+A]()
-
   implicit final class SmartAssertionOptionOps[A](private val self: SmartAssertion[Option[A]]) extends AnyVal {
     def some: SmartAssertion[A] = throw SmartAssertionExtensionError()
   }
@@ -959,7 +957,7 @@ package object test extends CompileVariants {
     def right: SmartAssertion[A] = throw SmartAssertionExtensionError()
   }
 
-  implicit final class SmartAssertionEitherOps[E](private val self: SmartAssertion[Cause[E]]) extends AnyVal {
+  implicit final class SmartAssertionCauseOps[E](private val self: SmartAssertion[Cause[E]]) extends AnyVal {
     def failure: SmartAssertion[E]          = throw SmartAssertionExtensionError()
     def die: SmartAssertion[Throwable]      = throw SmartAssertionExtensionError()
     def interrupt: SmartAssertion[Fiber.Id] = throw SmartAssertionExtensionError()
@@ -972,8 +970,4 @@ package object test extends CompileVariants {
     }
   }
 
-  private case class SmartAssertionExtensionError() extends Throwable {
-    override def getMessage: String =
-      s"This method can only be called inside of `assertTrue`"
-  }
 }
