@@ -39,7 +39,7 @@ In ZIO Test, specs are just values like other data types in ZIO. So we can filte
 
 ### Test Aspects
 
-We can think of a test aspect as a polymorphic function from one test to another test. They are used to change existing tests or even entire suites that you have already created.
+We can think of a test aspect as a polymorphic function from one test to another test. We use them to change existing tests or even entire suites that we have already created.
 
 Test aspects are applied to a test or suite using the `@@` operator:
 
