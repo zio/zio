@@ -75,6 +75,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     DefaultTestReporter(renderer, TestAnnotationRenderer.default)
   }
 
+  // TODO Make sure we're not calling this from JS
   private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.succeed(
       try if (!isAmmonite) sys.exit(exitCode)
@@ -107,4 +108,18 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
              .provideLayer(runner.bootstrap)
     } yield results
   }
+
+  // TODO Confirm we want/need this at this level
+  def test[In](label: String)(assertion: => In)(implicit
+    testConstructor: TestConstructor[Nothing, In],
+    sourceLocation: SourceLocation,
+    trace: ZTraceElement
+  ): testConstructor.Out =
+    testConstructor(label)(assertion)
+
+  def suite[In](label: String)(specs: In*)(implicit
+    suiteConstructor: SuiteConstructor[In],
+    trace: ZTraceElement
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
+    zio.test.suite(label)(specs: _*)
 }

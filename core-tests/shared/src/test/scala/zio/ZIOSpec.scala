@@ -10,11 +10,12 @@ import zio.test._
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-object ZIOSpec extends ZIOBaseSpec {
+// TODO Update
+object ZIOSpec extends ZIOBaseOldSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
+  def spec = suite("ZIOSpec")(
     suite("heap")(
       test("unit.forever is safe") {
         for {

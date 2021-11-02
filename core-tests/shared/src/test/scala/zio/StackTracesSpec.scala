@@ -1,11 +1,11 @@
 package zio
 
 import zio.test.Assertion.{containsString, matchesRegex}
-import zio.test.{TestResult, ZSpec, assert, assertTrue}
+import zio.test.{TestResult, assert, assertTrue}
 
 object StackTracesSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("StackTracesSpec")(
+  def spec = suite("StackTracesSpec")(
     suite("captureSimpleCause")(
       test("captures a simple failure") {
         for {

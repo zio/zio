@@ -3,8 +3,9 @@ package zio
 import zio.test._
 import zio.test.TestAspect.nonFlaky
 
-object ZPoolSpec extends ZIOBaseSpec {
-  def spec: ZSpec[Environment, Failure] =
+// TODO Update/diagnose failures
+object ZPoolSpec extends ZIOBaseOldSpec {
+  def spec =
     suite("ZPoolSpec") {
       test("preallocates pool items") {
         for {

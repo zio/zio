@@ -9,7 +9,7 @@ object ZSTMSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZSTMSpec")(
+  def spec = suite("ZSTMSpec")(
     suite("Using `STM.atomically` to perform different computations and call:")(
       suite("absolve to convert")(
         test("A successful Right computation into the success channel") {

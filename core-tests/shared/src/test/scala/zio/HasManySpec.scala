@@ -3,9 +3,9 @@ package zio
 import zio.test._
 import zio.test.Assertion._
 
-object HasManySpec extends DefaultRunnableSpec {
+object HasManySpec extends ZIOSpecDefault {
 
-  def spec: ZSpec[Environment, Failure] = suite("HasManySpec")(
+  def spec = suite("HasManySpec")(
     suite("accessAt")(
       test("access a service at a single key") {
         val zio1 = ZIO.serviceAt[Int]("Jane Doe")

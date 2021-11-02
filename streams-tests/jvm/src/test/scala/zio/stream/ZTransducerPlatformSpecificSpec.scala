@@ -8,7 +8,7 @@ import java.io.{IOException, InputStream}
 import java.nio.charset.Charset
 import java.nio.file.{Files, Path, Paths}
 
-object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
+object ZTransducerPlatformSpecificSpec extends ZIOBaseOldSpec {
   private val bomTestFilesPath: Path = Paths.get("zio/stream/bom")
 
   private val classLoader: ClassLoader = Thread.currentThread.getContextClassLoader

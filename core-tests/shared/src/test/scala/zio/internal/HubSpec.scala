@@ -3,10 +3,11 @@ package zio.internal
 import zio.test.Assertion._
 import zio.test._
 import zio.{Hub => _, _}
+import zio.{Chunk, Has, Random, UIO, ZIO, ZIOBaseSpec, Hub => _}
 
 object HubSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("HubSpec")(
       suite("pow2")(
         basicOperationsPow2,

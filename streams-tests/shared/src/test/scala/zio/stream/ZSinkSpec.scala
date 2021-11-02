@@ -4,12 +4,12 @@ import zio.stream.SinkUtils.{findSink, sinkRaceLaw}
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{equalTo, isFalse, isGreaterThanEqualTo, isLeft, isTrue, succeeds}
 import zio.test.{assertM, _}
-import zio.{ZIOBaseSpec, _}
+import zio._
 
 import scala.util.Random
 
 object ZSinkSpec extends ZIOBaseSpec {
-  def spec: ZSpec[Environment, Failure] = suite("ZSinkSpec")(
+  def spec = suite("ZSinkSpec")(
     suite("Constructors")(
       test("collectAllToSet")(
         assertM(

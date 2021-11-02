@@ -13,7 +13,8 @@ import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
-object ZStreamSpec extends ZIOBaseSpec {
+// TODO Update fix
+object ZStreamSpec extends ZIOBaseOldSpec {
   import ZIOTag._
 
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
@@ -23,7 +24,7 @@ object ZStreamSpec extends ZIOBaseSpec {
   @silent(
     "pattern var .* in value .* is never used: use a wildcard `_` or suppress this warning with .*"
   )
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ZStreamSpec")(
       suite("Combinators")(
         suite("absolve")(

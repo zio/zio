@@ -5,7 +5,7 @@ import scalafix.v1._
 import scala.annotation.tailrec
 import scala.meta._
 
-class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
+class Zio2Upgrade() extends SemanticRule("Zio2Upgrade") {
 
   val renames =
     Map(
@@ -394,7 +394,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.TimeVariants.anyZoneId" -> "zio.test.Gen.zoneId",
     // App
     "zio.App" -> "zio.ZIOAppDefault",
-    "zio.Executor.asEC" -> "zio.Executor.asExecutionContext"
+    "zio.Executor.asEC" -> "zio.Executor.asExecutionContext",
+    //
   )
 
   val foreachParN             = ParNRenamer("foreachPar", 3)

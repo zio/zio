@@ -158,6 +158,8 @@ object ZTestFrameworkSpec {
 
   def testSharedLayers(): Unit = {
     val reported = ArrayBuffer[Event]()
+
+//    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedLayer), reported.append(_))
     loadAndExecuteAll(Seq(spec1UsingSharedLayer, spec2UsingSharedLayer), reported.append(_))
 
     assert(counter.get() == 1)

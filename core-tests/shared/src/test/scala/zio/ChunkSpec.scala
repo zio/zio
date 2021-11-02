@@ -33,7 +33,7 @@ object ChunkSpec extends ZIOBaseSpec {
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
-  def spec: ZSpec[Environment, Failure] = suite("ChunkSpec")(
+  def spec = suite("ChunkSpec")(
     suite("size/length")(
       test("concatenated size must match length") {
         val chunk = Chunk.empty ++ Chunk.fromArray(Array(1, 2)) ++ Chunk(3, 4, 5) ++ Chunk.single(6)

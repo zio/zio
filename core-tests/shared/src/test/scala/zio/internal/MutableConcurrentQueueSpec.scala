@@ -10,9 +10,11 @@ import zio.test._
  *
  * Concurrent tests are run via jcstress and are in [[RingBufferConcurrencyTests]].
  */
+
+// TODO Update/fix
 object MutableConcurrentQueueSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("MutableConcurrentQueueSpec")(
+  def spec = suite("MutableConcurrentQueueSpec")(
     suite("Make a bounded MutableConcurrentQueue")(
       test("of capacity 1 return a queue of capacity 1") {
         val q = MutableConcurrentQueue.bounded(1)

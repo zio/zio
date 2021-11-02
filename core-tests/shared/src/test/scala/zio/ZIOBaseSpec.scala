@@ -4,15 +4,11 @@ import zio.test._
 
 import scala.annotation.tailrec
 
-trait ZIOBaseSpec extends DefaultRunnableSpec {
-  override def aspects: List[TestAspectAtLeastR[Has[Live]]] =
-    if (TestPlatform.isJVM) List(TestAspect.timeout(120.seconds))
-    else List(TestAspect.sequential, TestAspect.timeout(120.seconds))
-
-  override def runner: TestRunner[Environment, Any] =
-    defaultTestRunner.withRuntimeConfig(self =>
-      self.copy(runtimeConfigFlags = self.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
-    )
+// TODO Eventually make this ZIOBaseSpec, once bugs are fixed
+trait ZIOBaseSpec extends ZIOSpecDefault {
+  override def aspects: Chunk[TestAspectAtLeastR[Has[Live]]] =
+    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(120.seconds))
+    else Chunk(TestAspect.sequential, TestAspect.timeout(120.seconds))
 
   sealed trait ZIOTag {
     val value: String
@@ -48,4 +44,5 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
       case Nil     => Nil
     }
   }
+
 }

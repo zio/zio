@@ -1,12 +1,22 @@
 package zio.stm
 
-import zio._
+import zio.{Has, Promise, Random, ZIO, ZIOBaseSpec}
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
+/*
+  TODO Figure out this conflict:
+    [error] it is imported twice in the same scope by
+    [error] import zio.test._
+    [error] and import zio._
+    [error]     test("1 read lock") {
+
+    I can work around this by avoiding the 2 wildcard imports, but should we have to avoid it like that?
+
+ */
 object TSemaphoreSpec extends ZIOBaseSpec {
-  override def spec: ZSpec[Environment, Failure] = suite("TSemaphore")(
+  override def spec = suite("TSemaphore")(
     suite("factories")(
       test("make") {
         check(Gen.long(1L, Int.MaxValue)) { expected =>

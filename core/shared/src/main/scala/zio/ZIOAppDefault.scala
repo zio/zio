@@ -42,6 +42,7 @@ trait ZIOAppDefault extends ZIOApp {
 
   val layer: ZLayer[Has[ZIOAppArgs], Any, ZEnv] = ZEnv.live
 
+  //
   val tag: Tag[ZEnv] = Tag[ZEnv]
 }
 

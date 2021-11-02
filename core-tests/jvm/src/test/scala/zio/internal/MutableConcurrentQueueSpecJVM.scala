@@ -1,7 +1,7 @@
 package zio.internal
 
 import zio.SerializableSpecHelpers._
-import zio.ZIOBaseSpec
+import zio.ZIOBaseOldSpec
 import zio.test.Assertion._
 import zio.test._
 
@@ -11,9 +11,9 @@ import zio.test._
  *
  * Concurrent tests are run via jcstress and are in [[RingBufferConcurrencyTests]].
  */
-object MutableConcurrentQueueSpecJVM extends ZIOBaseSpec {
+object MutableConcurrentQueueSpecJVM extends ZIOBaseOldSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("MutableConcurrentQueueSpec")(
+  def spec = suite("MutableConcurrentQueueSpec")(
     suite("Serialization works for")(
       test("a one element queue") {
         val q = MutableConcurrentQueue.bounded[Int](1)

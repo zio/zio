@@ -5,7 +5,7 @@ import zio.test._
 import zio.test.Assertion._
 import java.io.ByteArrayOutputStream
 
-object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
+object ZSinkPlatformSpecificSpec extends ZIOBaseOldSpec {
 
   override def spec: ZSpec[Any, Throwable] = suite("ZSink JVM experimental")(
     suite("fromOutputStream")(

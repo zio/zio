@@ -11,7 +11,7 @@ object RTSSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
+  def spec = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     test("blocking caches threads") {
 
       def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Has[Clock], Nothing, Boolean] =

@@ -4,9 +4,9 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object ZStateSpec extends DefaultRunnableSpec {
+object ZStateSpec extends ZIOSpecDefault {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("StateSpec")(
       test("state can be updated") {
         final case class MyState(counter: Int)

@@ -1,12 +1,12 @@
 package zio.autowire
 
-import zio._
+import zio.{test => _, _}
 import zio.test._
 
 import java.io.IOException
 
 // https://github.com/kitlangton/zio-magic/issues/91
-object InjectSomeSpec extends DefaultRunnableSpec {
+object InjectSomeSpec extends ZIOSpecDefault {
 
   final case class TestService(console: Console, clock: Clock) {
     def somethingMagical(annotate: String): ZIO[Any, IOException, Unit] =

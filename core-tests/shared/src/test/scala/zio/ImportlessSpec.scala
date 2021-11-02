@@ -1,9 +1,9 @@
 package zio
 
-import zio.test.{DefaultRunnableSpec, ZSpec, assertCompletes}
+import zio.test._
 
-object ImportlessSpec extends DefaultRunnableSpec {
-  val spec: ZSpec[Environment, Failure] = suite("Suite")(
+object ImportlessSpec extends ZIOSpecDefault {
+  val spec = suite("Suite")(
     test("This is a test without imports")(assertCompletes),
     test("This is an effectful test without imports")(ZIO.succeed(assertCompletes))
   )

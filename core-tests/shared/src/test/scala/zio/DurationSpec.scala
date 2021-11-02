@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion.equalTo
-import zio.test.{ZSpec, assert}
+import zio.test.assert
 
 import java.time.{Duration => JavaDuration}
 import java.util.concurrent.TimeUnit
@@ -9,7 +9,7 @@ import scala.concurrent.duration.{Duration => ScalaDuration}
 
 object DurationSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("DurationSpec")(
+  def spec = suite("DurationSpec")(
     suite("Make a Duration from positive nanos and check that: ")(
       test("The Duration is Finite") {
         assert(Duration.fromNanos(1) == Duration.Infinity)(equalTo(false))

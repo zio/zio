@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object HasSpec extends ZIOBaseSpec {
+object HasSpec extends ZIOSpecDefault {
   trait Animal
   trait Dog   extends Animal
   trait Cat   extends Animal
@@ -32,7 +32,7 @@ object HasSpec extends ZIOBaseSpec {
   val catHotel2: PetHotel[Cat]       = new PetHotel[Cat] { override val toString = "catHotel2" }
   val bunnyHotel1: PetHotel[Bunny]   = new PetHotel[Bunny] { override val toString = "bunnyHotel1" }
 
-  def spec: ZSpec[Environment, Failure] = suite("HasSpec")(
+  def spec: ZSpec[Environment, Any] = suite("HasSpec")(
     suite("monomorphic types")(
       test("Modules sharing common parent are independent") {
         val hasBoth = Has(dog1).add[Cat](cat1)
@@ -132,4 +132,5 @@ object HasSpec extends ZIOBaseSpec {
       }
     )
   )
+
 }

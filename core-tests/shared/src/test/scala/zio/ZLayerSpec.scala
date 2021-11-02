@@ -64,7 +64,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   def makeRef: UIO[Ref[Vector[String]]] =
     Ref.make(Vector.empty)
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ZLayerSpec")(
       test("Size of >>> (1)") {
         val layer = ZLayer.succeed(1) >>> ((i: Int) => i.toString).toLayer

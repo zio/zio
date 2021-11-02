@@ -20,7 +20,7 @@ import sbt.testing._
 import zio.ZIO
 import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
@@ -130,6 +130,7 @@ abstract class ZTestTaskPolicy {
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
+  var newTestCount = new AtomicInteger(0)
   override def merge(zioTasks: Array[ZTestTask]): Array[Task] = {
     val (newTaskOpt, legacyTaskList) =
       zioTasks.foldLeft((None: Option[ZTestTaskNew], List[ZTestTaskLegacy]())) {
@@ -139,6 +140,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case Some(existingNewTestTask: ZTestTaskNew) =>
+                  val _ = newTestCount.incrementAndGet()
                   (
                     Some(
                       new ZTestTaskNew(
@@ -157,6 +159,8 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
               throw new RuntimeException("Other case: " + other)
           }
       }
+
+    println("New Speces folded together: " + newTestCount.get())
     (legacyTaskList ++ newTaskOpt.toList).toArray
   }
 

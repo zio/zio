@@ -8,7 +8,8 @@ import zio.test._
 
 import java.nio.charset.{Charset, StandardCharsets}
 
-object ZSinkSpec extends ZIOBaseSpec {
+// TODO Figure out why this hangs
+object ZSinkSpec extends ZIOBaseOldSpec {
 
   import ZIOTag._
 
@@ -44,7 +45,7 @@ object ZSinkSpec extends ZIOBaseSpec {
     if (Charset.isSupported(charset)) TestAspect.jvmOnly
     else TestAspect.ignore
 
-  def spec: ZSpec[Environment, Failure] = {
+  def spec = {
     suite("ZSinkSpec")(
       suite("Constructors")(
         suite("collectAllN")(

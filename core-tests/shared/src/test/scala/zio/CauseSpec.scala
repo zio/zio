@@ -6,7 +6,7 @@ import zio.test._
 
 object CauseSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("CauseSpec")(
+  def spec = suite("CauseSpec")(
     suite("Cause")(
       test("`Cause#died` and `Cause#stripFailures` are consistent") {
         check(causes)(c => assert(c.keepDefects)(if (c.isDie) isSome(anything) else isNone))

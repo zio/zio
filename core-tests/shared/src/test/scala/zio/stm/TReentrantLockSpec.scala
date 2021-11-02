@@ -1,16 +1,16 @@
 package zio.stm
 
-import zio._
+import zio.{Exit, Promise, Ref, Schedule, ZIO, durationInt}
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, timeout}
 import zio.test._
 
-object TReentrantLockSpec extends DefaultRunnableSpec {
+object TReentrantLockSpec extends ZIOSpecDefault {
   def pollSchedule[E, A]: Schedule[Any, Option[Exit[E, A]], Option[Exit[E, A]]] =
     (Schedule.recurs(100) *>
       Schedule.identity[Option[Exit[E, A]]]).whileOutput(_.isEmpty)
 
-  override def spec: ZSpec[Environment, Failure] = suite("StmReentrantLock")(
+  override def spec = suite("StmReentrantLock")(
     test("1 read lock") {
       for {
         lock  <- TReentrantLock.make.commit

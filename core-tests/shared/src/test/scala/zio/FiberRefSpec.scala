@@ -5,11 +5,12 @@ import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
 
-object FiberRefSpec extends ZIOBaseSpec {
+// TODO Update Spec type
+object FiberRefSpec extends ZIOBaseOldSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("FiberRefSpec")(
+  def spec = suite("FiberRefSpec")(
     suite("Create a new FiberRef with a specified value and check if:")(
       test("`delete` restores the original value") {
         for {
