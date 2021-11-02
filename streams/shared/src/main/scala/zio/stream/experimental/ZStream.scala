@@ -3330,7 +3330,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
   def toPull(implicit trace: ZTraceElement): ZManaged[R, Nothing, ZIO[R, Option[E], Chunk[A]]] =
     channel.toPull.map { pull =>
-      pull.mapError(_.left.toOption)
+      pull.mapError(error => Some(error)).flatMap {
+        case Left(done)  => ZIO.fail(None)
+        case Right(elem) => ZIO.succeed(elem)
+      }
     }
 
   /**
