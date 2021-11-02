@@ -1,6 +1,6 @@
 ---
 id: console
-title: "Test Console Service"
+title: "TestConsole"
 ---
 
 `TestConsole` provides a testable interface for programs interacting with the console by modeling input and output as reading from and writing to input and output buffers maintained by `TestConsole` and backed by a `Ref`.

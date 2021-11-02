@@ -184,6 +184,13 @@ module.exports = {
       "ZIO Test": [
         "datatypes/test/index",
         "datatypes/test/spec",
+        {
+          type: "category",
+          label: "TestEnvironment",
+          items: [
+            "datatypes/test/environment/console"
+          ]
+        },
       ],
     "Miscellaneous": [
       "datatypes/misc/chunk",
