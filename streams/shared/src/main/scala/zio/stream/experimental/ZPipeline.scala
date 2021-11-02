@@ -19,8 +19,6 @@ package zio.stream.experimental
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.util.chaining.scalaUtilChainingOps
-
 /**
  * A `ZPipeline` is a polymorphic stream transformer. Pipelines
  * accept a stream as input, and return the transformed stream as output.
@@ -483,11 +481,11 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
                             else (index, false, false)
                           case _ => (sliceStart, false, midCRLF)
                         }
-                    }
-                    .pipe { case (sliceStart, _, midCRLF) =>
+                    } match {
+                    case (sliceStart, _, midCRLF) =>
                       carry = concatenated.drop(sliceStart)
                       inCRLF = midCRLF
-                    }
+                  }
                 }
               }
 
