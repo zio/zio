@@ -19,6 +19,8 @@ package zio.stream.experimental
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import scala.util.chaining.scalaUtilChainingOps
+
 /**
  * A `ZPipeline` is a polymorphic stream transformer. Pipelines
  * accept a stream as input, and return the transformed stream as output.
@@ -419,6 +421,93 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         trace: ZTraceElement
       ): ZStream[Env1, Err1, Out] =
         stream.scanZIO(s)(f)
+    }
+
+  /**
+   * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
+   */
+  def splitLines: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, String] {
+      override type OutEnv[Env]   = Env
+      override type OutErr[Err]   = Err
+      override type OutElem[Elem] = String
+      override def apply[Env, Err, Elem <: String](
+        stream: ZStream[Env, Err, Elem]
+      )(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, String] = {
+        def next(
+          leftover: Option[String],
+          wasSplitCRLF: Boolean
+        ): ZChannel[Env, Err, Chunk[String], Any, Err, Chunk[String], Any] =
+          ZChannel.readWithCause[Env, Err, Chunk[String], Any, Err, Chunk[String], Any](
+            incomingChunk => {
+              val buffer = collection.mutable.ArrayBuffer.empty[String]
+              var inCRLF = wasSplitCRLF
+              var carry  = leftover getOrElse ""
+
+              incomingChunk foreach { string =>
+                val concatenated = carry concat string
+
+                if (concatenated.nonEmpty) {
+
+                  val continueFrom =
+                    if (inCRLF && carry.nonEmpty) carry.length - 1
+                    else carry.length
+
+                  concatenated.zipWithIndex
+                    .drop(continueFrom)
+                    .foldLeft((0, false, inCRLF)) { case ((sliceStart, skipNext, midCRLF), (char, index)) =>
+                      if (skipNext) (sliceStart, false, false)
+                      else
+                        char match {
+                          case '\n' =>
+                            buffer += concatenated.substring(sliceStart, index)
+                            (index + 1, false, midCRLF)
+                          case '\r' =>
+                            if (index + 1 < concatenated.length && concatenated(index + 1) == '\n') {
+                              buffer += concatenated.substring(sliceStart, index)
+                              (index + 2, true, false)
+                            } else if (index == concatenated.length - 1)
+                              (sliceStart, false, true)
+                            else (index, false, false)
+                          case _ => (sliceStart, false, midCRLF)
+                        }
+                    }
+                    .pipe { case (sliceStart, _, midCRLF) =>
+                      carry = concatenated.drop(sliceStart)
+                      inCRLF = midCRLF
+                    }
+                }
+              }
+
+              ZChannel.write(Chunk.fromArray(buffer.toArray)) *>
+                next(if (carry.nonEmpty) Some(carry) else None, inCRLF)
+            },
+            halt =>
+              leftover match {
+                case Some(value) => ZChannel.write(Chunk.single(value)) *> ZChannel.failCause(halt)
+                case None        => ZChannel.failCause(halt)
+              },
+            done =>
+              leftover match {
+                case Some(value) => ZChannel.write(Chunk.single(value)) *> ZChannel.succeed(done)
+                case None        => ZChannel.succeed(done)
+              }
+          )
+
+        new ZStream[Env, Err, String](stream.channel >>> next(None, wasSplitCRLF = false))
+      }
     }
 
   /**
