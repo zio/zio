@@ -70,9 +70,6 @@ object StackTracesSpec extends ZIOBaseSpec {
           assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
           assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: deep failure")) &&
-          assert(trace)(
-            matchesRegex(s"""(?s).*at zio.StackTracesSpec.spec.deepUnderlyingFailure.*\\(.*:\\d*\\).*""")
-          ) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 1)
         }
       },
@@ -107,7 +104,7 @@ object StackTracesSpec extends ZIOBaseSpec {
     errorMessage => assert(trace)(matchesRegex(s"""(?s)^Exception in thread\\s"zio-fiber-\\d*"\\s$errorMessage.*"""))
 
   private def assertHasStacktraceFor(trace: String): String => TestResult = subject =>
-    assert(trace)(matchesRegex(s"""(?s).*at zio\\.StackTracesSpec\\.$subject.*\\(.*:\\d*\\).*"""))
+    assert(trace)(matchesRegex(s"""(?s).*at zio\\.StackTracesSpec.?\\.$subject.*\\(.*:\\d*\\).*"""))
 
   private def numberOfOccurrences(text: String): String => Int = stack =>
     (stack.length - stack.replace(text, "").length) / text.length
