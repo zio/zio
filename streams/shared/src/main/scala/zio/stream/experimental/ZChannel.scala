@@ -528,65 +528,87 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         pullR      <- (queueReader >>> that).toPull
       } yield {
         def handleSide[Err, Done, Err2, Done2](
-          exit: Exit[Either[Err, Done], OutElem1],
-          fiber: Fiber[Either[Err2, Done2], OutElem1],
-          pull: ZIO[Env1, Either[Err, Done], OutElem1]
+          exit: Exit[Err, Either[Done, OutElem1]],
+          fiber: Fiber[Err2, Either[Done2, OutElem1]],
+          pull: ZIO[Env1, Err, Either[Done, OutElem1]]
         )(
           done: Exit[Err, Done] => ZChannel.MergeDecision[Env1, Err2, Done2, OutErr3, OutDone3],
-          both: (Fiber[Either[Err, Done], OutElem1], Fiber[Either[Err2, Done2], OutElem1]) => MergeState,
+          both: (Fiber[Err, Either[Done, OutElem1]], Fiber[Err2, Either[Done2, OutElem1]]) => MergeState,
           single: (Exit[Err2, Done2] => ZIO[Env1, OutErr3, OutDone3]) => MergeState
-        ) =
+        ): ZIO[Env1, Nothing, ZChannel[Env1, Any, Any, Any, OutErr3, OutElem1, OutDone3]] = {
+          def onDecision(
+            decision: ZChannel.MergeDecision[Env1, Err2, Done2, OutErr3, OutDone3]
+          ): ZIO[Any, Nothing, ZChannel[Env1, Any, Any, Any, OutErr3, OutElem1, OutDone3]] =
+            decision match {
+              case ZChannel.MergeDecision.Done(zio) =>
+                UIO.succeed(ZChannel.fromZIO(fiber.interrupt *> zio))
+              case ZChannel.MergeDecision.Await(f) =>
+                fiber.await.map {
+                  case Exit.Success(Right(elem)) =>
+                    ZChannel.write(elem) *> go(single(f))
+                  case Exit.Success(Left(z)) =>
+                    ZChannel.fromZIO(f(Exit.succeed(z)))
+                  case Exit.Failure(cause) =>
+                    ZChannel.fromZIO(f(Exit.failCause(cause)))
+                }
+            }
+
           exit match {
-            case Exit.Success(elem) =>
+            case Exit.Success(Right(elem)) =>
               pull.fork.map { leftFiber =>
                 ZChannel.write(elem) *> go(both(leftFiber, fiber))
               }
 
-            case Exit.Failure(cause) =>
-              done(Cause.flipCauseEither(cause).fold(Exit.failCause(_), Exit.succeed(_))) match {
-                case ZChannel.MergeDecision.Done(zio) =>
-                  UIO.succeed(ZChannel.fromZIO(fiber.interrupt *> zio))
-                case ZChannel.MergeDecision.Await(f) =>
-                  fiber.await.map {
-                    case Exit.Success(elem) => ZChannel.write(elem) *> go(single(f))
-                    case Exit.Failure(cause) =>
-                      ZChannel
-                        .fromZIO(f(Cause.flipCauseEither(cause).fold(Exit.failCause(_), Exit.succeed(_))))
-                  }
-              }
+            case Exit.Success(Left(z)) =>
+              onDecision(done(Exit.succeed(z)))
+
+            case Exit.Failure(failure) =>
+              onDecision(done(Exit.failCause(failure)))
           }
+        }
 
         def go(state: MergeState): ZChannel[Env1, Any, Any, Any, OutErr3, OutElem1, OutDone3] =
           state match {
             case BothRunning(leftFiber, rightFiber) =>
-              val lj: ZIO[Env1, Either[OutErr, OutDone], OutElem1]   = leftFiber.join
-              val rj: ZIO[Env1, Either[OutErr2, OutDone2], OutElem1] = rightFiber.join
+              val lj: ZIO[Env1, OutErr, Either[OutDone, OutElem1]]   = leftFiber.join
+              val rj: ZIO[Env1, OutErr2, Either[OutDone2, OutElem1]] = rightFiber.join
 
               ZChannel.unwrap {
                 lj.raceWith(rj)(
-                  (leftEx, _) => handleSide(leftEx, rightFiber, pullL)(leftDone, BothRunning(_, _), LeftDone(_)),
+                  (leftEx, _) =>
+                    handleSide(leftEx, rightFiber, pullL)(
+                      leftDone,
+                      BothRunning(_, _),
+                      LeftDone(_)
+                    ),
                   (rightEx, _) =>
-                    handleSide(rightEx, leftFiber, pullR)(rightDone, (l, r) => BothRunning(r, l), RightDone(_))
+                    handleSide(rightEx, leftFiber, pullR)(
+                      rightDone,
+                      (l, r) => BothRunning(r, l),
+                      RightDone(_)
+                    )
                 )
               }
 
             case LeftDone(f) =>
               ZChannel.unwrap {
                 pullR.exit.map {
-                  case Exit.Success(elem) => ZChannel.write(elem) *> go(LeftDone(f))
+                  case Exit.Success(Right(elem)) => ZChannel.write(elem) *> go(LeftDone(f))
+                  case Exit.Success(Left(z)) =>
+                    ZChannel.fromZIO(f(Exit.succeed(z)))
                   case Exit.Failure(cause) =>
-                    ZChannel
-                      .fromZIO(f(Cause.flipCauseEither(cause).fold(Exit.failCause(_), Exit.succeed(_))))
+                    ZChannel.fromZIO(f(Exit.failCause(cause)))
                 }
               }
 
             case RightDone(f) =>
               ZChannel.unwrap {
                 pullL.exit.map {
-                  case Exit.Success(elem) => ZChannel.write(elem) *> go(RightDone(f))
+                  case Exit.Success(Right(elem)) => ZChannel.write(elem) *> go(RightDone(f))
+                  case Exit.Success(Left(z)) =>
+                    ZChannel.fromZIO(f(Exit.succeed(z)))
                   case Exit.Failure(cause) =>
-                    ZChannel
-                      .fromZIO(f(Cause.flipCauseEither(cause).fold(Exit.failCause(_), Exit.succeed(_))))
+                    ZChannel.fromZIO(f(Exit.failCause(cause)))
                 }
               }
           }
@@ -654,31 +676,30 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       ZManaged.withChildren { getChildren =>
         for {
           _           <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
-          queue       <- Queue.bounded[ZIO[Env1, Either[OutErr1, OutDone], OutElem2]](n).toManagedWith(_.shutdown)
+          queue       <- Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n).toManagedWith(_.shutdown)
           errorSignal <- Promise.makeManaged[OutErr1, Nothing]
           permits     <- Semaphore.make(n.toLong).toManaged
           pull        <- self.toPull
           _ <- pull
                  .foldCauseZIO(
-                   Cause.flipCauseEither[OutErr1, OutDone](_) match {
-                     case Left(cause) =>
-                       queue.offer(ZIO.failCause(cause.map(Left(_))))
-                     case Right(outDone) =>
-                       permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.fail(Right(outDone)))
-                   },
-                   outElem =>
-                     for {
-                       p     <- Promise.make[OutErr1, OutElem2]
-                       latch <- Promise.make[Nothing, Unit]
-                       _     <- queue.offer(p.await.mapError(Left(_)))
-                       _ <- permits.withPermit {
-                              latch.succeed(()) *>
-                                (errorSignal.await raceFirst f(outElem))
-                                  .tapErrorCause(errorSignal.failCause)
-                                  .intoPromise(p)
-                            }.fork
-                       _ <- latch.await
-                     } yield ()
+                   cause => queue.offer(ZIO.failCause(cause)),
+                   {
+                     case Left(outDone) =>
+                       permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.succeed(Left(outDone)))
+                     case Right(outElem) =>
+                       for {
+                         p     <- Promise.make[OutErr1, OutElem2]
+                         latch <- Promise.make[Nothing, Unit]
+                         _     <- queue.offer(p.await.map(Right(_)))
+                         _ <- permits.withPermit {
+                                latch.succeed(()) *>
+                                  (errorSignal.await raceFirst f(outElem))
+                                    .tapErrorCause(errorSignal.failCause)
+                                    .intoPromise(p)
+                              }.fork
+                         _ <- latch.await
+                       } yield ()
+                   }
                  )
                  .forever
                  .interruptible
@@ -689,11 +710,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       lazy val consumer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
         ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
           queue.take.flatten.foldCause(
-            Cause.flipCauseEither[OutErr1, OutDone](_) match {
-              case Right(outDone) => ZChannel.end(outDone)
-              case Left(cause)    => ZChannel.failCause(cause)
-            },
-            outElem => ZChannel.write(outElem) *> consumer
+            ZChannel.failCause(_),
+            {
+              case Left(outDone)  => ZChannel.end(outDone)
+              case Right(outElem) => ZChannel.write(outElem) *> consumer
+            }
           )
         }
 
@@ -802,7 +823,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def unit(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit] =
     self.as(())
 
-  def toPull(implicit trace: ZTraceElement): ZManaged[Env, Nothing, ZIO[Env, Either[OutErr, OutDone], OutElem]] =
+  def toPull(implicit trace: ZTraceElement): ZManaged[Env, Nothing, ZIO[Env, OutErr, Either[OutDone, OutElem]]] =
     ZManaged
       .acquireReleaseExitWith(
         UIO(
@@ -820,18 +841,17 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       .map { exec =>
         def interpret(
           channelState: ChannelExecutor.ChannelState[Env, OutErr]
-        ): ZIO[Env, Either[OutErr, OutDone], OutElem] =
+        ): ZIO[Env, OutErr, Either[OutDone, OutElem]] =
           channelState match {
             case ChannelState.Done =>
               exec.getDone match {
-                case Exit.Success(done)  => ZIO.fail(Right(done))
-                case Exit.Failure(cause) => ZIO.failCause(cause.map(Left(_)))
+                case Exit.Success(done)  => ZIO.succeed(Left(done))
+                case Exit.Failure(cause) => ZIO.failCause(cause)
               }
             case ChannelState.Emit =>
-              ZIO.succeed(exec.getEmit)
+              ZIO.succeed(Right(exec.getEmit))
             case ChannelState.Effect(zio) =>
-              zio.mapError(Left(_)) *>
-                interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+              zio *> interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
           }
 
         ZIO.suspendSucceed(interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]))
@@ -1304,68 +1324,71 @@ object ZChannel {
       ZManaged.withChildren { getChildren =>
         for {
           _           <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
-          queue       <- Queue.bounded[ZIO[Env, Either[OutErr, OutDone], OutElem]](bufferSize).toManagedWith(_.shutdown)
+          queue       <- Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize).toManagedWith(_.shutdown)
           cancelers   <- Queue.unbounded[Promise[Nothing, Unit]].toManagedWith(_.shutdown)
           lastDone    <- Ref.makeManaged[Option[OutDone]](None)
           errorSignal <- Promise.makeManaged[Nothing, Unit]
           permits     <- Semaphore.make(n.toLong).toManaged
           pull        <- channels.toPull
-          evaluatePull = (pull: ZIO[Env, Either[OutErr, OutDone], OutElem]) =>
-                           pull
-                             .flatMap(outElem => queue.offer(ZIO.succeedNow(outElem)))
-                             .forever
-                             .catchAllCause(
-                               Cause.flipCauseEither[OutErr, OutDone](_) match {
-                                 case Left(cause) =>
-                                   queue.offer(ZIO.failCause(cause.map(Left(_)))) *> errorSignal.succeed(()).unit
-                                 case Right(outDone) =>
-                                   lastDone.update {
-                                     case Some(lastDone) => Some(f(lastDone, outDone))
-                                     case None           => Some(outDone)
-                                   }
-                               }
-                             )
+          evaluatePull = (pull: ZIO[Env, OutErr, Either[OutDone, OutElem]]) =>
+                           pull.flatMap {
+                             case Left(done) =>
+                               ZIO.succeed(Some(done))
+                             case Right(outElem) =>
+                               queue
+                                 .offer(ZIO.succeedNow(Right(outElem)))
+                                 .as(None)
+                           }
+                             .repeatUntil(_.isDefined)
+                             .flatMap {
+                               case Some(outDone) =>
+                                 lastDone.update {
+                                   case Some(lastDone) => Some(f(lastDone, outDone))
+                                   case None           => Some(outDone)
+                                 }
+                               case None => ZIO.unit
+                             }
+                             .catchAllCause(cause => queue.offer(ZIO.failCause(cause)) *> errorSignal.succeed(()).unit)
           _ <- pull
                  .foldCauseZIO(
-                   Cause.flipCauseEither[OutErr, OutDone](_) match {
-                     case Left(cause) =>
-                       getChildren
-                         .flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.failCause(cause.map(Left(_)))).as(false)
-                     case Right(outDone) =>
+                   cause =>
+                     getChildren
+                       .flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.failCause(cause)).as(false),
+                   {
+                     case Left(outDone) =>
                        errorSignal.await.raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
                          leftDone = (_, permitAcquisition) =>
                            getChildren.flatMap(Fiber.interruptAll(_)) *> permitAcquisition.interrupt.as(false),
                          rightDone = (_, failureAwait) =>
                            failureAwait.interrupt *>
                              lastDone.get.flatMap {
-                               case Some(lastDone) => queue.offer(ZIO.fail(Right(f(lastDone, outDone))))
-                               case None           => queue.offer(ZIO.fail(Right(outDone)))
+                               case Some(lastDone) => queue.offer(ZIO.succeed(Left(f(lastDone, outDone))))
+                               case None           => queue.offer(ZIO.succeed(Left(outDone)))
                              }.as(false)
                        )
-                   },
-                   mergeStrategy match {
-                     case MergeStrategy.BackPressure =>
-                       channel =>
-                         for {
-                           latch   <- Promise.make[Nothing, Unit]
-                           raceIOs  = channel.toPull.use(evaluatePull(_).race(errorSignal.await))
-                           _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
-                           _       <- latch.await
-                           errored <- errorSignal.isDone
-                         } yield !errored
-                     case MergeStrategy.BufferSliding =>
-                       channel =>
-                         for {
-                           canceler <- Promise.make[Nothing, Unit]
-                           latch    <- Promise.make[Nothing, Unit]
-                           size     <- cancelers.size
-                           _        <- ZIO.when(size >= n)(cancelers.take.flatMap(_.succeed(())))
-                           _        <- cancelers.offer(canceler)
-                           raceIOs   = channel.toPull.use(evaluatePull(_).race(errorSignal.await).race(canceler.await))
-                           _        <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
-                           _        <- latch.await
-                           errored  <- errorSignal.isDone
-                         } yield !errored
+                     case Right(channel) =>
+                       mergeStrategy match {
+                         case MergeStrategy.BackPressure =>
+                           for {
+                             latch   <- Promise.make[Nothing, Unit]
+                             raceIOs  = channel.toPull.use(evaluatePull(_).race(errorSignal.await))
+                             _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
+                             _       <- latch.await
+                             errored <- errorSignal.isDone
+                           } yield !errored
+                         case MergeStrategy.BufferSliding =>
+                           for {
+                             canceler <- Promise.make[Nothing, Unit]
+                             latch    <- Promise.make[Nothing, Unit]
+                             size     <- cancelers.size
+                             _        <- ZIO.when(size >= n)(cancelers.take.flatMap(_.succeed(())))
+                             _        <- cancelers.offer(canceler)
+                             raceIOs   = channel.toPull.use(evaluatePull(_).race(errorSignal.await).race(canceler.await))
+                             _        <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
+                             _        <- latch.await
+                             errored  <- errorSignal.isDone
+                           } yield !errored
+                       }
                    }
                  )
                  .repeatWhileEquals(true)
@@ -1376,11 +1399,11 @@ object ZChannel {
       lazy val consumer: ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone] =
         unwrap[Env, Any, Any, Any, OutErr, OutElem, OutDone] {
           queue.take.flatten.foldCause(
-            Cause.flipCauseEither[OutErr, OutDone](_) match {
-              case Right(outDone) => end(outDone)
-              case Left(cause)    => failCause(cause)
-            },
-            outElem => write(outElem) *> consumer
+            cause => failCause(cause),
+            {
+              case Left(outDone)  => end(outDone)
+              case Right(outElem) => write(outElem) *> consumer
+            }
           )
         }
 
@@ -1427,7 +1450,7 @@ object ZChannel {
     ZChannel.concatAllWith(managedOut(channel))((d, _) => d, (d, _) => d)
 
   def fromHub[Err, Done, Elem](
-    hub: Hub[Exit[Either[Err, Done], Elem]]
+    hub: Hub[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.managed(hub.subscribe)(fromQueue)
 
@@ -1443,15 +1466,15 @@ object ZChannel {
     )
 
   def fromQueue[Err, Done, Elem](
-    queue: Dequeue[Exit[Either[Err, Done], Elem]]
+    queue: Dequeue[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.fromZIO(queue.take).flatMap {
-      case Exit.Success(elem) => write(elem) *> fromQueue(queue)
-      case Exit.Failure(cause) =>
-        Cause.flipCauseEither(cause) match {
-          case Left(cause) => failCause(cause)
-          case Right(done) => end(done)
-        }
+      case Right(elem) => write(elem) *> fromQueue(queue)
+      case Left(exit) =>
+        exit.fold(
+          failCause(_),
+          end(_)
+        )
     }
 
   def toHub[Err, Done, Elem](
@@ -1471,8 +1494,8 @@ object ZChannel {
   private[zio] sealed trait MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
   private[zio] object MergeState {
     case class BothRunning[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
-      left: Fiber[Either[Err, Done], Elem],
-      right: Fiber[Either[Err1, Done1], Elem]
+      left: Fiber[Err, Either[Done, Elem]],
+      right: Fiber[Err1, Either[Done1, Elem]]
     ) extends MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
     case class LeftDone[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
       f: Exit[Err1, Done1] => ZIO[Env, Err2, Done2]
