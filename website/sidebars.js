@@ -188,7 +188,8 @@ module.exports = {
           type: "category",
           label: "TestEnvironment",
           items: [
-            "datatypes/test/environment/console"
+            "datatypes/test/environment/console",
+            "datatypes/test/environment/clock",
           ]
         },
       ],
