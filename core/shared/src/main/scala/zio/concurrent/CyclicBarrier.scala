@@ -19,14 +19,14 @@ final class CyclicBarrier private (
   private val _action: UIO[Any],
   private val _broken: Ref[Boolean]
 ) {
-  private val break: UIO[Any] =
+  private val break: UIO[Unit] =
     _broken.set(true) *> fail
 
-  private val fail: UIO[Any] =
-    _lock.get.flatMap(_.fail(()))
+  private val fail: UIO[Unit] =
+    _lock.get.flatMap(_.fail(()).unit)
 
-  private val succeed: UIO[Any] =
-    _lock.get.flatMap(_.succeed(()))
+  private val succeed: UIO[Unit] =
+    _lock.get.flatMap(_.succeed(()).unit)
 
   /** The number of parties required to trip this barrier. */
   def parties: Int = _parties
