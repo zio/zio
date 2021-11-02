@@ -5,6 +5,8 @@ import org.openjdk.jmh.infra.Blackhole
 import zio._
 
 import java.util.concurrent.TimeUnit
+import scala.collection.IntStepper
+import scala.collection.IndexedSeqView
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -37,6 +39,12 @@ class ChunkIndexedSeqComparison {
   }
 
   @Benchmark
+  def appended(): Chunk[Int] = chunk.appended(1)
+
+  @Benchmark
+  def appendedAll(): Chunk[Int] = chunk.appendedAll(Array(1))
+
+  @Benchmark
   def canEqual(): Boolean = chunk.canEqual(chunk)
 
   @Benchmark
@@ -51,6 +59,9 @@ class ChunkIndexedSeqComparison {
 
   @Benchmark
   def combinations(): Iterator[Chunk[Int]] = chunk.combinations(size)
+
+  @Benchmark
+  def concat(): Chunk[Int] = chunk.concat(Array(1))
 
   @Benchmark
   def contains(): Boolean = chunk.contains(1)
@@ -71,6 +82,9 @@ class ChunkIndexedSeqComparison {
   def distinct(): Chunk[Int] = chunk.distinct
 
   @Benchmark
+  def distinctBy(): Chunk[Int] = chunk.distinctBy(num => num)
+
+  @Benchmark
   def dropRight(): Chunk[Int] = chunk.dropRight(1)
 
   @Benchmark
@@ -78,6 +92,9 @@ class ChunkIndexedSeqComparison {
 
   @Benchmark
   def filterNot(): Chunk[Int] = chunk.filterNot(num => num < size)
+
+  @Benchmark
+  def findLast(): Option[Int] = chunk.findLast(num => num == 1)
 
   @Benchmark
   def flatMap(): Chunk[Int] = chunk.flatMap(num => Seq(0, num))
@@ -91,6 +108,18 @@ class ChunkIndexedSeqComparison {
   @Benchmark
   def groupBy(): Map[Boolean, Chunk[Int]] =
     chunk.groupBy(num => num > 15)
+
+  @Benchmark
+  def groupMap(): Map[Boolean, Chunk[Int]] =
+    chunk.groupMap(num => num > 15)(num => num + 2)
+
+  @Benchmark
+  def groupMapReduce(): Map[Boolean, Int] = {
+    val grouper: (Int) => Boolean = (num => num > 15)
+    val mapper: (Int) => Int      = (num => num - 1)
+    val reducer                   = (num1: Int, num2: Int) => num1 + num2
+    chunk.groupMapReduce(grouper)(mapper)(reducer)
+  }
 
   @Benchmark
   def grouped(): Iterator[Chunk[Int]] = chunk.grouped(size / 2)
@@ -123,6 +152,9 @@ class ChunkIndexedSeqComparison {
   def iterator(): Iterator[Int] = chunk.iterator
 
   @Benchmark
+  def knownSize(): Int = chunk.knownSize
+
+  @Benchmark
   def last(): Int = chunk.last
 
   @Benchmark
@@ -144,10 +176,22 @@ class ChunkIndexedSeqComparison {
   def maxBy(): Int = chunk.maxBy(num => num)
 
   @Benchmark
+  def maxByOption(): Option[Int] = chunk.maxByOption(num => num)
+
+  @Benchmark
+  def maxOption(): Option[Int] = chunk.maxOption
+
+  @Benchmark
   def min(): Int = chunk.min
 
   @Benchmark
   def minBy(): Int = chunk.minBy(num => num)
+
+  @Benchmark
+  def minByOption(): Option[Int] = chunk.minByOption(num => num)
+
+  @Benchmark
+  def minOption(): Option[Int] = chunk.minOption
 
   @Benchmark
   def mkString(): String = chunk.mkString
@@ -163,6 +207,12 @@ class ChunkIndexedSeqComparison {
 
   @Benchmark
   def permutations(): Iterator[Chunk[Int]] = chunk.permutations
+
+  @Benchmark
+  def prepended(): Chunk[Int] = chunk.prepended(0)
+
+  @Benchmark
+  def prependedAll(): Chunk[Int] = chunk.prependedAll(Seq(-1, 0))
 
   @Benchmark
   def product(): Int = chunk.product
@@ -210,6 +260,9 @@ class ChunkIndexedSeqComparison {
   def sizeBenchmark(): Int = chunk.size
 
   @Benchmark
+  def sizeCompare(): Int = chunk.sizeCompare(size - 1)
+
+  @Benchmark
   def slice(): Chunk[Int] = chunk.slice(0, size)
 
   @Benchmark
@@ -231,6 +284,9 @@ class ChunkIndexedSeqComparison {
   def startsWith(): Boolean = chunk.startsWith(Seq(1, 2))
 
   @Benchmark
+  def stepper(): IntStepper = chunk.stepper
+
+  @Benchmark
   def sum(): Int = chunk.sum
 
   @Benchmark
@@ -241,6 +297,9 @@ class ChunkIndexedSeqComparison {
 
   @Benchmark
   def takeRight(): Chunk[Int] = chunk.takeRight(size)
+
+  @Benchmark
+  def tapEach(): Chunk[Int] = chunk.tapEach(num => num + 1)
 
   @Benchmark
   def toIndexedSeq(bh: Blackhole): Unit = bh.consume(chunk.toIndexedSeq)
