@@ -1,4 +1,4 @@
-package zio.platform
+package zio
 
 import zio.{RuntimeConfig, ZIOBaseSpec}
 import zio.test.Assertion._
