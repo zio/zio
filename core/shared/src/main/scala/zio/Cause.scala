@@ -148,7 +148,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def flatMap[E2](f: E => Cause[E2]): Cause[E2] =
     fold[Cause[E2]](
       Empty,
-      (e, trace) => f(e).mapTrace(trace ++ _),
+      (e, trace) => f(e).traced(trace),
       (t, trace) => Die(t, trace),
       (fiberId, trace) => Interrupt(fiberId, trace)
     )(
@@ -528,10 +528,10 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       .reverse
 
   /**
-   * Replaces traces with the specified trace.
+   * Adds the specified execution trace to traces.
    */
   final def traced(trace: ZTrace): Cause[E] =
-    mapTrace(_ => trace)
+    mapTrace(_ ++ trace)
 
   /**
    * Returns a `Cause` that has been stripped of all tracing information.
