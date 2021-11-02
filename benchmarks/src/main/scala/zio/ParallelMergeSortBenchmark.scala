@@ -78,7 +78,7 @@ class ParallelMergeSortBenchmark {
       array <- UIO(is.toArray)
       buf   <- UIO(new Array[Int](array.length / 2))
       _     <- mergeSortInPlace(array, buf, 0, array.length)
-    } yield array.toIterable
+    } yield array
 
   private def mergeSortInPlace(is: Array[Int], buf: Array[Int], start: Int, end: Int): UIO[Unit] = {
     val len = end - start
