@@ -98,6 +98,13 @@ abstract class Platform { self =>
 
   def supervisor: Supervisor[Any]
 
+  def superviseOperations: Boolean = false
+
+  def withSuperviseOperations(supervise: Boolean): Platform =
+    new Platform.Proxy(self) {
+      override def superviseOperations: Boolean = supervise
+    }
+
   def withSupervisor(s0: Supervisor[Any]): Platform =
     new Platform.Proxy(self) {
       override def supervisor: Supervisor[Any] = s0
@@ -112,5 +119,6 @@ object Platform extends PlatformSpecific {
     def reportFailure(cause: Cause[Any]): Unit = self.reportFailure(cause)
     def supervisor: Supervisor[Any]            = self.supervisor
     override def yieldOnStart: Boolean         = self.yieldOnStart
+    override def superviseOperations: Boolean  = self.superviseOperations
   }
 }
