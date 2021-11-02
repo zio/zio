@@ -1022,8 +1022,13 @@ private[zio] final class FiberContext[E, A](
         log(() => cause.prettyPrint, ZIO.someDebug, trace = trace)
       } catch {
         case t: Throwable =>
-          println("An exception was thrown by a logger:")
-          t.printStackTrace
+          if (runtimeConfig.fatal(t)) {
+            runtimeConfig.reportFatal(t)
+          } else {
+            println("An exception was thrown by a logger:")
+            t.printStackTrace
+          }
+
       }
     case _ =>
   }
