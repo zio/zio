@@ -99,7 +99,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * A variant of `flatMap` that ignores the value produced by this effect.
    */
   final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
-    zipWith(that)((_, b) => b)
+    self.flatMap(_ => that)
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
@@ -125,7 +125,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * value produced by the effect.
    */
   final def <*[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, A] =
-    zipWith(that)((a, _) => a)
+    self.flatMap(a => that.as(a))
 
   /**
    * Sequentially zips this effect with the specified effect, combining the
@@ -946,8 +946,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect forever (until the first error). For more sophisticated
    * schedules, see the `repeat` method.
    */
-  final def forever(implicit trace: ZTraceElement): ZIO[R, E, Nothing] =
-    self *> ZIO.yieldNow *> forever
+  final def forever(implicit trace: ZTraceElement): ZIO[R, E, Nothing] = {
+    lazy val loop: ZIO[R, E, Nothing] = self *> ZIO.yieldNow *> loop
+
+    loop
+  }
 
   /**
    * Returns an effect that forks this effect into its own separate fiber,
@@ -6174,7 +6177,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class Fold[R, E, E2, A, B](
-    val value: ZIO[R, E, A],
+    val zio: ZIO[R, E, A],
     val failure: Cause[E] => ZIO[R, E2, B],
     val success: A => ZIO[R, E2, B],
     val trace: ZTraceElement
@@ -6189,7 +6192,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class Fork[R, E, A](
-    val value: ZIO[R, E, A],
+    val zio: ZIO[R, E, A],
     val scope: () => Option[ZScope[Exit[Any, Any]]],
     val trace: ZTraceElement
   ) extends URIO[R, Fiber.Runtime[E, A]] {

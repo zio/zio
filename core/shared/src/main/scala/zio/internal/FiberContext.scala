@@ -71,11 +71,20 @@ private[zio] final class FiberContext[E, A](
   private[this] def captureTrace(prefix: List[ZTraceElement]): ZTrace = {
     val chunkBuilder = ChunkBuilder.make[ZTraceElement]()
 
-    chunkBuilder ++= prefix
+    var last: ZTraceElement = ZTraceElement.empty
 
-    stack.foreach(k => chunkBuilder += k.trace)
+    val addToTrace = (trace: ZTraceElement) => {
+      if ((trace ne null) && (trace != ZTraceElement.empty) && (trace != last)) {
+        last = trace
+        chunkBuilder += trace
+      }
+      ()
+    }
 
-    ZTrace(fiberId, chunkBuilder.result().dedupe)
+    prefix.foreach(addToTrace)
+    stack.foreach(k => addToTrace(k.trace))
+
+    ZTrace(fiberId, chunkBuilder.result())
   }
 
   private[zio] def awaitAsync(k: Callback[E, A]): Any =
@@ -328,6 +337,7 @@ private[zio] final class FiberContext[E, A](
                         // Fallback case. We couldn't evaluate the LHS so we have to
                         // use the stack:
                         curZio = nested
+
                         stack.push(zio)
                     }
 
@@ -373,23 +383,23 @@ private[zio] final class FiberContext[E, A](
                        else
                          tracedCause) ++ clearSuppressedCause()
 
-                    if (stack.isEmpty) {
+                    curZio = if (stack.isEmpty) {
                       // Error not caught, stack is empty:
                       setInterrupting(true)
 
-                      curZio = done(Exit.failCause(fullCause.asInstanceOf[Cause[E]]))(zio.trace)
+                      done(Exit.failCause(fullCause.asInstanceOf[Cause[E]]))(zio.trace)
                     } else {
                       setInterrupting(false)
 
                       // Error caught, next continuation on the stack will deal
                       // with it, so we just have to compute it here:
-                      curZio = nextInstr(fullCause)
+                      nextInstr(fullCause)
                     }
 
                   case ZIO.Tags.Fold =>
                     val zio = curZio.asInstanceOf[ZIO.Fold[Any, Any, Any, Any, Any]]
 
-                    curZio = zio.value
+                    curZio = zio.zio
 
                     stack.push(zio)
 
@@ -449,7 +459,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = nextInstr(fork(zio.value, zio.scope())(zio.trace))
+                    curZio = nextInstr(fork(zio.zio, zio.scope())(zio.trace))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, Any, Any]]
@@ -614,12 +624,15 @@ private[zio] final class FiberContext[E, A](
           }) {}
         } catch {
           case _: InterruptedException =>
-            // Reset thread interrupt status and interrupt with zero fiber id:
+            // Reset thread interrupt status:
             Thread.interrupted()
 
             val trace = curZio.trace
 
             curZio = ZIO.interruptAs(FiberId.None)(trace)
+
+            // Prevent interruption of interruption:
+            setInterrupting(true)
 
           case ZIO.ZioError(exit) =>
             exit match {

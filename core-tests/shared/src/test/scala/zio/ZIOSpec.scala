@@ -16,6 +16,16 @@ object ZIOSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
+    suite("heap")(
+      test("unit.forever is safe") {
+        for {
+          _     <- ZIO.debug("Press any line to stop...")
+          fiber <- ZIO.unit.forever.fork
+          _     <- ZIO.attempt(scala.io.StdIn.readLine())
+          _     <- fiber.interrupt
+        } yield assertCompletes
+      } @@ ignore
+    ),
     suite("&&")(
       test("true and true is true") {
         assertM(ZIO.succeed(true) && ZIO.succeed(true))(isTrue)
