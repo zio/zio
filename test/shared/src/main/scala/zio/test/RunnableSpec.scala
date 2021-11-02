@@ -60,9 +60,11 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
     }
   }
 
-  private def doExit(exitCode: Int): Unit =
+  private def doExit(exitCode: Int): Unit = {
+    println("About to exit legacy")
     try if (!isAmmonite) sys.exit(exitCode)
     catch { case _: SecurityException => }
+  }
 
   private def isAmmonite: Boolean =
     sys.env.exists { case (k, v) =>
