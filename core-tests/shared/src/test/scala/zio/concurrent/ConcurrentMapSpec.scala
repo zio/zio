@@ -1,13 +1,26 @@
 package zio.concurrent
 
-import zio.ZIOBaseSpec
+import zio._
 import zio.test._
 import zio.test.Assertion._
-import zio.{Chunk, UIO}
 
 object ConcurrentMapSpec extends ZIOBaseSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("ConcurrentMap")(
+      suite("collectFirst")(
+        testM("returns Some of first result for which the partial function is defined") {
+          for {
+            map <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            res <- map.collectFirst { case (3, _) => "Three" }
+          } yield assertTrue(res.get == "Three")
+        },
+        testM("returns None when the partial function is defined for no values") {
+          for {
+            map <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            res <- map.collectFirst { case (4, _) => "Four" }
+          } yield assertTrue(res.isEmpty)
+        }
+      ),
       suite("compute")(
         testM("computes a new value") {
           for {
@@ -78,6 +91,42 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
           } yield assert(items)(equalTo(data))
         }
       ),
+      suite("exists")(
+        testM("returns true when element which satisfies given predicate exists within the map") {
+          for {
+            map    <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            exists <- map.exists((k, _) => k % 2 == 0)
+          } yield assertTrue(exists)
+        },
+        testM("returns false when no elements in the map satisfy the predicate") {
+          for {
+            map    <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            exists <- map.exists((k, _) => k == 4)
+          } yield assertTrue(!exists)
+        }
+      ),
+      suite("fold")(
+        testM("returns the sum of the map's values") {
+          for {
+            map <- ConcurrentMap.make(("A", 1), ("B", 2), ("C", 3))
+            res <- map.fold(0) { case (acc, (_, value)) => acc + value }
+          } yield assertTrue(res == 6)
+        }
+      ),
+      suite("forall")(
+        testM("returns true when predicate holds for all elements of the map") {
+          for {
+            map    <- ConcurrentMap.make(("A", 1), ("B", 2), ("C", 3))
+            result <- map.forall((_, v) => v < 4)
+          } yield assertTrue(result)
+        },
+        testM("returns false when predicate fails for any element of the map") {
+          for {
+            map    <- ConcurrentMap.make(("A", 1), ("B", 2), ("C", 3))
+            result <- map.forall((_, v) => v < 3)
+          } yield assertTrue(!result)
+        }
+      ),
       suite("get")(
         testM("retrieves an existing key") {
           for {
@@ -124,6 +173,21 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
           } yield assert(putRes)(isSome(equalTo("a"))) && assert(getRes)(isSome(equalTo("a")))
         }
       ),
+      suite("putAll")(
+        testM("associates all non-existent keys with given value") {
+          for {
+            map  <- ConcurrentMap.empty[Int, String]
+            _    <- map.putAll((1, "A"), (2, "B"), (3, "C"))
+            resA <- map.get(1)
+            resB <- map.get(2)
+            resC <- map.get(3)
+          } yield assertTrue(
+            resA.get == "A",
+            resB.get == "B",
+            resC.get == "C"
+          )
+        }
+      ),
       suite("remove")(
         testM("returns the value associated with removed key") {
           for {
@@ -154,6 +218,21 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
           } yield assert(remRes)(isFalse) && assert(getRes)(isSome(equalTo("a")))
         }
       ),
+      suite("removeIf")(
+        testM("removes the values that match a given predicate") {
+          for {
+            map  <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            _    <- map.removeIf((k, _) => k != 1)
+            aRes <- map.get(1)
+            bRes <- map.get(2)
+            cRes <- map.get(3)
+          } yield assertTrue(
+            aRes.get == "A",
+            bRes.isEmpty,
+            cRes.isEmpty
+          )
+        }
+      ),
       suite("replace")(
         testM("returns the replaced value") {
           for {
@@ -182,6 +261,21 @@ object ConcurrentMapSpec extends ZIOBaseSpec {
             repRes <- map.replace(1, "b", "c")
             getRes <- map.get(1)
           } yield assert(repRes)(isFalse) && assert(getRes)(isSome(equalTo("a")))
+        }
+      ),
+      suite("retainIf")(
+        testM("retains values that satisfy a given predicate") {
+          for {
+            map  <- ConcurrentMap.make((1, "A"), (2, "B"), (3, "C"))
+            _    <- map.retainIf((k, _) => k == 1)
+            aRes <- map.get(1)
+            bRes <- map.get(2)
+            cRes <- map.get(3)
+          } yield assertTrue(
+            aRes.get == "A",
+            bRes.isEmpty,
+            cRes.isEmpty
+          )
         }
       )
     )
