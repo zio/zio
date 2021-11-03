@@ -341,13 +341,24 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    */
   final def raceBoth[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] =
-    new ZSink(
-      self.channel.mergeWith(that.channel)(
-        selfDone => ZChannel.MergeDecision.done(ZIO.done(selfDone).map(Left(_))),
-        thatDone => ZChannel.MergeDecision.done(ZIO.done(thatDone).map(Right(_)))
-      )
-    )
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] = {
+    val managed =
+      for {
+        hub   <- ZHub.bounded[Either[Exit[InErr1, Any], Chunk[In1]]](1).toManaged
+        c1    <- ZChannel.fromHubManaged(hub)
+        c2    <- ZChannel.fromHubManaged(hub)
+        reader = ZChannel.toHub(hub)
+        writer = (c1 >>> self.channel).mergeWith(c2 >>> that.channel)(
+                   selfDone => ZChannel.MergeDecision.done(ZIO.done(selfDone).map(Left(_))),
+                   thatDone => ZChannel.MergeDecision.done(ZIO.done(thatDone).map(Right(_)))
+                 )
+        channel = reader.mergeWith(writer)(
+                    _ => ZChannel.MergeDecision.await(ZIO.done(_)),
+                    done => ZChannel.MergeDecision.done(ZIO.done(done))
+                  )
+      } yield new ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]](channel)
+    ZSink.unwrapManaged(managed)
+  }
 
   /**
    * Returns the sink that executes this one and times its execution.
