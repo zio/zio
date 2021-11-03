@@ -33,9 +33,38 @@ We can think of a spec as just a collection of tests. It is essentially a recurs
     )
   ```
   
-### Dependencies on Other Services
+## Dependencies on Other Services
 
 Just like the `ZIO` data type, the `Spec` requires an environment of type `R`. When we write tests, we might need to access a service through the environment. It can be a combination of the standard services such a `Clock`, `Console`, `Random` and `System` or test services like `TestClock`, `TestConsole`, `TestRandom`, and `TestSystem`, or any user-defined services.
+
+### Using Standard Test Services
+
+All standard test services are located at the `zio.test.environment` package. They are test implementation of standard ZIO services. The use of these test services enables us to test functionality that depends on printing to or reading from a console, randomness, timings, and, also the system properties.
+
+Let's see how we can test the `sayHello` function, which uses the `Console` service:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
+import zio.test.environment._
+
+import java.io.IOException
+
+def sayHello: ZIO[Has[Console], IOException, Unit] =
+  Console.printLine("Hello, World!")
+
+suite("HelloWorldSpec")(
+  test("sayHello correctly displays output") {
+    for {
+      _      <- sayHello
+      output <- TestConsole.output
+    } yield assert(output)(equalTo(Vector("Hello, World!\n")))
+  }
+)
+```
+
+There is a separate section in the documentation pages that covers [all built-in test services](./environment/index.md).
 
 ### Providing Layers
 
