@@ -12,7 +12,7 @@ object Tracer {
 
   val instance: Tracer = new Tracer {
     type Type = String
-    val empty: Type with Traced = "".asInstanceOf[Type with Traced]
+    val empty: Type with Traced = "".intern().asInstanceOf[Type with Traced]
     def unapply(trace: Type): Option[(String, String, Int, Int)] =
       trace match {
         case regex(location, file, line, column) => Some((location, file, line.toInt, column.toInt))
