@@ -43,8 +43,8 @@ object AssertionSpec extends ZIOBaseSpec {
     test("dies must fail when exception does not satisfy specified assertion") {
       assert(Exit.die(new RuntimeException("Bam!")))(dies(equalTo(someException)))
     } @@ failing,
-    test("diesA must succeed when given type assertion is correct") {
-      assert(Exit.die(customException))(diesA[CustomException])
+    test("diesWith must succeed when given type assertion is correct") {
+      assert(Exit.die(customException))(diesWith[CustomException])
     },
     test("endWith must succeed when the supplied value ends with the specified sequence") {
       assert(List(1, 2, 3, 4, 5))(endsWith(List(3, 4, 5)))
@@ -106,8 +106,8 @@ object AssertionSpec extends ZIOBaseSpec {
     test("fails must fail when error value does not satisfy specified assertion") {
       assert(Exit.fail("Other Error"))(fails(equalTo("Some Error")))
     } @@ failing,
-    test("failsA must succeed when given type assertion is correct") {
-      assert(Exit.fail(customException))(failsA[CustomException])
+    test("failsWith must succeed when given type assertion is correct") {
+      assert(Exit.fail(customException))(failsWith[CustomException])
     },
     test("forall must succeed when all elements of iterable satisfy specified assertion") {
       assert(Seq("a", "bb", "ccc"))(forall(hasField("length", _.length, isWithin(0, 3))))
