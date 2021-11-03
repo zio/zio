@@ -18,6 +18,9 @@ package zio.stream.experimental
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
+
+import java.nio.charset.{Charset, StandardCharsets}
 
 /**
  * A `ZPipeline` is a polymorphic stream transformer. Pipelines
@@ -75,7 +78,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
 
   type Identity[A] = A
 
-  def branchAfter[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem, OutElem0[Elem]](n: Int)(
+  def branchAfter[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem, OutElem[Elem]](n: Int)(
     f: Chunk[UpperElem] => ZPipeline.WithOut[
       LowerEnv,
       UpperEnv,
@@ -560,6 +563,56 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         stream.takeWhile(f)
     }
 
+  type UtfDecodingPipeline = ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ]
+
+  def utf16Decode: UtfDecodingPipeline =
+    bomDetectingUtfDecode(
+      bomSize = 2,
+      {
+        case BOM.Utf16BE =>
+          Chunk.empty -> utf16BEDecode
+        case BOM.Utf16LE =>
+          Chunk.empty -> utf16LEDecode
+        case bytes =>
+          bytes -> utf16BEDecode
+      }
+    )
+
+  def utf16BEDecode: UtfDecodingPipeline =
+    utfDecodeFixedLength(StandardCharsets.UTF_16BE, fixedLength = 2)
+
+  def utf16LEDecode: UtfDecodingPipeline =
+    utfDecodeFixedLength(StandardCharsets.UTF_16LE, fixedLength = 2)
+
+  def utf32Decode: UtfDecodingPipeline =
+    bomDetectingUtfDecode(
+      bomSize = 4,
+      {
+        case BOM.Utf32BE =>
+          Chunk.empty -> utf32BEDecode
+        case BOM.Utf32LE =>
+          Chunk.empty -> utf32LEDecode
+        case bytes =>
+          bytes -> utf32BEDecode
+      }
+    )
+
+  def utf32BEDecode: UtfDecodingPipeline =
+    utfDecodeFixedLength(CharsetUtf32BE, fixedLength = 4)
+
+  def utf32LEDecode: UtfDecodingPipeline =
+    utfDecodeFixedLength(CharsetUtf32LE, fixedLength = 4)
+
   trait Compose[+LeftLower, -LeftUpper, LeftOut[In], +RightLower, -RightUpper, RightOut[In]] {
     type Lower
     type Upper
@@ -731,4 +784,103 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         type Out[In] = RightOut
       }
   }
+
+  private def bomDetectingUtfDecode(
+    bomSize: Int,
+    processBom: Chunk[Byte] => (Chunk[Byte], UtfDecodingPipeline)
+  ): UtfDecodingPipeline =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
+      override type OutEnv[Env]   = Env
+      override type OutErr[Err]   = Err
+      override type OutElem[Elem] = String
+
+      override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, String] = {
+
+        type DecodingChannel = ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any]
+
+        def passThrough(decodingPipeline: UtfDecodingPipeline): DecodingChannel =
+          ZChannel.readWith(
+            received =>
+              decodingPipeline(
+                ZStream.fromChunk(received)
+              ).channel *>
+                passThrough(decodingPipeline),
+            error = ZChannel.fail(_),
+            done = _ => ZChannel.unit
+          )
+
+        def lookingForBom(buffer: Chunk[Byte]): DecodingChannel =
+          ZChannel.readWith(
+            received => {
+              val data = buffer ++ received
+
+              if (data.length >= bomSize) {
+                val (bom, rest)                        = data.splitAt(bomSize)
+                val (dataWithoutBom, decodingPipeline) = processBom(bom)
+
+                decodingPipeline(
+                  ZStream.fromChunk(dataWithoutBom ++ rest)
+                ).channel *>
+                  passThrough(decodingPipeline)
+              } else {
+                lookingForBom(data)
+              }
+            },
+            error = ZChannel.fail(_),
+            done = _ => ZChannel.unit
+          )
+
+        new ZStream(sourceStream.channel >>> lookingForBom(Chunk.empty))
+      }
+    }
+
+  private def utfDecodeFixedLength(charset: Charset, fixedLength: Int): UtfDecodingPipeline =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
+      override type OutEnv[Env]   = Env
+      override type OutErr[Err]   = Err
+      override type OutElem[Elem] = String
+
+      override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, String] = {
+
+        val emptyByteChunk: Chunk[Byte] = Chunk.empty
+        val emptyStringChunk            = Chunk.single("")
+
+        def stringChunkFrom(bytes: Chunk[Byte]) =
+          Chunk.single(
+            new String(bytes.toArray, charset)
+          )
+
+        def process(buffered: Chunk[Byte], received: Chunk[Byte]): (Chunk[String], Chunk[Byte]) = {
+          val bytes     = buffered ++ received
+          val remainder = bytes.length % fixedLength
+
+          if (remainder == 0) {
+            stringChunkFrom(bytes) -> emptyByteChunk
+          } else if (bytes.length > fixedLength) {
+            val (fullChunk, rest) = bytes.splitAt(bytes.length - remainder)
+
+            stringChunkFrom(fullChunk) -> rest
+          } else {
+            emptyStringChunk -> bytes.materialize
+          }
+        }
+
+        def readThenTransduce(buffer: Chunk[Byte]): ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any] =
+          ZChannel.readWith(
+            received => {
+              val (string, buffered) = process(buffer, received)
+
+              ZChannel.write(string) *> readThenTransduce(buffered)
+            },
+            error = ZChannel.fail(_),
+            done = _ => ZChannel.write(stringChunkFrom(buffer))
+          )
+
+        new ZStream(sourceStream.channel >>> readThenTransduce(Chunk.empty))
+      }
+    }
 }
