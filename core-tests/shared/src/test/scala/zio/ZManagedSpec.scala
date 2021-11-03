@@ -5,7 +5,6 @@ import zio.ZManaged.ReleaseMap
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment._
 
 import scala.concurrent.ExecutionContext
 

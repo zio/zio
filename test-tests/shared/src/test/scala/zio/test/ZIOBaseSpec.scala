@@ -1,7 +1,6 @@
 package zio.test
 
 import zio._
-import zio.test.environment.Live
 
 trait ZIOBaseSpec extends DefaultRunnableSpec {
   override def aspects: List[TestAspectAtLeastR[Has[Live]]] =

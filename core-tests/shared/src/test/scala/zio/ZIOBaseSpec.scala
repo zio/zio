@@ -1,7 +1,6 @@
 package zio
 
 import zio.test._
-import zio.test.environment.Live
 
 import scala.annotation.tailrec
 

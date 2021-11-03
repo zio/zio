@@ -5,7 +5,6 @@ import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion.{equalTo, isLeft}
 import zio.test.AssertionM.Render.param
 import zio.test._
-import zio.test.environment.TestConsole
 
 object AutoWireSpec extends ZIOBaseSpec {
 

@@ -18,7 +18,6 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.environment.{Live, Restorable, TestClock, TestConsole, TestRandom, TestSystem}
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet
@@ -636,7 +635,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores a given
-   * [[zio.test.environment.Restorable Restorable]]'s state to its starting
+   * [[zio.test.Restorable Restorable]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -645,7 +644,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestClock TestClock]]'s state to its starting
+   * [[zio.test.TestClock TestClock]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -654,7 +653,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestConsole TestConsole]]'s state to its starting
+   * [[zio.test.TestConsole TestConsole]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -663,7 +662,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestRandom TestRandom]]'s state to its starting
+   * [[zio.test.TestRandom TestRandom]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -672,7 +671,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores the
-   * [[zio.test.environment.TestSystem TestSystem]]'s state to its starting
+   * [[zio.test.TestSystem TestSystem]]'s state to its starting
    * state after the test is run. Note that this is only useful when repeating
    * tests.
    */
@@ -681,10 +680,10 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that restores all state in the standard provided test
-   * environments ([[zio.test.environment.TestClock TestClock]],
-   * [[zio.test.environment.TestConsole TestConsole]],
-   * [[zio.test.environment.TestRandom TestRandom]], and
-   * [[zio.test.environment.TestSystem TestSystem]]) to their starting state
+   * environments ([[zio.test.TestClock TestClock]],
+   * [[zio.test.TestConsole TestConsole]],
+   * [[zio.test.TestRandom TestRandom]], and
+   * [[zio.test.TestSystem TestSystem]]) to their starting state
    * after the test is run. Note that this is only useful when repeating tests.
    */
   def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =
@@ -838,7 +837,7 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that runs each test with the [[zio.test.environment.TestConsole TestConsole]] instance in the
+   * An aspect that runs each test with the [[zio.test.TestConsole TestConsole]] instance in the
    * environment set to silent mode so that console output is only written to
    * the output buffer and not rendered to standard output.
    */

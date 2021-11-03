@@ -3,7 +3,6 @@ package zio
 import zio.SerializableSpecHelpers._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.environment.Live
 import zio.test.{test => testSync, _}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}

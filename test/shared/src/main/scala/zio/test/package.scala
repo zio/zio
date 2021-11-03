@@ -16,10 +16,10 @@
 
 package zio
 
+import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
-import zio.test.environment._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.language.implicitConversions
@@ -36,7 +36,6 @@ import scala.util.Try
  *
  * {{{
  *  import zio.test._
- *  import zio.test.environment.Live
  *  import zio.Clock.nanoTime
  *  import Assertion.isGreaterThan
  *
@@ -54,6 +53,64 @@ import scala.util.Try
 package object test extends CompileVariants {
   type AssertResultM = BoolAlgebraM[Any, Nothing, AssertionValue]
   type AssertResult  = BoolAlgebra[AssertionValue]
+
+  type TestEnvironment =
+    Has[Annotations]
+      with Has[Live]
+      with Has[Sized]
+      with Has[TestClock]
+      with Has[TestConfig]
+      with Has[TestConsole]
+      with Has[TestRandom]
+      with Has[TestSystem]
+      with ZEnv
+
+  object TestEnvironment {
+    val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
+      ZLayer.environment[TestEnvironment](Tracer.newTrace)
+    val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
+      implicit val trace = Tracer.newTrace
+      Annotations.live ++
+        Live.default ++
+        Sized.live(100) ++
+        ((Live.default ++ Annotations.live) >>> TestClock.default) ++
+        TestConfig.live(100, 100, 200, 1000) ++
+        (Live.default >>> TestConsole.debug) ++
+        TestRandom.deterministic ++
+        TestSystem.default
+    }
+  }
+
+  val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
+
+  val testEnvironment: Layer[Nothing, TestEnvironment] = {
+    implicit val trace = Tracer.newTrace
+    ZEnv.live >>> TestEnvironment.live
+  }
+
+  /**
+   * Provides an effect with the "real" environment as opposed to the test
+   * environment. This is useful for performing effects such as timing out
+   * tests, accessing the real time, or printing to the real console.
+   */
+  def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Has[Live], E, A] =
+    Live.live(zio)
+
+  /**
+   * Transforms this effect with the specified function. The test environment
+   * will be provided to this effect, but the live environment will be provided
+   * to the transformation function. This can be useful for applying
+   * transformations to an effect that require access to the "real" environment
+   * while ensuring that the effect itself uses the test environment.
+   *
+   * {{{
+   *  withLive(test)(_.timeout(duration))
+   * }}}
+   */
+  def withLive[R, E, E1, A, B](
+    zio: ZIO[R, E, A]
+  )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R with Has[Live], E1, B] =
+    Live.withLive(zio)(f)
 
   /**
    * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
@@ -91,8 +148,8 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable Restorable]]
-   * [[zio.test.environment.TestEnvironment TestEnvironment]] objects
+   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.Restorable Restorable]]
+   * [[zio.test.TestEnvironment TestEnvironment]] objects
    */
   type ZTestEnv = Has[TestClock] with Has[TestConsole] with Has[TestRandom] with Has[TestSystem]
 

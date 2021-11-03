@@ -1,10 +1,9 @@
-package zio.test.environment
+package zio.test
 
 import zio.Console._
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, silent}
-import zio.test._
-import zio.test.environment.TestConsole._
+import zio.test.TestConsole._
 import zio.{Console, ZIO}
 
 object ConsoleSpec extends ZIOBaseSpec {

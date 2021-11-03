@@ -2,12 +2,12 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.assertCompletes
-import zio.test.environment.Live
 import zio.test.sbt.TestingSupport._
 import zio.test.{
   Annotations,
   Assertion,
   DefaultRunnableSpec,
+  Live,
   Spec,
   Summary,
   TestArgs,

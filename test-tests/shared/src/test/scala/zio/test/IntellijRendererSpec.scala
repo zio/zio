@@ -3,7 +3,6 @@ package zio.test
 import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
-import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnvironment}
 import zio.test.render.IntelliJRenderer
 import zio.{Clock, Has, Layer, ZIO}
 

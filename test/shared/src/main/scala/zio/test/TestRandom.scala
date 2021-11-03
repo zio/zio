@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.environment
+package zio.test
 
 import zio.{PlatformSpecific => _, _}
 import zio.internal.stacktracer.Tracer
@@ -46,7 +46,7 @@ import scala.math.{log, sqrt}
  *
  * {{{
  * import zio.Random
- * import zio.test.environment.TestRandom
+ * import zio.test.TestRandom
  *
  * for {
  *   _ <- TestRandom.feedInts(4, 5, 2)

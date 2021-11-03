@@ -1,4 +1,4 @@
-package zio.test.environment
+package zio.test
 
 import zio.Clock._
 import zio.Duration._
@@ -6,8 +6,7 @@ import zio._
 import zio.stream._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test._
-import zio.test.environment.TestClock._
+import zio.test.TestClock._
 
 import java.time.{OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit

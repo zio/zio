@@ -12,6 +12,9 @@ trait Sized extends Serializable {
 
 object Sized {
 
+  val default: ZLayer[Any, Nothing, Has[Sized]] =
+    live(100)(ZTraceElement.empty)
+
   def live(size: Int)(implicit trace: ZTraceElement): Layer[Nothing, Has[Sized]] =
     ZLayer.fromZIO(FiberRef.make(size).map { fiberRef =>
       new Sized {
