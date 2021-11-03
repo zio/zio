@@ -19,6 +19,7 @@ package zio.test
 import zio._
 import zio.test.internal.SmartAssertions
 import scala.quoted._
+import scala.reflect.ClassTag
 
 object SmartAssertMacros {
   def smartAssertSingle(expr: Expr[Boolean])(using ctx: Quotes): Expr[Assert] =
@@ -66,6 +67,23 @@ class SmartAssertMacros(ctx: Quotes)  {
 
   def transformAs[Start, End](expr: Expr[SmartAssertion[End]])(start: Expr[Arrow[Any, Start]])(using Type[Start], Type[End], PositionContext) : Expr[Arrow[Any, End]] = {
    val res = expr match {
+      case '{ SmartAssertionAnyOps($lhs: SmartAssertion[a]).anything } =>
+        val arrow = transformAs[Start, a](lhs.asInstanceOf[Expr[SmartAssertion[a]]])(start)
+        '{ $arrow >>> SmartAssertions.anything }
+
+      case '{ type a; SmartAssertionAnyOps($lhs: SmartAssertion[`a`]).custom($customAssertion: CustomAssertion[`a`, End]) } =>
+        val arrow = transformAs[Start, a](lhs.asInstanceOf[Expr[SmartAssertion[a]]])(start)
+        '{ $arrow >>> SmartAssertions.custom[a, End]($customAssertion) }
+
+      case '{ type a >: End; SmartAssertionAnyOps($lhs: SmartAssertion[`a`]).subtype[End] } =>
+        val arrow = transformAs[Start, a](lhs.asInstanceOf[Expr[SmartAssertion[a]]])(start)
+        Expr.summon[ClassTag[End]] match {
+          case Some(tag) =>
+            '{ $arrow >>> SmartAssertions.as[a, End]($tag) }
+          case None =>
+            throw new Error("NEED CLASS TAG")
+        }
+
       case '{ SmartAssertionOptionOps($lhs: SmartAssertion[Option[End]]).some } =>
         val arrow = transformAs[Start, Option[End]](lhs.asInstanceOf[Expr[SmartAssertion[Option[End]]]])(start)
         '{ $arrow >>> SmartAssertions.isSome }

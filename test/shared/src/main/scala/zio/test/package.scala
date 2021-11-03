@@ -953,7 +953,8 @@ package object test extends CompileVariants {
   }
 
   implicit final class SmartAssertionEitherOps[E, A](private val self: SmartAssertion[Either[E, A]]) extends AnyVal {
-    def left: SmartAssertion[E]  = throw SmartAssertionExtensionError()
+    def left: SmartAssertion[E] = throw SmartAssertionExtensionError()
+
     def right: SmartAssertion[A] = throw SmartAssertionExtensionError()
   }
 
@@ -970,9 +971,22 @@ package object test extends CompileVariants {
   }
 
   implicit final class SmartAssertionCauseOps[E](private val self: SmartAssertion[Cause[E]]) extends AnyVal {
-    def die: SmartAssertion[Throwable]       = throw SmartAssertionExtensionError()
-    def failure: SmartAssertion[E]           = throw SmartAssertionExtensionError()
+    def die: SmartAssertion[Throwable] = throw SmartAssertionExtensionError()
+
+    def failure: SmartAssertion[E] = throw SmartAssertionExtensionError()
+
     def interrupted: SmartAssertion[Boolean] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class SmartAssertionAnyOps[A](private val self: SmartAssertion[A]) extends AnyVal {
+    def anything: SmartAssertion[Boolean] = throw SmartAssertionExtensionError()
+
+    def subtype[Subtype <: A]: SmartAssertion[Subtype] = throw SmartAssertionExtensionError()
+
+    def custom[B](customAssertion: CustomAssertion[A, B]): SmartAssertion[B] = {
+      val _ = customAssertion
+      throw SmartAssertionExtensionError()
+    }
   }
 
   implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {

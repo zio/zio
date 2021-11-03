@@ -10,6 +10,17 @@ import scala.util.Try
 object SmartAssertions {
   import zio.test.{ErrorMessage => M}
 
+  def anything: Arrow[Any, Boolean] =
+    Arrow.make[Any, Boolean](_ => Trace.succeed(true))
+
+  def custom[A, B](customAssertion: CustomAssertion[A, B]): Arrow[A, B] =
+    Arrow.make { a =>
+      customAssertion.run(a) match {
+        case Left(error)  => Trace.fail(error)
+        case Right(value) => Trace.succeed(value)
+      }
+    }
+
   def isSome[A]: Arrow[Option[A], A] =
     Arrow
       .make[Option[A], A] {

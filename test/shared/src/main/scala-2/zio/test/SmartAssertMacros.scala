@@ -74,6 +74,15 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case AST.Method(lhs, _, _, "left", _, _, span) =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asLeft.span($span)"
 
+      case AST.Method(lhs, _, _, "anything", _, _, span) =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.anything.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "subtype", List(tpe), _, span) =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.as[${lhsTpe.typeArgs.head}, $tpe].span($span)"
+
+      case AST.Method(lhs, _, _, "custom", List(_), Some(List(customAssertion)), span) =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.custom($customAssertion).span($span)"
+
       case AST.Method(lhs, lhsTpe, _, "die", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Exit[_, _]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitDie.span($span)"
 
