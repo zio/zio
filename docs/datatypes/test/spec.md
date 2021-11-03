@@ -41,6 +41,60 @@ Just like the `ZIO` data type, the `Spec` requires an environment of type `R`. W
 
 By using `Spec#provideLayer`, `Spec#provideSomeLayer`, or `Spec#provideCustomLayer`, a test or suite of tests can be provided with any dependencies in a similar way to how a ZIO data type can. 
 
+### Sharing Layers Within a Suite
+
+The `Spec` has a very nice mechanism to share layers within all tests in a suite. So instead of acquiring and releasing dependencies for each test, we can share the layer within all tests. The test framework acquires that layer for once and shares that between all tests. When the execution of all tests is finished, that layer will be released.
+
+In the following example, we share the Kafka layer within all tests in the suite:
+
+```scala mdoc:invisible
+import zio.test.{test, _}
+import zio.{Chunk, _}
+
+case class Row(key: String, value: String)
+
+trait Kafka {
+  def consume(topic: String): Task[Chunk[Row]]
+
+  def produce(topic: String, key: String, value: String): Task[Unit]
+}
+
+object Kafka {
+  def consume(topic: String) =
+    ZIO.serviceWith[Kafka](_.consume(topic))
+
+  def produce(topic: String, key: String, value: String) =
+    ZIO.serviceWith[Kafka](_.produce(topic, key, value))
+}
+
+case class EmbeddedKafka() extends Kafka {
+  override def consume(topic: String): Task[Chunk[Row]] =
+    ZIO.succeed(Chunk.empty)
+
+  override def produce(topic: String, key: String, value: String): Task[Unit] =
+    Task.unit
+}
+
+object EmbeddedKafka {
+  val layer = (EmbeddedKafka.apply _).toLayer[Kafka]
+}
+```
+
+```scala mdoc:compile-only
+suite("a test suite with shared kafka layer")(
+  test("producing an element to the kafka service") {
+    assertM(Kafka.produce(
+      topic = "testTopic",
+      key = "key1",
+      value = "value1")
+    )(Assertion.anything)
+  },
+  test("consuming elements from the kafka service") {
+    assertM(Kafka.consume(topic = "testTopic"))(Assertion.anything)
+  }
+).provideCustomLayerShared(EmbeddedKafka.layer)
+```
+
 ## Operations
 
 In ZIO Test, specs are just values like other data types in ZIO. So we can filter, map or manipulate these data types. In this section, we are going to learn some of the most important operations on the `Spec` data type:
