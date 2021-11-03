@@ -1,6 +1,7 @@
 package zio
 
 import zio.Cause._
+import zio.Console.printLine
 import zio.LatchOps._
 import zio.internal.Platform
 import zio.test.Assertion._
@@ -3989,6 +3990,11 @@ object ZIOSpec extends ZIOBaseOldSpec {
           assert(default)(equalTo(runtimeConfig))
       }
     )
+  ) @@ TestAspect.beforeAll(
+    for {
+      time <- ZIO.service[Clock]
+      _ <- ZIO.debug("Time: " + time)
+    } yield ()
   )
 
   def functionIOGen: Gen[Has[Random] with Has[Sized], String => Task[Int]] =
@@ -4078,4 +4084,5 @@ object ZIOSpec extends ZIOBaseOldSpec {
     trait Service
     val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
   }
+  
 }

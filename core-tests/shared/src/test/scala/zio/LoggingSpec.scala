@@ -46,7 +46,7 @@ object LoggingSpec extends ZIOBaseOldSpec {
       }
     }
 
-  override def runner: TestRunner[Environment, Any] = super.runner.withRuntimeConfig(_.copy(logger = testLogger))
+  override def hook = RuntimeConfigAspect.addLogger(testLogger)
 
   def spec: ZSpec[Any, Any] =
     suite("LoggingSpec")(

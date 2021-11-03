@@ -18,10 +18,10 @@ class Zio2ZIOSpec extends SemanticRule("ZIOSpecMigration"){
     replaceSymbols + doc.tree.collect {
       case AbstractRunnableSpecRenames.Matcher(patch) => patch
 
-      case t @ Token.Colon && q":ZSpec[Environment, Failure]" =>
-        Patch.replaceTree(t, "")
-      case t @ q"$lhs >>= $rhs" if lhs.symbol.owner.value.startsWith("zio") =>
-        Patch.replaceTree(t, s"$lhs flatMap $rhs")
+      case t @ q"override def spec: $tpe = $body" if tpe.toString().contains("ZSpec[Environment, Failure]") =>
+        println("spec type: " + tpe.toString())
+        
+        Patch.replaceTree(t, s"override def spec = $body")
         
 //      case t =>
 //        Patch.fromIterable(

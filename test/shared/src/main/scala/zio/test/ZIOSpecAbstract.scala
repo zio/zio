@@ -94,11 +94,12 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
-      env <- ZIO.environment[Environment with TestEnvironment with Has[ZIOAppArgs]]
+      _ <- ZIO.debug("Trying to avoid memo'izing ")
+      env <- ZIO.environment[Environment with Has[ZIOAppArgs]]
       runner =
         TestRunner(
-          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](ZLayer.succeedMany(env))
-        )
+          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](ZLayer.succeedMany(env) ++ testEnvironment),
+        ).withRuntimeConfig(hook)
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)
