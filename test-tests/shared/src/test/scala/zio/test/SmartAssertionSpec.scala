@@ -1,7 +1,6 @@
 package zio.test
 
 import zio.test.SmartTestTypes._
-import zio.test.environment.TestClock
 import zio.{Chunk, NonEmptyChunk, durationInt}
 
 import java.time.LocalDateTime

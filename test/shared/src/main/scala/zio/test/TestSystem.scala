@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.environment
+package zio.test
 
 import zio.{Has, IO, Layer, Ref, System, UIO, URIO, ZIO, ZLayer, ZTraceElement}
 import zio.internal.stacktracer.Tracer
@@ -30,7 +30,7 @@ import zio.ZTrace
  *
  * {{{
  * import zio.system
- * import zio.test.environment.TestSystem
+ * import zio.test.TestSystem
  *
  * for {
  *   _      <- TestSystem.putProperty("java.vm.name", "VM")

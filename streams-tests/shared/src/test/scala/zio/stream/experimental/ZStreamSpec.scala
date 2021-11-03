@@ -6,7 +6,6 @@ import zio.stream.experimental.ZStreamGen._
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, flaky, ignore, nonFlaky, scala2Only, timeout}
 import zio.test._
-import zio.test.environment.TestClock
 
 import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit

@@ -20,7 +20,6 @@ import izumi.reflect.Tag
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.environment.TestEnvironment
 
 import scala.util.control.NoStackTrace
 

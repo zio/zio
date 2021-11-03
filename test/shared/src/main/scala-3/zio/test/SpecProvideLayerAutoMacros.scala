@@ -4,7 +4,6 @@ import zio.internal.macros.LayerMacroUtils._
 import scala.quoted._
 import zio.internal.macros._
 import zio._
-import zio.test.environment.TestEnvironment
 
 object SpecLayerMacros {
   def injectImpl[R0: Type, R: Type, E: Type, T: Type]
