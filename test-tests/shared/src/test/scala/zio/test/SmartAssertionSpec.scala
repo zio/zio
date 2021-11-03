@@ -3,7 +3,7 @@ package zio.test
 import zio.duration.durationInt
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
-import zio.{Chunk, NonEmptyChunk}
+import zio.{Cause, Chunk, Exit, Fiber, NonEmptyChunk}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -357,6 +357,60 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(res.asInstanceOf[Red].foo > 10)
       } @@ failing
     ),
+    suite("as")(
+      test("Some") {
+        val option: Option[Option[Int]] = Some(None)
+        assertTrue(option.is(_.some.some) == 19)
+      },
+      test("Some Some") {
+        val option: Option[Option[Int]] = Some(Some(39))
+        assertTrue(option.is(_.some.some) == 19)
+      },
+      test("Some Right") {
+        val option: Option[Either[String, Int]] = Some(Right(34))
+        assertTrue(option.is(_.some.right) == 18)
+      },
+      test("Some Left") {
+        val option: Option[Either[String, Int]] = Some(Left("Howdy"))
+        assertTrue(option.is(_.some.right) == 18)
+      },
+      test("Some Left") {
+        val option: Option[Either[String, Int]] = Some(Left("Howdy"))
+        assertTrue(option.is(_.some.left) == "Howddy")
+      },
+      suite("Cause")(
+        test("die") {
+          val cause: Cause[Int] = Cause.die(new Error("OOPS"))
+          assertTrue(cause.is(_.die) == new Error("HI"))
+        },
+        test("fail") {
+          val cause: Cause[String] = Cause.fail("OOPS")
+          assertTrue(cause.is(_.failure) == "UH OH")
+        },
+        test("interrupted") {
+          val cause: Cause[Int] = Cause.interrupt(Fiber.Id(123, 1))
+          assertTrue(!cause.is(_.interrupted))
+        }
+      ),
+      suite("Exit")(
+        test("die") {
+          val exit: Exit[Int, String] = Exit.die(new Error("OOPS"))
+          assertTrue(exit.is(_.die) == new Error("HI"))
+        },
+        test("fail") {
+          val exit: Exit[Int, String] = Exit.fail(123)
+          assertTrue(exit.is(_.failure) == 88)
+        },
+        test("interrupted") {
+          val exit: Exit[Int, String] = Exit.interrupt(Fiber.Id(123, 1))
+          assertTrue(!exit.is(_.interrupted))
+        },
+        test("success") {
+          val exit: Exit[Int, String] = Exit.succeed("Yes")
+          assertTrue(exit.is(_.success) == "No")
+        }
+      )
+    ) @@ failing,
     suite("Map")(
       suite(".apply")(
         test("success") {
@@ -398,10 +452,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     assertTrue(string == "coool")
 
   // Test Types
-  private sealed trait Color
-  private final case class Red(foo: Int)     extends Color
-  private final case class Blue(bar: String) extends Color
+  sealed private trait Color
+  final private case class Red(foo: Int)     extends Color
+  final private case class Blue(bar: String) extends Color
 
-  private final case class MyClass(name: String)
-  private final case class OtherClass(name: String)
+  final private case class MyClass(name: String)
+  final private case class OtherClass(name: String)
 }

@@ -947,4 +947,39 @@ package object test extends CompileVariants {
   private def reassociate[A, B, C, D, E, F, G](fn: (A, B, C, D, E, F) => G): ((((((A, B), C), D), E), F)) => G = {
     case (((((a, b), c), d), e), f) => fn(a, b, c, d, e, f)
   }
+
+  implicit final class SmartAssertionOptionOps[A](private val self: SmartAssertion[Option[A]]) extends AnyVal {
+    def some: SmartAssertion[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class SmartAssertionEitherOps[E, A](private val self: SmartAssertion[Either[E, A]]) extends AnyVal {
+    def left: SmartAssertion[E]  = throw SmartAssertionExtensionError()
+    def right: SmartAssertion[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class SmartAssertionExitOps[E, A](private val self: SmartAssertion[Exit[E, A]]) extends AnyVal {
+    def die: SmartAssertion[Throwable] = throw SmartAssertionExtensionError()
+
+    def failure: SmartAssertion[E] = throw SmartAssertionExtensionError()
+
+    def success: SmartAssertion[A] = throw SmartAssertionExtensionError()
+
+    def cause: SmartAssertion[Cause[E]] = throw SmartAssertionExtensionError()
+
+    def interrupted: SmartAssertion[Boolean] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class SmartAssertionCauseOps[E](private val self: SmartAssertion[Cause[E]]) extends AnyVal {
+    def die: SmartAssertion[Throwable]       = throw SmartAssertionExtensionError()
+    def failure: SmartAssertion[E]           = throw SmartAssertionExtensionError()
+    def interrupted: SmartAssertion[Boolean] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
+    def is[B](f: SmartAssertion[A] => SmartAssertion[B]): B = {
+      val _ = f
+      throw SmartAssertionExtensionError()
+    }
+  }
+
 }

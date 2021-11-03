@@ -1,6 +1,7 @@
 package zio.test
 
 import com.github.ghik.silencer.silent
+import zio.{Cause, Exit}
 
 import scala.annotation.tailrec
 import scala.reflect.macros.blackbox
@@ -62,6 +63,42 @@ class SmartAssertMacros(val c: blackbox.Context) {
     }
   }
 
+  def parseAsAssertion(ast: AST)(start: c.Tree)(implicit positionContext: PositionContext): c.Tree =
+    ast match {
+      case AST.Method(lhs, _, _, "some", _, _, span) =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.isSome.span($span)"
+
+      case AST.Method(lhs, _, _, "right", _, _, span) =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asRight.span($span)"
+
+      case AST.Method(lhs, _, _, "left", _, _, span) =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asLeft.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "die", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitDie.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "failure", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitFailure.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "success", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitSuccess.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Exit[_, _]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitInterrupted.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "die", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Cause[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseDie.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "failure", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Cause[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseFailure.span($span)"
+
+      case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[SmartAssertion[Cause[_]]] =>
+        q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseInterrupted.span($span)"
+
+      case _ =>
+        start
+    }
+
   def astToAssertion(ast: AST)(implicit positionContext: PositionContext): c.Tree =
     ast match {
       case AST.Not(ast, _, _) =>
@@ -72,6 +109,15 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
       case AST.Or(lhs, rhs, _, ls, rs) =>
         q"${astToAssertion(lhs)}.withParentSpan($ls) || ${astToAssertion(rhs)}.withParentSpan($rs)"
+
+      // Matches `zio.test.SmartAssertionOps.as`
+      case AST.Method(lhs, _, _, "is", _, Some(List(arg)), _)
+          if arg.tpe.typeArgs.head <:< weakTypeOf[SmartAssertion[_]] =>
+        val assertion = astToAssertion(lhs)
+        parseExpr(arg) match {
+          case AST.Function(_, rhs, _, _) => parseAsAssertion(rhs)(assertion)
+          case _                          => throw new Error("This is not possible.")
+        }
 
       case AST.Method(lhs, lhsTpe, _, "forall", _, Some(args), span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assertion = astToAssertion(parseExpr(args.head))
@@ -263,12 +309,12 @@ $Assert($ast.withCode($codeString).withLocation)
     def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
       all.reduce(_ orElse _).unapply(method)
 
-    val asInstance: ASTConverter =
+    val asInstanceOf: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "asInstanceOf", List(tpe), _, _) =>
         AssertAST("as", List(lhsTpe, tpe))
       }
 
-    val isInstance: ASTConverter =
+    val isInstanceOf: ASTConverter =
       ASTConverter.make { case AST.Method(_, lhsTpe, _, "isInstanceOf", List(tpe), _, _) =>
         AssertAST("is", List(lhsTpe, tpe))
       }
@@ -468,8 +514,8 @@ $Assert($ast.withCode($codeString).withLocation)
       rightGet,
       leftGet,
       asLeft,
-      asInstance,
-      isInstance
+      asInstanceOf,
+      isInstanceOf
     )
   }
 }
