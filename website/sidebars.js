@@ -193,6 +193,7 @@ module.exports = {
             "datatypes/test/environment/clock",
             "datatypes/test/environment/random",
             "datatypes/test/environment/system",
+            "datatypes/test/environment/live",
           ]
         },
       ],
