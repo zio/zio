@@ -509,7 +509,7 @@ private[zio] final class FiberContext[E, A](
           // fiber die but attempt finalization & report errors.
           case t: Throwable =>
             curZio = if (runtimeConfig.fatal(t)) {
-              catastrophic.set(true)
+              catastrophicFailure.set(true)
               runtimeConfig.reportFatal(t)
             } else {
               unsafeSetInterrupting(true)
@@ -521,6 +521,7 @@ private[zio] final class FiberContext[E, A](
     } finally {
       import RuntimeConfigFlag._
 
+      // FIXME: Race condition on fiber resumption
       if (runtimeConfig.runtimeConfigFlags.isEnabled(EnableCurrentFiber)) Fiber._currentFiber.remove()
       if (runtimeConfig.supervisor ne Supervisor.none) runtimeConfig.supervisor.unsafeOnSuspend(self)
     }
@@ -614,7 +615,7 @@ private[zio] final class FiberContext[E, A](
   /**
    * Disables interruption for the fiber.
    */
-  private def unsafeDisableInterrupt(): Unit = interruptStatus.push(false)
+  private def unsafeDisableInterrupting(): Unit = interruptStatus.push(false)
 
   @tailrec
   private def unsafeEnterAsync(
@@ -1121,7 +1122,7 @@ private[zio] final class FiberContext[E, A](
 
           // We found a finalizer, we have to immediately disable interruption
           // so the runloop will continue and not abort due to interruption:
-          unsafeDisableInterrupt()
+          unsafeDisableInterrupting()
 
           stack.push(
             TracedCont(cause =>
@@ -1164,7 +1165,7 @@ private[zio] final class FiberContext[E, A](
 
   private[this] class Finalizer(val finalizer: UIO[Any]) extends ErasedTracedCont {
     def apply(v: Any): Erased = {
-      unsafeDisableInterrupt()
+      unsafeDisableInterrupting()
       unsafeRestoreInterrupt()(finalizer.trace)
       finalizer.map(_ => v)(finalizer.trace)
     }
@@ -1221,7 +1222,7 @@ private[zio] object FiberContext {
 
   type FiberRefLocals = AtomicReference[Map[FiberRef.Runtime[_], AnyRef]]
 
-  val catastrophic: AtomicBoolean =
+  val catastrophicFailure: AtomicBoolean =
     new AtomicBoolean(false)
 
   import zio.ZIOMetric

@@ -17,7 +17,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
           IO.succeed(Platform.addShutdownHook { () =>
             shuttingDown = true
 
-            if (FiberContext.catastrophic.get) {
+            if (FiberContext.catastrophicFailure.get) {
               println(
                 "**** WARNING ****\n" +
                   "Catastrophic error encountered. " +

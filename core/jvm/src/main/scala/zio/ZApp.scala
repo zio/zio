@@ -63,9 +63,9 @@ trait ZApp[R] extends ZBootstrapRuntime[R] {
           fiber <- run(args0.toList).fork
           _ <- IO.succeed(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
                  override def run() =
-                   if (FiberContext.catastrophic.get) {
+                   if (FiberContext.catastrophicFailure.get) {
                      println(
-                       "**** WARNING ***\n" +
+                       "**** WARNING ****\n" +
                          "Catastrophic JVM error encountered. " +
                          "Application not safely interrupted. " +
                          "Resources may be leaked. " +
