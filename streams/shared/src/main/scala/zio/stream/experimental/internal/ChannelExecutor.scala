@@ -770,12 +770,12 @@ private[zio] object SingleProducerAsyncInput {
       .flatMap(p => Ref.make[State[Err, Elem, Done]](State.Empty(p)))
       .map(new SingleProducerAsyncInput(_))
 
-  sealed trait State[+Err, +Elem, +Done]
+  sealed trait State[Err, Elem, Done]
   object State {
-    case class Empty(notifyProducer: Promise[Nothing, Unit]) extends State[Nothing, Nothing, Nothing]
+    case class Empty[Err, Elem, Done](notifyProducer: Promise[Nothing, Unit]) extends State[Err, Elem, Done]
     case class Emit[Err, Elem, Done](notifyConsumers: Queue[Promise[Err, Either[Done, Elem]]])
         extends State[Err, Elem, Done]
-    case class Error[+Err](a: Cause[Err]) extends State[Err, Nothing, Nothing]
-    case class Done[+A](a: A)             extends State[Nothing, Nothing, A]
+    case class Error[Err, Elem, Done](cause: Cause[Err]) extends State[Err, Elem, Done]
+    case class Done[Err, Elem, Done](done: Done)         extends State[Err, Elem, Done]
   }
 }
