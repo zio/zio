@@ -71,7 +71,7 @@ abstract class BaseTestTask(
     try {
       spec match {
         case NewSpecWrapper(zioSpec) =>
-          Runtime((), zioSpec.runtime.runtimeConfig).unsafeRun {
+          Runtime((), zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
             run(eventHandler, zioSpec)
               .onError(e => UIO(println(e.prettyPrint)))
           }

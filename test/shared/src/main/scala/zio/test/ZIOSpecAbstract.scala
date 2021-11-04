@@ -38,6 +38,8 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
+      override def hook: RuntimeConfigAspect =
+        self.hook >>> that.hook
       def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
         self.layer +!+ that.layer
       override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =

@@ -6,9 +6,12 @@ import zio.test.TestAspect.flaky
 import zio.test._
 
 // TODO Update Spec type
-object FiberRefSpec extends ZIOBaseOldSpec {
+object FiberRefSpec extends ZIOBaseSpec {
 
   import ZIOTag._
+
+  override def hook: RuntimeConfigAspect =
+    RuntimeConfigAspect.enableCurrentFiber
 
   def spec = suite("FiberRefSpec")(
     suite("Create a new FiberRef with a specified value and check if:")(
