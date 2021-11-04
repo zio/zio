@@ -74,7 +74,7 @@ package object test extends CompileVariants {
 
   object TestResult {
     implicit def trace2TestResult(assert: Assert): TestResult = {
-      val trace = Arrow.run(assert.arrow, Right(()))
+      val trace = TestArrow.run(assert.arrow, Right(()))
       if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
       else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
     }
@@ -948,49 +948,136 @@ package object test extends CompileVariants {
     case (((((a, b), c), d), e), f) => fn(a, b, c, d, e, f)
   }
 
-  implicit final class SmartAssertionOptionOps[A](private val self: SmartAssertion[Option[A]]) extends AnyVal {
-    def some: SmartAssertion[A] = throw SmartAssertionExtensionError()
+  implicit final class TestLensOptionOps[A](private val self: TestLens[Option[A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[scala.Option]] to its `Some` value `A`, otherwise fails
+     * if it is a `None`.
+     */
+    def some: TestLens[A] = throw SmartAssertionExtensionError()
   }
 
-  implicit final class SmartAssertionEitherOps[E, A](private val self: SmartAssertion[Either[E, A]]) extends AnyVal {
-    def left: SmartAssertion[E] = throw SmartAssertionExtensionError()
+  implicit final class TestLensEitherOps[E, A](private val self: TestLens[Either[E, A]]) extends AnyVal {
 
-    def right: SmartAssertion[A] = throw SmartAssertionExtensionError()
+    /**
+     * Transforms an [[scala.Either]] to its [[scala.Left]] value `E`, otherwise
+     * fails if it is a [[scala.Right]].
+     */
+    def left: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[scala.Either]] to its [[scala.Right]] value `A`, otherwise
+     * fails if it is a [[scala.Left]].
+     */
+    def right: TestLens[A] = throw SmartAssertionExtensionError()
   }
 
-  implicit final class SmartAssertionExitOps[E, A](private val self: SmartAssertion[Exit[E, A]]) extends AnyVal {
-    def die: SmartAssertion[Throwable] = throw SmartAssertionExtensionError()
+  implicit final class TestLensExitOps[E, A](private val self: TestLens[Exit[E, A]]) extends AnyVal {
 
-    def failure: SmartAssertion[E] = throw SmartAssertionExtensionError()
+    /**
+     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`, otherwise
+     * fails.
+     */
+    def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
-    def success: SmartAssertion[A] = throw SmartAssertionExtensionError()
+    /**
+     * Transforms an [[Exit]] to its failure type (`E`) if it is a `fail`,
+     * otherwise fails.
+     */
+    def failure: TestLens[E] = throw SmartAssertionExtensionError()
 
-    def cause: SmartAssertion[Cause[E]] = throw SmartAssertionExtensionError()
+    /**
+     * Transforms an [[Exit]] to its success type (`A`) if it is a `succeed`,
+     * otherwise fails.
+     */
+    def success: TestLens[A] = throw SmartAssertionExtensionError()
 
-    def interrupted: SmartAssertion[Boolean] = throw SmartAssertionExtensionError()
+    /**
+     * Transforms an [[Exit]] to its underlying [[Cause]] if it has one,
+     * otherwise fails.
+     */
+    def cause: TestLens[Cause[E]] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to a boolean value representing whether or not it
+     * was interrupted.
+     */
+    def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
   }
 
-  implicit final class SmartAssertionCauseOps[E](private val self: SmartAssertion[Cause[E]]) extends AnyVal {
-    def die: SmartAssertion[Throwable] = throw SmartAssertionExtensionError()
+  implicit final class TestLensCauseOps[E](private val self: TestLens[Cause[E]]) extends AnyVal {
 
-    def failure: SmartAssertion[E] = throw SmartAssertionExtensionError()
+    /**
+     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`, otherwise
+     * fails.
+     */
+    def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
-    def interrupted: SmartAssertion[Boolean] = throw SmartAssertionExtensionError()
+    /**
+     * Transforms a [[Cause]] to its failure type (`E`) if it is a `fail`,
+     * otherwise fails.
+     */
+    def failure: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a [[Cause]] to a boolean value representing whether or not it
+     * was interrupted.
+     */
+    def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
   }
 
-  implicit final class SmartAssertionAnyOps[A](private val self: SmartAssertion[A]) extends AnyVal {
-    def anything: SmartAssertion[Boolean] = throw SmartAssertionExtensionError()
+  implicit final class TestLensAnyOps[A](private val self: TestLens[A]) extends AnyVal {
 
-    def subtype[Subtype <: A]: SmartAssertion[Subtype] = throw SmartAssertionExtensionError()
+    /**
+     * Always returns true as long the chain of preceding transformations has succeeded.
+     *
+     * {{{
+     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
+     *   assertTrue(option.is(_.right.some.anything)) // returns true
+     *   assertTrue(option.is(_.left.anything)) // will fail because of `.left`.
+     * }}}
+     */
+    def anything: TestLens[Boolean] = throw SmartAssertionExtensionError()
 
-    def custom[B](customAssertion: CustomAssertion[A, B]): SmartAssertion[B] = {
+    /**
+     * Transforms a value of some type into the given `Subtype` if possible,
+     * otherwise fails.
+     *
+     * {{{
+     *   sealed trait CustomError
+     *   case class Explosion(blastRadius: Int) extends CustomError
+     *   case class Melting(degrees: Double) extends CustomError
+     *   case class Fulminating(wow: Boolean) extends CustomError
+     *
+     *   val error: CustomError = Melting(100)
+     *   assertTrue(option.is(_.subtype[Melting]).degrees > 10) // succeeds
+     *   assertTrue(option.is(_.subtype[Explosion]).blastRadius == 12) // fails
+     * }}}
+     */
+    def subtype[Subtype <: A]: TestLens[Subtype] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a value with the given [[CustomAssertion]]
+     */
+    def custom[B](customAssertion: CustomAssertion[A, B]): TestLens[B] = {
       val _ = customAssertion
       throw SmartAssertionExtensionError()
     }
   }
 
   implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
-    def is[B](f: SmartAssertion[A] => SmartAssertion[B]): B = {
+
+    /**
+     * This extension method can only be called inside of the `assertTrue`
+     * method. It will transform the value using the given [[TestLens]].
+     *
+     * {{{
+     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
+     *   assertTrue(option.is(_.right.some) == "Cool") // returns true
+     *   assertTrue(option.is(_.left) < 100) // will fail because of `.left`.
+     * }}}
+     */
+    def is[B](f: TestLens[A] => TestLens[B]): B = {
       val _ = f
       throw SmartAssertionExtensionError()
     }

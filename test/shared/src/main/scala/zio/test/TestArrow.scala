@@ -5,7 +5,7 @@ import zio.ZIO
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
-case class Assert(arrow: Arrow[Any, Boolean]) {
+case class Assert(arrow: TestArrow[Any, Boolean]) {
   def &&(that: Assert): Assert = Assert(arrow && that.arrow)
 
   def ||(that: Assert): Assert = Assert(arrow || that.arrow)
@@ -19,7 +19,7 @@ object Assert {
   def any(asserts: Assert*): Assert = asserts.reduce(_ || _)
 
   implicit def trace2TestResult(assert: Assert): TestResult = {
-    val trace = Arrow.run(assert.arrow, Right(()))
+    val trace = TestArrow.run(assert.arrow, Right(()))
     if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
     else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
   }
@@ -29,15 +29,15 @@ object Assert {
 
 }
 
-sealed trait Arrow[-A, +B] { self =>
-  import Arrow._
+sealed trait TestArrow[-A, +B] { self =>
+  import TestArrow._
 
   def meta(
     span: Option[Span] = None,
     parentSpan: Option[Span] = None,
     code: Option[String] = None,
     location: Option[String] = None
-  ): Arrow[A, B] = self match {
+  ): TestArrow[A, B] = self match {
     case meta: Meta[A, B] =>
       meta.copy(
         span = meta.span.orElse(span),
@@ -49,43 +49,43 @@ sealed trait Arrow[-A, +B] { self =>
       Meta(assert = self, span = span, parentSpan = parentSpan, code = code, location = location)
   }
 
-  def span(span: (Int, Int)): Arrow[A, B] =
+  def span(span: (Int, Int)): TestArrow[A, B] =
     meta(span = Some(Span(span._1, span._2)))
 
-  def withCode(code: String): Arrow[A, B] =
+  def withCode(code: String): TestArrow[A, B] =
     meta(code = Some(code))
 
-  def withLocation(implicit location: SourceLocation): Arrow[A, B] =
+  def withLocation(implicit location: SourceLocation): TestArrow[A, B] =
     meta(location = Some(s"${location.path}:${location.line}"))
 
-  def withParentSpan(span: (Int, Int)): Arrow[A, B] =
+  def withParentSpan(span: (Int, Int)): TestArrow[A, B] =
     meta(parentSpan = Some(Span(span._1, span._2)))
 
-  def >>>[C](that: Arrow[B, C]): Arrow[A, C] = AndThen[A, B, C](self, that)
+  def >>>[C](that: TestArrow[B, C]): TestArrow[A, C] = AndThen[A, B, C](self, that)
 
-  def &&(that: Arrow[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): Arrow[Any, Boolean] =
-    And(self.asInstanceOf[Arrow[Any, Boolean]], that)
+  def &&(that: TestArrow[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): TestArrow[Any, Boolean] =
+    And(self.asInstanceOf[TestArrow[Any, Boolean]], that)
 
-  def ||(that: Arrow[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): Arrow[Any, Boolean] =
-    Or(self.asInstanceOf[Arrow[Any, Boolean]], that)
+  def ||(that: TestArrow[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): TestArrow[Any, Boolean] =
+    Or(self.asInstanceOf[TestArrow[Any, Boolean]], that)
 
-  def unary_!(implicit ev: Any <:< A, ev2: B <:< Boolean): Arrow[Any, Boolean] =
-    Not(self.asInstanceOf[Arrow[Any, Boolean]])
+  def unary_!(implicit ev: Any <:< A, ev2: B <:< Boolean): TestArrow[Any, Boolean] =
+    Not(self.asInstanceOf[TestArrow[Any, Boolean]])
 }
 
-object Arrow {
+object TestArrow {
 
-  def succeed[A](value: => A): Arrow[Any, A] = ArrowF(_ => Trace.succeed(value))
+  def succeed[A](value: => A): TestArrow[Any, A] = TestArrowF(_ => Trace.succeed(value))
 
-  def fromFunction[A, B](f: A => B): Arrow[A, B] = make(f andThen Trace.succeed)
+  def fromFunction[A, B](f: A => B): TestArrow[A, B] = make(f andThen Trace.succeed)
 
-  def suspend[A, B](f: A => Arrow[Any, B]): Arrow[A, B] = Arrow.Suspend(f)
+  def suspend[A, B](f: A => TestArrow[Any, B]): TestArrow[A, B] = TestArrow.Suspend(f)
 
-  def make[A, B](f: A => Trace[B]): Arrow[A, B] =
+  def make[A, B](f: A => Trace[B]): TestArrow[A, B] =
     makeEither(e => Trace.die(e).annotate(Trace.Annotation.Rethrow), f)
 
-  def makeEither[A, B](onFail: Throwable => Trace[B], onSucceed: A => Trace[B]): Arrow[A, B] =
-    ArrowF {
+  def makeEither[A, B](onFail: Throwable => Trace[B], onSucceed: A => Trace[B]): TestArrow[A, B] =
+    TestArrowF {
       case Left(error)  => onFail(error)
       case Right(value) => onSucceed(value)
     }
@@ -96,9 +96,9 @@ object Arrow {
       case Success(value)     => value
     }
 
-  def run[A, B](assert: Arrow[A, B], in: Either[Throwable, A]): Trace[B] = attempt {
+  def run[A, B](assert: TestArrow[A, B], in: Either[Throwable, A]): Trace[B] = attempt {
     assert match {
-      case ArrowF(f) =>
+      case TestArrowF(f) =>
         f(in)
 
       case AndThen(f, g) =>
@@ -141,16 +141,16 @@ object Arrow {
   }
 
   case class Meta[-A, +B](
-    assert: Arrow[A, B],
+    assert: TestArrow[A, B],
     span: Option[Span],
     parentSpan: Option[Span],
     code: Option[String],
     location: Option[String]
-  ) extends Arrow[A, B]
-  case class ArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])        extends Arrow[A, B] {}
-  case class AndThen[A, B, C](f: Arrow[A, B], g: Arrow[B, C])           extends Arrow[A, C]
-  case class And(left: Arrow[Any, Boolean], right: Arrow[Any, Boolean]) extends Arrow[Any, Boolean]
-  case class Or(left: Arrow[Any, Boolean], right: Arrow[Any, Boolean])  extends Arrow[Any, Boolean]
-  case class Not(assert: Arrow[Any, Boolean])                           extends Arrow[Any, Boolean]
-  case class Suspend[A, B](f: A => Arrow[Any, B])                       extends Arrow[A, B]
+  ) extends TestArrow[A, B]
+  case class TestArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])            extends TestArrow[A, B] {}
+  case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])           extends TestArrow[A, C]
+  case class And(left: TestArrow[Any, Boolean], right: TestArrow[Any, Boolean]) extends TestArrow[Any, Boolean]
+  case class Or(left: TestArrow[Any, Boolean], right: TestArrow[Any, Boolean])  extends TestArrow[Any, Boolean]
+  case class Not(assert: TestArrow[Any, Boolean])                               extends TestArrow[Any, Boolean]
+  case class Suspend[A, B](f: A => TestArrow[Any, B])                           extends TestArrow[A, B]
 }
