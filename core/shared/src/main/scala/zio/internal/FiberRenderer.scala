@@ -50,7 +50,7 @@ private[zio] object FiberRenderer {
     val minutes = seconds / 60L
     val hours   = minutes / 60L
 
-    val name = dump.fiberName.fold("")(name => "\"" + name + "\" ")
+    val name = "\"zio-fiber-" + dump.fiberId.id + "\""
     val lifeMsg = (if (hours == 0) "" else s"${hours}h") +
       (if (hours == 0 && minutes == 0) "" else s"${minutes}m") +
       (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
@@ -63,7 +63,7 @@ private[zio] object FiberRenderer {
     val statMsg = renderStatus(dump.status)
 
     s"""
-       |$name#${dump.fiberId.id} ($lifeMsg) $waitMsg
+       |"${name}" ($lifeMsg) $waitMsg
        |   Status: $statMsg
        |${dump.trace.fold("")(_.prettyPrint)}
        |""".stripMargin
@@ -88,9 +88,8 @@ private[zio] object FiberRenderer {
 
   private def renderOne(tree: Dump): String = {
     def go(t: Dump, prefix: String): String = {
-      val nameStr   = t.fiberName.fold("")(n => "\"" + n + "\" ")
       val statusMsg = renderStatus(t.status)
-      s"$prefix+---$nameStr#${t.fiberId.ids} Status: $statusMsg\n"
+      s"$prefix+---#${t.fiberId.ids} Status: $statusMsg\n"
     }
 
     go(tree, "")
