@@ -3,32 +3,7 @@ package zio.internal.metrics
 import zio._
 import zio.test._
 
-/*
-  TODO Figure out failure after update:
-    - ConcurrentSummary
-    - old measurements not used for quantiles with non-full buffer
-      ✗ Tuple2(
-          _1 = 0.5,
-          _2 = Some(2.0)
-        ) was not equal to Tuple2(
-          _1 = 0.5,
-          _2 = Some(3.0)
-        )
-      snapshot(0) == s0
-      (0) = Tuple2(
-        _1 = 0.5,
-        _2 = Some(2.0)
-      )
-      snapshot = Chunk(Tuple2(
-        _1 = 0.5,
-        _2 = Some(2.0)
-      ), Tuple2(
-        _1 = 1.0,
-        _2 = Some(5.0)
-      ))
-
- */
-object ConcurrentSummarySpec extends ZIOBaseOldSpec {
+object ConcurrentSummarySpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Any] =
     suite("ConcurrentSummary")(
       test("single observe works with maxSize = 0") {

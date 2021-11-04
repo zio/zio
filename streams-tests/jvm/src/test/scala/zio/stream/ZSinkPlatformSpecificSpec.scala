@@ -7,7 +7,7 @@ import zio.test._
 import java.nio.file.Files
 import java.io.ByteArrayOutputStream
 
-object ZSinkPlatformSpecificSpec extends ZIOBaseOldSpec {
+object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
   override def spec: Spec[Any, TestFailure[Throwable], TestSuccess] = suite("ZSink JVM")(
     suite("fromFile")(
       test("writes to an existing file") {

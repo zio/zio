@@ -1,17 +1,11 @@
 package zio.internal
 
 import zio.SerializableSpecHelpers._
-import zio.ZIOBaseOldSpec
+import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
 
-/*
- * This spec is just a sanity check and tests RingBuffer correctness
- * in a single-threaded case.
- *
- * Concurrent tests are run via jcstress and are in [[RingBufferConcurrencyTests]].
- */
-object MutableConcurrentQueueSpecJVM extends ZIOBaseOldSpec {
+object MutableConcurrentQueueSpecJVM extends ZIOBaseSpec {
 
   def spec = suite("MutableConcurrentQueueSpec")(
     suite("Serialization works for")(

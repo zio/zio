@@ -9,7 +9,7 @@ import java.time.temporal.{ChronoField, ChronoUnit}
 import java.time.{Instant, OffsetDateTime, ZoneId}
 import scala.concurrent.Future
 
-object ScheduleSpec extends ZIOBaseOldSpec {
+object ScheduleSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 

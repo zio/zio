@@ -4,8 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test._
 
-//todo
-object ZChannelSpec extends ZIOBaseOldSpec {
+object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: Spec[Has[Random] with Has[TestClock] with Has[TestConsole] with Has[TestRandom] with Has[

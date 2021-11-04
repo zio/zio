@@ -3,7 +3,7 @@ package zio.stream.experimental
 import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.{Gen, ZSpec, assert, assertCompletes, assertM, check}
+import zio.test.{Gen, assert, assertCompletes, assertM, check}
 
 import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
 import java.net.InetSocketAddress
@@ -13,7 +13,7 @@ import java.nio.{Buffer, ByteBuffer}
 import java.util.concurrent.CountDownLatch
 import scala.concurrent.ExecutionContext.global
 
-object ZStreamPlatformSpecificSpec extends ZIOBaseOldSpec {
+object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
   def socketClient(port: Int): ZManaged[Any, Throwable, AsynchronousSocketChannel] =
     ZManaged.acquireReleaseWith(ZIO.attemptBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
       ZIO
@@ -21,7 +21,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseOldSpec {
         .map(_ => client)
     })(c => ZIO.succeed(c.close()))
 
-  def spec: ZSpec[Environment, Failure] = suite("ZStream JVM experimental")(
+  def spec = suite("ZStream JVM experimental")(
     suite("Constructors")(
       suite("asyncMaybe")(
         test("asyncMaybe signal end stream") {

@@ -8,8 +8,8 @@ import java.io._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-object ZStreamPlatformSpecificSpec extends ZIOBaseOldSpec {
-  def spec: ZSpec[Environment, Failure] = suite("ZStream JS")(
+object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
+  def spec = suite("ZStream JS")(
     test("async")(check(Gen.chunkOf(Gen.int)) { chunk =>
       val s = ZStream.async[Any, Throwable, Int](k => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
 

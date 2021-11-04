@@ -1,7 +1,6 @@
 package zio
 
 import zio.Cause._
-import zio.Console.printLine
 import zio.LatchOps._
 import zio.internal.Platform
 import zio.test.Assertion._
@@ -11,8 +10,7 @@ import zio.test._
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-// TODO Update
-object ZIOSpec extends ZIOBaseOldSpec {
+object ZIOSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
@@ -3993,7 +3991,7 @@ object ZIOSpec extends ZIOBaseOldSpec {
   ) @@ TestAspect.beforeAll(
     for {
       time <- ZIO.service[Clock]
-      _ <- ZIO.debug("Time: " + time)
+      _    <- ZIO.debug("Time: " + time)
     } yield ()
   )
 
@@ -4084,5 +4082,5 @@ object ZIOSpec extends ZIOBaseOldSpec {
     trait Service
     val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
   }
-  
+
 }

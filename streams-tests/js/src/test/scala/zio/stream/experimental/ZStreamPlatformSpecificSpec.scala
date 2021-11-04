@@ -1,14 +1,14 @@
 package zio.stream.experimental
 
 import zio.test.Assertion.{containsCause, equalTo, failsCause, isFalse, isTrue}
-import zio.test.{Gen, ZSpec, assert, assertM, check}
-import zio.{Cause, Chunk, IO, Promise, Ref, Schedule, Task, UIO, ZIO, ZIOBaseOldSpec}
+import zio.test.{Gen, assert, assertM, check}
+import zio.{Cause, Chunk, IO, Promise, Ref, Schedule, Task, UIO, ZIO, ZIOBaseSpec}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-object ZStreamPlatformSpecificSpec extends ZIOBaseOldSpec {
-  def spec: ZSpec[Environment, Failure] = suite("ZStream JS experimental")(
+object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
+  def spec = suite("ZStream JS experimental")(
     test("async")(check(Gen.chunkOf(Gen.int)) { chunk =>
       val s = ZStream.async[Any, Throwable, Int](k => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
 

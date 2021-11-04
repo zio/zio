@@ -13,7 +13,7 @@ import java.nio.{Buffer, ByteBuffer}
 import java.util.concurrent.CountDownLatch
 import scala.concurrent.ExecutionContext.global
 
-object ZStreamPlatformSpecificSpec extends ZIOBaseOldSpec {
+object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
   def socketClient(port: Int): ZManaged[Any, Throwable, AsynchronousSocketChannel] =
     ZManaged.acquireReleaseWith(ZIO.attemptBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
@@ -22,7 +22,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseOldSpec {
         .map(_ => client)
     })(c => ZIO.succeed(c.close()))
 
-  def spec: ZSpec[Environment, Failure] = suite("ZStream JVM")(
+  def spec = suite("ZStream JVM")(
     suite("Constructors")(
       test("async")(check(Gen.chunkOf(Gen.int)) { chunk =>
         val s = ZStream.async[Any, Throwable, Int] { k =>

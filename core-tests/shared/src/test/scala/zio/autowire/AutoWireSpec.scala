@@ -6,8 +6,7 @@ import zio.test.Assertion.{equalTo, isLeft}
 import zio.test.AssertionM.Render.param
 import zio.test._
 
-// TODO Update/fix
-object AutoWireSpec extends ZIOBaseOldSpec {
+object AutoWireSpec extends ZIOBaseSpec {
 
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))

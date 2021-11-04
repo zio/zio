@@ -8,7 +8,7 @@ import java.io.{IOException, InputStream}
 import java.nio.charset.Charset
 import java.nio.file.{Files, Path, Paths}
 
-object ZTransducerPlatformSpecificSpec extends ZIOBaseOldSpec {
+object ZTransducerPlatformSpecificSpec extends ZIOBaseSpec {
   private val bomTestFilesPath: Path = Paths.get("zio/stream/bom")
 
   private val classLoader: ClassLoader = Thread.currentThread.getContextClassLoader
@@ -30,7 +30,7 @@ object ZTransducerPlatformSpecificSpec extends ZIOBaseOldSpec {
     readResourceAsString(fileName, transducer)
       .zipWith(QuickBrownTest)((l, r) => assert(l)(equalTo(r)))
 
-  override def spec: ZSpec[Environment, Failure] = suite("ZSink JVM")(
+  override def spec = suite("ZSink JVM")(
     suite("fromFile")(
       test("writes to an existing file") {
         val data = (0 to 100).mkString

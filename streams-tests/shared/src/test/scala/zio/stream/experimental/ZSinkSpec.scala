@@ -8,8 +8,7 @@ import zio.test._
 
 import java.nio.charset.{Charset, StandardCharsets}
 
-// TODO Figure out why this hangs
-object ZSinkSpec extends ZIOBaseOldSpec {
+object ZSinkSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 

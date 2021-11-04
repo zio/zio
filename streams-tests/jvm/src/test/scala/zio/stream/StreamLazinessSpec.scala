@@ -3,7 +3,7 @@ package zio.stream
 import zio._
 import zio.test._
 
-object StreamLazinessSpec extends ZIOBaseOldSpec {
+object StreamLazinessSpec extends ZIOBaseSpec {
 
   def assertLazy(f: (=> Nothing) => Any): UIO[TestResult] =
     UIO.succeed {
@@ -11,7 +11,7 @@ object StreamLazinessSpec extends ZIOBaseOldSpec {
       assertCompletes
     }
 
-  def spec: ZSpec[Environment, Failure] = suite("StreamLazinessSpec")(
+  def spec = suite("StreamLazinessSpec")(
     suite("ZSink")(
       test("die")(assertLazy(ZSink.die)),
       test("fail")(assertLazy(ZSink.fail)),
