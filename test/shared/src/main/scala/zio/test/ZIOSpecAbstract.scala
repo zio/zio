@@ -114,7 +114,6 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     } yield results
   }
 
-  // TODO Confirm we want/need this at this level
   def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[Nothing, In],
     sourceLocation: SourceLocation,
