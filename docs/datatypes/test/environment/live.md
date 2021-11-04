@@ -37,4 +37,24 @@ test("live can access real environment") {
 }
 ```
 
-The `withLive` method can be used to apply a transformation to an effect with the live environment while ensuring that the effect itself still runs with the test environment, for example to time out a test. Both of these methods are re-exported in the `environment` package for easy availability. 
+The `withLive` method can be used to apply a transformation to an effect with the live environment while ensuring that the effect itself still runs with the test environment.
+
+For example, assume we have a long-running task that is required to run within the test environment, and we want to timeout it before the assertion. To do this, we should run the timeout operation within the live environment:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
+import zio.test.environment._
+
+val longRunningSUT =
+  ZIO.attemptBlockingInterrupt{
+    // ... 
+    Thread.sleep(10000) // simulating a long-running blocking operation
+    // ...
+  }
+  
+test("withLive provides real environment to a single part of an effect") {
+  assertM(Live.withLive(longRunningSUT)(_.timeout(3.seconds)))(anything)
+}
+```
