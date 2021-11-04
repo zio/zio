@@ -613,7 +613,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               }
           }
 
-        ZChannel.fromZIO(pullL.fork.zipWith(pullR.fork)(BothRunning(_, _): MergeState)).flatMap(go).embedInput(input)
+        ZChannel
+          .fromZIO(ZIO.transplant(graft => graft(pullL).fork.zipWith(graft(pullR).fork)(BothRunning(_, _): MergeState)))
+          .flatMap(go)
+          .embedInput(input)
       }
 
     ZChannel.unwrapManaged(m)
