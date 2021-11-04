@@ -116,7 +116,6 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[Nothing, In],
-    sourceLocation: SourceLocation,
     trace: ZTraceElement
   ): testConstructor.Out =
     testConstructor(label)(assertion)
