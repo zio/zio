@@ -210,9 +210,12 @@ package object test extends CompileVariants {
     value: => A,
     assertResult: AssertResult,
     assertion: AssertionM[A],
-    expression: Option[String],
-    sourceLocation: Option[String]
-  ): TestResult =
+    expression: Option[String]
+  )(implicit trace: ZTraceElement): TestResult = {
+    val sourceLocation = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, line, _) =>
+      s"$file:$line"
+    }
+
     assertResult.flatMap { fragment =>
       def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
         if (whole.sameAssertion(failureDetails.assertion.head))
@@ -230,19 +233,17 @@ package object test extends CompileVariants {
         FailureDetails(::(AssertionValue(assertion, value, assertResult, expression, sourceLocation), Nil))
       )
     }
+  }
 
   /**
    * Checks the assertion holds for the given value.
    */
   override private[test] def assertImpl[A](
     value: => A,
-    expression: Option[String] = None,
-    sourceLocation: Option[String] = None
-  )(
-    assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): TestResult = {
+    expression: Option[String] = None
+  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult = {
     lazy val tryValue = Try(value)
-    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression, sourceLocation)
+    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression)
   }
 
   /**
@@ -260,13 +261,13 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
+  override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
     assertion: AssertionM[A]
   )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
     for {
       value        <- effect
       assertResult <- assertion.runM(value).run
-    } yield traverseResult(value, assertResult, assertion, None, sourceLocation)
+    } yield traverseResult(value, assertResult, assertion, None)
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the
@@ -820,7 +821,6 @@ package object test extends CompileVariants {
    */
   def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[Nothing, In],
-    sourceLocation: SourceLocation,
     trace: ZTraceElement
   ): testConstructor.Out =
     testConstructor(label)(assertion)
@@ -831,7 +831,7 @@ package object test extends CompileVariants {
   @deprecated("use test", "2.0.0")
   def testM[R, E](label: String)(
     assertion: => ZIO[R, E, TestResult]
-  )(implicit loc: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+  )(implicit trace: ZTraceElement): ZSpec[R, E] =
     test(label)(assertion)
 
   /**

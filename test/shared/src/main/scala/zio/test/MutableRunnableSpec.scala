@@ -126,7 +126,6 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
    */
   final def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[R with TestEnvironment, In],
-    sourceLocation: SourceLocation,
     trace: ZTraceElement
   ): TestBuilder = {
     if (specBuilt)
@@ -145,7 +144,7 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
     label: String
   )(
     assertion: => ZIO[R with TestEnvironment, Failure, TestResult]
-  )(implicit loc: SourceLocation, trace: ZTraceElement): TestBuilder =
+  )(implicit trace: ZTraceElement): TestBuilder =
     test(label)(assertion)
 
   final override def spec: ZSpec[Environment, Failure] = {
