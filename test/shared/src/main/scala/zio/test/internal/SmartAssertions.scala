@@ -10,63 +10,74 @@ import scala.util.Try
 object SmartAssertions {
   import zio.test.{ErrorMessage => M}
 
-  def isSome[A]: Arrow[Option[A], A] =
-    Arrow
+  def anything: TestArrow[Any, Boolean] =
+    TestArrow.make[Any, Boolean](_ => Trace.succeed(true))
+
+  def custom[A, B](customAssertion: CustomAssertion[A, B]): TestArrow[A, B] =
+    TestArrow.make { a =>
+      customAssertion.run(a) match {
+        case Left(error)  => Trace.fail(error)
+        case Right(value) => Trace.succeed(value)
+      }
+    }
+
+  def isSome[A]: TestArrow[Option[A], A] =
+    TestArrow
       .make[Option[A], A] {
         case Some(value) => Trace.succeed(value)
         case None        => Trace.fail("Option was None")
       }
 
-  def asRight[A]: Arrow[Either[_, A], A] =
-    Arrow
+  def asRight[A]: TestArrow[Either[_, A], A] =
+    TestArrow
       .make[Either[_, A], A] {
         case Right(value) => Trace.succeed(value)
         case Left(_)      => Trace.fail("Either was Left")
       }
 
-  def asLeft[A]: Arrow[Either[A, _], A] =
-    Arrow
+  def asLeft[A]: TestArrow[Either[A, _], A] =
+    TestArrow
       .make[Either[A, _], A] {
         case Left(value) => Trace.succeed(value)
         case Right(_)    => Trace.fail("Either was Right")
       }
 
-  def isEmptyIterable[A]: Arrow[Iterable[A], Boolean] =
-    Arrow
+  def isEmptyIterable[A]: TestArrow[Iterable[A], Boolean] =
+    TestArrow
       .make[Iterable[A], Boolean] { as =>
         Trace.boolean(as.isEmpty) {
           className(as) + M.was + "empty" + M.text(s"(size ${as.size})")
         }
       }
 
-  def isNonEmptyIterable[A]: Arrow[Iterable[A], Boolean] =
-    Arrow
+  def isNonEmptyIterable[A]: TestArrow[Iterable[A], Boolean] =
+    TestArrow
       .make[Iterable[A], Boolean] { as =>
         Trace.boolean(as.nonEmpty) {
           className(as) + M.choice("was not", "was") + "empty"
         }
       }
 
-  def isEmptyOption[A]: Arrow[Option[A], Boolean] =
-    Arrow
+  def isEmptyOption[A]: TestArrow[Option[A], Boolean] =
+    TestArrow
       .make[Option[A], Boolean] { option =>
         Trace.boolean(option.isEmpty) {
           className(option) + M.was + "empty"
         }
       }
 
-  def isDefinedOption[A]: Arrow[Option[A], Boolean] =
-    Arrow
+  def isDefinedOption[A]: TestArrow[Option[A], Boolean] =
+    TestArrow
       .make[Option[A], Boolean] { option =>
         Trace.boolean(option.isDefined) {
           className(option) + M.was + "defined"
         }
       }
 
-  def forallIterable[A](predicate: Arrow[A, Boolean]): Arrow[Iterable[A], Boolean] =
-    Arrow
+  def forallIterable[A](predicate: TestArrow[A, Boolean]): TestArrow[Iterable[A], Boolean] =
+    TestArrow
       .make[Iterable[A], Boolean] { seq =>
-        val results = seq.map(a => Arrow.run(predicate, Right(a)))
+        val results = seq.map(a => TestArrow.run(predicate, Right(a)))
 
         val failures = results.filter(_.isFailure)
         val elements = if (failures.size == 1) "element" else "elements"
@@ -78,10 +89,10 @@ object SmartAssertions {
         )
       }
 
-  def existsIterable[A](predicate: Arrow[A, Boolean]): Arrow[Iterable[A], Boolean] =
-    Arrow
+  def existsIterable[A](predicate: TestArrow[A, Boolean]): TestArrow[Iterable[A], Boolean] =
+    TestArrow
       .make[Iterable[A], Boolean] { seq =>
-        val results = seq.map(a => Arrow.run(predicate, Right(a)))
+        val results = seq.map(a => TestArrow.run(predicate, Right(a)))
 
         val successes = results.filter(_.isSuccess)
         val elements  = if (successes.size == 1) "element" else "elements"
@@ -94,32 +105,32 @@ object SmartAssertions {
         )
       }
 
-  def containsSeq[A](value: A): Arrow[Seq[A], Boolean] =
-    Arrow
+  def containsSeq[A](value: A): TestArrow[Seq[A], Boolean] =
+    TestArrow
       .make[Seq[A], Boolean] { seq =>
         Trace.boolean(seq.contains(value)) {
           className(seq) + M.did + "contain" + M.pretty(value)
         }
       }
 
-  def containsOption[A](value: A): Arrow[Option[A], Boolean] =
-    Arrow
+  def containsOption[A](value: A): TestArrow[Option[A], Boolean] =
+    TestArrow
       .make[Option[A], Boolean] { option =>
         Trace.boolean(option.contains(value)) {
           className(option) + M.did + "contain" + M.pretty(value)
         }
       }
 
-  def containsString(value: String): Arrow[String, Boolean] =
-    Arrow
+  def containsString(value: String): TestArrow[String, Boolean] =
+    TestArrow
       .make[String, Boolean] { str =>
         Trace.boolean(str.contains(value)) {
           M.pretty(str) + M.did + "contain" + M.pretty(value)
         }
       }
 
-  def hasAt[A](index: Int): Arrow[Seq[A], A] =
-    Arrow
+  def hasAt[A](index: Int): TestArrow[Seq[A], A] =
+    TestArrow
       .make[Seq[A], A] { as =>
         Try(as(index)).toOption match {
           case Some(value) => Trace.succeed(value)
@@ -130,8 +141,8 @@ object SmartAssertions {
         }
       }
 
-  def hasKey[K, V](key: K): Arrow[Map[K, V], V] =
-    Arrow
+  def hasKey[K, V](key: K): TestArrow[Map[K, V], V] =
+    TestArrow
       .make[Map[K, V], V] { mapKV =>
         Try(mapKV(key)).toOption match {
           case Some(value) => Trace.succeed(value)
@@ -142,8 +153,8 @@ object SmartAssertions {
         }
       }
 
-  def head[A]: Arrow[Iterable[A], A] =
-    Arrow
+  def head[A]: TestArrow[Iterable[A], A] =
+    TestArrow
       .make[Iterable[A], A] { as =>
         as.headOption match {
           case Some(value) => Trace.succeed(value)
@@ -152,56 +163,56 @@ object SmartAssertions {
         }
       }
 
-  def isEven[A](implicit integral: Integral[A]): Arrow[A, Boolean] =
-    Arrow
+  def isEven[A](implicit integral: Integral[A]): TestArrow[A, Boolean] =
+    TestArrow
       .make[A, Boolean] { (a: A) =>
         Trace.boolean(integral.rem(a, integral.fromInt(2)) == integral.fromInt(0)) {
           M.pretty(a) + M.was + "even"
         }
       }
 
-  def isOdd[A](implicit integral: Integral[A]): Arrow[A, Boolean] =
-    Arrow
+  def isOdd[A](implicit integral: Integral[A]): TestArrow[A, Boolean] =
+    TestArrow
       .make[A, Boolean] { (a: A) =>
         Trace.boolean(integral.rem(a, integral.fromInt(2)) == integral.fromInt(1)) {
           M.pretty(a) + M.was + "odd"
         }
       }
 
-  def greaterThan[A](that: A)(implicit ordering: Ordering[A]): Arrow[A, Boolean] =
-    Arrow
+  def greaterThan[A](that: A)(implicit ordering: Ordering[A]): TestArrow[A, Boolean] =
+    TestArrow
       .make[A, Boolean] { (a: A) =>
         Trace.boolean(ordering.gt(a, that)) {
           M.pretty(a) + M.was + "greater than" + M.pretty(that)
         }
       }
 
-  def greaterThanOrEqualTo[A](that: A)(implicit ordering: Ordering[A]): Arrow[A, Boolean] =
-    Arrow
+  def greaterThanOrEqualTo[A](that: A)(implicit ordering: Ordering[A]): TestArrow[A, Boolean] =
+    TestArrow
       .make[A, Boolean] { a =>
         Trace.boolean(ordering.gteq(a, that)) {
           M.pretty(a) + M.was + s"greater than or equal to" + M.pretty(that)
         }
       }
 
-  def lessThan[A](that: A)(implicit ordering: Ordering[A]): Arrow[A, Boolean] =
-    Arrow
+  def lessThan[A](that: A)(implicit ordering: Ordering[A]): TestArrow[A, Boolean] =
+    TestArrow
       .make[A, Boolean] { a =>
         Trace.boolean(ordering.lt(a, that)) {
           M.pretty(a) + M.was + "less than" + M.pretty(that)
         }
       }
 
-  def lessThanOrEqualTo[A](that: A)(implicit ordering: Ordering[A]): Arrow[A, Boolean] =
-    Arrow
+  def lessThanOrEqualTo[A](that: A)(implicit ordering: Ordering[A]): TestArrow[A, Boolean] =
+    TestArrow
       .make[A, Boolean] { a =>
         Trace.boolean(ordering.lteq(a, that)) {
           M.pretty(a) + M.was + "less than or equal to" + M.pretty(that)
         }
       }
 
-  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): Arrow[A, Boolean] =
-    Arrow
+  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
+    TestArrow
       .make[A, Boolean] { a =>
         val result = (a, that) match {
           case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
@@ -220,8 +231,8 @@ object SmartAssertions {
         }
       }
 
-  def asCauseDie[E]: Arrow[Cause[E], Throwable] =
-    Arrow
+  def asCauseDie[E]: TestArrow[Cause[E], Throwable] =
+    TestArrow
       .make[Cause[E], Throwable] {
         case cause if cause.dieOption.isDefined =>
           Trace.succeed(cause.dieOption.get)
@@ -229,8 +240,8 @@ object SmartAssertions {
           Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Die"))
       }
 
-  def asCauseFailure[E]: Arrow[Cause[E], E] =
-    Arrow
+  def asCauseFailure[E]: TestArrow[Cause[E], E] =
+    TestArrow
       .make[Cause[E], E] {
         case cause if cause.failureOption.isDefined =>
           Trace.succeed(cause.failureOption.get)
@@ -238,8 +249,8 @@ object SmartAssertions {
           Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Fail"))
       }
 
-  def asCauseInterrupted[E]: Arrow[Cause[E], Boolean] =
-    Arrow
+  def asCauseInterrupted[E]: TestArrow[Cause[E], Boolean] =
+    TestArrow
       .make[Cause[E], Boolean] {
         case cause if cause.interrupted =>
           Trace.succeed(true)
@@ -247,8 +258,8 @@ object SmartAssertions {
           Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Interrupt"))
       }
 
-  def asExitDie[E, A]: Arrow[Exit[E, A], Throwable] =
-    Arrow
+  def asExitDie[E, A]: TestArrow[Exit[E, A], Throwable] =
+    TestArrow
       .make[Exit[E, A], Throwable] {
         case Exit.Failure(cause) if cause.dieOption.isDefined =>
           Trace.succeed(cause.dieOption.get)
@@ -258,8 +269,8 @@ object SmartAssertions {
           Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Die"))
       }
 
-  def asExitCause[E, A]: Arrow[Exit[E, A], Cause[E]] =
-    Arrow
+  def asExitCause[E, A]: TestArrow[Exit[E, A], Cause[E]] =
+    TestArrow
       .make[Exit[E, A], Cause[E]] {
         case Exit.Failure(cause) =>
           Trace.succeed(cause)
@@ -267,8 +278,8 @@ object SmartAssertions {
           Trace.fail(M.value("Exit.Success") + M.did + "contain a" + M.value("Cause"))
       }
 
-  def asExitFailure[E, A]: Arrow[Exit[E, A], E] =
-    Arrow
+  def asExitFailure[E, A]: TestArrow[Exit[E, A], E] =
+    TestArrow
       .make[Exit[E, A], E] {
         case Exit.Failure(cause) if cause.failureOption.isDefined =>
           Trace.succeed(cause.failureOption.get)
@@ -278,8 +289,8 @@ object SmartAssertions {
           Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Fail"))
       }
 
-  def asExitInterrupted[E, A]: Arrow[Exit[E, A], Boolean] =
-    Arrow
+  def asExitInterrupted[E, A]: TestArrow[Exit[E, A], Boolean] =
+    TestArrow
       .make[Exit[E, A], Boolean] {
         case Exit.Failure(cause) if cause.interrupted =>
           Trace.succeed(true)
@@ -289,8 +300,8 @@ object SmartAssertions {
           Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Interrupt"))
       }
 
-  def asExitSuccess[E, A]: Arrow[Exit[E, A], A] =
-    Arrow
+  def asExitSuccess[E, A]: TestArrow[Exit[E, A], A] =
+    TestArrow
       .make[Exit[E, A], A] {
         case Exit.Success(value) =>
           Trace.succeed(value)
@@ -298,14 +309,14 @@ object SmartAssertions {
           Trace.fail(M.value("Exit") + M.was + "a" + M.value("Success"))
       }
 
-  val throws: Arrow[Any, Throwable] =
-    Arrow.makeEither(
+  val throws: TestArrow[Any, Throwable] =
+    TestArrow.makeEither(
       Trace.succeed,
       _ => Trace.fail("Expected failure")
     )
 
-  def as[A, B](implicit CB: ClassTag[B]): Arrow[A, B] =
-    Arrow
+  def as[A, B](implicit CB: ClassTag[B]): TestArrow[A, B] =
+    TestArrow
       .make[A, B] { a =>
         CB.unapply(a) match {
           case Some(value) => Trace.succeed(value)
@@ -313,8 +324,8 @@ object SmartAssertions {
         }
       }
 
-  def is[A, B](implicit CB: ClassTag[B]): Arrow[A, Boolean] =
-    Arrow
+  def is[A, B](implicit CB: ClassTag[B]): TestArrow[A, Boolean] =
+    TestArrow
       .make[A, Boolean] { a =>
         Trace.boolean(CB.unapply(a).isDefined) {
           M.value(a.getClass.getSimpleName) + M.is + "an instance of" + M.value(className(CB))

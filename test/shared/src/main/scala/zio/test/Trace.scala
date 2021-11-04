@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.test.Arrow.Span
+import zio.test.TestArrow.Span
 
 import scala.annotation.tailrec
 

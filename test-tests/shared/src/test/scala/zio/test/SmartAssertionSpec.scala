@@ -357,7 +357,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(res.asInstanceOf[Red].foo > 10)
       } @@ failing
     ),
-    suite("as")(
+    suite("is")(
       test("Some") {
         val option: Option[Option[Int]] = Some(None)
         assertTrue(option.is(_.some.some) == 19)
@@ -409,7 +409,36 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           val exit: Exit[Int, String] = Exit.succeed("Yes")
           assertTrue(exit.is(_.success) == "No")
         }
+      ),
+      suite("subtype")(
+        test("success") {
+          val option: Option[Color] = Option(Blue("hello"))
+          assertTrue(option.is(_.some.subtype[Red]).foo == 188)
+        }
       )
+    ) @@ failing,
+    suite("is anything")(
+      test("success") {
+        val opt: Option[Int] = Option(1)
+        assertTrue(opt.is(_.some.anything))
+      },
+      test("failure") {
+        val opt: Option[Int] = None
+        assertTrue(opt.is(_.some.anything))
+      } @@ failing
+    ),
+    suite("is custom assertions")(
+      test("success") {
+        val opt: Option[Either[Int, Color]] = Option(Right(Blue("hello")))
+
+        val colorAssertion: CustomAssertion[Color, Red] =
+          CustomAssertion.make[Color] {
+            case Red(foo) => Right(Red(foo))
+            case _        => Left("Cannot be Blue")
+          }
+
+        assertTrue(opt.is(_.some.right.custom(colorAssertion)).foo == 14)
+      }
     ) @@ failing,
     suite("Map")(
       suite(".apply")(

@@ -19,6 +19,7 @@ package zio.test
 import zio._
 import zio.test.internal.SmartAssertions
 import scala.quoted._
+import scala.reflect.ClassTag
 
 object SmartAssertMacros {
   def smartAssertSingle(expr: Expr[Boolean])(using ctx: Quotes): Expr[Assert] =
@@ -64,60 +65,77 @@ class SmartAssertMacros(ctx: Quotes)  {
     }
   }
 
-  def transformAs[Start, End](expr: Expr[SmartAssertion[End]])(start: Expr[Arrow[Any, Start]])(using Type[Start], Type[End], PositionContext) : Expr[Arrow[Any, End]] = {
+  def transformAs[Start, End](expr: Expr[TestLens[End]])(start: Expr[TestArrow[Any, Start]])(using Type[Start], Type[End], PositionContext) : Expr[TestArrow[Any, End]] = {
    val res = expr match {
-      case '{ SmartAssertionOptionOps($lhs: SmartAssertion[Option[End]]).some } =>
-        val arrow = transformAs[Start, Option[End]](lhs.asInstanceOf[Expr[SmartAssertion[Option[End]]]])(start)
+      case '{ TestLensAnyOps($lhs: TestLens[a]).anything } =>
+        val arrow = transformAs[Start, a](lhs.asInstanceOf[Expr[TestLens[a]]])(start)
+        '{ $arrow >>> SmartAssertions.anything }
+
+      case '{ type a; TestLensAnyOps($lhs: TestLens[`a`]).custom($customAssertion: CustomAssertion[`a`, End]) } =>
+        val arrow = transformAs[Start, a](lhs.asInstanceOf[Expr[TestLens[a]]])(start)
+        '{ $arrow >>> SmartAssertions.custom[a, End]($customAssertion) }
+
+      case '{ type a >: End; TestLensAnyOps($lhs: TestLens[`a`]).subtype[End] } =>
+        val arrow = transformAs[Start, a](lhs.asInstanceOf[Expr[TestLens[a]]])(start)
+        Expr.summon[ClassTag[End]] match {
+          case Some(tag) =>
+            '{ $arrow >>> SmartAssertions.as[a, End]($tag) }
+          case None =>
+            throw new Error("NEED CLASS TAG")
+        }
+
+      case '{ TestLensOptionOps($lhs: TestLens[Option[End]]).some } =>
+        val arrow = transformAs[Start, Option[End]](lhs.asInstanceOf[Expr[TestLens[Option[End]]]])(start)
         '{ $arrow >>> SmartAssertions.isSome }
 
-      case '{ type e; SmartAssertionEitherOps[`e`, End]($lhs: SmartAssertion[Either[`e`, End]]).right }  =>
-        val arrow = transformAs[Start, Either[e, End]](lhs.asInstanceOf[Expr[SmartAssertion[Either[e, End]]]])(start)
+      case '{ type e; TestLensEitherOps[`e`, End]($lhs: TestLens[Either[`e`, End]]).right }  =>
+        val arrow = transformAs[Start, Either[e, End]](lhs.asInstanceOf[Expr[TestLens[Either[e, End]]]])(start)
         '{ $arrow >>> SmartAssertions.asRight }
 
-      case '{ type e; SmartAssertionEitherOps[End, `e`]($lhs: SmartAssertion[Either[End, `e`]]).left }  =>
-        val arrow = transformAs[Start, Either[End, e]](lhs.asInstanceOf[Expr[SmartAssertion[Either[End, e]]]])(start)
+      case '{ type e; TestLensEitherOps[End, `e`]($lhs: TestLens[Either[End, `e`]]).left }  =>
+        val arrow = transformAs[Start, Either[End, e]](lhs.asInstanceOf[Expr[TestLens[Either[End, e]]]])(start)
         '{ $arrow >>> SmartAssertions.asLeft }
 
-     case '{ SmartAssertionCauseOps($lhs: SmartAssertion[Cause[End]]).failure } =>
-       val arrow = transformAs[Start, Cause[End]](lhs.asInstanceOf[Expr[SmartAssertion[Cause[End]]]])(start)
+     case '{ TestLensCauseOps($lhs: TestLens[Cause[End]]).failure } =>
+       val arrow = transformAs[Start, Cause[End]](lhs.asInstanceOf[Expr[TestLens[Cause[End]]]])(start)
        '{ $arrow >>> SmartAssertions.asCauseFailure }
 
-     case '{ type a; SmartAssertionCauseOps($lhs: SmartAssertion[Cause[`a`]]).die } =>
-       val arrow = transformAs[Start, Cause[a]](lhs.asInstanceOf[Expr[SmartAssertion[Cause[a]]]])(start)
+     case '{ type a; TestLensCauseOps($lhs: TestLens[Cause[`a`]]).die } =>
+       val arrow = transformAs[Start, Cause[a]](lhs.asInstanceOf[Expr[TestLens[Cause[a]]]])(start)
        '{ $arrow >>> SmartAssertions.asCauseDie }
 
-     case '{ type a; SmartAssertionCauseOps($lhs: SmartAssertion[Cause[`a`]]).interrupted } =>
-       val arrow = transformAs[Start, Cause[a]](lhs.asInstanceOf[Expr[SmartAssertion[Cause[a]]]])(start)
+     case '{ type a; TestLensCauseOps($lhs: TestLens[Cause[`a`]]).interrupted } =>
+       val arrow = transformAs[Start, Cause[a]](lhs.asInstanceOf[Expr[TestLens[Cause[a]]]])(start)
        '{ $arrow >>> SmartAssertions.asCauseInterrupted }
 
-     case '{ type a; SmartAssertionExitOps($lhs: SmartAssertion[Exit[End, `a`]]).failure } =>
-       val arrow = transformAs[Start, Exit[End, a]](lhs.asInstanceOf[Expr[SmartAssertion[Exit[End, a]]]])(start)
+     case '{ type a; TestLensExitOps($lhs: TestLens[Exit[End, `a`]]).failure } =>
+       val arrow = transformAs[Start, Exit[End, a]](lhs.asInstanceOf[Expr[TestLens[Exit[End, a]]]])(start)
        '{ $arrow >>> SmartAssertions.asExitFailure }
 
-     case '{ type a; SmartAssertionExitOps($lhs: SmartAssertion[Exit[`a`, End]]).success } =>
-       val arrow = transformAs[Start, Exit[a, End]](lhs.asInstanceOf[Expr[SmartAssertion[Exit[a, End]]]])(start)
+     case '{ type a; TestLensExitOps($lhs: TestLens[Exit[`a`, End]]).success } =>
+       val arrow = transformAs[Start, Exit[a, End]](lhs.asInstanceOf[Expr[TestLens[Exit[a, End]]]])(start)
        '{ $arrow >>> SmartAssertions.asExitSuccess }
 
-     case '{ type e; type a; SmartAssertionExitOps($lhs: SmartAssertion[Exit[`e`, `a`]]).die } =>
-       val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[SmartAssertion[Exit[e, a]]]])(start)
+     case '{ type e; type a; TestLensExitOps($lhs: TestLens[Exit[`e`, `a`]]).die } =>
+       val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[TestLens[Exit[e, a]]]])(start)
        '{ $arrow >>> SmartAssertions.asExitDie }
 
-     case '{ type e; type a; SmartAssertionExitOps($lhs: SmartAssertion[Exit[`e`, `a`]]).interrupted } =>
-       val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[SmartAssertion[Exit[e, a]]]])(start)
+     case '{ type e; type a; TestLensExitOps($lhs: TestLens[Exit[`e`, `a`]]).interrupted } =>
+       val arrow = transformAs[Start, Exit[e, a]](lhs.asInstanceOf[Expr[TestLens[Exit[e, a]]]])(start)
        '{ $arrow >>> SmartAssertions.asExitInterrupted }
 
      case other =>
        start
     }
-    res.asInstanceOf[Expr[Arrow[Any, End]]]
+    res.asInstanceOf[Expr[TestArrow[Any, End]]]
   }
 
-  def transform[A](expr: Expr[A])(using Type[A], PositionContext) : Expr[Arrow[Any, A]] =
+  def transform[A](expr: Expr[A])(using Type[A], PositionContext) : Expr[TestArrow[Any, A]] =
     expr match {
       case '{ type t; type v; zio.test.SmartAssertionOps[`t`](${something}: `t`).is[`v`](${Unseal(Lambda(terms, body))}) } =>
-        val lhs = transform(something).asInstanceOf[Expr[Arrow[Any, t]]]
-        val res = transformAs(body.asExprOf[SmartAssertion[v]])(lhs)
-        res.asInstanceOf[Expr[Arrow[Any, A]]]
+        val lhs = transform(something).asInstanceOf[Expr[TestArrow[Any, t]]]
+        val res = transformAs(body.asExprOf[TestLens[v]])(lhs)
+        res.asInstanceOf[Expr[TestArrow[Any, A]]]
 
       case Unseal(Inlined(_, _, expr)) => transform(expr.asExprOf[A])
 
@@ -129,13 +147,13 @@ class SmartAssertMacros(ctx: Quotes)  {
               case Some(ord) =>
                 op match {
                     case ">" =>
-                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
                     case ">=" =>
-                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.greaterThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
                     case "<" =>
-                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThan(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
                     case "<=" =>
-                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[Arrow[Any, A]]
+                      '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.lessThanOrEqualTo(${rhs.asExprOf[l]})($ord).span($span)}.asExprOf[TestArrow[Any, A]]
                 }
               case _ => throw new Error("NO")
             }
@@ -145,7 +163,7 @@ class SmartAssertMacros(ctx: Quotes)  {
         val span = rhs.span
         lhs.tpe.widen.asType match {
           case '[l] => 
-            '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[Arrow[Any, A]]
+            '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[TestArrow[Any, A]]
         }
 
 
@@ -160,15 +178,15 @@ class SmartAssertMacros(ctx: Quotes)  {
         val tpe = lhs.tpe.widen
 
         if(tpe.typeSymbol.isPackageDef)
-          '{Arrow.succeed($expr).span(${method.span})}
+          '{TestArrow.succeed($expr).span(${method.span})}
         else
           tpe.asType match {
             case '[l] =>
               val selectBody = '{
                 (from: l) => ${ body('{from}.asTerm).asExprOf[A] }
               }
-              val lhsExpr = transform(lhs.asExprOf[l]).asExprOf[Arrow[Any, l]]
-              val assertExpr = '{Arrow.fromFunction[l, A](${selectBody})}
+              val lhsExpr = transform(lhs.asExprOf[l]).asExprOf[TestArrow[Any, l]]
+              val assertExpr = '{TestArrow.fromFunction[l, A](${selectBody})}
               val pos = summon[PositionContext]
               val span = Expr((lhs.pos.end - pos.start, method.pos.end - pos.start))
               '{$lhsExpr >>> $assertExpr.span($span)}
@@ -177,7 +195,7 @@ class SmartAssertMacros(ctx: Quotes)  {
 
       case Unseal(tree) =>
         val span = tree.span
-       '{Arrow.succeed($expr).span($span)}
+       '{TestArrow.succeed($expr).span($span)}
     }
 
   def smartAssertSingle_impl(value: Expr[Boolean]): Expr[Assert] = {
@@ -189,7 +207,7 @@ class SmartAssertMacros(ctx: Quotes)  {
 
     val ast = transform(value)
 
-    val arrow = ast.asExprOf[Arrow[Any, Boolean]]
+    val arrow = ast.asExprOf[TestArrow[Any, Boolean]]
     '{Assert($arrow.withCode(${Expr(code)}).withLocation)}
   }
 
