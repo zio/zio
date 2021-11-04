@@ -1,4 +1,4 @@
-package zio.test.environment
+package zio.test
 
 import zio.{Has, IO, ZEnv, ZIO, ZLayer, ZManaged, ZTraceElement}
 import zio.internal.stacktracer.Tracer
@@ -14,7 +14,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  *
  * {{{
  * import zio.Clock
- * import zio.test.environment._
+ * import zio.test._
  *
  * val realTime = live(Clock.nanoTime)
  * }}}

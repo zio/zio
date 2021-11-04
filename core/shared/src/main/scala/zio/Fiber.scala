@@ -409,10 +409,9 @@ object Fiber extends FiberPlatformSpecific {
      */
     final def dumpWith(withTrace: Boolean)(implicit trace: ZTraceElement): UIO[Fiber.Dump] =
       for {
-        name   <- self.getRef(Fiber.fiberName)
         status <- self.status
         trace  <- if (withTrace) self.trace.asSome else UIO.none
-      } yield Fiber.Dump(self.id, name, status, trace)
+      } yield Fiber.Dump(self.id, status, trace)
 
     /**
      * Generates a fiber dump with optionally excluded stack traces.
@@ -499,8 +498,6 @@ object Fiber extends FiberPlatformSpecific {
 
     def fiberId: FiberId.Runtime
 
-    def fiberName: Option[String]
-
     def status: Status
 
     def trace: Option[ZTrace]
@@ -522,15 +519,13 @@ object Fiber extends FiberPlatformSpecific {
   object Dump {
     def apply(
       fiberId0: FiberId.Runtime,
-      fiberName0: Option[String],
       status0: Status,
       trace0: Option[ZTrace]
     ): Dump =
       new Dump {
-        def fiberId: FiberId.Runtime  = fiberId0
-        def fiberName: Option[String] = fiberName0
-        def status: Status            = status0
-        def trace: Option[ZTrace]     = trace0
+        def fiberId: FiberId.Runtime = fiberId0
+        def status: Status           = status0
+        def trace: Option[ZTrace]    = trace0
       }
 
   }
@@ -677,11 +672,6 @@ object Fiber extends FiberPlatformSpecific {
    */
   def failCause[E](cause: Cause[E]): Fiber.Synthetic[E, Nothing] =
     done(Exit.failCause(cause))
-
-  /**
-   * A `FiberRef` that stores the name of the fiber, which defaults to `None`.
-   */
-  val fiberName: FiberRef.Runtime[Option[String]] = new FiberRef.Runtime(None, identity, (old, _) => old)
 
   /**
    * Lifts an [[zio.IO]] into a `Fiber`.

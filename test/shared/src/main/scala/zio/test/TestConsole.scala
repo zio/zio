@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.environment
+package zio.test
 
 import zio.{Console, FiberRef, Has, IO, Ref, UIO, URIO, ZIO, ZLayer, ZTraceElement}
 import zio.internal.stacktracer.Tracer
@@ -46,7 +46,7 @@ import zio.ZTrace
  *
  * {{{
  * import zio.Console._
- * import zio.test.environment.TestConsole
+ * import zio.test.TestConsole
  * import zio.ZIO
  *
  * val sayHello = for {

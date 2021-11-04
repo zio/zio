@@ -6,7 +6,6 @@ import zio.internal.Platform
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment.{Live, TestClock}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
@@ -1040,27 +1039,6 @@ object ZIOSpec extends ZIOBaseSpec {
           _      <- fiber.interrupt
           value  <- ref.get
         } yield assert(value)(equalTo(0))
-      }
-    ),
-    suite("forkAs")(
-      test("child has specified name") {
-        for {
-          fiber <- Fiber.fiberName.get.forkAs("child")
-          name  <- fiber.join
-        } yield assert(name)(isSome(equalTo("child")))
-      },
-      test("parent name is unchanged") {
-        for {
-          _    <- ZIO.unit.forkAs("child")
-          name <- Fiber.fiberName.get
-        } yield assert(name)(isNone)
-      },
-      test("parent does not inherit child name on join") {
-        for {
-          fiber <- ZIO.unit.forkAs("child")
-          _     <- fiber.join
-          name  <- Fiber.fiberName.get
-        } yield assert(name)(isNone)
       }
     ),
     suite("forkIn") {

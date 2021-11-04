@@ -1,10 +1,9 @@
-package zio.test.environment
+package zio.test
 
 import zio.System
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
-import zio.test._
-import zio.test.environment.TestSystem._
+import zio.test.TestSystem._
 
 object SystemSpec extends ZIOBaseSpec {
 

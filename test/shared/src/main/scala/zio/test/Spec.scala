@@ -19,7 +19,6 @@ package zio.test
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Spec._
-import zio.test.environment.TestEnvironment
 
 /**
  * A `Spec[R, E, T]` is the backbone of _ZIO Test_. Every spec is either a

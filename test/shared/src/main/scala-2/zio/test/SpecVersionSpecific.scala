@@ -2,7 +2,6 @@ package zio.test
 
 import zio.{Has, NeedsEnv, ZLayer}
 import zio.internal.macros.LayerMacros
-import zio.test.environment.TestEnvironment
 
 private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
 

@@ -92,7 +92,7 @@ package object zio
     val NoLocation: ZTraceElement = Tracer.instance.empty
     object SourceLocation {
       def apply(location: String, file: String, line: Int, column: Int): ZTraceElement =
-        Tracer.instance.apply(location, file, line, column).asInstanceOf[ZTraceElement]
+        Tracer.instance.apply(location, file, line, column)
 
       def unapply(trace: ZTraceElement): Option[(String, String, Int, Int)] =
         Tracer.instance.unapply(trace)

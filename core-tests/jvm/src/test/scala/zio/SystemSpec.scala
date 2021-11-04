@@ -2,10 +2,8 @@ package zio
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.live
 
 import java.io.File
-import zio.test.environment.Live
 
 object SystemSpec extends ZIOBaseSpec {
 

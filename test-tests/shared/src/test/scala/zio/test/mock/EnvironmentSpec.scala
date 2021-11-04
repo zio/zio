@@ -1,9 +1,8 @@
-package zio.test.environment
+package zio.test
 
 import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test._
 
 import java.util.concurrent.TimeUnit
 

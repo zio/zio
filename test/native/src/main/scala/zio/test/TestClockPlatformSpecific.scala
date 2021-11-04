@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.environment
+package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{Duration, Scheduler, UIO, ZIO, ZTraceElement}

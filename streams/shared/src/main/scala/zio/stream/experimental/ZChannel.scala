@@ -613,7 +613,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               }
           }
 
-        ZChannel.fromZIO(pullL.fork.zipWith(pullR.fork)(BothRunning(_, _): MergeState)).flatMap(go).embedInput(input)
+        ZChannel
+          .fromZIO(ZIO.transplant(graft => graft(pullL).fork.zipWith(graft(pullR).fork)(BothRunning(_, _): MergeState)))
+          .flatMap(go)
+          .embedInput(input)
       }
 
     ZChannel.unwrapManaged(m)
@@ -1453,6 +1456,11 @@ object ZChannel {
     hub: Hub[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.managed(hub.subscribe)(fromQueue)
+
+  def fromHubManaged[Err, Done, Elem](
+    hub: Hub[Either[Exit[Err, Done], Elem]]
+  )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
+    hub.subscribe.map(fromQueue)
 
   def fromInput[Err, Elem, Done](
     input: AsyncInputConsumer[Err, Elem, Done]

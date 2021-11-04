@@ -4,7 +4,6 @@ import zio.FiberRefSpecUtil._
 import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
-import zio.test.environment.Live
 
 object FiberRefSpec extends ZIOBaseSpec {
 

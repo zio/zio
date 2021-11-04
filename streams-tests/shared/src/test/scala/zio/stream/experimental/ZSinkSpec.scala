@@ -5,7 +5,6 @@ import zio.stream.internal.CharacterSet._
 import zio.test.Assertion._
 import zio.test.TestAspect.jvmOnly
 import zio.test._
-import zio.test.environment.TestClock
 
 import java.nio.charset.{Charset, StandardCharsets}
 

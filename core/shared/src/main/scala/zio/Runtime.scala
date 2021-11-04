@@ -312,12 +312,12 @@ trait Runtime[+R] {
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)
 
-      context.onDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
+      context.unsafeOnDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
     }
 
-    context.nextEffect = zio.asInstanceOf[IO[E, A]]
+    context.nextEffect = zio
     context.run()
-    context.awaitAsync(k)
+    context.unsafeOnDone(exit => k(exit.flatten))
 
     fiberId =>
       k => unsafeRunAsyncWith(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))

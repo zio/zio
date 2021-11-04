@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-package zio.test.environment
+package zio.test
 
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.{Annotations, TestAnnotation}
 
 import java.io.IOException
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
@@ -40,7 +39,7 @@ import scala.collection.immutable.SortedSet
  *
  * {{{
  *  import zio.ZIO
- *  import zio.test.environment.TestClock
+ *  import zio.test.TestClock
  *
  *  for {
  *    fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
@@ -62,7 +61,7 @@ import scala.collection.immutable.SortedSet
  *
  * {{{
  *  import zio.Queue
- *  import zio.test.environment.TestClock
+ *  import zio.test.TestClock
  *
  *  for {
  *    q <- Queue.unbounded[Unit]

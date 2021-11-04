@@ -3,7 +3,6 @@ package zio.test
 import zio._
 import zio.Clock._
 import zio.stm.STM
-import zio.test.environment._
 import zio.test.Assertion._
 import zio.test.TestAspect.{failing, timeout}
 import zio.test.TestUtils.execute

@@ -3,7 +3,6 @@ package zio.stream
 import zio.stream.SinkUtils.{findSink, sinkRaceLaw}
 import zio.stream.ZStreamGen._
 import zio.test.Assertion.{equalTo, isFalse, isGreaterThanEqualTo, isLeft, isTrue, succeeds}
-import zio.test.environment.TestClock
 import zio.test.{assertM, _}
 import zio.{ZIOBaseSpec, _}
 
