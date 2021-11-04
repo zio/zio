@@ -677,7 +677,7 @@ private[zio] trait AsyncInputProducer[-Err, -Elem, -Done] {
   def emit(el: Elem)(implicit trace: ZTraceElement): UIO[Any]
   def done(a: Done)(implicit trace: ZTraceElement): UIO[Any]
   def error(cause: Cause[Err])(implicit trace: ZTraceElement): UIO[Any]
-  def await(implicit trace: ZTraceElement): UIO[Any]
+  def awaitRead(implicit trace: ZTraceElement): UIO[Any]
 }
 
 /**
