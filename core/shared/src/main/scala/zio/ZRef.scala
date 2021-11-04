@@ -1006,7 +1006,8 @@ object ZRef extends Serializable {
     }
   }
 
-  private[zio] final case class Atomic[A](value: AtomicReference[A]) extends Ref[A] { self =>
+  private[zio] final case class Atomic[A](value: AtomicReference[A]) extends ZRef[Any, Any, Nothing, Nothing, A, A] {
+    self =>
 
     def fold[EC, ED, C, D](
       ea: Nothing => EC,
