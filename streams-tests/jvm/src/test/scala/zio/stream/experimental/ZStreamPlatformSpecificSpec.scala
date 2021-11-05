@@ -2,7 +2,6 @@ package zio.stream.experimental
 
 import zio._
 import zio.test.Assertion._
-import zio.test.TestAspect._
 import zio.test.{Gen, ZSpec, assert, assertCompletes, assertM, check}
 
 import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
