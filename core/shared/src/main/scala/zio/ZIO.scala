@@ -989,12 +989,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.Fork(self, () => Some(scope), trace)
 
   /**
-   * Forks the effect into a new independent fiber, with the specified name.
-   */
-  final def forkAs(name: => String)(implicit trace: ZTraceElement): URIO[R, Fiber.Runtime[E, A]] =
-    ZIO.uninterruptibleMask(restore => (Fiber.fiberName.set(Some(name)) *> restore(self)).fork)
-
-  /**
    * Forks the effect into a new fiber attached to the global scope. Because the
    * new fiber is attached to the global scope, when the fiber executing the
    * returned effect terminates, the forked fiber will continue running.

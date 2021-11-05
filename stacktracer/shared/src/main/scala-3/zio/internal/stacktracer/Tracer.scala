@@ -21,7 +21,7 @@ object Tracer {
 
   val instance: Tracer = new Tracer {
     type Type = String
-    val empty = ""
+    val empty = "".intern()
     def unapply(trace: Type): Option[(String, String, Int, Int)] = {
       trace match {
         case regex(location, file, line, column) => Some((location, file, line.toInt, column.toInt))

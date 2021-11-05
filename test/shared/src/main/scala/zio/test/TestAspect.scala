@@ -730,6 +730,17 @@ object TestAspect extends TimeoutVariants {
   }
 
   /**
+   * As aspect that runs each test with the specified `RuntimeConfigAspect`.
+   */
+  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): TestAspectPoly =
+    new PerTest.Poly {
+      def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
+        trace: ZTraceElement
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        ZIO.runtimeConfig.flatMap(runtimeConfig => test.withRuntimeConfig(runtimeConfigAspect(runtimeConfig)))
+    }
+
+  /**
    * An aspect that runs each test with the number of sufficient samples to
    * check for a random variable set to the specified value.
    */

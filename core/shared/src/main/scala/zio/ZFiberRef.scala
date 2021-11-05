@@ -367,7 +367,7 @@ object ZFiberRef {
             val fiberRef     = self.asInstanceOf[FiberRef.Runtime[Any]]
 
             if (fiberContext eq null) super.set(a)
-            else fiberContext.setFiberRefValue(fiberRef, a)
+            else fiberContext.unsafeSetRef(fiberRef, a)
           }
 
           override def remove(): Unit = {
@@ -375,7 +375,7 @@ object ZFiberRef {
             val fiberRef     = self
 
             if (fiberContext eq null) super.remove()
-            else fiberContext.removeFiberRef(fiberRef)
+            else fiberContext.unsafeDeleteRef(fiberRef)
           }
 
           override def initialValue(): A = initial
