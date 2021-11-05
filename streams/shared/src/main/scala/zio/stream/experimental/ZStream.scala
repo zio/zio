@@ -3562,7 +3562,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def timeoutFail[E1 >: E](e: => E1)(d: Duration)(implicit
     trace: ZTraceElement
   ): ZStream[R with Has[Clock], E1, A] =
-    timeoutFailCause(Cause.fail(e))(d)
+    self.timeoutTo[R with Has[Clock], E1, A](d)(ZStream.fail(e))
 
   /**
    * Fails the stream with given cause if it does not produce a value after d duration.

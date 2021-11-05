@@ -1182,7 +1182,7 @@ object ZChannel {
     EffectSuspendTotal(() => effect)
 
   def end[Z](result: => Z)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
-    Done(result)
+    effectTotal(result)
 
   def endWith[R, Z](f: R => Z)(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, Nothing, Nothing, Z] =
     ZChannel.fromZIO(ZIO.access[R](f))
