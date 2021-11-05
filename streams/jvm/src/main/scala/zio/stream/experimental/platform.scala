@@ -335,9 +335,9 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStream[R, A](stream: => java.util.stream.Stream[A])(implicit
+  final def fromJavaStream[A](stream: => java.util.stream.Stream[A])(implicit
     trace: ZTraceElement
-  ): ZStream[R, Throwable, A] =
+  ): ZStream[Any, Throwable, A] =
     ZStream.fromJavaIterator(stream.iterator())
 
   /**
