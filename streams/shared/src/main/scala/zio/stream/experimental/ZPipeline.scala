@@ -276,6 +276,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         stream
     }
 
+  def iso_8859_1Decode: UtfDecodingPipeline =
+    textDecodeUsing(StandardCharsets.ISO_8859_1)
+
   /**
    * Creates a pipeline that maps elements with the specified function.
    */
@@ -575,6 +578,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     ({ type OutElem[Elem] = String })#OutElem
   ]
 
+  def usASCIIDecode: UtfDecodingPipeline =
+    textDecodeUsing(StandardCharsets.US_ASCII)
+
   /**
    * utfDecode determines the right encoder to use based on the Byte Order Mark (BOM).
    * If it doesn't detect one, it defaults to utf8Decode. In the case of utf16 and utf32
@@ -820,6 +826,39 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         type Out[In] = RightOut
       }
   }
+
+  private def textDecodeUsing(charset: Charset): UtfDecodingPipeline =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
+      override type OutEnv[Env]   = Env
+      override type OutErr[Err]   = Err
+      override type OutElem[Elem] = String
+
+      override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, String] = {
+
+        def stringChunkFrom(bytes: Chunk[Byte]) =
+          Chunk.single(
+            new String(bytes.toArray, charset)
+          )
+
+        def transform: ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any] =
+          ZChannel.readWith(
+            received => {
+              if (received.isEmpty)
+                transform
+              else
+                ZChannel.write(stringChunkFrom(received))
+            },
+            error = ZChannel.fail(_),
+            done = _ => ZChannel.unit
+          )
+
+        new ZStream(
+          sourceStream.channel >>> transform
+        )
+      }
+    }
 
   private def utfDecodeDetectingBom(
     bomSize: Int,
