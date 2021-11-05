@@ -4,7 +4,7 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io._
-import java.net.InetSocketAddress
+import java.net.{InetSocketAddress, SocketAddress}
 import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel}
 import java.nio.file.Path
 import java.nio.{Buffer, ByteBuffer}
@@ -425,6 +425,20 @@ trait ZStreamPlatformSpecificConstructors {
   final class Connection private (socket: AsynchronousSocketChannel) {
 
     /**
+     * The remote address, i.e. the connected client
+     */
+    def remoteAddress(implicit trace: ZTraceElement): IO[IOException, SocketAddress] = IO
+      .attempt(socket.getRemoteAddress)
+      .refineToOrDie[IOException]
+
+    /**
+     * The local address, i.e. our server
+     */
+    def localAddress(implicit trace: ZTraceElement): IO[IOException, SocketAddress] = IO
+      .attempt(socket.getLocalAddress)
+      .refineToOrDie[IOException]
+
+    /**
      * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`
      */
     def read(implicit trace: ZTraceElement): ZStream[Any, Throwable, Byte] =
@@ -474,6 +488,12 @@ trait ZStreamPlatformSpecificConstructors {
      * Close the underlying socket
      */
     private[stream] def close()(implicit trace: ZTraceElement): UIO[Unit] = ZIO.succeed(socket.close())
+
+    /**
+     * Close only the write, so the remote end will see EOF
+     */
+    def closeWrite()(implicit trace: ZTraceElement): IO[IOException, Unit] = ZIO.attempt(socket.shutdownOutput()).unit.refineToOrDie[IOException]
+
   }
 
   object Connection {
