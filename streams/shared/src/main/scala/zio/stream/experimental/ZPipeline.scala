@@ -422,6 +422,34 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     }
 
   /**
+   * Splits strings on a delimiter.
+   */
+  def splitOn(delimiter: String): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, String] {
+      override type OutEnv[Env]   = Env
+      override type OutErr[Err]   = Err
+      override type OutElem[Elem] = String
+      override def apply[Env, Err, Elem <: String](
+        stream: ZStream[Env, Err, Elem]
+      )(implicit trace: ZTraceElement): ZStream[Env, Err, String] =
+        stream
+          .map(str => Chunk.fromArray(str.toArray))
+          .mapChunks(_.flatten)
+          .splitOnChunk(Chunk.fromArray(delimiter.toArray))
+          .map(_.mkString(""))
+    }
+
+  /**
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
    */
   def splitLines: ZPipeline.WithOut[
