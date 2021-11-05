@@ -2688,11 +2688,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def peel[R1 <: R, E1 >: E, A1 >: A, Z](
     sink: ZSink[R1, E1, A1, E1, A1, Z]
-  )(implicit trace: ZTraceElement): ZManaged[R1, E1, (Z, ZStream[R1, E1, A1])] = {
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, (Z, ZStream[R, E, A1])] = {
     sealed trait Signal
-    case class Emit(els: Chunk[A1])   extends Signal
-    case class Halt(cause: Cause[E1]) extends Signal
-    case object End                   extends Signal
+    case class Emit(els: Chunk[A1])  extends Signal
+    case class Halt(cause: Cause[E]) extends Signal
+    case object End                  extends Signal
 
     (for {
       p       <- Promise.makeManaged[E1, Z]
@@ -2704,7 +2704,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           { case (z1, leftovers) =>
             lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
               (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> loop,
-              (e: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(e))) *> ZChannel.failCause(e),
+              (e: Cause[E]) => ZChannel.fromZIO(handoff.offer(Halt(e))) *> ZChannel.failCause(e),
               (_: Any) => ZChannel.fromZIO(handoff.offer(End)) *> ZChannel.unit
             )
 
@@ -2716,7 +2716,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           }
         )
 
-      lazy val producer: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] = ZChannel.unwrap(
+      lazy val producer: ZChannel[R, Any, Any, Any, E, Chunk[A1], Unit] = ZChannel.unwrap(
         handoff.take.map {
           case Emit(els)   => ZChannel.write(els) *> producer
           case Halt(cause) => ZChannel.failCause(cause)
