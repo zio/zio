@@ -459,6 +459,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
 
                 if (concatenated.nonEmpty) {
 
+                  // If we had a split CRLF, start reading from the last character of the leftover, which was the '\r'
+                  // Otherwise we just skip over the entire previous leftover, as it doesn't contain a newline.
                   val continueFrom =
                     if (inCRLF && carry.nonEmpty) carry.length - 1
                     else carry.length
