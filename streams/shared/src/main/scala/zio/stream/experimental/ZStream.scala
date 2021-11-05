@@ -3204,7 +3204,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             if (delimiterCursor < delimiter.length && a == delimiter(delimiterCursor)) {
               if (delimiterCursor + 1 == delimiter.length) {
                 if (buffer eq null) buffer = collection.mutable.ArrayBuffer[Chunk[A]]()
-                buffer += concatenated.slice(0, concatenated.length - delimiter.length)
+                buffer += concatenated.take(concatenated.length - delimiter.length)
                 (Chunk.empty, 0)
               } else (concatenated, delimiterCursor + 1)
             } else (concatenated, if (a == delimiter(0)) 1 else 0)
