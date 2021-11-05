@@ -27,10 +27,13 @@ trait GenZIO {
   final def causes[R <: Has[Random] with Has[Sized], E](e: Gen[R, E], t: Gen[R, Throwable])(implicit
     trace: ZTraceElement
   ): Gen[R, Cause[E]] = {
-    val failure           = e.map(Cause.fail(_))
-    val die               = t.map(Cause.die(_))
+    val fiberId           = Gen.int.zipWith(Gen.int)(FiberId(_, _))
+    val zTraceElement     = Gen.string.map(_.asInstanceOf[ZTraceElement])
+    val zTrace            = fiberId.zipWith(Gen.chunkOf(zTraceElement))(ZTrace(_, _))
+    val failure           = e.zipWith(zTrace)(Cause.fail(_, _))
+    val die               = t.zipWith(zTrace)(Cause.die(_, _))
     val empty             = Gen.const(Cause.empty)
-    val interrupt         = Gen.int.zipWith(Gen.int)((l, r) => Cause.interrupt(FiberId(l, r)))
+    val interrupt         = fiberId.zipWith(zTrace)(Cause.interrupt(_, _))
     def stackless(n: Int) = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
 
     def sequential(n: Int) = Gen.suspend {

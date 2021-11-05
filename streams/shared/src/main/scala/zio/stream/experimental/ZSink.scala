@@ -500,7 +500,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
     new ZSink(channel.provide(r))
 }
 
-object ZSink {
+object ZSink extends ZSinkPlatformSpecificConstructors {
 
   /**
    * Accesses the environment of the sink in the context of a sink.
@@ -1260,18 +1260,16 @@ object ZSink {
   /**
    * Create a sink which enqueues each element into the specified queue.
    */
-  // TODO Result type should probably be ZSink[R, InError, I, E, Nothing, Unit]
-  def fromQueue[R, E, I](queue: ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, E, I, Unit] =
+  def fromQueue[R, E, I](queue: ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, E, Nothing, Unit] =
     foreachChunk(queue.offerAll)
 
   /**
    * Create a sink which enqueues each element into the specified queue.
    * The queue will be shutdown once the stream is closed.
    */
-  // TODO Result type should probably be ZSink[R, InError, I, E, Nothing, Unit]
   def fromQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any])(implicit
     trace: ZTraceElement
-  ): ZSink[R, E, I, E, I, Unit] =
+  ): ZSink[R, E, I, E, Nothing, Unit] =
     ZSink.unwrapManaged(
       ZManaged.acquireReleaseWith(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I])
     )
@@ -1279,20 +1277,18 @@ object ZSink {
   /**
    * Create a sink which publishes each element to the specified hub.
    */
-  // TODO Result type should probably be ZSink[R, InError, I, E, Nothing, Unit]
   def fromHub[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any])(implicit
     trace: ZTraceElement
-  ): ZSink[R, E, I, E, I, Unit] =
+  ): ZSink[R, E, I, E, Nothing, Unit] =
     fromQueue(hub.toQueue)
 
   /**
    * Create a sink which publishes each element to the specified hub.
    * The hub will be shutdown once the stream is closed.
    */
-  // TODO Result type should probably be ZSink[R, InError, I, E, Nothing, Unit]
   def fromHubWithShutdown[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any])(implicit
     trace: ZTraceElement
-  ): ZSink[R, E, I, E, I, Unit] =
+  ): ZSink[R, E, I, E, Nothing, Unit] =
     fromQueueWithShutdown(hub.toQueue)
 
   /**

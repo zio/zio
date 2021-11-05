@@ -505,12 +505,6 @@ object URIO {
     ZIO.failCause(cause)
 
   /**
-   * @see [[zio.ZIO.failCauseWith]]
-   */
-  def failCauseWith[R](function: (() => ZTrace) => Cause[Nothing])(implicit trace: ZTraceElement): URIO[R, Nothing] =
-    ZIO.failCauseWith(function)
-
-  /**
    * @see [[zio.ZIO.fiberId]]
    */
   def fiberId(implicit trace: ZTraceElement): UIO[FiberId] =
@@ -860,13 +854,6 @@ object URIO {
   @deprecated("use failCause", "2.0.0")
   def halt(cause: => Cause[Nothing])(implicit trace: ZTraceElement): UIO[Nothing] =
     ZIO.halt(cause)
-
-  /**
-   * @see [[zio.ZIO.haltWith]]
-   */
-  @deprecated("use failCauseWith", "2.0.0")
-  def haltWith[R](function: (() => ZTrace) => Cause[Nothing])(implicit trace: ZTraceElement): URIO[R, Nothing] =
-    ZIO.haltWith(function)
 
   /**
    * @see [[zio.ZIO.ifM]]

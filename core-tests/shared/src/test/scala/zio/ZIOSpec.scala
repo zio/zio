@@ -6,7 +6,6 @@ import zio.internal.Platform
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment.{Live, TestClock}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
@@ -16,6 +15,16 @@ object ZIOSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
+    suite("heap")(
+      test("unit.forever is safe") {
+        for {
+          _     <- ZIO.debug("Press any line to stop...")
+          fiber <- ZIO.unit.forever.fork
+          _     <- ZIO.attempt(scala.io.StdIn.readLine())
+          _     <- fiber.interrupt
+        } yield assertCompletes
+      } @@ ignore
+    ),
     suite("&&")(
       test("true and true is true") {
         assertM(ZIO.succeed(true) && ZIO.succeed(true))(isTrue)
@@ -1032,27 +1041,6 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(value)(equalTo(0))
       }
     ),
-    suite("forkAs")(
-      test("child has specified name") {
-        for {
-          fiber <- Fiber.fiberName.get.forkAs("child")
-          name  <- fiber.join
-        } yield assert(name)(isSome(equalTo("child")))
-      },
-      test("parent name is unchanged") {
-        for {
-          _    <- ZIO.unit.forkAs("child")
-          name <- Fiber.fiberName.get
-        } yield assert(name)(isNone)
-      },
-      test("parent does not inherit child name on join") {
-        for {
-          fiber <- ZIO.unit.forkAs("child")
-          _     <- fiber.join
-          name  <- Fiber.fiberName.get
-        } yield assert(name)(isNone)
-      }
-    ),
     suite("forkIn") {
       test("fiber forked in a closed scope does not run") {
         for {
@@ -1381,12 +1369,18 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("onExecutor")(
       test("effects continue on current executor if no executor is specified") {
+        val thread = ZIO.succeed(Thread.currentThread())
+
         val global =
-          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+          Executor.fromExecutionContext(Int.MaxValue)(scala.concurrent.ExecutionContext.global)
         for {
-          _        <- ZIO.unit.onExecutor(global)
-          executor <- ZIO.descriptor.map(_.executor)
-        } yield assert(executor)(equalTo(global))
+          which   <- Ref.make[Option[Thread]](None)
+          beforeL <- ZIO.descriptor.map(_.isLocked)
+          _       <- thread.flatMap(t => which.set(Some(t))).onExecutor(global)
+          after   <- thread
+          during  <- which.get.some
+          afterL  <- ZIO.descriptor.map(_.isLocked)
+        } yield assert(beforeL)(isFalse) && assert(afterL)(isFalse) && assert(during)(equalTo(after))
       },
       test("effects are shifted back if executor is specified") {
         val default = RuntimeConfig.default.executor

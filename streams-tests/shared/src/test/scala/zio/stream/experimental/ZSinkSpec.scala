@@ -5,7 +5,6 @@ import zio.stream.internal.CharacterSet._
 import zio.test.Assertion._
 import zio.test.TestAspect.jvmOnly
 import zio.test._
-import zio.test.environment.TestClock
 
 import java.nio.charset.{Charset, StandardCharsets}
 
@@ -31,7 +30,6 @@ object ZSinkSpec extends ZIOBaseSpec {
       // the functionality of decoders. You should run it at least once locally before
       // pushing your commit.
       (originalBytes, _ /*chunkSize*/ ) =>
-        println(s">>> originalBytes is <$originalBytes>")
         ZStream
           .fromChunk(withBom(originalBytes))
 //        .rechunk(chunkSize)

@@ -24,8 +24,8 @@ object Macros {
     }
 
     val pos    = Position.ofMacroExpansion
-    val file   = pos.sourceFile.jpath.toString
-    val line   = pos.startLine
+    val file   = pos.sourceFile.path.toString
+    val line   = pos.startLine + 1
     val column = pos.startColumn
     createTrace(location, file, line, column)
   }

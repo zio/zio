@@ -8,7 +8,6 @@ import zio.stream.ZStreamGen._
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, timeout}
 import zio.test._
-import zio.test.environment.TestClock
 
 import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
@@ -1983,18 +1982,18 @@ object ZStreamSpec extends ZIOBaseSpec {
               assert(executor2)(equalTo(default))
           },
           test("shifts and does not shift back if there is no previous locked executor") {
-            val global = Executor.fromExecutionContext(100)(ExecutionContext.global)
+            val thread = ZIO.succeed(Thread.currentThread())
+            val global = Executor.fromExecutionContext(Int.MaxValue)(ExecutionContext.global)
             for {
-              default   <- ZIO.executor
-              ref1      <- Ref.make[Executor](default)
-              ref2      <- Ref.make[Executor](default)
-              stream1    = ZStream.fromZIO(ZIO.executor.flatMap(ref1.set)).onExecutor(global)
-              stream2    = ZStream.fromZIO(ZIO.executor.flatMap(ref2.set))
-              _         <- (stream1 *> stream2).runDrain
-              executor1 <- ref1.get
-              executor2 <- ref2.get
-            } yield assert(executor1)(equalTo(global)) &&
-              assert(executor2)(equalTo(global))
+              default <- thread
+              during  <- Ref.make[Thread](default)
+              after   <- Ref.make[Thread](default)
+              stream1  = ZStream.fromZIO(thread.flatMap(during.set)).onExecutor(global)
+              stream2  = ZStream.fromZIO(thread.flatMap(after.set))
+              _       <- (stream1 *> stream2).runDrain
+              thread1 <- during.get
+              thread2 <- after.get
+            } yield assert(thread1)(equalTo(thread2))
           }
         ),
         suite("managed")(

@@ -4,7 +4,6 @@ import zio._
 import zio.test._
 
 import java.io.IOException
-import zio.test.environment.TestConsole
 
 // https://github.com/kitlangton/zio-magic/issues/91
 object InjectSomeSpec extends DefaultRunnableSpec {

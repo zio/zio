@@ -2869,24 +2869,46 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
 
   def runManaged[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, O, Any, B])(implicit
     trace: ZTraceElement
-  ): ZManaged[R1, E1, B] =
+  ): ZManaged[R1, E1, B] = {
+
+    def flipCauseEither[E, A](cause: Cause[Either[E, A]]): Either[Cause[E], A] =
+      cause.fold[Either[Cause[E], A]](
+        Left(Cause.Empty),
+        (failureEither, trace) => failureEither.left.map(Cause.Fail(_, trace)),
+        (t, trace) => Left(Cause.Die(t, trace)),
+        (fiberId, trace) => Left(Cause.Interrupt(fiberId, trace))
+      )(
+        {
+          case (Left(e), Left(e1)) => Left(Cause.Then(e, e1))
+          case (Right(a), _)       => Right(a)
+          case (_, Right(a))       => Right(a)
+        },
+        {
+          case (Left(e), Left(e1)) => Left(Cause.Both(e, e1))
+          case (Right(a), _)       => Right(a)
+          case (_, Right(a))       => Right(a)
+        },
+        (causeEither, stackless) => causeEither.left.map(Cause.Stackless(_, stackless))
+      )
+
     (process <*> sink.push).mapZIO { case (pull, push) =>
       def go: ZIO[R1, E1, B] = pull.foldCauseZIO(
         Cause
           .flipCauseOption(_)
           .fold(
             push(None).foldCauseZIO(
-              c => Cause.flipCauseEither(c.map(_._1)).fold(IO.failCause(_), ZIO.succeedNow),
+              c => flipCauseEither(c.map(_._1)).fold(IO.failCause(_), ZIO.succeedNow),
               _ => IO.dieMessage("empty stream / empty sinks")
             )
           )(IO.failCause(_)),
         os =>
           push(Some(os))
-            .foldCauseZIO(c => Cause.flipCauseEither(c.map(_._1)).fold(IO.failCause(_), ZIO.succeedNow), _ => go)
+            .foldCauseZIO(c => flipCauseEither(c.map(_._1)).fold(IO.failCause(_), ZIO.succeedNow), _ => go)
       )
 
       go
     }
+  }
 
   /**
    * Runs the stream and collects all of its elements to a chunk.
