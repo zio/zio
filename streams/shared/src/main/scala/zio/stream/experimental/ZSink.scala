@@ -340,11 +340,12 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * one that finishes first.
    */
   final def raceBoth[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1],
+    capacity: Int = 16
   )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] = {
     val managed =
       for {
-        hub   <- ZHub.bounded[Either[Exit[InErr1, Any], Chunk[In1]]](1).toManaged
+        hub   <- ZHub.bounded[Either[Exit[InErr1, Any], Chunk[In1]]](capacity).toManaged
         c1    <- ZChannel.fromHubManaged(hub)
         c2    <- ZChannel.fromHubManaged(hub)
         reader = ZChannel.toHub(hub)
