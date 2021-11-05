@@ -208,7 +208,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an exit value to die with an instance
    * of given type (or its subtype).
    */
-  def diesWith[E: ClassTag]: Assertion[Exit[E, Any]] =
+  def diesWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
     dies(isSubtype[E](anything))
 
   /**
@@ -269,7 +269,7 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires the expression to fail with an instance
    * of given type (or its subtype).
    */
-  def failsWith[E: ClassTag]: Assertion[Exit[E, Any]] =
+  def failsWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
     fails(isSubtype[E](anything))
 
   /**
