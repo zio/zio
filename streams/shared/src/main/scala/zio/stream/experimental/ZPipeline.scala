@@ -575,8 +575,44 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     ({ type OutElem[Elem] = String })#OutElem
   ]
 
+  /**
+   * utfDecode determines the right encoder to use based on the Byte Order Mark (BOM).
+   * If it doesn't detect one, it defaults to utf8Decode. In the case of utf16 and utf32
+   * without BOM, `utf16Decode` and `utf32Decode` should be used instead as both default to
+   * their own default decoder respectively.
+   */
+  def utfDecode: UtfDecodingPipeline =
+    utfDecodeDetectingBom(
+      bomSize = 4,
+      {
+        case BOM.Utf32BE if Charset.isSupported(CharsetUtf32BE.name) =>
+          Chunk.empty -> utf32BEDecode
+        case BOM.Utf32LE if Charset.isSupported(CharsetUtf32LE.name) =>
+          Chunk.empty -> utf32LEDecode
+        case bytes if bytes.take(3) == BOM.Utf8 =>
+          bytes.drop(3) -> utf8DecodeNoBom
+        case bytes if bytes.take(2) == BOM.Utf16BE =>
+          bytes.drop(2) -> utf16BEDecode
+        case bytes if bytes.take(2) == BOM.Utf16LE =>
+          bytes.drop(2) -> utf16LEDecode
+        case bytes =>
+          bytes -> utf8DecodeNoBom
+      }
+    )
+
+  def utf8Decode: UtfDecodingPipeline =
+    utfDecodeDetectingBom(
+      bomSize = 3,
+      {
+        case BOM.Utf8 =>
+          Chunk.empty -> utf8DecodeNoBom
+        case bytes =>
+          bytes -> utf8DecodeNoBom
+      }
+    )
+
   def utf16Decode: UtfDecodingPipeline =
-    bomDetectingUtfDecode(
+    utfDecodeDetectingBom(
       bomSize = 2,
       {
         case BOM.Utf16BE =>
@@ -595,7 +631,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     utfDecodeFixedLength(StandardCharsets.UTF_16LE, fixedLength = 2)
 
   def utf32Decode: UtfDecodingPipeline =
-    bomDetectingUtfDecode(
+    utfDecodeDetectingBom(
       bomSize = 4,
       {
         case BOM.Utf32BE =>
@@ -785,7 +821,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       }
   }
 
-  private def bomDetectingUtfDecode(
+  private def utfDecodeDetectingBom(
     bomSize: Int,
     processBom: Chunk[Byte] => (Chunk[Byte], UtfDecodingPipeline)
   ): UtfDecodingPipeline =
@@ -829,10 +865,107 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
               }
             },
             error = ZChannel.fail(_),
-            done = _ => ZChannel.unit
+            done = _ =>
+              if (buffer.isEmpty) ZChannel.unit
+              else {
+                val (dataWithoutBom, decodingPipeline) = processBom(buffer)
+                decodingPipeline(
+                  ZStream.fromChunk(dataWithoutBom)
+                ).channel *>
+                  passThrough(decodingPipeline)
+              }
           )
 
-        new ZStream(sourceStream.channel >>> lookingForBom(Chunk.empty))
+        new ZStream(
+          sourceStream.channel >>> lookingForBom(Chunk.empty)
+        )
+      }
+    }
+
+  private def utf8DecodeNoBom: UtfDecodingPipeline =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
+      override type OutEnv[Env]   = Env
+      override type OutErr[Err]   = Err
+      override type OutElem[Elem] = String
+
+      override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, String] = {
+
+        val emptyByteChunk: Chunk[Byte] =
+          Chunk.empty
+        val emptyStringChunk =
+          Chunk.single("")
+
+        val is2ByteStart =
+          (b: Byte) => (b & 0xe0) == 0xc0
+        val is3ByteStart =
+          (b: Byte) => (b & 0xf0) == 0xe0
+        val is4ByteStart =
+          (b: Byte) => (b & 0xf8) == 0xf0
+
+        def computeSplitIndex(chunk: Chunk[Byte]) = {
+          // There are 3 bad patterns we need to check to detect an incomplete chunk:
+          // - 2/3/4 byte sequences that start on the last byte
+          // - 3/4 byte sequences that start on the second-to-last byte
+          // - 4 byte sequences that start on the third-to-last byte
+          //
+          // Otherwise, we can convert the entire concatenated chunk to a string.
+          val size = chunk.length
+
+          if (
+            size >= 1 &&
+            List(is2ByteStart, is3ByteStart, is4ByteStart).exists(_(chunk(size - 1)))
+          ) {
+            size - 1
+          } else if (
+            size >= 2 &&
+            List(is3ByteStart, is4ByteStart).exists(_(chunk(size - 2)))
+          ) {
+            size - 2
+          } else if (size >= 3 && is4ByteStart(chunk(size - 3))) {
+            size - 3
+          } else {
+            size
+          }
+        }
+
+        def stringChunkFrom(bytes: Chunk[Byte]) =
+          Chunk.single(
+            new String(bytes.toArray, StandardCharsets.UTF_8)
+          )
+
+        def process(buffered: Chunk[Byte], received: Chunk[Byte]): (Chunk[String], Chunk[Byte]) = {
+          val bytes         = buffered ++ received
+          val (chunk, rest) = bytes.splitAt(computeSplitIndex(bytes))
+
+          if (chunk.isEmpty) {
+            emptyStringChunk -> rest.materialize
+          } else if (rest.isEmpty) {
+            stringChunkFrom(chunk) -> emptyByteChunk
+          } else {
+            stringChunkFrom(chunk) -> rest
+          }
+        }
+
+        def readThenTransduce(buffer: Chunk[Byte]): ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any] =
+          ZChannel.readWith(
+            received => {
+              val (string, buffered) = process(buffer, received)
+
+              ZChannel.write(string) *> readThenTransduce(buffered)
+            },
+            error = ZChannel.fail(_),
+            done = _ =>
+              if (buffer.isEmpty)
+                ZChannel.unit
+              else
+                ZChannel.write(stringChunkFrom(buffer))
+          )
+
+        new ZStream(
+          sourceStream.channel >>> readThenTransduce(emptyByteChunk)
+        )
       }
     }
 
@@ -846,8 +979,10 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         trace: ZTraceElement
       ): ZStream[Env, Err, String] = {
 
-        val emptyByteChunk: Chunk[Byte] = Chunk.empty
-        val emptyStringChunk            = Chunk.single("")
+        val emptyByteChunk: Chunk[Byte] =
+          Chunk.empty
+        val emptyStringChunk =
+          Chunk.single("")
 
         def stringChunkFrom(bytes: Chunk[Byte]) =
           Chunk.single(
@@ -877,10 +1012,16 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
               ZChannel.write(string) *> readThenTransduce(buffered)
             },
             error = ZChannel.fail(_),
-            done = _ => ZChannel.write(stringChunkFrom(buffer))
+            done = _ =>
+              if (buffer.isEmpty)
+                ZChannel.unit
+              else
+                ZChannel.write(stringChunkFrom(buffer))
           )
 
-        new ZStream(sourceStream.channel >>> readThenTransduce(Chunk.empty))
+        new ZStream(
+          sourceStream.channel >>> readThenTransduce(emptyByteChunk)
+        )
       }
     }
 }
