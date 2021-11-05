@@ -4578,7 +4578,46 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIterableZIO[R, E, O](iterable: ZIO[R, E, Iterable[O]])(implicit trace: ZTraceElement): ZStream[R, E, O] =
     fromZIO(iterable).mapConcat(identity)
 
-  def fromIterator[A](iterator: => Iterator[A])(implicit trace: ZTraceElement): ZStream[Any, Throwable, A] = {
+  def fromIterator[A](iterator: => Iterator[A], maxChunkSize: Int = DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, A] =
+    if (maxChunkSize == 1) fromIteratorSingle(iterator)
+    else {
+      object StreamEnd extends Throwable
+
+      ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any] <*> UIO(ChunkBuilder.make[A]())).flatMap {
+        case (it, rt, builder) =>
+          ZStream.repeatZIOChunkOption {
+            Task {
+              builder.clear()
+              var count = 0
+
+              try {
+                while (count < maxChunkSize && it.hasNext) {
+                  builder += it.next()
+                  count += 1
+                }
+              } catch {
+                case e: Throwable if !rt.runtimeConfig.fatal(e) =>
+                  throw e
+              }
+
+              if (count > 0) {
+                builder.result()
+              } else {
+                throw StreamEnd
+              }
+            }.mapError {
+              case StreamEnd => None
+              case e         => Some(e)
+            }
+          }
+      }
+    }
+
+  private def fromIteratorSingle[A](iterator: => Iterator[A])(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, A] = {
     object StreamEnd extends Throwable
 
     ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
@@ -4618,33 +4657,52 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a managed iterator
    */
-  def fromIteratorManaged[R, A](iterator: ZManaged[R, Throwable, Iterator[A]])(implicit
-    trace: ZTraceElement
+  def fromIteratorManaged[R, A](iterator: ZManaged[R, Throwable, Iterator[A]], maxChunkSize: Int = DefaultChunkSize)(
+    implicit trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
-    managed(iterator).flatMap(fromIterator(_))
+    managed(iterator).flatMap(fromIterator(_, maxChunkSize))
 
   /**
    * Creates a stream from an iterator
    */
-  def fromIteratorSucceed[A](iterator: => Iterator[A])(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] = {
-    def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
-      ZChannel.unwrap {
-        UIO {
-          if (iterator.hasNext)
-            ZChannel.write(Chunk.single(iterator.next())) *> loop(iterator)
-          else ZChannel.end(())
-        }
-      }
+  def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: Int = DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Nothing, A] =
+    ZStream.unwrap {
+      UIO(ChunkBuilder.make[A]()).map { builder =>
+        def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
+          ZChannel.unwrap {
+            UIO {
+              if (maxChunkSize == 1) {
+                if (iterator.hasNext) {
+                  ZChannel.write(Chunk.single(iterator.next())) *> loop(iterator)
+                } else ZChannel.end(())
+              } else {
+                builder.clear()
+                var count = 0
+                while (count < maxChunkSize && iterator.hasNext) {
+                  builder += iterator.next()
+                  count += 1
+                }
+                if (count > 0) {
+                  ZChannel.write(builder.result()) *> loop(iterator)
+                } else ZChannel.end()
+              }
+            }
+          }
 
-    new ZStream(loop(iterator))
-  }
+        new ZStream(loop(iterator))
+      }
+    }
 
   /**
    * Creates a stream from an iterator
    */
   @deprecated("use fromIteratorSucceed", "2.0.0")
-  def fromIteratorTotal[A](iterator: => Iterator[A])(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
-    fromIteratorSucceed(iterator)
+  def fromIteratorTotal[A](iterator: => Iterator[A], maxChunkSize: Int = DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Nothing, A] =
+    fromIteratorSucceed(iterator, maxChunkSize)
 
   /**
    * Creates a stream from an iterator that may potentially throw exceptions

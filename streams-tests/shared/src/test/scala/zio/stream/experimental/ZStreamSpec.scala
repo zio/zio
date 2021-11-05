@@ -3465,7 +3465,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             iterator <- ZStream.repeatZIO(effect).toIterator
             n         = 2000
             out <- ZStream
-                     .fromIterator(iterator.map(_.merge))
+                     .fromIterator(iterator.map(_.merge), maxChunkSize = 1)
                      .mapConcatZIO(element => effect.map(newElement => List(element, newElement)))
                      .take(n.toLong)
                      .runCollect
@@ -4303,14 +4303,16 @@ object ZStreamSpec extends ZIOBaseSpec {
         test("fromIterableZIO")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           assertM(ZStream.fromIterableZIO(UIO(l)).runCollect)(equalTo(l))
         }),
-        test("fromIterator")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
-          def lazyIt = l.iterator
-          assertM(ZStream.fromIterator(lazyIt).runCollect)(equalTo(l))
-        }),
-        test("fromIteratorSucceed")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
-          def lazyIt = l.iterator
-          assertM(ZStream.fromIteratorSucceed(lazyIt).runCollect)(equalTo(l))
-        }),
+        test("fromIterator") {
+          check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
+            assertM(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+          }
+        },
+        test("fromIteratorSucceed") {
+          check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
+            assertM(ZStream.fromIteratorSucceed(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+          }
+        },
         test("fromBlockingIterator") {
           check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { chunk =>
             assertM(ZStream.blocking(ZStream.fromIterator(chunk.iterator)).runCollect)(equalTo(chunk))
@@ -4322,7 +4324,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref <- Ref.make(false)
               pulls <- ZStream
                          .fromIteratorManaged(
-                           Managed.acquireReleaseWith(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true))
+                           Managed.acquireReleaseWith(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true)),
+                           maxChunkSize = 1
                          )
                          .toPull
                          .use(nPulls(_, 4))
