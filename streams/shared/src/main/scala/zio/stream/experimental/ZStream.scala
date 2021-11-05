@@ -4686,7 +4686,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                 }
                 if (count > 0) {
                   ZChannel.write(builder.result()) *> loop(iterator)
-                } else ZChannel.end()
+                } else ZChannel.end(())
               }
             }
           }
