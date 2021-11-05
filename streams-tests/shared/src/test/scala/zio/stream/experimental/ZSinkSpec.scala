@@ -2,6 +2,7 @@ package zio.stream.experimental
 
 import zio._
 import zio.stream.internal.CharacterSet._
+import zio.stream.experimental.SinkUtils._
 import zio.test.Assertion._
 import zio.test.TestAspect.jvmOnly
 import zio.test._
@@ -656,12 +657,16 @@ object ZSinkSpec extends ZIOBaseSpec {
         }
       ),
       suite("Combinators")(
-        //      test("raceBoth") {
-        //        check(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
-        //          val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
-        //          sinkRaceLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
-        //        }
-        //      },
+        test("raceBoth") {
+          check(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
+            val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
+            sinkRaceLaw(
+              ZStream.fromIterableZIO(Random.shuffle(stream).provideLayer(Random.live)),
+              findSink(20),
+              findSink(40)
+            )
+          }
+        },
         //      suite("zipWithPar")(
         //        test("coherence") {
         //          check(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
