@@ -1,13 +1,14 @@
 package zio.stream.experimental
 
+object ZPipelineSpec
+
+/*
 import zio._
 import zio.test.Assertion.equalTo
 import zio.test._
 
 import scala.io.Source
-object ZPipelineSpec
 
-/*
 object ZPipelineSpec extends ZIOBaseSpec {
 
   def spec =
@@ -121,6 +122,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
     }
   }
 }
+
 
 
  */
