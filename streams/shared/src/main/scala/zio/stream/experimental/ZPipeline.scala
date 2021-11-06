@@ -62,7 +62,7 @@ trait ZPipeline[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperEl
   ): ZStream[OutEnv[Env], OutErr[Err], OutElem[Elem]]
 }
 
-object ZPipeline extends ZPipelineCompanionVersionSpecific {
+object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatformSpecificConstructors {
 
   type WithOut[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem, OutEnv0[Env], OutErr0[Err], Out0[
     Elem
@@ -248,6 +248,32 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       ): ZStream[Env, Err, (Key, NonEmptyChunk[Elem])] =
         stream.groupAdjacentBy(f)
     }
+
+  /**
+   * Creates a pipeline that sends all the elements through the given channel
+   */
+  def fromChannel[InEnv, OutEnv0, InErr, OutErr0, In, Out](
+    channel: ZChannel[OutEnv0, InErr, Chunk[In], Any, OutErr0, Chunk[Out], Any]
+  ): ZPipeline.WithOut[
+    OutEnv0,
+    InEnv,
+    InErr,
+    InErr,
+    In,
+    In,
+    ({ type OutEnv[Env] = OutEnv0 })#OutEnv,
+    ({ type OutErr[Err] = OutErr0 })#OutErr,
+    ({ type OutElem[Elem] = Out })#OutElem
+  ] = new ZPipeline[OutEnv0, InEnv, InErr, InErr, In, In] {
+    override type OutEnv[Env]   = OutEnv0
+    override type OutErr[Err]   = OutErr0
+    override type OutElem[Elem] = Out
+
+    override def apply[Env >: OutEnv0 <: InEnv, Err >: InErr <: InErr, Elem >: In <: In](
+      stream: ZStream[Env, Err, Elem]
+    )(implicit trace: ZTraceElement): ZStream[OutEnv0, OutErr0, Out] =
+      stream.pipeThroughChannel(channel)
+  }
 
   /**
    * The identity pipeline, which does not modify streams in any way.
