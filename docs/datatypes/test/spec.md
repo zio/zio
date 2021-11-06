@@ -189,7 +189,7 @@ object MySpec extends DefaultRunnableSpec {
 }
 ```
 
-#### Timing Out
+#### Timing Out with Safe Interruption
 
 We can easily time out a long-running test:
 
