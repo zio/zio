@@ -5,6 +5,36 @@ title: "Introduction"
 
 **ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. 
 
+## Motivation
+
+We can easily assert ordinary values and data types to test them:
+
+```scala mdoc:compile-only
+import scala.Predef.assert
+
+assert(1 + 2 == 2 + 1)
+assert("Hi" == "H" + "i")
+
+case class Point(x: Long, y: Long)
+assert(Point(5L, 10L) == Point.apply(5L, 10L))
+```
+
+What about functional effects? Can we assert two effects using ordinary scala assertion to test whether they have the same functionality? As we know, a functional effect, like `ZIO`, describes a series of computations. Unfortunately, we can't assert functional effects without executing them. If we assert two `ZIO` effects, e.g. `assert(expectedEffect == actualEffect)`, the result says nothing about whether these two effects behave similarly and produce the same result or not. Instead, we should `unsafeRun` each one and assert their results.
+
+Let's say we have a random generator effect, and we want to ensure that the output is bigger than zero, so we should `unsafeRun` the effect and assert the result:
+
+```scala mcoc:compile-only
+import scala.Predef.assert
+
+val random = Runtime.default.unsafeRun(
+  Random.nextIntBounded(10).provideLayer(Random.live)
+)
+
+assert(random >= 0)
+```
+
+Testing effectful programs is difficult since we should use many `unsafeRun` methods. Also, we might need to make sure that the test is non-flaky. In these cases, running `unsafeRun` multiple times is not straightforward. We need a testing framework that treats effects as _first-class values_. So this is the primary motivation for creating the ZIO Test library.
+
 ## Installation
 
 In order to use ZIO Test, we need to add the required configuration in our SBT settings:
@@ -62,7 +92,8 @@ The library includes built-in _test versions_ of all the standard ZIO services (
 
 Support for property based testing is included out-of-the-box through the `check` method and its variants and the `Gen` and `Sample` classes. For example, here is how we could write a property to test that integer addition is associative.
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio.test._
 val associativity =
   check(Gen.int, Gen.int, Gen.int) { (x, y, z) =>
     assert((x + y) + z)(equalTo(x + (y + z)))
