@@ -64,16 +64,16 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
       // pushing your commit.
       (generatedBytes, /*chunkSize*/ _) =>
         val originalBytes = fixIfGeneratedBytesBeginWithBom(generatedBytes, sourceCharset, bom)
-        (
-          ZStream
-            .fromChunk(bom ++ originalBytes)
-//            .rechunk(chunkSize)
-            @@ decodingPipeline
-        ).mkString.map { decodedString =>
-          val roundTripBytes = stringToByteChunkOf(sourceCharset, decodedString)
+        ZStream
+          .fromChunk(bom ++ originalBytes)
+//          .rechunk(chunkSize)
+          .via(decodingPipeline)
+          .mkString
+          .map { decodedString =>
+            val roundTripBytes = stringToByteChunkOf(sourceCharset, decodedString)
 
-          assertTrue(originalBytes == roundTripBytes)
-        }
+            assertTrue(originalBytes == roundTripBytes)
+          }
     }
 
   private def testDecoderWithRandomStringUsing(
@@ -105,7 +105,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
         } @@ runOnlyIfSupporting(StandardCharsets.ISO_8859_1.name),
         test("usASCIIDecode") {
           testDecoderWithRandomStringUsing(ZPipeline.usASCIIDecode, StandardCharsets.US_ASCII)
-        },
+        } @@ runOnlyIfSupporting(StandardCharsets.US_ASCII.name),
         suite("utfDecode")(
           test("UTF-8 with BOM") {
             testDecoderWithRandomStringUsing(ZPipeline.utfDecode, StandardCharsets.UTF_8, BOM.Utf8)
