@@ -252,35 +252,28 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Creates a pipeline that sends all the elements through the given channel
    */
-  def fromChannel[Env, InErr, OutErr0, In, Out](
-    channel: ZChannel[Env, InErr, Chunk[In], Any, OutErr0, Chunk[Out], Any]
+  def fromChannel[InEnv, OutEnv0, InErr, OutErr0, In, Out](
+    channel: ZChannel[OutEnv0, InErr, Chunk[In], Any, OutErr0, Chunk[Out], Any]
   ): ZPipeline.WithOut[
-    Env,
-    Env,
+    OutEnv0,
+    InEnv,
     InErr,
     InErr,
     In,
     In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutEnv[Env] = OutEnv0 })#OutEnv,
     ({ type OutErr[Err] = OutErr0 })#OutErr,
     ({ type OutElem[Elem] = Out })#OutElem
-  ] = new ZPipeline[Env, Env, InErr, InErr, In, In] {
-    override type OutEnv[Env]   = Env
+  ] = new ZPipeline[OutEnv0, InEnv, InErr, InErr, In, In] {
+    override type OutEnv[Env]   = OutEnv0
     override type OutErr[Err]   = OutErr0
     override type OutElem[Elem] = Out
 
-    override def apply[Env0 >: Env <: Env, Err >: InErr <: InErr, Elem >: In <: In](stream: ZStream[Env0, Err, Elem])(
-      implicit trace: ZTraceElement
-    ): ZStream[Env, OutErr0, Out] =
+    override def apply[Env >: OutEnv0 <: InEnv, Err >: InErr <: InErr, Elem >: In <: In](
+      stream: ZStream[Env, Err, Elem]
+    )(implicit trace: ZTraceElement): ZStream[OutEnv0, OutErr0, Out] =
       stream.pipeThroughChannel(channel)
   }
-
-  /**
-   * Creates a transducer that always dies with the specified exception.
-   */
-  @deprecated("use failCause", "2.0.0")
-  def halt[E](cause: => Cause[E]): ZPipeline[Any, E, Any, Nothing] =
-    failCause(cause)
 
   /**
    * The identity pipeline, which does not modify streams in any way.
