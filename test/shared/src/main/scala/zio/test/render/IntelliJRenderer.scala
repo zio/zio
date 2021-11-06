@@ -1,5 +1,6 @@
 package zio.test.render
 
+import zio.ZTraceElement
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestAnnotationRenderer.LeafRenderer
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -74,9 +75,10 @@ object IntelliJRenderer extends IntelliJRenderer {
   private type Graph[A] = Map[Int, List[Node[A]]]
 
   val locationRenderer: TestAnnotationRenderer =
-    LeafRenderer(TestAnnotation.location) { case child :: _ =>
-      if (child.isEmpty) None
-      else child.headOption.map(s => s"file://${s.path}:${s.line}")
+    LeafRenderer(TestAnnotation.trace) { case child :: _ =>
+      child.headOption.collect { case ZTraceElement.SourceLocation(_, file, line, _) =>
+        s"file://$file:$line"
+      }
     }
 
   private case class Node[A](value: A, children: List[Node[A]]) {

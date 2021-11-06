@@ -16,8 +16,9 @@
 
 package zio.test
 
-import zio.{UIO, ZIO}
+import zio.{UIO, ZIO, ZTraceElement}
 import zio.test.internal.SmartAssertions
+
 import scala.quoted._
 
 object SmartAssertMacros {
@@ -128,9 +129,7 @@ class SmartAssertMacros(ctx: Quotes)  {
     }
 
   def smartAssertSingle_impl(value: Expr[Boolean]): Expr[Assert] = {
-    val (path, line) = Macros.location(ctx)
     val code = Macros.showExpr(value)
-    val srcLocation = s"$path:$line"
 
     implicit val ptx = PositionContext(value.asTerm)
 
@@ -160,45 +159,25 @@ class SmartAssertMacros(ctx: Quotes)  {
 }
 
 object Macros {
-  def location(ctx: Quotes): (String, Int) = {
-    import ctx.reflect._
-    val path = Position.ofMacroExpansion.sourceFile.jpath.toString
-    val line = Position.ofMacroExpansion.startLine + 1
-    (path, line)
-  }
-
   def assertM_impl[R: Type, E: Type, A: Type](effect: Expr[ZIO[R, E, A]])(assertion: Expr[AssertionM[A]])
                                              (using ctx: Quotes): Expr[ZIO[R, E, TestResult]] = {
     import quotes.reflect._
-    val (path, line) = location(ctx)
-    val srcLocation = s"$path:$line"
-    '{_root_.zio.test.CompileVariants.assertMProxy($effect, ${Expr(srcLocation)})($assertion)}
+    '{_root_.zio.test.CompileVariants.assertMProxy($effect)($assertion)}
   }
 
   // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
   def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
     import quotes.reflect._
-    val (path, line) = location(ctx)
     val code = showExpr(value)
-    val srcLocation = s"$path:$line"
-    '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)}, ${Expr(srcLocation)})($assertion)}
+    Expr.summon[ZTraceElement] match {
+      case Some(trace) => '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)})($assertion)($trace)}
+      case None => throw new Exception("Unable to summon the implicit ZTraceElement. Ensure the function calling this macro defines it.")
+    }
   }
-
 
   def showExpr[A](expr: Expr[A])(using ctx: Quotes): String = {
     import quotes.reflect._
     expr.asTerm.pos.sourceCode.get
-  }
-
-  def sourceLocation_impl(using ctx: Quotes): Expr[SourceLocation] = {
-    import quotes.reflect._
-    val (path, line) = location(ctx)
-    '{SourceLocation(${Expr(path)}, ${Expr(line)})}
-  }
-
-  def sourcePath_impl(using ctx: Quotes): Expr[String] = {
-    import quotes.reflect._
-    Expr(Position.ofMacroExpansion.sourceFile.jpath.toString)
   }
 
   def showExpression_impl[A](value: Expr[A])(using ctx: Quotes): Expr[String] = {

@@ -4,6 +4,8 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.experimental.ZChannel
 
+import scala.collection.immutable.Queue
+
 class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
   @volatile private var providedEnv: Any,
@@ -133,7 +135,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
               input = null
 
               lazy val drainer: URIO[Env, Any] =
-                ZIO.suspendSucceed {
+                bridgeInput.awaitRead *> ZIO.suspendSucceed {
                   val state = inputExecutor.run()
 
                   state match {
@@ -675,6 +677,7 @@ private[zio] trait AsyncInputProducer[-Err, -Elem, -Done] {
   def emit(el: Elem)(implicit trace: ZTraceElement): UIO[Any]
   def done(a: Done)(implicit trace: ZTraceElement): UIO[Any]
   def error(cause: Cause[Err])(implicit trace: ZTraceElement): UIO[Any]
+  def awaitRead(implicit trace: ZTraceElement): UIO[Any]
 }
 
 /**
@@ -702,30 +705,33 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
   def emit(el: Elem)(implicit trace: ZTraceElement): UIO[Any] =
     Promise.make[Nothing, Unit].flatMap { p =>
       ref.modify {
-        case s @ State.Emit(_, notifyProducer) => (notifyProducer.await *> emit(el), s)
-        case s @ State.Error(_)                => (ZIO.interrupt, s)
-        case s @ State.Done(_)                 => (ZIO.interrupt, s)
-        case State.Empty(notifyConsumer) =>
-          (notifyConsumer.succeed(()) *> p.await, State.Emit(el, p))
+        case s @ State.Emit(notifyConsumers) =>
+          val (notifyConsumer, notifyConsumers) = s.notifyConsumers.dequeue
+          (
+            notifyConsumer.succeed(Right(el)),
+            if (notifyConsumers.isEmpty) State.Empty(p)
+            else State.Emit(notifyConsumers)
+          )
+        case s @ State.Error(_)              => (ZIO.interrupt, s)
+        case s @ State.Done(_)               => (ZIO.interrupt, s)
+        case s @ State.Empty(notifyProducer) => (notifyProducer.await, s)
       }.flatten
     }
 
   def done(a: Done)(implicit trace: ZTraceElement): UIO[Any] =
     ref.modify {
-      case s @ State.Emit(_, notifyProducer) => (notifyProducer.await *> done(a), s)
-      case s @ State.Error(_)                => (ZIO.interrupt, s)
-      case s @ State.Done(_)                 => (ZIO.interrupt, s)
-      case State.Empty(notifyConsumer) =>
-        (notifyConsumer.succeed(()), State.Done(a))
+      case State.Emit(notifyConsumers)     => (ZIO.foreachDiscard(notifyConsumers)(_.succeed(Left(a))), State.Done(a))
+      case s @ State.Error(_)              => (ZIO.interrupt, s)
+      case s @ State.Done(_)               => (ZIO.interrupt, s)
+      case s @ State.Empty(notifyProducer) => (notifyProducer.await, s)
     }.flatten
 
   def error(cause: Cause[Err])(implicit trace: ZTraceElement): UIO[Any] =
     ref.modify {
-      case s @ State.Emit(_, notifyProducer) => (notifyProducer.await *> error(cause), s)
-      case s @ State.Error(_)                => (ZIO.interrupt, s)
-      case s @ State.Done(_)                 => (ZIO.interrupt, s)
-      case State.Empty(notifyConsumer) =>
-        (notifyConsumer.succeed(()), SingleProducerAsyncInput.State.Error(cause))
+      case State.Emit(notifyConsumers)     => (ZIO.foreachDiscard(notifyConsumers)(_.failCause(cause)), State.Error(cause))
+      case s @ State.Error(_)              => (ZIO.interrupt, s)
+      case s @ State.Done(_)               => (ZIO.interrupt, s)
+      case s @ State.Empty(notifyProducer) => (notifyProducer.await, s)
     }.flatten
 
   def takeWith[A](
@@ -733,14 +739,14 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
     onElement: Elem => A,
     onDone: Done => A
   )(implicit trace: ZTraceElement): UIO[A] =
-    Promise.make[Nothing, Unit].flatMap { p =>
+    Promise.make[Err, Either[Done, Elem]].flatMap { p =>
       ref.modify {
-        case State.Emit(a, notifyProducer) =>
-          (notifyProducer.succeed(()).as(onElement(a)), State.Empty(p))
+        case State.Emit(notifyConsumers) =>
+          (p.await.foldCause(onError, _.fold(onDone, onElement)), State.Emit(notifyConsumers.enqueue(p)))
         case s @ State.Error(a) => (UIO.succeed(onError(a)), s)
         case s @ State.Done(a)  => (UIO.succeed(onDone(a)), s)
-        case s @ State.Empty(notifyConsumer) =>
-          (notifyConsumer.await *> takeWith(onError, onElement, onDone), s)
+        case s @ State.Empty(notifyProducer) =>
+          (notifyProducer.succeed(()) *> p.await.foldCause(onError, _.fold(onDone, onElement)), State.Emit(Queue(p)))
       }.flatten
     }
 
@@ -749,6 +755,12 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
 
   def close(implicit trace: ZTraceElement): UIO[Any] =
     ZIO.fiberId.flatMap(id => error(Cause.interrupt(id)))
+
+  def awaitRead(implicit trace: ZTraceElement): UIO[Any] =
+    ref.modify {
+      case s @ State.Empty(notifyProducer) => (notifyProducer.await, s)
+      case s                               => (ZIO.unit, s)
+    }.flatten
 }
 
 private[zio] object SingleProducerAsyncInput {
@@ -758,11 +770,12 @@ private[zio] object SingleProducerAsyncInput {
       .flatMap(p => Ref.make[State[Err, Elem, Done]](State.Empty(p)))
       .map(new SingleProducerAsyncInput(_))
 
-  sealed trait State[+Err, +Elem, +Done]
+  sealed trait State[Err, Elem, Done]
   object State {
-    case class Empty(notifyConsumer: Promise[Nothing, Unit])                extends State[Nothing, Nothing, Nothing]
-    case class Emit[+Elem](a: Elem, notifyProducer: Promise[Nothing, Unit]) extends State[Nothing, Elem, Nothing]
-    case class Error[+Err](a: Cause[Err])                                   extends State[Err, Nothing, Nothing]
-    case class Done[+A](a: A)                                               extends State[Nothing, Nothing, A]
+    case class Empty[Err, Elem, Done](notifyProducer: Promise[Nothing, Unit]) extends State[Err, Elem, Done]
+    case class Emit[Err, Elem, Done](notifyConsumers: Queue[Promise[Err, Either[Done, Elem]]])
+        extends State[Err, Elem, Done]
+    case class Error[Err, Elem, Done](cause: Cause[Err]) extends State[Err, Elem, Done]
+    case class Done[Err, Elem, Done](done: Done)         extends State[Err, Elem, Done]
   }
 }

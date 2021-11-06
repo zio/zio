@@ -1,22 +1,11 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.environment.Live
 import zio.test.sbt.TestingSupport._
-import zio.test.{
-  Annotations,
-  Assertion,
-  DefaultRunnableSpec,
-  Spec,
-  Summary,
-  TestArgs,
-  TestAspect,
-  TestFailure,
-  TestSuccess,
-  ZSpec
-}
-import zio.{Has, ZIO, durationInt}
+import zio.test.{assertCompletes, assert => _, test => _, _}
+import zio.{Has, ZIO, ZLayer, ZTraceElement, durationInt}
 
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -34,12 +23,13 @@ object ZTestFrameworkSpec {
     test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
     test("should return summary when done")(testSummary()),
+    test("should use a shared layer without re-initializing it")(testSharedLayers()),
     test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
   def testFingerprints(): Unit = {
     val fingerprints = new ZTestFramework().fingerprints.toSeq
-    assertEquals("fingerprints", fingerprints, Seq(RunnableSpecFingerprint))
+    assertEquals("fingerprints", fingerprints, Seq(RunnableSpecFingerprint, ZioSpecFingerprint))
   }
 
   def testReportEvents(): Unit = {
@@ -65,7 +55,7 @@ object ZTestFrameworkSpec {
     assert(reported.forall(_.duration() > 0), s"reported events should have positive durations: $reported")
   }
 
-  def testLogMessages(): Unit = {
+  def testLogMessages()(implicit trace: ZTraceElement): Unit = {
     val loggers = Seq.fill(3)(new MockLogger)
 
     loadAndExecute(failingSpecFQN, loggers = loggers)
@@ -78,7 +68,7 @@ object ZTestFrameworkSpec {
           s"${reset("info:")} ${red("- some suite")} - ignored: 1",
           s"${reset("info:")}   ${red("- failing test")}",
           s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-          s"${reset("info:")}     ${cyan(assertLocation)}",
+          s"${reset("info:")}     ${assertSourceLocation()}",
           reset("info: "),
           s"${reset("info:")}   ${green("+")} passing test",
           s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
@@ -99,7 +89,7 @@ object ZTestFrameworkSpec {
           s"${reset("info: ")}${red("- multi-line test")}",
           s"${reset("info: ")}  ${Console.BLUE}Hello,",
           s"${reset("info: ")}${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-          s"${reset("info: ")}  ${cyan(assertLocation)}",
+          s"${reset("info: ")}  ${assertSourceLocation()}",
           s"${reset("info: ")}"
         ).mkString("\n")
 //          .mkString("\n")
@@ -127,6 +117,39 @@ object ZTestFrameworkSpec {
     )
   }
 
+  private val counter = new AtomicInteger(0)
+
+  lazy val sharedLayer: ZLayer[Any, Nothing, Has[Int]] = {
+    ZLayer.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
+  }
+
+  lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
+  object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Has[Int]] {
+    override def layer = sharedLayer
+
+    def spec =
+      zio.test.test("test completes with shared layer 1") {
+        assertCompletes
+      }
+  }
+
+  lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
+  object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Has[Int]] {
+    override def layer = sharedLayer
+
+    def spec =
+      zio.test.test("test completes with shared layer 2") {
+        assertCompletes
+      }
+  }
+
+  def testSharedLayers(): Unit = {
+    val reported = ArrayBuffer[Event]()
+    loadAndExecuteAll(Seq(spec1UsingSharedLayer, spec2UsingSharedLayer), reported.append(_))
+
+    assert(counter.get() == 1)
+  }
+
   def testSummary(): Unit = {
     val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
@@ -138,7 +161,8 @@ object ZTestFrameworkSpec {
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provide(Summary(1, 0, 0, "foo")),
-          TestArgs.empty
+          TestArgs.empty,
+          zTestTask.spec
         )
       }
       .head
@@ -159,7 +183,8 @@ object ZTestFrameworkSpec {
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provide(Summary(0, 0, 0, "foo")),
-          TestArgs.empty
+          TestArgs.empty,
+          zTestTask.spec
         )
       }
       .head
@@ -174,11 +199,27 @@ object ZTestFrameworkSpec {
     eventHandler: EventHandler = _ => (),
     loggers: Seq[Logger] = Nil,
     testArgs: Array[String] = Array.empty
+  ) =
+    loadAndExecuteAll(Seq(fqn), eventHandler, loggers, testArgs)
+
+  private def loadAndExecuteAll(
+    fqns: Seq[String],
+    eventHandler: EventHandler,
+    loggers: Seq[Logger] = Nil,
+    testArgs: Array[String] = Array.empty
   ) = {
-    val taskDef = new TaskDef(fqn, RunnableSpecFingerprint, false, Array(new SuiteSelector))
+    val tasks =
+      fqns
+        .map(fqn =>
+          if (fqn.contains("Shared"))
+            new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector))
+          else
+            new TaskDef(fqn, RunnableSpecFingerprint, false, Array(new SuiteSelector))
+        )
+        .toArray
     val task = new ZTestFramework()
       .runner(testArgs, Array(), getClass.getClassLoader)
-      .tasks(Array(taskDef))
+      .tasks(tasks)
       .head
 
     @scala.annotation.tailrec
@@ -220,10 +261,19 @@ object ZTestFrameworkSpec {
     }
   }
 
-  lazy val sourceFilePath: String = zio.test.sourcePath
-  lazy val assertLocation: String = s"at $sourceFilePath:XXX"
+  def assertSourceLocation()(implicit trace: ZTraceElement): String = {
+    val filePath = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, _, _) =>
+      file
+    }
+    filePath.fold("")(path => cyan(s"at $path:XXX"))
+  }
+
   implicit class TestOutputOps(output: String) {
-    def withNoLineNumbers: String =
-      output.replaceAll(Pattern.quote(sourceFilePath + ":") + "\\d+", sourceFilePath + ":XXX")
+    def withNoLineNumbers(implicit trace: ZTraceElement): String = {
+      val filePath = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, _, _) =>
+        file
+      }
+      filePath.fold(output)(path => output.replaceAll(Pattern.quote(path + ":") + "\\d+", path + ":XXX"))
+    }
   }
 }

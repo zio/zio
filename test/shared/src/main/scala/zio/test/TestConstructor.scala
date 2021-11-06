@@ -6,7 +6,7 @@ import zio.stm.ZSTM
 
 trait TestConstructor[-Environment, In] {
   type Out <: ZSpec[Environment, Any]
-  def apply(label: String)(assertion: => In)(implicit location: SourceLocation, trace: ZTraceElement): Out
+  def apply(label: String)(assertion: => In)(implicit trace: ZTraceElement): Out
 }
 
 object TestConstructor extends TestConstructorLowPriority1 {
@@ -17,7 +17,7 @@ object TestConstructor extends TestConstructorLowPriority1 {
       type Out = ZSpec[Any, Nothing]
       def apply(label: String)(
         assertion: => A
-      )(implicit location: SourceLocation, trace: ZTraceElement): ZSpec[Any, Nothing] =
+      )(implicit trace: ZTraceElement): ZSpec[Any, Nothing] =
         test(label)(ZIO.succeed(assertion))
     }
 }
@@ -29,12 +29,12 @@ trait TestConstructorLowPriority1 extends TestConstructorLowPriority2 {
       type Out = ZSpec[R, E]
       def apply(
         label: String
-      )(assertion: => ZIO[R, E, A])(implicit location: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+      )(assertion: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZSpec[R, E] =
         Spec.labeled(
           label,
           Spec
             .test(ZTest(label, assertion), TestAnnotationMap.empty)
-            .annotate(TestAnnotation.location, location :: Nil)
+            .annotate(TestAnnotation.trace, trace :: Nil)
         )
     }
 }
@@ -47,7 +47,7 @@ trait TestConstructorLowPriority2 extends TestConstructorLowPriority3 {
       type Out = ZSpec[R, E]
       def apply(label: String)(
         assertion: => ZManaged[R, E, A]
-      )(implicit location: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+      )(implicit trace: ZTraceElement): ZSpec[R, E] =
         test(label)(assertion.useNow)
     }
 }
@@ -60,7 +60,7 @@ trait TestConstructorLowPriority3 extends TestConstructorLowPriority4 {
       type Out = ZSpec[R, E]
       def apply(label: String)(
         assertion: => ZSTM[R, E, A]
-      )(implicit location: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+      )(implicit trace: ZTraceElement): ZSpec[R, E] =
         test(label)(assertion.commit)
     }
 }
@@ -72,7 +72,7 @@ trait TestConstructorLowPriority4 extends TestConstructorLowPriority5 {
       type Out = ZSpec[Any, Nothing]
       def apply(label: String)(
         assertion: => A
-      )(implicit location: SourceLocation, trace: ZTraceElement): ZSpec[Any, Nothing] =
+      )(implicit trace: ZTraceElement): ZSpec[Any, Nothing] =
         test(label)(ZIO.succeed(assertion))
     }
 }
@@ -84,12 +84,12 @@ trait TestConstructorLowPriority5 extends TestConstructorLowPriority6 {
       type Out = ZSpec[R, E]
       def apply(
         label: String
-      )(assertion: => ZIO[R, E, A])(implicit location: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+      )(assertion: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZSpec[R, E] =
         Spec.labeled(
           label,
           Spec
             .test(ZTest(label, assertion), TestAnnotationMap.empty)
-            .annotate(TestAnnotation.location, location :: Nil)
+            .annotate(TestAnnotation.trace, trace :: Nil)
         )
     }
 }
@@ -102,7 +102,7 @@ trait TestConstructorLowPriority6 extends TestConstructorLowPriority7 {
       type Out = ZSpec[R, E]
       def apply(label: String)(
         assertion: => ZManaged[R, E, A]
-      )(implicit location: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+      )(implicit trace: ZTraceElement): ZSpec[R, E] =
         test(label)(assertion.useNow)
     }
 }
@@ -114,7 +114,7 @@ trait TestConstructorLowPriority7 {
       type Out = ZSpec[R, E]
       def apply(label: String)(
         assertion: => ZSTM[R, E, A]
-      )(implicit location: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+      )(implicit trace: ZTraceElement): ZSpec[R, E] =
         test(label)(assertion.commit)
     }
 }

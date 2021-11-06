@@ -1,16 +1,49 @@
 package zio.stream.experimental
 
 import zio._
+import zio.stream.internal.CharacterSet._
+import zio.stream.experimental.SinkUtils._
 import zio.test.Assertion._
 import zio.test.TestAspect.jvmOnly
 import zio.test._
-import zio.test.environment.TestClock
 
-import java.nio.charset.StandardCharsets
+import java.nio.charset.{Charset, StandardCharsets}
 
 object ZSinkSpec extends ZIOBaseSpec {
 
   import ZIOTag._
+
+  private def stringToByteChunkOf(charset: Charset, source: String): Chunk[Byte] =
+    Chunk.fromArray(source.getBytes(charset))
+
+  private def testDecoderWithRandomStringUsing[Err](
+    decoderUnderTest: => ZSink[Any, Err, Byte, Err, Byte, Option[String]],
+    sourceCharset: Charset,
+    withBom: Chunk[Byte] => Chunk[Byte] = identity
+  ) =
+    check(
+      Gen.string.map(stringToByteChunkOf(sourceCharset, _)),
+      Gen.int
+    ) {
+      // Enabling `rechunk(chunkSize)` makes this suite run for too long and
+      // could potentially cause OOM during builds. However, running the tests with
+      // `rechunk(chunkSize)` can guarantee that different chunks have no impact on
+      // the functionality of decoders. You should run it at least once locally before
+      // pushing your commit.
+      (originalBytes, _ /*chunkSize*/ ) =>
+        ZStream
+          .fromChunk(withBom(originalBytes))
+//        .rechunk(chunkSize)
+          .transduce(decoderUnderTest.map(_.getOrElse("")))
+          .mkString
+          .map { decodedString =>
+            assertTrue(originalBytes == stringToByteChunkOf(sourceCharset, decodedString))
+          }
+    }
+
+  private def runOnlyIfSupporting(charset: String) =
+    if (Charset.isSupported(charset)) TestAspect.jvmOnly
+    else TestAspect.ignore
 
   def spec: ZSpec[Environment, Failure] = {
     suite("ZSinkSpec")(
@@ -530,6 +563,92 @@ object ZSinkSpec extends ZIOBaseSpec {
           )
         }
       ),
+      suite("fromQueue")(
+        test("should enqueue all elements") {
+
+          for {
+            queue          <- ZQueue.unbounded[Int]
+            _              <- ZStream(1, 2, 3).run(ZSink.fromQueue(queue))
+            enqueuedValues <- queue.takeAll
+          } yield {
+            assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3)))
+          }
+
+        }
+      ),
+      suite("fromQueueWithShutdown")(
+        test("should enqueue all elements and shutsdown queue") {
+
+          def createQueueSpy[A](q: Queue[A]) = new ZQueue[Any, Any, Nothing, Nothing, A, A] {
+
+            @volatile
+            private var isShutDown = false
+
+            override def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] = q.awaitShutdown
+
+            override def capacity: Int = q.capacity
+
+            override def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] = UIO(this.isShutDown)
+
+            override def offer(a: A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Boolean] = q.offer(a)
+
+            override def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[Any, Nothing, Boolean] =
+              q.offerAll(as)
+
+            override def shutdown(implicit trace: ZTraceElement): UIO[Unit] = UIO(this.isShutDown = true)
+
+            override def size(implicit trace: ZTraceElement): UIO[Int] = q.size
+
+            override def take(implicit trace: ZTraceElement): ZIO[Any, Nothing, A] = q.take
+
+            override def takeAll(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] = q.takeAll
+
+            override def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] =
+              q.takeUpTo(max)
+
+          }
+
+          for {
+            queue          <- ZQueue.unbounded[Int].map(createQueueSpy)
+            _              <- ZStream(1, 2, 3).run(ZSink.fromQueueWithShutdown(queue))
+            enqueuedValues <- queue.takeAll
+            isShutdown     <- queue.isShutdown
+          } yield {
+            assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3))) && assert(isShutdown)(isTrue)
+          }
+
+        }
+      ),
+      suite("fromHub")(
+        test("should publish all elements") {
+
+          for {
+            promise1       <- Promise.make[Nothing, Unit]
+            promise2       <- Promise.make[Nothing, Unit]
+            hub            <- ZHub.unbounded[Int]
+            f              <- hub.subscribe.use(s => promise1.succeed(()) *> promise2.await *> s.takeAll).fork
+            _              <- promise1.await
+            _              <- ZStream(1, 2, 3).run(ZSink.fromHub(hub))
+            _              <- promise2.succeed(())
+            publisedValues <- f.join
+          } yield {
+            assert(publisedValues)(hasSameElementsDistinct(List(1, 2, 3)))
+          }
+
+        }
+      ),
+      suite("fromHubWithShutdown")(
+        test("should shutdown hub") {
+          for {
+            hub        <- ZHub.unbounded[Int]
+            _          <- ZStream(1, 2, 3).run(ZSink.fromHubWithShutdown(hub))
+            isShutdown <- hub.isShutdown
+          } yield {
+            assert(isShutdown)(isTrue)
+          }
+
+        }
+      ),
       suite("succeed")(
         test("result is ok") {
           assertM(ZStream(1, 2, 3).run(ZSink.succeed("ok")))(
@@ -538,12 +657,16 @@ object ZSinkSpec extends ZIOBaseSpec {
         }
       ),
       suite("Combinators")(
-        //      test("raceBoth") {
-        //        check(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
-        //          val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
-        //          sinkRaceLaw(ZStream.fromIterable(Random.shuffle(stream)), findSink(20), findSink(40))
-        //        }
-        //      },
+        test("raceBoth") {
+          check(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
+            val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
+            sinkRaceLaw(
+              ZStream.fromIterableZIO(Random.shuffle(stream).provideLayer(Random.live)),
+              findSink(20),
+              findSink(40)
+            )
+          }
+        },
         //      suite("zipWithPar")(
         //        test("coherence") {
         //          check(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
@@ -727,27 +850,40 @@ object ZSinkSpec extends ZIOBaseSpec {
         },
         suite("utf8Decode")(
           test("running with regular strings") {
-            check(Gen.string.map(s => Chunk.fromArray(s.getBytes("UTF-8")))) { bytes =>
+            check(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_8)))) { bytes =>
               ZStream
                 .fromChunk(bytes)
                 .run(ZSink.utf8Decode)
                 .map(result =>
                   assert(bytes)(isNonEmpty) implies assert(result)(
-                    isSome(equalTo(new String(bytes.toArray[Byte], "UTF-8")))
+                    isSome(equalTo(new String(bytes.toArray, StandardCharsets.UTF_8)))
                   )
                 )
             }
           },
           test("transducing with regular strings") {
-            check(Gen.string.map(s => Chunk.fromArray(s.getBytes("UTF-8")))) { byteChunk =>
+            check(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_8)))) { byteChunk =>
               ZStream
                 .fromChunk(byteChunk)
                 .transduce(ZSink.utf8Decode.map(_.getOrElse("")))
                 .run(ZSink.mkString)
                 .map { result =>
-                  assert(byteChunk)(equalTo(Chunk.fromArray(result.getBytes("UTF-8"))))
+                  assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_8)))
                 }
             }
+          },
+          test("transducing with regular strings with BOM") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utf8Decode,
+              StandardCharsets.UTF_8,
+              BOM.Utf8 ++ _
+            )
+          },
+          test("transducing with regular strings, using `utfDecode`") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utfDecode,
+              StandardCharsets.UTF_8
+            )
           },
           test("empty byte chunk results with None") {
             val bytes = Chunk()
@@ -757,38 +893,35 @@ object ZSinkSpec extends ZIOBaseSpec {
               .map(assert(_)(isNone))
           },
           test("incomplete chunk 1") {
-            val bom  = Chunk.fromArray(Array[Byte](-17, -69, -65))
             val data = Array(0xc2.toByte, 0xa2.toByte)
 
             ZStream
-              .fromChunks(bom, Chunk(data(0)), Chunk(data(1)))
+              .fromChunks(BOM.Utf8, Chunk(data(0)), Chunk(data(1)))
               .run(ZSink.utf8Decode.exposeLeftover)
               .map { case (string, bytes) =>
-                assert(string)(isSome(equalTo(new String(data, "UTF-8")))) &&
+                assert(string)(isSome(equalTo(new String(data, StandardCharsets.UTF_8)))) &&
                   assert(bytes)(isEmpty)
               }
           },
           test("incomplete chunk 2") {
-            val bom  = Chunk.fromArray(Array[Byte](-17, -69, -65))
             val data = Array(0xe0.toByte, 0xa4.toByte, 0xb9.toByte)
 
             ZStream
-              .fromChunks(bom, Chunk(data(0), data(1)), Chunk(data(2)))
+              .fromChunks(BOM.Utf8, Chunk(data(0), data(1)), Chunk(data(2)))
               .run(ZSink.utf8Decode.exposeLeftover)
               .map { case (string, bytes) =>
-                assert(string)(isSome(equalTo(new String(data, "UTF-8")))) &&
+                assert(string)(isSome(equalTo(new String(data, StandardCharsets.UTF_8)))) &&
                   assert(bytes)(isEmpty)
               }
           },
           test("incomplete chunk 3") {
-            val bom  = Chunk.fromArray(Array[Byte](-17, -69, -65))
             val data = Array(0xf0.toByte, 0x90.toByte, 0x8d.toByte, 0x88.toByte)
 
             ZStream
-              .fromChunks(bom, Chunk(data(0), data(1), data(2)), Chunk(data(3)))
+              .fromChunks(BOM.Utf8, Chunk(data(0), data(1), data(2)), Chunk(data(3)))
               .run(ZSink.utf8Decode.exposeLeftover)
               .map { case (string, bytes) =>
-                assert(string)(isSome(equalTo(new String(data, "UTF-8")))) &&
+                assert(string)(isSome(equalTo(new String(data, StandardCharsets.UTF_8)))) &&
                   assert(bytes)(isEmpty)
               }
           },
@@ -805,8 +938,19 @@ object ZSinkSpec extends ZIOBaseSpec {
           test("handle byte order mark") {
             check(Gen.string) { s =>
               ZStream
-                .fromChunk(Chunk[Byte](-17, -69, -65) ++ Chunk.fromArray(s.getBytes("UTF-8")))
+                .fromChunk(BOM.Utf8 ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_8)))
                 .transduce(ZSink.utf8Decode)
+                .runCollect
+                .map { result =>
+                  assert(result.collect { case Some(s) => s }.mkString)(equalTo(s))
+                }
+            }
+          },
+          test("handle byte order mark, using `utfDecode`") {
+            check(Gen.string) { s =>
+              ZStream
+                .fromChunk(BOM.Utf8 ++ Chunk.fromArray(s.getBytes(StandardCharsets.UTF_8)))
+                .transduce(ZSink.utfDecode)
                 .runCollect
                 .map { result =>
                   assert(result.collect { case Some(s) => s }.mkString)(equalTo(s))
@@ -825,54 +969,66 @@ object ZSinkSpec extends ZIOBaseSpec {
         ),
         suite("utf16BEDecode")(
           test("regular strings") {
-            check(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE)))) { byteChunk =>
-              ZStream
-                .fromChunk(byteChunk)
-                .transduce(ZSink.utf16BEDecode.map(_.getOrElse("")))
-                .mkString
-                .map { result =>
-                  assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16BE)))
-                }
-            }
+            testDecoderWithRandomStringUsing(
+              ZSink.utf16BEDecode,
+              StandardCharsets.UTF_16BE
+            )
+          },
+          test("regular strings, using `utfDecode`") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utfDecode,
+              StandardCharsets.UTF_16BE,
+              BOM.Utf16BE ++ _
+            )
           }
         ),
-        suite("utf16FEDecode")(
+        suite("utf16LEDecode")(
           test("regular strings") {
-            check(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE)))) { byteChunk =>
-              ZStream
-                .fromChunk(byteChunk)
-                .transduce(ZSink.utf16LEDecode.map(_.getOrElse("")))
-                .mkString
-                .map { result =>
-                  assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16LE)))
-                }
-            }
+            testDecoderWithRandomStringUsing(
+              ZSink.utf16LEDecode,
+              StandardCharsets.UTF_16LE
+            )
+          },
+          test("regular strings, using `utfDecode`") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utfDecode,
+              StandardCharsets.UTF_16LE,
+              BOM.Utf16LE ++ _
+            )
           }
         ),
         suite("utf16Decode")(
           test("regular strings") {
             check(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16)))) { byteChunk =>
-              ZStream.fromChunk(byteChunk).transduce(ZSink.utf16Decode.map(_.getOrElse(""))).mkString.map { result =>
-                assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16)))
-              }
+              ZStream
+                .fromChunk(byteChunk)
+                .transduce(ZSink.utf16Decode.map(_.getOrElse("")))
+                .mkString
+                .map { result =>
+                  assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16)))
+                }
             }
           },
-          test("no magic sequence - parse as big endian") {
+          test("no BOM - parse as big endian") {
             check(
               Gen.string
                 .filter(_.nonEmpty)
                 .map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE)))
             ) { byteChunk =>
-              ZStream.fromChunk(byteChunk).transduce(ZSink.utf16Decode.map(_.getOrElse(""))).mkString.map { result =>
-                assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16BE)))
-              }
+              ZStream
+                .fromChunk(byteChunk)
+                .transduce(ZSink.utf16Decode.map(_.getOrElse("")))
+                .mkString
+                .map { result =>
+                  assertTrue(byteChunk == Chunk.fromArray(result.getBytes(StandardCharsets.UTF_16BE)))
+                }
             }
           },
           test("big endian") {
             check(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16BE)))) { s =>
               ZStream
                 .fromChunks(
-                  Chunk[Byte](-2, -1),
+                  BOM.Utf16BE,
                   s
                 )
                 .transduce(ZSink.utf16Decode.map(_.getOrElse("")))
@@ -884,7 +1040,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             check(Gen.string.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.UTF_16LE)))) { s =>
               ZStream
                 .fromChunks(
-                  Chunk[Byte](-1, -2),
+                  BOM.Utf16LE,
                   s
                 )
                 .transduce(ZSink.utf16Decode.map(_.getOrElse("")))
@@ -893,6 +1049,64 @@ object ZSinkSpec extends ZIOBaseSpec {
             }
           }
         ),
+        suite("utf32BEDecode")(
+          test("regular strings") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utf32BEDecode,
+              CharsetUtf32BE
+            )
+          },
+          test("regular strings, using `utfDecode`") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utfDecode,
+              CharsetUtf32BE,
+              BOM.Utf32BE ++ _
+            )
+          }
+        ) @@ runOnlyIfSupporting("UTF-32BE"),
+        suite("utf32LEDecode")(
+          test("regular strings") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utf32LEDecode,
+              CharsetUtf32LE
+            )
+          },
+          test("regular strings, using `utfDecode`") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utfDecode,
+              CharsetUtf32LE,
+              BOM.Utf32LE ++ _
+            )
+          }
+        ) @@ runOnlyIfSupporting("UTF-32LE"),
+        suite("utf32Decode")(
+          test("regular strings") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utf32Decode,
+              CharsetUtf32
+            )
+          },
+          test("no BOM - parse as big endian") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utf32Decode,
+              CharsetUtf32BE
+            )
+          },
+          test("big endian") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utf32Decode,
+              CharsetUtf32BE,
+              BOM.Utf32BE ++ _
+            )
+          },
+          test("little endian") {
+            testDecoderWithRandomStringUsing(
+              ZSink.utf32Decode,
+              CharsetUtf32LE,
+              BOM.Utf32LE ++ _
+            )
+          }
+        ) @@ runOnlyIfSupporting("UTF-32"),
         suite("usASCII")(
           test("US-ASCII strings") {
             check(Gen.chunkOf(Gen.asciiString.map(s => Chunk.fromArray(s.getBytes(StandardCharsets.US_ASCII))))) {

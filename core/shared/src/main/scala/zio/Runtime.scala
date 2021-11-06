@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberContext, Platform}
+import zio.internal.{FiberContext, Platform, StackBool}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -169,7 +169,7 @@ trait Runtime[+R] {
             case ZIO.Tags.Fail =>
               val zio = curZio.asInstanceOf[ZIO.Fail[E]]
 
-              done = Exit.failCause(zio.fill(() => null))
+              done = Exit.failCause(zio.cause())
 
             case ZIO.Tags.Succeed =>
               val zio = curZio.asInstanceOf[ZIO.Succeed[A]]
@@ -302,23 +302,22 @@ trait Runtime[+R] {
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       runtimeConfig,
-      environment.asInstanceOf[AnyRef],
-      runtimeConfig.executor,
-      false,
-      InterruptStatus.Interruptible,
-      new java.util.concurrent.atomic.AtomicReference(Map.empty),
+      StackBool(InterruptStatus.Interruptible.toBoolean),
+      new java.util.concurrent.atomic.AtomicReference(
+        Map(FiberContext.currentEnvironment -> environment.asInstanceOf[AnyRef])
+      ),
       scope
     )
 
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)
 
-      context.onDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
+      context.unsafeOnDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
     }
 
-    context.nextEffect = zio.asInstanceOf[IO[E, A]]
+    context.nextEffect = zio
     context.run()
-    context.awaitAsync(k)
+    context.unsafeOnDone(exit => k(exit.flatten))
 
     fiberId =>
       k => unsafeRunAsyncWith(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))
