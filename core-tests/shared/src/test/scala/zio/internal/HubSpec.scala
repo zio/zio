@@ -2,7 +2,6 @@ package zio.internal
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment._
 import zio.{Hub => _, _}
 
 object HubSpec extends ZIOBaseSpec {

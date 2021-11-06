@@ -3,7 +3,6 @@ package zio.internal.metrics
 import zio.ZIOBaseSpec
 import zio._
 import zio.test._
-import zio.test.environment.TestClock
 
 object ConcurrentSummarySpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Any] =

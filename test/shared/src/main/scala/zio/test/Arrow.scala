@@ -57,8 +57,12 @@ sealed trait Arrow[-A, +B] { self =>
   def withCode(code: String): Arrow[A, B] =
     meta(code = Some(code))
 
-  def withLocation(implicit location: SourceLocation): Arrow[A, B] =
-    meta(location = Some(s"${location.path}:${location.line}"))
+  def withLocation(implicit trace: ZTraceElement): Arrow[A, B] =
+    trace match {
+      case ZTraceElement.SourceLocation(_, file, line, _) =>
+        meta(location = Some(s"$file:$line"))
+      case _ => self
+    }
 
   def withParentSpan(span: (Int, Int)): Arrow[A, B] =
     meta(parentSpan = Some(Span(span._1, span._2)))

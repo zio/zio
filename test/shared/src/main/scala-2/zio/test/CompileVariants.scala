@@ -32,14 +32,13 @@ trait CompileVariants {
 
   private[test] def assertImpl[A](
     value: => A,
-    expression: Option[String] = None,
-    sourceLocation: Option[String] = None
+    expression: Option[String] = None
   )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
+  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
     assertion: AssertionM[A]
   )(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
 
@@ -61,8 +60,6 @@ trait CompileVariants {
   def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] =
     macro Macros.assertM_impl
 
-  private[zio] def sourcePath: String = macro Macros.sourcePath_impl
-
   private[zio] def showExpression[A](expr: => A): String = macro Macros.showExpression_impl
 }
 
@@ -71,13 +68,13 @@ trait CompileVariants {
  */
 object CompileVariants {
 
-  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(
+  def assertProxy[A](value: => A, expression: String)(
     assertion: Assertion[A]
   )(implicit trace: ZTraceElement): TestResult =
-    zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
+    zio.test.assertImpl(value, Some(expression))(assertion)
 
-  def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)(
+  def assertMProxy[R, E, A](effect: ZIO[R, E, A])(
     assertion: AssertionM[A]
   )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
-    zio.test.assertMImpl(effect, Some(sourceLocation))(assertion)
+    zio.test.assertMImpl(effect)(assertion)
 }

@@ -20,7 +20,6 @@ import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.environment.TestEnvironment
 import zio.test.render._
 
 @EnableReflectiveInstantiation
@@ -56,10 +55,15 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   protected def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] = {
     implicit val trace = Tracer.newTrace
     for {
-      args     <- ZIO.service[ZIOAppArgs]
-      testArgs  = TestArgs.parse(args.getArgs.toArray)
-      exitCode <- runSpec(spec, testArgs)
-      _        <- doExit(exitCode)
+      args         <- ZIO.service[ZIOAppArgs]
+      testArgs      = TestArgs.parse(args.getArgs.toArray)
+      executedSpec <- runSpec(spec, testArgs)
+      hasFailures = executedSpec.exists {
+                      case ExecutedSpec.TestCase(test, _) => test.isLeft
+                      case _                              => false
+                    }
+      exitCode = if (hasFailures) 1 else 0
+      _       <- doExit(exitCode)
     } yield ()
   }
 
@@ -72,17 +76,20 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   }
 
   private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =
-    exit(ExitCode(exitCode)).when(!isAmmonite).unit
+    ZIO.succeed(
+      try if (!isAmmonite) sys.exit(exitCode)
+      catch { case _: SecurityException => }
+    )
 
   private def isAmmonite: Boolean =
     sys.env.exists { case (k, v) =>
       k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
     }
 
-  private def runSpec(
+  private[zio] def runSpec(
     spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any],
     testArgs: TestArgs
-  )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with Has[ZIOAppArgs], Int] = {
+  )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with Has[ZIOAppArgs], ExecutedSpec[Any]] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
@@ -94,14 +101,10 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)
-      hasFailures = results.exists {
-                      case ExecutedSpec.TestCase(test, _) => test.isLeft
-                      case _                              => false
-                    }
       _ <- TestLogger
              .logLine(SummaryBuilder.buildSummary(results).summary)
              .when(testArgs.printSummary)
              .provideLayer(runner.bootstrap)
-    } yield if (hasFailures) 1 else 0
+    } yield results
   }
 }

@@ -1,8 +1,7 @@
 package zio.test
 
 import zio.test.SmartTestTypes._
-import zio.test.environment.TestClock
-import zio.{Chunk, NonEmptyChunk, durationInt}
+import zio.{Chunk, NonEmptyChunk, durationInt, ZTraceElement}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -397,9 +396,9 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     )
   )
 
-  // The implicit SourceLocation will be used by assertTrue to report the
+  // The implicit trace will be used by assertTrue to report the
   // actual location.
-  def customAssertion(string: String)(implicit sourceLocation: SourceLocation): Assert =
+  def customAssertion(string: String)(implicit trace: ZTraceElement): Assert =
     assertTrue(string == "coool")
 
   // Test Types

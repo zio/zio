@@ -1,12 +1,10 @@
 package zio
 
-import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.ZManaged.ReleaseMap
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment._
 
 import scala.concurrent.ExecutionContext
 
@@ -80,7 +78,7 @@ object ZManagedSpec extends ZIOBaseSpec {
       test("Interruption is possible when using this form") {
         doInterrupt(
           io => ZManaged.fromReservation(Reservation(io, _ => IO.unit)),
-          selfId => Some(Failure(Interrupt(selfId)))
+          selfId => Some(Failure(Cause.interrupt(selfId)))
         )
       }
     ),
@@ -98,7 +96,11 @@ object ZManagedSpec extends ZIOBaseSpec {
           exits  <- Ref.make[List[Exit[Any, Any]]](Nil)
           _      <- res(exits).useDiscard(ZIO.die(ex)).exit
           result <- exits.get
-        } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex)), Exit.Failure(Cause.Die(ex)))))
+        } yield assert(result)(
+          equalTo(
+            List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex, ZTrace.none)), Exit.Failure(Cause.Die(ex, ZTrace.none)))
+          )
+        )
       } @@ zioTag(errors),
       test("Invokes with the failure of the subsequent acquire") {
         val useEx     = new RuntimeException("Use died")
@@ -114,7 +116,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           exits  <- Ref.make[List[Exit[Any, Any]]](Nil)
           _      <- res(exits).useDiscard(ZIO.die(useEx)).exit
           result <- exits.get
-        } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx)))))
+        } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx, ZTrace.none)))))
       }
     ) @@ zioTag(errors),
     suite("zipWithPar")(
@@ -498,23 +500,18 @@ object ZManagedSpec extends ZIOBaseSpec {
           assert(after)(equalTo(default))
       },
       test("does not shift back to original executor if it was not locked") {
-        val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
-        val global                  = Executor.fromExecutionContext(100)(ExecutionContext.global)
+        val thread = ZIO.succeed(Thread.currentThread())
+
+        val global =
+          Executor.fromExecutionContext(Int.MaxValue)(scala.concurrent.ExecutionContext.global)
         for {
-          default <- executor
-          ref1    <- Ref.make[Executor](default)
-          ref2    <- Ref.make[Executor](default)
-          managed  = ZManaged.acquireRelease(executor.flatMap(ref1.set))(executor.flatMap(ref2.set)).onExecutor(global)
-          before  <- executor
-          use     <- managed.useDiscard(executor)
-          acquire <- ref1.get
-          release <- ref2.get
-          after   <- executor
-        } yield assert(before)(equalTo(default)) &&
-          assert(acquire)(equalTo(global)) &&
-          assert(use)(equalTo(global)) &&
-          assert(release)(equalTo(global)) &&
-          assert(after)(equalTo(global))
+          which   <- Ref.make[Option[Thread]](None)
+          beforeL <- ZIO.descriptor.map(_.isLocked)
+          _       <- thread.flatMap(t => which.set(Some(t))).toManaged.onExecutor(global).useDiscard(ZIO.unit)
+          after   <- thread
+          during  <- which.get.some
+          afterL  <- ZIO.descriptor.map(_.isLocked)
+        } yield assert(beforeL)(isFalse) && assert(afterL)(isFalse) && assert(during)(equalTo(after))
       }
     ),
     suite("mergeAll")(
@@ -1402,7 +1399,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             second = ZManaged.fromReservation(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
             _     <- first.zipPar(second).useDiscard(ZIO.unit)
           } yield ()).exit
-            .map(assert(_)(equalTo(Exit.Failure(Cause.Both(Cause.Fail(()), Cause.interrupt(selfId))))))
+            .map(assert(_)(equalTo(Exit.Failure(Cause.Both(Cause.Fail((), ZTrace.none), Cause.interrupt(selfId))))))
         }
       } @@ zioTag(errors),
       test("Run finalizers if one reservation fails") {
@@ -1648,7 +1645,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             f <- ZManaged.fail("Uh oh!")
           } yield f
 
-        val errorToVal = zm.catchSomeCause { case Cause.Fail("Uh oh!") =>
+        val errorToVal = zm.catchSomeCause { case Cause.Fail("Uh oh!", _) =>
           ZManaged.succeed("matched")
         }
         assertM(errorToVal.use(ZIO.succeed(_)))(equalTo("matched"))
@@ -1660,7 +1657,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             f <- ZManaged.fail("Uh oh!")
           } yield f
 
-        val errorToVal = zm.catchSomeCause { case Cause.Fail("not matched") =>
+        val errorToVal = zm.catchSomeCause { case Cause.Fail("not matched", _) =>
           ZManaged.succeed("matched")
         }
         val executed = errorToVal.use[Any, String, String](ZIO.succeed(_)).exit

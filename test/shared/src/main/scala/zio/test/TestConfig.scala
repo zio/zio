@@ -53,6 +53,12 @@ trait TestConfig extends Serializable {
 object TestConfig {
 
   /**
+   * Constructs a new `TestConfig` with the default settings.
+   */
+  val default: ZLayer[Any, Nothing, Has[TestConfig]] =
+    live(100, 100, 200, 1000)(ZTraceElement.empty)
+
+  /**
    * Constructs a new `TestConfig` service with the specified settings.
    */
   def live(repeats0: Int, retries0: Int, samples0: Int, shrinks0: Int)(implicit
