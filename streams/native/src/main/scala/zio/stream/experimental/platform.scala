@@ -202,3 +202,5 @@ trait ZStreamPlatformSpecificConstructors {
 }
 
 trait ZSinkPlatformSpecificConstructors
+
+trait ZPipelinePlatformSpecificConstructors
