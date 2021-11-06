@@ -2688,11 +2688,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def peel[R1 <: R, E1 >: E, A1 >: A, Z](
     sink: ZSink[R1, E1, A1, E1, A1, Z]
-  )(implicit trace: ZTraceElement): ZManaged[R1, E1, (Z, ZStream[R1, E1, A1])] = {
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, (Z, ZStream[Any, E, A1])] = {
     sealed trait Signal
-    case class Emit(els: Chunk[A1])   extends Signal
-    case class Halt(cause: Cause[E1]) extends Signal
-    case object End                   extends Signal
+    object Signal {
+      case class Emit(els: Chunk[A1])  extends Signal
+      case class Halt(cause: Cause[E]) extends Signal
+      case object End                  extends Signal
+    }
 
     (for {
       p       <- Promise.makeManaged[E1, Z]
@@ -2703,24 +2705,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           e => ZSink.fromZIO(p.fail(e)) *> ZSink.fail(e),
           { case (z1, leftovers) =>
             lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
-              (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> loop,
-              (e: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(e))) *> ZChannel.failCause(e),
-              (_: Any) => ZChannel.fromZIO(handoff.offer(End)) *> ZChannel.unit
+              (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Signal.Emit(in))) *> loop,
+              (e: Cause[E]) => ZChannel.fromZIO(handoff.offer(Signal.Halt(e))) *> ZChannel.failCause(e),
+              (_: Any) => ZChannel.fromZIO(handoff.offer(Signal.End)) *> ZChannel.unit
             )
 
             new ZSink(
               ZChannel.fromZIO(p.succeed(z1)) *>
-                ZChannel.fromZIO(handoff.offer(Emit(leftovers))) *>
+                ZChannel.fromZIO(handoff.offer(Signal.Emit(leftovers))) *>
                 loop
             )
           }
         )
 
-      lazy val producer: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] = ZChannel.unwrap(
+      lazy val producer: ZChannel[Any, Any, Any, Any, E, Chunk[A1], Unit] = ZChannel.unwrap(
         handoff.take.map {
-          case Emit(els)   => ZChannel.write(els) *> producer
-          case Halt(cause) => ZChannel.failCause(cause)
-          case End         => ZChannel.unit
+          case Signal.Emit(els)   => ZChannel.write(els) *> producer
+          case Signal.Halt(cause) => ZChannel.failCause(cause)
+          case Signal.End         => ZChannel.unit
         }
       )
 
@@ -3190,6 +3192,44 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def someOrFail[A2, E1 >: E](e: => E1)(implicit ev: A <:< Option[A2], trace: ZTraceElement): ZStream[R, E1, A2] =
     self.mapZIO(ev(_).fold[IO[E1, A2]](ZIO.fail(e))(ZIO.succeedNow(_)))
+
+  /**
+   * Splits elements on a delimiter and transforms the splits into desired output.
+   */
+  final def splitOnChunk[A1 >: A](delimiter: Chunk[A1])(implicit trace: ZTraceElement): ZStream[R, E, Chunk[A]] = {
+    def next(leftover: Option[Chunk[A]], delimiterIndex: Int): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
+      ZChannel.readWithCause(
+        inputChunk => {
+          var buffer = null.asInstanceOf[collection.mutable.ArrayBuffer[Chunk[A]]]
+          inputChunk.foldLeft((leftover getOrElse Chunk.empty, delimiterIndex)) { case ((carry, delimiterCursor), a) =>
+            val concatenated = carry :+ a
+            if (delimiterCursor < delimiter.length && a == delimiter(delimiterCursor)) {
+              if (delimiterCursor + 1 == delimiter.length) {
+                if (buffer eq null) buffer = collection.mutable.ArrayBuffer[Chunk[A]]()
+                buffer += concatenated.take(concatenated.length - delimiter.length)
+                (Chunk.empty, 0)
+              } else (concatenated, delimiterCursor + 1)
+            } else (concatenated, if (a == delimiter(0)) 1 else 0)
+          } match {
+            case (carry, delimiterCursor) =>
+              ZChannel.write(
+                if (buffer eq null) Chunk.empty else Chunk.fromArray(buffer.toArray)
+              ) *> next(if (carry.nonEmpty) Some(carry) else None, delimiterCursor)
+          }
+        },
+        halt =>
+          leftover match {
+            case Some(chunk) => ZChannel.write(Chunk.single(chunk)) *> ZChannel.failCause(halt)
+            case None        => ZChannel.failCause(halt)
+          },
+        done =>
+          leftover match {
+            case Some(chunk) => ZChannel.write(Chunk.single(chunk)) *> ZChannel.succeed(done)
+            case None        => ZChannel.succeed(done)
+          }
+      )
+    new ZStream(self.channel >>> next(None, 0))
+  }
 
   /**
    * Takes the specified number of elements from this stream.
