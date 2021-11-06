@@ -88,6 +88,10 @@ When we tested our program above the `helloWorld` method didn't actually print a
 
 The library includes built-in _test versions_ of all the standard ZIO services (`Clock`, `Console`, `System`, and `Random`). Note that If we ever do need to access the "live" environment we can just use the `live` method in the `mock` package or specify the live environment in our type signature like `Live[Console]`.
 
+### Resource Management
+
+We may need to set up and tear down some fixtures in our test code before and after running tests. ZIO Test manages this seamlessly for us. So, instead of providing `before`/`after`, `beforeAll`/`afterAll` hooks, we can provide a `ZLayer` to each test or a test suite. The ZIO test takes care of acquiring, utilizing, and releasing that layer.
+
 ### Property Based Testing
 
 Support for property based testing is included out-of-the-box through the `check` method and its variants and the `Gen` and `Sample` classes. For example, here is how we could write a property to test that integer addition is associative.
