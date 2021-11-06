@@ -450,9 +450,49 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * using the provided function.
    */
   final def zipWithPar[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1, Z2](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1],
+    capacity: Int = 16
   )(f: (Z, Z1) => Z2)(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
-    ???
+    new ZSink(
+      ZChannel.unwrapManaged(
+        for {
+          hub   <- ZHub.bounded[Either[Exit[InErr1, Any], Chunk[In1]]](capacity).toManaged
+          left  <- ZChannel.fromHubManaged(hub)
+          right <- ZChannel.fromHubManaged(hub)
+          reader = ZChannel.toHub[InErr1, Any, Chunk[In1]](hub)
+          c1     = left >>> self.channel
+          c2     = right >>> that.channel
+          writer = c1.mergeWith[R1, InErr1, Chunk[In1], Any, OutErr1, OutErr1, Chunk[L1], Z1, Z2](c2)(
+                     {
+                       case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
+                       case Exit.Success(lz) =>
+                         ZChannel.MergeDecision.await {
+                           case Exit.Failure(cause) => ZIO.failCause(cause)
+                           case Exit.Success(rz)    => ZIO.succeedNow(f(lz, rz))
+                         }
+                     },
+                     {
+                       case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
+                       case Exit.Success(rz) =>
+                         ZChannel.MergeDecision.await {
+                           case Exit.Failure(cause) => ZIO.failCause(cause)
+                           case Exit.Success(lz)    => ZIO.succeedNow(f(lz, rz))
+                         }
+                     }
+                   )
+        } yield reader.mergeWith(writer)(
+          _ =>
+            ZChannel.MergeDecision.await {
+              case Exit.Failure(cause) => ZIO.failCause(cause)
+              case Exit.Success(z)     => ZIO.succeedNow(z)
+            },
+          {
+            case Exit.Failure(cause) => ZChannel.MergeDecision.done(ZIO.failCause(cause))
+            case Exit.Success(z)     => ZChannel.MergeDecision.done(ZIO.succeedNow(z))
+          }
+        )
+      )
+    )
 
   def exposeLeftover(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, Nothing, (Z, Chunk[L])] =
     new ZSink(channel.doneCollect.map { case (chunks, z) => (z, chunks.flatten) })
