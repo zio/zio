@@ -130,7 +130,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
           },
           test("UTF-16BE with BOM") {
             testDecoderWithRandomStringUsing(ZPipeline.utfDecode, StandardCharsets.UTF_16BE, BOM.Utf16BE)
-          },
+          } @@ runOnlyIfSupporting(StandardCharsets.UTF_16BE.name),
           test("UTF-16BE with BOM, with data that happens to start with BOM") {
             testDecoderUsing(
               ZPipeline.utfDecode,
@@ -138,10 +138,10 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
               Gen.const(BOM.Utf16BE ++ Chunk[Byte](0, 97, 0, 98)),
               BOM.Utf16BE
             )
-          },
+          } @@ runOnlyIfSupporting(StandardCharsets.UTF_16BE.name),
           test("UTF-16LE with BOM") {
             testDecoderWithRandomStringUsing(ZPipeline.utfDecode, StandardCharsets.UTF_16LE, BOM.Utf16LE)
-          },
+          } @@ runOnlyIfSupporting(StandardCharsets.UTF_16LE.name),
           test("UTF-16LE with BOM, with data that happens to start with BOM") {
             testDecoderUsing(
               ZPipeline.utfDecode,
@@ -149,7 +149,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
               Gen.const(BOM.Utf16LE ++ Chunk[Byte](97, 0, 98, 0)),
               BOM.Utf16LE
             )
-          },
+          } @@ runOnlyIfSupporting(StandardCharsets.UTF_16LE.name),
           test("UTF-32BE with BOM") {
             testDecoderWithRandomStringUsing(
               ZPipeline.utfDecode,
@@ -215,7 +215,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
               Gen.const(BOM.Utf16BE ++ Chunk[Byte](0, 97, 0, 98))
             )
           }
-        ),
+        ) @@ runOnlyIfSupporting(StandardCharsets.UTF_16BE.name),
         suite("utf16LEDecode")(
           test("Random data") {
             testDecoderWithRandomStringUsing(ZPipeline.utf16LEDecode, StandardCharsets.UTF_16LE)
@@ -227,7 +227,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
               Gen.const(BOM.Utf16LE ++ Chunk[Byte](97, 0, 98, 0))
             )
           }
-        ),
+        ) @@ runOnlyIfSupporting(StandardCharsets.UTF_16LE.name),
         suite("utf16Decode")(
           test("UTF-16 without BOM") {
             testDecoderWithRandomStringUsing(ZPipeline.utf16Decode, StandardCharsets.UTF_16)
@@ -271,7 +271,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
               BOM.Utf16LE
             )
           }
-        ),
+        ) @@ runOnlyIfSupporting(StandardCharsets.UTF_16.name),
         suite("utf32BEDecode")(
           test("Random data") {
             testDecoderWithRandomStringUsing(
