@@ -232,11 +232,8 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             path =>
               Task(Files.write(path, data.getBytes("UTF-8"))) *>
                 assertM(
-                  ZStream
-                    .fromFile(path, 24)
-                    .transduce(ZSink.utf8Decode)
-                    .runCollect
-                    .map(_.collect { case Some(str) => str }.mkString)
+                  (ZStream
+                    .fromFile(path, 24) @@ ZPipeline.utf8Decode).mkString
                 )(
                   equalTo(data)
                 )
@@ -284,11 +281,9 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       ),
       suite("fromResource")(
         test("returns the content of the resource") {
-          ZStream
-            .fromResource("zio/stream/bom/quickbrown-UTF-8-with-BOM.txt")
-            .transduce(ZSink.utf8Decode)
-            .runCollect
-            .map(b => assert(b.collect { case Some(str) => str }.mkString)(startsWithString("Sent")))
+          (ZStream
+            .fromResource("zio/stream/bom/quickbrown-UTF-8-with-BOM.txt") @@ ZPipeline.utf8Decode).mkString
+            .map(assert(_)(startsWithString("Sent")))
         },
         test("fails with FileNotFoundException if the stream does not exist") {
           assertM(ZStream.fromResource("does_not_exist").runDrain.exit)(
@@ -304,10 +299,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             server <- ZStream
                         .fromSocketServer(8896)
                         .foreach { c =>
-                          c.read
-                            .transduce(ZSink.utf8Decode)
-                            .runCollect
-                            .map(_.collect { case Some(str) => str }.mkString)
+                          (c.read @@ ZPipeline.utf8Decode).mkString
                             .flatMap(s => refOut.update(_ + s))
                         }
                         .fork

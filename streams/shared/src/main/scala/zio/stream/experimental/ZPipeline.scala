@@ -276,7 +276,17 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         stream
     }
 
-  def iso_8859_1Decode: UtfDecodingPipeline =
+  def iso_8859_1Decode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     textDecodeUsing(StandardCharsets.ISO_8859_1)
 
   /**
@@ -596,7 +606,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
         stream.takeWhile(f)
     }
 
-  type UtfDecodingPipeline = ZPipeline.WithOut[
+  def usASCIIDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -606,9 +616,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
     ({ type OutEnv[Env] = Env })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = String })#OutElem
-  ]
-
-  def usASCIIDecode: UtfDecodingPipeline =
+  ] =
     textDecodeUsing(StandardCharsets.US_ASCII)
 
   /**
@@ -617,14 +625,24 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
    * without BOM, `utf16Decode` and `utf32Decode` should be used instead as both default to
    * their own default decoder respectively.
    */
-  def utfDecode: UtfDecodingPipeline =
+  def utfDecode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     utfDecodeDetectingBom(
       bomSize = 4,
       {
-        case BOM.Utf32BE if Charset.isSupported(CharsetUtf32BE.name) =>
-          Chunk.empty -> utf32BEDecode
-        case BOM.Utf32LE if Charset.isSupported(CharsetUtf32LE.name) =>
-          Chunk.empty -> utf32LEDecode
+        case bytes @ BOM.Utf32BE if Charset.isSupported(CharsetUtf32BE.name) =>
+          bytes -> utf32BEDecode
+        case bytes @ BOM.Utf32LE if Charset.isSupported(CharsetUtf32LE.name) =>
+          bytes -> utf32LEDecode
         case bytes if bytes.take(3) == BOM.Utf8 =>
           bytes.drop(3) -> utf8DecodeNoBom
         case bytes if bytes.take(2) == BOM.Utf16BE =>
@@ -636,7 +654,17 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       }
     )
 
-  def utf8Decode: UtfDecodingPipeline =
+  def utf8Decode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     utfDecodeDetectingBom(
       bomSize = 3,
       {
@@ -647,7 +675,17 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       }
     )
 
-  def utf16Decode: UtfDecodingPipeline =
+  def utf16Decode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     utfDecodeDetectingBom(
       bomSize = 2,
       {
@@ -660,29 +698,77 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       }
     )
 
-  def utf16BEDecode: UtfDecodingPipeline =
+  def utf16BEDecode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     utfDecodeFixedLength(StandardCharsets.UTF_16BE, fixedLength = 2)
 
-  def utf16LEDecode: UtfDecodingPipeline =
+  def utf16LEDecode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     utfDecodeFixedLength(StandardCharsets.UTF_16LE, fixedLength = 2)
 
-  def utf32Decode: UtfDecodingPipeline =
+  def utf32Decode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     utfDecodeDetectingBom(
       bomSize = 4,
       {
-        case BOM.Utf32BE =>
-          Chunk.empty -> utf32BEDecode
-        case BOM.Utf32LE =>
-          Chunk.empty -> utf32LEDecode
+        case bytes @ BOM.Utf32LE =>
+          bytes -> utf32LEDecode
         case bytes =>
           bytes -> utf32BEDecode
       }
     )
 
-  def utf32BEDecode: UtfDecodingPipeline =
+  def utf32BEDecode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     utfDecodeFixedLength(CharsetUtf32BE, fixedLength = 4)
 
-  def utf32LEDecode: UtfDecodingPipeline =
+  def utf32LEDecode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     utfDecodeFixedLength(CharsetUtf32LE, fixedLength = 4)
 
   trait Compose[+LeftLower, -LeftUpper, LeftOut[In], +RightLower, -RightUpper, RightOut[In]] {
@@ -857,7 +943,17 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       }
   }
 
-  private def textDecodeUsing(charset: Charset): UtfDecodingPipeline =
+  private def textDecodeUsing(charset: Charset): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
       override type OutEnv[Env]   = Env
       override type OutErr[Err]   = Err
@@ -892,8 +988,31 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
 
   private def utfDecodeDetectingBom(
     bomSize: Int,
-    processBom: Chunk[Byte] => (Chunk[Byte], UtfDecodingPipeline)
-  ): UtfDecodingPipeline =
+    processBom: Chunk[Byte] => (
+      Chunk[Byte],
+      ZPipeline.WithOut[
+        Nothing,
+        Any,
+        Nothing,
+        Any,
+        Nothing,
+        Byte,
+        ({ type OutEnv[Env] = Env })#OutEnv,
+        ({ type OutErr[Err] = Err })#OutErr,
+        ({ type OutElem[Elem] = String })#OutElem
+      ]
+    )
+  ): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
       override type OutEnv[Env]   = Env
       override type OutErr[Err]   = Err
@@ -905,7 +1024,19 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
 
         type DecodingChannel = ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any]
 
-        def passThrough(decodingPipeline: UtfDecodingPipeline): DecodingChannel =
+        def passThrough(
+          decodingPipeline: ZPipeline.WithOut[
+            Nothing,
+            Any,
+            Nothing,
+            Any,
+            Nothing,
+            Byte,
+            ({ type OutEnv[Env] = Env })#OutEnv,
+            ({ type OutErr[Err] = Err })#OutErr,
+            ({ type OutElem[Elem] = String })#OutElem
+          ]
+        ): DecodingChannel =
           ZChannel.readWith(
             received =>
               decodingPipeline(
@@ -951,7 +1082,17 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       }
     }
 
-  private def utf8DecodeNoBom: UtfDecodingPipeline =
+  private def utf8DecodeNoBom: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
       override type OutEnv[Env]   = Env
       override type OutErr[Err]   = Err
@@ -1038,7 +1179,17 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific {
       }
     }
 
-  private def utfDecodeFixedLength(charset: Charset, fixedLength: Int): UtfDecodingPipeline =
+  private def utfDecodeFixedLength(charset: Charset, fixedLength: Int): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Byte,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = String })#OutElem
+  ] =
     new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
       override type OutEnv[Env]   = Env
       override type OutErr[Err]   = Err
