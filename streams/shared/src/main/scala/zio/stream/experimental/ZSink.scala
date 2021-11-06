@@ -340,9 +340,26 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * one that finishes first.
    */
   final def raceBoth[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
-  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] =
-    ???
+    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1],
+    capacity: Int = 16
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] = {
+    val managed =
+      for {
+        hub   <- ZHub.bounded[Either[Exit[InErr1, Any], Chunk[In1]]](capacity).toManaged
+        c1    <- ZChannel.fromHubManaged(hub)
+        c2    <- ZChannel.fromHubManaged(hub)
+        reader = ZChannel.toHub(hub)
+        writer = (c1 >>> self.channel).mergeWith(c2 >>> that.channel)(
+                   selfDone => ZChannel.MergeDecision.done(ZIO.done(selfDone).map(Left(_))),
+                   thatDone => ZChannel.MergeDecision.done(ZIO.done(thatDone).map(Right(_)))
+                 )
+        channel = reader.mergeWith(writer)(
+                    _ => ZChannel.MergeDecision.await(ZIO.done(_)),
+                    done => ZChannel.MergeDecision.done(ZIO.done(done))
+                  )
+      } yield new ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]](channel)
+    ZSink.unwrapManaged(managed)
+  }
 
   /**
    * Returns the sink that executes this one and times its execution.
@@ -433,9 +450,49 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * using the provided function.
    */
   final def zipWithPar[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, In1 <: In, L1 >: L <: In1, Z1, Z2](
-    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1]
+    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1],
+    capacity: Int = 16
   )(f: (Z, Z1) => Z2)(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
-    ???
+    new ZSink(
+      ZChannel.unwrapManaged(
+        for {
+          hub   <- ZHub.bounded[Either[Exit[InErr1, Any], Chunk[In1]]](capacity).toManaged
+          left  <- ZChannel.fromHubManaged(hub)
+          right <- ZChannel.fromHubManaged(hub)
+          reader = ZChannel.toHub[InErr1, Any, Chunk[In1]](hub)
+          c1     = left >>> self.channel
+          c2     = right >>> that.channel
+          writer = c1.mergeWith[R1, InErr1, Chunk[In1], Any, OutErr1, OutErr1, Chunk[L1], Z1, Z2](c2)(
+                     {
+                       case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
+                       case Exit.Success(lz) =>
+                         ZChannel.MergeDecision.await {
+                           case Exit.Failure(cause) => ZIO.failCause(cause)
+                           case Exit.Success(rz)    => ZIO.succeedNow(f(lz, rz))
+                         }
+                     },
+                     {
+                       case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
+                       case Exit.Success(rz) =>
+                         ZChannel.MergeDecision.await {
+                           case Exit.Failure(cause) => ZIO.failCause(cause)
+                           case Exit.Success(lz)    => ZIO.succeedNow(f(lz, rz))
+                         }
+                     }
+                   )
+        } yield reader.mergeWith(writer)(
+          _ =>
+            ZChannel.MergeDecision.await {
+              case Exit.Failure(cause) => ZIO.failCause(cause)
+              case Exit.Success(z)     => ZIO.succeedNow(z)
+            },
+          {
+            case Exit.Failure(cause) => ZChannel.MergeDecision.done(ZIO.failCause(cause))
+            case Exit.Success(z)     => ZChannel.MergeDecision.done(ZIO.succeedNow(z))
+          }
+        )
+      )
+    )
 
   def exposeLeftover(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, Nothing, (Z, Chunk[L])] =
     new ZSink(channel.doneCollect.map { case (chunks, z) => (z, chunks.flatten) })
@@ -500,7 +557,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
     new ZSink(channel.provide(r))
 }
 
-object ZSink {
+object ZSink extends ZSinkPlatformSpecificConstructors {
 
   /**
    * Accesses the environment of the sink in the context of a sink.
@@ -1307,11 +1364,6 @@ object ZSink {
       case (None, in)       => Some(in)
     }
 
-  def iso_8859_1Decode(implicit trace: ZTraceElement): ZSink[Any, Nothing, Byte, Nothing, Nothing, Option[String]] =
-    foldChunks[Nothing, Byte, Option[String]](Option.empty[String])(_ => true)((_, is) =>
-      Some(new String(is.toArray, StandardCharsets.ISO_8859_1))
-    )
-
   /**
    * Creates a sink containing the last value.
    */
@@ -1388,234 +1440,5 @@ object ZSink {
       f: R => ZSink[R1, InErr, In, OutErr, L, Z]
     )(implicit trace: ZTraceElement): ZSink[R with R1, InErr, In, OutErr, L, Z] =
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
-  }
-
-  /**
-   * utfDecode determines the right encoder to use based on the Byte Order Mark (BOM).
-   * If it doesn't detect one, it defaults to utf8Decode. In the case of utf16 and utf32
-   * without BOM, utf16Decode and utf32Decode should be used instead as both default to
-   * their own default decoder respectively.
-   */
-  def utfDecode[Err](implicit
-    trace: ZTraceElement
-  ): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
-    sinkBasedOnStreamHeader[Err, Byte, Byte, String](
-      peekSize = 4,
-      {
-        case BOM.Utf32BE if Charset.isSupported("UTF-32BE") =>
-          Chunk.empty -> utf32BEDecode
-        case BOM.Utf32LE if Charset.isSupported("UTF-32LE") =>
-          Chunk.empty -> utf32LEDecode
-        case bytes if bytes.take(3) == BOM.Utf8 =>
-          bytes.drop(3) -> utf8Decode
-        case bytes if bytes.take(2) == BOM.Utf16BE =>
-          bytes.drop(2) -> utf16BEDecode
-        case bytes if bytes.take(2) == BOM.Utf16LE =>
-          bytes.drop(2) -> utf16LEDecode
-        case bytes =>
-          bytes -> utf8Decode
-      }
-    )
-
-  def utf8Decode[Err](implicit
-    trace: ZTraceElement
-  ): ZSink[Any, Err, Byte, Err, Byte, Option[String]] = {
-    def is2ByteSequenceStart(b: Byte) = (b & 0xe0) == 0xc0
-    def is3ByteSequenceStart(b: Byte) = (b & 0xf0) == 0xe0
-    def is4ByteSequenceStart(b: Byte) = (b & 0xf8) == 0xf0
-    def computeSplit(chunk: Chunk[Byte]) = {
-      // There are 3 bad patterns we need to check to detect an incomplete chunk:
-      // - 2/3/4 byte sequences that start on the last byte
-      // - 3/4 byte sequences that start on the second-to-last byte
-      // - 4 byte sequences that start on the third-to-last byte
-      //
-      // Otherwise, we can convert the entire concatenated chunk to a string.
-      val len = chunk.length
-
-      if (
-        len >= 1 &&
-        (is2ByteSequenceStart(chunk(len - 1)) ||
-          is3ByteSequenceStart(chunk(len - 1)) ||
-          is4ByteSequenceStart(chunk(len - 1)))
-      )
-        len - 1
-      else if (
-        len >= 2 &&
-        (is3ByteSequenceStart(chunk(len - 2)) ||
-          is4ByteSequenceStart(chunk(len - 2)))
-      )
-        len - 2
-      else if (len >= 3 && is4ByteSequenceStart(chunk(len - 3)))
-        len - 3
-      else len
-    }
-
-    def chopBOM(bytes: Chunk[Byte]): Chunk[Byte] =
-      if (bytes.take(3) == BOM.Utf8) bytes.drop(3)
-      else bytes
-
-    def channel(acc: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Any, Err, Chunk[Byte], Option[String]] =
-      ZChannel.readWith(
-        (in: Chunk[Byte]) => {
-          val concat                    = acc ++ chopBOM(in)
-          val (toConvert, newLeftovers) = concat.splitAt(computeSplit(concat))
-
-          if (toConvert.isEmpty) channel(newLeftovers.materialize)
-          else if (newLeftovers.isEmpty) ZChannel.end(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
-          else ZChannel.write(newLeftovers).as(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
-        },
-        (err: Err) => ZChannel.fail(err),
-        (_: Any) =>
-          if (acc.isEmpty) ZChannel.end(None)
-          else {
-            val (toConvert, newLeftovers) = acc.splitAt(computeSplit(acc))
-
-            if (toConvert.isEmpty)
-              // Upstream has ended and all we read was an incomplete chunk, so we fallback to the
-              // String constructor behavior.
-              ZChannel.end(Some(new String(newLeftovers.toArray[Byte], StandardCharsets.UTF_8)))
-            else if (newLeftovers.nonEmpty)
-              ZChannel
-                .write(newLeftovers.materialize)
-                .as(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
-            else
-              ZChannel.end(Some(new String(toConvert.toArray[Byte], StandardCharsets.UTF_8)))
-          }
-      )
-
-    new ZSink(channel(Chunk.empty))
-  }
-
-  def utf16Decode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
-    sinkBasedOnStreamHeader[Err, Byte, Byte, String](
-      peekSize = 2,
-      {
-        case BOM.Utf16BE =>
-          Chunk.empty -> utf16BEDecode
-        case BOM.Utf16LE =>
-          Chunk.empty -> utf16LEDecode
-        case bytes =>
-          bytes -> utf16BEDecode
-      }
-    )
-
-  def utf16BEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
-    utfFixedLengthDecode(StandardCharsets.UTF_16BE, 2)
-
-  def utf16LEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
-    utfFixedLengthDecode(StandardCharsets.UTF_16LE, 2)
-
-  def utf32Decode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
-    sinkBasedOnStreamHeader[Err, Byte, Byte, String](
-      peekSize = 4,
-      {
-        case BOM.Utf32BE =>
-          Chunk.empty -> utf32BEDecode
-        case BOM.Utf32LE =>
-          Chunk.empty -> utf32LEDecode
-        case bytes =>
-          bytes -> utf32BEDecode
-      }
-    )
-
-  def utf32BEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
-    utfFixedLengthDecode(CharsetUtf32BE, 4)
-
-  def utf32LEDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Byte, Option[String]] =
-    utfFixedLengthDecode[Err](CharsetUtf32LE, 4)
-
-  private def sinkBasedOnStreamHeader[Err, In, L, Z](
-    peekSize: Int,
-    sinkDecider: Chunk[In] => (Chunk[In], ZSink[Any, Err, In, Err, L, Option[Z]])
-  )(implicit
-    trace: ZTraceElement
-  ): ZSink[Any, Err, In, Err, L, Option[Z]] = {
-    var bufferSize      = 0
-    var isLookingForBom = true
-    var targetSink      = null.asInstanceOf[ZSink[Any, Err, In, Err, L, Option[Z]]]
-
-    val buffer = ChunkBuilder.make[In](peekSize)
-
-    def channelFromTo(chunk: Chunk[In], sink: ZSink[Any, Err, In, Err, L, Option[Z]]) =
-      ZChannel.write(chunk) *>
-        ZChannel.identity[Err, Chunk[In], Any] >>>
-        sink.channel
-
-    lazy val chan: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[L], Option[Z]] =
-      ZChannel.readWith(
-        input =>
-          if (isLookingForBom) {
-            val newBufferSize = bufferSize + input.size
-            if (newBufferSize < peekSize) {
-              buffer ++= input
-              bufferSize = newBufferSize
-              chan
-            } else {
-              val remainingChunkSize = peekSize - bufferSize
-              buffer ++= input.take(remainingChunkSize)
-
-              val (chunkWithoutHeader, sink) = sinkDecider(buffer.result())
-              val passThroughChunk           = chunkWithoutHeader ++ input.drop(remainingChunkSize)
-
-              targetSink = sink
-              isLookingForBom = false
-
-              channelFromTo(passThroughChunk, targetSink)
-            }
-          } else {
-            channelFromTo(input, targetSink)
-          },
-        ZChannel.fail(_),
-        _ =>
-          // In case the stream ends before we get enough stuff of `peekSize`
-          if (isLookingForBom) {
-            val (chunkWithoutHeader, sink) = sinkDecider(buffer.result())
-            channelFromTo(chunkWithoutHeader, sink)
-          } else {
-            ZChannel.end(None)
-          }
-      )
-
-    new ZSink(chan)
-  }
-
-  private def utfFixedLengthDecode[Err](charset: Charset, width: Int)(implicit
-    trace: ZTraceElement
-  ) = {
-    def reader(buffer: Chunk[Byte]): ZChannel[Any, Err, Chunk[Byte], Any, Err, Chunk[Byte], Option[String]] =
-      ZChannel.readWith(
-        (in: Chunk[Byte]) => {
-          val data      = buffer ++ in
-          val remainder = data.length % width
-          if (remainder == 0) {
-            val decoded = new String(data.toArray, charset)
-            ZChannel.end(Some(decoded))
-          } else if (data.length > width) {
-            val (fullChunk, rest) = data.splitAt(data.length - remainder)
-            val decoded           = new String(fullChunk.toArray, charset)
-            ZChannel.write(rest) *> ZChannel.end(Some(decoded))
-          } else {
-            reader(data.materialize)
-          }
-        },
-        (err: Err) => ZChannel.fail(err),
-        (_: Any) =>
-          if (buffer.isEmpty) ZChannel.end(None)
-          else ZChannel.end(Some(new String(buffer.toArray, charset)))
-      )
-
-    new ZSink(reader(Chunk.empty))
-  }
-
-  def usASCIIDecode[Err](implicit trace: ZTraceElement): ZSink[Any, Err, Byte, Err, Nothing, Option[String]] = {
-    lazy val reader: ZChannel[Any, Err, Chunk[Byte], Any, Err, Nothing, Option[String]] = ZChannel.readWith(
-      (in: Chunk[Byte]) =>
-        if (in.nonEmpty) ZChannel.end(Some(new String(in.toArray, StandardCharsets.US_ASCII)))
-        else reader,
-      (err: Err) => ZChannel.fail(err),
-      (_: Any) => ZChannel.end(None)
-    )
-
-    new ZSink(reader)
   }
 }

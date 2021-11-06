@@ -76,10 +76,10 @@ object TestAnnotation {
     TestAnnotation("timing", Duration.Zero, _ + _)
 
   /**
-   * An annotation for capturing the source location (file name and line number) of the calling test.
+   * An annotation for capturing the trace information, including source location (i.e. file name and line number) of the calling test.
    */
-  val location: TestAnnotation[List[SourceLocation]] =
-    TestAnnotation("location", List.empty, _ ++ _)
+  private[zio] val trace: TestAnnotation[List[ZTraceElement]] =
+    TestAnnotation("trace", List.empty, _ ++ _)
 
   val fibers: TestAnnotation[Either[Int, Chunk[AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]]]] =
     TestAnnotation("fibers", Left(0), compose(_, _))

@@ -200,3 +200,7 @@ trait ZStreamPlatformSpecificConstructors {
 
   trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
 }
+
+trait ZSinkPlatformSpecificConstructors
+
+trait ZPipelinePlatformSpecificConstructors

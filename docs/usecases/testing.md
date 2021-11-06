@@ -20,7 +20,6 @@ From there the fastest way to start writing tests is to extend `DefaultRunnableS
 import zio._
 import zio.test._
 import zio.test.Assertion._
-import zio.test.environment._
 
 import java.io.IOException
 

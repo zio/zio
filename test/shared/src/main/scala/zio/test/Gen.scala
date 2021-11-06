@@ -143,6 +143,12 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
     Gen(sample.map(_.map(sample => f(sample.value))))
 
   /**
+   * Sets the size parameter for this generator to the specified value.
+   */
+  def resize(size: Int)(implicit trace: ZTraceElement): Gen[R with Has[Sized], A] =
+    Sized.withSizeGen(size)(self)
+
+  /**
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect(implicit trace: ZTraceElement): ZIO[R, Nothing, List[A]] =

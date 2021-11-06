@@ -79,14 +79,14 @@ object CauseSpec extends ZIOBaseSpec {
         }
       }
     ),
-    suite("Meta")(
-      test("`Meta` is excluded from equals") {
+    suite("Stackless")(
+      test("`Stackless` is excluded from equals") {
         check(causes) { c =>
           assert(Cause.stackless(c))(equalTo(c)) &&
           assert(c)(equalTo(Cause.stackless(c)))
         }
       },
-      test("`Meta` is excluded from hashCode") {
+      test("`Stackless` is excluded from hashCode") {
         check(causes)(c => assert(Cause.stackless(c).hashCode)(equalTo(c.hashCode)))
       }
     ),
@@ -101,6 +101,19 @@ object CauseSpec extends ZIOBaseSpec {
         check(causes) { c =>
           assert(c && empty)(equalTo(c)) &&
           assert(empty && c)(equalTo(c))
+        }
+      }
+    ),
+    suite("Monad Laws:")(
+      test("Left identity") {
+        check(causes)(c => assert(c.flatMap(Cause.fail(_)))(equalTo(c)))
+      },
+      test("Right identity") {
+        check(errors, errorCauseFunctions)((e, f) => assert(Cause.fail(e).flatMap(f))(equalTo(f(e))))
+      },
+      test("Associativity") {
+        check(causes, errorCauseFunctions, errorCauseFunctions) { (c, f, g) =>
+          assert(c.flatMap(f).flatMap(g))(equalTo(c.flatMap(e => f(e).flatMap(g))))
         }
       }
     ),

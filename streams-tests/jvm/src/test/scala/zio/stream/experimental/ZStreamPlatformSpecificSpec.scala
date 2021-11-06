@@ -2,11 +2,11 @@ package zio.stream.experimental
 
 import zio._
 import zio.test.Assertion._
-import zio.test.TestAspect._
 import zio.test.{Gen, ZSpec, assert, assertCompletes, assertM, check}
 
 import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
 import java.net.InetSocketAddress
+import java.nio.charset.StandardCharsets
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{Files, NoSuchFileException, Paths}
 import java.nio.{Buffer, ByteBuffer}
@@ -230,16 +230,13 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
 
           Task(Files.createTempFile("stream", "fromFile")).acquireReleaseWith(path => Task(Files.delete(path)).orDie) {
             path =>
-              Task(Files.write(path, data.getBytes("UTF-8"))) *>
+              Task(Files.write(path, data.getBytes(StandardCharsets.UTF_8))) *>
                 assertM(
                   ZStream
                     .fromFile(path, 24)
-                    .transduce(ZSink.utf8Decode)
-                    .runCollect
-                    .map(_.collect { case Some(str) => str }.mkString)
-                )(
-                  equalTo(data)
-                )
+                    .via(ZPipeline.utf8Decode)
+                    .mkString
+                )(equalTo(data))
           }
         },
         test("fails on a nonexistent file") {
@@ -286,9 +283,9 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         test("returns the content of the resource") {
           ZStream
             .fromResource("zio/stream/bom/quickbrown-UTF-8-with-BOM.txt")
-            .transduce(ZSink.utf8Decode)
-            .runCollect
-            .map(b => assert(b.collect { case Some(str) => str }.mkString)(startsWithString("Sent")))
+            .via(ZPipeline.utf8Decode)
+            .mkString
+            .map(assert(_)(startsWithString("Sent")))
         },
         test("fails with FileNotFoundException if the stream does not exist") {
           assertM(ZStream.fromResource("does_not_exist").runDrain.exit)(
@@ -305,9 +302,8 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                         .fromSocketServer(8896)
                         .foreach { c =>
                           c.read
-                            .transduce(ZSink.utf8Decode)
-                            .runCollect
-                            .map(_.collect { case Some(str) => str }.mkString)
+                            .via(ZPipeline.utf8Decode)
+                            .mkString
                             .flatMap(s => refOut.update(_ + s))
                         }
                         .fork
@@ -364,7 +360,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           val data  = Array.tabulate[Byte](ZStream.DefaultChunkSize * 5 / 2)(_.toByte)
           val write = (out: OutputStream) => { out.write(data); out.close() }
           ZStream.fromOutputStreamWriter(write).runCollect.map(assert(_)(equalTo(Chunk.fromArray(data))))
-        } @@ timeout(10.seconds) @@ flaky,
+        },
         test("is interruptable") {
           val latch = new CountDownLatch(1)
           val write = (out: OutputStream) => { latch.await(); out.write(42); }
