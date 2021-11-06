@@ -2671,22 +2671,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- fiber.join
               result <- ref.get
             } yield assert(result)(equalTo(List(1, 1)))
-          ),
-          test("does not swallow errors on a repetition") {
-            Ref.make(0).flatMap { counter =>
-              ZStream
-                .fromZIO(
-                  counter.getAndUpdate(_ + 1).flatMap {
-                    case i if i <= 2 => UIO.succeed(i)
-                    case otherwise   => ZIO.fail("Boom")
-                  }
-                )
-                .repeat(Schedule.recurs(3))
-                .runDrain
-                .exit
-                .map(assert(_)(fails(equalTo("Boom"))))
-            }
-          }
+          )
         ),
         suite("repeatEither")(
           test("emits schedule output")(

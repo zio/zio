@@ -276,36 +276,6 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   }
 
   /**
-   * Creates a pipeline that effectfully maps elements to the specified effectfully-computed
-   * value.
-   */
-  @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A](zio: ZIO[R, E, A]): ZPipeline[R, E, Any, A] =
-    fromZIO(zio)
-
-  /**
-   * Creates a pipeline that effectfully maps elements to the specified effectfully-computed
-   * value.
-   */
-  def fromZIO[R, E, A](zio: ZIO[R, E, A]): ZPipeline[R, E, Any, A] =
-    new ZPipeline[R, E, Any, A] {
-      def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, Any])(implicit
-        trace: ZTraceElement
-      ): ZStream[Env1, Err1, A] =
-        stream.mapZIO(_ => zio)
-    }
-
-  /**
-   * Creates a pipeline from a sink, by transforming input streams with [[ZStream#transduce]].
-   */
-  // TODO
-//  def fromSink[Env, Err, In, Out](sink: ZSink[Env, Err, In, In, Out]): ZPipeline[Env, Err, In, Out] =
-//    new ZPipeline[Env, Err, In, Out] {
-//      def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In]): ZStream[Env1, Err1, Out] =
-//        stream.transduce(sink)
-//    }
-
-  /**
    * Creates a transducer that always dies with the specified exception.
    */
   @deprecated("use failCause", "2.0.0")
