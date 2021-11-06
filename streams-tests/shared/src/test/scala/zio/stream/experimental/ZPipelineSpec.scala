@@ -104,6 +104,41 @@ object ZPipelineSpec extends ZIOBaseSpec {
         test("\\r\\n on the boundary") {
           testSplitLines(Seq(Chunk("abc\r", "\nabc")))
         }
+      ),
+      suite("splitOn")(
+        test("preserves data")(check(Gen.chunkOf(Gen.string.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
+          val data     = lines.mkString("|")
+          val pipeline = ZPipeline.splitOn("|")
+          assertM(pipeline(ZStream.fromChunks(Chunk.single(data))).runCollect)(equalTo(lines))
+        }),
+        test("handles leftovers") {
+          val pipeline = ZPipeline.splitOn("\n")
+          assertM(pipeline(ZStream.fromChunks(Chunk("ab", "c\nb"), Chunk("c"))).runCollect)(equalTo(Chunk("abc", "bc")))
+        },
+        test("works") {
+          assertM(
+            ZPipeline
+              .splitOn("delimiter")(
+                ZStream("abc", "delimiter", "bc", "delimiter", "bcd", "bcd")
+              )
+              .runCollect
+          )(equalTo(Chunk("abc", "bc", "bcdbcd")))
+        },
+        test("single newline edgecase") {
+          assertM(
+            ZPipeline.splitOn("test")(ZStream("test")).runCollect
+          )(equalTo(Chunk("")))
+        },
+        test("no delimiter in data") {
+          assertM(
+            ZPipeline.splitOn("hello")(ZStream("abc", "abc", "abc")).runCollect
+          )(equalTo(Chunk("abcabcabc")))
+        },
+        test("delimiter on the boundary") {
+          assertM(
+            ZPipeline.splitOn("<>")(ZStream("abc<", ">abc")).runCollect
+          )(equalTo(Chunk("abc", "abc")))
+        }
       )
     )
 

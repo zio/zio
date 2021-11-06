@@ -2917,6 +2917,68 @@ object ZStreamSpec extends ZIOBaseSpec {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.someOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))
         },
+        suite("splitOnChunk")(
+          test("consecutive delimiter yields empty Chunk") {
+            val input         = ZStream.apply(Chunk(1, 2), Chunk(1), Chunk(2, 1, 2, 3, 1, 2), Chunk(1, 2))
+            val splitSequence = Chunk(1, 2)
+            assertM(input.flattenChunks.splitOnChunk(splitSequence).map(_.size).runCollect)(
+              equalTo(Chunk(0, 0, 0, 1, 0))
+            )
+          },
+          test("preserves data")(check(Gen.chunkOf(Gen.byte.filter(_ != 0.toByte))) { bytes =>
+            val splitSequence = Chunk[Byte](0, 1)
+            val data          = bytes.flatMap(_ +: splitSequence)
+            assertM(ZStream.fromChunks(data).splitOnChunk(splitSequence).runCollect.map(_.flatten))(
+              equalTo(bytes)
+            )
+          }),
+          test("handles leftovers") {
+            val splitSequence = Chunk(0, 1)
+            assertM(ZStream.fromChunks(Chunk(1, 0, 2, 0, 1, 2), Chunk(2)).splitOnChunk(splitSequence).runCollect)(
+              equalTo(Chunk(Chunk(1, 0, 2), Chunk(2, 2)))
+            )
+          },
+          test("works") {
+            val splitSequence = Chunk(0, 1)
+            assertM(
+              ZStream(1, 2, 0, 1, 3, 4, 0, 1, 5, 6, 5, 6)
+                .splitOnChunk(splitSequence)
+                .runCollect
+            )(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6, 5, 6))))
+          },
+          test("works from Chunks") {
+            val splitSequence = Chunk(0, 1)
+            assertM(
+              ZStream
+                .fromChunks(Chunk(1, 2), splitSequence, Chunk(3, 4), splitSequence, Chunk(5, 6), Chunk(5, 6))
+                .splitOnChunk(splitSequence)
+                .runCollect
+            )(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6, 5, 6))))
+          },
+          test("single delimiter edgecase") {
+            assertM(
+              ZStream(0)
+                .splitOnChunk(Chunk(0))
+                .runCollect
+            )(equalTo(Chunk(Chunk())))
+          },
+          test("no delimiter in data") {
+            assertM(
+              ZStream
+                .fromChunks(Chunk(1, 2), Chunk(1, 2), Chunk(1, 2))
+                .splitOnChunk(Chunk(1, 1))
+                .runCollect
+            )(equalTo(Chunk(Chunk(1, 2, 1, 2, 1, 2))))
+          },
+          test("delimiter on the boundary") {
+            assertM(
+              ZStream
+                .fromChunks(Chunk(1, 2), Chunk(1, 2))
+                .splitOnChunk(Chunk(2, 1))
+                .runCollect
+            )(equalTo(Chunk(Chunk(1), Chunk(2))))
+          }
+        ),
         suite("take")(
           test("take")(check(streamOfInts, Gen.int) { (s, n) =>
             for {

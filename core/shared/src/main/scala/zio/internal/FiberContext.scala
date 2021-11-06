@@ -951,8 +951,19 @@ private[zio] final class FiberContext[E, A](
     }
   }
   private def unsafeReportUnhandled(v: Exit[E, A], trace: ZTraceElement): Unit = v match {
-    case Exit.Failure(cause) => unsafeLog(() => cause.prettyPrint, ZIO.someDebug, trace = trace)
-    case _                   =>
+    case Exit.Failure(cause) =>
+      try {
+        unsafeLog(() => cause.prettyPrint, ZIO.someDebug, trace = trace)
+      } catch {
+        case t: Throwable =>
+          if (runtimeConfig.fatal(t)) {
+            runtimeConfig.reportFatal(t)
+          } else {
+            println("An exception was thrown by a logger:")
+            t.printStackTrace
+          }
+      }
+    case _ =>
   }
 
   private def unsafeRestoreInterrupt()(implicit trace: ZTraceElement): Unit =
