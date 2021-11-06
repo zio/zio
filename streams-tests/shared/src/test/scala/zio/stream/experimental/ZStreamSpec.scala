@@ -2685,7 +2685,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .fromZIO(
                   counter.getAndUpdate(_ + 1).flatMap {
                     case i if i <= 2 => UIO.succeed(i)
-                    case otherwise   => ZIO.fail("Boom")
+                    case _           => ZIO.fail("Boom")
                   }
                 )
                 .repeat(Schedule.recurs(3))
