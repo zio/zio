@@ -59,7 +59,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     for {
       args         <- ZIO.service[ZIOAppArgs]
       testArgs      = TestArgs.parse(args.getArgs.toArray)
-      executedSpec <- runSpec(spec, testArgs)
+      executedSpec <- runSpec(spec @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber), testArgs)
       hasFailures = executedSpec.exists {
                       case ExecutedSpec.TestCase(test, _) => test.isLeft
                       case _                              => false
@@ -103,7 +103,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
           TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](
             ZLayer.succeedMany(env) ++ testEnvironment
           )
-        ).withRuntimeConfig(hook)
+        ) //.withRuntimeConfig(hook) // TODO Needed?
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)

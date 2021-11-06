@@ -5,15 +5,15 @@ import zio.test._
 import scala.annotation.tailrec
 
 // TODO Replace this with ZIOBase2Spec once bugs are fixed
-trait ZIOBaseOldSpec extends ZIOSpecDefault {
-  override def aspects: Chunk[TestAspectAtLeastR[Has[Live]]] =
-    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(120.seconds))
-    else Chunk(TestAspect.sequential, TestAspect.timeout(120.seconds))
+trait ZIOBaseOldSpec extends DefaultRunnableSpec {
+  override def aspects: List[TestAspectAtLeastR[Has[Live]]] =
+    if (TestPlatform.isJVM) List(TestAspect.timeout(120.seconds))
+    else List(TestAspect.sequential, TestAspect.timeout(120.seconds))
 
-//  override def runner: TestRunner[Environment, Any] =
-//    defaultTestRunner.withRuntimeConfig(self =>
-//      self.copy(runtimeConfigFlags = self.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
-//    )
+  override def runner: TestRunner[Environment, Any] =
+    defaultTestRunner.withRuntimeConfig(self =>
+      self.copy(runtimeConfigFlags = self.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
+    )
 
   sealed trait ZIOTag {
     val value: String
@@ -63,7 +63,7 @@ trait ZIOBaseOldSpec extends ZIOSpecDefault {
    * Builds an effectual suite containing a number of other specs.
    */
   @deprecated("use suite", "2.0.0")
-  def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]])(implicit
+  override def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]])(implicit
     trace: ZTraceElement
   ): Spec[R, E, T] =
     suite(label)(specs)
@@ -83,7 +83,7 @@ trait ZIOBaseOldSpec extends ZIOSpecDefault {
    * Builds a spec with a single effectful test.
    */
   @deprecated("use test", "2.0.0")
-  def testM[R, E](label: String)(
+  override def testM[R, E](label: String)(
     assertion: => ZIO[R, E, TestResult]
   )(implicit trace: ZTraceElement): ZSpec[R, E] =
     test(label)(assertion)
