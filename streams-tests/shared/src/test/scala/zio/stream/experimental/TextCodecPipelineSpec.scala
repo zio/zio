@@ -187,7 +187,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
           },
           test("without BOM") {
             testDecoderWithRandomStringUsing(ZPipeline.utf8Decode, StandardCharsets.UTF_8)
-          },
+          } @@ runOnlyIfSupporting(StandardCharsets.UTF_8.name),
           test("Data that happens to start with BOM") {
             testDecoderUsing(
               ZPipeline.utf8Decode,
