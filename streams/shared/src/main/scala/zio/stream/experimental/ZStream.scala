@@ -3797,14 +3797,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream.UpdateServiceAt[R, E, A, Service](self)
 
   /**
-   * Threads the stream through the transformation function `f`.
-   */
-  final def via[R2, E2, A2](f: ZStream[R, E, A] => ZStream[R2, E2, A2])(implicit
-    trace: ZTraceElement
-  ): ZStream[R2, E2, A2] =
-    f(self)
-
-  /**
    * Returns this stream if the specified condition is satisfied, otherwise returns an empty stream.
    */
   def when(b: => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
@@ -6180,7 +6172,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Provides syntax for applying pipelines to streams.
    */
-  implicit class PipelineSyntax[Env, Err, Elem](private val self: ZStream[Env, Err, Elem]) extends AnyVal {
+  implicit final class PipelineSyntax[Env, Err, Elem](private val self: ZStream[Env, Err, Elem]) extends AnyVal {
 
     /**
      * Symbolic alias for [[ZStream#via]].
@@ -6267,6 +6259,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
       new ZStream(self.channel >>> collecting(Chunk.empty))
     }
+
+    /**
+     * Threads the stream through the transformation function `f`.
+     */
+    def via[OutEnv, OutErr, OutElem](f: ZStream[Env, Err, Elem] => ZStream[OutEnv, OutErr, OutElem])(implicit
+      trace: ZTraceElement
+    ): ZStream[OutEnv, OutErr, OutElem] = f(self)
 
     /**
      * Threads the stream through a transformation pipeline.
