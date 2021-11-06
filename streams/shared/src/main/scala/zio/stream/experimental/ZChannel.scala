@@ -555,7 +555,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
           exit match {
             case Exit.Success(Right(elem)) =>
-              pull.fork.map { leftFiber =>
+              pull.forkDaemon.map { leftFiber =>
                 ZChannel.write(elem) *> go(both(leftFiber, fiber))
               }
 
@@ -614,7 +614,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           }
 
         ZChannel
-          .fromZIO(ZIO.transplant(graft => graft(pullL).fork.zipWith(graft(pullR).fork)(BothRunning(_, _): MergeState)))
+          .fromZIO(pullL.forkDaemon.zipWith(pullR.forkDaemon)(BothRunning(_, _): MergeState))
           .flatMap(go)
           .embedInput(input)
       }

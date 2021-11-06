@@ -2121,6 +2121,21 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield assert(result)(isLeft(equalTo("Fail")))
             } @@ zioTag(errors) @@ nonFlaky(1000)
           ) @@ zioTag(interruption),
+          test("preserves scope of inner fibers") {
+            for {
+              promise <- Promise.make[Nothing, Unit]
+              queue1  <- Queue.unbounded[Chunk[Int]]
+              queue2  <- Queue.unbounded[Chunk[Int]]
+              _       <- queue1.offer(Chunk(1))
+              _       <- queue2.offer(Chunk(2))
+              _       <- queue1.offer(Chunk(3)).fork
+              _       <- queue2.offer(Chunk(4)).fork
+              s1       = ZStream.fromChunkQueue(queue1)
+              s2       = ZStream.fromChunkQueue(queue2)
+              s3       = s1.zipWithLatest(s2)((_, _)).interruptWhen(promise.await).take(3)
+              _       <- s3.runDrain
+            } yield assertCompletes
+          } @@ nonFlaky,
           suite("interruptWhen(IO)")(
             test("interrupts the current element") {
               for {
@@ -2151,7 +2166,21 @@ object ZStreamSpec extends ZIOBaseSpec {
                             .either
               } yield assert(result)(isLeft(equalTo("Fail")))
             } @@ zioTag(errors)
-          ) @@ zioTag(interruption)
+          ) @@ zioTag(interruption),
+          test("preserves scope of inner fibers") {
+            for {
+              queue1 <- Queue.unbounded[Chunk[Int]]
+              queue2 <- Queue.unbounded[Chunk[Int]]
+              _      <- queue1.offer(Chunk(1))
+              _      <- queue2.offer(Chunk(2))
+              _      <- queue1.offer(Chunk(3)).fork
+              _      <- queue2.offer(Chunk(4)).fork
+              s1      = ZStream.fromChunkQueue(queue1)
+              s2      = ZStream.fromChunkQueue(queue2)
+              s3      = s1.zipWithLatest(s2)((_, _)).interruptWhen(ZIO.never).take(3)
+              _      <- s3.runDrain
+            } yield assertCompletes
+          } @@ nonFlaky
         ),
         suite("interruptAfter")(
           test("interrupts after given duration") {
