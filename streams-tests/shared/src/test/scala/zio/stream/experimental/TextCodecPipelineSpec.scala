@@ -21,6 +21,18 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
     ({ type OutElem[Elem] = String })#OutElem
   ]
 
+  type UtfEncodingPipeline = ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ]
+
   private def stringToByteChunkOf(charset: Charset, source: String): Chunk[Byte] =
     Chunk.fromArray(source.getBytes(charset))
 
@@ -88,6 +100,26 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
       stringGenerator.map(stringToByteChunkOf(sourceCharset, _)),
       bom
     )
+
+  private def testEncoderWithRandomStringUsing(
+    textDecodingPipeline: UtfDecodingPipeline,
+    encoderUnderTest: UtfEncodingPipeline,
+    sourceCharset: Charset,
+    bom: Chunk[Byte] = Chunk.empty
+  ) =
+    check(
+      Gen.string.map(stringToByteChunkOf(sourceCharset, _))
+    ) { generatedBytes =>
+      val originalBytes = generatedBytes
+      ZStream
+        .fromChunk(originalBytes)
+        .via(textDecodingPipeline)
+        .via(encoderUnderTest)
+        .runCollect
+        .map { roundTripBytes =>
+          assertTrue((bom ++ originalBytes) == roundTripBytes)
+        }
+    }
 
   private def runOnlyIfSupporting(charset: String) =
     if (Charset.isSupported(charset)) jvmOnly
@@ -362,6 +394,83 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
             )
           }
         ) @@ runOnlyIfSupporting("UTF-32")
+      ),
+      suite("Text Encoders")(
+        test("iso_8859_1Encode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.iso_8859_1Decode,
+            ZPipeline.iso_8859_1Encode,
+            StandardCharsets.ISO_8859_1
+          )
+        },
+        test("usASCIIDecode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.usASCIIDecode,
+            ZPipeline.usASCIIEncode,
+            StandardCharsets.US_ASCII
+          )
+        },
+        test("utf8Encode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.utf8Decode,
+            ZPipeline.utf8Encode,
+            StandardCharsets.UTF_8
+          )
+        },
+        test("utf8WithBomEncode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.utf8Decode,
+            ZPipeline.utf8WithBomEncode,
+            StandardCharsets.UTF_8,
+            BOM.Utf8
+          )
+        },
+        test("utf16BEEncode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.utf16BEDecode,
+            ZPipeline.utf16BEEncode,
+            StandardCharsets.UTF_16BE,
+            BOM.Utf16BE
+          )
+        },
+        test("utf16LEEncode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.utf16LEDecode,
+            ZPipeline.utf16LEEncode,
+            StandardCharsets.UTF_16LE,
+            BOM.Utf16LE
+          )
+        },
+        test("utf16Encode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.utf16Decode,
+            ZPipeline.utf16Encode,
+            StandardCharsets.UTF_16BE
+          )
+        },
+        test("utf32BEEncode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.utf32BEDecode,
+            ZPipeline.utf32BEEncode,
+            CharsetUtf32BE,
+            BOM.Utf32BE
+          )
+        } @@ runOnlyIfSupporting("UTF-32BE"),
+        test("utf32LEEncode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.utf32LEDecode,
+            ZPipeline.utf32LEEncode,
+            CharsetUtf32LE,
+            BOM.Utf32LE
+          )
+        } @@ runOnlyIfSupporting("UTF-32LE"),
+        test("utf32Encode") {
+          testEncoderWithRandomStringUsing(
+            ZPipeline.utf32Decode,
+            ZPipeline.utf32Encode,
+            CharsetUtf32BE
+          )
+        } @@ runOnlyIfSupporting("UTF-32")
       )
     ) @@ nondeterministic
 }
