@@ -54,7 +54,7 @@ import zio.test.Assertion._
 import zio.test.environment._
 
 val longRunningSUT =
-  ZIO.attemptBlockingInterrupt{
+  ZIO.attemptBlockingInterrupt {
     // ... 
     Thread.sleep(10000) // simulating a long-running blocking operation
     // ...
