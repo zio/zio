@@ -19,8 +19,9 @@ object ScheduleSpec extends ZIOBaseSpec {
 
   /**
    * Retry `once` means that we try to exec `io`, get and error, try again to
-   * exec `io`, and whatever the output is, we return that second result. The
-   * three following tests test retry when:
+   * exec `io`, and whatever the output is, we return that second result.
+   *
+   * The three following tests test retry when:
    *   - the first time succeeds (no retry)
    *   - the first time fails and the second succeeds (one retry, result
    *     success)

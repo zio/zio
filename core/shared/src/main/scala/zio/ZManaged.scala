@@ -54,7 +54,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends Serializable { self =>
    *
    * Note that this method is a low-level interface, not intended for regular
    * usage. As such, it offers no guarantees on interruption or resource safety
-   * - those are up to the caller to enforce!
+   *   - those are up to the caller to enforce!
    */
   def zio: ZIO[(R, ZManaged.ReleaseMap), E, (ZManaged.Finalizer, A)]
 

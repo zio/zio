@@ -37,8 +37,9 @@ object MutableConcurrentQueue {
  * A MutableConcurrentQueue interface to use under the hood in ZIO.
  *
  * The implementation at minimum:
- *   1. Should be non-blocking and ideally lock-free. 2. Should provide basic
- *      metrics such as how many elements were enqueued/dequeued.
+ *   1. Should be non-blocking and ideally lock-free.
+ *   1. Should provide basic metrics such as how many elements were
+ *      enqueued/dequeued.
  *
  * @note
  *   this is declared as `abstract class` since `invokevirtual` is slightly

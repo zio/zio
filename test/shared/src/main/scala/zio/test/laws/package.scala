@@ -34,9 +34,9 @@ import zio.ZIO
  * }}}
  *
  * Definitions of equality are expected to obey certain laws:
- *
- *   1. Reflexivity - `a1 === a1` 2. Symmetry - `a1 === a2 ==> a2 === a1` 3.
- *      Transitivity - (a1 === a2) && (a2 === a3) ==> (a1 === a3)`
+ *   1. Reflexivity - `a1 === a1`
+ *   1. Symmetry - `a1 === a2 ==> a2 === a1`
+ *   1. Transitivity - `(a1 === a2) && (a2 === a3) ==> (a1 === a3)`
  *
  * These laws define what the capabilities mean and ensure that it is safe to
  * abstract across different instances with the same capability.

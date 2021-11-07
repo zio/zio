@@ -71,9 +71,10 @@ object RingBuffer {
  *
  * Using `offer` as an example, the algorithm can be broken down roughly into
  * three steps:
- *   1. Find a place to insert an element. 2. Reserve this place, put an element
- *      and make it visible to other threads (store and publish). 3. If there
- *      was no place on step 1 return false, otherwise returns true.
+ *   1. Find a place to insert an element.
+ *   1. Reserve this place, put an element and make it visible to other threads
+ *      (store and publish).
+ *   1. If there was no place on step 1 return false, otherwise returns true.
  *
  * Steps 1 and 2 are usually done in a loop to accommodate the possibility of
  * failure due to race. Depending on the implementation of these steps the
@@ -86,10 +87,12 @@ object RingBuffer {
  * The queue uses a `buf` array to store elements. It uses `seq` array to store
  * longs which serve as:
  *   1. an indicator to producer/consumer threads whether the slot is right for
- *      enqueue/dequeue, 2. an indicator whether the queue is empty/full, 3. a
- *      mechanism to ''publish'' changes to `buf` via volatile write (can even
- *      be relaxed to ordered store). See comments in `offer`/`poll` methods for
- *      more details on `seq`.
+ *      enqueue/dequeue,
+ *   1. an indicator whether the queue is empty/full,
+ *   1. a mechanism to ''publish'' changes to `buf` via volatile write (can even
+ *      be relaxed to ordered store).
+ *
+ * See comments in `offer`/`poll` methods for more details on `seq`.
  *
  * The benefit of using `seq` + `head`/`tail` counters is that there are no
  * allocations during enqueue/dequeue and very little overhead. The downside is
@@ -102,8 +105,8 @@ object RingBuffer {
  * problem, since benefits are simplicity, zero GC pressure and speed.
  *
  * There are 2 implementations of a RingBuffer:
- *   1. `RingBufferArb` that supports queues with arbitrary capacity; 2.
- *      `RingBufferPow2` that supports queues with only power of 2 capacities.
+ *   1. `RingBufferArb` that supports queues with arbitrary capacity;
+ *   1. `RingBufferPow2` that supports queues with only power of 2 capacities.
  *
  * The reason is `head % N` and `tail % N` are rather cheap when can be done as
  * a simple mask (N is pow 2), and pretty expensive when involve an `idiv`
@@ -471,7 +474,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     }
 
     if (state == STATE_RESERVED) {
-      // We have successfully resserved space in the queue and have exclusive
+      // We have successfully reserved space in the queue and have exclusive
       // ownership of each space until we publish our changes. Dequeue the
       // elements sequentially and publish our changes as we go.
       val builder = ChunkBuilder.make[A]()

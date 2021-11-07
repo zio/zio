@@ -249,7 +249,7 @@ sealed abstract class Schedule[-Env, -In, +Out] private (
 
   /**
    * Returns a new schedule that passes each input and output of this schedule
-   * to the spefcified function, and then determines whether or not to continue
+   * to the specified function, and then determines whether or not to continue
    * based on the return value of the function.
    */
   def check[In1 <: In](test: (In1, Out) => Boolean): Schedule[Env, In1, Out] =
@@ -1038,6 +1038,7 @@ object Schedule {
       }.map(_._1)
     }
 
+  // format: off
   /**
    * A schedule that recurs on a fixed interval. Returns the number of
    * repetitions of the schedule so far.
@@ -1046,11 +1047,11 @@ object Schedule {
    * action will be run immediately, but re-runs will not "pile up".
    *
    * <pre>
-   * | -----interval-----      | -----interval----- | -----interval----- |       |        |             |
-   * |:------------------------|:-------------------|:-------------------|:------|:-------|:------------|
-   * | ---------action-------- |                    | action             | ----- | action | ----------- |
+   * |-----interval-----|-----interval-----|-----interval-----|
+   * |---------action--------||action|-----|action|-----------|
    * </pre>
    */
+  // format: on
   def fixed(interval: Duration): Schedule[Any, Any, Long] = {
     import Decision._
     import java.time.Duration
@@ -1135,7 +1136,7 @@ object Schedule {
   def fromFunction[A, B](f: A => B): Schedule[Any, A, B] = identity[A].map(f)
 
   /**
-   * A schedule that always recurs, which counts the number of recurrances.
+   * A schedule that always recurs, which counts the number of recurrences.
    */
   val count: Schedule[Any, Any, Long] =
     unfold(0L)(_ + 1L)
@@ -1206,17 +1207,19 @@ object Schedule {
     Schedule((now, _) => ZIO.effectTotal(a).map(a => Decision.Continue(a, now, loop(f(a)))))
   }
 
+  //format: off
   /**
    * A schedule that divides the timeline to `interval`-long windows, and sleeps
    * until the nearest window boundary every time it recurs.
    *
    * For example, `windowed(10.seconds)` would produce a schedule as follows:
-   * <pre> 10s 10s 10s 10s
-   * | ----------   | ---------- | ---------- | ---------- |            |
-   * |:-------------|:-----------|:-----------|:-----------|:-----------|
-   * | action------ | sleep---   | act        | -sleep     | action---- |
+   * <pre>
+   *      10s        10s        10s       10s
+   * |----------|----------|----------|----------|
+   * |action------|sleep---|act|-sleep|action----|
    * </pre>
    */
+  //format: on
   def windowed(interval: Duration): Schedule[Any, Any, Long] = {
     import Decision._
 

@@ -51,8 +51,10 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
   /**
    * Compose two expectations, producing a new expectation to satisfy both.
    *
-   * {{ val mockEnv = MockClock.sleep(equalTo(1.second)) and
-   * MockConsole.getStrLn(value("foo")) }}
+   * {{{
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) and
+   * MockConsole.getStrLn(value("foo"))
+   * }}}
    */
   def and[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
@@ -69,8 +71,10 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy both
    * sequentially.
    *
-   * {{ val mockEnv = MockClock.sleep(equalTo(1.second)) andThen
-   * MockConsole.getStrLn(value("foo")) }}
+   * {{{
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) andThen
+   * MockConsole.getStrLn(value("foo"))
+   * }}}
    */
   def andThen[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
@@ -129,8 +133,10 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Compose two expectations, producing a new expectation to satisfy one of
    * them.
    *
-   * {{ val mockEnv = MockClock.sleep(equalTo(1.second)) or
-   * MockConsole.getStrLn(value("foo")) }}
+   * {{{
+   * val mockEnv = MockClock.sleep(equalTo(1.second)) or
+   * MockConsole.getStrLn(value("foo"))
+   * }}}
    */
   def or[R0 <: Has[_]: Tag](that: Expectation[R0]): Expectation[R with R0] =
     (self, that) match {
@@ -147,7 +153,7 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
    * Repeats this expectation withing given bounds, producing a new expectation
    * to satisfy itself sequentially given number of times.
    *
-   * {{ val mockEnv = MockClock.sleep(equalTo(1.second)).repeats(1, 5) }}
+   * {{{val mockEnv = MockClock.sleep(equalTo(1.second)).repeats(1, 5)}}}
    *
    * NOTE: once another repetition starts executing, it must be completed in
    * order to satisfy the composite expectation. For example (A ++ B).repeats(1,
