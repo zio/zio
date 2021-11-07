@@ -24,7 +24,7 @@ object TestData {
       _.toByte
     )
 
-  def deflatedStream(bytes: Aray[Byte]): ZStream[Any, Nothing, Byte] =
+  def deflatedStream(bytes: Array[Byte]): ZStream[Any, Nothing, Byte] =
     deflatedWith(bytes, new Deflater())
 
   def noWrapDeflatedStream(bytes: Array[Byte]): ZStream[Any, Nothing, Byte] =
