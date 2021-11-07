@@ -315,6 +315,19 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     textDecodeUsing(StandardCharsets.ISO_8859_1)
 
+  def iso_8859_1Encode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(StandardCharsets.ISO_8859_1)
+
   /**
    * Creates a pipeline that maps elements with the specified function.
    */
@@ -797,6 +810,123 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfDecodeFixedLength(CharsetUtf32LE, fixedLength = 4)
 
+  def usASCIIEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(StandardCharsets.US_ASCII)
+
+  def utf8Encode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(StandardCharsets.UTF_8)
+
+  def utf8WithBomEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(StandardCharsets.UTF_8, bom = BOM.Utf8)
+
+  def utf16BEEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(StandardCharsets.UTF_16BE, bom = BOM.Utf16BE)
+
+  def utf16LEEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(StandardCharsets.UTF_16LE, bom = BOM.Utf16LE)
+
+  def utf16Encode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(StandardCharsets.UTF_16BE)
+
+  def utf32BEEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(CharsetUtf32BE, bom = BOM.Utf32BE)
+
+  def utf32LEEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(CharsetUtf32LE, bom = BOM.Utf32LE)
+
+  def utf32Encode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(CharsetUtf32BE)
+
   trait Compose[+LeftLower, -LeftUpper, LeftOut[In], +RightLower, -RightUpper, RightOut[In]] {
     type Lower
     type Upper
@@ -1268,6 +1398,51 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
         new ZStream(
           sourceStream.channel >>> readThenTransduce(emptyByteChunk)
         )
+      }
+    }
+
+  private def utfEncodeFor(charset: Charset, bom: Chunk[Byte] = Chunk.empty): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, String] {
+      override type OutEnv[Env]   = Env
+      override type OutErr[Err]   = Err
+      override type OutElem[Elem] = Byte
+
+      override def apply[Env, Err, Elem <: String](sourceStream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, Byte] = {
+        def transform: ZChannel[Env, Err, Chunk[String], Any, Err, Chunk[Byte], Any] =
+          ZChannel.readWith(
+            received =>
+              if (received.isEmpty)
+                transform
+              else {
+                val bytes = received.foldLeft[Chunk[Byte]](
+                  Chunk.empty
+                ) { (acc, string) =>
+                  val bytes = string.getBytes(charset)
+                  acc ++ Chunk.fromArray(bytes)
+                }
+
+                ZChannel.write(bytes)
+              },
+            error = ZChannel.fail(_),
+            done = _ => ZChannel.unit
+          )
+
+        ZStream.fromChunk(bom) ++
+          new ZStream(
+            sourceStream.channel >>> transform
+          )
       }
     }
 }
