@@ -130,7 +130,7 @@ In ZIO Test, specs are just values like other data types in ZIO. So we can filte
 
 ### Test Aspects
 
-We can think of a test aspect as a polymorphic function from one test to another test. We use them to change existing tests or even entire suites that we have already created.
+We can think of a test aspect as a polymorphic function from one test to another test. We use them to change existing tests or even entire suites or specs that we have already created.
 
 Test aspects are applied to a test or suite using the `@@` operator:
 
@@ -282,4 +282,23 @@ The output would be:
 [info]   + another slow test - tagged: "slow"
 [info] Ran 2 tests in 162 ms: 2 succeeded, 0 ignored, 0 failed
 [success] Total time: 1 s, completed Nov 2, 2021, 12:36:36 PM
+```
+
+#### Conditional Aspects
+
+When we apply a conditional aspect, it will run the spec only if the specified predicate is satisfied:
+
+- **`ifEnv`** — An aspect that only runs a test if the specified environment variable satisfies the specified assertion.
+- **`ifEnvSet`** — An aspect that only runs a test if the specified environment variable is set.
+- **`ifProp`** An aspect that only runs a test if the specified Java property satisfies the specified assertion.
+- **`ifPropSet`** — An aspect that only runs a test if the specified Java property is set.
+
+```scala mdoc:compile-only
+test("a test that will run if the product is deployed in the testing environment") {
+  ???
+} @@ ifEnv("ENV")(_ == "testing")
+
+test("a test that will run if the java.io.tmpdir property is available") {
+  ???
+} @@ ifEnvSet("java.io.tmpdir")
 ```
