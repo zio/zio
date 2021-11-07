@@ -2688,11 +2688,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def peel[R1 <: R, E1 >: E, A1 >: A, Z](
     sink: ZSink[R1, E1, A1, E1, A1, Z]
-  )(implicit trace: ZTraceElement): ZManaged[R1, E1, (Z, ZStream[R1, E1, A1])] = {
+  )(implicit trace: ZTraceElement): ZManaged[R1, E1, (Z, ZStream[Any, E, A1])] = {
     sealed trait Signal
-    case class Emit(els: Chunk[A1])   extends Signal
-    case class Halt(cause: Cause[E1]) extends Signal
-    case object End                   extends Signal
+    object Signal {
+      case class Emit(els: Chunk[A1])  extends Signal
+      case class Halt(cause: Cause[E]) extends Signal
+      case object End                  extends Signal
+    }
 
     (for {
       p       <- Promise.makeManaged[E1, Z]
@@ -2703,24 +2705,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           e => ZSink.fromZIO(p.fail(e)) *> ZSink.fail(e),
           { case (z1, leftovers) =>
             lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
-              (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> loop,
-              (e: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(e))) *> ZChannel.failCause(e),
-              (_: Any) => ZChannel.fromZIO(handoff.offer(End)) *> ZChannel.unit
+              (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Signal.Emit(in))) *> loop,
+              (e: Cause[E]) => ZChannel.fromZIO(handoff.offer(Signal.Halt(e))) *> ZChannel.failCause(e),
+              (_: Any) => ZChannel.fromZIO(handoff.offer(Signal.End)) *> ZChannel.unit
             )
 
             new ZSink(
               ZChannel.fromZIO(p.succeed(z1)) *>
-                ZChannel.fromZIO(handoff.offer(Emit(leftovers))) *>
+                ZChannel.fromZIO(handoff.offer(Signal.Emit(leftovers))) *>
                 loop
             )
           }
         )
 
-      lazy val producer: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] = ZChannel.unwrap(
+      lazy val producer: ZChannel[Any, Any, Any, Any, E, Chunk[A1], Unit] = ZChannel.unwrap(
         handoff.take.map {
-          case Emit(els)   => ZChannel.write(els) *> producer
-          case Halt(cause) => ZChannel.failCause(cause)
-          case End         => ZChannel.unit
+          case Signal.Emit(els)   => ZChannel.write(els) *> producer
+          case Signal.Halt(cause) => ZChannel.failCause(cause)
+          case Signal.End         => ZChannel.unit
         }
       )
 
@@ -2740,6 +2742,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     trace: ZTraceElement
   ): ZStream[R1, E2, L] =
     new ZStream(self.channel >>> sink.channel)
+
+  /**
+   * Pipes all the values from this stream through the provided channel
+   */
+  def pipeThroughChannel[R1 <: R, E2, A2](channel: ZChannel[R1, E, Chunk[A], Any, E2, Chunk[A2], Any])(implicit
+    trace: ZTraceElement
+  ): ZStream[R1, E2, A2] =
+    new ZStream(self.channel >>> channel)
 
   /**
    * Provides the stream with its required environment, which eliminates
@@ -3192,6 +3202,44 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self.mapZIO(ev(_).fold[IO[E1, A2]](ZIO.fail(e))(ZIO.succeedNow(_)))
 
   /**
+   * Splits elements on a delimiter and transforms the splits into desired output.
+   */
+  final def splitOnChunk[A1 >: A](delimiter: Chunk[A1])(implicit trace: ZTraceElement): ZStream[R, E, Chunk[A]] = {
+    def next(leftover: Option[Chunk[A]], delimiterIndex: Int): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
+      ZChannel.readWithCause(
+        inputChunk => {
+          var buffer = null.asInstanceOf[collection.mutable.ArrayBuffer[Chunk[A]]]
+          inputChunk.foldLeft((leftover getOrElse Chunk.empty, delimiterIndex)) { case ((carry, delimiterCursor), a) =>
+            val concatenated = carry :+ a
+            if (delimiterCursor < delimiter.length && a == delimiter(delimiterCursor)) {
+              if (delimiterCursor + 1 == delimiter.length) {
+                if (buffer eq null) buffer = collection.mutable.ArrayBuffer[Chunk[A]]()
+                buffer += concatenated.take(concatenated.length - delimiter.length)
+                (Chunk.empty, 0)
+              } else (concatenated, delimiterCursor + 1)
+            } else (concatenated, if (a == delimiter(0)) 1 else 0)
+          } match {
+            case (carry, delimiterCursor) =>
+              ZChannel.write(
+                if (buffer eq null) Chunk.empty else Chunk.fromArray(buffer.toArray)
+              ) *> next(if (carry.nonEmpty) Some(carry) else None, delimiterCursor)
+          }
+        },
+        halt =>
+          leftover match {
+            case Some(chunk) => ZChannel.write(Chunk.single(chunk)) *> ZChannel.failCause(halt)
+            case None        => ZChannel.failCause(halt)
+          },
+        done =>
+          leftover match {
+            case Some(chunk) => ZChannel.write(Chunk.single(chunk)) *> ZChannel.succeed(done)
+            case None        => ZChannel.succeed(done)
+          }
+      )
+    new ZStream(self.channel >>> next(None, 0))
+  }
+
+  /**
    * Takes the specified number of elements from this stream.
    */
   def take(n: Long)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
@@ -3562,7 +3610,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def timeoutFail[E1 >: E](e: => E1)(d: Duration)(implicit
     trace: ZTraceElement
   ): ZStream[R with Has[Clock], E1, A] =
-    timeoutFailCause(Cause.fail(e))(d)
+    self.timeoutTo[R with Has[Clock], E1, A](d)(ZStream.fail(e))
 
   /**
    * Fails the stream with given cause if it does not produce a value after d duration.
@@ -3795,14 +3843,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def updateServiceAt[Service]: ZStream.UpdateServiceAt[R, E, A, Service] =
     new ZStream.UpdateServiceAt[R, E, A, Service](self)
-
-  /**
-   * Threads the stream through the transformation function `f`.
-   */
-  final def via[R2, E2, A2](f: ZStream[R, E, A] => ZStream[R2, E2, A2])(implicit
-    trace: ZTraceElement
-  ): ZStream[R2, E2, A2] =
-    f(self)
 
   /**
    * Returns this stream if the specified condition is satisfied, otherwise returns an empty stream.
@@ -4578,7 +4618,46 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIterableZIO[R, E, O](iterable: ZIO[R, E, Iterable[O]])(implicit trace: ZTraceElement): ZStream[R, E, O] =
     fromZIO(iterable).mapConcat(identity)
 
-  def fromIterator[A](iterator: => Iterator[A])(implicit trace: ZTraceElement): ZStream[Any, Throwable, A] = {
+  def fromIterator[A](iterator: => Iterator[A], maxChunkSize: Int = DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, A] =
+    if (maxChunkSize == 1) fromIteratorSingle(iterator)
+    else {
+      object StreamEnd extends Throwable
+
+      ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any] <*> UIO(ChunkBuilder.make[A]())).flatMap {
+        case (it, rt, builder) =>
+          ZStream.repeatZIOChunkOption {
+            Task {
+              builder.clear()
+              var count = 0
+
+              try {
+                while (count < maxChunkSize && it.hasNext) {
+                  builder += it.next()
+                  count += 1
+                }
+              } catch {
+                case e: Throwable if !rt.runtimeConfig.fatal(e) =>
+                  throw e
+              }
+
+              if (count > 0) {
+                builder.result()
+              } else {
+                throw StreamEnd
+              }
+            }.mapError {
+              case StreamEnd => None
+              case e         => Some(e)
+            }
+          }
+      }
+    }
+
+  private def fromIteratorSingle[A](iterator: => Iterator[A])(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, A] = {
     object StreamEnd extends Throwable
 
     ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
@@ -4618,33 +4697,52 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a managed iterator
    */
-  def fromIteratorManaged[R, A](iterator: ZManaged[R, Throwable, Iterator[A]])(implicit
-    trace: ZTraceElement
+  def fromIteratorManaged[R, A](iterator: ZManaged[R, Throwable, Iterator[A]], maxChunkSize: Int = DefaultChunkSize)(
+    implicit trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
-    managed(iterator).flatMap(fromIterator(_))
+    managed(iterator).flatMap(fromIterator(_, maxChunkSize))
 
   /**
    * Creates a stream from an iterator
    */
-  def fromIteratorSucceed[A](iterator: => Iterator[A])(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] = {
-    def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
-      ZChannel.unwrap {
-        UIO {
-          if (iterator.hasNext)
-            ZChannel.write(Chunk.single(iterator.next())) *> loop(iterator)
-          else ZChannel.end(())
-        }
-      }
+  def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: Int = DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Nothing, A] =
+    ZStream.unwrap {
+      UIO(ChunkBuilder.make[A]()).map { builder =>
+        def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
+          ZChannel.unwrap {
+            UIO {
+              if (maxChunkSize == 1) {
+                if (iterator.hasNext) {
+                  ZChannel.write(Chunk.single(iterator.next())) *> loop(iterator)
+                } else ZChannel.end(())
+              } else {
+                builder.clear()
+                var count = 0
+                while (count < maxChunkSize && iterator.hasNext) {
+                  builder += iterator.next()
+                  count += 1
+                }
+                if (count > 0) {
+                  ZChannel.write(builder.result()) *> loop(iterator)
+                } else ZChannel.end(())
+              }
+            }
+          }
 
-    new ZStream(loop(iterator))
-  }
+        new ZStream(loop(iterator))
+      }
+    }
 
   /**
    * Creates a stream from an iterator
    */
   @deprecated("use fromIteratorSucceed", "2.0.0")
-  def fromIteratorTotal[A](iterator: => Iterator[A])(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
-    fromIteratorSucceed(iterator)
+  def fromIteratorTotal[A](iterator: => Iterator[A], maxChunkSize: Int = DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Nothing, A] =
+    fromIteratorSucceed(iterator, maxChunkSize)
 
   /**
    * Creates a stream from an iterator that may potentially throw exceptions
@@ -6180,7 +6278,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Provides syntax for applying pipelines to streams.
    */
-  implicit class PipelineSyntax[Env, Err, Elem](private val self: ZStream[Env, Err, Elem]) extends AnyVal {
+  implicit final class PipelineSyntax[Env, Err, Elem](private val self: ZStream[Env, Err, Elem]) extends AnyVal {
 
     /**
      * Symbolic alias for [[ZStream#via]].
@@ -6267,6 +6365,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
       new ZStream(self.channel >>> collecting(Chunk.empty))
     }
+
+//    /**
+//     * Threads the stream through the transformation function `f`.
+//     */
+//    def via[OutEnv, OutErr, OutElem](f: ZStream[Env, Err, Elem] => ZStream[OutEnv, OutErr, OutElem])(implicit
+//      trace: ZTraceElement
+//    ): ZStream[OutEnv, OutErr, OutElem] = f(self)
 
     /**
      * Threads the stream through a transformation pipeline.

@@ -1,13 +1,15 @@
 package zio.stream.experimental
 
 import zio._
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.stream.compression.{CompressionException, CompressionLevel, CompressionStrategy, FlushMode}
 
 import java.io._
-import java.net.InetSocketAddress
+import java.net.{InetSocketAddress, SocketAddress}
 import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel}
-import java.nio.file.Path
+import java.nio.file.{OpenOption, Path}
+import java.nio.file.StandardOpenOption._
 import java.nio.{Buffer, ByteBuffer}
+import java.{util => ju}
 
 trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
@@ -310,34 +312,28 @@ trait ZStreamPlatformSpecificConstructors {
     write: OutputStream => Unit,
     chunkSize: Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[Any, Throwable, Byte] = {
-    def from(in: InputStream, out: OutputStream, err: Promise[Throwable, None.type]) = {
-      val readIn = fromInputStream(in, chunkSize).ensuring(ZIO.succeed(in.close()))
-      val writeOut = ZStream.fromZIO {
-        ZIO
-          .attemptBlockingInterrupt(write(out))
-          .exit
-          .tap(exit => err.done(exit.as(None)))
-          .ensuring(ZIO.succeed(out.close()))
-      }
-
-      val handleError = ZStream.fromZIOOption(err.await.some)
-      readIn.drainFork(writeOut) ++ handleError
-    }
+    def from(in: InputStream, out: OutputStream, done: Promise[None.type, Nothing]): ZStream[Any, Throwable, Byte] =
+      (fromInputStream(in, chunkSize) ++ fromZIOOption(done.await)).drainFork(
+        fromZIO(ZIO.attemptBlockingInterrupt {
+          try write(out)
+          finally out.close()
+        }) ++ fromZIO(done.fail(None))
+      )
 
     for {
-      out    <- ZStream.fromZIO(ZIO.succeed(new PipedOutputStream()))
-      in     <- ZStream.fromZIO(ZIO.succeed(new PipedInputStream(out)))
-      err    <- ZStream.fromZIO(Promise.make[Throwable, None.type])
-      result <- from(in, out, err)
+      out    <- fromZIO(ZIO.attempt(new PipedOutputStream()))
+      in     <- managed(ZManaged.fromAutoCloseable(ZIO.attempt(new PipedInputStream(out))))
+      done   <- fromZIO(Promise.make[None.type, Nothing])
+      result <- from(in, out, done)
     } yield result
   }
 
   /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStream[R, A](stream: => java.util.stream.Stream[A])(implicit
+  final def fromJavaStream[A](stream: => java.util.stream.Stream[A])(implicit
     trace: ZTraceElement
-  ): ZStream[R, Throwable, A] =
+  ): ZStream[Any, Throwable, A] =
     ZStream.fromJavaIterator(stream.iterator())
 
   /**
@@ -425,6 +421,20 @@ trait ZStreamPlatformSpecificConstructors {
   final class Connection private (socket: AsynchronousSocketChannel) {
 
     /**
+     * The remote address, i.e. the connected client
+     */
+    def remoteAddress(implicit trace: ZTraceElement): IO[IOException, SocketAddress] = IO
+      .attempt(socket.getRemoteAddress)
+      .refineToOrDie[IOException]
+
+    /**
+     * The local address, i.e. our server
+     */
+    def localAddress(implicit trace: ZTraceElement): IO[IOException, SocketAddress] = IO
+      .attempt(socket.getLocalAddress)
+      .refineToOrDie[IOException]
+
+    /**
      * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`
      */
     def read(implicit trace: ZTraceElement): ZStream[Any, Throwable, Byte] =
@@ -474,6 +484,13 @@ trait ZStreamPlatformSpecificConstructors {
      * Close the underlying socket
      */
     private[stream] def close()(implicit trace: ZTraceElement): UIO[Unit] = ZIO.succeed(socket.close())
+
+    /**
+     * Close only the write, so the remote end will see EOF
+     */
+    def closeWrite()(implicit trace: ZTraceElement): IO[IOException, Unit] =
+      ZIO.attempt(socket.shutdownOutput()).unit.refineToOrDie[IOException]
+
   }
 
   object Connection {
@@ -530,6 +547,50 @@ trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
 
   /**
+   * Uses the provided `Path` to create a [[ZSink]] that consumes byte chunks
+   * and writes them to the `File`. The sink will yield count of bytes written.
+   */
+  final def fromFile(
+    path: => Path,
+    position: Long = 0L,
+    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Throwable, Byte, Throwable, Byte, Long] = {
+
+    val managedChannel = ZManaged.acquireReleaseWith(
+      ZIO
+        .attemptBlockingInterrupt(
+          FileChannel
+            .open(
+              path,
+              options.foldLeft(
+                new ju.HashSet[OpenOption]()
+              ) { (acc, op) =>
+                acc.add(op)
+                acc
+              } // for avoiding usage of different Java collection converters for different scala versions
+            )
+            .position(position)
+        )
+    )(chan => ZIO.attemptBlocking(chan.close()).orDie)
+
+    ZSink.unwrapManaged {
+      managedChannel.map { chan =>
+        ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+          ZIO.attemptBlockingInterrupt {
+            val bytes = byteChunk.toArray
+
+            chan.write(ByteBuffer.wrap(bytes))
+
+            bytesWritten + bytes.length.toLong
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
    * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
    *
@@ -564,4 +625,88 @@ trait ZSinkPlatformSpecificConstructors {
       }
     }
 
+}
+
+trait ZPipelinePlatformSpecificConstructors {
+  def deflate[Env, Err](
+    bufferSize: Int = 64 * 1024,
+    noWrap: Boolean = false,
+    level: CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: FlushMode = FlushMode.NoFlush
+  )(implicit trace: ZTraceElement): ZPipeline.WithOut[
+    Env,
+    Env,
+    Err,
+    Err,
+    Byte,
+    Byte,
+    ({ type OutEnv[Env0] = Env })#OutEnv,
+    ({ type OutErr[Err0] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    ZPipeline.fromChannel(
+      Deflate.makeDeflater(
+        bufferSize,
+        noWrap,
+        level,
+        strategy,
+        flushMode
+      )
+    )
+
+  def inflate[Env](
+    bufferSize: Int = 64 * 1024,
+    noWrap: Boolean = false
+  )(implicit trace: ZTraceElement): ZPipeline.WithOut[
+    Env,
+    Env,
+    CompressionException,
+    CompressionException,
+    Byte,
+    Byte,
+    ({ type OutEnv[Env0] = Env })#OutEnv,
+    ({ type OutErr[Err0] = CompressionException })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    ZPipeline.fromChannel(
+      Inflate.makeInflater(bufferSize, noWrap)
+    )
+
+  def gzip[Env, Err](
+    bufferSize: Int = 64 * 1024,
+    level: CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: FlushMode = FlushMode.NoFlush
+  )(implicit trace: ZTraceElement): ZPipeline.WithOut[
+    Env,
+    Env,
+    Err,
+    Err,
+    Byte,
+    Byte,
+    ({ type OutEnv[Env0] = Env })#OutEnv,
+    ({ type OutErr[Err0] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    ZPipeline.fromChannel(
+      Gzip.makeGzipper(bufferSize, level, strategy, flushMode)
+    )
+
+  def gunzip[Env](bufferSize: Int = 64 * 1024)(implicit
+    trace: ZTraceElement
+  ): ZPipeline.WithOut[
+    Env,
+    Env,
+    CompressionException,
+    CompressionException,
+    Byte,
+    Byte,
+    ({ type OutEnv[Env0] = Env })#OutEnv,
+    ({ type OutErr[Err0] = CompressionException })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    ZPipeline.fromChannel(
+      Gunzip.makeGunzipper(bufferSize)
+    )
 }

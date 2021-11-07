@@ -555,7 +555,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
           exit match {
             case Exit.Success(Right(elem)) =>
-              pull.fork.map { leftFiber =>
+              pull.forkDaemon.map { leftFiber =>
                 ZChannel.write(elem) *> go(both(leftFiber, fiber))
               }
 
@@ -614,7 +614,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           }
 
         ZChannel
-          .fromZIO(ZIO.transplant(graft => graft(pullL).fork.zipWith(graft(pullR).fork)(BothRunning(_, _): MergeState)))
+          .fromZIO(pullL.forkDaemon.zipWith(pullR.forkDaemon)(BothRunning(_, _): MergeState))
           .flatMap(go)
           .embedInput(input)
       }
@@ -1182,7 +1182,7 @@ object ZChannel {
     EffectSuspendTotal(() => effect)
 
   def end[Z](result: => Z)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
-    Done(result)
+    effectTotal(result)
 
   def endWith[R, Z](f: R => Z)(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, Nothing, Nothing, Z] =
     ZChannel.fromZIO(ZIO.access[R](f))
@@ -1486,17 +1486,17 @@ object ZChannel {
     }
 
   def toHub[Err, Done, Elem](
-    hub: Hub[Exit[Either[Err, Done], Elem]]
+    hub: Hub[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     toQueue(hub.toQueue)
 
   def toQueue[Err, Done, Elem](
-    queue: Enqueue[Exit[Either[Err, Done], Elem]]
+    queue: Enqueue[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     ZChannel.readWithCause(
-      (in: Elem) => ZChannel.fromZIO(queue.offer(Exit.succeed(in))) *> toQueue(queue),
-      (cause: Cause[Err]) => ZChannel.fromZIO(queue.offer(Exit.failCause(cause.map(Left(_))))),
-      (done: Done) => ZChannel.fromZIO(queue.offer(Exit.fail(Right(done))))
+      (in: Elem) => ZChannel.fromZIO(queue.offer(Right(in))) *> toQueue(queue),
+      (cause: Cause[Err]) => ZChannel.fromZIO(queue.offer(Left(Exit.failCause(cause)))),
+      (done: Done) => ZChannel.fromZIO(queue.offer(Left(Exit.succeed(done))))
     )
 
   private[zio] sealed trait MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
