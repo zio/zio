@@ -557,6 +557,7 @@ trait ZSinkPlatformSpecificConstructors {
   )(implicit
     trace: ZTraceElement
   ): ZSink[Any, Throwable, Byte, Throwable, Byte, Long] = {
+
     val managedChannel = ZManaged.acquireReleaseWith(
       ZIO
         .attemptBlockingInterrupt(
@@ -574,16 +575,19 @@ trait ZSinkPlatformSpecificConstructors {
         )
     )(chan => ZIO.attemptBlocking(chan.close()).orDie)
 
-    val writer = ZSink.unwrapManaged {
+    ZSink.unwrapManaged {
       managedChannel.map { chan =>
-        ZSink.foreachChunk[Any, Throwable, Byte] { byteChunk =>
+        ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
           ZIO.attemptBlockingInterrupt {
-            chan.write(ByteBuffer.wrap(byteChunk.toArray))
+            val bytes = byteChunk.toArray
+
+            chan.write(ByteBuffer.wrap(bytes))
+
+            bytesWritten + bytes.length.toLong
           }
         }
       }
     }
-    writer &> ZSink.count
   }
 
   /**
