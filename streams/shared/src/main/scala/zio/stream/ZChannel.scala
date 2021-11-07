@@ -3,12 +3,7 @@ package zio.stream
 import zio.ZManaged.ReleaseMap
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.internal.{
-  AsyncInputConsumer,
-  AsyncInputProducer,
-  ChannelExecutor,
-  SingleProducerAsyncInput
-}
+import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
 
 import ChannelExecutor.ChannelState
 
