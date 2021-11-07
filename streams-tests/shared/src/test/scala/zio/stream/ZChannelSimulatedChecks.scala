@@ -1,6 +1,6 @@
 package zio.stream
 
-import zio.stream.experimental.ZChannelSimulatedChecks.Simulation.{opsToDoneChannel, opsToEffect, opsToOutChannel}
+import zio.stream.ZChannelSimulatedChecks.Simulation.{opsToDoneChannel, opsToEffect, opsToOutChannel}
 import zio.test.Assertion._
 import zio.test._
 import zio.{Chunk, Has, IO, Random, ZIO, ZIOBaseSpec}

@@ -2,7 +2,7 @@ package zio.stream.internal
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.experimental.ZChannel
+import zio.stream.ZChannel
 
 import scala.collection.immutable.Queue
 

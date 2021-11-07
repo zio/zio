@@ -4,8 +4,8 @@ import zio._
 import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm._
-import zio.stream.experimental.ZStream.{DebounceState, HandoffSignal}
-import zio.stream.experimental.internal.Utils.zipChunks
+import zio.stream.ZStream.{DebounceState, HandoffSignal}
+import zio.stream.internal.Utils.zipChunks
 import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}

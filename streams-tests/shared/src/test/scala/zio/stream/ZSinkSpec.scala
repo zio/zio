@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio._
-import zio.stream.experimental.SinkUtils._
+import zio.stream.SinkUtils._
 import zio.test.Assertion._
 import zio.test.TestAspect.jvmOnly
 import zio.test._
