@@ -342,7 +342,23 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   final def raceBoth[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1 >: Z](
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1],
     capacity: Int = 16
-  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] = {
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]] =
+    self.raceWith(that, capacity)(
+      selfDone => ZChannel.MergeDecision.done(ZIO.done(selfDone).map(Left(_))),
+      thatDone => ZChannel.MergeDecision.done(ZIO.done(thatDone).map(Right(_)))
+    )
+
+  /**
+   * Runs both sinks in parallel on the input, using the specified merge
+   * function as soon as one result or the other has been computed.
+   */
+  final def raceWith[R1 <: R, InErr1 <: InErr, OutErr1 >: OutErr, A0, In1 <: In, L1 >: L, Z1, Z2](
+    that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1],
+    capacity: Int = 16
+  )(
+    leftDone: Exit[OutErr, Z] => ZChannel.MergeDecision[R1, OutErr1, Z1, OutErr1, Z2],
+    rightDone: Exit[OutErr1, Z1] => ZChannel.MergeDecision[R1, OutErr, Z, OutErr1, Z2]
+  )(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] = {
     val managed =
       for {
         hub   <- ZHub.bounded[Either[Exit[InErr1, Any], Chunk[In1]]](capacity).toManaged
@@ -350,14 +366,14 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
         c2    <- ZChannel.fromHubManaged(hub)
         reader = ZChannel.toHub(hub)
         writer = (c1 >>> self.channel).mergeWith(c2 >>> that.channel)(
-                   selfDone => ZChannel.MergeDecision.done(ZIO.done(selfDone).map(Left(_))),
-                   thatDone => ZChannel.MergeDecision.done(ZIO.done(thatDone).map(Right(_)))
+                   leftDone,
+                   rightDone
                  )
         channel = reader.mergeWith(writer)(
                     _ => ZChannel.MergeDecision.await(ZIO.done(_)),
                     done => ZChannel.MergeDecision.done(ZIO.done(done))
                   )
-      } yield new ZSink[R1, InErr1, In1, OutErr1, L1, Either[Z, Z1]](channel)
+      } yield new ZSink[R1, InErr1, In1, OutErr1, L1, Z2](channel)
     ZSink.unwrapManaged(managed)
   }
 
@@ -453,45 +469,23 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
     that: ZSink[R1, InErr1, In1, OutErr1, L1, Z1],
     capacity: Int = 16
   )(f: (Z, Z1) => Z2)(implicit trace: ZTraceElement): ZSink[R1, InErr1, In1, OutErr1, L1, Z2] =
-    new ZSink(
-      ZChannel.unwrapManaged(
-        for {
-          hub   <- ZHub.bounded[Either[Exit[InErr1, Any], Chunk[In1]]](capacity).toManaged
-          left  <- ZChannel.fromHubManaged(hub)
-          right <- ZChannel.fromHubManaged(hub)
-          reader = ZChannel.toHub[InErr1, Any, Chunk[In1]](hub)
-          c1     = left >>> self.channel
-          c2     = right >>> that.channel
-          writer = c1.mergeWith[R1, InErr1, Chunk[In1], Any, OutErr1, OutErr1, Chunk[L1], Z1, Z2](c2)(
-                     {
-                       case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
-                       case Exit.Success(lz) =>
-                         ZChannel.MergeDecision.await {
-                           case Exit.Failure(cause) => ZIO.failCause(cause)
-                           case Exit.Success(rz)    => ZIO.succeedNow(f(lz, rz))
-                         }
-                     },
-                     {
-                       case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
-                       case Exit.Success(rz) =>
-                         ZChannel.MergeDecision.await {
-                           case Exit.Failure(cause) => ZIO.failCause(cause)
-                           case Exit.Success(lz)    => ZIO.succeedNow(f(lz, rz))
-                         }
-                     }
-                   )
-        } yield reader.mergeWith(writer)(
-          _ =>
-            ZChannel.MergeDecision.await {
-              case Exit.Failure(cause) => ZIO.failCause(cause)
-              case Exit.Success(z)     => ZIO.succeedNow(z)
-            },
-          {
-            case Exit.Failure(cause) => ZChannel.MergeDecision.done(ZIO.failCause(cause))
-            case Exit.Success(z)     => ZChannel.MergeDecision.done(ZIO.succeedNow(z))
+    self.raceWith(that)(
+      {
+        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
+        case Exit.Success(lz) =>
+          ZChannel.MergeDecision.await {
+            case Exit.Failure(cause) => ZIO.failCause(cause)
+            case Exit.Success(rz)    => ZIO.succeedNow(f(lz, rz))
           }
-        )
-      )
+      },
+      {
+        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
+        case Exit.Success(rz) =>
+          ZChannel.MergeDecision.await {
+            case Exit.Failure(cause) => ZIO.failCause(cause)
+            case Exit.Success(lz)    => ZIO.succeedNow(f(lz, rz))
+          }
+      }
     )
 
   def exposeLeftover(implicit trace: ZTraceElement): ZSink[R, InErr, In, OutErr, Nothing, (Z, Chunk[L])] =
