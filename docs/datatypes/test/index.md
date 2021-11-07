@@ -153,7 +153,18 @@ When tests do fail, it is easy to see what went wrong because the test reporter 
 
 ### Test Aspects
 
-Test aspects are powerful tools for modifying behavior of individual tests or even entire suites that we have already written. Convenient syntax `@@` is provided for applying test aspects. For example, we could apply a timeout to a test by using `test @@ timeout(60.seconds)` or only run a test on JavaScript by using `test @@ jsOnly`. Test aspects are highly composable, so we can combine multiple test aspects together or apply them only to certain tests that match a predicate we specify.
+Test aspects are powerful tools for modifying behavior of individual tests or even entire suites that we have already written. Convenient syntax `@@` is provided for applying test aspects. 
+
+For example, we can apply a timeout to a test by using `test @@ timeout(60.seconds)` or only run a test on JavaScript by using `test @@ jsOnly`. 
+
+Test aspects are _highly composable_, so we can combine multiple test aspects together: 
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.test.TestAspect._
+
+test("another zio test")(???) @@ timeout(60.seconds) @@ jvmOnly
+```
 
 ### Zero Dependencies
 
