@@ -20,7 +20,7 @@ import sbt.testing._
 import zio.ZIO
 import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
 
-import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
+import java.util.concurrent.atomic.AtomicReference
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
@@ -103,7 +103,7 @@ object ZTestTask {
   def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
-    // Creating the class from magic ether
+
     try {
       val res = Reflect
         .lookupLoadableModuleClass(fqn, testClassLoader)
@@ -130,7 +130,6 @@ abstract class ZTestTaskPolicy {
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
-  var newTestCount = new AtomicInteger(0)
   override def merge(zioTasks: Array[ZTestTask]): Array[Task] = {
     val (newTaskOpt, legacyTaskList) =
       zioTasks.foldLeft((None: Option[ZTestTaskNew], List[ZTestTaskLegacy]())) {
@@ -140,7 +139,6 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case Some(existingNewTestTask: ZTestTaskNew) =>
-                  val _ = newTestCount.incrementAndGet()
                   (
                     Some(
                       new ZTestTaskNew(
@@ -160,7 +158,6 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
           }
       }
 
-    println("New Speces folded together: " + newTestCount.get())
     (legacyTaskList ++ newTaskOpt.toList).toArray
   }
 

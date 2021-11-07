@@ -66,6 +66,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
                     }
       exitCode = if (hasFailures) 1 else 0
       _       <- doExit(exitCode)
+
     } yield ()
   }
 
@@ -77,12 +78,16 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     DefaultTestReporter(renderer, TestAnnotationRenderer.default)
   }
 
-  // TODO Make sure we're not calling this from JS
+  // TODO Confirm what we should be doing in JS case
   private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.succeed(
-      try if (!isAmmonite) sys.exit(exitCode)
-      catch { case _: SecurityException => }
-    )
+    if (TestPlatform.isJVM) {
+      ZIO.succeed(
+        try if (!isAmmonite) sys.exit(exitCode)
+        catch { case _: SecurityException => }
+      )
+    } else {
+      UIO.unit
+    }
 
   private def isAmmonite: Boolean =
     sys.env.exists { case (k, v) =>
