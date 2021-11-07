@@ -48,7 +48,11 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   final def @@[R0 <: R1, R1 <: R, E0, E1, E2 >: E0 <: E1](
     aspect: TestAspect[R0, R1, E0, E1]
-  )(implicit ev1: E <:< TestFailure[E2], ev2: T <:< TestSuccess, trace: ZTraceElement): ZSpec[R1, E2] =
+  )(implicit
+    ev1: E <:< TestFailure[E2],
+    ev2: T <:< TestSuccess,
+    trace: ZTraceElement
+  ): Spec[aspect.OutEnv[R1], TestFailure[aspect.OutErr[E2]], TestSuccess] =
     aspect(self.asInstanceOf[ZSpec[R1, E2]])
 
   /**

@@ -115,13 +115,21 @@ package object test extends CompileVariants {
   /**
    * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
    */
-  type TestAspectAtLeastR[R] = TestAspect[Nothing, R, Nothing, Any]
+  type TestAspectAtLeastR[R] =
+    TestAspect[Nothing, R, Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+    }
 
   /**
    * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
    * having no requirements on error or environment.
    */
-  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
+  type TestAspectPoly =
+    TestAspect[Nothing, Any, Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+    }
 
   type TestResult = BoolAlgebra[AssertionResult]
 
