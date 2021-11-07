@@ -25,6 +25,6 @@ package object stream {
   type UStream[+A] = ZStream[Any, Nothing, A]
   val UStream = ZStream
 
-  type Sink[-InErr, +OutErr, In, +L, +Z] = ZSink[Any, InErr, In, OutErr, L, Z]
+  type Sink[-InErr, In, +OutErr, +L, +Z] = ZSink[Any, InErr, In, OutErr, L, Z]
   val Sink = ZSink
 }
