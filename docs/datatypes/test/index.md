@@ -90,7 +90,30 @@ The library includes built-in _test versions_ of all the standard ZIO services (
 
 ### Resource Management
 
-We may need to set up and tear down some fixtures in our test code before and after running tests. ZIO Test manages this seamlessly for us. So, instead of providing `before`/`after`, `beforeAll`/`afterAll` hooks, we can provide a `ZLayer` to each test or a test suite. The ZIO test takes care of acquiring, utilizing, and releasing that layer.
+We may need to set up and tear down some fixtures in our test code before and after running tests. ZIO Test manages this seamlessly for us. So, instead of providing `before`/`after`, `beforeAll`/`afterAll` hooks which are not composable, we can provide a `ZLayer` to each test or a test suite. The ZIO test takes care of acquiring, utilizing, and releasing that layer.
+
+For example, if we have a Kafka layer, we can provide it to one test, or we can provide it to an entire suite of tests, just like the example below:
+
+```scala mdoc:invisible
+import zio.test.{test, _}
+import zio.test.Assertion._
+val kafkaLayer: ZLayer[Any, Nothing, Has[Int]] = ZLayer.succeed(1)
+val test1 = test("kafkatest")(assertTrue(true))
+val test2 = test("kafkatest")(assertTrue(true))
+val test3 = test("kafkatest")(assertTrue(true))
+```
+
+```scala mdoc:compile-only
+suite("a test suite with shared kafka layer")(test1, test2, test3)
+  .provideCustomLayerShared(kafkaLayer)
+```
+
+This layer going to get acquired once, then we have access to that service within all these three tests within the suite and then it is guaranteed to be released at the end of our tests.
+
+So in ZIO Test, we have nice resource management which enables us to have tests where:
+- They are resource safe
+- Resources can be acquired and released per test or across a suite of tests
+- Fully composable
 
 ### Property Based Testing
 
