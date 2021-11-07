@@ -2,9 +2,6 @@ package zio.stream.compression
 
 import zio._
 import zio.stream._
-import zio.stream.compression.TestData._
-import zio.test.Assertion._
-import zio.test._
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.charset.StandardCharsets
