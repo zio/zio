@@ -50,7 +50,7 @@ testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
 ## Our First Lines of ZIO Test
 
-The fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
+The fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program we can run from within SBT using `test:run` or by using `test` with the SBT test runner.
 
 ```scala mdoc:silent
 import zio._
@@ -104,7 +104,7 @@ val associativity =
   }
 ```
 
-If a property fails, the failure will be automatically shrunk to the smallest failing cases to make it easier for you to diagnose the problem. And shrinking is integrated with the generation of random variables, so you are guaranteed that any shrunk counterexample will meet the conditions of your original generator.
+If a property fails, the failure will be automatically shrunk to the smallest failing cases to make it easier for us to diagnose the problem. And shrinking is integrated with the generation of random variables, so we are guaranteed that any shrunk counter example will meet the conditions of our original generator.
 
 ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:
 
@@ -130,7 +130,7 @@ When tests do fail, it is easy to see what went wrong because the test reporter 
 
 ### Test Aspects
 
-Test aspects are powerful tools for modifying behavior of individual tests or even entire suites that we have already written. Convenient syntax `@@` is provided for applying test aspects. So for example you could apply a timeout to a test by using `test @@ timeout(60.seconds)` or only run a test on JavaScript by using `test @@ jsOnly`. Test aspects are highly composable, so we can combine multiple test aspects together or apply them only to certain tests that match a predicate we specify.
+Test aspects are powerful tools for modifying behavior of individual tests or even entire suites that we have already written. Convenient syntax `@@` is provided for applying test aspects. For example, we could apply a timeout to a test by using `test @@ timeout(60.seconds)` or only run a test on JavaScript by using `test @@ jsOnly`. Test aspects are highly composable, so we can combine multiple test aspects together or apply them only to certain tests that match a predicate we specify.
 
 ### Zero Dependencies
 
