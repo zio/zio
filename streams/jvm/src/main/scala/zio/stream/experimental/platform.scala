@@ -6,8 +6,10 @@ import zio.stream.compression.{CompressionException, CompressionLevel, Compressi
 import java.io._
 import java.net.{InetSocketAddress, SocketAddress}
 import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel}
-import java.nio.file.Path
+import java.nio.file.{OpenOption, Path}
+import java.nio.file.StandardOpenOption._
 import java.nio.{Buffer, ByteBuffer}
+import java.{util => ju}
 
 trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
@@ -543,6 +545,50 @@ trait ZStreamPlatformSpecificConstructors {
 
 trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
+
+  /**
+   * Uses the provided `Path` to create a [[ZSink]] that consumes byte chunks
+   * and writes them to the `File`. The sink will yield count of bytes written.
+   */
+  final def fromFile(
+    path: => Path,
+    position: Long = 0L,
+    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Throwable, Byte, Throwable, Byte, Long] = {
+
+    val managedChannel = ZManaged.acquireReleaseWith(
+      ZIO
+        .attemptBlockingInterrupt(
+          FileChannel
+            .open(
+              path,
+              options.foldLeft(
+                new ju.HashSet[OpenOption]()
+              ) { (acc, op) =>
+                acc.add(op)
+                acc
+              } // for avoiding usage of different Java collection converters for different scala versions
+            )
+            .position(position)
+        )
+    )(chan => ZIO.attemptBlocking(chan.close()).orDie)
+
+    ZSink.unwrapManaged {
+      managedChannel.map { chan =>
+        ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
+          ZIO.attemptBlockingInterrupt {
+            val bytes = byteChunk.toArray
+
+            chan.write(ByteBuffer.wrap(bytes))
+
+            bytesWritten + bytes.length.toLong
+          }
+        }
+      }
+    }
+  }
 
   /**
    * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
