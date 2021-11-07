@@ -1,4 +1,4 @@
-package zio.stream.experimental
+package zio.stream
 
 import zio.stream.experimental.ZChannelSimulatedChecks.Simulation.{opsToDoneChannel, opsToEffect, opsToOutChannel}
 import zio.test.Assertion._

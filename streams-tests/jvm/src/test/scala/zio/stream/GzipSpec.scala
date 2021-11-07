@@ -1,4 +1,4 @@
-package zio.stream.experimental
+package zio.stream
 
 import zio.stream.compression.TestData._
 import zio.test.Assertion._

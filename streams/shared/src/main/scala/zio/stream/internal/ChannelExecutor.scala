@@ -1,4 +1,4 @@
-package zio.stream.experimental.internal
+package zio.stream.internal
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace

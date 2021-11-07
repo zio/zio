@@ -1,4 +1,4 @@
-package zio.stream.experimental
+package zio.stream
 
 import zio.stream.compression.TestData.{`1K`, jdkGzip, longText, otherShortText, shortText}
 import zio.test.Assertion._

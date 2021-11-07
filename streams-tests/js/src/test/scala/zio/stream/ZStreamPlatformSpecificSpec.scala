@@ -1,4 +1,4 @@
-package zio.stream.experimental
+package zio.stream
 
 import zio.test.Assertion.{containsCause, equalTo, failsCause, isFalse, isTrue}
 import zio.test.{Gen, ZSpec, assert, assertM, check}
