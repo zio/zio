@@ -465,7 +465,7 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * As aspect that only runs a test if the specified environment variable is
+   * An aspect that only runs a test if the specified environment variable is
    * set.
    */
   def ifEnvSet(env: String): TestAspectAtLeastR[Live with Annotations] =
@@ -482,7 +482,7 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * As aspect that only runs a test if the specified Java property is set.
+   * An aspect that only runs a test if the specified Java property is set.
    */
   def ifPropSet(prop: String): TestAspectAtLeastR[Live with Annotations] =
     ifProp(prop)(_ => true)
