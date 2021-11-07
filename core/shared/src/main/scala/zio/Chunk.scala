@@ -1711,15 +1711,22 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override val length: Int =
       maxBitIndex - minBitIndex
 
-    override def apply(n: Int): Boolean =
+    def accessBit(n: Int): Boolean =
       (bytes(n >> 3) & (1 << (7 - (n & 7)))) != 0
 
+    override def apply(n: Int): Boolean =
+      accessBit(n + minBitIndex)
+
     override def drop(n: Int): BitChunk = {
-      val index  = (minBitIndex + n) min maxBitIndex
-      val toDrop = index >> 3
-      val min    = index & 7
-      val max    = maxBitIndex - index + min
-      BitChunk(bytes.drop(toDrop), min, max)
+      val index   = (minBitIndex + n) min maxBitIndex
+      val toDrop  = index >> 3
+      val min     = index & 7
+      val max     = maxBitIndex - index + min
+      val dropped = bytes.drop(toDrop)
+      if (min > 0)
+        BitChunk(dropped.updated(0, (dropped.head & (255 >> min)).toByte), min, max)
+      else
+        BitChunk(dropped, min, max)
     }
 
     override def foreach[A](f: Boolean => A): Unit = {
@@ -1729,7 +1736,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val maxFullBitIndex = (maxByteIndex << 3) max minFullBitIndex
       var i               = minBitIndex
       while (i < minFullBitIndex) {
-        f(apply(i))
+        f(accessBit(i))
         i += 1
       }
       i = minByteIndex
@@ -1747,15 +1754,23 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
       i = maxFullBitIndex
       while (i < maxBitIndex) {
-        f(apply(i))
+        f(accessBit(i))
         i += 1
       }
     }
 
     override def take(n: Int): BitChunk = {
-      val index  = (minBitIndex + n) min maxBitIndex
-      val toTake = (index + 7) >> 3
-      BitChunk(bytes.take(toTake), minBitIndex, index)
+      val index    = (minBitIndex + n) min maxBitIndex
+      val toTake   = (index + 7) >> 3
+      val newBytes = bytes.take(toTake)
+      if ((index & 7) > 0)
+        BitChunk(
+          newBytes.updated(newBytes.size - 1, ((255 << (8 - (index & 7))) & newBytes.last).toByte),
+          minBitIndex,
+          index
+        )
+      else
+        BitChunk(newBytes, minBitIndex, index)
     }
 
     override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
@@ -1776,28 +1791,31 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       arrayIterator
 
     override def &(that: Chunk[Boolean])(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = that match {
-      case thatBitChunk: BitChunk => byteWiseOp(thatBitChunk)(_ => 0, _ => 0)((a: Byte, b: Byte) => (a & b).toByte)
-      case that                   => super.&(that)
+      case thatBitChunk: BitChunk if thatBitChunk.minBitIndex == minBitIndex =>
+        byteWiseOp(thatBitChunk)(_ => 0)((a: Byte, b: Byte) => (a & b).toByte)
+      case that => super.&(that)
     }
 
     override def |(that: Chunk[Boolean])(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = that match {
-      case thatBitChunk: BitChunk => byteWiseOp(thatBitChunk)(identity, identity)((a: Byte, b: Byte) => (a | b).toByte)
-      case that                   => super.|(that)
+      case thatBitChunk: BitChunk if thatBitChunk.minBitIndex == minBitIndex =>
+        byteWiseOp(thatBitChunk)(identity)((a: Byte, b: Byte) => (a | b).toByte)
+      case that => super.|(that)
     }
 
     override def ^(that: Chunk[Boolean])(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = that match {
-      case thatBitChunk: BitChunk => byteWiseOp(thatBitChunk)(identity, identity)((a: Byte, b: Byte) => (a ^ b).toByte)
-      case that                   => super.^(that)
+      case thatBitChunk: BitChunk if thatBitChunk.minBitIndex == minBitIndex =>
+        byteWiseOp(thatBitChunk)(identity)((a: Byte, b: Byte) => (a ^ b).toByte)
+      case that => super.^(that)
     }
 
     override def unary_~(implicit ev: Boolean <:< Boolean): BitChunk =
-      BitChunk(bytes.mapChunk(b => (~b).toByte), minBitIndex, maxBitIndex)
+      BitChunk(bytes.mapChunk(b => (~b).toByte), minBitIndex, maxBitIndex).take(length).drop(0)
 
     private def byteWiseOp(
       that: BitChunk
-    )(left: Byte => Byte, right: Byte => Byte)(both: (Byte, Byte) => Byte): BitChunk =
+    )(lone: Byte => Byte)(both: (Byte, Byte) => Byte): BitChunk =
       BitChunk(
-        this.bytes.zipAllWith(that.bytes)(left, right)(both),
+        this.bytes.zipAllWith(that.bytes)(lone, lone)(both),
         minBitIndex min that.minBitIndex,
         maxBitIndex max that.maxBitIndex
       )
