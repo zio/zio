@@ -52,7 +52,7 @@ testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
 The fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program we can run from within SBT using `test:run` or by using `test` with the SBT test runner.
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
 import zio.test._
 import zio.test.Assertion._
@@ -86,7 +86,30 @@ When we tested our program above the `helloWorld` method didn't actually print a
 
 ### Test Environment
 
-The library includes built-in _test versions_ of all the standard ZIO services (`Clock`, `Console`, `System`, and `Random`). Note that If we ever do need to access the "live" environment we can just use the `live` method in the `mock` package or specify the live environment in our type signature like `Live[Console]`.
+The library includes built-in _testable versions_ of all the standard ZIO services (`Clock`, `Console`, `System`, and `Random`). For example, the `TestClock` has some timing actions that enables us to control the passage of time. So instead of waiting for timeouts and passage of time, we can adjust the time in our test:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
+import zio.test.environment._
+
+test("timeout") {
+  for {
+    fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
+    _      <- TestClock.adjust(1.minute)
+    result <- fiber.join
+  } yield assert(result)(isNone)
+}
+```
+
+In this example, to test the timeout function without waiting for one minute, we passed the time for one minute using the `adjust` operation. Sometimes, we may want to run these kinds of tests with the `nonFlaky` operator, which runs the test one hundred different times.
+
+The `TestRandom` service has some extra functionality that enables us to test those functionalities with randomness. We can provide seed number to the `TestRandom`, and then we can have an exact expectation of the random function results.
+
+Each of these services, comes with a bunch of functionality that makes it very easy to test effects.
+
+Whenever we need to access the _live_ environment, we can use the `live` method in the `mock` package or specify the live environment in the type signature like `Live[Console]`.
 
 ### Resource Management
 
@@ -95,8 +118,10 @@ We may need to set up and tear down some fixtures in our test code before and af
 For example, if we have a Kafka layer, we can provide it to one test, or we can provide it to an entire suite of tests, just like the example below:
 
 ```scala mdoc:invisible
+import zio._
 import zio.test.{test, _}
 import zio.test.Assertion._
+
 val kafkaLayer: ZLayer[Any, Nothing, Has[Int]] = ZLayer.succeed(1)
 val test1 = test("kafkatest")(assertTrue(true))
 val test2 = test("kafkatest")(assertTrue(true))
@@ -131,11 +156,12 @@ If a property fails, the failure will be automatically shrunk to the smallest fa
 
 ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
+import zio._
 import zio.Random
 import zio.test.magnolia._
 
-final case class Point(x: Double, y: Double)
+case class Point(x: Double, y: Double)
 
 val genPoint: Gen[Random with Sized, Point] = DeriveGen[Point]
  
