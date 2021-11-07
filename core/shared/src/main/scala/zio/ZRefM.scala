@@ -22,28 +22,27 @@ import com.github.ghik.silencer.silent
  * A `ZRefM[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional
  * description of a mutable reference. The fundamental operations of a `ZRefM`
  * are `set` and `get`. `set` takes a value of type `A` and sets the reference
- * to a new value, requiring an environment of type `RA` and potentially
- * failing with an error of type `EA`. `get` gets the current value of the
- * reference and returns a value of type `B`, requiring an environment of type
- * `RB` and potentially failing with an error of type `EB`.
+ * to a new value, requiring an environment of type `RA` and potentially failing
+ * with an error of type `EA`. `get` gets the current value of the reference and
+ * returns a value of type `B`, requiring an environment of type `RB` and
+ * potentially failing with an error of type `EB`.
  *
  * When the error and value types of the `ZRefM` are unified, that is, it is a
  * `ZRefM[E, E, A, A]`, the `ZRefM` also supports atomic `modify` and `update`
  * operations.
  *
- * Unlike `ZRef`, `ZRefM` allows performing effects within update operations,
- * at some cost to performance. Writes will semantically block other writers,
- * while multiple readers can read simultaneously.
+ * Unlike `ZRef`, `ZRefM` allows performing effects within update operations, at
+ * some cost to performance. Writes will semantically block other writers, while
+ * multiple readers can read simultaneously.
  */
 sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
 
   /**
    * Folds over the error and value types of the `ZRefM`. This is a highly
    * polymorphic method that is capable of arbitrarily transforming the error
-   * and value types of the `ZRefM`. For most use cases one of the more
-   * specific combinators implemented in terms of `foldM` will be more
-   * ergonomic but this method is extremely useful for implementing new
-   * combinators.
+   * and value types of the `ZRefM`. For most use cases one of the more specific
+   * combinators implemented in terms of `foldM` will be more ergonomic but this
+   * method is extremely useful for implementing new combinators.
    */
   def foldM[RC <: RA, RD <: RB, EC, ED, C, D](
     ea: EA => EC,
@@ -53,9 +52,9 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
   ): ZRefM[RC, RD, EC, ED, C, D]
 
   /**
-   * Folds over the error and value types of the `ZRefM`, allowing access to
-   * the state in transforming the `set` value. This is a more powerful version
-   * of `foldM` but requires unifying the environment and error types.
+   * Folds over the error and value types of the `ZRefM`, allowing access to the
+   * state in transforming the `set` value. This is a more powerful version of
+   * `foldM` but requires unifying the environment and error types.
    */
   def foldAllM[RC <: RA with RB, RD <: RB, EC, ED, C, D](
     ea: EA => EC,
@@ -170,9 +169,9 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
     filterOutputM(a => ZIO.succeedNow(f(a)))
 
   /**
-   * Filters the `get` value of the `ZRefM` with the specified effectual predicate,
-   * returning a `ZRefM` with a `get` value that succeeds if the predicate is
-   * satisfied or else fails with `None`.
+   * Filters the `get` value of the `ZRefM` with the specified effectual
+   * predicate, returning a `ZRefM` with a `get` value that succeeds if the
+   * predicate is satisfied or else fails with `None`.
    */
   final def filterOutputM[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Boolean]): ZRefM[RA, RC, EA, Option[EC], A, B] =
     foldM(identity, Some(_), ZIO.succeedNow, b => ZIO.ifM(f(b).asSomeError)(ZIO.succeedNow(b), ZIO.fail(None)))
@@ -189,8 +188,8 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
     foldM(ea, eb, c => ZIO.fromEither(ca(c)), b => ZIO.fromEither(bd(b)))
 
   /**
-   * Folds over the error and value types of the `ZRefM`, allowing access to
-   * the state in transforming the `set` value but requiring unifying the error
+   * Folds over the error and value types of the `ZRefM`, allowing access to the
+   * state in transforming the `set` value but requiring unifying the error
    * type.
    */
   def foldAll[EC, ED, C, D](
@@ -229,8 +228,7 @@ sealed abstract class ZRefM[-RA, -RB, +EA, +EB, -A, +B] { self =>
     contramapM(a => f(a).as(a))
 
   /**
-   * Performs the specified effect very time a value is read from this
-   * `ZRefM`.
+   * Performs the specified effect very time a value is read from this `ZRefM`.
    */
   final def tapOutput[RC <: RB, EC >: EB](f: B => ZIO[RC, EC, Any]): ZRefM[RA, RC, EA, EC, A, B] =
     mapM(b => f(b).as(b))
@@ -411,16 +409,16 @@ object ZRefM {
 
     /**
      * Atomically modifies the `RefM` with the specified partial function,
-     * returning the value immediately before modification.
-     * If the function is undefined on the current value it doesn't change it.
+     * returning the value immediately before modification. If the function is
+     * undefined on the current value it doesn't change it.
      */
     def getAndUpdateSome[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =
       modify(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => (v, result)))
 
     /**
-     * Atomically modifies the `RefM` with the specified function, which computes
-     * a return value for the modification. This is a more powerful version of
-     * `update`.
+     * Atomically modifies the `RefM` with the specified function, which
+     * computes a return value for the modification. This is a more powerful
+     * version of `update`.
      */
     @silent("unreachable code")
     def modify[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, (B, A)]): ZIO[R1, E1, B] =
@@ -446,10 +444,10 @@ object ZRefM {
       }
 
     /**
-     * Atomically modifies the `RefM` with the specified function, which computes
-     * a return value for the modification if the function is defined in the current value
-     * otherwise it returns a default value.
-     * This is a more powerful version of `updateSome`.
+     * Atomically modifies the `RefM` with the specified function, which
+     * computes a return value for the modification if the function is defined
+     * in the current value otherwise it returns a default value. This is a more
+     * powerful version of `updateSome`.
      */
     def modifySome[R1 <: R, E1 >: E, B](default: B)(pf: PartialFunction[A, ZIO[R1, E1, (B, A)]]): ZIO[R1, E1, B] =
       modify(v => pf.applyOrElse[A, ZIO[R1, E1, (B, A)]](v, _ => ZIO.succeedNow((default, v))))
@@ -468,15 +466,15 @@ object ZRefM {
       modify(v => f(v).map(result => (result, result)))
 
     /**
-     * Atomically modifies the `RefM` with the specified partial function.
-     * If the function is undefined on the current value it doesn't change it.
+     * Atomically modifies the `RefM` with the specified partial function. If
+     * the function is undefined on the current value it doesn't change it.
      */
     def updateSome[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, Unit] =
       modify(v => pf.applyOrElse[A, ZIO[R1, E1, A]](v, ZIO.succeedNow).map(result => ((), result)))
 
     /**
-     * Atomically modifies the `RefM` with the specified partial function.
-     * If the function is undefined on the current value it returns the old value
+     * Atomically modifies the `RefM` with the specified partial function. If
+     * the function is undefined on the current value it returns the old value
      * without changing it.
      */
     def updateSomeAndGet[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, A]]): ZIO[R1, E1, A] =

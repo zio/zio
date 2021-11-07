@@ -26,10 +26,11 @@ package object blocking {
   type Blocking = Has[Blocking.Service]
 
   /**
-   * The `Blocking` module provides access to a thread pool that can be used for performing
-   * blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
-   * The contract is that the thread pool will accept unlimited tasks (up to the available memory)
-   * and continuously create new threads as necessary.
+   * The `Blocking` module provides access to a thread pool that can be used for
+   * performing blocking operations, such as thread sleeps, synchronous
+   * socket/file reads, and so forth. The contract is that the thread pool will
+   * accept unlimited tasks (up to the available memory) and continuously create
+   * new threads as necessary.
    */
   object Blocking extends Serializable {
     trait Service extends Serializable {
@@ -68,8 +69,7 @@ package object blocking {
        * synchronous effect will be interrupted via `Thread.interrupt`.
        *
        * Note that this adds significant overhead. For performance sensitive
-       * applications consider using `effectBlocking` or
-       * `effectBlockingCancel`.
+       * applications consider using `effectBlocking` or `effectBlockingCancel`.
        */
       def effectBlockingInterrupt[A](effect: => A): Task[A] =
         // Reference user's lambda for the tracer

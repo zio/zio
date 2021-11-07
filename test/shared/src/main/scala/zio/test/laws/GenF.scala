@@ -24,8 +24,8 @@ import zio.test.{Gen, Sized}
  * A `GenF` knows how to construct a generator of `F[A]` values given a
  * generator of `A` values for any `A`. For example, a `GenF` of `List` values
  * knows how to generate lists with elements given a generator of elements of
- * that type. You can think of `GenF` as a "recipe" for building generators
- * for parameterized types.
+ * that type. You can think of `GenF` as a "recipe" for building generators for
+ * parameterized types.
  */
 trait GenF[-R, F[_]] {
 

@@ -19,8 +19,8 @@ package zio.test.sbt
 import zio.test.Summary
 
 /**
- * The ScalaJS SBT Runner uses strings to send and receive summaries. To transmit structured Summary data, we need to
- * serialize to and from strings.
+ * The ScalaJS SBT Runner uses strings to send and receive summaries. To
+ * transmit structured Summary data, we need to serialize to and from strings.
  */
 object SummaryProtocol {
   def serialize(summary: Summary): String =

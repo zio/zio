@@ -20,8 +20,8 @@ import zio._
 
 /**
  * A `Take[E, A]` represents a single `take` from a queue modeling a stream of
- * values. A `Take` may be a failure cause `Cause[E]`, an chunk value `A`
- * or an end-of-stream marker.
+ * values. A `Take` may be a failure cause `Cause[E]`, an chunk value `A` or an
+ * end-of-stream marker.
  */
 case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
 
@@ -103,15 +103,17 @@ object Take {
     Take(Exit.fail(Some(e)))
 
   /**
-   * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with the `Take[E, A]`.
-   * Error from stream when pulling is converted to `Take.halt`. Creates a singleton chunk.
+   * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with
+   * the `Take[E, A]`. Error from stream when pulling is converted to
+   * `Take.halt`. Creates a singleton chunk.
    */
   def fromEffect[R, E, A](zio: ZIO[R, E, A]): URIO[R, Take[E, A]] =
     zio.foldCause(halt, single)
 
   /**
-   * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with the `Take[E, A]`.
-   * Error from stream when pulling is converted to `Take.halt`, end of stream to `Take.end`.
+   * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with
+   * the `Take[E, A]`. Error from stream when pulling is converted to
+   * `Take.halt`, end of stream to `Take.end`.
    */
   def fromPull[R, E, A](pull: ZStream.Pull[R, E, A]): URIO[R, Take[E, A]] =
     pull.foldCause(Cause.sequenceCauseOption(_).fold[Take[E, Nothing]](end)(halt), chunk)
@@ -129,7 +131,8 @@ object Take {
     Take(Exit.die(t))
 
   /**
-   * Creates a failing `Take[Nothing, Nothing]` with the specified error message.
+   * Creates a failing `Take[Nothing, Nothing]` with the specified error
+   * message.
    */
   def dieMessage(msg: String): Take[Nothing, Nothing] =
     Take(Exit.die(new RuntimeException(msg)))

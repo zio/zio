@@ -22,8 +22,8 @@ import scala.annotation.switch
 import scala.util.control.NonFatal
 
 /**
- * This parser has been copied from the `akka-typed` project and modified,
- * as always these guys are way ahead of us! ;)
+ * This parser has been copied from the `akka-typed` project and modified, as
+ * always these guys are way ahead of us! ;)
  *
  * https://github.com/akka/akka/blob/4729a80e7e6f2923a7e6369b21b2693f82c64589/akka-actor/src/main/scala/akka/util/LineNumbers.scala
  *
@@ -49,9 +49,9 @@ object AkkaLineNumbers {
   }
 
   /**
-   * Scala API: Obtain line number information for the class defining the given object.
-   * This is done by reading the byte code (a potentially blocking IO operation)
-   * and interpreting the debug information that it may contain.
+   * Scala API: Obtain line number information for the class defining the given
+   * object. This is done by reading the byte code (a potentially blocking IO
+   * operation) and interpreting the debug information that it may contain.
    *
    * This does not work for Java 8 lambdas that are not Serializable, because
    * the language designers have consciously made it impossible to obtain the

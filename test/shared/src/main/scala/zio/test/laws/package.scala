@@ -19,13 +19,13 @@ package zio.test
 import zio.ZIO
 
 /**
- * The `laws` package provides functionality for describing laws as values.
- * The fundamental abstraction is a set of `ZLaws[Caps, R]`. These laws model
- * the laws that instances having a capability of type `Caps` are expected to
+ * The `laws` package provides functionality for describing laws as values. The
+ * fundamental abstraction is a set of `ZLaws[Caps, R]`. These laws model the
+ * laws that instances having a capability of type `Caps` are expected to
  * satisfy. A capability `Caps[_]` is an abstraction describing some
  * functionality that is common across different data types and obeys certain
- * laws. For example, we can model the capability of two values of a type
- * being compared for equality as follows:
+ * laws. For example, we can model the capability of two values of a type being
+ * compared for equality as follows:
  *
  * {{{
  * trait Equal[-A] {
@@ -35,9 +35,8 @@ import zio.ZIO
  *
  * Definitions of equality are expected to obey certain laws:
  *
- *   1. Reflexivity - `a1 === a1`
- *   2. Symmetry - `a1 === a2 ==> a2 === a1`
- *   3. Transitivity - (a1 === a2) && (a2 === a3) ==> (a1 === a3)`
+ *   1. Reflexivity - `a1 === a1` 2. Symmetry - `a1 === a2 ==> a2 === a1` 3.
+ *      Transitivity - (a1 === a2) && (a2 === a3) ==> (a1 === a3)`
  *
  * These laws define what the capabilities mean and ensure that it is safe to
  * abstract across different instances with the same capability.

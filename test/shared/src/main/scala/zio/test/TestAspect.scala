@@ -113,8 +113,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * Constructs an aspect that evaluates every test between two effects,
-   * `before` and `after`,  where the result of `before` can be used in
-   * `after`.
+   * `before` and `after`, where the result of `before` can be used in `after`.
    */
   def around[R0, E0, A0](
     before: ZIO[R0, E0, A0]
@@ -132,9 +131,8 @@ object TestAspect extends TimeoutVariants {
     around(before)(_ => after)
 
   /**
-   * Constructs an aspect that evaluates all tests between two effects,
-   * `before` and `after`, where the result of `before` can be used in
-   * `after`.
+   * Constructs an aspect that evaluates all tests between two effects, `before`
+   * and `after`, where the result of `before` can be used in `after`.
    */
   def aroundAll[R0, E0, A0](
     before: ZIO[R0, E0, A0]
@@ -304,8 +302,8 @@ object TestAspect extends TimeoutVariants {
     if (TestVersion.isScala213) ignore else identity
 
   /**
-   * An aspect that sets suites to the specified execution strategy, but only
-   * if their current strategy is inherited (undefined).
+   * An aspect that sets suites to the specified execution strategy, but only if
+   * their current strategy is inherited (undefined).
    */
   def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
     new TestAspectPoly {
@@ -339,9 +337,10 @@ object TestAspect extends TimeoutVariants {
   import scala.collection.immutable.SortedSet
 
   /**
-   * An aspect that records the state of fibers spawned by the current test in [[TestAnnotation.fibers]].
-   * Applied by default in [[DefaultRunnableSpec]] and [[MutableRunnableSpec]] but not in [[RunnableSpec]].
-   * This aspect is required for the proper functioning of `TestClock.adjust`.
+   * An aspect that records the state of fibers spawned by the current test in
+   * [[TestAnnotation.fibers]]. Applied by default in [[DefaultRunnableSpec]]
+   * and [[MutableRunnableSpec]] but not in [[RunnableSpec]]. This aspect is
+   * required for the proper functioning of `TestClock.adjust`.
    */
   lazy val fibers: TestAspect[Nothing, Annotations, Nothing, Any] =
     new TestAspect.PerTest[Nothing, Annotations, Nothing, Any] {
@@ -521,8 +520,8 @@ object TestAspect extends TimeoutVariants {
   }
 
   /**
-   * An aspect that repeats the test a specified number of times, ensuring it
-   * is stable ("non-flaky"). Stops at the first failure.
+   * An aspect that repeats the test a specified number of times, ensuring it is
+   * stable ("non-flaky"). Stops at the first failure.
    */
   def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Annotations] = {
     val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Annotations] {
@@ -620,10 +619,9 @@ object TestAspect extends TimeoutVariants {
     around(ZIO.accessM[R0](r => service(r).save))(restore => restore)
 
   /**
-   * An aspect that restores the
-   * [[zio.test.environment.TestClock TestClock]]'s state to its starting
-   * state after the test is run. Note that this is only useful when repeating
-   * tests.
+   * An aspect that restores the [[zio.test.environment.TestClock TestClock]]'s
+   * state to its starting state after the test is run. Note that this is only
+   * useful when repeating tests.
    */
   def restoreTestClock: TestAspectAtLeastR[TestClock] =
     restore[TestClock](_.get)
@@ -667,8 +665,8 @@ object TestAspect extends TimeoutVariants {
     restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
-   * An aspect that runs each test with the number of times to retry flaky
-   * tests set to the specified value.
+   * An aspect that runs each test with the number of times to retry flaky tests
+   * set to the specified value.
    */
   def retries(n: Int): TestAspectAtLeastR[TestConfig] =
     new PerTest.AtLeastR[TestConfig] {
@@ -831,7 +829,8 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that times out tests using the specified duration.
-   * @param duration maximum test duration
+   * @param duration
+   *   maximum test duration
    */
   def timeout(
     duration: Duration

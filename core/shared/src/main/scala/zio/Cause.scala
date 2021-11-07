@@ -22,12 +22,14 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause.Internal._
 
   /**
-   * Returns a cause that fails for this cause and the specified cause, in parallel.
+   * Returns a cause that fails for this cause and the specified cause, in
+   * parallel.
    */
   final def &&[E1 >: E](that: Cause[E1]): Cause[E1] = Both(self, that)
 
   /**
-   * Returns a cause that fails for this cause and the specified cause, in sequence.
+   * Returns a cause that fails for this cause and the specified cause, in
+   * sequence.
    */
   final def ++[E1 >: E](that: Cause[E1]): Cause[E1] =
     if (self eq Empty) that else if (that eq Empty) self else Then(self, that)
@@ -87,9 +89,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     }
 
   /**
-   * Retrieve the first checked error on the `Left` if available,
-   * if there are no checked errors return the rest of the `Cause`
-   * that is known to contain only `Die` or `Interrupt` causes.
+   * Retrieve the first checked error on the `Left` if available, if there are
+   * no checked errors return the rest of the `Cause` that is known to contain
+   * only `Die` or `Interrupt` causes.
    */
   final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
     case Some(error) => Left(error)
@@ -98,8 +100,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 
   /**
    * Retrieve the first checked error and its trace on the `Left` if available,
-   * if there are no checked errors return the rest of the `Cause`
-   * that is known to contain only `Die` or `Interrupt` causes.
+   * if there are no checked errors return the rest of the `Cause` that is known
+   * to contain only `Die` or `Interrupt` causes.
    */
   final def failureTraceOrCause: Either[(E, Option[ZTrace]), Cause[Nothing]] = failureTraceOption match {
     case Some(errorAndTrace) => Left(errorAndTrace)
@@ -200,8 +202,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     }
 
   /**
-   * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
-   * return only `Die` cause/finalizer defects.
+   * Remove all `Fail` and `Interrupt` nodes from this `Cause`, return only
+   * `Die` cause/finalizer defects.
    */
   final def keepDefects: Option[Cause[Nothing]] =
     self match {
@@ -383,15 +385,15 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   }
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
+   * important" `Throwable`.
    */
   final def squash(implicit ev: E <:< Throwable): Throwable =
     squashWith(ev)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
+   * important" `Throwable`.
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
@@ -414,10 +416,10 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     squashTraceWith(ev)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
-   * In addition, appends a new element the to `Throwable`s "caused by" chain,
-   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
+   * important" `Throwable`. In addition, appends a new element the to
+   * `Throwable`s "caused by" chain, with this `Cause` "pretty printed" (in
+   * stackless mode) as the message.
    */
   final def squashTraceWith(f: E => Throwable): Throwable =
     attachTrace(squashWith(f))
@@ -862,7 +864,8 @@ object Cause extends Serializable {
 
     /**
      * Takes one step in evaluating a cause, returning a set of causes that fail
-     * in parallel and a list of causes that fail sequentially after those causes.
+     * in parallel and a list of causes that fail sequentially after those
+     * causes.
      */
     private def step(c: Cause[_]): (Set[Cause[_]], List[Cause[_]]) = {
 

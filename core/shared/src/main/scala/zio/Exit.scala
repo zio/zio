@@ -17,39 +17,45 @@
 package zio
 
 /**
- * An `Exit[E, A]` describes the result of executing an `IO` value. The
- * result is either succeeded with a value `A`, or failed with a `Cause[E]`.
+ * An `Exit[E, A]` describes the result of executing an `IO` value. The result
+ * is either succeeded with a value `A`, or failed with a `Cause[E]`.
  */
 sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   import Exit._
 
   /**
-   * Parallelly zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
+   * Parallelly zips the this result with the specified result discarding the
+   * first element of the tuple or else returns the failed `Cause[E1]`
    */
   final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ && _)
 
   /**
-   * Sequentially zips the this result with the specified result discarding the first element of the tuple or else returns the failed `Cause[E1]`
+   * Sequentially zips the this result with the specified result discarding the
+   * first element of the tuple or else returns the failed `Cause[E1]`
    */
   final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ ++ _)
 
   /**
-   * Parallelly zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
+   * Parallelly zips the this result with the specified result discarding the
+   * second element of the tuple or else returns the failed `Cause[E1]`
    */
   final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ && _)
 
   /**
-   * Parallelly zips the this result with the specified result or else returns the failed `Cause[E1]`
+   * Parallelly zips the this result with the specified result or else returns
+   * the failed `Cause[E1]`
    */
   final def <&>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ && _)
 
   /**
-   * Sequentially zips the this result with the specified result discarding the second element of the tuple or else returns the failed `Cause[E1]`
+   * Sequentially zips the this result with the specified result discarding the
+   * second element of the tuple or else returns the failed `Cause[E1]`
    */
   final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ ++ _)
 
   /**
-   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
+   * Sequentially zips the this result with the specified result or else returns
+   * the failed `Cause[E1]`
    */
   final def <*>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, (A, B)] = zipWith(that)((_, _), _ ++ _)
 
@@ -99,7 +105,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
     }
 
   /**
-   * Sequentially zips the this result with the specified result or else returns the failed `Cause[E1]`
+   * Sequentially zips the this result with the specified result or else returns
+   * the failed `Cause[E1]`
    */
   final def foldM[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B]): ZIO[R, E1, B] =
     self match {
@@ -108,8 +115,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
     }
 
   /**
-   * Applies the function `f` to the successful result of the `Exit` and
-   * returns the result in a new `Exit`.
+   * Applies the function `f` to the successful result of the `Exit` and returns
+   * the result in a new `Exit`.
    */
   final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B]): ZIO[R, Nothing, Exit[E1, B]] =
     fold(c => ZIO.succeedNow(halt(c)), a => f(a).run)
@@ -178,8 +185,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   }
 
   /**
-   * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the
-   * cause in `FiberFailure` (if the result is failed).
+   * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the cause in
+   * `FiberFailure` (if the result is failed).
    */
   final def toEither: Either[Throwable, A] = self match {
     case Success(value) => Right(value)
@@ -227,7 +234,8 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   final def zipRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self *> that
 
   /**
-   * Zips this together with the specified result using the combination functions.
+   * Zips this together with the specified result using the combination
+   * functions.
    */
   final def zipWith[E1 >: E, B, C](that: Exit[E1, B])(
     f: (A, B) => C,

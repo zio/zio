@@ -24,8 +24,8 @@ import scala.language.implicitConversions
  * A `NonEmptyChunk` is a `Chunk` that is guaranteed to contain at least one
  * element. As a result, operations which would not be safe when performed on
  * `Chunk`, such as `head` or `reduce`, are safe when performed on
- * `NonEmptyChunk`. Operations on `NonEmptyChunk` which could potentially
- * return an empty chunk will return a `Chunk` instead.
+ * `NonEmptyChunk`. Operations on `NonEmptyChunk` which could potentially return
+ * an empty chunk will return a `Chunk` instead.
  */
 final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
 
@@ -76,8 +76,8 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     }
 
   /**
-   * Maps each element of this `NonEmptyChunk` to a new `NonEmptyChunk` and
-   * then concatenates them together.
+   * Maps each element of this `NonEmptyChunk` to a new `NonEmptyChunk` and then
+   * concatenates them together.
    */
   def flatMap[B](f: A => NonEmptyChunk[B]): NonEmptyChunk[B] =
     nonEmpty(chunk.flatMap(a => f(a).chunk))
@@ -190,8 +190,8 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
   }
 
   /**
-   * Converts this `NonEmptyChunk` to a `Chunk`, discarding information about
-   * it not being empty.
+   * Converts this `NonEmptyChunk` to a `Chunk`, discarding information about it
+   * not being empty.
    */
   def toChunk: Chunk[A] =
     chunk
@@ -209,23 +209,23 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     chunk.mkString("NonEmptyChunk(", ", ", ")")
 
   /**
-   * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only
-   * keeping as many elements as are in the smaller chunk.
+   * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only keeping
+   * as many elements as are in the smaller chunk.
    */
   def zip[B](that: NonEmptyChunk[B]): NonEmptyChunk[(A, B)] =
     zipWith(that)((_, _))
 
   /**
-   * Zips this `NonEmptyChunk` with the specified `Chunk`, using `None` to
-   * "fill in" missing values if one chunk has fewer elements than the other.
+   * Zips this `NonEmptyChunk` with the specified `Chunk`, using `None` to "fill
+   * in" missing values if one chunk has fewer elements than the other.
    */
   def zipAll[B](that: Chunk[B]): NonEmptyChunk[(Option[A], Option[B])] =
     zipAllWith(that)(a => (Some(a), None), b => (None, Some(b)))((a, b) => (Some(a), Some(b)))
 
   /**
    * Zips this `NonEmptyChunk` with the specified `Chunk`, using the specified
-   * functions to "fill in" missing values if one chunk has fewer elements
-   * than the other.
+   * functions to "fill in" missing values if one chunk has fewer elements than
+   * the other.
    */
   def zipAllWith[B, C](
     that: Chunk[B]
@@ -233,8 +233,8 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
     nonEmpty(chunk.zipAllWith(that)(left, right)(both))
 
   /**
-   * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only
-   * keeping as many elements as are in the smaller chunk.
+   * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only keeping
+   * as many elements as are in the smaller chunk.
    */
   def zipWith[B, C](that: NonEmptyChunk[B])(f: (A, B) => C): NonEmptyChunk[C] =
     nonEmpty(chunk.zipWith(that.chunk)(f))
@@ -306,16 +306,15 @@ object NonEmptyChunk {
   val unit: NonEmptyChunk[Unit] = single(())
 
   /**
-   * Provides an implicit conversion from `NonEmptyChunk` to `Chunk` for
-   * methods that may not return a `NonEmptyChunk`.
+   * Provides an implicit conversion from `NonEmptyChunk` to `Chunk` for methods
+   * that may not return a `NonEmptyChunk`.
    */
   implicit def toChunk[A](nonEmptyChunk: NonEmptyChunk[A]): Chunk[A] =
     nonEmptyChunk.chunk
 
   /**
-   * Constructs a `NonEmptyChunk` from a `Chunk`. This should only be used
-   * when it is statically known that the `Chunk` must have at least one
-   * element.
+   * Constructs a `NonEmptyChunk` from a `Chunk`. This should only be used when
+   * it is statically known that the `Chunk` must have at least one element.
    */
   private[zio] def nonEmpty[A](chunk: Chunk[A]): NonEmptyChunk[A] =
     new NonEmptyChunk(chunk)

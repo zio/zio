@@ -30,8 +30,8 @@ trait GenFractionalPoly extends GenNumericPoly {
 object GenFractionalPoly {
 
   /**
-   * Constructs an instance of `GenFractionalPoly` using the specified `Gen`
-   * and `Fractional` instances, existentially hiding the underlying type.
+   * Constructs an instance of `GenFractionalPoly` using the specified `Gen` and
+   * `Fractional` instances, existentially hiding the underlying type.
    */
   def apply[A](gen: Gen[Random with Sized, A], num: Fractional[A]): GenFractionalPoly =
     new GenFractionalPoly {

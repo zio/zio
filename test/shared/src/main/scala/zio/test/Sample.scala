@@ -20,8 +20,8 @@ import zio.stream.ZStream
 import zio.{Cause, Exit, ZIO}
 
 /**
- * A sample is a single observation from a random variable, together with a
- * tree of "shrinkings" used for minimization of "large" failures.
+ * A sample is a single observation from a random variable, together with a tree
+ * of "shrinkings" used for minimization of "large" failures.
  */
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
@@ -53,8 +53,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
 
   /**
    * Filters this sample by replacing it with its shrink tree if the value does
-   * not meet the specified predicate and recursively filtering the shrink
-   * tree.
+   * not meet the specified predicate and recursively filtering the shrink tree.
    */
   def filter(f: A => Boolean): ZStream[R, Nothing, Sample[R, A]] =
     if (f(value)) ZStream(Sample(value, shrink.flatMap(_.filter(f))))
@@ -74,8 +73,8 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   /**
    * Converts the shrink tree into a stream of shrinkings by recursively
    * searching the shrink tree, using the specified function to determine
-   * whether a value is a failure. The resulting stream will contain all
-   * values explored, regardless of whether they are successes or failures.
+   * whether a value is a failure. The resulting stream will contain all values
+   * explored, regardless of whether they are successes or failures.
    */
   def shrinkSearch(f: A => Boolean): ZStream[R, Nothing, A] =
     if (!f(value))

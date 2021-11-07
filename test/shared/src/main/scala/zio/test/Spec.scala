@@ -118,9 +118,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
 
   /**
    * Returns a new spec with only those tests with annotations satisfying the
-   * specified predicate. If no annotations satisfy the specified predicate
-   * then returns `Some` with an empty suite if this is a suite or `None`
-   * otherwise.
+   * specified predicate. If no annotations satisfy the specified predicate then
+   * returns `Some` with an empty suite if this is a suite or `None` otherwise.
    */
   final def filterAnnotations[V](key: TestAnnotation[V])(f: V => Boolean): Option[Spec[R, E, T]] =
     caseValue match {
@@ -141,8 +140,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
    * specified predicate. If a suite label satisfies the predicate the entire
    * suite will be included in the new spec. Otherwise only those specs in a
    * suite that satisfy the specified predicate will be included in the new
-   * spec. If no labels satisfy the specified predicate then returns `Some`
-   * with an empty suite if this is a suite or `None` otherwise.
+   * spec. If no labels satisfy the specified predicate then returns `Some` with
+   * an empty suite if this is a suite or `None` otherwise.
    */
   final def filterLabels(f: String => Boolean): Option[Spec[R, E, T]] =
     caseValue match {
@@ -324,8 +323,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
     provideSome(_ => r)
 
   /**
-   * Provides each test with the part of the environment that is not part of
-   * the `TestEnvironment`, leaving a spec that only depends on the
+   * Provides each test with the part of the environment that is not part of the
+   * `TestEnvironment`, leaving a spec that only depends on the
    * `TestEnvironment`.
    *
    * {{{
@@ -343,8 +342,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) {
 
   /**
    * Provides all tests with a shared version of the part of the environment
-   * that is not part of the `TestEnvironment`, leaving a spec that only
-   * depends on the `TestEnvironment`.
+   * that is not part of the `TestEnvironment`, leaving a spec that only depends
+   * on the `TestEnvironment`.
    *
    * {{{
    * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???

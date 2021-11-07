@@ -23,8 +23,8 @@ trait FunctionVariants {
 
   /**
    * Constructs a generator of functions from `A` to `B` given a generator of
-   * `B` values. Two `A` values will be considered to be equal, and thus will
-   * be guaranteed to generate the same `B` value, if they have the same
+   * `B` values. Two `A` values will be considered to be equal, and thus will be
+   * guaranteed to generate the same `B` value, if they have the same
    * `hashCode`.
    */
   final def function[R, A, B](gen: Gen[R, B]): Gen[R, A => B] =

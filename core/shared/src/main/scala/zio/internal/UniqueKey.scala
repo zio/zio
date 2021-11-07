@@ -17,8 +17,8 @@
 package zio.internal
 
 /**
- * This can be used whenever an arbitrary number of unique keys needs to be generated as
- * this will just use memory location for equality.
+ * This can be used whenever an arbitrary number of unique keys needs to be
+ * generated as this will just use memory location for equality.
  */
 final class UniqueKey
 

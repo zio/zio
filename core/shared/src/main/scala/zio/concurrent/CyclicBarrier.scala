@@ -3,14 +3,17 @@ package zio.concurrent
 import zio._
 
 /**
- * A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
+ * A synchronization aid that allows a set of fibers to all wait for each other
+ * to reach a common barrier point.
  *
- * CyclicBarriers are useful in programs involving a fixed sized party of fibers that must occasionally wait for each
- * other. The barrier is called cyclic because it can be re-used after the waiting fibers are released.
+ * CyclicBarriers are useful in programs involving a fixed sized party of fibers
+ * that must occasionally wait for each other. The barrier is called cyclic
+ * because it can be re-used after the waiting fibers are released.
  *
- * A CyclicBarrier supports an optional action command that is run once per barrier point, after the last fiber in the
- * party arrives, but before any fibers are released. This barrier action is useful for updating shared-state before
- * any of the parties continue.
+ * A CyclicBarrier supports an optional action command that is run once per
+ * barrier point, after the last fiber in the party arrives, but before any
+ * fibers are released. This barrier action is useful for updating shared-state
+ * before any of the parties continue.
  */
 final class CyclicBarrier private (
   private val _parties: Int,
@@ -34,7 +37,10 @@ final class CyclicBarrier private (
   /** The number of parties currently waiting at the barrier. */
   val waiting: UIO[Int] = _waiting.get
 
-  /** Waits until all parties have invoked await on this barrier. Fails if the barrier is broken. */
+  /**
+   * Waits until all parties have invoked await on this barrier. Fails if the
+   * barrier is broken.
+   */
   val await: IO[Unit, Int] =
     ZIO.uninterruptibleMask { restore =>
       _broken.get.flatMap(if (_) IO.fail(()) else UIO.unit) *>

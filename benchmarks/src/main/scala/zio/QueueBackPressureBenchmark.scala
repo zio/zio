@@ -16,7 +16,8 @@ import scala.concurrent.ExecutionContext
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
 @Fork(3)
 /**
- * This benchmark offers and takes a number of items in parallel, with a very small queue to enforce back pressure mechanism is used.
+ * This benchmark offers and takes a number of items in parallel, with a very
+ * small queue to enforce back pressure mechanism is used.
  */
 class QueueBackPressureBenchmark {
   val queueSize   = 2

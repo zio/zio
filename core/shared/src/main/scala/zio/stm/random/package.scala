@@ -284,7 +284,8 @@ package object random {
     ZSTM.accessM(_.get.nextBoolean)
 
   /**
-   * Generates a pseudo-random chunk of bytes of the specified length inside a transaction.
+   * Generates a pseudo-random chunk of bytes of the specified length inside a
+   * transaction.
    */
   def nextBytes(length: => Int): URSTM[TRandom, Chunk[Byte]] =
     ZSTM.accessM(_.get.nextBytes(length))
@@ -296,7 +297,8 @@ package object random {
   val nextDouble: URSTM[TRandom, Double] = ZSTM.accessM(_.get.nextDouble)
 
   /**
-   * Generates a pseudo-random double in the specified range inside a transaction.
+   * Generates a pseudo-random double in the specified range inside a
+   * transaction.
    */
   def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): URSTM[TRandom, Double] =
     ZSTM.accessM(_.get.nextDoubleBetween(minInclusive, maxExclusive))
@@ -309,7 +311,8 @@ package object random {
     ZSTM.accessM(_.get.nextFloat)
 
   /**
-   * Generates a pseudo-random float in the specified range inside a transaction.
+   * Generates a pseudo-random float in the specified range inside a
+   * transaction.
    */
   def nextFloatBetween(minInclusive: Float, maxExclusive: Float): URSTM[TRandom, Float] =
     ZSTM.accessM(_.get.nextFloatBetween(minInclusive, maxExclusive))
@@ -328,7 +331,8 @@ package object random {
     ZSTM.accessM(_.get.nextInt)
 
   /**
-   * Generates a pseudo-random integer in the specified range inside a transaction.
+   * Generates a pseudo-random integer in the specified range inside a
+   * transaction.
    */
   def nextIntBetween(minInclusive: Int, maxExclusive: Int): URSTM[TRandom, Int] =
     ZSTM.accessM(_.get.nextIntBetween(minInclusive, maxExclusive))
@@ -360,13 +364,15 @@ package object random {
     ZSTM.accessM(_.get.nextLongBounded(n))
 
   /**
-   * Generates a pseudo-random character from the ASCII range 33-126 inside a transaction.
+   * Generates a pseudo-random character from the ASCII range 33-126 inside a
+   * transaction.
    */
   val nextPrintableChar: URSTM[TRandom, Char] =
     ZSTM.accessM(_.get.nextPrintableChar)
 
   /**
-   * Generates a pseudo-random string of the specified length inside a transaction.
+   * Generates a pseudo-random string of the specified length inside a
+   * transaction.
    */
   def nextString(length: => Int): URSTM[TRandom, String] =
     ZSTM.accessM(_.get.nextString(length))
