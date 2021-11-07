@@ -2,6 +2,7 @@ package zio
 
 import zio.random.Random
 import zio.test.Assertion._
+import zio.test.TestAspect.samples
 import zio.test._
 
 object BitChunkSpec extends ZIOBaseSpec {
@@ -198,7 +199,7 @@ object BitChunkSpec extends ZIOBaseSpec {
                 assert(actual)(equalTo(expected))
             }
         }
-      },
+      } @@ samples(20),
       testM("works the same when sliced") {
         val gen = for {
           operator      <- genBitwiseOperator
@@ -209,26 +210,20 @@ object BitChunkSpec extends ZIOBaseSpec {
           rightBitsTake <- Gen.int(0, rightBits.size)
           rightBitsDrop <- Gen.int(0, rightBits.size - rightBitsTake)
         } yield (operator, leftBits, leftBitsTake, leftBitsDrop, rightBits, rightBitsTake, rightBitsDrop)
-        checkM(gen) { case (bitwiseOp, leftBits, leftBitsTake, leftBitsDrop, rightBits, rightBitsTake, rightBitsDrop) =>
+        check(gen) { case (bitwiseOp, leftBits, leftBitsTake, leftBitsDrop, rightBits, rightBitsTake, rightBitsDrop) =>
           val expected = bitwiseOp(
             leftBits.take(leftBitsTake).drop(leftBitsDrop),
             rightBits.take(rightBitsTake).drop(rightBitsDrop)
           ).toBinaryString
-          check(
-            Gen.elements(
-              compressed(leftBits) -> rightBits,
-              leftBits             -> compressed(rightBits),
-              compressed(leftBits) -> compressed(rightBits)
-            )
-          ) { case (left, right) =>
-            val actual = bitwiseOp(
-              left.take(leftBitsTake).drop(leftBitsDrop),
-              right.take(rightBitsTake).drop(rightBitsDrop)
-            ).toBinaryString
-            assert(actual)(equalTo(expected))
-          }
+          val left  = compressed(leftBits)
+          val right = compressed(rightBits)
+          val actual = bitwiseOp(
+            left.take(leftBitsTake).drop(leftBitsDrop),
+            right.take(rightBitsTake).drop(rightBitsDrop)
+          ).toBinaryString
+          assert(actual)(equalTo(expected))
         }
-      }
+      } @@ samples(20)
     )
   )
 }
