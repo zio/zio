@@ -150,10 +150,9 @@ module.exports = {
                 },
                 {
                     type: "category",
-                    label: "ZTransducer",
+                    label: "ZPipeline",
                     items: [
-                        "datatypes/stream/ztransducer",
-                        "datatypes/stream/transducer",
+                        "datatypes/stream/zpipeline",
                     ]
                 },
                 {
