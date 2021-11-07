@@ -21,7 +21,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         .map(_ => client)
     })(c => ZIO.succeed(c.close()))
 
-  def spec: ZSpec[Environment, Failure] = suite("ZStream JVM experimental")(
+  def spec: ZSpec[Environment, Failure] = suite("ZStream JVM")(
     suite("Constructors")(
       suite("asyncMaybe")(
         test("asyncMaybe signal end stream") {

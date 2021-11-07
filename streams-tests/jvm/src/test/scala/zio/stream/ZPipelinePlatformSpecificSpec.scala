@@ -9,7 +9,7 @@ import java.util.zip.Deflater
 
 object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("ZPipeline JVM experimental")(
+  def spec: ZSpec[Environment, Failure] = suite("ZPipeline JVM")(
     suite("Constructors")(
       suite("Deflate")(
         test("JDK inflates what was deflated")(
