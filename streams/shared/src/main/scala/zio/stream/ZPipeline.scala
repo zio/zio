@@ -355,7 +355,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
-   * Creates a pipeline that maps elements with the specified function.
+   * Creates a pipeline that maps chunks of elements with the specified
+   * function.
    */
   def mapChunks[In, Out](
     f: Chunk[In] => Chunk[Out]
