@@ -103,7 +103,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
     encoderUnderTest: UtfEncodingPipeline,
     sourceCharset: Charset,
     byteGenerator: Gen[Has[Random] with Has[Sized], Chunk[Byte]],
-    bom: Chunk[Byte] = Chunk.empty
+    bom: Chunk[Byte]
   ) = {
     def fixIfGeneratedBytesBeginWithBom(generated: Chunk[Byte]) =
       // we want to make sure the generated doesn't start with BOM;
