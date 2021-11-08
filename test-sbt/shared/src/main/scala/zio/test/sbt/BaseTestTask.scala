@@ -54,7 +54,7 @@ abstract class BaseTestTask(
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args)
                 .provideLayer(
-                  fullLayer +!+ zio.ZEnv.live
+                  fullLayer
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
