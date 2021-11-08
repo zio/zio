@@ -196,6 +196,7 @@ module.exports = {
             "datatypes/test/environment/live",
           ]
         },
+        "datatypes/test/test-aspect",
       ],
     "Miscellaneous": [
       "datatypes/misc/chunk",
