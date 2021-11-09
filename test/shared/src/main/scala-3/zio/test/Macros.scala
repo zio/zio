@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{UIO, ZIO, ZTraceElement}
+import zio._
 import zio.test.internal.SmartAssertions
 
 import scala.quoted._
