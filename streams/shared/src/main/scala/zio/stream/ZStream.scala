@@ -6369,7 +6369,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Threads the stream through the transformation function `f`.
      */
-    def via[OutEnv, OutErr, OutElem](f: ZStream[Env, Err, Elem] => ZStream[OutEnv, OutErr, OutElem])(implicit
+    def viaFunction[OutEnv, OutErr, OutElem](f: ZStream[Env, Err, Elem] => ZStream[OutEnv, OutErr, OutElem])(implicit
       trace: ZTraceElement
     ): ZStream[OutEnv, OutErr, OutElem] = f(self)
 
