@@ -57,6 +57,14 @@ object ExpectationSpec extends ZIOBaseSpec {
     suite("repeats")(
       test("A repeats (2 to 5)")(assert(A repeats (2 to 5))(equalTo(Repeated(A, 2 to 5)))),
       test("nested repeats")(assert(A.repeats(2 to 3).repeats(1 to 2))(equalTo(Repeated(Repeated(A, 2 to 3), 1 to 2))))
+    ),
+    suite("optional")(
+      test("A optional")(assert(A.optional)(equalTo(Repeated(A, 0 to 1))))
+    ),
+    suite("exactly and derived")(
+      test("A exactly 5")(assert(A exactly 5)(equalTo(Exactly(A, 5)))),
+      test("A twice")(assert(A.twice)(equalTo(Exactly(A, 2)))),
+      test("A thrice")(assert(A.thrice)(equalTo(Exactly(A, 3))))
     )
   )
 }

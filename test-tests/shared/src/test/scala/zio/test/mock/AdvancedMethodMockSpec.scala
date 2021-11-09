@@ -22,7 +22,7 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
 
   val a: URIO[ImpureModule, String] = ImpureModule.singleParam(1)
   val b: URIO[ImpureModule, String] = ImpureModule.overloaded(2)
-  val c                             = ImpureModule.zeroParams
+  val c: URIO[ImpureModule, String] = ImpureModule.zeroParams
 
   type E = InvalidCallException
   type L = List[InvalidCall]
@@ -184,6 +184,19 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
             )
           )
         }, {
+          val expectation = (B atLeast 1) andThen (A atLeast 1)
+
+          suite("atLeast chained")(
+            suite("(B atLeast 1) andThen (A atLeast 1)")(
+              testDied("0xB/0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
+              testDied("1xB fails")(expectation, b, hasUnsatisfiedExpectations),
+              testDied("1xA fails")(expectation, a, hasFailedMatches(InvalidCapability(cmdA, cmdB, equalTo(2)))),
+              testValue("B->A passes")(expectation, b *> a, equalTo("A")),
+              testValue("B->B->A passes")(expectation, b *> b *> a, equalTo("A")),
+              testValue("B->A->A passes")(expectation, b *> a *> a, equalTo("A"))
+            )
+          )
+        }, {
           val expectation = A.optional
 
           suite("A.optional")(
@@ -251,6 +264,40 @@ object AdvancedMethodMockSpec extends ZIOBaseSpec with MockSpecUtils[ImpureModul
             testDied("B->C->B->C->A fails")(
               expectation,
               b *> c *> b *> c *> a,
+              hasUnexpectedCall(ImpureModuleMock.SingleParam, 1)
+            )
+          )
+        }, {
+          val expectation = A.twice
+
+          suite("A.twice")(
+            testDied("0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
+            testDied("1xA fails")(expectation, a, hasUnsatisfiedExpectations),
+            testValue("2xA passes")(expectation, a *> a, equalTo("A")),
+            testDied("3xA fails")(expectation, a *> a *> a, hasUnexpectedCall(ImpureModuleMock.SingleParam, 1))
+          )
+        }, {
+          val expectation = A.thrice
+
+          suite("A.thrice")(
+            testDied("0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
+            testDied("1xA fails")(expectation, a, hasUnsatisfiedExpectations),
+            testDied("2xA fails")(expectation, a *> a, hasUnsatisfiedExpectations),
+            testValue("3xA passes")(expectation, a *> a *> a, equalTo("A")),
+            testDied("4xA fails")(expectation, a *> a *> a *> a, hasUnexpectedCall(ImpureModuleMock.SingleParam, 1))
+          )
+        }, {
+          val expectation = A.exactly(4)
+
+          suite("A.exactly(4)")(
+            testDied("0xA fails")(expectation, ZIO.unit, hasUnsatisfiedExpectations),
+            testDied("1xA fails")(expectation, a, hasUnsatisfiedExpectations),
+            testDied("2xA fails")(expectation, a *> a, hasUnsatisfiedExpectations),
+            testDied("3xA fails")(expectation, a *> a *> a, hasUnsatisfiedExpectations),
+            testValue("4xA passes")(expectation, a *> a *> a *> a, equalTo("A")),
+            testDied("5xA fails")(
+              expectation,
+              a *> a *> a *> a *> a,
               hasUnexpectedCall(ImpureModuleMock.SingleParam, 1)
             )
           )
