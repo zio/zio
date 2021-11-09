@@ -296,7 +296,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    */
   final def toFutureWith(f: E => Throwable)(implicit trace: ZTraceElement): UIO[CancelableFuture[A]] =
     UIO.suspendSucceed {
-      val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
+      val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashTraceWith(f)))
       def success(value: A): UIO[p.type]        = UIO(p.success(value))
@@ -409,10 +409,9 @@ object Fiber extends FiberPlatformSpecific {
      */
     final def dumpWith(withTrace: Boolean)(implicit trace: ZTraceElement): UIO[Fiber.Dump] =
       for {
-        name   <- self.getRef(Fiber.fiberName)
         status <- self.status
         trace  <- if (withTrace) self.trace.asSome else UIO.none
-      } yield Fiber.Dump(self.id, name, status, trace)
+      } yield Fiber.Dump(self.id, status, trace)
 
     /**
      * Generates a fiber dump with optionally excluded stack traces.
@@ -422,7 +421,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * The identity of the fiber.
      */
-    def id: FiberId
+    def id: FiberId.Runtime
 
     def scope: ZScope[Exit[E, A]]
 
@@ -440,7 +439,7 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] object Runtime {
 
     implicit def fiberOrdering[E, A]: Ordering[Fiber.Runtime[E, A]] =
-      Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeMillis, fiber.id.seqNumber))
+      Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeSeconds, fiber.id.id))
 
     abstract class Internal[+E, +A] extends Runtime[E, A]
   }
@@ -497,9 +496,7 @@ object Fiber extends FiberPlatformSpecific {
 
   sealed abstract class Dump extends Serializable { self =>
 
-    def fiberId: FiberId
-
-    def fiberName: Option[String]
+    def fiberId: FiberId.Runtime
 
     def status: Status
 
@@ -521,16 +518,14 @@ object Fiber extends FiberPlatformSpecific {
 
   object Dump {
     def apply(
-      fiberId0: FiberId,
-      fiberName0: Option[String],
+      fiberId0: FiberId.Runtime,
       status0: Status,
       trace0: Option[ZTrace]
     ): Dump =
       new Dump {
-        def fiberId: FiberId          = fiberId0
-        def fiberName: Option[String] = fiberName0
-        def status: Status            = status0
-        def trace: Option[ZTrace]     = trace0
+        def fiberId: FiberId.Runtime = fiberId0
+        def status: Status           = status0
+        def trace: Option[ZTrace]    = trace0
       }
 
   }
@@ -679,11 +674,6 @@ object Fiber extends FiberPlatformSpecific {
     done(Exit.failCause(cause))
 
   /**
-   * A `FiberRef` that stores the name of the fiber, which defaults to `None`.
-   */
-  val fiberName: FiberRef.Runtime[Option[String]] = new FiberRef.Runtime(None, identity, (old, _) => old)
-
-  /**
    * Lifts an [[zio.IO]] into a `Fiber`.
    *
    * @param io `IO[E, A]` to turn into a `Fiber`
@@ -777,7 +767,7 @@ object Fiber extends FiberPlatformSpecific {
    * @return `UIO[Unit]`
    */
   def joinAll[E](fs: Iterable[Fiber[E, Any]])(implicit trace: ZTraceElement): IO[E, Unit] =
-    collectAll(fs).join.unit.refailWithTrace
+    collectAll(fs).join.unit
 
   /**
    * A fiber that never fails or succeeds.
@@ -824,11 +814,11 @@ object Fiber extends FiberPlatformSpecific {
   def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
-  private[zio] def newFiberId(): FiberId =
-    FiberId(java.lang.System.currentTimeMillis(), _fiberCounter.getAndIncrement())
+  private[zio] def newFiberId(): FiberId.Runtime =
+    FiberId.Runtime((java.lang.System.currentTimeMillis / 1000).toInt, _fiberCounter.getAndIncrement())
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
 
-  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicLong(0L)
+  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 }

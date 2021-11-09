@@ -23,7 +23,10 @@ import scala.annotation.tailrec
 final case class ZTrace(
   fiberId: FiberId,
   stackTrace: Chunk[ZTraceElement]
-) {
+) { self =>
+
+  def ++(that: ZTrace): ZTrace =
+    ZTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
 
   /**
    * Converts the ZIO trace into a Java stack trace, by converting each trace element into a Java
@@ -43,4 +46,10 @@ final case class ZTrace(
 
       new StackTraceElement(before, after.drop(1), stripSlash(file), line)
     }
+}
+
+object ZTrace {
+
+  lazy val none: ZTrace =
+    ZTrace(FiberId.None, Chunk.empty)
 }

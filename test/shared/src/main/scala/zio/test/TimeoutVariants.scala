@@ -17,7 +17,6 @@
 package zio.test
 
 import zio._
-import zio.test.environment.Live
 
 trait TimeoutVariants {
 

@@ -16,10 +16,10 @@
 
 package zio
 
+import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
-import zio.test.environment._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.language.implicitConversions
@@ -36,7 +36,6 @@ import scala.util.Try
  *
  * {{{
  *  import zio.test._
- *  import zio.test.environment.Live
  *  import zio.Clock.nanoTime
  *  import Assertion.isGreaterThan
  *
@@ -55,6 +54,64 @@ package object test extends CompileVariants {
   type AssertResultM = BoolAlgebraM[Any, Nothing, AssertionValue]
   type AssertResult  = BoolAlgebra[AssertionValue]
 
+  type TestEnvironment =
+    Has[Annotations]
+      with Has[Live]
+      with Has[Sized]
+      with Has[TestClock]
+      with Has[TestConfig]
+      with Has[TestConsole]
+      with Has[TestRandom]
+      with Has[TestSystem]
+      with ZEnv
+
+  object TestEnvironment {
+    val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
+      ZLayer.environment[TestEnvironment](Tracer.newTrace)
+    val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
+      implicit val trace = Tracer.newTrace
+      Annotations.live ++
+        Live.default ++
+        Sized.live(100) ++
+        ((Live.default ++ Annotations.live) >>> TestClock.default) ++
+        TestConfig.live(100, 100, 200, 1000) ++
+        (Live.default >>> TestConsole.debug) ++
+        TestRandom.deterministic ++
+        TestSystem.default
+    }
+  }
+
+  val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
+
+  val testEnvironment: Layer[Nothing, TestEnvironment] = {
+    implicit val trace = Tracer.newTrace
+    ZEnv.live >>> TestEnvironment.live
+  }
+
+  /**
+   * Provides an effect with the "real" environment as opposed to the test
+   * environment. This is useful for performing effects such as timing out
+   * tests, accessing the real time, or printing to the real console.
+   */
+  def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Has[Live], E, A] =
+    Live.live(zio)
+
+  /**
+   * Transforms this effect with the specified function. The test environment
+   * will be provided to this effect, but the live environment will be provided
+   * to the transformation function. This can be useful for applying
+   * transformations to an effect that require access to the "real" environment
+   * while ensuring that the effect itself uses the test environment.
+   *
+   * {{{
+   *  withLive(test)(_.timeout(duration))
+   * }}}
+   */
+  def withLive[R, E, E1, A, B](
+    zio: ZIO[R, E, A]
+  )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R with Has[Live], E1, B] =
+    Live.withLive(zio)(f)
+
   /**
    * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
    */
@@ -70,7 +127,7 @@ package object test extends CompileVariants {
 
   object TestResult {
     implicit def trace2TestResult(assert: Assert): TestResult = {
-      val trace = Arrow.run(assert.arrow, Right(()))
+      val trace = TestArrow.run(assert.arrow, Right(()))
       if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
       else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
     }
@@ -91,8 +148,8 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable Restorable]]
-   * [[zio.test.environment.TestEnvironment TestEnvironment]] objects
+   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.Restorable Restorable]]
+   * [[zio.test.TestEnvironment TestEnvironment]] objects
    */
   type ZTestEnv = Has[TestClock] with Has[TestConsole] with Has[TestRandom] with Has[TestSystem]
 
@@ -153,9 +210,12 @@ package object test extends CompileVariants {
     value: => A,
     assertResult: AssertResult,
     assertion: AssertionM[A],
-    expression: Option[String],
-    sourceLocation: Option[String]
-  ): TestResult =
+    expression: Option[String]
+  )(implicit trace: ZTraceElement): TestResult = {
+    val sourceLocation = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, line, _) =>
+      s"$file:$line"
+    }
+
     assertResult.flatMap { fragment =>
       def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
         if (whole.sameAssertion(failureDetails.assertion.head))
@@ -173,19 +233,17 @@ package object test extends CompileVariants {
         FailureDetails(::(AssertionValue(assertion, value, assertResult, expression, sourceLocation), Nil))
       )
     }
+  }
 
   /**
    * Checks the assertion holds for the given value.
    */
   override private[test] def assertImpl[A](
     value: => A,
-    expression: Option[String] = None,
-    sourceLocation: Option[String] = None
-  )(
-    assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): TestResult = {
+    expression: Option[String] = None
+  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult = {
     lazy val tryValue = Try(value)
-    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression, sourceLocation)
+    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression)
   }
 
   /**
@@ -203,13 +261,13 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
+  override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
     assertion: AssertionM[A]
   )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
     for {
       value        <- effect
       assertResult <- assertion.runM(value).run
-    } yield traverseResult(value, assertResult, assertion, None, sourceLocation)
+    } yield traverseResult(value, assertResult, assertion, None)
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the
@@ -763,7 +821,6 @@ package object test extends CompileVariants {
    */
   def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[Nothing, In],
-    sourceLocation: SourceLocation,
     trace: ZTraceElement
   ): testConstructor.Out =
     testConstructor(label)(assertion)
@@ -774,7 +831,7 @@ package object test extends CompileVariants {
   @deprecated("use test", "2.0.0")
   def testM[R, E](label: String)(
     assertion: => ZIO[R, E, TestResult]
-  )(implicit loc: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+  )(implicit trace: ZTraceElement): ZSpec[R, E] =
     test(label)(assertion)
 
   /**
@@ -1134,4 +1191,140 @@ package object test extends CompileVariants {
     right: ZStream[R, Nothing, Option[A]]
   )(implicit trace: ZTraceElement): ZStream[R, Nothing, Option[A]] =
     flatMapStream(ZStream(Some(left), Some(right)))(identity)
+
+  implicit final class TestLensOptionOps[A](private val self: TestLens[Option[A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[scala.Option]] to its `Some` value `A`, otherwise fails
+     * if it is a `None`.
+     */
+    def some: TestLens[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensEitherOps[E, A](private val self: TestLens[Either[E, A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[scala.Either]] to its [[scala.Left]] value `E`, otherwise
+     * fails if it is a [[scala.Right]].
+     */
+    def left: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[scala.Either]] to its [[scala.Right]] value `A`, otherwise
+     * fails if it is a [[scala.Left]].
+     */
+    def right: TestLens[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensExitOps[E, A](private val self: TestLens[Exit[E, A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`, otherwise
+     * fails.
+     */
+    def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to its failure type (`E`) if it is a `fail`,
+     * otherwise fails.
+     */
+    def failure: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to its success type (`A`) if it is a `succeed`,
+     * otherwise fails.
+     */
+    def success: TestLens[A] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to its underlying [[Cause]] if it has one,
+     * otherwise fails.
+     */
+    def cause: TestLens[Cause[E]] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to a boolean value representing whether or not it
+     * was interrupted.
+     */
+    def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensCauseOps[E](private val self: TestLens[Cause[E]]) extends AnyVal {
+
+    /**
+     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`, otherwise
+     * fails.
+     */
+    def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a [[Cause]] to its failure type (`E`) if it is a `fail`,
+     * otherwise fails.
+     */
+    def failure: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a [[Cause]] to a boolean value representing whether or not it
+     * was interrupted.
+     */
+    def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensAnyOps[A](private val self: TestLens[A]) extends AnyVal {
+
+    /**
+     * Always returns true as long the chain of preceding transformations has succeeded.
+     *
+     * {{{
+     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
+     *   assertTrue(option.is(_.right.some.anything)) // returns true
+     *   assertTrue(option.is(_.left.anything)) // will fail because of `.left`.
+     * }}}
+     */
+    def anything: TestLens[Boolean] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a value of some type into the given `Subtype` if possible,
+     * otherwise fails.
+     *
+     * {{{
+     *   sealed trait CustomError
+     *   case class Explosion(blastRadius: Int) extends CustomError
+     *   case class Melting(degrees: Double) extends CustomError
+     *   case class Fulminating(wow: Boolean) extends CustomError
+     *
+     *   val error: CustomError = Melting(100)
+     *   assertTrue(option.is(_.subtype[Melting]).degrees > 10) // succeeds
+     *   assertTrue(option.is(_.subtype[Explosion]).blastRadius == 12) // fails
+     * }}}
+     */
+    def subtype[Subtype <: A]: TestLens[Subtype] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a value with the given [[CustomAssertion]]
+     */
+    def custom[B](customAssertion: CustomAssertion[A, B]): TestLens[B] = {
+      val _ = customAssertion
+      throw SmartAssertionExtensionError()
+    }
+  }
+
+  implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
+
+    /**
+     * This extension method can only be called inside of the `assertTrue`
+     * method. It will transform the value using the given [[TestLens]].
+     *
+     * {{{
+     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
+     *   assertTrue(option.is(_.right.some) == "Cool") // returns true
+     *   assertTrue(option.is(_.left) < 100) // will fail because of `.left`.
+     * }}}
+     */
+    def is[B](f: TestLens[A] => TestLens[B]): B = {
+      val _ = f
+      throw SmartAssertionExtensionError()
+    }
+  }
+
 }

@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.Arrow.Span
+import zio.test.TestArrow.Span
 
 import scala.annotation.tailrec
 
@@ -208,9 +208,9 @@ object Trace {
     }
   }
 
-  def halt: Trace[Nothing]                        = Node(Result.Fail)
-  def halt(message: String): Trace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
-  def halt(message: ErrorMessage): Trace[Nothing] = Node(Result.Fail, message = message)
+  def fail: Trace[Nothing]                        = Node(Result.Fail)
+  def fail(message: String): Trace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
+  def fail(message: ErrorMessage): Trace[Nothing] = Node(Result.Fail, message = message)
   def succeed[A](value: A): Trace[A]              = Node(Result.succeed(value))
 
   def boolean(value: Boolean)(message: ErrorMessage): Trace[Boolean] = Node(Result.succeed(value), message = message)

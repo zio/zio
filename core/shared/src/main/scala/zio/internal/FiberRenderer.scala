@@ -45,26 +45,26 @@ private[zio] object FiberRenderer {
     }
 
   private def prettyPrint(dump: Fiber.Dump, now: Long): String = {
-    val millis  = (now - dump.fiberId.startTimeMillis)
+    val millis  = (now - dump.fiberId.startTimeSeconds * 1000).toLong
     val seconds = millis / 1000L
     val minutes = seconds / 60L
     val hours   = minutes / 60L
 
-    val name = dump.fiberName.fold("")(name => "\"" + name + "\" ")
+    val name = "\"zio-fiber-" + dump.fiberId.id + "\""
     val lifeMsg = (if (hours == 0) "" else s"${hours}h") +
       (if (hours == 0 && minutes == 0) "" else s"${minutes}m") +
       (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
       (s"${millis}ms")
     val waitMsg = dump.status match {
       case Suspended(_, _, _, blockingOn, _) =>
-        if (blockingOn ne FiberId.None) "waiting on " + s"#${blockingOn.seqNumber}" else ""
+        if (blockingOn ne FiberId.None) "waiting on " + s"#${blockingOn.ids.mkString(", ")}" else ""
       case _ => ""
     }
     val statMsg = renderStatus(dump.status)
     val trace   = dump.trace.fold("")(trace => zio.Cause.traced(zio.Cause.empty, trace).prettyPrint)
 
     s"""
-       |$name#${dump.fiberId.seqNumber} ($lifeMsg) $waitMsg
+       |"${name}" ($lifeMsg) $waitMsg
        |   Status: $statMsg
        |$trace
        |""".stripMargin
@@ -89,9 +89,8 @@ private[zio] object FiberRenderer {
 
   private def renderOne(tree: Dump): String = {
     def go(t: Dump, prefix: String): String = {
-      val nameStr   = t.fiberName.fold("")(n => "\"" + n + "\" ")
       val statusMsg = renderStatus(t.status)
-      s"$prefix+---$nameStr#${t.fiberId.seqNumber} Status: $statusMsg\n"
+      s"$prefix+---#${t.fiberId.ids} Status: $statusMsg\n"
     }
 
     go(tree, "")

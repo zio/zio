@@ -17,7 +17,6 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.Macros.location
 import zio.{UIO, ZIO, ZTraceElement}
 
 import scala.annotation.tailrec
@@ -47,17 +46,15 @@ trait CompileVariants {
    */
   private[test] def assertImpl[A](
     value: => A,
-    expression: Option[String] = None,
-    sourceLocation: Option[String] = None
-  )(
-    assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): TestResult
+    expression: Option[String] = None
+  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)
-                                            (assertion: AssertionM[A])(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
+  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
+    assertion: AssertionM[A]
+  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
 
   inline def assertTrue(inline exprs: => Boolean*): Assert = ${SmartAssertMacros.smartAssert('exprs)}
 
@@ -65,8 +62,6 @@ trait CompileVariants {
     ${Macros.assert_impl('value)('assertion)}
 
   inline def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] = ${Macros.assertM_impl('effect)('assertion)}
-
-  private[zio] inline def sourcePath: String = ${Macros.sourcePath_impl}
 
   private[zio] inline def showExpression[A](inline value: => A): String = ${Macros.showExpression_impl('value)}
 }
@@ -76,15 +71,18 @@ trait CompileVariants {
  */
 object CompileVariants {
 
-  def assertProxy[A](value: => A, expression: String, sourceLocation: String)(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult =
-    zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
-
-  def smartAssertProxy[A](value: => A, expression: String, sourceLocation: String)(
+  def assertProxy[A](value: => A, expression: String)(
     assertion: Assertion[A]
   )(implicit trace: ZTraceElement): TestResult =
-    zio.test.assertImpl(value, Some(expression), Some(sourceLocation))(assertion)
+    zio.test.assertImpl(value, Some(expression))(assertion)
 
-  def assertMProxy[R, E, A](effect: ZIO[R, E, A], sourceLocation: String)
-                              (assertion: AssertionM[A])(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
-    zio.test.assertMImpl(effect, Some(sourceLocation))(assertion)
+  def smartAssertProxy[A](value: => A, expression: String)(
+    assertion: Assertion[A]
+  )(implicit trace: ZTraceElement): TestResult =
+    zio.test.assertImpl(value, Some(expression))(assertion)
+
+  def assertMProxy[R, E, A](effect: ZIO[R, E, A])(
+    assertion: AssertionM[A]
+  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
+    zio.test.assertMImpl(effect)(assertion)
 }
