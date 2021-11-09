@@ -244,9 +244,6 @@ class ChunkIndexedSeqComparison {
   def toIndexedSeq(bh: Blackhole): Unit = bh.consume(chunk.toIndexedSeq)
 
   @Benchmark
-  def toIterable(): Iterable[Int] = chunk.toIterable
-
-  @Benchmark
   def toSeq(): Seq[Int] = chunk.toSeq
 
   @Benchmark
