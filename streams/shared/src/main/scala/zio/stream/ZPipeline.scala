@@ -928,6 +928,17 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.US_ASCII)
 
+  /**
+   * `utf*Encode` pipelines adhere to the same behavior of Java's String#getBytes(charset)`, that is:
+   * - utf8: No BOM
+   * - utf16: Has BOM (the outlier)
+   * - utf16BE & utf16LE: No BOM
+   * - All utf32 variants: No BOM
+   *
+   * If BOM is required, users can use the `*WithBomEncode` variants. (As alluded above,
+   * `utf16Encode` always prepends BOM, just like `getBytes("UTF-16")` in Java. In fact,
+   * it is an alias to both `utf16BEWithBomEncode` and `utf16WithBomEncode`.
+   */
   def utf8Encode: ZPipeline.WithOut[
     Nothing,
     Any,
@@ -965,9 +976,35 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Byte })#OutElem
   ] =
+    utfEncodeFor(StandardCharsets.UTF_16BE)
+
+  def utf16BEWithBomEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
     utfEncodeFor(StandardCharsets.UTF_16BE, bom = BOM.Utf16BE)
 
   def utf16LEEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(StandardCharsets.UTF_16LE)
+
+  def utf16LEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -991,9 +1028,35 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Byte })#OutElem
   ] =
-    utfEncodeFor(StandardCharsets.UTF_16BE)
+    utf16BEWithBomEncode
+
+  def utf16WithBomEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utf16BEWithBomEncode
 
   def utf32BEEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utfEncodeFor(CharsetUtf32BE)
+
+  def utf32BEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1017,6 +1080,19 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Byte })#OutElem
   ] =
+    utfEncodeFor(CharsetUtf32LE)
+
+  def utf32LEWithBomEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
     utfEncodeFor(CharsetUtf32LE, bom = BOM.Utf32LE)
 
   def utf32Encode: ZPipeline.WithOut[
@@ -1030,7 +1106,20 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Byte })#OutElem
   ] =
-    utfEncodeFor(CharsetUtf32BE)
+    utf32BEEncode
+
+  def utf32WithBomEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utf32BEWithBomEncode
 
   trait Compose[+LeftLower, -LeftUpper, LeftOut[In], +RightLower, -RightUpper, RightOut[In]] {
     type Lower

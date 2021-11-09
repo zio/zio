@@ -2,7 +2,7 @@ package zio.stream
 
 import zio._
 import zio.test.Assertion._
-import zio.test.{Gen, ZSpec, assert, assertCompletes, assertM, check}
+import zio.test._
 
 import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
 import java.net.InetSocketAddress

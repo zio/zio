@@ -1,6 +1,7 @@
 package zio.test.mock
 
 import zio.{Has, IO, Tag, UIO, ZIO}
+import zio.stream.ZStream
 
 /**
  * https://github.com/scalamacros/paradise/issues/75
@@ -29,6 +30,18 @@ object modules {
       def singleParam(a: Int): IO[String, String]
       def manyParams(a: Int, b: String, c: Long): IO[String, String]
       def manyParamLists(a: Int)(b: String)(c: Long): IO[String, String]
+    }
+  }
+
+  type StreamDefsModule = Has[StreamDefsModule.Service]
+  object StreamDefsModule {
+    trait Service {
+      val static: ZStream[Any, String, String]
+      def zeroParams: ZStream[Any, String, String]
+      def zeroParamsWithParens(): ZStream[Any, String, String]
+      def singleParam(a: Int): ZStream[Any, String, String]
+      def manyParams(a: Int, b: String, c: Long): ZStream[Any, String, String]
+      def manyParamLists(a: Int)(b: String)(c: Long): ZStream[Any, String, String]
     }
   }
 

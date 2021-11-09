@@ -257,13 +257,13 @@ trait Runtime[+R] {
   final def unsafeRunToFuture[E <: Throwable, A](
     zio: ZIO[R, E, A]
   )(implicit trace: ZTraceElement): CancelableFuture[A] = {
-    val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
+    val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
     val canceler = unsafeRunWith(zio)(_.fold(cause => p.failure(cause.squashTraceWith(identity)), p.success))
 
     new CancelableFuture[A](p.future) {
       def cancel(): Future[Exit[Throwable, A]] = {
-        val p: concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
+        val p: scala.concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
         canceler(FiberId.None)(p.success)
         p.future
       }
