@@ -24,26 +24,17 @@ There is no fundamental requirement for pipelines to exist, because everything p
 
 ## Creation
 
-### From Effect
-
-The `ZPipeline.fromEffect` creates a pipeline that always evaluates the specified effect. Let's write a pipeline that fails with a message: 
-
-```scala mdoc:silent:nest
-//val error = ZPipeline.fromZIO(IO.fail("Ouch"))
-```
-
 ### From Function
 
-By using `ZPipeline.fromFunction` we convert a function into a pipeline. Let's create a pipeline which converts a stream of strings into a stream of characters:
+By using `ZPipeline.map` we convert a function into a pipeline. Let's create a pipeline which converts a stream of strings into a stream of characters:
 
 ```scala mdoc:silent:nest
-//val chars = 
-//  ZPipeline
-//    .fromFunction[String, Chunk[Char]](s => Chunk.fromArray(s.toArray))
-//    .mapChunks(_.flatten)
+val chars = 
+ ZPipeline.map[String, Chunk[Char]](s => Chunk.fromArray(s.toArray)) >>>
+   ZPipeline.mapChunks[Chunk[Char], Char](_.flatten)
 ```
 
-There is also a `ZPipeline.fromFunctionZIO` which is an effectful version of this constructor.
+There is also a `ZPipeline.mapZIO` which is an effectful version of this constructor.
 
 ## Built-in Pipelines
 
@@ -104,32 +95,6 @@ ZStream(2, 3, 4).via(
   ZPipeline.prepend(Chunk(0, 1))
 )
 // Output: 0, 1, 2, 3, 4
-```
-
-### Branching/Switching
-
-The `ZPipeline.branchAfter` takes `n` as an input and creates a pipeline that reads the first `n` values from the stream and uses them to choose the pipeline that will be used for the rest of the stream.
-
-In the following example, we are prompting the user to enter a series of numbers. If the sum of the first three elements is less than 5, we continue to emit the remaining elements by using `ZPipeline.identity`, otherwise, we retry prompting the user to enter another series of numbers:
-
-```scala mdoc:silent:nest
-// ZStream
-//   .fromZIO(
-//     printLine("Enter numbers separated by comma: ") *> readLine
-//   )
-//   .mapConcat(_.split(","))
-//   .map(_.trim.toInt)
-//   .via(
-//     ZPipeline.branchAfter(3) { (elements: Chunk[Int]) =>
-//       if (elements.sum < 5)
-//         ZPipeline.identity
-//       else
-//         ZPipeline.fromZIO(
-//           printLine(s"received elements are not applicable: $elements")
-//         ) >>> ZPipeline.fail("boom")
-//     }
-//   )
-//   .retry(Schedule.forever)
 ```
 
 ### Compression
@@ -240,12 +205,12 @@ class ZPipeline[-R, +E, -I, +O] {
 Let's create an integer parser pipeline using `ZPipeline.contramap`:
 
 ```scala mdoc:silent:nest
-//val numbers: ZStream[Any, Nothing, Int] =
-//  ZStream("1-2-3-4-5")
-//    .mapConcat(_.split("-"))
-//    .via(
-//      ZPipeline.identity.contramap[String](_.toInt)
-//    )
+val numbers: ZStream[Any, Nothing, Int] =
+ ZStream("1-2-3-4-5")
+   .mapConcat(_.split("-"))
+   .via(
+     ZPipeline.map[String, Int](_.toInt)
+   )
 ```
 
 ### Composing
@@ -266,15 +231,17 @@ val lines: ZStream[Any, Throwable, String] =
 2. **Composing ZPipeline with ZSink** — One pipeline can be composed with a sink, resulting in a sink that processes elements by piping them through the pipeline and piping the results into the sink:
 
 ```scala mdoc:silent:nest
-//val refine: ZIO[Any, Throwable, Long] =
-//  ZStream
-//    .fromFile(Paths.get("file.txt"))
-//    .run(
-//      ZPipeline.utf8Decode >>> ZPipeline.splitLines.filter(_.contains('₿')) >>>
-//        ZSink
-//          .fromFile(Paths.get("file.refined.txt"))
-//          .contramapChunks[String](
-//            _.flatMap(line => (line + System.lineSeparator()).getBytes())
-//          )
-//    )
+val refine: ZIO[Any, Throwable, Long] =
+  ZStream
+    .fromFile(Paths.get("file.txt"))
+    .via(
+      ZPipeline.utf8Decode >>> ZPipeline.splitLines >>> ZPipeline.filter[String](_.contains('₿'))
+    )
+    .run(
+      ZSink
+        .fromFile(Paths.get("file.refined.txt"))
+        .contramapChunks[String](
+          _.flatMap(line => (line + System.lineSeparator()).getBytes())
+        )
+    )
 ```

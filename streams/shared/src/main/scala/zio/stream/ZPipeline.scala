@@ -355,6 +355,33 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
+   * Creates a pipeline that maps chunks of elements with the specified
+   * function.
+   */
+  def mapChunks[In, Out](
+    f: Chunk[In] => Chunk[Out]
+  ): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    In,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Out })#OutElem
+  ] =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = Err
+      type OutElem[Elem] = Out
+      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, Out] =
+        stream.mapChunks(f)
+    }
+
+  /**
    * Emits the provided chunk before emitting any other value.
    */
   def prepend[In](values: Chunk[In]): ZPipeline.WithOut[
