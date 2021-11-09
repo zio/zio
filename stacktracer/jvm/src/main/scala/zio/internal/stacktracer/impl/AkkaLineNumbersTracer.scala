@@ -23,7 +23,8 @@ import zio.internal.stacktracer.{Tracer, ZTraceElement}
 import scala.util.matching.Regex
 
 /**
- * A [[Tracer]] implementation powered by Akka's `LineNumbers` bytecode parser (shipped with ZIO, no dependency on Akka)
+ * A [[Tracer]] implementation powered by Akka's `LineNumbers` bytecode parser
+ * (shipped with ZIO, no dependency on Akka)
  */
 final class AkkaLineNumbersTracer extends Tracer {
   final def traceLocation(lambda: AnyRef): ZTraceElement =

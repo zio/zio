@@ -34,8 +34,9 @@ trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
 
   /**
-   * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
-   * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
+   * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte
+   * chunks and writes them to the `OutputStream`. The sink will yield the count
+   * of bytes written.
    *
    * The caller of this function is responsible for closing the `OutputStream`.
    */
@@ -44,10 +45,12 @@ trait ZSinkPlatformSpecificConstructors {
   ): ZSink[Blocking, IOException, Byte, Byte, Long] = fromOutputStreamManaged(ZManaged.succeedNow(os))
 
   /**
-   * Uses the provided `OutputStream` resource to create a [[ZSink]] that consumes byte chunks
-   * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
+   * Uses the provided `OutputStream` resource to create a [[ZSink]] that
+   * consumes byte chunks and writes them to the `OutputStream`. The sink will
+   * yield the count of bytes written.
    *
-   * The `OutputStream` will be automatically closed after the stream is finished or an error occurred.
+   * The `OutputStream` will be automatically closed after the stream is
+   * finished or an error occurred.
    */
   final def fromOutputStreamManaged(
     os: ZManaged[Blocking, IOException, OutputStream]
@@ -102,9 +105,9 @@ trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The optionality of the error type `E` can be used to signal the end of the stream,
-   * by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The optionality of the error type `E` can be used to signal the end
+   * of the stream, by setting it to `None`.
    */
   def effectAsync[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Unit,
@@ -119,10 +122,10 @@ trait ZStreamPlatformSpecificConstructors {
     )
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback returns either a canceler or synchronously returns a stream.
-   * The optionality of the error type `E` can be used to signal the end of the stream, by
-   * setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The registration of the callback returns either a canceler or
+   * synchronously returns a stream. The optionality of the error type `E` can
+   * be used to signal the end of the stream, by setting it to `None`.
    */
   def effectAsyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
@@ -157,10 +160,10 @@ trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback itself returns an a managed resource.
-   * The optionality of the error type `E` can be used to signal the end of the
-   * stream, by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The registration of the callback itself returns an a managed
+   * resource. The optionality of the error type `E` can be used to signal the
+   * end of the stream, by setting it to `None`.
    */
   def effectAsyncManaged[R, E, A](
     register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZManaged[R, E, Any],
@@ -189,9 +192,10 @@ trait ZStreamPlatformSpecificConstructors {
     }.flatMap(repeatEffectChunkOption(_))
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times
-   * The registration of the callback itself returns an effect. The optionality of the
-   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times The registration of the callback itself returns an effect. The
+   * optionality of the error type `E` can be used to signal the end of the
+   * stream, by setting it to `None`.
    */
   def effectAsyncM[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
@@ -220,10 +224,10 @@ trait ZStreamPlatformSpecificConstructors {
     }.flatMap(repeatEffectChunkOption(_))
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback can possibly return the stream synchronously.
-   * The optionality of the error type `E` can be used to signal the end of the stream,
-   * by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The registration of the callback can possibly return the stream
+   * synchronously. The optionality of the error type `E` can be used to signal
+   * the end of the stream, by setting it to `None`.
    */
   def effectAsyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
@@ -325,8 +329,8 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
   /**
-   * Creates a stream from a `java.io.InputStream`.
-   * Note: the input stream will not be explicitly closed after it is exhausted.
+   * Creates a stream from a `java.io.InputStream`. Note: the input stream will
+   * not be explicitly closed after it is exhausted.
    */
   def fromInputStream(
     is: => InputStream,
@@ -476,8 +480,9 @@ trait ZStreamPlatformSpecificConstructors {
     ZStream.fromJavaIteratorTotal(stream.iterator())
 
   /**
-   * Create a stream of accepted connection from server socket
-   * Emit socket `Connection` from which you can read / write and ensure it is closed after it is used
+   * Create a stream of accepted connection from server socket Emit socket
+   * `Connection` from which you can read / write and ensure it is closed after
+   * it is used
    */
   def fromSocketServer(
     port: Int,
@@ -511,7 +516,8 @@ trait ZStreamPlatformSpecificConstructors {
     } yield conn
 
   /**
-   * Accepted connection made to a specific channel `AsynchronousServerSocketChannel`
+   * Accepted connection made to a specific channel
+   * `AsynchronousServerSocketChannel`
    */
   class Connection(socket: AsynchronousSocketChannel) {
 
@@ -531,7 +537,8 @@ trait ZStreamPlatformSpecificConstructors {
 
     /**
      * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`
-     * The caller of this function is NOT responsible for closing the `AsynchronousSocketChannel`.
+     * The caller of this function is NOT responsible for closing the
+     * `AsynchronousSocketChannel`.
      */
     def read: Stream[Throwable, Byte] =
       ZStream.unfoldChunkM(0) {
@@ -556,8 +563,8 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Write the entire Chuck[Byte] to the socket channel.
-     * The caller of this function is NOT responsible for closing the `AsynchronousSocketChannel`.
+     * Write the entire Chuck[Byte] to the socket channel. The caller of this
+     * function is NOT responsible for closing the `AsynchronousSocketChannel`.
      *
      * The sink will yield the count of bytes written.
      */
@@ -603,11 +610,17 @@ trait ZTransducerPlatformSpecificConstructors {
   self: ZTransducer.type =>
 
   /**
-   * Compresses stream with 'deflate' method described in https://tools.ietf.org/html/rfc1951.
-   * Each incoming chunk is compressed at once, so it can utilize thread for long time if chunks are big.
+   * Compresses stream with 'deflate' method described in
+   * https://tools.ietf.org/html/rfc1951. Each incoming chunk is compressed at
+   * once, so it can utilize thread for long time if chunks are big.
    *
-   * @param bufferSize Size of internal buffer used for pulling data from deflater, affects performance.
-   * @param noWrap     Whether output stream is wrapped in ZLIB header and trailer. For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+   * @param bufferSize
+   *   Size of internal buffer used for pulling data from deflater, affects
+   *   performance.
+   * @param noWrap
+   *   Whether output stream is wrapped in ZLIB header and trailer. For HTTP
+   *   'deflate' content-encoding should be false, see
+   *   https://tools.ietf.org/html/rfc2616.
    */
   def deflate(
     bufferSize: Int = 64 * 1024,
@@ -619,11 +632,15 @@ trait ZTransducerPlatformSpecificConstructors {
     ZTransducer(Deflate.makeDeflater(bufferSize, noWrap, level, strategy, flushMode))
 
   /**
-   * Decompresses deflated stream. Compression method is described in https://tools.ietf.org/html/rfc1951.
+   * Decompresses deflated stream. Compression method is described in
+   * https://tools.ietf.org/html/rfc1951.
    *
-   * @param noWrap     Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
-   *                   For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
-   * @param bufferSize Size of buffer used internally, affects performance.
+   * @param noWrap
+   *   Whether is wrapped in ZLIB header and trailer, see
+   *   https://tools.ietf.org/html/rfc1951. For HTTP 'deflate' content-encoding
+   *   should be false, see https://tools.ietf.org/html/rfc2616.
+   * @param bufferSize
+   *   Size of buffer used internally, affects performance.
    */
   def inflate(
     bufferSize: Int = 64 * 1024,
@@ -690,7 +707,8 @@ trait ZTransducerPlatformSpecificConstructors {
   }
 
   /**
-   * @param bufferSize Size of buffer used internally, affects performance.
+   * @param bufferSize
+   *   Size of buffer used internally, affects performance.
    * @param level
    * @param strategy
    * @param flushMode
@@ -714,9 +732,11 @@ trait ZTransducerPlatformSpecificConstructors {
     )
 
   /**
-   * Decompresses gzipped stream. Compression method is described in https://tools.ietf.org/html/rfc1952.
+   * Decompresses gzipped stream. Compression method is described in
+   * https://tools.ietf.org/html/rfc1952.
    *
-   * @param bufferSize Size of buffer used internally, affects performance.
+   * @param bufferSize
+   *   Size of buffer used internally, affects performance.
    */
   def gunzip(bufferSize: Int = 64 * 1024): ZTransducer[Any, CompressionException, Byte, Byte] =
     ZTransducer(

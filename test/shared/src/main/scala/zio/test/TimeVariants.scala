@@ -26,7 +26,8 @@ import scala.collection.JavaConverters._
 trait TimeVariants {
 
   /**
-   * A generator of `java.time.DayOfWeek` values. Shrinks toward `DayOfWeek.MONDAY`.
+   * A generator of `java.time.DayOfWeek` values. Shrinks toward
+   * `DayOfWeek.MONDAY`.
    */
   final def anyDayOfWeek: Gen[Random, DayOfWeek] =
     Gen.elements(
@@ -40,7 +41,8 @@ trait TimeVariants {
     )
 
   /**
-   * A generator of finite `zio.duration.Duration` values. Shrinks toward `Duration.Zero`.
+   * A generator of finite `zio.duration.Duration` values. Shrinks toward
+   * `Duration.Zero`.
    */
   final def anyFiniteDuration: Gen[Random, Duration] = Gen.long(0L, Long.MaxValue).map(Duration.Finite(_))
 
@@ -50,7 +52,8 @@ trait TimeVariants {
   final def anyInstant: Gen[Random, Instant] = instant(Instant.MIN, Instant.MAX)
 
   /**
-   * A generator of `java.time.LocalDate` values. Shrinks toward `LocalDate.MIN`.
+   * A generator of `java.time.LocalDate` values. Shrinks toward
+   * `LocalDate.MIN`.
    */
   final def anyLocalDate: Gen[Random, LocalDate] =
     for {
@@ -61,7 +64,8 @@ trait TimeVariants {
     } yield LocalDate.of(year.getValue, month, day)
 
   /**
-   * A generator of `java.time.LocalTime` values. Shrinks toward `LocalTime.MIN`.
+   * A generator of `java.time.LocalTime` values. Shrinks toward
+   * `LocalTime.MIN`.
    */
   final def anyLocalTime: Gen[Random, LocalTime] =
     for {
@@ -72,7 +76,8 @@ trait TimeVariants {
     } yield LocalTime.of(hour, minute, second, nanos)
 
   /**
-   * A generator of `java.time.LocalDateTime` values. Shrinks toward `LocalDateTime.MIN`.
+   * A generator of `java.time.LocalDateTime` values. Shrinks toward
+   * `LocalDateTime.MIN`.
    */
   final def anyLocalDateTime: Gen[Random, LocalDateTime] = localDateTime(LocalDateTime.MIN, LocalDateTime.MAX)
 
@@ -96,7 +101,8 @@ trait TimeVariants {
     )
 
   /**
-   * A generator of `java.time.MonthDay` values. Shrinks toward `MonthDay.of(Month.JANUARY, 1)`.
+   * A generator of `java.time.MonthDay` values. Shrinks toward
+   * `MonthDay.of(Month.JANUARY, 1)`.
    */
   final def anyMonthDay: Gen[Random, MonthDay] =
     for {
@@ -105,12 +111,14 @@ trait TimeVariants {
     } yield MonthDay.of(month, days)
 
   /**
-   * A generator of `java.time.OffsetDateTime` values. Shrinks toward `OffsetDateTime.MIN`.
+   * A generator of `java.time.OffsetDateTime` values. Shrinks toward
+   * `OffsetDateTime.MIN`.
    */
   final def anyOffsetDateTime: Gen[Random, OffsetDateTime] = offsetDateTime(OffsetDateTime.MIN, OffsetDateTime.MAX)
 
   /**
-   * A generator of `java.time.OffsetTime` values. Shrinks torward `OffsetTime.MIN`.
+   * A generator of `java.time.OffsetTime` values. Shrinks torward
+   * `OffsetTime.MIN`.
    */
   final def anyOffsetTime: Gen[Random, OffsetTime] =
     for {
@@ -129,13 +137,15 @@ trait TimeVariants {
     } yield Period.of(years, months, days)
 
   /**
-   * A generator of `java.time.Year` values. Shrinks toward `Year.of(Year.MIN_VALUE)`.
+   * A generator of `java.time.Year` values. Shrinks toward
+   * `Year.of(Year.MIN_VALUE)`.
    */
   final def anyYear: Gen[Random, Year] =
     Gen.int(Year.MIN_VALUE, Year.MAX_VALUE).map(Year.of)
 
   /**
-   * A generator of `java.time.YearMonth` values. Shrinks toward `YearMonth.of(Year.MIN_VALUE, Month.JANUARY)`.
+   * A generator of `java.time.YearMonth` values. Shrinks toward
+   * `YearMonth.of(Year.MIN_VALUE, Month.JANUARY)`.
    */
   final def anyYearMonth: Gen[Random, YearMonth] =
     for {
@@ -144,7 +154,8 @@ trait TimeVariants {
     } yield YearMonth.of(year.getValue(), month)
 
   /**
-   * A generator of `java.time.ZonedDateTime` values. Shrinks toward `ZoneDateTime.of(LocalDateTime.MIN, zoneId)`.
+   * A generator of `java.time.ZonedDateTime` values. Shrinks toward
+   * `ZoneDateTime.of(LocalDateTime.MIN, zoneId)`.
    */
   final def anyZonedDateTime: Gen[Random, ZonedDateTime] =
     for {
@@ -160,7 +171,8 @@ trait TimeVariants {
     Gen.elements(ZoneId.getAvailableZoneIds.asScala.map(ZoneId.of).toList: _*).noShrink
 
   /**
-   * A generator of `java.time.ZoneOffset` values. Shrinks toward `ZoneOffset.MIN`.
+   * A generator of `java.time.ZoneOffset` values. Shrinks toward
+   * `ZoneOffset.MIN`.
    */
   final def anyZoneOffset: Gen[Random, ZoneOffset] =
     Gen
@@ -168,13 +180,15 @@ trait TimeVariants {
       .map(ZoneOffset.ofTotalSeconds)
 
   /**
-   * A generator of finite `zio.duration.Duration` values inside the specified range: [min, max]. Shrinks toward min.
+   * A generator of finite `zio.duration.Duration` values inside the specified
+   * range: [min, max]. Shrinks toward min.
    */
   final def finiteDuration(min: Duration, max: Duration): Gen[Random, Duration] =
     Gen.long(min.toNanos, max.toNanos).map(Duration.Finite(_))
 
   /**
-   * A generator of `java.time.Instant` values inside the specified range: [min, max]. Shrinks toward min.
+   * A generator of `java.time.Instant` values inside the specified range: [min,
+   * max]. Shrinks toward min.
    */
   final def instant(min: Instant, max: Instant): Gen[Random, Instant] = {
 
@@ -193,13 +207,15 @@ trait TimeVariants {
   }
 
   /**
-   * A generator of `java.time.LocalDateTime` values inside the specified range: [min, max]. Shrinks toward min.
+   * A generator of `java.time.LocalDateTime` values inside the specified range:
+   * [min, max]. Shrinks toward min.
    */
   final def localDateTime(min: LocalDateTime, max: LocalDateTime): Gen[Random, LocalDateTime] =
     instant(min.toInstant(utc), max.toInstant(utc)).map(LocalDateTime.ofInstant(_, utc))
 
   /**
-   * A generator of `java.time.OffsetDateTime` values inside the specified range: [min, max]. Shrinks toward min.
+   * A generator of `java.time.OffsetDateTime` values inside the specified
+   * range: [min, max]. Shrinks toward min.
    */
   final def offsetDateTime(min: OffsetDateTime, max: OffsetDateTime): Gen[Random, OffsetDateTime] = {
 

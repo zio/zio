@@ -23,16 +23,16 @@ import zio.{Fiber, Managed, UManaged}
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
  * concurrently acquire read locks. Only one writer is allowed to acquire a
- * write lock at any given time. Read locks may be upgraded into write locks.
- * A fiber that has a write lock may acquire other write locks or read locks.
+ * write lock at any given time. Read locks may be upgraded into write locks. A
+ * fiber that has a write lock may acquire other write locks or read locks.
  *
  * The two primary methods of this structure are `readLock`, which acquires a
  * read lock in a managed context, and `writeLock`, which acquires a write lock
  * in a managed context.
  *
- * Although located in the STM package, there is no need for locks within
- * STM transactions. However, this lock can be quite useful in effectful code,
- * to provide consistent read/write access to mutable state; and being in STM
+ * Although located in the STM package, there is no need for locks within STM
+ * transactions. However, this lock can be quite useful in effectful code, to
+ * provide consistent read/write access to mutable state; and being in STM
  * allows this structure to be composed into more complicated concurrent
  * structures that are consumed from effectful code.
  */
@@ -41,15 +41,16 @@ final class TReentrantLock private (data: TRef[LockState]) {
   private val tExitOne = TExit.Succeed(1)
 
   /**
-   * Acquires a read lock. The transaction will suspend until no other fiber
-   * is holding a write lock. Succeeds with the number of read locks held by this fiber.
+   * Acquires a read lock. The transaction will suspend until no other fiber is
+   * holding a write lock. Succeeds with the number of read locks held by this
+   * fiber.
    */
   lazy val acquireRead: USTM[Int] = adjustRead(1)
 
   /**
-   * Acquires a write lock. The transaction will suspend until no other
-   * fibers are holding read or write locks. Succeeds with the number of
-   * write locks held by this fiber.
+   * Acquires a write lock. The transaction will suspend until no other fibers
+   * are holding read or write locks. Succeeds with the number of write locks
+   * held by this fiber.
    */
   lazy val acquireWrite: USTM[Int] = new ZSTM((journal, fiberId, _, _) =>
     data.unsafeGet(journal) match {
@@ -176,9 +177,9 @@ object TReentrantLock {
   }
 
   /**
-   * This data structure describes the state of the lock when a single fiber
-   * has a write lock. The fiber has an identity, and may also have acquired
-   * a certain number of read locks.
+   * This data structure describes the state of the lock when a single fiber has
+   * a write lock. The fiber has an identity, and may also have acquired a
+   * certain number of read locks.
    */
   private[stm] final case class WriteLock(writeLocks: Int, readLocks: Int, fiberId: Fiber.Id) extends LockState {
     override def readLocks(fiberId0: Fiber.Id): Int = if (fiberId0 == fiberId) readLocks else 0
@@ -201,9 +202,9 @@ object TReentrantLock {
 
     /**
      * Determines if there is no other holder of read locks aside from the
-     * specified fiber id. If there are no other holders of read locks
-     * aside from the specified fiber id, then it is safe to upgrade the
-     * read lock into a write lock.
+     * specified fiber id. If there are no other holders of read locks aside
+     * from the specified fiber id, then it is safe to upgrade the read lock
+     * into a write lock.
      */
     def noOtherHolder(fiberId: Fiber.Id): Boolean =
       readers.isEmpty || (readers.size == 1 && readers.contains(fiberId))
@@ -240,8 +241,8 @@ object TReentrantLock {
     val empty: ReadLock = new ReadLock(Map())
 
     /**
-     * Creates a new read lock where the specified fiber holds the
-     * specified number of read locks.
+     * Creates a new read lock where the specified fiber holds the specified
+     * number of read locks.
      */
     def apply(fiberId: Fiber.Id, count: Int): ReadLock =
       if (count <= 0) empty else new ReadLock(Map(fiberId -> count))

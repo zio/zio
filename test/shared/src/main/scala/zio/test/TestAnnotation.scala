@@ -73,7 +73,8 @@ object TestAnnotation {
     TestAnnotation("timing", Duration.Zero, _ + _)
 
   /**
-   * An annotation for capturing the source location (file name and line number) of the calling test.
+   * An annotation for capturing the source location (file name and line number)
+   * of the calling test.
    */
   val location: TestAnnotation[List[SourceLocation]] =
     TestAnnotation("location", List.empty, _ ++ _)

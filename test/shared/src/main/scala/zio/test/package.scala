@@ -36,18 +36,18 @@ import scala.util.Try
  * combinators.
  *
  * {{{
- *  import zio.test._
- *  import zio.test.environment.Live
- *  import zio.clock.nanoTime
- *  import Assertion.isGreaterThan
+ *   import zio.test._
+ *   import zio.test.environment.Live
+ *   import zio.clock.nanoTime
+ *   import Assertion.isGreaterThan
  *
- *  object MyTest extends DefaultRunnableSpec {
- *    def spec = suite("clock")(
- *      testM("time is non-zero") {
- *        assertM(Live.live(nanoTime))(isGreaterThan(0))
- *      }
- *    )
- *  }
+ *   object MyTest extends DefaultRunnableSpec {
+ *     def spec = suite("clock")(
+ *       testM("time is non-zero") {
+ *         assertM(Live.live(nanoTime))(isGreaterThan(0))
+ *       }
+ *     )
+ *   }
  * }}}
  */
 package object test extends CompileVariants {
@@ -60,13 +60,14 @@ package object test extends CompileVariants {
   type AssertResult  = BoolAlgebra[AssertionValue]
 
   /**
-   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
+   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in
+   * its environment.
    */
   type TestAspectAtLeastR[R] = TestAspect[Nothing, R, Nothing, Any]
 
   /**
-   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
-   * having no requirements on error or environment.
+   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic, having
+   * no requirements on error or environment.
    */
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
@@ -95,7 +96,8 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable Restorable]]
+   * A `ZRTestEnv` is an alias for all ZIO provided
+   * [[zio.test.environment.Restorable Restorable]]
    * [[zio.test.environment.TestEnvironment TestEnvironment]] objects
    */
   type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
@@ -130,8 +132,8 @@ package object test extends CompileVariants {
   type ZSpec[-R, +E] = Spec[R, TestFailure[E], TestSuccess]
 
   /**
-   * An `Annotated[A]` contains a value of type `A` along with zero or more
-   * test annotations.
+   * An `Annotated[A]` contains a value of type `A` along with zero or more test
+   * annotations.
    */
   type Annotated[+A] = (A, TestAnnotationMap)
 
@@ -198,8 +200,8 @@ package object test extends CompileVariants {
     } yield traverseResult(value, assertResult, assertion, None, sourceLocation)
 
   /**
-   * Checks the test passes for "sufficient" numbers of samples from the
-   * given random variable.
+   * Checks the test passes for "sufficient" numbers of samples from the given
+   * random variable.
    */
   def check[R <: TestConfig, A](rv: Gen[R, A])(test: A => TestResult): URIO[R, TestResult] =
     TestConfig.samples.flatMap(checkN(_)(rv)(test))
@@ -449,9 +451,9 @@ package object test extends CompileVariants {
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
-   * Checks in parallel the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
+   * Checks in parallel the effectual test passes for all values from the given
+   * random variable. This is useful for deterministic `Gen` that
+   * comprehensively explore all possibilities in a given domain.
    */
   def checkAllMPar[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
@@ -604,8 +606,8 @@ package object test extends CompileVariants {
     else ignored
 
   /**
-   * The `Annotations` trait provides access to an annotation map that tests
-   * can add arbitrary annotations to. Each annotation consists of a string
+   * The `Annotations` trait provides access to an annotation map that tests can
+   * add arbitrary annotations to. Each annotation consists of a string
    * identifier, an initial value, and a function for combining two values.
    * Annotations form monoids and you can think of `Annotations` as a more
    * structured logging service or as a super polymorphic version of the writer
@@ -966,8 +968,8 @@ package object test extends CompileVariants {
     def left: TestLens[E] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms an [[scala.Either]] to its [[scala.Right]] value `A`, otherwise
-     * fails if it is a [[scala.Left]].
+     * Transforms an [[scala.Either]] to its [[scala.Right]] value `A`,
+     * otherwise fails if it is a [[scala.Left]].
      */
     def right: TestLens[A] = throw SmartAssertionExtensionError()
   }
@@ -975,8 +977,8 @@ package object test extends CompileVariants {
   implicit final class TestLensExitOps[E, A](private val self: TestLens[Exit[E, A]]) extends AnyVal {
 
     /**
-     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`, otherwise
-     * fails.
+     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`,
+     * otherwise fails.
      */
     def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
@@ -1008,8 +1010,8 @@ package object test extends CompileVariants {
   implicit final class TestLensCauseOps[E](private val self: TestLens[Cause[E]]) extends AnyVal {
 
     /**
-     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`, otherwise
-     * fails.
+     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`,
+     * otherwise fails.
      */
     def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
@@ -1029,7 +1031,8 @@ package object test extends CompileVariants {
   implicit final class TestLensAnyOps[A](private val self: TestLens[A]) extends AnyVal {
 
     /**
-     * Always returns true as long the chain of preceding transformations has succeeded.
+     * Always returns true as long the chain of preceding transformations has
+     * succeeded.
      *
      * {{{
      *   val option: Either[Int, Option[String]] = Right(Some("Cool"))

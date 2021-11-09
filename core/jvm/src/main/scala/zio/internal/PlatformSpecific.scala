@@ -42,9 +42,9 @@ private[internal] trait PlatformSpecific {
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
    * and auto-yielding disabled.
    *
-   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
-   * optional feature and it's not valid to compare the performance of ZIO with
-   * enabled Tracing with effect types _without_ a comparable feature.
+   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an optional
+   * feature and it's not valid to compare the performance of ZIO with enabled
+   * Tracing with effect types _without_ a comparable feature.
    */
   lazy val benchmark: Platform = makeDefault(Int.MaxValue).withReportFailure(_ => ()).withTracing(Tracing.disabled)
 
@@ -62,8 +62,8 @@ private[internal] trait PlatformSpecific {
   final val defaultYieldOpCount = 2048
 
   /**
-   * Returns the name of the thread group to which this thread belongs. This
-   * is a side-effecting method.
+   * Returns the name of the thread group to which this thread belongs. This is
+   * a side-effecting method.
    */
   final def getCurrentThreadGroup: String =
     Thread.currentThread.getThreadGroup.getName

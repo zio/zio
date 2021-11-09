@@ -29,16 +29,16 @@ abstract class Supervisor[+A] { self =>
   import Supervisor._
 
   /**
-   * Returns an effect that succeeds with the value produced by this
-   * supervisor. This value may change over time, reflecting what the
-   * supervisor produces as it supervises fibers.
+   * Returns an effect that succeeds with the value produced by this supervisor.
+   * This value may change over time, reflecting what the supervisor produces as
+   * it supervises fibers.
    */
   def value: UIO[A]
 
   /**
-   * Returns a new supervisor that performs the function of this supervisor,
-   * and the function of the specified supervisor, producing a tuple of the
-   * outputs produced by both supervisors.
+   * Returns a new supervisor that performs the function of this supervisor, and
+   * the function of the specified supervisor, producing a tuple of the outputs
+   * produced by both supervisors.
    *
    * The composite supervisor indicates that it has fully handled the
    * supervision event if only both component supervisors indicate they have
@@ -73,9 +73,9 @@ abstract class Supervisor[+A] { self =>
     }
 
   /**
-   * Returns a new supervisor that performs the function of this supervisor,
-   * and the function of the specified supervisor, producing a tuple of the
-   * outputs produced by both supervisors.
+   * Returns a new supervisor that performs the function of this supervisor, and
+   * the function of the specified supervisor, producing a tuple of the outputs
+   * produced by both supervisors.
    *
    * The composite supervisor indicates that it has fully handled the
    * supervision event if either component supervisors indicate they have
@@ -155,8 +155,9 @@ object Supervisor {
   /**
    * Creates a new supervisor that tracks children in a set.
    *
-   * @param weak Whether or not to track the children in a weak set, if
-   *             possible (platform-dependent).
+   * @param weak
+   *   Whether or not to track the children in a weak set, if possible
+   *   (platform-dependent).
    */
   def track(weak: Boolean): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] = UIO {
     val set: java.util.Set[Fiber.Runtime[Any, Any]] =

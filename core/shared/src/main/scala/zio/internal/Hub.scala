@@ -19,8 +19,8 @@ package zio.internal
 import zio.Chunk
 
 /**
- * A `Hub[A]` is a concurrent data structure that allows multiple publishers
- * to publish `A` values and multiple subscribers to poll `A` values with the
+ * A `Hub[A]` is a concurrent data structure that allows multiple publishers to
+ * publish `A` values and multiple subscribers to poll `A` values with the
  * guarantee that all subscribers will receive all values published to the hub
  * while they are subscribed.
  */
@@ -89,8 +89,8 @@ object Hub {
 
   /**
    * A `Subscription[A]` is a subscription to receive `A` values from the hub.
-   * The guarantee is that a subscriber will receive all values published to
-   * hub while it is subscribed.
+   * The guarantee is that a subscriber will receive all values published to hub
+   * while it is subscribed.
    */
   abstract class Subscription[A] extends Serializable {
 
@@ -100,8 +100,8 @@ object Hub {
     def isEmpty(): Boolean
 
     /**
-     * Takes a value from the hub if there is one or else returns the
-     * specified default value.
+     * Takes a value from the hub if there is one or else returns the specified
+     * default value.
      */
     def poll(default: A): A
 

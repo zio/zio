@@ -26,29 +26,29 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
   import BoolAlgebra._
 
   /**
-   * Returns a new result that is the logical conjunction of this result and
-   * the specified result.
+   * Returns a new result that is the logical conjunction of this result and the
+   * specified result.
    */
   final def &&[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
     both(that)
 
   /**
-   * Returns a new result that is the logical disjunction of this result and
-   * the specified result.
+   * Returns a new result that is the logical disjunction of this result and the
+   * specified result.
    */
   final def ||[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
     either(that)
 
   /**
-   * Returns a new result that is the logical implication of this result and
-   * the specified result.
+   * Returns a new result that is the logical implication of this result and the
+   * specified result.
    */
   final def ==>[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
     implies(that)
 
   /**
-   * Returns a new result that is the logical double implication of this result and
-   * the specified result.
+   * Returns a new result that is the logical double implication of this result
+   * and the specified result.
    */
   final def <==>[A1 >: A](that: BoolAlgebra[A1]): BoolAlgebra[A1] =
     iff(that)
@@ -79,8 +79,8 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
 
   /**
    * If this result is a success returns `None`. If it is a failure returns a
-   * new result containing all failures that are relevant to this result being
-   * a failure.
+   * new result containing all failures that are relevant to this result being a
+   * failure.
    */
   final def failures: Option[BoolAlgebra[A]] =
     fold[Either[BoolAlgebra[A], BoolAlgebra[A]]](a => Right(success(a)))(
@@ -114,8 +114,8 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
     fold(a => f(a))(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
 
   /**
-   * Folds over the result bottom up, first converting values to `B`
-   * values, and then combining the `B` values, using the specified functions.
+   * Folds over the result bottom up, first converting values to `B` values, and
+   * then combining the `B` values, using the specified functions.
    */
   final def fold[B](caseValue: A => B)(caseAnd: (B, B) => B, caseOr: (B, B) => B, caseNot: B => B): B =
     self match {
@@ -333,8 +333,8 @@ object BoolAlgebra {
     as.foldLeft(a)(_ || _)
 
   /**
-   * Combines a collection of results to create a single result that succeeds
-   * if all of the results succeed.
+   * Combines a collection of results to create a single result that succeeds if
+   * all of the results succeed.
    */
   def collectAll[A](as: Iterable[BoolAlgebra[A]]): Option[BoolAlgebra[A]] =
     foreach(as)(identity)
@@ -346,8 +346,8 @@ object BoolAlgebra {
     not(success(a))
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` to produce
-   * a collection of results, then combines all of those results to create a
+   * Applies the function `f` to each element of the `Iterable[A]` to produce a
+   * collection of results, then combines all of those results to create a
    * single result that is the logical conjunction of all of the results.
    */
   def foreach[A, B](as: Iterable[A])(f: A => BoolAlgebra[B]): Option[BoolAlgebra[B]] =

@@ -95,9 +95,9 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     map(_ => z)
 
   /**
-   * Repeatedly runs the sink for as long as its results satisfy
-   * the predicate `p`. The sink's results will be accumulated
-   * using the stepping function `f`.
+   * Repeatedly runs the sink for as long as its results satisfy the predicate
+   * `p`. The sink's results will be accumulated using the stepping function
+   * `f`.
    */
   def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit ev: L <:< I): ZSink[R, E, I, L, S] =
     ZSink {
@@ -138,15 +138,14 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     contramapChunksM(_.mapM(f))
 
   /**
-   * Transforms this sink's input chunks.
-   * `f` must preserve chunking-invariance
+   * Transforms this sink's input chunks. `f` must preserve chunking-invariance
    */
   def contramapChunks[I2](f: Chunk[I2] => Chunk[I]): ZSink[R, E, I2, L, Z] =
     ZSink(self.push.map(push => input => push(input.map(f))))
 
   /**
-   * Effectfully transforms this sink's input chunks.
-   * `f` must preserve chunking-invariance
+   * Effectfully transforms this sink's input chunks. `f` must preserve
+   * chunking-invariance
    */
   def contramapChunksM[R1 <: R, E1 >: E, I2](
     f: Chunk[I2] => ZIO[R1, E1, Chunk[I]]
@@ -163,13 +162,15 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     )
 
   /**
-   * Transforms both inputs and result of this sink using the provided functions.
+   * Transforms both inputs and result of this sink using the provided
+   * functions.
    */
   def dimap[I2, Z2](f: I2 => I, g: Z => Z2): ZSink[R, E, I2, L, Z2] =
     contramap(f).map(g)
 
   /**
-   * Effectfully transforms both inputs and result of this sink using the provided functions.
+   * Effectfully transforms both inputs and result of this sink using the
+   * provided functions.
    */
   def dimapM[R1 <: R, E1 >: E, I2, Z2](
     f: I2 => ZIO[R1, E1, I],
@@ -178,14 +179,15 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     contramapM(f).mapM(g)
 
   /**
-   * Transforms both input chunks and result of this sink using the provided functions.
+   * Transforms both input chunks and result of this sink using the provided
+   * functions.
    */
   def dimapChunks[I2, Z2](f: Chunk[I2] => Chunk[I], g: Z => Z2): ZSink[R, E, I2, L, Z2] =
     contramapChunks(f).map(g)
 
   /**
-   * Effectfully transforms both input chunks and result of this sink using the provided functions.
-   * `f` and `g` must preserve chunking-invariance
+   * Effectfully transforms both input chunks and result of this sink using the
+   * provided functions. `f` and `g` must preserve chunking-invariance
    */
   def dimapChunksM[R1 <: R, E1 >: E, I2, Z2](
     f: Chunk[I2] => ZIO[R1, E1, Chunk[I]],
@@ -194,8 +196,9 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     contramapChunksM(f).mapM(g)
 
   /**
-   * Runs this sink until it yields a result, then uses that result to create another
-   * sink from the provided function which will continue to run until it yields a result.
+   * Runs this sink until it yields a result, then uses that result to create
+   * another sink from the provided function which will continue to run until it
+   * yields a result.
    *
    * This function essentially runs sinks in sequence.
    */
@@ -264,8 +267,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     )
 
   /**
-   * Runs both sinks in parallel on the input, , returning the result or the error from the
-   * one that finishes first.
+   * Runs both sinks in parallel on the input, , returning the result or the
+   * error from the one that finishes first.
    */
   final def race[R1 <: R, E1 >: E, A0, I1 <: I, L1 >: L, Z1 >: Z](
     that: ZSink[R1, E1, I1, L1, Z1]
@@ -273,8 +276,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     self.raceBoth(that).map(_.merge)
 
   /**
-   * Runs both sinks in parallel on the input, returning the result or the error from the
-   * one that finishes first.
+   * Runs both sinks in parallel on the input, returning the result or the error
+   * from the one that finishes first.
    */
   final def raceBoth[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1](
     that: ZSink[R1, E1, I1, L1, Z1]
@@ -314,8 +317,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
 
   /**
    * Converts this sink to a transducer that feeds incoming elements to the sink
-   * and emits the sink's results as outputs. The sink will be restarted when
-   * it ends.
+   * and emits the sink's results as outputs. The sink will be restarted when it
+   * ends.
    */
   def toTransducer(implicit ev: L <:< I): ZTransducer[R, E, I, Z] =
     ZTransducer {
@@ -341,8 +344,9 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     }
 
   /**
-   * Feeds inputs to this sink until it yields a result, then switches over to the
-   * provided sink until it yields a result, combining the two results in a tuple.
+   * Feeds inputs to this sink until it yields a result, then switches over to
+   * the provided sink until it yields a result, combining the two results in a
+   * tuple.
    */
   final def zip[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1, Z2](
     that: ZSink[R1, E1, I1, L1, Z1]
@@ -358,7 +362,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     zipWith(that)((z, _) => z)
 
   /**
-   * Runs both sinks in parallel on the input and combines the results in a tuple.
+   * Runs both sinks in parallel on the input and combines the results in a
+   * tuple.
    */
   final def zipPar[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1](
     that: ZSink[R1, E1, I1, L1, Z1]
@@ -390,8 +395,9 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     zipWith(that)((_, z1) => z1)
 
   /**
-   * Feeds inputs to this sink until it yields a result, then switches over to the
-   * provided sink until it yields a result, finally combining the two results with `f`.
+   * Feeds inputs to this sink until it yields a result, then switches over to
+   * the provided sink until it yields a result, finally combining the two
+   * results with `f`.
    */
   final def zipWith[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1, Z2](
     that: ZSink[R1, E1, I1, L1, Z1]
@@ -399,8 +405,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     flatMap(z => that.map(f(z, _)))
 
   /**
-   * Runs both sinks in parallel on the input and combines the results
-   * using the provided function.
+   * Runs both sinks in parallel on the input and combines the results using the
+   * provided function.
    */
   final def zipWithPar[R1 <: R, E1 >: E, I1 <: I, L1 >: L, Z1, Z2](
     that: ZSink[R1, E1, I1, L1, Z1]
@@ -478,8 +484,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
   }
 
   /**
-   * Creates a sink that produces values until one verifies
-   * the predicate `f`.
+   * Creates a sink that produces values until one verifies the predicate `f`.
    */
   def untilOutputM[R1 <: R, E1 >: E](
     f: Z => ZIO[R1, E1, Boolean]
@@ -505,8 +510,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     }
 
   /**
-   * Provides the sink with its required environment, which eliminates
-   * its dependency on `R`.
+   * Provides the sink with its required environment, which eliminates its
+   * dependency on `R`.
    */
   def provide(r: R)(implicit ev: NeedsEnv[R]): ZSink[Any, E, I, L, Z] =
     ZSink(self.push.provide(r).map(push => i => push(i).provide(r)))
@@ -524,7 +529,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     val more: UIO[Unit] = UIO.unit
 
     /**
-     * Decorates a Push with a ZIO value that re-initializes it with a fresh state.
+     * Decorates a Push with a ZIO value that re-initializes it with a fresh
+     * state.
      */
     def restartable[R, E, I, L, Z](
       sink: ZManaged[R, Nothing, Push[R, E, I, L, Z]]
@@ -559,9 +565,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * A sink that collects all of its inputs into a map. The keys are extracted from inputs
-   * using the keying function `key`; if multiple inputs use the same key, they are merged
-   * using the `f` function.
+   * A sink that collects all of its inputs into a map. The keys are extracted
+   * from inputs using the keying function `key`; if multiple inputs use the
+   * same key, they are merged using the `f` function.
    */
   def collectAllToMap[A, K](key: A => K)(f: (A, A) => A): ZSink[Any, Nothing, A, Nothing, Map[K, A]] =
     foldLeftChunks(Map[K, A]()) { (acc, as) =>
@@ -618,7 +624,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   /**
-   * A sink that folds its inputs with the provided function, termination predicate and initial state.
+   * A sink that folds its inputs with the provided function, termination
+   * predicate and initial state.
    */
   def fold[I, S](z: S)(contFn: S => Boolean)(f: (S, I) => S): ZSink[Any, Nothing, I, I, S] = {
     def foldChunk(s: S, chunk: Chunk[I], idx: Int, len: Int): (S, Option[Chunk[I]]) =
@@ -657,17 +664,19 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * A sink that folds its input chunks with the provided function, termination predicate and initial state.
-   * `contFn` condition is checked only for the initial value and at the end of processing of each chunk.
-   * `f` and `contFn` must preserve chunking-invariance.
+   * A sink that folds its input chunks with the provided function, termination
+   * predicate and initial state. `contFn` condition is checked only for the
+   * initial value and at the end of processing of each chunk. `f` and `contFn`
+   * must preserve chunking-invariance.
    */
   def foldChunks[I, S](z: S)(contFn: S => Boolean)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, I, S] =
     foldChunksM(z)(contFn)((s, is) => UIO.succeedNow(f(s, is)))
 
   /**
-   * A sink that effectfully folds its input chunks with the provided function, termination predicate and initial state.
-   * `contFn` condition is checked only for the initial value and at the end of processing of each chunk.
-   * `f` and `contFn` must preserve chunking-invariance.
+   * A sink that effectfully folds its input chunks with the provided function,
+   * termination predicate and initial state. `contFn` condition is checked only
+   * for the initial value and at the end of processing of each chunk. `f` and
+   * `contFn` must preserve chunking-invariance.
    */
   def foldChunksM[R, E, I, S](
     z: S
@@ -696,10 +705,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZSink.succeed(z)
 
   /**
-   * A sink that effectfully folds its inputs with the provided function, termination predicate and initial state.
+   * A sink that effectfully folds its inputs with the provided function,
+   * termination predicate and initial state.
    *
-   * This sink may terminate in the middle of a chunk and discard the rest of it. See the discussion on the
-   * ZSink class scaladoc on sinks vs. transducers.
+   * This sink may terminate in the middle of a chunk and discard the rest of
+   * it. See the discussion on the ZSink class scaladoc on sinks vs.
+   * transducers.
    */
   def foldM[R, E, I, S](z: S)(contFn: S => Boolean)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] = {
     def foldChunk(s: S, chunk: Chunk[I], idx: Int, len: Int): ZIO[R, (E, Chunk[I]), (S, Option[Chunk[I]])] =
@@ -753,27 +764,29 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     fold(z)(_ => true)(f).dropLeftover
 
   /**
-   * A sink that folds its input chunks with the provided function and initial state.
-   * `f` must preserve chunking-invariance.
+   * A sink that folds its input chunks with the provided function and initial
+   * state. `f` must preserve chunking-invariance.
    */
   def foldLeftChunks[I, S](z: S)(f: (S, Chunk[I]) => S): ZSink[Any, Nothing, I, Nothing, S] =
     foldChunks(z)(_ => true)(f).asInstanceOf[ZSink[Any, Nothing, I, Nothing, S]]
 
   /**
-   * A sink that effectfully folds its input chunks with the provided function and initial state.
-   * `f` must preserve chunking-invariance.
+   * A sink that effectfully folds its input chunks with the provided function
+   * and initial state. `f` must preserve chunking-invariance.
    */
   def foldLeftChunksM[R, E, I, S](z: S)(f: (S, Chunk[I]) => ZIO[R, E, S]): ZSink[R, E, I, Nothing, S] =
     foldChunksM[R, E, I, S](z: S)(_ => true)(f).dropLeftover
 
   /**
-   * A sink that effectfully folds its inputs with the provided function and initial state.
+   * A sink that effectfully folds its inputs with the provided function and
+   * initial state.
    */
   def foldLeftM[R, E, I, S](z: S)(f: (S, I) => ZIO[R, E, S]): ZSink[R, E, I, I, S] =
     foldM[R, E, I, S](z: S)(_ => true)(f)
 
   /**
-   * A sink that executes the provided effectful function for every element fed to it.
+   * A sink that executes the provided effectful function for every element fed
+   * to it.
    */
   def foreach[R, E, I](f: I => ZIO[R, E, Any]): ZSink[R, E, I, I, Unit] = {
     def go(chunk: Chunk[I], idx: Int, len: Int): ZIO[R, (Left[E, Nothing], Chunk[I]), Unit] =
@@ -789,7 +802,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * A sink that executes the provided effectful function for every chunk fed to it.
+   * A sink that executes the provided effectful function for every chunk fed to
+   * it.
    */
   def foreachChunk[R, E, I](f: Chunk[I] => ZIO[R, E, Any]): ZSink[R, E, I, Nothing, Unit] =
     ZSink.fromPush[R, E, I, Nothing, Unit] {
@@ -798,8 +812,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   /**
-   * A sink that executes the provided effectful function for every element fed to it
-   * until `f` evaluates to `false`.
+   * A sink that executes the provided effectful function for every element fed
+   * to it until `f` evaluates to `false`.
    */
   final def foreachWhile[R, E, I](f: I => ZIO[R, E, Boolean]): ZSink[R, E, I, I, Unit] = {
     def go(chunk: Chunk[I], idx: Int, len: Int): ZIO[R, (Either[E, Unit], Chunk[I]), Unit] =
@@ -833,8 +847,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     fromQueue(hub.toQueue)
 
   /**
-   * Create a sink which publishes each element to the specified hub.
-   * The hub will be shutdown once the stream is closed.
+   * Create a sink which publishes each element to the specified hub. The hub
+   * will be shutdown once the stream is closed.
    */
   def fromHubWithShutdown[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
     fromQueueWithShutdown(hub.toQueue)
@@ -849,8 +863,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     foreachChunk(queue.offerAll)
 
   /**
-   * Create a sink which enqueues each element into the specified queue.
-   * The queue will be shutdown once the stream is closed.
+   * Create a sink which enqueues each element into the specified queue. The
+   * queue will be shutdown once the stream is closed.
    */
   def fromQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any]): ZSink[R, E, I, Nothing, Unit] =
     ZSink(ZManaged.make(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I]).flatMap(_.push))
@@ -897,8 +911,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   /**
-   * A sink that depends on another managed value
-   * `resource` will be finalized after the processing.
+   * A sink that depends on another managed value `resource` will be finalized
+   * after the processing.
    */
   def managed[R, E, I, A, L <: I, Z](resource: ZManaged[R, E, A])(fn: A => ZSink[R, E, I, L, Z]): ZSink[R, E, I, I, Z] =
     ZSink(resource.fold[ZSink[R, E, I, I, Z]](err => ZSink.fail[E, I](err), m => fn(m)).flatMap(_.push))

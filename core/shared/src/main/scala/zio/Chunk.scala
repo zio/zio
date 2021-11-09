@@ -119,13 +119,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     ev(apply(index))
 
   /**
-   * Returns a filtered, mapped subset of the elements of this chunk based on a .
+   * Returns a filtered, mapped subset of the elements of this chunk based on a
+   * .
    */
   def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]]): ZIO[R, E, Chunk[B]] =
     if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectM(pf)
 
   /**
-   * Transforms all elements of the chunk for as long as the specified partial function is defined.
+   * Transforms all elements of the chunk for as long as the specified partial
+   * function is defined.
    */
   def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] =
     if (isEmpty) Chunk.empty else self.materialize.collectWhile(pf)
@@ -299,7 +301,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     }
 
   /**
-   * Determines whether a predicate is satisfied for at least one element of this chunk.
+   * Determines whether a predicate is satisfied for at least one element of
+   * this chunk.
    */
   override final def exists(f: A => Boolean): Boolean = {
     val iterator = arrayIterator
@@ -340,8 +343,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Filters this chunk by the specified effectful predicate, retaining all elements for
-   * which the predicate evaluates to true.
+   * Filters this chunk by the specified effectful predicate, retaining all
+   * elements for which the predicate evaluates to true.
    */
   final def filterM[R, E](f: A => ZIO[R, E, Boolean]): ZIO[R, E, Chunk[A]] = ZIO.effectSuspendTotal {
     val iterator = arrayIterator
@@ -441,8 +444,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Folds over the elements in this chunk from the left.
-   * Stops the fold early when the condition is not fulfilled.
+   * Folds over the elements in this chunk from the left. Stops the fold early
+   * when the condition is not fulfilled.
    */
   final def foldWhile[S](s0: S)(pred: S => Boolean)(f: (S, A) => S): S = {
     val iterator = arrayIterator
@@ -527,7 +530,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     if (isEmpty) None else Some(self(0))
 
   /**
-   * Returns the first index for which the given predicate is satisfied after or at some given index.
+   * Returns the first index for which the given predicate is satisfied after or
+   * at some given index.
    */
   override final def indexWhere(f: A => Boolean, from: Int): Int = {
     val iterator = arrayIterator
@@ -640,7 +644,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     ZIO.foreachPar(self)(f)
 
   /**
-   * Effectfully maps the elements of this chunk in parallel purely for the effects.
+   * Effectfully maps the elements of this chunk in parallel purely for the
+   * effects.
    */
   final def mapMPar_[R, E](f: A => ZIO[R, E, Any]): ZIO[R, E, Unit] =
     ZIO.foreachPar_(self)(f)
@@ -861,28 +866,27 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
 
   /**
-   * Zips this chunk with the specified chunk to produce a new chunk with
-   * pairs of elements from each chunk. The returned chunk will have the
-   * length of the shorter chunk.
+   * Zips this chunk with the specified chunk to produce a new chunk with pairs
+   * of elements from each chunk. The returned chunk will have the length of the
+   * shorter chunk.
    */
   final def zip[B](that: Chunk[B]): Chunk[(A, B)] =
     zipWith(that)((_, _))
 
   /**
-   * Zips this chunk with the specified chunk to produce a new chunk with
-   * pairs of elements from each chunk, filling in missing values from the
-   * shorter chunk with `None`. The returned chunk will have the length of the
-   * longer chunk.
+   * Zips this chunk with the specified chunk to produce a new chunk with pairs
+   * of elements from each chunk, filling in missing values from the shorter
+   * chunk with `None`. The returned chunk will have the length of the longer
+   * chunk.
    */
   final def zipAll[B](that: Chunk[B]): Chunk[(Option[A], Option[B])] =
     zipAllWith(that)(a => (Some(a), None), b => (None, Some(b)))((a, b) => (Some(a), Some(b)))
 
   /**
-   * Zips with chunk with the specified chunk to produce a new chunk with
-   * pairs of elements from each chunk combined using the specified function
-   * `both`. If one chunk is shorter than the other uses the specified
-   * function `left` or `right` to map the element that does exist to the
-   * result type.
+   * Zips with chunk with the specified chunk to produce a new chunk with pairs
+   * of elements from each chunk combined using the specified function `both`.
+   * If one chunk is shorter than the other uses the specified function `left`
+   * or `right` to map the element that does exist to the result type.
    */
   final def zipAllWith[B, C](
     that: Chunk[B]
@@ -1064,11 +1068,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
   }
 
   /**
-   * Returns an `Iterator` that iterates over the arrays underlying this
-   * `Chunk` in reverse order. While the arrays will be iterated over in
-   * reverse order the ordering of elements in the arrays themselves will not
-   * be changed.  Note that this method is side effecting because it allocates
-   * mutable state and should only be used internally.
+   * Returns an `Iterator` that iterates over the arrays underlying this `Chunk`
+   * in reverse order. While the arrays will be iterated over in reverse order
+   * the ordering of elements in the arrays themselves will not be changed. Note
+   * that this method is side effecting because it allocates mutable state and
+   * should only be used internally.
    */
   private[zio] def reverseArrayIterator[A1 >: A]: Iterator[Array[A1]] =
     materialize.arrayIterator

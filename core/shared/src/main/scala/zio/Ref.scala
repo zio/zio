@@ -19,13 +19,15 @@ package zio
 object Ref extends Serializable {
 
   /**
-   * @see [[zio.ZRef.make]]
+   * @see
+   *   [[zio.ZRef.make]]
    */
   def make[A](a: A): UIO[Ref[A]] =
     ZRef.make(a)
 
   /**
-   * @see [[zio.ZRef.makeManaged]]
+   * @see
+   *   [[zio.ZRef.makeManaged]]
    */
   def makeManaged[A](a: A): UManaged[Ref[A]] =
     ZRef.makeManaged(a)

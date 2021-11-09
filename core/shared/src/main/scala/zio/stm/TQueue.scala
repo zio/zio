@@ -70,8 +70,8 @@ final class TQueue[A] private (val capacity: Int, ref: TRef[ScalaQueue[A]]) {
 
   /**
    * Offers each of the elements in the specified collection to the queue up to
-   * the maximum capacity of the queue, retrying if there is not capacity in
-   * the queue for all of these elements. Returns any remaining elements in the
+   * the maximum capacity of the queue, retrying if there is not capacity in the
+   * queue for all of these elements. Returns any remaining elements in the
    * specified collection.
    */
   def offerAll(as: Iterable[A]): USTM[Iterable[A]] =

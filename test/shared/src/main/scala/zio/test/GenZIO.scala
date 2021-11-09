@@ -58,15 +58,15 @@ trait GenZIO {
   }
 
   /**
-   * A generator of effects that are the result of chaining the specified
-   * effect with itself a random number of times.
+   * A generator of effects that are the result of chaining the specified effect
+   * with itself a random number of times.
    */
   final def chained[R <: Random with Sized, Env, E, A](gen: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
     Gen.small(chainedN(_)(gen))
 
   /**
-   * A generator of effects that are the result of chaining the specified
-   * effect with itself a given number of times.
+   * A generator of effects that are the result of chaining the specified effect
+   * with itself a given number of times.
    */
   final def chainedN[R <: Random, Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]]): Gen[R, ZIO[Env, E, A]] =
     Gen.listOfN(n min 1)(zio).map(_.reduce(_ *> _))
