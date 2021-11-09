@@ -27,8 +27,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any]
 
+  // TODO I probably don't want to add this at this level
   def aspects: Chunk[TestAspect[Nothing, Environment with TestEnvironment with Has[ZIOAppArgs], Nothing, Any]] =
-    Chunk.empty
+    Chunk.succeed(TestAspect.sequential)
 
   final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {
     implicit val trace = Tracer.newTrace
