@@ -382,6 +382,58 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
+   * Creates a pipeline that maps elements with the specified function.
+   */
+  def mapError[InError, OutError](
+    f: InError => OutError
+  ): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    InError,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = OutError })#OutErr,
+    ({ type OutElem[Elem] = Elem })#OutElem
+  ] =
+    new ZPipeline[Nothing, Any, Nothing, InError, Nothing, Any] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = OutError
+      type OutElem[Elem] = Elem
+      def apply[Env, Err <: InError, Elem](stream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, OutError, Elem] =
+        stream.mapError(f)
+    }
+
+  /**
+   * Creates a pipeline that maps elements with the specified effect.
+   */
+  def mapZIO[R1, E1, In, Out](
+    f: In => ZIO[R1, E1, Out]
+  ): ZPipeline.WithOut[
+    R1,
+    Any,
+    Nothing,
+    E1,
+    Nothing,
+    In,
+    ({ type OutEnv[Env] = R1 })#OutEnv,
+    ({ type OutErr[Err] = E1 })#OutErr,
+    ({ type OutElem[Elem] = Out })#OutElem
+  ] =
+    new ZPipeline[R1, Any, Nothing, E1, Nothing, In] {
+      type OutEnv[Env]   = R1
+      type OutErr[Err]   = E1
+      type OutElem[Elem] = Out
+      def apply[R >: R1, E <: E1, A <: In](stream: ZStream[R, E, A])(implicit
+        trace: ZTraceElement
+      ): ZStream[R1, E1, Out] =
+        stream.mapZIO(f)
+    }
+
+  /**
    * Emits the provided chunk before emitting any other value.
    */
   def prepend[In](values: Chunk[In]): ZPipeline.WithOut[
