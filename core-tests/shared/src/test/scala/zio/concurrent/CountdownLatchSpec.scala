@@ -5,7 +5,7 @@ import zio.test._
 import zio.test.Assertion._
 
 object CountdownLatchSpec extends ZIOBaseSpec {
-  val spec: ZSpec[Environment, Failure] =
+  val spec =
     suite("CountdownLatchSpec")(
       suite("Construction")(
         test("Creates a latch") {

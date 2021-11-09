@@ -7,7 +7,7 @@ import zio._
 object CyclicBarrierSpec extends ZIOBaseSpec {
   private val parties = 100
 
-  val spec: ZSpec[Environment, Failure] =
+  val spec =
     suite("CyclicBarrierSpec")(
       test("Construction") {
         for {

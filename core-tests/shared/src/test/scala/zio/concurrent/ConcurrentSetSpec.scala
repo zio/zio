@@ -5,7 +5,7 @@ import zio.test._
 
 object ConcurrentSetSpec extends ZIOBaseSpec {
 
-  override def spec: ZSpec[Environment, Failure] = suite("ConcurrentSetSpec")(
+  override def spec = suite("ConcurrentSetSpec")(
     test("add") {
       for {
         set    <- ConcurrentSet.empty[Int]
