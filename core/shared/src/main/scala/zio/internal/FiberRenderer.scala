@@ -65,7 +65,7 @@ private[zio] object FiberRenderer {
     s"""
        |"${name}" ($lifeMsg) $waitMsg
        |   Status: $statMsg
-       |${dump.trace.fold("")(_.prettyPrint)}
+       |${dump.trace.fold("")(trace => zio.Cause.fail(zio.Cause.empty, trace).prettyPrint)}
        |""".stripMargin
   }
 
