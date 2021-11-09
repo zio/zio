@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -132,14 +132,6 @@ object Take {
     fromZIO(zio)
 
   /**
-   * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with
-   * the `Take[E, A]`. Error from stream when pulling is converted to
-   * `Take.failCause`, end of stream to `Take.end`.
-   */
-  def fromPull[R, E, A](pull: ZStream.Pull[R, E, A])(implicit trace: ZTraceElement): URIO[R, Take[E, A]] =
-    pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(failCause), chunk)
-
-  /**
    * Creates an effect from `ZIO[R, E,A]` that does not fail, but succeeds with
    * the `Take[E, A]`. Error from stream when pulling is converted to
    * `Take.failCause`. Creates a singleton chunk.
@@ -148,11 +140,19 @@ object Take {
     zio.foldCause(failCause, single)
 
   /**
+   * Creates effect from `Pull[R, E, A]` that does not fail, but succeeds with
+   * the `Take[E, A]`. Error from stream when pulling is converted to
+   * `Take.failCause`, end of stream to `Take.end`.
+   */
+  def fromPull[R, E, A](pull: ZStream.Pull[R, E, A])(implicit trace: ZTraceElement): URIO[R, Take[E, A]] =
+    pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(failCause), chunk)
+
+  /**
    * Creates a failing `Take[E, Nothing]` with the specified cause.
    */
   @deprecated("use failCause", "2.0.0")
   def halt[E](c: Cause[E]): Take[E, Nothing] =
-    Take(Exit.failCause(c.map(Some(_))))
+    failCause(c)
 
   /**
    * Creates a failing `Take[Nothing, Nothing]` with the specified throwable.

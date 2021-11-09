@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,8 @@
  * limitations under the License.
  */
 
-package zio
+package zio.stream
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-package object stream {
-  type Stream[+E, +A] = ZStream[Any, E, A]
-  val Stream = ZStream
-
-  type UStream[+A] = ZStream[Any, Nothing, A]
-  val UStream = ZStream
-
-  type Sink[-InErr, In, +OutErr, +L, +Z] = ZSink[Any, InErr, In, OutErr, L, Z]
-  val Sink = ZSink
-}
+trait ZPipelineVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem]

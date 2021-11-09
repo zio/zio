@@ -976,7 +976,7 @@ package object test extends CompileVariants {
       .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
       .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks.toLong + 1))
-      .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken values
+      .run(ZSink.collectAll[Nothing, Either[E, TestResult]]) // Collect all the shrunken values
       .flatMap { shrinks =>
         // Get the "last" failure, the smallest according to the shrinker:
         shrinks
@@ -1057,7 +1057,7 @@ package object test extends CompileVariants {
         ZIO.uninterruptibleMask { restore =>
           for {
             releaseMap <- ZManaged.ReleaseMap.make
-            pull       <- restore(f(a).process.zio.provideSome[R1]((_, releaseMap)).map(_._2))
+            pull       <- restore(f(a).toPull.zio.provideSome[R1]((_, releaseMap)).map(_._2))
             finalizer  <- innerFinalizers.add(releaseMap.releaseAll(_, ExecutionStrategy.Sequential))
           } yield (pull, finalizer)
         }
@@ -1171,10 +1171,10 @@ package object test extends CompileVariants {
       }
     }
 
-    ZStream {
+    ZStream.fromPull {
       for {
         outerDone          <- Ref.make(false).toManaged
-        outerStream        <- stream.process
+        outerStream        <- stream.toPull
         currentOuterChunk  <- Ref.make[(Chunk[Option[A]], Int)]((Chunk.empty, 0)).toManaged
         currentInnerStream <- Ref.make[Option[PullInner]](None).toManaged
         currentStreams     <- Ref.make[ScalaQueue[State]](ScalaQueue(PullOuter)).toManaged
