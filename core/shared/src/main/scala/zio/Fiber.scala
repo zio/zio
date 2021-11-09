@@ -296,7 +296,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    */
   final def toFutureWith(f: E => Throwable)(implicit trace: ZTraceElement): UIO[CancelableFuture[A]] =
     UIO.suspendSucceed {
-      val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
+      val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashTraceWith(f)))
       def success(value: A): UIO[p.type]        = UIO(p.success(value))

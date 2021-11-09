@@ -37,7 +37,7 @@ trait Random extends Serializable {
   def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): UIO[Long]
   def nextPrintableChar(implicit trace: ZTraceElement): UIO[Char]
   def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String]
-  def nextUUID(implicit trace: ZTraceElement): UIO[UUID] = Random.nextUUIDWith(nextLong)
+  def nextUUID(implicit trace: ZTraceElement): UIO[UUID]
   def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit]
   def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: => Collection[A])(implicit
     bf: BuildFrom[Collection[A], A, Collection[A]],
@@ -88,6 +88,8 @@ object Random extends Serializable {
       ZIO.succeed(random.nextPrintableChar())
     def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String] =
       ZIO.succeed(random.nextString(length))
+    def nextUUID(implicit trace: ZTraceElement): UIO[UUID] =
+      Random.nextUUIDWith(nextLong)
     def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.succeed(random.setSeed(seed))
     def shuffle[A, Collection[+Element] <: Iterable[Element]](

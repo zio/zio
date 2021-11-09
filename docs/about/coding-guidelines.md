@@ -126,7 +126,11 @@ The following rules are good to have in mind when adding new `types`, `traits` o
    
 2. Type alias should always have type annotation. Much like in Generalized ADTs defining type aliases should carry the type annotations 
    (i.e. `type IO[+E, +A] = ZIO[Any, E, A]`).
-  
+
+When defining new methods, keep in mind the following rules:
+
+1. Accept the most general type possible. For example, if a method accepts a collection, prefer `Iterable[A]` to `List[A]`.
+2. Return the most specific type possible, e.g., prefer `UIO[Unit]` to `UIO[Any]`.
 
 ### Method alphabetization
 
