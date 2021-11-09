@@ -2030,7 +2030,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       ChunkIterator.Concat(self, that)
   }
 
-  private object ChunkIterator {
+  object ChunkIterator {
 
     /**
      * The empty iterator.
