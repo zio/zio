@@ -139,6 +139,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case Some(existingNewTestTask: ZTestTaskNew) =>
+                  println("Merging")
                   (
                     Some(
                       new ZTestTaskNew(
