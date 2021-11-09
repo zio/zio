@@ -3,7 +3,6 @@ package zio.test
 import org.scalacheck.rng.Seed
 import org.scalacheck.Gen.Parameters
 import zio._
-import zio.test.Sized
 
 /**
  * Provides functionality for converting legacy ScalaCheck generators to ZIO
