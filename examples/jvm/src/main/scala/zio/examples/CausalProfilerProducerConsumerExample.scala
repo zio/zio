@@ -30,6 +30,5 @@ object CausalProfilerProducerConsumerExample extends ZIOAppDefault {
         program.forever
       }
       .flatMap(_.writeToFile("profile.coz"))
-      .exitCode
   }
 }

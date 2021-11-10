@@ -17,6 +17,5 @@ object CausalProfilerToyExample extends ZIOAppDefault {
         io.forever
       }
       .flatMap(_.writeToFile("profile.coz"))
-      .exitCode
 
 }

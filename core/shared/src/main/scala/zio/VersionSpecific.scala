@@ -22,9 +22,6 @@ import izumi.reflect.macrortti.LightTypeTagRef
 
 private[zio] trait VersionSpecific {
 
-  type Tag[A] = izumi.reflect.Tag[A]
-  lazy val Tag = izumi.reflect.Tag
-
   type TagK[F[_]] = izumi.reflect.TagK[F]
   lazy val TagK = izumi.reflect.TagK
 
@@ -54,8 +51,6 @@ private[zio] trait VersionSpecific {
   type TagK21[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]]    = izumi.reflect.TagK21[F]
   type TagK22[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]] = izumi.reflect.TagK22[F]
 
-  type LightTypeTag = izumi.reflect.macrortti.LightTypeTag
-
   private[zio] def taggedIsSubtype(left: LightTypeTag, right: LightTypeTag): Boolean =
     left <:< right
 
@@ -69,13 +64,5 @@ private[zio] trait VersionSpecific {
    * `Tag[Has[A] with Has[B]]` should produce `Set(Tag[A], Tag[B])`
    */
   private[zio] def taggedGetHasServices[A](t: LightTypeTag): Set[LightTypeTag] =
-    t.decompose.map { parent =>
-      parent.ref match {
-        case reference: LightTypeTagRef.AppliedNamedReference if reference.typeArgs.size == 1 =>
-          parent.typeArgs.head
-
-        case _ =>
-          parent
-      }
-    }
+    t.getHasTypes.toSet
 }

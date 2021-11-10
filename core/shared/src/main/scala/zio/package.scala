@@ -22,9 +22,31 @@ package object zio
     with EitherCompat
     with FunctionToLayerOps
     with IntersectionTypeCompat
-    with PlatformSpecific
     with VersionSpecific
     with DurationModule {
+
+  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
+
+  object ZEnv {
+
+    private[zio] object Services {
+      val live: ZEnv =
+        Has.allOf[Clock, Console, System, Random](
+          Clock.ClockLive,
+          Console.ConsoleLive,
+          System.SystemLive,
+          Random.RandomLive
+        )
+    }
+
+    val any: ZLayer[ZEnv, Nothing, ZEnv] = {
+      ZLayer.environment[ZEnv](Tracer.newTrace)
+    }
+
+    val live: Layer[Nothing, ZEnv] =
+      Clock.live ++ Console.live ++ System.live ++ Random.live
+  }
+
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]

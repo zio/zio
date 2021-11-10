@@ -6111,7 +6111,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) extends ZIO[R, E, A]
       with TracedCont[A0, R, E, A] {
     def unsafeLog: () => String =
-      () => s"FlatMap at ${trace}"
+      () => s"FlatMap at $trace"
 
     override def tag = Tags.FlatMap
 
@@ -6120,7 +6120,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class SucceedNow[A](val value: A) extends UIO[A] {
     def unsafeLog: () => String =
-      () => s"SucceedNow at ${trace}"
+      () => s"SucceedNow at $trace"
 
     override def tag   = Tags.SucceedNow
     override def trace = ZTraceElement.empty
@@ -6128,7 +6128,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class Succeed[A](val effect: () => A, val trace: ZTraceElement) extends UIO[A] {
     def unsafeLog: () => String =
-      () => s"Succeed at ${trace}"
+      () => s"Succeed at $trace"
 
     override def tag = Tags.Succeed
   }
@@ -6136,7 +6136,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class SucceedWith[A](val effect: (RuntimeConfig, FiberId) => A, val trace: ZTraceElement)
       extends UIO[A] {
     def unsafeLog: () => String =
-      () => s"SucceedWith at ${trace}"
+      () => s"SucceedWith at $trace"
 
     override def tag = Tags.SucceedWith
   }
@@ -6144,7 +6144,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class Suspend[R, E, A](val make: () => ZIO[R, E, A], val trace: ZTraceElement)
       extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"Suspend at ${trace}"
+      () => s"Suspend at $trace"
 
     override def tag = Tags.Suspend
   }
@@ -6154,7 +6154,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"SuspendWith at ${trace}"
+      () => s"SuspendWith at $trace"
 
     override def tag = Tags.SuspendWith
   }
@@ -6165,7 +6165,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"Async at ${trace}"
+      () => s"Async at $trace"
 
     override def tag = Tags.Async
   }
@@ -6178,7 +6178,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) extends ZIO[R, E2, B]
       with TracedCont[A, R, E2, B] {
     def unsafeLog: () => String =
-      () => s"Fold at ${trace}"
+      () => s"Fold at $trace"
 
     override def tag = Tags.Fold
 
@@ -6191,7 +6191,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends URIO[R, Fiber.Runtime[E, A]] {
     def unsafeLog: () => String =
-      () => s"Fork at ${trace}"
+      () => s"Fork at $trace"
 
     override def tag = Tags.Fork
   }
@@ -6202,7 +6202,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"InterruptStatus at ${trace}"
+      () => s"InterruptStatus at $trace"
 
     override def tag = Tags.InterruptStatus
   }
@@ -6210,14 +6210,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class CheckInterrupt[R, E, A](val k: zio.InterruptStatus => ZIO[R, E, A], val trace: ZTraceElement)
       extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"CheckInterrupt at ${trace}"
+      () => s"CheckInterrupt at $trace"
 
     override def tag = Tags.CheckInterrupt
   }
 
   private[zio] final class Fail[E](val cause: () => Cause[E], val trace: ZTraceElement) extends IO[E, Nothing] { self =>
     def unsafeLog: () => String =
-      () => s"Fail ${cause()} at ${trace}"
+      () => s"Fail ${cause()} at $trace"
 
     override def tag = Tags.Fail
 
@@ -6233,28 +6233,28 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class Descriptor[R, E, A](val k: Fiber.Descriptor => ZIO[R, E, A], val trace: ZTraceElement)
       extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"Descriptor at ${trace}"
+      () => s"Descriptor at $trace"
 
     override def tag = Tags.Descriptor
   }
 
   private[zio] final class Shift(val executor: () => Executor, val trace: ZTraceElement) extends UIO[Unit] {
     def unsafeLog: () => String =
-      () => s"Shift at ${trace}"
+      () => s"Shift at $trace"
 
     override def tag = Tags.Shift
   }
 
   private[zio] final class Yield(val trace: ZTraceElement) extends UIO[Unit] {
     def unsafeLog: () => String =
-      () => s"Yield at ${trace}"
+      () => s"Yield at $trace"
 
     override def tag = Tags.Yield
   }
 
   private[zio] final class Read[R, E, A](val k: R => ZIO[R, E, A], val trace: ZTraceElement) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"Read at ${trace}"
+      () => s"Read at $trace"
 
     override def tag = Tags.Access
   }
@@ -6262,7 +6262,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class Provide[R, E, A](val r: () => R, val zio: ZIO[R, E, A], val trace: ZTraceElement)
       extends IO[E, A] {
     def unsafeLog: () => String =
-      () => s"Provide at ${trace}"
+      () => s"Provide at $trace"
 
     override def tag = Tags.Provide
   }
@@ -6272,7 +6272,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"FiberRefGetAll at ${trace}"
+      () => s"FiberRefGetAll at $trace"
 
     override def tag = Tags.FiberRefGetAll
   }
@@ -6283,7 +6283,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends UIO[B] {
     def unsafeLog: () => String =
-      () => s"FiberRefModify at ${trace}"
+      () => s"FiberRefModify at $trace"
 
     override def tag = Tags.FiberRefModify
   }
@@ -6295,7 +6295,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"FiberRefLocally at ${trace}"
+      () => s"FiberRefLocally at $trace"
 
     override def tag = Tags.FiberRefLocally
   }
@@ -6305,7 +6305,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends UIO[Unit] {
     def unsafeLog: () => String =
-      () => s"FiberRefDelete at ${trace}"
+      () => s"FiberRefDelete at $trace"
 
     override def tag = Tags.FiberRefDelete
   }
@@ -6316,14 +6316,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, B] {
     def unsafeLog: () => String =
-      () => s"FiberRefWith at ${trace}"
+      () => s"FiberRefWith at $trace"
 
     override def tag = Tags.FiberRefWith
   }
 
   private[zio] final class Trace(val trace: ZTraceElement) extends UIO[ZTrace] {
     def unsafeLog: () => String =
-      () => s"Trace at ${trace}"
+      () => s"Trace at $trace"
 
     override def tag = Tags.Trace
   }
@@ -6337,7 +6337,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, C] {
     def unsafeLog: () => String =
-      () => s"RaceWith at ${trace}"
+      () => s"RaceWith at $trace"
 
     override def tag: Int = Tags.RaceWith
   }
@@ -6348,7 +6348,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"Supervise at ${trace}"
+      () => s"Supervise at $trace"
 
     override def tag = Tags.Supervise
   }
@@ -6358,7 +6358,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"GetForkScope at ${trace}"
+      () => s"GetForkScope at $trace"
 
     override def tag = Tags.GetForkScope
   }
@@ -6369,7 +6369,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"OverrideForkScope at ${trace}"
+      () => s"OverrideForkScope at $trace"
 
     override def tag = Tags.OverrideForkScope
   }
@@ -6380,7 +6380,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
-      () => s"Ensuring at ${trace}"
+      () => s"Ensuring at $trace"
 
     override def tag = Tags.Ensuring
   }
@@ -6393,7 +6393,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val trace: ZTraceElement
   ) extends ZIO[Any, Nothing, Unit] {
     def unsafeLog: () => String =
-      () => s"Logged at ${trace}"
+      () => s"Logged at $trace"
 
     override def tag = Tags.Logged
   }
@@ -6401,7 +6401,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class SetRuntimeConfig(val runtimeConfig: () => RuntimeConfig, val trace: ZTraceElement)
       extends UIO[Unit] {
     def unsafeLog: () => String =
-      () => s"SetRuntimeConfig at ${trace}"
+      () => s"SetRuntimeConfig at $trace"
 
     override def tag = Tags.SetRuntimeConfig
   }
