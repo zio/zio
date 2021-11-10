@@ -22,10 +22,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.annotation.implicitNotFound
 
 /**
- * A simple, macro-less means of creating accessors from Services. Extend
- * the companion object with `Accessible[ServiceName]`, then simply call
- * `Companion(_.someMethod)`, to return a ZIO effect that requires the
- * Service in its environment.
+ * A simple, macro-less means of creating accessors from Services. Extend the
+ * companion object with `Accessible[ServiceName]`, then simply call
+ * `Companion(_.someMethod)`, to return a ZIO effect that requires the Service
+ * in its environment.
  *
  * Example:
  * {{{

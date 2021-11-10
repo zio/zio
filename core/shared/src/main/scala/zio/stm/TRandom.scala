@@ -68,7 +68,8 @@ object TRandom extends Serializable {
     ZSTM.accessSTM(_.get.nextBoolean)
 
   /**
-   * Generates a pseudo-random chunk of bytes of the specified length inside a transaction.
+   * Generates a pseudo-random chunk of bytes of the specified length inside a
+   * transaction.
    */
   def nextBytes(length: => Int): URSTM[Has[TRandom], Chunk[Byte]] =
     ZSTM.accessSTM(_.get.nextBytes(length))
@@ -80,7 +81,8 @@ object TRandom extends Serializable {
   val nextDouble: URSTM[Has[TRandom], Double] = ZSTM.accessSTM(_.get.nextDouble)
 
   /**
-   * Generates a pseudo-random double in the specified range inside a transaction.
+   * Generates a pseudo-random double in the specified range inside a
+   * transaction.
    */
   def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): URSTM[Has[TRandom], Double] =
     ZSTM.accessSTM(_.get.nextDoubleBetween(minInclusive, maxExclusive))
@@ -93,7 +95,8 @@ object TRandom extends Serializable {
     ZSTM.accessSTM(_.get.nextFloat)
 
   /**
-   * Generates a pseudo-random float in the specified range inside a transaction.
+   * Generates a pseudo-random float in the specified range inside a
+   * transaction.
    */
   def nextFloatBetween(minInclusive: Float, maxExclusive: Float): URSTM[Has[TRandom], Float] =
     ZSTM.accessSTM(_.get.nextFloatBetween(minInclusive, maxExclusive))
@@ -112,7 +115,8 @@ object TRandom extends Serializable {
     ZSTM.accessSTM(_.get.nextInt)
 
   /**
-   * Generates a pseudo-random integer in the specified range inside a transaction.
+   * Generates a pseudo-random integer in the specified range inside a
+   * transaction.
    */
   def nextIntBetween(minInclusive: Int, maxExclusive: Int): URSTM[Has[TRandom], Int] =
     ZSTM.accessSTM(_.get.nextIntBetween(minInclusive, maxExclusive))
@@ -144,13 +148,15 @@ object TRandom extends Serializable {
     ZSTM.accessSTM(_.get.nextLongBounded(n))
 
   /**
-   * Generates a pseudo-random character from the ASCII range 33-126 inside a transaction.
+   * Generates a pseudo-random character from the ASCII range 33-126 inside a
+   * transaction.
    */
   val nextPrintableChar: URSTM[Has[TRandom], Char] =
     ZSTM.accessSTM(_.get.nextPrintableChar)
 
   /**
-   * Generates a pseudo-random string of the specified length inside a transaction.
+   * Generates a pseudo-random string of the specified length inside a
+   * transaction.
    */
   def nextString(length: => Int): URSTM[Has[TRandom], String] =
     ZSTM.accessSTM(_.get.nextString(length))

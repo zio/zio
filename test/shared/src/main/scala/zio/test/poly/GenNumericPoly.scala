@@ -32,8 +32,8 @@ trait GenNumericPoly extends GenOrderingPoly {
 object GenNumericPoly {
 
   /**
-   * Constructs an instance of `GenIntegralPoly` using the specified `Gen`
-   * and `Numeric` instances, existentially hiding the underlying type.
+   * Constructs an instance of `GenIntegralPoly` using the specified `Gen` and
+   * `Numeric` instances, existentially hiding the underlying type.
    */
   def apply[A](gen: Gen[Has[Random] with Has[Sized], A], num: Numeric[A]): GenNumericPoly =
     new GenNumericPoly {
@@ -83,8 +83,7 @@ object GenNumericPoly {
     )
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for
-   * integers.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for integers.
    */
   def int(implicit trace: ZTraceElement): GenNumericPoly =
     GenIntegralPoly.int

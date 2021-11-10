@@ -15,7 +15,8 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
 @Fork(3)
 /**
- * This benchmark sequentially offers a number of items to the queue, then takes them out of the queue.
+ * This benchmark sequentially offers a number of items to the queue, then takes
+ * them out of the queue.
  */
 class QueueSequentialBenchmark {
 

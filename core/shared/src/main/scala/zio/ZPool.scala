@@ -27,9 +27,8 @@ trait ZPool[+Error, Item] {
 
   /**
    * Retrieves an item from the pool in a `Managed` effect. Note that if
-   * acquisition fails, then the returned effect will fail for that same
-   * reason. Retrying a failed acquisition attempt will repeat the acquisition
-   * attempt.
+   * acquisition fails, then the returned effect will fail for that same reason.
+   * Retrying a failed acquisition attempt will repeat the acquisition attempt.
    */
   def get(implicit trace: ZTraceElement): ZManaged[Any, Error, Item]
 
@@ -45,8 +44,8 @@ object ZPool {
   /**
    * Creates a pool from a fixed number of pre-allocated items. This method
    * should only be used when there is no cleanup or release operation
-   * associated with items in the pool. If cleanup or release is required,
-   * then the `make` constructor should be used instead.
+   * associated with items in the pool. If cleanup or release is required, then
+   * the `make` constructor should be used instead.
    */
   def fromIterable[A](iterable0: => Iterable[A])(implicit trace: ZTraceElement): UManaged[ZPool[Nothing, A]] =
     for {
@@ -166,8 +165,10 @@ object ZPool {
                   },
                   State(size, free - 1)
                 )
-              else
+              else if (size >= 0)
                 allocate *> acquire -> State(size + 1, free + 1)
+              else
+                ZIO.interrupt -> State(size, free)
             }.flatten
         }
 
@@ -195,7 +196,7 @@ object ZPool {
       ZIO.replicateZIODiscard(range.start) {
         ZIO.uninterruptibleMask { restore =>
           state.modify { case State(size, free) =>
-            if (size < range.start)
+            if (size < range.start && size >= 0)
               (
                 for {
                   reservation <- creator.reserve
@@ -269,13 +270,13 @@ object ZPool {
         else if (size > 0)
           ZIO.unit -> State(size, free)
         else
-          items.shutdown -> State(size, free)
+          items.shutdown -> State(size - 1, free)
       }.flatten
 
     final def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
       isShuttingDown.modify { down =>
         if (down)
-          ZIO.unit -> true
+          items.awaitShutdown -> true
         else
           getAndShutdown *> items.awaitShutdown -> true
       }.flatten
@@ -300,8 +301,8 @@ object ZPool {
     def initial(implicit trace: ZTraceElement): URIO[Environment, State]
 
     /**
-     * Describes how the state of the strategy should be updated when an item
-     * is added to the pool or returned to the pool.
+     * Describes how the state of the strategy should be updated when an item is
+     * added to the pool or returned to the pool.
      */
     def track(state: State)(item: Exit[Error, Item])(implicit trace: ZTraceElement): UIO[Unit]
 
@@ -314,9 +315,9 @@ object ZPool {
   private object Strategy {
 
     /**
-     * A strategy that does nothing to shrink excess items. This is useful
-     * when the minimum size of the pool is equal to its maximum size and so
-     * there is nothing to do.
+     * A strategy that does nothing to shrink excess items. This is useful when
+     * the minimum size of the pool is equal to its maximum size and so there is
+     * nothing to do.
      */
     case object None extends Strategy[Any, Any, Any] {
       type State = Unit
@@ -329,8 +330,8 @@ object ZPool {
     }
 
     /**
-     * A strategy that shrinks the pool down to its minimum size if items in
-     * the pool have not been used for the specified duration.
+     * A strategy that shrinks the pool down to its minimum size if items in the
+     * pool have not been used for the specified duration.
      */
     final case class TimeToLive(timeToLive: Duration) extends Strategy[Has[Clock], Any, Any] {
       type State = (Clock, Ref[java.time.Instant])

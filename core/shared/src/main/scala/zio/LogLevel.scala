@@ -23,13 +23,15 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * importance) of individual log statements, as well as to enable tuning
  * verbosity of log output.
  *
- * @param ordinal  The priority of the log message. Larger values indicate
- *                 higher priority.
- * @param label    A label associated with the log level.
- * @param syslog   The syslog severity level of the log level.
+ * @param ordinal
+ *   The priority of the log message. Larger values indicate higher priority.
+ * @param label
+ *   A label associated with the log level.
+ * @param syslog
+ *   The syslog severity level of the log level.
  *
- * [[LogLevel]] values are ZIO aspects, and therefore can be used with
- * aspect syntax.
+ * [[LogLevel]] values are ZIO aspects, and therefore can be used with aspect
+ * syntax.
  * {{{
  * myEffect @@ LogLevel.Info
  * }}}

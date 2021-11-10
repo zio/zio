@@ -160,7 +160,8 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
     defaultTestRunner
 
   /**
-   * Returns an effect that executes a given spec, producing the results of the execution.
+   * Returns an effect that executes a given spec, producing the results of the
+   * execution.
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]

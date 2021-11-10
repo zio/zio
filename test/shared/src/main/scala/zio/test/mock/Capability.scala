@@ -23,14 +23,17 @@ import zio.{=!=, Has, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType}
 import java.util.UUID
 
 /**
- * A `Capability[R, I, E, A]` represents a capability of environment `R` that takes an input `I`
- * and returns an effect that may fail with an error `E` or produce a single `A`.
+ * A `Capability[R, I, E, A]` represents a capability of environment `R` that
+ * takes an input `I` and returns an effect that may fail with an error `E` or
+ * produce a single `A`.
  *
- * To represent polymorphic capabilities you must use one of lazy `Capability.Poly` types which
- * allow you to delay the declaration of some types to call site.
+ * To represent polymorphic capabilities you must use one of lazy
+ * `Capability.Poly` types which allow you to delay the declaration of some
+ * types to call site.
  *
- * To construct capability tags you should start by creating a `Mock[R]` and extend publicly
- * available `Effect`, `Method`, `Sink` or `Stream` type members.
+ * To construct capability tags you should start by creating a `Mock[R]` and
+ * extend publicly available `Effect`, `Method`, `Sink` or `Stream` type
+ * members.
  */
 protected[mock] abstract class Capability[R <: Has[_]: Tag, I: Tag, E: Tag, A: Tag](val mock: Mock[R])
     extends Capability.Base[R] { self =>
@@ -151,7 +154,8 @@ object Capability {
     }
 
     /**
-     * Represents capability of environment `R` polymorphic in its input and error types.
+     * Represents capability of environment `R` polymorphic in its input and
+     * error types.
      */
     protected[mock] abstract class InputError[R <: Has[_]: Tag, A: Tag, E1](val mock: Mock[R])
         extends Poly[R, Unknown, Unknown, A] { self =>
@@ -174,7 +178,8 @@ object Capability {
     }
 
     /**
-     * Represents capability of environment `R` polymorphic in its input and output types.
+     * Represents capability of environment `R` polymorphic in its input and
+     * output types.
      */
     protected[mock] abstract class InputOutput[R <: Has[_]: Tag, E: Tag, A1](val mock: Mock[R])
         extends Poly[R, Unknown, E, Unknown] { self =>
@@ -197,7 +202,8 @@ object Capability {
     }
 
     /**
-     * Represents capability of environment `R` polymorphic in its error and output types.
+     * Represents capability of environment `R` polymorphic in its error and
+     * output types.
      */
     protected[mock] abstract class ErrorOutput[R <: Has[_]: Tag, I: Tag, E1, A1](val mock: Mock[R])
         extends Poly[R, I, Unknown, Unknown] { self =>
@@ -220,7 +226,8 @@ object Capability {
     }
 
     /**
-     * Represents capability of environment `R` polymorphic in its input, error and output types.
+     * Represents capability of environment `R` polymorphic in its input, error
+     * and output types.
      */
     protected[mock] abstract class InputErrorOutput[R <: Has[_]: Tag, E1, A1](val mock: Mock[R])
         extends Poly[R, Unknown, Unknown, Unknown] { self =>

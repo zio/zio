@@ -19,9 +19,9 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * `FiberRefs` is a data type that represents a collection of `FiberRef`
- * values. This allows safely propagating `FiberRef` values across fiber
- * boundaries, for example between an asynchronous producer and consumer.
+ * `FiberRefs` is a data type that represents a collection of `FiberRef` values.
+ * This allows safely propagating `FiberRef` values across fiber boundaries, for
+ * example between an asynchronous producer and consumer.
  */
 final class FiberRefs private (private val fiberRefLocals: Map[FiberRef.Runtime[_], Any]) { self =>
 
@@ -32,23 +32,22 @@ final class FiberRefs private (private val fiberRefLocals: Map[FiberRef.Runtime[
     fiberRefLocals.keySet
 
   /**
-   * Gets the value of the specified `FiberRef` in this collection of
-   * `FiberRef` values if it exists or `None` otherwise.
+   * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
+   * values if it exists or `None` otherwise.
    */
   def get[A](fiberRef: FiberRef.Runtime[A]): Option[A] =
     fiberRefLocals.get(fiberRef).map(_.asInstanceOf[A])
 
   /**
-   * Gets the value of the specified `FiberRef` in this collection of
-   * `FiberRef` values if it exists or the `initial` value of the `FiberRef`
-   * otherwise.
+   * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
+   * values if it exists or the `initial` value of the `FiberRef` otherwise.
    */
   def getOrDefault[A](fiberRef: FiberRef.Runtime[A]): A =
     get(fiberRef).getOrElse(fiberRef.initial)
 
   /**
-   * Sets the value of each `FiberRef` for the fiber running this effect to
-   * the value in this collection of `FiberRef` values.
+   * Sets the value of each `FiberRef` for the fiber running this effect to the
+   * value in this collection of `FiberRef` values.
    */
   def setAll(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.foreachDiscard(fiberRefs) { fiberRef =>

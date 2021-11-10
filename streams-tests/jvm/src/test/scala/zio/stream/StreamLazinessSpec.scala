@@ -28,7 +28,7 @@ object StreamLazinessSpec extends ZIOBaseSpec {
       test("succeed")(assertLazy(ZStream.succeed)),
       test("timeoutError")(
         assertLazy(
-          ZStream.succeed(1).timeoutError(_)(Duration.Infinity)
+          ZStream.succeed(1).timeoutFail(_)(Duration.Infinity)
         )
       )
     )

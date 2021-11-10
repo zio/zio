@@ -34,22 +34,23 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
       STM.die(new ArrayIndexOutOfBoundsException(index))
 
   /**
-   * Finds the result of applying a partial function to the first value in its domain.
+   * Finds the result of applying a partial function to the first value in its
+   * domain.
    */
   def collectFirst[B](pf: PartialFunction[A, B]): USTM[Option[B]] =
     find(pf.isDefinedAt).map(_.map(pf))
 
   /**
-   * Finds the result of applying an transactional partial function to the
-   * first value in its domain.
+   * Finds the result of applying an transactional partial function to the first
+   * value in its domain.
    */
   @deprecated("use collectFirstSTM", "2.0.0")
   def collectFirstM[E, B](pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     collectFirstSTM(pf)
 
   /**
-   * Finds the result of applying an transactional partial function to the
-   * first value in its domain.
+   * Finds the result of applying an transactional partial function to the first
+   * value in its domain.
    */
   def collectFirstSTM[E, B](pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     find(pf.isDefinedAt).flatMap {
@@ -87,14 +88,16 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   def exists(p: A => Boolean): USTM[Boolean] = find(p).map(_.isDefined)
 
   /**
-   * Determine if the array contains a value satisfying a transactional predicate.
+   * Determine if the array contains a value satisfying a transactional
+   * predicate.
    */
   @deprecated("use existsSTM", "2.0.0")
   def existsM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
     existsSTM(p)
 
   /**
-   * Determine if the array contains a value satisfying a transactional predicate.
+   * Determine if the array contains a value satisfying a transactional
+   * predicate.
    */
   def existsSTM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
     countSTM(p).map(_ > 0)
@@ -220,22 +223,22 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     toChunk.flatMap(STM.foldLeft(_)(zero)(op))
 
   /**
-   * Atomically evaluate the conjunction of a predicate across the members
-   * of the array.
+   * Atomically evaluate the conjunction of a predicate across the members of
+   * the array.
    */
   def forall(p: A => Boolean): USTM[Boolean] = exists(a => !p(a)).map(!_)
 
   /**
-   * Atomically evaluate the conjunction of a transactional predicate across
-   * the members of the array.
+   * Atomically evaluate the conjunction of a transactional predicate across the
+   * members of the array.
    */
   @deprecated("use forallSTM", "2.0.0")
   def forallM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
     forallSTM(p)
 
   /**
-   * Atomically evaluate the conjunction of a transactional predicate across
-   * the members of the array.
+   * Atomically evaluate the conjunction of a transactional predicate across the
+   * members of the array.
    */
   def forallSTM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
     countSTM(p).map(_ == array.length)
@@ -247,14 +250,14 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     foldSTM(())((_, a) => f(a))
 
   /**
-   * Get the first index of a specific value in the array or -1 if it does
-   * not occur.
+   * Get the first index of a specific value in the array or -1 if it does not
+   * occur.
    */
   def indexOf(a: A): USTM[Int] = indexOf(a, 0)
 
   /**
-   * Get the first index of a specific value in the array, starting at a specific
-   * index, or -1 if it does not occur.
+   * Get the first index of a specific value in the array, starting at a
+   * specific index, or -1 if it does not occur.
    */
   def indexOf(a: A, from: Int): USTM[Int] = indexWhere(_ == a, from)
 
@@ -264,8 +267,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   def indexWhere(p: A => Boolean): USTM[Int] = indexWhere(p, 0)
 
   /**
-   * Get the index of the first entry in the array, starting at a specific index,
-   * matching a predicate.
+   * Get the index of the first entry in the array, starting at a specific
+   * index, matching a predicate.
    */
   def indexWhere(p: A => Boolean, from: Int): USTM[Int] =
     if (from < 0)
@@ -300,16 +303,16 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     indexWhereSTM(p, 0)
 
   /**
-   * Starting at specified index, get the index of the next entry that matches
-   * a transactional predicate.
+   * Starting at specified index, get the index of the next entry that matches a
+   * transactional predicate.
    */
   @deprecated("use indexWhereSTM", "2.0.0")
   def indexWhereM[E](p: A => STM[E, Boolean], from: Int): STM[E, Int] =
     indexWhereSTM(p, from)
 
   /**
-   * Starting at specified index, get the index of the next entry that matches
-   * a transactional predicate.
+   * Starting at specified index, get the index of the next entry that matches a
+   * transactional predicate.
    */
   def indexWhereSTM[E](p: A => STM[E, Boolean], from: Int): STM[E, Int] = {
     def forIndex(i: Int): STM[E, Int] =
@@ -322,7 +325,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   }
 
   /**
-   * Get the last index of a specific value in the array or -1 if it does not occur.
+   * Get the last index of a specific value in the array or -1 if it does not
+   * occur.
    */
   def lastIndexOf(a: A): USTM[Int] =
     if (array.isEmpty) STM.succeedNow(-1) else lastIndexOf(a, array.length - 1)
@@ -388,14 +392,16 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
     }
 
   /**
-   * Atomically reduce the non-empty array using a transactional binary operator.
+   * Atomically reduce the non-empty array using a transactional binary
+   * operator.
    */
   @deprecated("use reduceOptionSTM", "2.0.0")
   def reduceOptionM[E](op: (A, A) => STM[E, A]): STM[E, Option[A]] =
     reduceOptionSTM(op)
 
   /**
-   * Atomically reduce the non-empty array using a transactional binary operator.
+   * Atomically reduce the non-empty array using a transactional binary
+   * operator.
    */
   def reduceOptionSTM[E](op: (A, A) => STM[E, A]): STM[E, Option[A]] =
     foldSTM(Option.empty[A]) { (acc, a) =>

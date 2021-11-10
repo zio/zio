@@ -1,8 +1,8 @@
 package zio.test
 
 /**
- * CustomAssertion allows users to create their own custom assertions for use
- * in `assertTrue`. They are constructed with `CustomAssertion.make`.
+ * CustomAssertion allows users to create their own custom assertions for use in
+ * `assertTrue`. They are constructed with `CustomAssertion.make`.
  *
  * {{{
  * // Definition
@@ -32,8 +32,8 @@ object CustomAssertion {
 
   /**
    * Creates a SmartAssertion from a function from A to Either[String, B].
-   * Returning `Right[A]` will transform the input, whereas `Left[String]`
-   * will result in an error with that string as a message.
+   * Returning `Right[A]` will transform the input, whereas `Left[String]` will
+   * result in an error with that string as a message.
    *
    * {{{
    *   sealed trait Color

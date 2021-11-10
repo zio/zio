@@ -19,10 +19,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * val realTime = live(Clock.nanoTime)
  * }}}
  *
- * The `withLive` method can be used to apply a transformation to an effect
- * with the live environment while ensuring that the effect itself still runs
- * with the test environment, for example to time out a test. Both of these
- * methods are re-exported in the `environment` package for easy availability.
+ * The `withLive` method can be used to apply a transformation to an effect with
+ * the live environment while ensuring that the effect itself still runs with
+ * the test environment, for example to time out a test. Both of these methods
+ * are re-exported in the `environment` package for easy availability.
  */
 trait Live {
   def provide[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): IO[E, A]
@@ -31,11 +31,10 @@ trait Live {
 object Live {
 
   /**
-   * Constructs a new `Live` service that implements the `Live` interface.
-   * This typically should not be necessary as `TestEnvironment` provides
-   * access to live versions of all the standard ZIO environment types but
-   * could be useful if you are mixing in interfaces to create your own
-   * environment type.
+   * Constructs a new `Live` service that implements the `Live` interface. This
+   * typically should not be necessary as `TestEnvironment` provides access to
+   * live versions of all the standard ZIO environment types but could be useful
+   * if you are mixing in interfaces to create your own environment type.
    */
   def default: ZLayer[ZEnv, Nothing, Has[Live]] = {
     implicit val trace = Tracer.newTrace

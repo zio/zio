@@ -124,9 +124,9 @@ class Zio2Upgrade() extends SemanticRule("Zio2Upgrade") {
     "zio.stream.ZSink",
     "zio.stream.ZStream",
     "zio.stream.ZTransducer",
-    "zio.stream.experimental.ZChannel",
-    "zio.stream.experimental.Take",
-    "zio.stream.experimental.ZPipeline",
+    "zio.stream.ZChannel",
+    "zio.stream.Take",
+    "zio.stream.ZPipeline",
     "zio.test.TestFailure",
     "zio.Runtime"
   )

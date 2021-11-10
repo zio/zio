@@ -76,7 +76,8 @@ object TestAnnotation {
     TestAnnotation("timing", Duration.Zero, _ + _)
 
   /**
-   * An annotation for capturing the trace information, including source location (i.e. file name and line number) of the calling test.
+   * An annotation for capturing the trace information, including source
+   * location (i.e. file name and line number) of the calling test.
    */
   private[zio] val trace: TestAnnotation[List[ZTraceElement]] =
     TestAnnotation("trace", List.empty, _ ++ _)

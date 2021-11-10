@@ -63,7 +63,8 @@ object TestAnnotationRenderer {
   }
 
   /**
-   * A test annotation renderer that combines multiple other test annotation renderers.
+   * A test annotation renderer that combines multiple other test annotation
+   * renderers.
    */
   final case class CompositeRenderer(renderers: Vector[TestAnnotationRenderer]) extends TestAnnotationRenderer {
     def run(ancestors: List[TestAnnotationMap], child: TestAnnotationMap): List[String] =
@@ -86,8 +87,7 @@ object TestAnnotationRenderer {
     }
 
   /**
-   * A test annotation renderer that renders how many times a test was
-   * repeated.
+   * A test annotation renderer that renders how many times a test was repeated.
    */
   val repeated: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.repeated) { case (child :: _) =>
@@ -124,9 +124,9 @@ object TestAnnotationRenderer {
     }
 
   /**
-   * A test annotation renderer that renders the time taken to execute each
-   * test or suite both in absolute duration and as a percentage of total
-   * execution time.
+   * A test annotation renderer that renders the time taken to execute each test
+   * or suite both in absolute duration and as a percentage of total execution
+   * time.
    */
   val timed: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.timing) { case (child :: ancestors) =>

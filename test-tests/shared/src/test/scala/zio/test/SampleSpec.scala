@@ -57,5 +57,5 @@ object SampleSpec extends ZIOBaseSpec {
         case (None, None)       => ZIO.succeedNow(true)
         case _                  => ZIO.succeedNow(false)
       }
-      .fold(true)(_ && _)
+      .runFold(true)(_ && _)
 }
