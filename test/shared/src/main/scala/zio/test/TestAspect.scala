@@ -129,8 +129,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * Constructs an aspect that evaluates every test between two effects,
-   * `before` and `after`,  where the result of `before` can be used in
-   * `after`.
+   * `before` and `after`, where the result of `before` can be used in `after`.
    */
   def aroundWith[R0, E0, A0](
     before: ZIO[R0, E0, A0]
@@ -150,9 +149,8 @@ object TestAspect extends TimeoutVariants {
     aroundWith(before)(_ => after)
 
   /**
-   * Constructs an aspect that evaluates all tests between two effects,
-   * `before` and `after`, where the result of `before` can be used in
-   * `after`.
+   * Constructs an aspect that evaluates all tests between two effects, `before`
+   * and `after`, where the result of `before` can be used in `after`.
    */
   def aroundAllWith[R0, E0, A0](
     before: ZIO[R0, E0, A0]
@@ -332,8 +330,8 @@ object TestAspect extends TimeoutVariants {
     if (TestVersion.isScala213) ignore else identity
 
   /**
-   * An aspect that sets suites to the specified execution strategy, but only
-   * if their current strategy is inherited (undefined).
+   * An aspect that sets suites to the specified execution strategy, but only if
+   * their current strategy is inherited (undefined).
    */
   def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
     new TestAspectPoly {
@@ -499,7 +497,8 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
-   * An aspect that runs only on operating systems accepted by the specified predicate.
+   * An aspect that runs only on operating systems accepted by the specified
+   * predicate.
    */
   def os(f: System.OS => Boolean): TestAspectAtLeastR[Has[Annotations]] =
     if (f(System.os)) identity else ignore
@@ -540,8 +539,8 @@ object TestAspect extends TimeoutVariants {
   }
 
   /**
-   * An aspect that repeats the test a specified number of times, ensuring it
-   * is stable ("non-flaky"). Stops at the first failure.
+   * An aspect that repeats the test a specified number of times, ensuring it is
+   * stable ("non-flaky"). Stops at the first failure.
    */
   def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Has[Annotations]] = {
     val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Has[Annotations]] {
@@ -634,46 +633,41 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that restores a given
-   * [[zio.test.Restorable Restorable]]'s state to its starting
-   * state after the test is run. Note that this is only useful when repeating
-   * tests.
+   * An aspect that restores a given [[zio.test.Restorable Restorable]]'s state
+   * to its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
    */
   def restore[R0](service: R0 => Restorable): TestAspectAtLeastR[R0] =
     aroundWith(ZIO.accessZIO[R0](r => service(r).save(ZTraceElement.empty))(ZTraceElement.empty))(restore => restore)
 
   /**
-   * An aspect that restores the
-   * [[zio.test.TestClock TestClock]]'s state to its starting
-   * state after the test is run. Note that this is only useful when repeating
-   * tests.
+   * An aspect that restores the [[zio.test.TestClock TestClock]]'s state to its
+   * starting state after the test is run. Note that this is only useful when
+   * repeating tests.
    */
   def restoreTestClock: TestAspectAtLeastR[Has[TestClock]] =
     restore[Has[TestClock]](_.get)
 
   /**
-   * An aspect that restores the
-   * [[zio.test.TestConsole TestConsole]]'s state to its starting
-   * state after the test is run. Note that this is only useful when repeating
-   * tests.
+   * An aspect that restores the [[zio.test.TestConsole TestConsole]]'s state to
+   * its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
    */
   def restoreTestConsole: TestAspectAtLeastR[Has[TestConsole]] =
     restore[Has[TestConsole]](_.get)
 
   /**
-   * An aspect that restores the
-   * [[zio.test.TestRandom TestRandom]]'s state to its starting
-   * state after the test is run. Note that this is only useful when repeating
-   * tests.
+   * An aspect that restores the [[zio.test.TestRandom TestRandom]]'s state to
+   * its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
    */
   def restoreTestRandom: TestAspectAtLeastR[Has[TestRandom]] =
     restore[Has[TestRandom]](_.get)
 
   /**
-   * An aspect that restores the
-   * [[zio.test.TestSystem TestSystem]]'s state to its starting
-   * state after the test is run. Note that this is only useful when repeating
-   * tests.
+   * An aspect that restores the [[zio.test.TestSystem TestSystem]]'s state to
+   * its starting state after the test is run. Note that this is only useful
+   * when repeating tests.
    */
   def restoreTestSystem: TestAspectAtLeastR[ZTestEnv] =
     restore[Has[TestSystem]](_.get)
@@ -681,17 +675,16 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that restores all state in the standard provided test
    * environments ([[zio.test.TestClock TestClock]],
-   * [[zio.test.TestConsole TestConsole]],
-   * [[zio.test.TestRandom TestRandom]], and
-   * [[zio.test.TestSystem TestSystem]]) to their starting state
-   * after the test is run. Note that this is only useful when repeating tests.
+   * [[zio.test.TestConsole TestConsole]], [[zio.test.TestRandom TestRandom]],
+   * and [[zio.test.TestSystem TestSystem]]) to their starting state after the
+   * test is run. Note that this is only useful when repeating tests.
    */
   def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =
     restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
-   * An aspect that runs each test with the number of times to retry flaky
-   * tests set to the specified value.
+   * An aspect that runs each test with the number of times to retry flaky tests
+   * set to the specified value.
    */
   def retries(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
     new PerTest.AtLeastR[Has[TestConfig]] {
@@ -848,9 +841,9 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that runs each test with the [[zio.test.TestConsole TestConsole]] instance in the
-   * environment set to silent mode so that console output is only written to
-   * the output buffer and not rendered to standard output.
+   * An aspect that runs each test with the [[zio.test.TestConsole TestConsole]]
+   * instance in the environment set to silent mode so that console output is
+   * only written to the output buffer and not rendered to standard output.
    */
   val silent: TestAspectAtLeastR[Has[TestConsole]] =
     new PerTest.AtLeastR[Has[TestConsole]] {
@@ -907,7 +900,8 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that times out tests using the specified duration.
-   * @param duration maximum test duration
+   * @param duration
+   *   maximum test duration
    */
   def timeout(
     duration: Duration

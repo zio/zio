@@ -40,7 +40,8 @@ final class TestAnnotationMap private (private val map: Map[TestAnnotation[Any],
   }
 
   /**
-   * Retrieves the annotation of the specified type, or its default value if there is none.
+   * Retrieves the annotation of the specified type, or its default value if
+   * there is none.
    */
   def get[V](key: TestAnnotation[V]): V =
     map.get(key.asInstanceOf[TestAnnotation[Any]]).fold(key.initial)(_.asInstanceOf[V])

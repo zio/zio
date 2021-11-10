@@ -50,7 +50,10 @@ private[zio] trait FiberPlatformSpecific {
     }
   }
 
-  /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
+  /**
+   * WARNING: this uses the blocking Future#get, consider using
+   * `fromCompletionStage`
+   */
   def fromFutureJava[A](thunk: => Future[A]): Fiber[Throwable, A] = {
     lazy val ftr: Future[A] = thunk
 

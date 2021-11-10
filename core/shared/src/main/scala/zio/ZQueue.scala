@@ -22,18 +22,19 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into which values of
- * type `A` can be enqueued and of which elements of type `B` can be dequeued. The queue's
- * enqueueing operations may utilize an environment of type `RA` and may fail with errors of
- * type `EA`. The dequeueing operations may utilize an environment of type `RB` and may fail
- * with errors of type `EB`.
+ * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into
+ * which values of type `A` can be enqueued and of which elements of type `B`
+ * can be dequeued. The queue's enqueueing operations may utilize an environment
+ * of type `RA` and may fail with errors of type `EA`. The dequeueing operations
+ * may utilize an environment of type `RB` and may fail with errors of type
+ * `EB`.
  */
 abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
-   * Waits until the queue is shutdown.
-   * The `IO` returned by this method will not resume until the queue has been shutdown.
-   * If the queue is already shutdown, the `IO` will resume right away.
+   * Waits until the queue is shutdown. The `IO` returned by this method will
+   * not resume until the queue has been shutdown. If the queue is already
+   * shutdown, the `IO` will resume right away.
    */
   def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit]
 
@@ -53,26 +54,25 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   def offer(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean]
 
   /**
-   * For Bounded Queue: uses the `BackPressure` Strategy, places the values in the queue and always returns true.
-   * If the queue has reached capacity, then
-   * the fiber performing the `offerAll` will be suspended until there is room in
-   * the queue.
+   * For Bounded Queue: uses the `BackPressure` Strategy, places the values in
+   * the queue and always returns true. If the queue has reached capacity, then
+   * the fiber performing the `offerAll` will be suspended until there is room
+   * in the queue.
    *
-   * For Unbounded Queue:
-   * Places all values in the queue and returns true.
+   * For Unbounded Queue: Places all values in the queue and returns true.
    *
-   * For Sliding Queue: uses `Sliding` Strategy
-   * If there is room in the queue, it places the values otherwise it removes the old elements and
-   * enqueues the new ones. Always returns true.
+   * For Sliding Queue: uses `Sliding` Strategy If there is room in the queue,
+   * it places the values otherwise it removes the old elements and enqueues the
+   * new ones. Always returns true.
    *
-   * For Dropping Queue: uses `Dropping` Strategy,
-   * It places the values in the queue but if there is no room it will not enqueue them and return false.
+   * For Dropping Queue: uses `Dropping` Strategy, It places the values in the
+   * queue but if there is no room it will not enqueue them and return false.
    */
   def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean]
 
   /**
-   * Interrupts any fibers that are suspended on `offer` or `take`.
-   * Future calls to `offer*` and `take*` will be interrupted immediately.
+   * Interrupts any fibers that are suspended on `offer` or `take`. Future calls
+   * to `offer*` and `take*` will be interrupted immediately.
    */
   def shutdown(implicit trace: ZTraceElement): UIO[Unit]
 
@@ -90,8 +90,8 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   def take(implicit trace: ZTraceElement): ZIO[RB, EB, B]
 
   /**
-   * Removes all the values in the queue and returns the values. If the queue
-   * is empty returns an empty collection.
+   * Removes all the values in the queue and returns the values. If the queue is
+   * empty returns an empty collection.
    */
   def takeAll(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]]
 
@@ -101,10 +101,9 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]]
 
   /**
-   * Takes a number of elements from the queue between the specified minimum
-   * and maximum. If there are fewer than the minimum number of elements
-   * available, suspends until at least the minimum number of elements have
-   * been collected.
+   * Takes a number of elements from the queue between the specified minimum and
+   * maximum. If there are fewer than the minimum number of elements available,
+   * suspends until at least the minimum number of elements have been collected.
    */
   final def takeBetween(min: Int, max: Int)(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]] =
     ZIO.suspendSucceed {
@@ -129,9 +128,9 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     }
 
   /**
-   * Takes the specified number of elements from the queue.
-   * If there are fewer than the specified number of elements available,
-   * it suspends until they become available.
+   * Takes the specified number of elements from the queue. If there are fewer
+   * than the specified number of elements available, it suspends until they
+   * become available.
    */
   final def takeN(n: Int)(implicit trace: ZTraceElement): ZIO[RB, EB, Chunk[B]] =
     takeBetween(n, n)
@@ -331,48 +330,60 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 object ZQueue {
 
   /**
-   * Makes a new bounded queue.
-   * When the capacity of the queue is reached, any additional calls to `offer` will be suspended
-   * until there is more room in the queue.
+   * Makes a new bounded queue. When the capacity of the queue is reached, any
+   * additional calls to `offer` will be suspended until there is more room in
+   * the queue.
    *
-   * @note when possible use only power of 2 capacities; this will
-   * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.RingBuffer]].
+   * @note
+   *   when possible use only power of 2 capacities; this will provide better
+   *   performance by utilising an optimised version of the underlying
+   *   [[zio.internal.RingBuffer]].
    *
-   * @param requestedCapacity capacity of the `Queue`
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
+   * @param requestedCapacity
+   *   capacity of the `Queue`
+   * @tparam A
+   *   type of the `Queue`
+   * @return
+   *   `UIO[Queue[A]]`
    */
   def bounded[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.BackPressure()))
 
   /**
-   * Makes a new bounded queue with the dropping strategy.
-   * When the capacity of the queue is reached, new elements will be dropped.
+   * Makes a new bounded queue with the dropping strategy. When the capacity of
+   * the queue is reached, new elements will be dropped.
    *
-   * @note when possible use only power of 2 capacities; this will
-   * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.RingBuffer]].
+   * @note
+   *   when possible use only power of 2 capacities; this will provide better
+   *   performance by utilising an optimised version of the underlying
+   *   [[zio.internal.RingBuffer]].
    *
-   * @param requestedCapacity capacity of the `Queue`
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
+   * @param requestedCapacity
+   *   capacity of the `Queue`
+   * @tparam A
+   *   type of the `Queue`
+   * @return
+   *   `UIO[Queue[A]]`
    */
   def dropping[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Dropping()))
 
   /**
-   * Makes a new bounded queue with sliding strategy.
-   * When the capacity of the queue is reached, new elements will be added and the old elements
-   * will be dropped.
+   * Makes a new bounded queue with sliding strategy. When the capacity of the
+   * queue is reached, new elements will be added and the old elements will be
+   * dropped.
    *
-   * @note when possible use only power of 2 capacities; this will
-   * provide better performance by utilising an optimised version of
-   * the underlying [[zio.internal.RingBuffer]].
+   * @note
+   *   when possible use only power of 2 capacities; this will provide better
+   *   performance by utilising an optimised version of the underlying
+   *   [[zio.internal.RingBuffer]].
    *
-   * @param requestedCapacity capacity of the `Queue`
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
+   * @param requestedCapacity
+   *   capacity of the `Queue`
+   * @tparam A
+   *   type of the `Queue`
+   * @return
+   *   `UIO[Queue[A]]`
    */
   def sliding[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Sliding()))
@@ -380,8 +391,10 @@ object ZQueue {
   /**
    * Makes a new unbounded queue.
    *
-   * @tparam A type of the `Queue`
-   * @return `UIO[Queue[A]]`
+   * @tparam A
+   *   type of the `Queue`
+   * @return
+   *   `UIO[Queue[A]]`
    */
   def unbounded[A](implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Strategy.Dropping()))

@@ -20,8 +20,8 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A default runnable spec that provides testable versions of all of the
- * modules in ZIO (Clock, Has[Random], etc).
+ * A default runnable spec that provides testable versions of all of the modules
+ * in ZIO (Clock, Has[Random], etc).
  */
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
@@ -32,7 +32,8 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
     defaultTestRunner
 
   /**
-   * Returns an effect that executes a given spec, producing the results of the execution.
+   * Returns an effect that executes a given spec, producing the results of the
+   * execution.
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]

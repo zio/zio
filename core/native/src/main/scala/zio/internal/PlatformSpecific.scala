@@ -21,8 +21,8 @@ private[zio] trait PlatformSpecific {
   }
 
   /**
-   * Returns the name of the thread group to which this thread belongs. This
-   * is a side-effecting method.
+   * Returns the name of the thread group to which this thread belongs. This is
+   * a side-effecting method.
    */
   val getCurrentThreadGroup: String = ""
 

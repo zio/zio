@@ -15,9 +15,9 @@ trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The optionality of the error type `E` can be used to signal the end of the stream,
-   * by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The optionality of the error type `E` can be used to signal the end
+   * of the stream, by setting it to `None`.
    */
   def async[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Unit,
@@ -32,10 +32,10 @@ trait ZStreamPlatformSpecificConstructors {
     )
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback returns either a canceler or synchronously returns a stream.
-   * The optionality of the error type `E` can be used to signal the end of the stream, by
-   * setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The registration of the callback returns either a canceler or
+   * synchronously returns a stream. The optionality of the error type `E` can
+   * be used to signal the end of the stream, by setting it to `None`.
    */
   def asyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
@@ -76,10 +76,10 @@ trait ZStreamPlatformSpecificConstructors {
     })
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback itself returns an a managed resource.
-   * The optionality of the error type `E` can be used to signal the end of the
-   * stream, by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The registration of the callback itself returns an a managed
+   * resource. The optionality of the error type `E` can be used to signal the
+   * end of the stream, by setting it to `None`.
    */
   def asyncManaged[R, E, A](
     register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZManaged[R, E, Any],
@@ -108,9 +108,10 @@ trait ZStreamPlatformSpecificConstructors {
     }.flatMap(repeatZIOChunkOption(_))
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times
-   * The registration of the callback itself returns an effect. The optionality of the
-   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times The registration of the callback itself returns an effect. The
+   * optionality of the error type `E` can be used to signal the end of the
+   * stream, by setting it to `None`.
    */
   def asyncZIO[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
@@ -149,10 +150,10 @@ trait ZStreamPlatformSpecificConstructors {
     }))
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback can possibly return the stream synchronously.
-   * The optionality of the error type `E` can be used to signal the end of the stream,
-   * by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The registration of the callback can possibly return the stream
+   * synchronously. The optionality of the error type `E` can be used to signal
+   * the end of the stream, by setting it to `None`.
    */
   def asyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
@@ -161,9 +162,9 @@ trait ZStreamPlatformSpecificConstructors {
     asyncInterrupt(k => register(k).toRight(UIO.unit), outputBuffer)
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The optionality of the error type `E` can be used to signal the end of the stream,
-   * by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The optionality of the error type `E` can be used to signal the end
+   * of the stream, by setting it to `None`.
    */
   @deprecated("use async", "2.0.0")
   def effectAsync[R, E, A](
@@ -173,10 +174,10 @@ trait ZStreamPlatformSpecificConstructors {
     async(register, outputBuffer)
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback returns either a canceler or synchronously returns a stream.
-   * The optionality of the error type `E` can be used to signal the end of the stream, by
-   * setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The registration of the callback returns either a canceler or
+   * synchronously returns a stream. The optionality of the error type `E` can
+   * be used to signal the end of the stream, by setting it to `None`.
    */
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, E, A](
@@ -186,9 +187,10 @@ trait ZStreamPlatformSpecificConstructors {
     asyncInterrupt(register, outputBuffer)
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times
-   * The registration of the callback itself returns an effect. The optionality of the
-   * error type `E` can be used to signal the end of the stream, by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times The registration of the callback itself returns an effect. The
+   * optionality of the error type `E` can be used to signal the end of the
+   * stream, by setting it to `None`.
    */
   @deprecated("use asyncZIO", "2.0.0")
   def effectAsyncM[R, E, A](
@@ -198,10 +200,10 @@ trait ZStreamPlatformSpecificConstructors {
     asyncZIO(register, outputBuffer)
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple times.
-   * The registration of the callback can possibly return the stream synchronously.
-   * The optionality of the error type `E` can be used to signal the end of the stream,
-   * by setting it to `None`.
+   * Creates a stream from an asynchronous callback that can be called multiple
+   * times. The registration of the callback can possibly return the stream
+   * synchronously. The optionality of the error type `E` can be used to signal
+   * the end of the stream, by setting it to `None`.
    */
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[R, E, A](
@@ -379,8 +381,9 @@ trait ZStreamPlatformSpecificConstructors {
     ZStream.fromJavaIteratorZIO(stream.flatMap(s => UIO(s.iterator())))
 
   /**
-   * Create a stream of accepted connection from server socket
-   * Emit socket `Connection` from which you can read / write and ensure it is closed after it is used
+   * Create a stream of accepted connection from server socket Emit socket
+   * `Connection` from which you can read / write and ensure it is closed after
+   * it is used
    */
   def fromSocketServer(
     port: Int,
@@ -416,7 +419,8 @@ trait ZStreamPlatformSpecificConstructors {
     } yield conn
 
   /**
-   * Accepted connection made to a specific channel `AsynchronousServerSocketChannel`
+   * Accepted connection made to a specific channel
+   * `AsynchronousServerSocketChannel`
    */
   final class Connection private (socket: AsynchronousSocketChannel) {
 
@@ -517,8 +521,8 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[Any, Throwable, A]` from a
-     * `ZManaged[R, Throwable, java.util.stream.Stream[A]]`.
+     * Constructs a `ZStream[Any, Throwable, A]` from a `ZManaged[R, Throwable,
+     * java.util.stream.Stream[A]]`.
      */
     implicit def JavaStreamManagedConstructor[R, E <: Throwable, A, StreamLike[A] <: java.util.stream.Stream[A]]
       : WithOut[ZManaged[R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
@@ -529,8 +533,8 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[Any, Throwable, A]` from a
-     * `ZIO[R, Throwable, java.util.stream.Stream[A]]`.
+     * Constructs a `ZStream[Any, Throwable, A]` from a `ZIO[R, Throwable,
+     * java.util.stream.Stream[A]]`.
      */
     implicit def JavaStreamZIOConstructor[R, E <: Throwable, A, StreamLike[A] <: java.util.stream.Stream[A]]
       : WithOut[ZIO[R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
@@ -591,8 +595,9 @@ trait ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte chunks
-   * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
+   * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte
+   * chunks and writes them to the `OutputStream`. The sink will yield the count
+   * of bytes written.
    *
    * The caller of this function is responsible for closing the `OutputStream`.
    */
@@ -603,10 +608,12 @@ trait ZSinkPlatformSpecificConstructors {
   )
 
   /**
-   * Uses the provided `OutputStream` resource to create a [[ZSink]] that consumes byte chunks
-   * and writes them to the `OutputStream`. The sink will yield the count of bytes written.
+   * Uses the provided `OutputStream` resource to create a [[ZSink]] that
+   * consumes byte chunks and writes them to the `OutputStream`. The sink will
+   * yield the count of bytes written.
    *
-   * The `OutputStream` will be automatically closed after the stream is finished or an error occurred.
+   * The `OutputStream` will be automatically closed after the stream is
+   * finished or an error occurred.
    */
   final def fromOutputStreamManaged(
     os: ZManaged[Any, IOException, OutputStream]

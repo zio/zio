@@ -8,31 +8,34 @@ import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecu
 import ChannelExecutor.ChannelState
 
 /**
- * A `ZChannel[In, Env, Err, Out, Z]` is a nexus of I/O operations, which supports both reading and
- * writing. A channel may read values of type `In` and write values of type `Out`. When the channel
- * finishes, it yields a value of type `Z`. A channel may fail with a value of type `Err`.
+ * A `ZChannel[In, Env, Err, Out, Z]` is a nexus of I/O operations, which
+ * supports both reading and writing. A channel may read values of type `In` and
+ * write values of type `Out`. When the channel finishes, it yields a value of
+ * type `Z`. A channel may fail with a value of type `Err`.
  *
- * Channels are the foundation of ZIO Streams: both streams and sinks are built on channels.
- * Most users shouldn't have to use channels directly, as streams and sinks are much more convenient
- * and cover all common use cases. However, when adding new stream and sink operators, or doing
- * something highly specialized, it may be useful to use channels directly.
+ * Channels are the foundation of ZIO Streams: both streams and sinks are built
+ * on channels. Most users shouldn't have to use channels directly, as streams
+ * and sinks are much more convenient and cover all common use cases. However,
+ * when adding new stream and sink operators, or doing something highly
+ * specialized, it may be useful to use channels directly.
  *
  * Channels compose in a variety of ways:
  *
- *  - Piping. One channel can be piped to another channel, assuming the input type of the second
- *    is the same as the output type of the first.
- *  - Sequencing. The terminal value of one channel can be used to create another channel, and
- *    both the first channel and the function that makes the second channel can be composed into a
- *    channel.
- *  - Concating. The output of one channel can be used to create other channels, which are all
- *    concatenated together. The first channel and the function that makes the other channels can
- *    be composed into a channel.
+ *   - Piping. One channel can be piped to another channel, assuming the input
+ *     type of the second is the same as the output type of the first.
+ *   - Sequencing. The terminal value of one channel can be used to create
+ *     another channel, and both the first channel and the function that makes
+ *     the second channel can be composed into a channel.
+ *   - Concating. The output of one channel can be used to create other
+ *     channels, which are all concatenated together. The first channel and the
+ *     function that makes the other channels can be composed into a channel.
  */
 sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone] { self =>
 
   /**
-   * Returns a new channel that is the sequential composition of this channel and the specified
-   * channel. The returned channel terminates with a tuple of the terminal values of both channels.
+   * Returns a new channel that is the sequential composition of this channel
+   * and the specified channel. The returned channel terminates with a tuple of
+   * the terminal values of both channels.
    *
    * This is a symbol operator for [[ZChannel#zip]].
    */
@@ -53,8 +56,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.flatMap(z => that.map(z2 => zippable.zip(z, z2)))
 
   /**
-   * Returns a new channel that is the sequential composition of this channel and the specified
-   * channel. The returned channel terminates with the terminal value of the other channel.
+   * Returns a new channel that is the sequential composition of this channel
+   * and the specified channel. The returned channel terminates with the
+   * terminal value of the other channel.
    *
    * This is a symbol operator for [[ZChannel#zipRight]].
    */
@@ -72,8 +76,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.flatMap(_ => that)
 
   /**
-   * Returns a new channel that is the sequential composition of this channel and the specified
-   * channel. The returned channel terminates with the terminal value of this channel.
+   * Returns a new channel that is the sequential composition of this channel
+   * and the specified channel. The returned channel terminates with the
+   * terminal value of this channel.
    *
    * This is a symbol operator for [[ZChannel#zipLeft]].
    */
@@ -91,9 +96,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.flatMap(z => that.as(z))
 
   /**
-   * Returns a new channel that pipes the output of this channel into the specified channel.
-   * The returned channel has the input type of this channel, and the output type of the specified
-   * channel, terminating with the value of the specified channel.
+   * Returns a new channel that pipes the output of this channel into the
+   * specified channel. The returned channel has the input type of this channel,
+   * and the output type of the specified channel, terminating with the value of
+   * the specified channel.
    *
    * This is a symbolic operator for [[ZChannel#pipeTo]].
    */
@@ -103,10 +109,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self pipeTo that
 
   /**
-   * Returns a new channel that is the same as this one, except the terminal value of the channel
-   * is the specified constant value.
+   * Returns a new channel that is the same as this one, except the terminal
+   * value of the channel is the specified constant value.
    *
-   * This method produces the same result as mapping this channel to the specified constant value.
+   * This method produces the same result as mapping this channel to the
+   * specified constant value.
    */
   final def as[OutDone2](z2: => OutDone2)(implicit
     trace: ZTraceElement
@@ -114,9 +121,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.map(_ => z2)
 
   /**
-   * Returns a new channel that is the same as this one, except if this channel errors for any
-   * typed error, then the returned channel will switch over to using the fallback channel returned
-   * by the specified error handler.
+   * Returns a new channel that is the same as this one, except if this channel
+   * errors for any typed error, then the returned channel will switch over to
+   * using the fallback channel returned by the specified error handler.
    */
   final def catchAll[
     Env1 <: Env,
@@ -132,9 +139,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     catchAllCause((cause: Cause[OutErr]) => cause.failureOrCause.fold(f(_), ZChannel.failCause(_)))
 
   /**
-   * Returns a new channel that is the same as this one, except if this channel errors for any
-   * cause at all, then the returned channel will switch over to using the fallback channel
-   * returned by the specified error handler.
+   * Returns a new channel that is the same as this one, except if this channel
+   * errors for any cause at all, then the returned channel will switch over to
+   * using the fallback channel returned by the specified error handler.
    */
   final def catchAllCause[
     Env1 <: Env,
@@ -150,9 +157,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.Fold(self, new ZChannel.Fold.K(ZChannel.Fold.successIdentity[OutDone1], f))
 
   /**
-   * Returns a new channel whose outputs are fed to the specified factory function, which creates
-   * new channels in response. These new channels are sequentially concatenated together, and all
-   * their outputs appear as outputs of the newly returned channel.
+   * Returns a new channel whose outputs are fed to the specified factory
+   * function, which creates new channels in response. These new channels are
+   * sequentially concatenated together, and all their outputs appear as outputs
+   * of the newly returned channel.
    */
   final def concatMap[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
     f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any]
@@ -160,11 +168,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     concatMapWith(f)((_, _) => (), (_, _) => ())
 
   /**
-   * Returns a new channel whose outputs are fed to the specified factory function, which creates
-   * new channels in response. These new channels are sequentially concatenated together, and all
-   * their outputs appear as outputs of the newly returned channel. The provided merging function
-   * is used to merge the terminal values of all channels into the single terminal value of the
-   * returned channel.
+   * Returns a new channel whose outputs are fed to the specified factory
+   * function, which creates new channels in response. These new channels are
+   * sequentially concatenated together, and all their outputs appear as outputs
+   * of the newly returned channel. The provided merging function is used to
+   * merge the terminal values of all channels into the single terminal value of
+   * the returned channel.
    */
   final def concatMapWith[
     Env1 <: Env,
@@ -184,8 +193,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.ConcatAll(g, h, self, f)
 
   /**
-   * Returns a new channel, which is the same as this one, except its outputs are filtered and
-   * transformed by the specified partial function.
+   * Returns a new channel, which is the same as this one, except its outputs
+   * are filtered and transformed by the specified partial function.
    */
   final def collect[OutElem2](
     f: PartialFunction[OutElem, OutElem2]
@@ -205,8 +214,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   }
 
   /**
-   * Returns a new channel, which is the concatenation of all the channels that are written out by
-   * this channel. This method may only be called on channels that output other channels.
+   * Returns a new channel, which is the concatenation of all the channels that
+   * are written out by this channel. This method may only be called on channels
+   * that output other channels.
    */
   final def concatOut[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
     implicit
@@ -268,12 +278,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   }
 
   /**
-   * Returns a new channel, which is the same as this one, except that all the outputs are
-   * collected and bundled into a tuple together with the terminal value of this channel.
+   * Returns a new channel, which is the same as this one, except that all the
+   * outputs are collected and bundled into a tuple together with the terminal
+   * value of this channel.
    *
-   * As the channel returned from this channel collects all of this channel's output into an in-
-   * memory chunk, it is not safe to call this method on channels that output a large or unbounded
-   * number of values.
+   * As the channel returned from this channel collects all of this channel's
+   * output into an in- memory chunk, it is not safe to call this method on
+   * channels that output a large or unbounded number of values.
    */
   def doneCollect(implicit
     trace: ZTraceElement
@@ -292,8 +303,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     }
 
   /**
-   * Returns a new channel which reads all the elements from upstream's output channel
-   * and ignores them, then terminates with the upstream result value.
+   * Returns a new channel which reads all the elements from upstream's output
+   * channel and ignores them, then terminates with the upstream result value.
    */
   def drain(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, OutDone] = {
     lazy val drainer: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
@@ -315,11 +326,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.Bridge(input, self.asInstanceOf[ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone]])
 
   /**
-   * Returns a new channel, which is the same as this one, except it will be interrupted when the
-   * specified effect completes. If the effect completes successfully before the underlying channel
-   * is done, then the returned channel will yield the success value of the effect as its terminal
-   * value. On the other hand, if the underlying channel finishes first, then the returned channel
-   * will yield the success value of the underlying channel as its terminal value.
+   * Returns a new channel, which is the same as this one, except it will be
+   * interrupted when the specified effect completes. If the effect completes
+   * successfully before the underlying channel is done, then the returned
+   * channel will yield the success value of the effect as its terminal value.
+   * On the other hand, if the underlying channel finishes first, then the
+   * returned channel will yield the success value of the underlying channel as
+   * its terminal value.
    */
   final def interruptWhen[Env1 <: Env, OutErr1 >: OutErr, OutDone1 >: OutDone](
     io: ZIO[Env1, OutErr1, OutDone1]
@@ -330,10 +343,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     )
 
   /**
-   * Returns a new channel, which is the same as this one, except it will be interrupted when the
-   * specified promise is completed. If the promise is completed before the underlying channel is
-   * done, then the returned channel will yield the value of the promise. Otherwise, if the
-   * underlying channel finishes first, then the returned channel will yield the value of the
+   * Returns a new channel, which is the same as this one, except it will be
+   * interrupted when the specified promise is completed. If the promise is
+   * completed before the underlying channel is done, then the returned channel
+   * will yield the value of the promise. Otherwise, if the underlying channel
+   * finishes first, then the returned channel will yield the value of the
    * underlying channel.
    */
   final def interruptWhen[OutErr1 >: OutErr, OutDone1 >: OutDone](
@@ -342,8 +356,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     interruptWhen(promise.await)
 
   /**
-   * Returns a new channel that collects the output and terminal value of this channel, which it
-   * then writes as output of the returned channel.
+   * Returns a new channel that collects the output and terminal value of this
+   * channel, which it then writes as output of the returned channel.
    */
   final def emitCollect(implicit
     trace: ZTraceElement
@@ -351,8 +365,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     doneCollect.flatMap(t => ZChannel.write(t))
 
   /**
-   * Returns a new channel with an attached finalizer. The finalizer is guaranteed to be executed
-   * so long as the channel begins execution (and regardless of whether or not it completes).
+   * Returns a new channel with an attached finalizer. The finalizer is
+   * guaranteed to be executed so long as the channel begins execution (and
+   * regardless of whether or not it completes).
    */
   final def ensuringWith[Env1 <: Env](
     finalizer: Exit[OutErr, OutDone] => URIO[Env1, Any]
@@ -365,10 +380,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ensuringWith(_ => finalizer)
 
   /**
-   * Returns a new channel, which sequentially combines this channel, together with the provided
-   * factory function, which creates a second channel based on the terminal value of this channel.
-   * The result is a channel that will first perform the functions of this channel, before
-   * performing the functions of the created channel (including yielding its terminal value).
+   * Returns a new channel, which sequentially combines this channel, together
+   * with the provided factory function, which creates a second channel based on
+   * the terminal value of this channel. The result is a channel that will first
+   * perform the functions of this channel, before performing the functions of
+   * the created channel (including yielding its terminal value).
    */
   final def flatMap[
     Env1 <: Env,
@@ -384,8 +400,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.Fold(self, new ZChannel.Fold.K(f, ZChannel.Fold.failCauseIdentity[OutErr1]))
 
   /**
-   * Returns a new channel, which flattens the terminal value of this channel. This function may
-   * only be called if the terminal value of this channel is another channel of compatible types.
+   * Returns a new channel, which flattens the terminal value of this channel.
+   * This function may only be called if the terminal value of this channel is
+   * another channel of compatible types.
    */
   final def flatten[
     Env1 <: Env,
@@ -440,8 +457,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.Fold(self, new ZChannel.Fold.K(onSucc, onErr))
 
   /**
-   * Returns a new channel that will perform the operations of this one, until failure, and then
-   * it will switch over to the operations of the specified fallback channel.
+   * Returns a new channel that will perform the operations of this one, until
+   * failure, and then it will switch over to the operations of the specified
+   * fallback channel.
    */
   final def orElse[
     Env1 <: Env,
@@ -457,9 +475,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.catchAll(_ => that)
 
   /**
-   * Returns a new channel, which is the same as this one, except the terminal value of the
-   * returned channel is created by applying the specified function to the terminal value of this
-   * channel.
+   * Returns a new channel, which is the same as this one, except the terminal
+   * value of the returned channel is created by applying the specified function
+   * to the terminal value of this channel.
    */
   final def map[OutDone2](f: OutDone => OutDone2)(implicit
     trace: ZTraceElement
@@ -467,8 +485,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.flatMap(z => ZChannel.succeed(f(z)))
 
   /**
-   * Returns a new channel, which is the same as this one, except the failure value of the returned
-   * channel is created by applying the specified function to the failure value of this channel.
+   * Returns a new channel, which is the same as this one, except the failure
+   * value of the returned channel is created by applying the specified function
+   * to the failure value of this channel.
    */
   final def mapError[OutErr2](f: OutErr => OutErr2)(implicit
     trace: ZTraceElement
@@ -476,7 +495,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     mapErrorCause(_.map(f))
 
   /**
-   * A more powerful version of [[mapError]] which also surfaces the [[Cause]] of the channel failure
+   * A more powerful version of [[mapError]] which also surfaces the [[Cause]]
+   * of the channel failure
    */
   final def mapErrorCause[OutErr2](
     f: Cause[OutErr] => Cause[OutErr2]
@@ -484,9 +504,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     catchAllCause((cause: Cause[OutErr]) => ZChannel.failCause(f(cause)))
 
   /**
-   * Returns a new channel, which is the same as this one, except the terminal value of the
-   * returned channel is created by applying the specified effectful function to the terminal value
-   * of this channel.
+   * Returns a new channel, which is the same as this one, except the terminal
+   * value of the returned channel is created by applying the specified
+   * effectful function to the terminal value of this channel.
    */
   final def mapZIO[Env1 <: Env, OutErr1 >: OutErr, OutDone2](
     f: OutDone => ZIO[Env1, OutErr1, OutDone2]
@@ -494,9 +514,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.flatMap(z => ZChannel.fromZIO(f(z)))
 
   /**
-   * Returns a new channel, which is the merge of this channel and the specified channel, where
-   * the behavior of the returned channel on left or right early termination is decided by the
-   * specified `leftDone` and `rightDone` merge decisions.
+   * Returns a new channel, which is the merge of this channel and the specified
+   * channel, where the behavior of the returned channel on left or right early
+   * termination is decided by the specified `leftDone` and `rightDone` merge
+   * decisions.
    */
   final def mergeWith[
     Env1 <: Env,
@@ -761,8 +782,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.PipeTo(() => self, () => that)
 
   /**
-   * Provides the channel with its required environment, which eliminates
-   * its dependency on `Env`.
+   * Provides the channel with its required environment, which eliminates its
+   * dependency on `Env`.
    */
   final def provide(env: Env)(implicit
     ev: NeedsEnv[Env],
@@ -1107,9 +1128,9 @@ object ZChannel {
     }
 
   /**
-   * Creates a channel backed by a buffer. When the buffer is empty, the channel will simply
-   * passthrough its input as output. However, when the buffer is non-empty, the value inside
-   * the buffer will be passed along as output.
+   * Creates a channel backed by a buffer. When the buffer is empty, the channel
+   * will simply passthrough its input as output. However, when the buffer is
+   * non-empty, the value inside the buffer will be passed along as output.
    */
   def buffer[InErr, InElem, InDone](
     empty: InElem,

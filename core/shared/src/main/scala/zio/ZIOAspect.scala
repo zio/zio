@@ -106,8 +106,8 @@ object ZIOAspect {
     }
 
   /**
-   * An aspect that logs values using a specified function that convers the value
-   * into a log message. The log message is logged using [[ZIO.log]].
+   * An aspect that logs values using a specified function that convers the
+   * value into a log message. The log message is logged using [[ZIO.log]].
    */
   def loggedWith[A](f: A => String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] {
@@ -143,8 +143,8 @@ object ZIOAspect {
     }
 
   /**
-   * As aspect that runs effects with the specified maximum number of fibers
-   * for parallel operators.
+   * As aspect that runs effects with the specified maximum number of fibers for
+   * parallel operators.
    */
   def parallel(n: Int): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {

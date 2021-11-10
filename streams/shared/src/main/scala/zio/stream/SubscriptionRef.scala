@@ -20,9 +20,9 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A `SubscriptionRef[A]` contains a `Ref.Synchronized` with a value of type
- * `A` and a `ZStream` that can be subscribed to in order to receive the
- * current value as well as all changes to the value.
+ * A `SubscriptionRef[A]` contains a `Ref.Synchronized` with a value of type `A`
+ * and a `ZStream` that can be subscribed to in order to receive the current
+ * value as well as all changes to the value.
  */
 final class SubscriptionRef[A] private (
   val ref: ZRef.Synchronized[Any, Any, Nothing, Nothing, A, A],

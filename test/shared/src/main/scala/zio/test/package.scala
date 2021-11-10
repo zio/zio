@@ -35,19 +35,19 @@ import scala.util.Try
  * combinators.
  *
  * {{{
- *  import zio.test._
- *  import zio.Clock.nanoTime
- *  import Assertion.isGreaterThan
+ *   import zio.test._
+ *   import zio.Clock.nanoTime
+ *   import Assertion.isGreaterThan
  *
- *  object MyTest extends DefaultRunnableSpec {
- *    def spec = suite("clock")(
- *      test("time is non-zero") {
- *        for {
- *          time <- Live.live(nanoTime)
- *        } yield assertTrue(time >= 0)
- *      }
- *    )
- *  }
+ *   object MyTest extends DefaultRunnableSpec {
+ *     def spec = suite("clock")(
+ *       test("time is non-zero") {
+ *         for {
+ *           time <- Live.live(nanoTime)
+ *         } yield assertTrue(time >= 0)
+ *       }
+ *     )
+ *   }
  * }}}
  */
 package object test extends CompileVariants {
@@ -104,7 +104,7 @@ package object test extends CompileVariants {
    * while ensuring that the effect itself uses the test environment.
    *
    * {{{
-   *  withLive(test)(_.timeout(duration))
+   *   withLive(test)(_.timeout(duration))
    * }}}
    */
   def withLive[R, E, E1, A, B](
@@ -113,13 +113,14 @@ package object test extends CompileVariants {
     Live.withLive(zio)(f)
 
   /**
-   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
+   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in
+   * its environment.
    */
   type TestAspectAtLeastR[R] = TestAspect[Nothing, R, Nothing, Any]
 
   /**
-   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
-   * having no requirements on error or environment.
+   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic, having
+   * no requirements on error or environment.
    */
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
@@ -148,7 +149,8 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.Restorable Restorable]]
+   * A `ZRTestEnv` is an alias for all ZIO provided
+   * [[zio.test.Restorable Restorable]]
    * [[zio.test.TestEnvironment TestEnvironment]] objects
    */
   type ZTestEnv = Has[TestClock] with Has[TestConsole] with Has[TestRandom] with Has[TestSystem]
@@ -201,8 +203,8 @@ package object test extends CompileVariants {
   type ZSpec[-R, +E] = Spec[R, TestFailure[E], TestSuccess]
 
   /**
-   * An `Annotated[A]` contains a value of type `A` along with zero or more
-   * test annotations.
+   * An `Annotated[A]` contains a value of type `A` along with zero or more test
+   * annotations.
    */
   type Annotated[+A] = (A, TestAnnotationMap)
 
@@ -270,8 +272,8 @@ package object test extends CompileVariants {
     } yield traverseResult(value, assertResult, assertion, None)
 
   /**
-   * Checks the test passes for "sufficient" numbers of samples from the
-   * given random variable.
+   * Checks the test passes for "sufficient" numbers of samples from the given
+   * random variable.
    */
   def check[R <: Has[TestConfig], A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -576,9 +578,9 @@ package object test extends CompileVariants {
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
-   * Checks in parallel the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
+   * Checks in parallel the effectual test passes for all values from the given
+   * random variable. This is useful for deterministic `Gen` that
+   * comprehensively explore all possibilities in a given domain.
    */
   @deprecated("use checkPar", "2.0.0")
   def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
@@ -658,9 +660,9 @@ package object test extends CompileVariants {
     checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(test.tupled)
 
   /**
-   * Checks in parallel the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
+   * Checks in parallel the effectual test passes for all values from the given
+   * random variable. This is useful for deterministic `Gen` that
+   * comprehensively explore all possibilities in a given domain.
    */
   def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, In](rv: Gen[R, A], parallelism: Int)(
     test: A => In
@@ -1210,8 +1212,8 @@ package object test extends CompileVariants {
     def left: TestLens[E] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms an [[scala.Either]] to its [[scala.Right]] value `A`, otherwise
-     * fails if it is a [[scala.Left]].
+     * Transforms an [[scala.Either]] to its [[scala.Right]] value `A`,
+     * otherwise fails if it is a [[scala.Left]].
      */
     def right: TestLens[A] = throw SmartAssertionExtensionError()
   }
@@ -1219,8 +1221,8 @@ package object test extends CompileVariants {
   implicit final class TestLensExitOps[E, A](private val self: TestLens[Exit[E, A]]) extends AnyVal {
 
     /**
-     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`, otherwise
-     * fails.
+     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`,
+     * otherwise fails.
      */
     def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
@@ -1252,8 +1254,8 @@ package object test extends CompileVariants {
   implicit final class TestLensCauseOps[E](private val self: TestLens[Cause[E]]) extends AnyVal {
 
     /**
-     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`, otherwise
-     * fails.
+     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`,
+     * otherwise fails.
      */
     def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
@@ -1273,7 +1275,8 @@ package object test extends CompileVariants {
   implicit final class TestLensAnyOps[A](private val self: TestLens[A]) extends AnyVal {
 
     /**
-     * Always returns true as long the chain of preceding transformations has succeeded.
+     * Always returns true as long the chain of preceding transformations has
+     * succeeded.
      *
      * {{{
      *   val option: Either[Int, Option[String]] = Right(Some("Cool"))

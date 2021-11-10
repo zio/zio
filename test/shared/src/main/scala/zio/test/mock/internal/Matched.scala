@@ -21,8 +21,8 @@ import zio.test.mock.Expectation
 import zio.{Has, IO}
 
 /**
- * A `Matched[R, E, A]` represents a succesful result of depth first search
- * on `Expectation[R]` tree for a matching mock to given invocation.
+ * A `Matched[R, E, A]` represents a succesful result of depth first search on
+ * `Expectation[R]` tree for a matching mock to given invocation.
  */
 private[mock] final case class Matched[R <: Has[_], E, A](
   expectation: Expectation[R],

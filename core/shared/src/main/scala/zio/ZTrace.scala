@@ -29,8 +29,8 @@ final case class ZTrace(
     ZTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
 
   /**
-   * Converts the ZIO trace into a Java stack trace, by converting each trace element into a Java
-   * stack trace element.
+   * Converts the ZIO trace into a Java stack trace, by converting each trace
+   * element into a Java stack trace element.
    */
   def toJava: Chunk[StackTraceElement] =
     stackTrace.collect { case ZTraceElement.SourceLocation(location, file, line, _) =>

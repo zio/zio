@@ -91,10 +91,10 @@ private[zio] final class FiberContext[E, A](
   override final def run(): Unit = runUntil(unsafeGetExecutor().yieldOpCount)
 
   /**
-   * The main evaluator loop for the fiber. For purely synchronous effects,
-   * this will run either to completion, or for the specified maximum
-   * operation count. For effects with asynchronous callbacks, the loop will
-   * proceed no further than the first asynchronous boundary.
+   * The main evaluator loop for the fiber. For purely synchronous effects, this
+   * will run either to completion, or for the specified maximum operation
+   * count. For effects with asynchronous callbacks, the loop will proceed no
+   * further than the first asynchronous boundary.
    */
   override final def runUntil(maxOpCount: Int): Unit =
     try {
@@ -1114,9 +1114,9 @@ private[zio] final class FiberContext[E, A](
   }
 
   /**
-   * Unwinds the stack, leaving the first error handler on the top of the
-   * stack (assuming one is found), and returning whether or not some folds
-   * had to be discarded (indicating a change in the error type).
+   * Unwinds the stack, leaving the first error handler on the top of the stack
+   * (assuming one is found), and returning whether or not some folds had to be
+   * discarded (indicating a change in the error type).
    */
   private def unsafeUnwindStack(): Boolean = {
     var unwinding      = true

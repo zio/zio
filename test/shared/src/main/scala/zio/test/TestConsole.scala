@@ -24,25 +24,24 @@ import java.io.{EOFException, IOException}
 import zio.ZTrace
 
 /**
- * `TestConsole` provides a testable interface for programs interacting with
- * the console by modeling input and output as reading from and writing to
- * input and output buffers maintained by `TestConsole` and backed by a
- * `Ref`.
+ * `TestConsole` provides a testable interface for programs interacting with the
+ * console by modeling input and output as reading from and writing to input and
+ * output buffers maintained by `TestConsole` and backed by a `Ref`.
  *
- * All calls to `print` and `printLine` using the `TestConsole` will write
- * the string to the output buffer and all calls to `readLine` will take a
- * string from the input buffer. To facilitate debugging, by default output
- * will also be rendered to standard output. You can enable or disable this
- * for a scope using `debug`, `silent`, or the corresponding test aspects.
+ * All calls to `print` and `printLine` using the `TestConsole` will write the
+ * string to the output buffer and all calls to `readLine` will take a string
+ * from the input buffer. To facilitate debugging, by default output will also
+ * be rendered to standard output. You can enable or disable this for a scope
+ * using `debug`, `silent`, or the corresponding test aspects.
  *
  * `TestConsole` has several methods to access and manipulate the content of
- * these buffers including `feedLines` to feed strings to the input  buffer
- * that will then be returned by calls to `readLine`, `output` to get the
- * content of the output buffer from calls to `print` and `printLine`, and
- * `clearInput` and `clearOutput` to clear the respective buffers.
+ * these buffers including `feedLines` to feed strings to the input buffer that
+ * will then be returned by calls to `readLine`, `output` to get the content of
+ * the output buffer from calls to `print` and `printLine`, and `clearInput` and
+ * `clearOutput` to clear the respective buffers.
  *
- * Together, these functions make it easy to test programs interacting with
- * the console.
+ * Together, these functions make it easy to test programs interacting with the
+ * console.
  *
  * {{{
  * import zio.Console._
@@ -93,25 +92,24 @@ object TestConsole extends Serializable {
       consoleState.update(data => data.copy(output = Vector.empty))
 
     /**
-     * Runs the specified effect with the `TestConsole` set to debug mode,
-     * so that console output is rendered to standard output in addition to
-     * being written to the output buffer.
+     * Runs the specified effect with the `TestConsole` set to debug mode, so
+     * that console output is rendered to standard output in addition to being
+     * written to the output buffer.
      */
     def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       debugState.locally(true)(zio)
 
     /**
-     * Writes the specified sequence of strings to the input buffer. The
-     * first string in the sequence will be the first to be taken. These
-     * strings will be taken before any strings that were previously in the
-     * input buffer.
+     * Writes the specified sequence of strings to the input buffer. The first
+     * string in the sequence will be the first to be taken. These strings will
+     * be taken before any strings that were previously in the input buffer.
      */
     def feedLines(lines: String*)(implicit trace: ZTraceElement): UIO[Unit] =
       consoleState.update(data => data.copy(input = lines.toList ::: data.input))
 
     /**
-     * Takes the first value from the input buffer, if one exists, or else
-     * fails with an `EOFException`.
+     * Takes the first value from the input buffer, if one exists, or else fails
+     * with an `EOFException`.
      */
     def readLine(implicit trace: ZTraceElement): IO[IOException, String] =
       for {
@@ -124,15 +122,15 @@ object TestConsole extends Serializable {
       } yield input
 
     /**
-     * Returns the contents of the output buffer. The first value written to
-     * the output buffer will be the first in the sequence.
+     * Returns the contents of the output buffer. The first value written to the
+     * output buffer will be the first in the sequence.
      */
     def output(implicit trace: ZTraceElement): UIO[Vector[String]] =
       consoleState.get.map(_.output)
 
     /**
-     * Returns the contents of the error output buffer. The first value written to
-     * the error output buffer will be the first in the sequence.
+     * Returns the contents of the error output buffer. The first value written
+     * to the error output buffer will be the first in the sequence.
      */
     def outputErr(implicit trace: ZTraceElement): UIO[Vector[String]] =
       consoleState.get.map(_.errOutput)
@@ -181,18 +179,17 @@ object TestConsole extends Serializable {
       } yield consoleState.set(consoleData)
 
     /**
-     * Runs the specified effect with the `TestConsole` set to silent mode,
-     * so that console output is only written to the output buffer and not
-     * rendered to standard output.
+     * Runs the specified effect with the `TestConsole` set to silent mode, so
+     * that console output is only written to the output buffer and not rendered
+     * to standard output.
      */
     def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       debugState.locally(false)(zio)
   }
 
   /**
-   * Constructs a new `Test` object that implements the `TestConsole`
-   * interface. This can be useful for mixing in with implementations of other
-   * interfaces.
+   * Constructs a new `Test` object that implements the `TestConsole` interface.
+   * This can be useful for mixing in with implementations of other interfaces.
    */
   def make(data: Data, debug: Boolean = true)(implicit
     trace: ZTraceElement
@@ -229,10 +226,10 @@ object TestConsole extends Serializable {
     ZIO.accessZIO(_.get.clearOutput)
 
   /**
-   * Accesses a `TestConsole` instance in the environment and runs the
-   * specified effect with the `TestConsole` set to debug mode, so that
-   * console output is rendered to standard output in addition to being
-   * written to the output buffer.
+   * Accesses a `TestConsole` instance in the environment and runs the specified
+   * effect with the `TestConsole` set to debug mode, so that console output is
+   * rendered to standard output in addition to being written to the output
+   * buffer.
    */
   def debug[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.accessZIO(_.get.debug(zio))
@@ -259,18 +256,17 @@ object TestConsole extends Serializable {
     ZIO.accessZIO(_.get.outputErr)
 
   /**
-   * Accesses a `TestConsole` instance in the environment and saves the
-   * console state in an effect which, when run, will restore the
-   * `TestConsole` to the saved state.
+   * Accesses a `TestConsole` instance in the environment and saves the console
+   * state in an effect which, when run, will restore the `TestConsole` to the
+   * saved state.
    */
   def save(implicit trace: ZTraceElement): ZIO[Has[TestConsole], Nothing, UIO[Unit]] =
     ZIO.accessZIO(_.get.save)
 
   /**
-   * Accesses a `TestConsole` instance in the environment and runs the
-   * specified effect with the `TestConsole` set to silent mode, so that
-   * console output is only written to the output buffer and not rendered to
-   * standard output.
+   * Accesses a `TestConsole` instance in the environment and runs the specified
+   * effect with the `TestConsole` set to silent mode, so that console output is
+   * only written to the output buffer and not rendered to standard output.
    */
   def silent[R <: Has[TestConsole], E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.accessZIO(_.get.silent(zio))

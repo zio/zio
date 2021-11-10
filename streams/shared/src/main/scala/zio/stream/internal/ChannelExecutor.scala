@@ -681,20 +681,20 @@ private[zio] trait AsyncInputProducer[-Err, -Elem, -Done] {
 }
 
 /**
- * An MVar-like abstraction for sending data to channels asynchronously. Designed
- * for one producer and multiple consumers.
+ * An MVar-like abstraction for sending data to channels asynchronously.
+ * Designed for one producer and multiple consumers.
  *
  * Features the following semantics:
- * - Buffer of size 1
- * - When emitting, the producer waits for a consumer to pick up the value
- *   to prevent "reading ahead" too much.
- * - Once an emitted element is read by a consumer, it is cleared from the buffer, so that
- *   at most one consumer sees every emitted element.
- * - When sending a done or error signal, the producer does not wait for a consumer
- *   to pick up the signal. The signal stays in the buffer after being read by a consumer,
- *   so it can be propagated to multiple consumers.
- * - Trying to publish another emit/error/done after an error/done have already been published
- *   results in an interruption.
+ *   - Buffer of size 1
+ *   - When emitting, the producer waits for a consumer to pick up the value to
+ *     prevent "reading ahead" too much.
+ *   - Once an emitted element is read by a consumer, it is cleared from the
+ *     buffer, so that at most one consumer sees every emitted element.
+ *   - When sending a done or error signal, the producer does not wait for a
+ *     consumer to pick up the signal. The signal stays in the buffer after
+ *     being read by a consumer, so it can be propagated to multiple consumers.
+ *   - Trying to publish another emit/error/done after an error/done have
+ *     already been published results in an interruption.
  */
 private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
   ref: Ref[SingleProducerAsyncInput.State[Err, Elem, Done]]

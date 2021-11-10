@@ -27,24 +27,24 @@ import java.util.{Comparator, Map}
  * Scopes are closed with a value of type `A`, which is provided to all the
  * finalizers when the scope is released.
  *
- * For safety reasons, this interface has no method to close a scope. Rather,
- * an open scope may be required with `ZScope.make`, which returns a function
- * that can close a scope. This allows scopes to be safely passed around
- * without fear they will be accidentally closed.
+ * For safety reasons, this interface has no method to close a scope. Rather, an
+ * open scope may be required with `ZScope.make`, which returns a function that
+ * can close a scope. This allows scopes to be safely passed around without fear
+ * they will be accidentally closed.
  */
 sealed abstract class ZScope[+A] { self =>
 
   /**
    * Determines if the scope is closed at the instant the effect executes.
-   * Returns an effect that will succeed with `true` if the scope is closed,
-   * and `false` otherwise.
+   * Returns an effect that will succeed with `true` if the scope is closed, and
+   * `false` otherwise.
    */
   def isClosed(implicit trace: ZTraceElement): UIO[Boolean]
 
   /**
-   * Prevents a previously added finalizer from being executed when the scope
-   * is closed. The returned effect will succeed with `true` if the finalizer
-   * will not be run by this scope, and `false` otherwise.
+   * Prevents a previously added finalizer from being executed when the scope is
+   * closed. The returned effect will succeed with `true` if the finalizer will
+   * not be run by this scope, and `false` otherwise.
    */
   def deny(key: => ZScope.Key)(implicit trace: ZTraceElement): UIO[Boolean] = UIO(unsafeDeny(key))
 
@@ -69,9 +69,9 @@ sealed abstract class ZScope[+A] { self =>
   ): UIO[Either[A, ZScope.Key]]
 
   /**
-   * Extends the specified scope so that it will not be closed until this
-   * scope is closed. Note that extending a scope into the global scope
-   * will result in the scope *never* being closed!
+   * Extends the specified scope so that it will not be closed until this scope
+   * is closed. Note that extending a scope into the global scope will result in
+   * the scope *never* being closed!
    *
    * Scope extension does not result in changes to the scope contract: open
    * scopes must *always* be closed.
@@ -80,8 +80,8 @@ sealed abstract class ZScope[+A] { self =>
 
   /**
    * Determines if the scope is open at the moment the effect is executed.
-   * Returns an effect that will succeed with `true` if the scope is open,
-   * and `false` otherwise.
+   * Returns an effect that will succeed with `true` if the scope is open, and
+   * `false` otherwise.
    */
   def isOpen(implicit trace: ZTraceElement): UIO[Boolean] = isClosed.map(!_)
 
@@ -111,11 +111,11 @@ object ZScope {
   sealed abstract class Key {
 
     /**
-     * Attempts to remove the finalizer associated with this key from the
-     * scope. The returned effect will succeed with a boolean, which indicates
-     * whether the attempt was successful. A value of `true` indicates the
-     * finalizer will not be executed, while a value of `false` indicates the
-     * finalizer was already executed.
+     * Attempts to remove the finalizer associated with this key from the scope.
+     * The returned effect will succeed with a boolean, which indicates whether
+     * the attempt was successful. A value of `true` indicates the finalizer
+     * will not be executed, while a value of `false` indicates the finalizer
+     * was already executed.
      *
      * @return
      */

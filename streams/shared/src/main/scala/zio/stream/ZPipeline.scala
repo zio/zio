@@ -23,8 +23,8 @@ import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 import java.nio.charset.{Charset, StandardCharsets}
 
 /**
- * A `ZPipeline` is a polymorphic stream transformer. Pipelines
- * accept a stream as input, and return the transformed stream as output.
+ * A `ZPipeline` is a polymorphic stream transformer. Pipelines accept a stream
+ * as input, and return the transformed stream as output.
  *
  * Pipelines can be thought of as a recipe for calling a bunch of methods on a
  * source stream, to yield a new (transformed) stream. A nice mental model is
@@ -35,10 +35,10 @@ import java.nio.charset.{Charset, StandardCharsets}
  *   ZStream[Env, Err, In] => ZStream[Env, Err, Out]
  * }}}
  *
- * This encoding of a pipeline with a type alias is not used because it does
- * not infer well. In its place, this trait captures the polymorphism inherent
- * to many pipelines, which can therefore be more flexible about the
- * environment and error types of the streams they transform.
+ * This encoding of a pipeline with a type alias is not used because it does not
+ * infer well. In its place, this trait captures the polymorphism inherent to
+ * many pipelines, which can therefore be more flexible about the environment
+ * and error types of the streams they transform.
  *
  * There is no fundamental requirement for pipelines to exist, because
  * everything pipelines do can be done directly on a stream. However, because
@@ -47,10 +47,10 @@ import java.nio.charset.{Charset, StandardCharsets}
  * values, creating, storing, and passing around reusable transformation
  * pipelines that can be applied to many different streams.
  *
- * The most common way to create a pipeline is to convert a sink into a
- * pipeline (in general, transforming elements of a stream requires the power
- * of a sink). However, the companion object has lots of other pipeline
- * constructors based on the methods of stream.
+ * The most common way to create a pipeline is to convert a sink into a pipeline
+ * (in general, transforming elements of a stream requires the power of a sink).
+ * However, the companion object has lots of other pipeline constructors based
+ * on the methods of stream.
  */
 trait ZPipeline[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem]
     extends ZPipelineVersionSpecific[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem] { self =>
@@ -112,7 +112,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
-   * Creates a pipeline that collects elements with the specified partial function.
+   * Creates a pipeline that collects elements with the specified partial
+   * function.
    *
    * {{{
    * ZPipeline.collect[Option[Int], Int] { case Some(v) => v }
@@ -142,7 +143,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
-   * Creates a pipeline that drops elements until the specified predicate evaluates to true.
+   * Creates a pipeline that drops elements until the specified predicate
+   * evaluates to true.
    *
    * {{{
    * ZPipeline.dropUntil[Int](_ > 100)
@@ -172,7 +174,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
-   * Creates a pipeline that drops elements while the specified predicate evaluates to true.
+   * Creates a pipeline that drops elements while the specified predicate
+   * evaluates to true.
    *
    * {{{
    * ZPipeline.dropWhile[Int](_ <= 100)
@@ -202,7 +205,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
-   * Creates a pipeline that filters elements according to the specified predicate.
+   * Creates a pipeline that filters elements according to the specified
+   * predicate.
    */
   def filter[In](
     f: In => Boolean
@@ -610,7 +614,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
-   * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`).
+   * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX
+   * newlines (`\n`).
    */
   def splitLines: ZPipeline.WithOut[
     Nothing,
@@ -699,7 +704,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
-   * Creates a pipeline that takes elements until the specified predicate evaluates to true.
+   * Creates a pipeline that takes elements until the specified predicate
+   * evaluates to true.
    */
   def takeUntil[In](
     f: In => Boolean
@@ -725,7 +731,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
-   * Creates a pipeline that takes elements while the specified predicate evaluates to true.
+   * Creates a pipeline that takes elements while the specified predicate
+   * evaluates to true.
    */
   def takeWhile[In](
     f: In => Boolean
@@ -764,10 +771,10 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     textDecodeUsing(StandardCharsets.US_ASCII)
 
   /**
-   * utfDecode determines the right encoder to use based on the Byte Order Mark (BOM).
-   * If it doesn't detect one, it defaults to utf8Decode. In the case of utf16 and utf32
-   * without BOM, `utf16Decode` and `utf32Decode` should be used instead as both default to
-   * their own default decoder respectively.
+   * utfDecode determines the right encoder to use based on the Byte Order Mark
+   * (BOM). If it doesn't detect one, it defaults to utf8Decode. In the case of
+   * utf16 and utf32 without BOM, `utf16Decode` and `utf32Decode` should be used
+   * instead as both default to their own default decoder respectively.
    */
   def utfDecode: ZPipeline.WithOut[
     Nothing,
@@ -929,15 +936,17 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     utfEncodeFor(StandardCharsets.US_ASCII)
 
   /**
-   * `utf*Encode` pipelines adhere to the same behavior of Java's String#getBytes(charset)`, that is:
-   * - utf8: No BOM
-   * - utf16: Has BOM (the outlier)
-   * - utf16BE & utf16LE: No BOM
-   * - All utf32 variants: No BOM
+   * `utf*Encode` pipelines adhere to the same behavior of Java's
+   * String#getBytes(charset)`, that is:
+   *   - utf8: No BOM
+   *   - utf16: Has BOM (the outlier)
+   *   - utf16BE & utf16LE: No BOM
+   *   - All utf32 variants: No BOM
    *
-   * If BOM is required, users can use the `*WithBomEncode` variants. (As alluded above,
-   * `utf16Encode` always prepends BOM, just like `getBytes("UTF-16")` in Java. In fact,
-   * it is an alias to both `utf16BEWithBomEncode` and `utf16WithBomEncode`.
+   * If BOM is required, users can use the `*WithBomEncode` variants. (As
+   * alluded above, `utf16Encode` always prepends BOM, just like
+   * `getBytes("UTF-16")` in Java. In fact, it is an alias to both
+   * `utf16BEWithBomEncode` and `utf16WithBomEncode`.
    */
   def utf8Encode: ZPipeline.WithOut[
     Nothing,
