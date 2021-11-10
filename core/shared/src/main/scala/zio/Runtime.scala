@@ -86,7 +86,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be done at the edges of your
    * program.
    */
-  final def unsafeRun[E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): A =
+  final def unsafeRun[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): A =
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
@@ -106,10 +106,10 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your
    * program.
    */
-  final def unsafeRunSync[E, A](zio0: => ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
-    defaultUnsafeRunSync(zio0) // tryFastUnsafeRunSync(zio0, 0)
+  final def unsafeRunSync[E, A](zio0: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
+    tryFastUnsafeRunSync(zio0, 0)
 
-  protected final def defaultUnsafeRunSync[E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] = {
+  protected final def defaultUnsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
     unsafeRunWith(zio)(result.set)
@@ -120,16 +120,17 @@ trait Runtime[+R] {
   protected def tryFastUnsafeRunSync[E, A](zio: ZIO[R, E, A], stack: Int)(implicit trace: ZTraceElement): Exit[E, A] =
     if (stack >= 50) defaultUnsafeRunSync(zio)
     else {
-      type Erased = ZIO[Any, Any, Any]
-      def erase[R, E, A](zio: ZIO[R, E, A]): Erased = zio.asInstanceOf[ZIO[Any, Any, Any]]
-      type K = Any => Erased
-      def eraseK[R, E, A, B](f: A => ZIO[R, E, B]): K = f.asInstanceOf[K]
+      type Erased  = ZIO[Any, Any, Any]
+      type ErasedK = Any => Erased
 
-      val nullK = null.asInstanceOf[K]
+      def erase(zio: ZIO[_, _, _]): Erased      = zio.asInstanceOf[Erased]
+      def eraseK(f: _ => ZIO[_, _, _]): ErasedK = f.asInstanceOf[ErasedK]
 
-      var curZio               = erase(zio)
-      var x1, x2, x3, x4       = nullK
-      var done: Exit[Any, Any] = null.asInstanceOf[Exit[Any, Any]]
+      val nullK = null.asInstanceOf[ErasedK]
+
+      var curZio         = erase(zio)
+      var x1, x2, x3, x4 = nullK
+      var done           = null.asInstanceOf[Exit[Any, Any]]
 
       while (done eq null) {
         try {
@@ -154,7 +155,7 @@ trait Runtime[+R] {
 
                 curZio = exit match {
                   case Exit.Failure(cause) => ZIO.failCause(cause)
-                  case Exit.Success(value) => ZIO.succeedNow(value)
+                  case Exit.Success(value) => k(value)
                 }
               }
 
@@ -216,7 +217,7 @@ trait Runtime[+R] {
    * program.
    */
   final def unsafeRunAsyncWith[E, A](
-    zio: => ZIO[R, E, A]
+    zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): Unit = {
     unsafeRunAsyncCancelable(zio)(k)
     ()
@@ -231,7 +232,7 @@ trait Runtime[+R] {
    * program.
    */
   final def unsafeRunAsyncCancelable[E, A](
-    zio: => ZIO[R, E, A]
+    zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => Exit[E, A] = {
     lazy val curZio = zio
     val canceler    = unsafeRunWith(curZio)(k)
@@ -252,7 +253,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be done at the edges of your
    * program.
    */
-  final def unsafeRunTask[A](task: => RIO[R, A])(implicit trace: ZTraceElement): A =
+  final def unsafeRunTask[A](task: RIO[R, A])(implicit trace: ZTraceElement): A =
     unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
 
   /**
@@ -299,7 +300,7 @@ trait Runtime[+R] {
   def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapRuntimeConfig(_.copy(reportFatal = f))
 
   private final def unsafeRunWith[E, A](
-    zio: => ZIO[R, E, A]
+    zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
     val fiberId = Fiber.newFiberId()
 
