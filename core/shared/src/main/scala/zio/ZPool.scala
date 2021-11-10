@@ -166,8 +166,10 @@ object ZPool {
                   },
                   State(size, free - 1)
                 )
-              else
+              else if (size >= 0)
                 allocate *> acquire -> State(size + 1, free + 1)
+              else
+                ZIO.interrupt -> State(size, free)
             }.flatten
         }
 
@@ -195,7 +197,7 @@ object ZPool {
       ZIO.replicateZIODiscard(range.start) {
         ZIO.uninterruptibleMask { restore =>
           state.modify { case State(size, free) =>
-            if (size < range.start)
+            if (size < range.start && size >= 0)
               (
                 for {
                   reservation <- creator.reserve
@@ -269,13 +271,13 @@ object ZPool {
         else if (size > 0)
           ZIO.unit -> State(size, free)
         else
-          items.shutdown -> State(size, free)
+          items.shutdown -> State(size - 1, free)
       }.flatten
 
     final def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
       isShuttingDown.modify { down =>
         if (down)
-          ZIO.unit -> true
+          items.awaitShutdown -> true
         else
           getAndShutdown *> items.awaitShutdown -> true
       }.flatten
