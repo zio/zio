@@ -87,7 +87,6 @@ trait Runtime[+R] {
    * program.
    */
   final def unsafeRun[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): A =
-    //defaultUnsafeRunSync(zio).fold(cause => throw FiberFailure(cause), identity(_))
     try unsafeRunFast(zio, 50)
     catch {
       case failure: ZIO.ZioError[_] => throw FiberFailure(failure.cause)
