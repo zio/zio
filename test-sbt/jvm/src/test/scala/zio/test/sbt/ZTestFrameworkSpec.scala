@@ -136,16 +136,16 @@ object ZTestFrameworkSpec {
             Some of these classes have thousands of lines of tests
      */
     val numberOfSuites = 1
-    val numberOfTests  = 5
-    def spec: Spec[Any, TestFailure[Nothing], TestSuccess] =
+    val numberOfTests  = 1
+    def spec =
       suite("basic suite")(
-        Range(1, numberOfTests).map(idx =>
-          test(s"spec 1 suite 2 Generated test $idx") {
-            for {
-              _ <- ZIO.debug(s"$idx")
-            } yield zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
-          }
-        ): _*
+//        Range(1, numberOfTests).map(idx =>
+        test(s"spec 1 suite 2 Generated test idx") {
+          for {
+            _ <- ZIO.debug(s"Hi")
+          } yield zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
+        }
+//        ): _*
       )
     //      suite("spec 1 suites")(
 //        Range(1, numberOfSuites).map(suiteIdx =>
@@ -177,7 +177,7 @@ object ZTestFrameworkSpec {
     val reported = ArrayBuffer[Event]()
 
 //    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedLayer), reported.append(_))
-    loadAndExecuteAll(Seq.fill(2)(spec1UsingSharedLayer), reported.append(_))
+    loadAndExecuteAll(Seq.fill(3)(spec1UsingSharedLayer), reported.append(_))
 
     assert(counter.get() == 1)
   }

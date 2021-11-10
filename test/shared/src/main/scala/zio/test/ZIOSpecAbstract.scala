@@ -70,7 +70,8 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
       // TODO Investigate if this is viable
 //      override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
-//        self.runSpec
+//        self.runSpec.zipPar(that.runSpec)
+
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
         (self.spec + that.spec)
       def tag: Tag[Environment] = {
@@ -125,10 +126,10 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any],
     testArgs: TestArgs
   )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with Has[ZIOAppArgs], ExecutedSpec[Any]] = {
-    val filteredSpec = FilteredSpec(spec, testArgs) @@ TestAspect.around(
+    val filteredSpec = FilteredSpec(spec, testArgs) /* @@ TestAspect.around(
       ZIO.debug("Starting"),
       ZIO.debug("Ending")
-    )
+    ) */
 
     for {
       env <- ZIO.environment[Environment with Has[ZIOAppArgs]]
