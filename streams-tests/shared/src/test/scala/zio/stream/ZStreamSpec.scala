@@ -2802,6 +2802,20 @@ object ZStreamSpec extends ZIOBaseSpec {
           })
         ),
         suite("schedule")(
+          test("schedule") {
+            for {
+              start <- Clock.currentTime(TimeUnit.MILLISECONDS)
+              fiber <- ZStream
+                         .range(1, 9)
+                         .schedule(Schedule.fixed(100.milliseconds))
+                         .mapZIO(n => Clock.currentTime(TimeUnit.MILLISECONDS).map(now => (n, now - start)))
+                         .runCollect
+                         .fork
+              _       <- TestClock.adjust(800.millis)
+              actual  <- fiber.join
+              expected = Chunk((1, 100L), (2, 200L), (3, 300L), (4, 400L), (5, 500L), (6, 600L), (7, 700L), (8, 800L))
+            } yield assertTrue(actual == expected)
+          },
           test("scheduleWith")(
             assertM(
               ZStream("A", "B", "C", "A", "B", "C")

@@ -3248,16 +3248,35 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def scheduleWith[R1 <: R, E1 >: E, B, C](
     schedule: Schedule[R1, A, B]
-  )(f: A => C, g: B => C)(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, C] =
-    ZStream.unwrap(
-      schedule.driver.map(driver =>
-        loopOnPartialChunksElements((a: A, emit: C => UIO[Unit]) =>
-          driver.next(a).zipRight(emit(f(a))) orElse (driver.last.orDie.flatMap(b =>
-            emit(f(a)) *> emit(g(b))
-          ) <* driver.reset)
+  )(f: A => C, g: B => C)(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, C] = {
+
+    def loop(
+      driver: Schedule.Driver[Any, R1, A, B],
+      chunkIterator: Chunk.ChunkIterator[A],
+      index: Int
+    ): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[C], Any] =
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          driver
+            .next(a)
+            .foldZIO(
+              _ =>
+                driver.last.orDie.map { b =>
+                  ZChannel.write(Chunk(f(a), g(b))) *> loop(driver, chunkIterator, index + 1)
+                } <* driver.reset,
+              _ => ZIO.succeedNow(ZChannel.write(Chunk(f(a))) *> loop(driver, chunkIterator, index + 1))
+            )
+        }
+      else
+        ZChannel.readWithCause(
+          chunk => loop(driver, chunk.chunkIterator, 0),
+          ZChannel.failCause(_),
+          ZChannel.end(_)
         )
-      )
-    )
+
+    new ZStream(ZChannel.fromZIO(schedule.driver).flatMap(self.channel >>> loop(_, Chunk.ChunkIterator.empty, 0)))
+  }
 
   /**
    * Converts an option on values into an option on errors.
