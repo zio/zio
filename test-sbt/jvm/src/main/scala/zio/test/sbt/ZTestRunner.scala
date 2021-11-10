@@ -128,6 +128,12 @@ abstract class ZTestTaskPolicy {
   def merge(zioTasks: Array[ZTestTask]): Array[Task]
 }
 
+/*
+  Currently:
+    We combine the layers and the specs themselves into this uber spec, and then execute it at once
+  Alternate Proposal:
+    We combine the layers from all the specs, but don't combine the specs themselves. We only provide the shared layer to the individual specs, which are executed separately
+ */
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
   override def merge(zioTasks: Array[ZTestTask]): Array[Task] = {

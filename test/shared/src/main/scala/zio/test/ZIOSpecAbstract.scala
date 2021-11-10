@@ -46,7 +46,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
-        self.spec + that.spec
+        (self.spec + that.spec) @@ TestAspect.sequential
       def tag: Tag[Environment] = {
         implicit val selfTag: Tag[self.Environment] = self.tag
         implicit val thatTag: Tag[that.Environment] = that.tag
