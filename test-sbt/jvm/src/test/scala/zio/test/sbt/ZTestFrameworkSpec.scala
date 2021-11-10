@@ -1,9 +1,10 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.test.Assertion.equalTo
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
-import zio.{Has, ZIO, ZLayer, ZTraceElement, durationInt}
+import zio.{Has, Random, ZIO, ZLayer, ZTraceElement, durationInt}
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
@@ -127,10 +128,29 @@ object ZTestFrameworkSpec {
   object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Has[Int]] {
     override def layer = sharedLayer
 
-    def spec =
-      zio.test.test("test completes with shared layer 1") {
-        assertCompletes
-      }
+    /*
+      TODO
+        - Create some big entities in each test, to highlight memory usage
+        - Wrap BEGIN/END messages around specs, to see if they're overlapping
+        - Check how large just the test reports are
+            Some of these classes have thousands of lines of tests
+     */
+    def spec = {
+      suite("spec 1 suites")(
+        Range(1, 50).map( suiteIdx => 
+        suite(s"spec 1 suite $suiteIdx")(
+          Range(1, 50).map(idx =>
+            test(s"spec 1 suite 2 Generated test $idx") {
+              for {
+                _ <- ZIO.debug(s"3.$idx")
+//                _ <- ZIO.sleep(5.millis).provideLayer(zio.Clock.live)
+              } yield zio.test.assert(new java.util.Random().nextInt())(equalTo( 2))
+            }
+          ): _*
+        )
+        ): _*
+      )
+    }
   }
 
   lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
@@ -147,7 +167,7 @@ object ZTestFrameworkSpec {
     val reported = ArrayBuffer[Event]()
 
 //    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedLayer), reported.append(_))
-    loadAndExecuteAll(Seq(spec1UsingSharedLayer, spec2UsingSharedLayer), reported.append(_))
+    loadAndExecuteAll(Seq.fill(10)(spec1UsingSharedLayer), reported.append(_))
 
     assert(counter.get() == 1)
   }
