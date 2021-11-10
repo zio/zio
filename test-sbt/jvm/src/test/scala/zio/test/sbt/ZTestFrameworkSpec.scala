@@ -137,21 +137,30 @@ object ZTestFrameworkSpec {
      */
     val numberOfSuites = 1
     val numberOfTests  = 5
-    def spec =
-      suite("spec 1 suites")(
-        Range(1, numberOfSuites).map(suiteIdx =>
-          suite(s"spec 1 suite $suiteIdx")(
-            Range(1, numberOfTests).map(idx =>
-              test(s"spec 1 suite 2 Generated test $idx") {
-                for {
-                  _ <- ZIO.debug(s"$suiteIdx.$idx")
-//                _ <- ZIO.sleep(5.millis).provideLayer(zio.Clock.live)
-                } yield zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
-              }
-            ): _*
-          )
+    def spec: Spec[Any, TestFailure[Nothing], TestSuccess] =
+      suite("basic suite")(
+        Range(1, numberOfTests).map(idx =>
+          test(s"spec 1 suite 2 Generated test $idx") {
+            for {
+              _ <- ZIO.debug(s"$idx")
+            } yield zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
+          }
         ): _*
       )
+    //      suite("spec 1 suites")(
+//        Range(1, numberOfSuites).map(suiteIdx =>
+//          suite(s"spec 1 suite $suiteIdx")(
+//            Range(1, numberOfTests).map(idx =>
+//              test(s"spec 1 suite 2 Generated test $idx") {
+//                for {
+//                  _ <- ZIO.debug(s"$suiteIdx.$idx")
+//                } yield zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
+//              }
+//            ): _*
+//          )
+//        ): _*
+//      )
+//    }
   }
 
   lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName

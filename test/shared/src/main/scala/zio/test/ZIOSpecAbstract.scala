@@ -34,6 +34,31 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     implicit val trace = Tracer.newTrace
     runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ layer)
   }
+  /*
+    Spec1
+      runSpec
+      spec
+
+    Spec2
+      runSpec
+      spec
+
+    Combined = Spec1 <> Spec2:
+      runSpec:
+        Spec1.runSpec.zipPar(Spec2.runSpec)
+
+      spec:
+        Spec1.spec + Spec2.spec
+
+
+    Combined.runSpec:
+      Spec1.runSpec
+        spec, which contains specs from both instances
+      Spec2.runSpec
+
+
+
+   */
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
@@ -42,10 +67,12 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
         self.hook >>> that.hook
       def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
         self.layer +!+ that.layer
-      override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
-        self.runSpec.zipPar(that.runSpec)
+
+      // TODO Investigate if this is viable
+//      override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
+//        self.runSpec
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
-        (self.spec + that.spec) @@ TestAspect.sequential
+        (self.spec + that.spec)
       def tag: Tag[Environment] = {
         implicit val selfTag: Tag[self.Environment] = self.tag
         implicit val thatTag: Tag[that.Environment] = that.tag
@@ -98,7 +125,10 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any],
     testArgs: TestArgs
   )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with Has[ZIOAppArgs], ExecutedSpec[Any]] = {
-    val filteredSpec = FilteredSpec(spec, testArgs)
+    val filteredSpec = FilteredSpec(spec, testArgs) @@ TestAspect.around(
+      ZIO.debug("Starting"),
+      ZIO.debug("Ending")
+    )
 
     for {
       env <- ZIO.environment[Environment with Has[ZIOAppArgs]]
