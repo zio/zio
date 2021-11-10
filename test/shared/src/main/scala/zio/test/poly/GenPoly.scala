@@ -39,14 +39,14 @@ import zio.test.{Gen, Sized}
  * }}}
  *
  * We would like to test that for any expression we can fuse two mappings. We
- * want to create instances of `Expr` that reflect the full range of values
- * that an `Expr` can take, including multiple layers of nested mappings and
- * mappings between different types.
+ * want to create instances of `Expr` that reflect the full range of values that
+ * an `Expr` can take, including multiple layers of nested mappings and mappings
+ * between different types.
  *
- * Since we do not need any constraints on the generated types we can simply
- * use `GenPoly`. `GenPoly` includes a convenient generator in its companion
- * object, `genPoly`, that generates instances of 40 different types including
- * primitive types and various collections.
+ * Since we do not need any constraints on the generated types we can simply use
+ * `GenPoly`. `GenPoly` includes a convenient generator in its companion object,
+ * `genPoly`, that generates instances of 40 different types including primitive
+ * types and various collections.
  *
  * Using it we can define polymorphic generators for expressions:
  *
@@ -80,9 +80,9 @@ import zio.test.{Gen, Sized}
  * }}}
  *
  * This will generate expressions with multiple levels of nesting and
- * polymorphic mappings between different types, making sure that the types
- * line up for each mapping. This provides a higher level of confidence in
- * properties than testing with a monomorphic value.
+ * polymorphic mappings between different types, making sure that the types line
+ * up for each mapping. This provides a higher level of confidence in properties
+ * than testing with a monomorphic value.
  *
  * Inspired by Erik Osheim's presentation "Galaxy Brain: type-dependence and
  * state-dependence in property-based testing"
@@ -148,9 +148,8 @@ object GenPoly {
     GenIntegralPoly.int
 
   /**
-   * Provides evidence that instances of `Gen[List[T]]` and
-   * `Ordering[List[T]]` exist for any type for which `Gen[T]` and
-   * `Ordering[T]` exist.
+   * Provides evidence that instances of `Gen[List[T]]` and `Ordering[List[T]]`
+   * exist for any type for which `Gen[T]` and `Ordering[T]` exist.
    */
   def list(poly: GenPoly): GenPoly =
     GenPoly(Gen.listOf(poly.genT))
@@ -176,15 +175,14 @@ object GenPoly {
     GenIntegralPoly.long
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * strings.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for strings.
    */
   val string: GenPoly =
     GenOrderingPoly(Gen.anyString, Ordering.String)
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * the unit value.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for the unit
+   * value.
    */
   val unit: GenPoly =
     GenOrderingPoly(Gen.unit, Ordering.Unit)

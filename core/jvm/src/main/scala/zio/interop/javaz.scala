@@ -79,7 +79,10 @@ private[zio] object javaz {
       }
     }
 
-  /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
+  /**
+   * WARNING: this uses the blocking Future#get, consider using
+   * `fromCompletionStage`
+   */
   def fromFutureJava[A](thunk: => Future[A]): RIO[Blocking, A] =
     RIO.effect(thunk).flatMap { future =>
       RIO.effectSuspendTotalWith { (p, _) =>

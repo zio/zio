@@ -266,11 +266,12 @@ private[zio] final class FiberContext[E, A](
 
   /**
    * The main interpreter loop for `IO` actions. For purely synchronous actions,
-   * this will run to completion unless required to yield to other fibers.
-   * For mixed actions, the loop will proceed no further than the first
-   * asynchronous boundary.
+   * this will run to completion unless required to yield to other fibers. For
+   * mixed actions, the loop will proceed no further than the first asynchronous
+   * boundary.
    *
-   * @param io0 The `IO` to evaluate on the fiber.
+   * @param io0
+   *   The `IO` to evaluate on the fiber.
    */
   def evaluateNow(io0: IO[E, Any]): Unit =
     try {

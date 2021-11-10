@@ -48,22 +48,22 @@ trait Runtime[+R] {
   def mapPlatform(f: Platform => Platform): Runtime[R] = Runtime(environment, f(platform))
 
   /**
-   * Executes the effect synchronously, failing
-   * with [[zio.FiberFailure]] if there are any errors. May fail on
-   * Scala.js if the effect cannot be entirely run synchronously.
+   * Executes the effect synchronously, failing with [[zio.FiberFailure]] if
+   * there are any errors. May fail on Scala.js if the effect cannot be entirely
+   * run synchronously.
    *
-   * This method is effectful and should only be done at the edges of your program.
+   * This method is effectful and should only be done at the edges of your
+   * program.
    */
   final def unsafeRun[E, A](zio: => ZIO[R, E, A]): A =
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
-   * Executes the Task/RIO effect synchronously, failing
-   * with the original `Throwable` on both [[Cause.Fail]] and [[Cause.Die]].
-   * In addition, appends a new element to the suppressed exceptions of the
-   * `Throwable`, with this `Cause` "pretty printed" (in stackless mode) as the
-   * message. May fail on Scala.js if the effect cannot be entirely run
-   * synchronously.
+   * Executes the Task/RIO effect synchronously, failing with the original
+   * `Throwable` on both [[Cause.Fail]] and [[Cause.Die]]. In addition, appends
+   * a new element to the suppressed exceptions of the `Throwable`, with this
+   * `Cause` "pretty printed" (in stackless mode) as the message. May fail on
+   * Scala.js if the effect cannot be entirely run synchronously.
    *
    * This method is effectful and should only be done at the edges of your
    * program.
@@ -72,10 +72,11 @@ trait Runtime[+R] {
     unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
 
   /**
-   * Executes the effect synchronously. May
-   * fail on Scala.js if the effect cannot be entirely run synchronously.
+   * Executes the effect synchronously. May fail on Scala.js if the effect
+   * cannot be entirely run synchronously.
    *
-   * This method is effectful and should only be invoked at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your
+   * program.
    */
   final def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
@@ -86,10 +87,11 @@ trait Runtime[+R] {
   }
 
   /**
-   * Executes the effect asynchronously,
-   * eventually passing the exit value to the specified callback.
+   * Executes the effect asynchronously, eventually passing the exit value to
+   * the specified callback.
    *
-   * This method is effectful and should only be invoked at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your
+   * program.
    */
   final def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Unit = {
     unsafeRunAsyncCancelable(zio)(k)
@@ -97,11 +99,12 @@ trait Runtime[+R] {
   }
 
   /**
-   * Executes the effect asynchronously,
-   * eventually passing the exit value to the specified callback.
-   * It returns a callback, which can be used to interrupt the running execution.
+   * Executes the effect asynchronously, eventually passing the exit value to
+   * the specified callback. It returns a callback, which can be used to
+   * interrupt the running execution.
    *
-   * This method is effectful and should only be invoked at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your
+   * program.
    */
   final def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A] = {
     lazy val curZio = if (platform.yieldOnStart) ZIO.yieldNow *> zio else zio
@@ -116,15 +119,18 @@ trait Runtime[+R] {
   /**
    * Executes the effect asynchronously, discarding the result of execution.
    *
-   * This method is effectful and should only be invoked at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your
+   * program.
    */
   final def unsafeRunAsync_[E, A](zio: ZIO[R, E, A]): Unit =
     unsafeRunAsync(zio)(_ => ())
 
   /**
-   * Runs the IO, returning a Future that will be completed when the effect has been executed.
+   * Runs the IO, returning a Future that will be completed when the effect has
+   * been executed.
    *
-   * This method is effectful and should only be used at the edges of your program.
+   * This method is effectful and should only be used at the edges of your
+   * program.
    */
   final def unsafeRunToFuture[E <: Throwable, A](zio: ZIO[R, E, A]): CancelableFuture[A] = {
     val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
@@ -166,7 +172,8 @@ trait Runtime[+R] {
   def withReportFailure(f: Cause[Any] => Unit): Runtime[R] = mapPlatform(_.withReportFailure(f))
 
   /**
-   * Constructs a new `Runtime` with the specified tracer and tracing configuration.
+   * Constructs a new `Runtime` with the specified tracer and tracing
+   * configuration.
    */
   def withTracing(t: Tracing): Runtime[R] = mapPlatform(_.withTracing(t))
 
@@ -226,9 +233,9 @@ object Runtime {
   abstract class Managed[+R] extends Runtime[R] {
 
     /**
-     * Shuts down this runtime and releases resources allocated to it. Once
-     * this runtime has been shut down the behavior of methods on it is
-     * undefined and it should be discarded.
+     * Shuts down this runtime and releases resources allocated to it. Once this
+     * runtime has been shut down the behavior of methods on it is undefined and
+     * it should be discarded.
      */
     def shutdown(): Unit
 
@@ -275,7 +282,8 @@ object Runtime {
   }
 
   /**
-   * Builds a new runtime given an environment `R` and a [[zio.internal.Platform]].
+   * Builds a new runtime given an environment `R` and a
+   * [[zio.internal.Platform]].
    */
   def apply[R](r: R, platform0: Platform): Runtime[R] = new Runtime[R] {
     val environment = r
@@ -288,8 +296,8 @@ object Runtime {
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
-   * allocated immediately, and not released until the `Runtime` is shut down
-   * or the end of the application.
+   * allocated immediately, and not released until the `Runtime` is shut down or
+   * the end of the application.
    *
    * This method is useful for small applications and integrating ZIO with
    * legacy code, but other applications should investigate using

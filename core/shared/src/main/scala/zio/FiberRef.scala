@@ -17,8 +17,8 @@
 package zio
 
 /**
- * Fiber's counterpart for Java's `ThreadLocal`. Value is automatically propagated
- * to child on fork and merged back in after joining child.
+ * Fiber's counterpart for Java's `ThreadLocal`. Value is automatically
+ * propagated to child on fork and merged back in after joining child.
  * {{{
  * for {
  *   fiberRef <- FiberRef.make("Hello world!")
@@ -29,8 +29,8 @@ package zio
  *
  * `result` will be equal to "Hi!" as changes done by child were merged on join.
  *
- * FiberRef#make also allows specifying how the values will be combined when joining.
- * By default this will use the value of the joined fiber.
+ * FiberRef#make also allows specifying how the values will be combined when
+ * joining. By default this will use the value of the joined fiber.
  * {{{
  * for {
  *   fiberRef <- FiberRef.make(0, math.max)
@@ -41,7 +41,8 @@ package zio
  * } yield value
  * }}}
  *
- * `value` will be 2 as the value in the joined fiber is lower and we specified `max` as our combine function.
+ * `value` will be 2 as the value in the joined fiber is lower and we specified
+ * `max` as our combine function.
  *
  * @param initial
  * @tparam A
@@ -59,8 +60,8 @@ final class FiberRef[A] private[zio] (
   val get: UIO[A] = modify(v => (v, v))
 
   /**
-   * Atomically sets the value associated with the current fiber and returns
-   * the old value.
+   * Atomically sets the value associated with the current fiber and returns the
+   * old value.
    */
   def getAndSet(a: A): UIO[A] =
     modify(v => (v, a))
@@ -76,8 +77,8 @@ final class FiberRef[A] private[zio] (
 
   /**
    * Atomically modifies the `FiberRef` with the specified partial function and
-   * returns the old value.
-   * If the function is undefined on the current value it doesn't change it.
+   * returns the old value. If the function is undefined on the current value it
+   * doesn't change it.
    */
   def getAndUpdateSome(pf: PartialFunction[A, A]): UIO[A] = modify { v =>
     val result = pf.applyOrElse[A, A](v, identity)
@@ -96,17 +97,17 @@ final class FiberRef[A] private[zio] (
     } yield b
 
   /**
-   * Atomically modifies the `FiberRef` with the specified function, which computes
-   * a return value for the modification. This is a more powerful version of
-   * `update`.
+   * Atomically modifies the `FiberRef` with the specified function, which
+   * computes a return value for the modification. This is a more powerful
+   * version of `update`.
    */
   def modify[B](f: A => (B, A)): UIO[B] = new ZIO.FiberRefModify(this, f)
 
   /**
-   * Atomically modifies the `FiberRef` with the specified partial function, which computes
-   * a return value for the modification if the function is defined in the current value
-   * otherwise it returns a default value.
-   * This is a more powerful version of `updateSome`.
+   * Atomically modifies the `FiberRef` with the specified partial function,
+   * which computes a return value for the modification if the function is
+   * defined in the current value otherwise it returns a default value. This is
+   * a more powerful version of `updateSome`.
    */
   def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): UIO[B] = modify { v =>
     pf.applyOrElse[A, (B, A)](v, _ => (default, v))
@@ -160,8 +161,8 @@ final class FiberRef[A] private[zio] (
     } yield b
 
   /**
-   * Atomically modifies the `FiberRef` with the specified partial function.
-   * If the function is undefined on the current value it doesn't change it.
+   * Atomically modifies the `FiberRef` with the specified partial function. If
+   * the function is undefined on the current value it doesn't change it.
    */
   def updateSome(pf: PartialFunction[A, A]): UIO[Unit] = modify { v =>
     val result = pf.applyOrElse[A, A](v, identity)
@@ -169,8 +170,8 @@ final class FiberRef[A] private[zio] (
   }
 
   /**
-   * Atomically modifies the `FiberRef` with the specified partial function.
-   * If the function is undefined on the current value it returns the old value
+   * Atomically modifies the `FiberRef` with the specified partial function. If
+   * the function is undefined on the current value it returns the old value
    * without changing it.
    */
   def updateSomeAndGet(pf: PartialFunction[A, A]): UIO[A] = modify { v =>
@@ -179,11 +180,14 @@ final class FiberRef[A] private[zio] (
   }
 
   /**
-   * Returns a `ThreadLocal` that can be used to interact with this `FiberRef` from side effecting code.
+   * Returns a `ThreadLocal` that can be used to interact with this `FiberRef`
+   * from side effecting code.
    *
-   * This feature is meant to be used for integration with side effecting code, that needs to access fiber specific data,
-   * like MDC contexts and the like. The returned `ThreadLocal` will be backed by this `FiberRef` on all threads that are
-   * currently managed by ZIO, and behave like an ordinary `ThreadLocal` on all other threads.
+   * This feature is meant to be used for integration with side effecting code,
+   * that needs to access fiber specific data, like MDC contexts and the like.
+   * The returned `ThreadLocal` will be backed by this `FiberRef` on all threads
+   * that are currently managed by ZIO, and behave like an ordinary
+   * `ThreadLocal` on all other threads.
    */
   def unsafeAsThreadLocal: UIO[ThreadLocal[A]] =
     ZIO.effectTotal {

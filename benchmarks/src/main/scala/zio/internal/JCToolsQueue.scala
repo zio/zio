@@ -1,8 +1,8 @@
 package zio.internal
 
 /**
- * JCToolsQueue is defined only under `benchmarks` so `coreJVM` doesn't
- * have extra dependency on the whole JCTools.
+ * JCToolsQueue is defined only under `benchmarks` so `coreJVM` doesn't have
+ * extra dependency on the whole JCTools.
  */
 class JCToolsQueue[A](desiredCapacity: Int) extends MutableConcurrentQueue[A] {
   private val jctools = new org.jctools.queues.MpmcArrayQueue[A](desiredCapacity)

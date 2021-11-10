@@ -17,8 +17,8 @@
 package zio.internal
 
 /**
- * A very fast, hand-optimized stack designed just for booleans.
- * In the common case (size < 64), achieves zero allocations.
+ * A very fast, hand-optimized stack designed just for booleans. In the common
+ * case (size < 64), achieves zero allocations.
  */
 private[zio] final class StackBool private () {
   import StackBool.Entry

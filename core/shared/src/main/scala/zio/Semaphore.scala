@@ -27,10 +27,10 @@ import scala.collection.immutable.{Queue => IQueue}
 
 /**
  * An asynchronous semaphore, which is a generalization of a mutex. Semaphores
- * have a certain number of permits, which can be held and released
- * concurrently by different parties. Attempts to acquire more permits than
- * available result in the acquiring fiber being suspended until the specified
- * number of permits become available.
+ * have a certain number of permits, which can be held and released concurrently
+ * by different parties. Attempts to acquire more permits than available result
+ * in the acquiring fiber being suspended until the specified number of permits
+ * become available.
  */
 final class Semaphore private (private val state: Ref[State]) extends Serializable {
 
@@ -49,25 +49,29 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
     withPermits(1)(task)
 
   /**
-   * Acquires a permit in a [[zio.ZManaged]] and releases the permit in the finalizer.
+   * Acquires a permit in a [[zio.ZManaged]] and releases the permit in the
+   * finalizer.
    */
   def withPermitManaged[R, E]: ZManaged[R, E, Unit] =
     withPermitsManaged(1)
 
   /**
-   * Acquires `n` permits, executes the action and releases the permits right after.
+   * Acquires `n` permits, executes the action and releases the permits right
+   * after.
    */
   def withPermits[R, E, A](n: Long)(task: ZIO[R, E, A]): ZIO[R, E, A] =
     prepare(n).bracket(e => e.release)(r => r.awaitAcquire *> task)
 
   /**
-   * Acquires `n` permits in a [[zio.ZManaged]] and releases the permits in the finalizer.
+   * Acquires `n` permits in a [[zio.ZManaged]] and releases the permits in the
+   * finalizer.
    */
   def withPermitsManaged[R, E](n: Long): ZManaged[R, E, Unit] =
     ZManaged.makeReserve(prepare(n).map(a => Reservation(a.awaitAcquire, _ => a.release)))
 
   /**
-   * Ported from @mpilquist work in Cats Effect (https://github.com/typelevel/cats-effect/pull/403)
+   * Ported from @mpilquist work in Cats Effect
+   * (https://github.com/typelevel/cats-effect/pull/403)
    */
   private def prepare(n: Long): UIO[Acquisition] = {
     def restore(p: Promise[Nothing, Unit], n: Long): UIO[Unit] =
@@ -92,9 +96,8 @@ final class Semaphore private (private val state: Ref[State]) extends Serializab
   /**
    * Releases a specified number of permits.
    *
-   * If fibers are currently suspended until enough permits are available,
-   * they will be woken up (in FIFO order) if this action releases enough
-   * of them.
+   * If fibers are currently suspended until enough permits are available, they
+   * will be woken up (in FIFO order) if this action releases enough of them.
    */
   private def releaseN0(toRelease: Long): UIO[Unit] = {
 

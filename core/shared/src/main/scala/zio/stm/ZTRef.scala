@@ -26,19 +26,20 @@ import java.util.concurrent.atomic.AtomicReference
  * A `ZTRef[EA, EB, A, B]` is a polymorphic, purely functional description of a
  * mutable reference that can be modified as part of a transactional effect. The
  * fundamental operations of a `ZTRef` are `set` and `get`. `set` takes a value
- * of type `A` and transactionally sets the reference to a new value, potentially
- * failing with an error of type `EA`. `get` gets the current value of the reference
- * and returns a value of type `B`, potentially failing with an error of type `EB`.
+ * of type `A` and transactionally sets the reference to a new value,
+ * potentially failing with an error of type `EA`. `get` gets the current value
+ * of the reference and returns a value of type `B`, potentially failing with an
+ * error of type `EB`.
  *
  * When the error and value types of the `ZTRef` are unified, that is, it is a
  * `ZTRef[E, E, A, A]`, the `ZTRef` also supports atomic `modify` and `update`
  * operations. All operations are guaranteed to be executed transactionally.
  *
- * NOTE: While `ZTRef` provides the transactional equivalent of a mutable reference,
- * the value inside the `ZTRef` should be immutable. For performance reasons `ZTRef`
- * is implemented in terms of compare and swap operations rather than synchronization.
- * These operations are not safe for mutable values that do not support concurrent
- * access.
+ * NOTE: While `ZTRef` provides the transactional equivalent of a mutable
+ * reference, the value inside the `ZTRef` should be immutable. For performance
+ * reasons `ZTRef` is implemented in terms of compare and swap operations rather
+ * than synchronization. These operations are not safe for mutable values that
+ * do not support concurrent access.
  */
 sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
@@ -57,9 +58,9 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Folds over the error and value types of the `ZTRef`. This is a highly
    * polymorphic method that is capable of arbitrarily transforming the error
-   * and value types of the `ZTRef`. For most use cases one of the more
-   * specific combinators implemented in terms of `fold` will be more ergonomic
-   * but this method is extremely useful for implementing new combinators.
+   * and value types of the `ZTRef`. For most use cases one of the more specific
+   * combinators implemented in terms of `fold` will be more ergonomic but this
+   * method is extremely useful for implementing new combinators.
    */
   def fold[EC, ED, C, D](
     ea: EA => EC,
@@ -69,9 +70,9 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
   ): ZTRef[EC, ED, C, D]
 
   /**
-   * Folds over the error and value types of the `ZTRef`, allowing access to
-   * the state in transforming the `set` value. This is a more powerful version
-   * of `fold` but requires unifying the error types.
+   * Folds over the error and value types of the `ZTRef`, allowing access to the
+   * state in transforming the `set` value. This is a more powerful version of
+   * `fold` but requires unifying the error types.
    */
   def foldAll[EC, ED, C, D](
     ea: EA => EC,
@@ -140,9 +141,9 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
     fold(identity, Some(_), Right(_), b => if (f(b)) Right(b) else Left(None))
 
   /**
-   * Folds over the error and value types of the `ZTRef`, allowing access to
-   * the state in transforming the `set` value. This is a more powerful version
-   * of `fold` but requires unifying the error types.
+   * Folds over the error and value types of the `ZTRef`, allowing access to the
+   * state in transforming the `set` value. This is a more powerful version of
+   * `fold` but requires unifying the error types.
    */
   def foldAllM[EC, ED, C, D](
     ea: EA => EC,
@@ -163,9 +164,9 @@ sealed abstract class ZTRef[+EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Folds over the error and value types of the `ZTRef`. This is a highly
    * polymorphic method that is capable of arbitrarily transforming the error
-   * and value types of the `ZTRef`. For most use cases one of the more
-   * specific combinators implemented in terms of `fold` will be more ergonomic
-   * but this method is extremely useful for implementing new combinators.
+   * and value types of the `ZTRef`. For most use cases one of the more specific
+   * combinators implemented in terms of `fold` will be more ergonomic but this
+   * method is extremely useful for implementing new combinators.
    */
   def foldM[EC, ED, C, D](
     ea: EA => EC,
@@ -285,8 +286,8 @@ object ZTRef {
       })
 
     /**
-     * Updates some values of the variable but leaves others alone, returning the
-     * old value.
+     * Updates some values of the variable but leaves others alone, returning
+     * the old value.
      */
     def getAndUpdateSome(f: PartialFunction[A, A]): USTM[A] =
       getAndUpdate(f orElse { case a => a })
@@ -342,8 +343,8 @@ object ZTRef {
       update(f orElse { case a => a })
 
     /**
-     * Updates some values of the variable but leaves others alone, returning the
-     * new value.
+     * Updates some values of the variable but leaves others alone, returning
+     * the new value.
      */
     def updateSomeAndGet(f: PartialFunction[A, A]): USTM[A] =
       updateAndGet(f orElse { case a => a })

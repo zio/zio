@@ -55,8 +55,8 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.update(map => values.foldLeft(map)((map, a) => map + (a -> map.get(a).fold(::(a, Nil))(::(a, _)))))
 
   /**
-   * Peeks at the first value in the queue without removing it, retrying until
-   * a value is in the queue.
+   * Peeks at the first value in the queue without removing it, retrying until a
+   * value is in the queue.
    */
   def peek: USTM[A] =
     new ZSTM((journal, _, _, _) =>
@@ -67,8 +67,8 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     )
 
   /**
-   * Peeks at the first value in the queue without removing it, returning
-   * `None` if there is not a value in the queue.
+   * Peeks at the first value in the queue without removing it, returning `None`
+   * if there is not a value in the queue.
    */
   def peekOption: USTM[Option[A]] =
     ref.modify(map => (map.headOption.map(_._2.head), map))

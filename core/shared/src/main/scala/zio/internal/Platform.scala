@@ -57,7 +57,8 @@ abstract class Platform { self =>
     }
 
   /**
-   * Determines if the `Runtime` should yield right at the beginning of the evaluation.
+   * Determines if the `Runtime` should yield right at the beginning of the
+   * evaluation.
    */
   def withYieldOnStart(cond: Boolean): Platform =
     new Platform.Proxy(self) {
@@ -66,8 +67,8 @@ abstract class Platform { self =>
 
   /**
    * Determines if a throwable is fatal or not. It is important to identify
-   * these as it is not recommended to catch, and try to recover from, any
-   * fatal error.
+   * these as it is not recommended to catch, and try to recover from, any fatal
+   * error.
    */
   def fatal(t: Throwable): Boolean
 

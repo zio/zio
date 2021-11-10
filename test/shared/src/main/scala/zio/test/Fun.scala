@@ -24,8 +24,8 @@ import scala.concurrent.ExecutionContext
 /**
  * A `Fun[A, B]` is a referentially transparent version of a potentially
  * effectual function from `A` to `B`. Each invocation of the function will be
- * memoized so the function is guaranteed to return the same value for any
- * given input. The function should not involve asynchronous effects.
+ * memoized so the function is guaranteed to return the same value for any given
+ * input. The function should not involve asynchronous effects.
  */
 private[test] final case class Fun[-A, +B] private (private val f: A => B, private val hash: A => Int)
     extends (A => B) {

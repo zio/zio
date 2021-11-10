@@ -23,20 +23,20 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * A `ZRef[EA, EB, A, B]` is a polymorphic, purely functional description of a
  * mutable reference. The fundamental operations of a `ZRef` are `set` and
- * `get`. `set` takes a value of type `A` and sets the reference to a new
- * value, potentially failing with an error of type `EA`. `get` gets the
- * current value of the reference and returns a value of type `B`, potentially
- * failing with an error of type `EB`.
+ * `get`. `set` takes a value of type `A` and sets the reference to a new value,
+ * potentially failing with an error of type `EA`. `get` gets the current value
+ * of the reference and returns a value of type `B`, potentially failing with an
+ * error of type `EB`.
  *
  * When the error and value types of the `ZRef` are unified, that is, it is a
  * `ZRef[E, E, A, A]`, the `ZRef` also supports atomic `modify` and `update`
  * operations. All operations are guaranteed to be safe for concurrent access.
  *
- * NOTE: While `ZRef` provides the functional equivalent of a mutable
- * reference, the value inside the `ZRef` should be immutable. For performance
- * reasons `ZRef` is implemented in terms of compare and swap operations rather
- * than synchronization. These operations are not safe for mutable values that
- * do not support concurrent access.
+ * NOTE: While `ZRef` provides the functional equivalent of a mutable reference,
+ * the value inside the `ZRef` should be immutable. For performance reasons
+ * `ZRef` is implemented in terms of compare and swap operations rather than
+ * synchronization. These operations are not safe for mutable values that do not
+ * support concurrent access.
  */
 sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
@@ -55,9 +55,9 @@ sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
   ): ZRef[EC, ED, C, D]
 
   /**
-   * Folds over the error and value types of the `ZRef`, allowing access to
-   * the state in transforming the `set` value. This is a more powerful version
-   * of `fold` but requires unifying the error types.
+   * Folds over the error and value types of the `ZRef`, allowing access to the
+   * state in transforming the `set` value. This is a more powerful version of
+   * `fold` but requires unifying the error types.
    */
   def foldAll[EC, ED, C, D](
     ea: EA => EC,
@@ -73,14 +73,14 @@ sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
   def get: IO[EB, B]
 
   /**
-   * Writes a new value to the `ZRef`, with a guarantee of immediate
-   * consistency (at some cost to performance).
+   * Writes a new value to the `ZRef`, with a guarantee of immediate consistency
+   * (at some cost to performance).
    */
   def set(a: A): IO[EA, Unit]
 
   /**
-   * Writes a new value to the `ZRef` without providing a guarantee of
-   * immediate consistency.
+   * Writes a new value to the `ZRef` without providing a guarantee of immediate
+   * consistency.
    */
   def setAsync(a: A): IO[EA, Unit]
 
@@ -106,22 +106,22 @@ sealed abstract class ZRef[+EA, +EB, -A, +B] extends Serializable { self =>
     dimapEither(f, Right(_))
 
   /**
-   * Transforms both the `set` and `get` values of the `ZRef` with the
-   * specified functions.
+   * Transforms both the `set` and `get` values of the `ZRef` with the specified
+   * functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZRef[EA, EB, C, D] =
     dimapEither(c => Right(f(c)), b => Right(g(b)))
 
   /**
-   * Transforms both the `set` and `get` values of the `ZRef` with the
-   * specified fallible functions.
+   * Transforms both the `set` and `get` values of the `ZRef` with the specified
+   * fallible functions.
    */
   final def dimapEither[EC >: EA, ED >: EB, C, D](f: C => Either[EC, A], g: B => Either[ED, D]): ZRef[EC, ED, C, D] =
     fold(identity, identity, f, g)
 
   /**
-   * Transforms both the `set` and `get` errors of the `ZRef` with the
-   * specified functions.
+   * Transforms both the `set` and `get` errors of the `ZRef` with the specified
+   * functions.
    */
   final def dimapError[EC, ED](f: EA => EC, g: EB => ED): ZRef[EC, ED, A, B] =
     fold(f, g, Right(_), Right(_))
@@ -481,8 +481,8 @@ object ZRef extends Serializable {
       }
 
     /**
-     * Atomically modifies the `ZRef` with the specified function, returning
-     * the value immediately before modification.
+     * Atomically modifies the `ZRef` with the specified function, returning the
+     * value immediately before modification.
      */
     def getAndUpdate(f: A => A): IO[E, A] =
       self match {
@@ -543,10 +543,10 @@ object ZRef extends Serializable {
       }
 
     /**
-     * Atomically modifies the `ZRef` with the specified partial function,
-     * which computes a return value for the modification if the function is
-     * defined on the current value otherwise it returns a default value. This
-     * is a more powerful version of `updateSome`.
+     * Atomically modifies the `ZRef` with the specified partial function, which
+     * computes a return value for the modification if the function is defined
+     * on the current value otherwise it returns a default value. This is a more
+     * powerful version of `updateSome`.
      */
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): IO[E, B] =
       self match {

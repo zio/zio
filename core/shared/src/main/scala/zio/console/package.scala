@@ -88,15 +88,16 @@ package object console {
     ZIO.accessM(_.get putStrLn line)
 
   /**
-   * Prints a line of text to the standard error console, including a newline character.
+   * Prints a line of text to the standard error console, including a newline
+   * character.
    */
   def putStrLnErr(line: => String): ZIO[Console, IOException, Unit] =
     ZIO.accessM(_.get putStrLnErr line)
 
   /**
-   * Retrieves a line of input from the console.
-   * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
-   * returns null.
+   * Retrieves a line of input from the console. Fails with an
+   * [[java.io.EOFException]] when the underlying [[java.io.Reader]] returns
+   * null.
    */
   val getStrLn: ZIO[Console, IOException, String] =
     ZIO.accessM(_.get.getStrLn)

@@ -18,11 +18,11 @@ package zio
 
 /**
  * Represents a failure in a fiber. This could be caused by some non-
- * recoverable error, such as a defect or system error, by some typed error,
- * or by interruption (or combinations of all of the above).
+ * recoverable error, such as a defect or system error, by some typed error, or
+ * by interruption (or combinations of all of the above).
  *
- * This class is used to wrap ZIO failures into something that can be thrown,
- * to better integrate with Scala exception handling.
+ * This class is used to wrap ZIO failures into something that can be thrown, to
+ * better integrate with Scala exception handling.
  */
 final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, true, false) {
   override def getMessage: String = cause.prettyPrint

@@ -472,8 +472,8 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
 
 /**
  * Examples sub-project that is not included in the root project.
- * To run tests :
- * `sbt "examplesJVM/test"`
+ *
+ * To run tests: `sbt "examplesJVM/test"`
  */
 lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
