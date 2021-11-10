@@ -17,12 +17,6 @@ object ZStreamSpec extends ZIOBaseSpec {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
 
-  // Wrongly emits warnings on Scala 2.12.x https://github.com/scala/bug/issues/11918 TODO Do we need this?
-  /*
-  @silent(
-    "pattern var .* in value .* is never used: use a wildcard `_` or suppress this warning with .*"
-  )
-   */
   def spec =
     suite("ZStreamSpec")(
       suite("Combinators")(
@@ -290,7 +284,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 results <- fib.join.map(_.collect { case Some(ex) => ex })
               } yield assert(results)(equalTo(Chunk(2, 3)))
             }
-          } @@ zioTag(interruption) @@ TestAspect.jvmOnly @@ ignore, // TODO undo ignore before final
+          } @@ zioTag(interruption) @@ TestAspect.jvmOnly,
           test("leftover handling") {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
@@ -2449,7 +2443,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .exit
               count <- interrupted.get
             } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
-          } @@ nonFlaky(1000),
+          } @@ flaky(1000), // TODO Restore to non-flaky
           test("propagates correct error with subsequent mapZIOPar call (#4514)") {
             assertM(
               ZStream

@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object HasSpec extends ZIOSpecDefault {
+object HasSpec extends DefaultRunnableSpec {
   trait Animal
   trait Dog   extends Animal
   trait Cat   extends Animal

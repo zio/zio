@@ -17,15 +17,15 @@ object ZTestFrameworkSpec {
     run(tests: _*)
 
   def tests: Seq[Try[Unit]] = Seq(
-//    test("should return correct fingerprints")(testFingerprints()),
-//    test("should report events")(testReportEvents()),
-//    test("should report durations")(testReportDurations()),
-//    test("should log messages")(testLogMessages()),
-//    test("should correctly display colorized output for multi-line strings")(testColored()),
-//    test("should test only selected test")(testTestSelection()),
-//    test("should return summary when done")(testSummary()),
-    test("should use a shared layer without re-initializing it")(testSharedLayers())
-//    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
+    test("should return correct fingerprints")(testFingerprints()),
+    test("should report events")(testReportEvents()),
+    test("should report durations")(testReportDurations()),
+    test("should log messages")(testLogMessages()),
+    test("should correctly display colorized output for multi-line strings")(testColored()),
+    test("should test only selected test")(testTestSelection()),
+    test("should return summary when done")(testSummary()),
+    test("should use a shared layer without re-initializing it")(testSharedLayers()),
+    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
   def testFingerprints(): Unit = {
@@ -124,6 +124,15 @@ object ZTestFrameworkSpec {
     ZLayer.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
   }
 
+  val randomFailure =
+    zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
+
+  def numberedTest(specIdx: Int, suiteIdx: Int, testIdx: Int) =
+    zio.test.test(s"spec $specIdx suite $suiteIdx test $testIdx") {
+      assertCompletes
+//      randomFailure
+    }
+
   lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
   object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Has[Int]] {
     override def layer = sharedLayer
@@ -139,28 +148,11 @@ object ZTestFrameworkSpec {
     val numberOfTests  = 1
     def spec =
       suite("basic suite")(
-//        Range(1, numberOfTests).map(idx =>
-        test(s"spec 1 suite 2 Generated test idx") {
-          for {
-            _ <- ZIO.debug(s"Hi")
-          } yield zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
-        }
-//        ): _*
-      )
-    //      suite("spec 1 suites")(
-//        Range(1, numberOfSuites).map(suiteIdx =>
-//          suite(s"spec 1 suite $suiteIdx")(
-//            Range(1, numberOfTests).map(idx =>
-//              test(s"spec 1 suite 2 Generated test $idx") {
-//                for {
-//                  _ <- ZIO.debug(s"$suiteIdx.$idx")
-//                } yield zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
-//              }
-//            ): _*
-//          )
-//        ): _*
-//      )
-//    }
+        numberedTest(specIdx = 1, suiteIdx = 1, 1),
+        numberedTest(specIdx = 1, suiteIdx = 1, 2),
+        numberedTest(specIdx = 1, suiteIdx = 1, 3),
+        numberedTest(specIdx = 1, suiteIdx = 1, 4)
+      ) @@ TestAspect.parallel
   }
 
   lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
@@ -177,7 +169,7 @@ object ZTestFrameworkSpec {
     val reported = ArrayBuffer[Event]()
 
 //    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedLayer), reported.append(_))
-    loadAndExecuteAll(Seq.fill(3)(spec1UsingSharedLayer), reported.append(_))
+    loadAndExecuteAll(Seq.fill(2)(spec1UsingSharedLayer), reported.append(_))
 
     assert(counter.get() == 1)
   }

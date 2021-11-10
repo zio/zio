@@ -34,46 +34,16 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     implicit val trace = Tracer.newTrace
     runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ layer)
   }
-  /*
-    Spec1
-      runSpec
-      spec
-
-    Spec2
-      runSpec
-      spec
-
-    Combined = Spec1 <> Spec2:
-      runSpec:
-        Spec1.runSpec.zipPar(Spec2.runSpec)
-
-      spec:
-        Spec1.spec + Spec2.spec
-
-
-    Combined.runSpec:
-      Spec1.runSpec
-        spec, which contains specs from both instances
-      Spec2.runSpec
-
-
-
-   */
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      override def hook: RuntimeConfigAspect =
-        self.hook >>> that.hook
       def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
         self.layer +!+ that.layer
-
-      // TODO Investigate if this is viable
-//      override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
-//        self.runSpec.zipPar(that.runSpec)
-
+      override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
+        self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
-        (self.spec + that.spec)
+        self.spec + that.spec
       def tag: Tag[Environment] = {
         implicit val selfTag: Tag[self.Environment] = self.tag
         implicit val thatTag: Tag[that.Environment] = that.tag
@@ -87,14 +57,13 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     for {
       args         <- ZIO.service[ZIOAppArgs]
       testArgs      = TestArgs.parse(args.getArgs.toArray)
-      executedSpec <- runSpec(spec @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber), testArgs)
+      executedSpec <- runSpec(spec, testArgs)
       hasFailures = executedSpec.exists {
                       case ExecutedSpec.TestCase(test, _) => test.isLeft
                       case _                              => false
                     }
       exitCode = if (hasFailures) 1 else 0
       _       <- doExit(exitCode)
-
     } yield ()
   }
 
@@ -106,16 +75,11 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     DefaultTestReporter(renderer, TestAnnotationRenderer.default)
   }
 
-  // TODO Confirm what we should be doing in JS case
   private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =
-    if (TestPlatform.isJVM) {
-      ZIO.succeed(
-        try if (!isAmmonite) sys.exit(exitCode)
-        catch { case _: SecurityException => }
-      )
-    } else {
-      UIO.unit
-    }
+    ZIO.succeed(
+      try if (!isAmmonite) sys.exit(exitCode)
+      catch { case _: SecurityException => }
+    )
 
   private def isAmmonite: Boolean =
     sys.env.exists { case (k, v) =>
@@ -126,18 +90,13 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any],
     testArgs: TestArgs
   )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with Has[ZIOAppArgs], ExecutedSpec[Any]] = {
-    val filteredSpec = FilteredSpec(spec, testArgs) /* @@ TestAspect.around(
-      ZIO.debug("Starting"),
-      ZIO.debug("Ending")
-    ) */
+    val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
-      env <- ZIO.environment[Environment with Has[ZIOAppArgs]]
+      env <- ZIO.environment[Environment with TestEnvironment with Has[ZIOAppArgs]]
       runner =
         TestRunner(
-          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](
-            ZLayer.succeedMany(env) +!+ testEnvironment
-          )
+          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](ZLayer.succeedMany(env))
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
@@ -148,16 +107,4 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
              .provideLayer(runner.bootstrap)
     } yield results
   }
-
-  def test[In](label: String)(assertion: => In)(implicit
-    testConstructor: TestConstructor[Nothing, In],
-    trace: ZTraceElement
-  ): testConstructor.Out =
-    testConstructor(label)(assertion)
-
-  def suite[In](label: String)(specs: In*)(implicit
-    suiteConstructor: SuiteConstructor[In],
-    trace: ZTraceElement
-  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
-    zio.test.suite(label)(specs: _*)
 }

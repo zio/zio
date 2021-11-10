@@ -71,9 +71,8 @@ abstract class BaseTestTask(
     try {
       spec match {
         case NewSpecWrapper(zioSpec) =>
-          Runtime((), zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
+          Runtime((), zioSpec.runtime.runtimeConfig).unsafeRun {
             run(eventHandler, zioSpec)
-              .provideLayer(sbtTestLayer(loggers) +!+ zio.ZEnv.live)
               .onError(e => UIO(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>

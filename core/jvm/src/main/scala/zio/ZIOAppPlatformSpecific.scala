@@ -10,7 +10,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
    */
   final def main(args0: Array[String]): Unit = {
     implicit val trace: ZTraceElement = ZTraceElement.empty
-    runtime.mapRuntimeConfig(hook).unsafeRun {
+    runtime.unsafeRun {
       (for {
         fiber <- invoke(Chunk.fromIterable(args0)).provide(runtime.environment).fork
         _ <-

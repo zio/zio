@@ -199,4 +199,4 @@ private[junit] class TestFailed(message: String, cause: Throwable = null)
     extends Throwable(message, cause, false, false)
 
 @RunWith(classOf[ZTestJUnitRunner])
-abstract class JUnitRunnableSpec extends DefaultRunnableSpec // TODO Extend ZIOSpecDefault instead
+abstract class JUnitRunnableSpec extends DefaultRunnableSpec

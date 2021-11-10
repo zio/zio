@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object ZStateSpec extends ZIOSpecDefault {
+object ZStateSpec extends DefaultRunnableSpec {
 
   def spec =
     suite("StateSpec")(

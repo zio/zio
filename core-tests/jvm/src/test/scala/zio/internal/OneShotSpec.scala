@@ -1,9 +1,5 @@
 package zio.internal
 
-object OneShotSpec
-
-/* TODO restore this
-
 import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
@@ -50,6 +46,3 @@ object OneShotSpec extends ZIOBaseSpec {
     )
   )
 }
-
-
- */

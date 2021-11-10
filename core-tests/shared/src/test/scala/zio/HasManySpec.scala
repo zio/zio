@@ -3,7 +3,7 @@ package zio
 import zio.test._
 import zio.test.Assertion._
 
-object HasManySpec extends ZIOSpecDefault {
+object HasManySpec extends DefaultRunnableSpec {
 
   def spec = suite("HasManySpec")(
     suite("accessAt")(

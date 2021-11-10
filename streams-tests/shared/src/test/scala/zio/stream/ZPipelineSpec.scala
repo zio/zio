@@ -1,8 +1,5 @@
 package zio.stream
 
-object ZPipelineSpec
-
-/*
 import zio._
 import zio.test.Assertion.equalTo
 import zio.test._
@@ -157,7 +154,3 @@ object ZPipelineSpec extends ZIOBaseSpec {
     }
   }
 }
-
-
-
- */

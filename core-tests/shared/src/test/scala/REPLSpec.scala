@@ -1,7 +1,6 @@
 import com.github.ghik.silencer.silent
 import zio.test._
 
-// TODO Update
 object REPLSpec extends DefaultRunnableSpec {
 
   @silent("Unused import")
