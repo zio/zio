@@ -8,8 +8,8 @@ import zio.test.Assertion._
 import java.util.zip.Deflater
 
 object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
-  override def aspects: List[TestAspectAtLeastR[Has[Live]]] =
-    List(TestAspect.timeout(300.seconds))
+  override def aspects: Chunk[TestAspectAtLeastR[Has[Live]]] =
+    Chunk(TestAspect.timeout(300.seconds))
 
   def spec = suite("ZPipeline JVM")(
     suite("Constructors")(
