@@ -62,8 +62,8 @@ trait GenZIO {
   }
 
   /**
-   * A generator of effects that are the result of chaining the specified
-   * effect with itself a random number of times.
+   * A generator of effects that are the result of chaining the specified effect
+   * with itself a random number of times.
    */
   final def chained[R <: Has[Random] with Has[Sized], Env, E, A](gen: Gen[R, ZIO[Env, E, A]])(implicit
     trace: ZTraceElement
@@ -71,8 +71,8 @@ trait GenZIO {
     Gen.small(chainedN(_)(gen))
 
   /**
-   * A generator of effects that are the result of chaining the specified
-   * effect with itself a given number of times.
+   * A generator of effects that are the result of chaining the specified effect
+   * with itself a given number of times.
    */
   final def chainedN[R <: Has[Random], Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]])(implicit
     trace: ZTraceElement

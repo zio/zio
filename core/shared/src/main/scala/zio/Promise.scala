@@ -27,9 +27,9 @@ import java.util.concurrent.atomic.AtomicReference
  * suspend (by calling `await`) and automatically resume when the variable is
  * set.
  *
- * Promises can be used for building primitive actions whose completions
- * require the coordinated action of multiple fibers, and for building
- * higher-level concurrent or asynchronous structures.
+ * Promises can be used for building primitive actions whose completions require
+ * the coordinated action of multiple fibers, and for building higher-level
+ * concurrent or asynchronous structures.
  * {{{
  * for {
  *   promise <- Promise.make[Nothing, Int]
@@ -98,17 +98,16 @@ final class Promise[E, A] private (
     io.intoPromise(this)
 
   /**
-   * Completes the promise with the specified effect. If the promise has
-   * already been completed, the method will produce false.
+   * Completes the promise with the specified effect. If the promise has already
+   * been completed, the method will produce false.
    *
-   * Note that since the promise is completed with an effect, the effect will
-   * be evaluated each time the value of the promise is retrieved through
-   * combinators such as `await`, potentially producing different results if
-   * the effect produces different results on subsequent evaluations. In this
-   * case te meaning of the "exactly once" guarantee of `Promise` is that the
-   * promise can be completed with exactly one effect. For a version that
-   * completes the promise with the result of an effect see
-   * [[Promise.complete]].
+   * Note that since the promise is completed with an effect, the effect will be
+   * evaluated each time the value of the promise is retrieved through
+   * combinators such as `await`, potentially producing different results if the
+   * effect produces different results on subsequent evaluations. In this case
+   * te meaning of the "exactly once" guarantee of `Promise` is that the promise
+   * can be completed with exactly one effect. For a version that completes the
+   * promise with the result of an effect see [[Promise.complete]].
    */
   def completeWith(io: IO[E, A])(implicit trace: ZTraceElement): UIO[Boolean] =
     IO.succeed {
@@ -255,7 +254,8 @@ object Promise {
     ZIO.succeed(unsafeMake(fiberId))
 
   /**
-   * Makes a new managed promise to be completed by the fiber creating the promise.
+   * Makes a new managed promise to be completed by the fiber creating the
+   * promise.
    */
   def makeManaged[E, A](implicit trace: ZTraceElement): UManaged[Promise[E, A]] =
     make[E, A].toManaged

@@ -91,15 +91,15 @@ object TestSystem extends Serializable {
       systemState.get.map(_.properties.get(prop))
 
     /**
-     * Returns the specified system property if it exists or else the
-     * specified fallback value.
+     * Returns the specified system property if it exists or else the specified
+     * fallback value.
      */
     def propertyOrElse(prop: => String, alt: => String)(implicit trace: ZTraceElement): IO[Throwable, String] =
       System.propertyOrElseWith(prop, alt)(property(_))
 
     /**
-     * Returns the specified system property if it exists or else the
-     * specified optional fallback value.
+     * Returns the specified system property if it exists or else the specified
+     * optional fallback value.
      */
     def propertyOrOption(prop: => String, alt: => Option[String])(implicit
       trace: ZTraceElement
@@ -107,8 +107,8 @@ object TestSystem extends Serializable {
       System.propertyOrOptionWith(prop, alt)(property(_))
 
     /**
-     * Adds the specified name and value to the mapping of environment
-     * variables maintained by this `TestSystem`.
+     * Adds the specified name and value to the mapping of environment variables
+     * maintained by this `TestSystem`.
      */
     def putEnv(name: String, value: String)(implicit trace: ZTraceElement): UIO[Unit] =
       systemState.update(data => data.copy(envs = data.envs.updated(name, value)))
@@ -140,8 +140,8 @@ object TestSystem extends Serializable {
       systemState.update(data => data.copy(properties = data.properties - prop))
 
     /**
-     * Saves the `TestSystem``'s current state in an effect which, when run, will restore the `TestSystem`
-     * state to the saved state.
+     * Saves the `TestSystem``'s current state in an effect which, when run,
+     * will restore the `TestSystem` state to the saved state.
      */
     def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
       for {
@@ -157,9 +157,9 @@ object TestSystem extends Serializable {
   val DefaultData: Data = Data(Map(), Map(), "\n")
 
   /**
-   * Constructs a new `TestSystem` with the specified initial state. This can
-   * be useful for providing the required environment to an effect that
-   * requires a `Console`, such as with `ZIO#provide`.
+   * Constructs a new `TestSystem` with the specified initial state. This can be
+   * useful for providing the required environment to an effect that requires a
+   * `Console`, such as with `ZIO#provide`.
    */
   def live(data: Data): Layer[Nothing, Has[System] with Has[TestSystem]] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
@@ -187,8 +187,9 @@ object TestSystem extends Serializable {
     ZIO.accessZIO(_.get.putProperty(name, value))
 
   /**
-   * Accesses a `TestSystem` instance in the environment and saves the system state in an effect which, when run,
-   * will restore the `TestSystem` to the saved state
+   * Accesses a `TestSystem` instance in the environment and saves the system
+   * state in an effect which, when run, will restore the `TestSystem` to the
+   * saved state
    */
   def save(implicit trace: ZTraceElement): ZIO[Has[TestSystem], Nothing, UIO[Unit]] =
     ZIO.accessZIO(_.get.save)

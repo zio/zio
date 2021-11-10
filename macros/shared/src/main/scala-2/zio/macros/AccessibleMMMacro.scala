@@ -19,7 +19,8 @@ package zio.macros
 import scala.reflect.macros.whitebox
 
 /**
- * Generates method accessors for a service parametrized by HKT into annotated object
+ * Generates method accessors for a service parametrized by HKT into annotated
+ * object
  */
 private[macros] class AccessibleMMMacro(override val c: whitebox.Context) extends AccessibleMMacroBase(c) {
 

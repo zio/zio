@@ -180,8 +180,8 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Retrieves value associated with given key or default value, in case the
-   * key isn't present.
+   * Retrieves value associated with given key or default value, in case the key
+   * isn't present.
    */
   def getOrElse(k: K, default: => V): USTM[V] =
     get(k).map(_.getOrElse(default))
@@ -194,8 +194,8 @@ final class TMap[K, V] private (
 
   /**
    * If the key `k` is not already associated with a value, stores the provided
-   * value, otherwise merge the existing value with the new one using function `f`
-   * and store the result
+   * value, otherwise merge the existing value with the new one using function
+   * `f` and store the result
    */
   def merge(k: K, v: V)(f: (V, V) => V): USTM[V] =
     get(k).flatMap(_.fold(put(k, v).as(v)) { v0 =>
@@ -600,8 +600,8 @@ final class TMap[K, V] private (
    * Updates the mapping for the specified key with the specified function,
    * which takes the current value of the key as an input, if it exists, and
    * either returns `Some` with a new value to indicate to update the value in
-   * the map or `None` to remove the value from the map. Returns `Some` with
-   * the updated value or `None` if the value was removed from the map.
+   * the map or `None` to remove the value from the map. Returns `Some` with the
+   * updated value or `None` if the value was removed from the map.
    */
   def updateWith(k: K)(f: Option[V] => Option[V]): USTM[Option[V]] =
     get(k).flatMap(f(_).fold[USTM[Option[V]]](delete(k).as(None))(v => put(k, v).as(Some(v))))

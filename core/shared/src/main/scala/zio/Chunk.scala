@@ -115,14 +115,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     ev(apply(index))
 
   /**
-   * Returns a filtered, mapped subset of the elements of this chunk based on a .
+   * Returns a filtered, mapped subset of the elements of this chunk based on a
+   * .
    */
   @deprecated("use collectZIO", "2.0.0")
   def collectM[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
     collectZIO(pf)
 
   /**
-   * Transforms all elements of the chunk for as long as the specified partial function is defined.
+   * Transforms all elements of the chunk for as long as the specified partial
+   * function is defined.
    */
   def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] =
     if (isEmpty) Chunk.empty else self.materialize.collectWhile(pf)
@@ -137,7 +139,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectWhileZIO(pf)
 
   /**
-   * Returns a filtered, mapped subset of the elements of this chunk based on a .
+   * Returns a filtered, mapped subset of the elements of this chunk based on a
+   * .
    */
   def collectZIO[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[B]] =
     if (isEmpty) ZIO.succeedNow(Chunk.empty) else self.materialize.collectZIO(pf)
@@ -257,7 +260,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
 
   /**
-   * Determines whether a predicate is satisfied for at least one element of this chunk.
+   * Determines whether a predicate is satisfied for at least one element of
+   * this chunk.
    */
   override final def exists(f: A => Boolean): Boolean = {
     val iterator = self.chunkIterator
@@ -290,16 +294,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Filters this chunk by the specified effectful predicate, retaining all elements for
-   * which the predicate evaluates to true.
+   * Filters this chunk by the specified effectful predicate, retaining all
+   * elements for which the predicate evaluates to true.
    */
   @deprecated("use filterZIO", "2.0.0")
   final def filterM[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
     filterZIO(f)
 
   /**
-   * Filters this chunk by the specified effectful predicate, retaining all elements for
-   * which the predicate evaluates to true.
+   * Filters this chunk by the specified effectful predicate, retaining all
+   * elements for which the predicate evaluates to true.
    */
   final def filterZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Chunk[A]] =
     ZIO.suspendSucceed {
@@ -414,8 +418,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Folds over the elements in this chunk from the left.
-   * Stops the fold early when the condition is not fulfilled.
+   * Folds over the elements in this chunk from the left. Stops the fold early
+   * when the condition is not fulfilled.
    */
   final def foldWhile[S](s0: S)(pred: S => Boolean)(f: (S, A) => S): S = {
     val iterator = self.chunkIterator
@@ -490,7 +494,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     if (isEmpty) None else Some(self(0))
 
   /**
-   * Returns the first index for which the given predicate is satisfied after or at some given index.
+   * Returns the first index for which the given predicate is satisfied after or
+   * at some given index.
    */
   override final def indexWhere(f: A => Boolean, from: Int): Int = {
     val iterator = self.chunkIterator
@@ -606,7 +611,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     mapZIOPar(f)
 
   /**
-   * Effectfully maps the elements of this chunk in parallel purely for the effects.
+   * Effectfully maps the elements of this chunk in parallel purely for the
+   * effects.
    */
   @deprecated("use mapZIOParDiscard", "2.0.0")
   final def mapMPar_[R, E](f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
@@ -631,7 +637,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     ZIO.foreachPar(self)(f)
 
   /**
-   * Effectfully maps the elements of this chunk in parallel purely for the effects.
+   * Effectfully maps the elements of this chunk in parallel purely for the
+   * effects.
    */
   final def mapZIOParDiscard[R, E](f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
     ZIO.foreachParDiscard(self)(f)
@@ -839,28 +846,27 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
 
   /**
-   * Zips this chunk with the specified chunk to produce a new chunk with
-   * pairs of elements from each chunk. The returned chunk will have the
-   * length of the shorter chunk.
+   * Zips this chunk with the specified chunk to produce a new chunk with pairs
+   * of elements from each chunk. The returned chunk will have the length of the
+   * shorter chunk.
    */
   final def zip[B](that: Chunk[B])(implicit zippable: Zippable[A, B]): Chunk[zippable.Out] =
     zipWith(that)(zippable.zip(_, _))
 
   /**
-   * Zips this chunk with the specified chunk to produce a new chunk with
-   * pairs of elements from each chunk, filling in missing values from the
-   * shorter chunk with `None`. The returned chunk will have the length of the
-   * longer chunk.
+   * Zips this chunk with the specified chunk to produce a new chunk with pairs
+   * of elements from each chunk, filling in missing values from the shorter
+   * chunk with `None`. The returned chunk will have the length of the longer
+   * chunk.
    */
   final def zipAll[B](that: Chunk[B]): Chunk[(Option[A], Option[B])] =
     zipAllWith(that)(a => (Some(a), None), b => (None, Some(b)))((a, b) => (Some(a), Some(b)))
 
   /**
-   * Zips with chunk with the specified chunk to produce a new chunk with
-   * pairs of elements from each chunk combined using the specified function
-   * `both`. If one chunk is shorter than the other uses the specified
-   * function `left` or `right` to map the element that does exist to the
-   * result type.
+   * Zips with chunk with the specified chunk to produce a new chunk with pairs
+   * of elements from each chunk combined using the specified function `both`.
+   * If one chunk is shorter than the other uses the specified function `left`
+   * or `right` to map the element that does exist to the result type.
    */
   final def zipAllWith[B, C](
     that: Chunk[B]
@@ -1997,9 +2003,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    * iteration over chunks. Unlike a normal iterator, the caller is responsible
    * for providing an `index` with each call to `hasNextAt` and `nextAt`. By
    * contract this should be `0` initially and incremented by `1` each time
-   * `nextAt` is called. This allows the caller to maintain the current index
-   * in local memory rather than the iterator having to do it on the heap for
-   * array backed chunks.
+   * `nextAt` is called. This allows the caller to maintain the current index in
+   * local memory rather than the iterator having to do it on the heap for array
+   * backed chunks.
    */
   sealed trait ChunkIterator[+A] { self =>
 
@@ -2030,7 +2036,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       ChunkIterator.Concat(self, that)
   }
 
-  private object ChunkIterator {
+  object ChunkIterator {
 
     /**
      * The empty iterator.

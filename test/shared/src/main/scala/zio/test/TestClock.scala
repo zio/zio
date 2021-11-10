@@ -26,63 +26,63 @@ import java.util.concurrent.TimeUnit
 import scala.collection.immutable.SortedSet
 
 /**
- * `TestClock` makes it easy to deterministically and efficiently test
- * effects involving the passage of time.
+ * `TestClock` makes it easy to deterministically and efficiently test effects
+ * involving the passage of time.
  *
- * Instead of waiting for actual time to pass, `sleep` and methods
- * implemented in terms of it schedule effects to take place at a given clock
- * time. Users can adjust the clock time using the `adjust` and `setTime`
- * methods, and all effects scheduled to take place on or before that time
- * will automatically be run in order.
+ * Instead of waiting for actual time to pass, `sleep` and methods implemented
+ * in terms of it schedule effects to take place at a given clock time. Users
+ * can adjust the clock time using the `adjust` and `setTime` methods, and all
+ * effects scheduled to take place on or before that time will automatically be
+ * run in order.
  *
  * For example, here is how we can test `ZIO#timeout` using `TestClock`:
  *
  * {{{
- *  import zio.ZIO
- *  import zio.test.TestClock
+ *   import zio.ZIO
+ *   import zio.test.TestClock
  *
- *  for {
- *    fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
- *    _      <- TestClock.adjust(1.minute)
- *    result <- fiber.join
- *  } yield result == None
+ *   for {
+ *     fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
+ *     _      <- TestClock.adjust(1.minute)
+ *     result <- fiber.join
+ *   } yield result == None
  * }}}
  *
  * Note how we forked the fiber that `sleep` was invoked on. Calls to `sleep`
- * and methods derived from it will semantically block until the time is set
- * to on or after the time they are scheduled to run. If we didn't fork the
- * fiber on which we called sleep we would never get to set the time on the
- * line below. Thus, a useful pattern when using `TestClock` is to fork the
- * effect being tested, then adjust the clock time, and finally verify that
- * the expected effects have been performed.
+ * and methods derived from it will semantically block until the time is set to
+ * on or after the time they are scheduled to run. If we didn't fork the fiber
+ * on which we called sleep we would never get to set the time on the line
+ * below. Thus, a useful pattern when using `TestClock` is to fork the effect
+ * being tested, then adjust the clock time, and finally verify that the
+ * expected effects have been performed.
  *
  * For example, here is how we can test an effect that recurs with a fixed
  * delay:
  *
  * {{{
- *  import zio.Queue
- *  import zio.test.TestClock
+ *   import zio.Queue
+ *   import zio.test.TestClock
  *
- *  for {
- *    q <- Queue.unbounded[Unit]
- *    _ <- q.offer(()).delay(60.minutes).forever.fork
- *    a <- q.poll.map(_.isEmpty)
- *    _ <- TestClock.adjust(60.minutes)
- *    b <- q.take.as(true)
- *    c <- q.poll.map(_.isEmpty)
- *    _ <- TestClock.adjust(60.minutes)
- *    d <- q.take.as(true)
- *    e <- q.poll.map(_.isEmpty)
- *  } yield a && b && c && d && e
+ *   for {
+ *     q <- Queue.unbounded[Unit]
+ *     _ <- q.offer(()).delay(60.minutes).forever.fork
+ *     a <- q.poll.map(_.isEmpty)
+ *     _ <- TestClock.adjust(60.minutes)
+ *     b <- q.take.as(true)
+ *     c <- q.poll.map(_.isEmpty)
+ *     _ <- TestClock.adjust(60.minutes)
+ *     d <- q.take.as(true)
+ *     e <- q.poll.map(_.isEmpty)
+ *   } yield a && b && c && d && e
  * }}}
  *
- * Here we verify that no effect is performed before the recurrence period,
- * that an effect is performed after the recurrence period, and that the
- * effect is performed exactly once. The key thing to note here is that after
- * each recurrence the next recurrence is scheduled to occur at the
- * appropriate time in the future, so when we adjust the clock by 60 minutes
- * exactly one value is placed in the queue, and when we adjust the clock by
- * another 60 minutes exactly one more value is placed in the queue.
+ * Here we verify that no effect is performed before the recurrence period, that
+ * an effect is performed after the recurrence period, and that the effect is
+ * performed exactly once. The key thing to note here is that after each
+ * recurrence the next recurrence is scheduled to occur at the appropriate time
+ * in the future, so when we adjust the clock by 60 minutes exactly one value is
+ * placed in the queue, and when we adjust the clock by another 60 minutes
+ * exactly one more value is placed in the queue.
  */
 trait TestClock extends Restorable {
   def adjust(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit]
@@ -106,9 +106,9 @@ object TestClock extends Serializable {
       with TestClockPlatformSpecific {
 
     /**
-     * Increments the current clock time by the specified duration. Any
-     * effects that were scheduled to occur on or before the new time will be
-     * run in order.
+     * Increments the current clock time by the specified duration. Any effects
+     * that were scheduled to occur on or before the new time will be run in
+     * order.
      */
     def adjust(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       warningDone *> run(_ + duration)
@@ -144,8 +144,8 @@ object TestClock extends Serializable {
       clockState.get.map(data => toLocalDateTime(data.duration, data.timeZone))
 
     /**
-     * Saves the `TestClock`'s current state in an effect which, when run,
-     * will restore the `TestClock` state to the saved state
+     * Saves the `TestClock`'s current state in an effect which, when run, will
+     * restore the `TestClock` state to the saved state
      */
     def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
       for {
@@ -154,8 +154,8 @@ object TestClock extends Serializable {
 
     /**
      * Sets the current clock time to the specified `OffsetDateTime`. Any
-     * effects that were scheduled to occur on or before the new time will
-     * be run in order.
+     * effects that were scheduled to occur on or before the new time will be
+     * run in order.
      */
     def setDateTime(dateTime: OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit] =
       setTime(fromDateTime(dateTime))
@@ -169,18 +169,17 @@ object TestClock extends Serializable {
       warningDone *> run(_ => duration)
 
     /**
-     * Sets the time zone to the specified time zone. The clock time in
-     * terms of nanoseconds since the epoch will not be adjusted and no
-     * scheduled effects will be run as a result of this method.
+     * Sets the time zone to the specified time zone. The clock time in terms of
+     * nanoseconds since the epoch will not be adjusted and no scheduled effects
+     * will be run as a result of this method.
      */
     def setTimeZone(zone: ZoneId)(implicit trace: ZTraceElement): UIO[Unit] =
       clockState.update(_.copy(timeZone = zone))
 
     /**
-     * Semantically blocks the current fiber until the clock time is equal
-     * to or greater than the specified duration. Once the clock time is
-     * adjusted to on or after the duration, the fiber will automatically be
-     * resumed.
+     * Semantically blocks the current fiber until the clock time is equal to or
+     * greater than the specified duration. Once the clock time is adjusted to
+     * on or after the duration, the fiber will automatically be resumed.
      */
     def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       for {
@@ -196,8 +195,8 @@ object TestClock extends Serializable {
       } yield ()
 
     /**
-     * Returns a list of the times at which all queued effects are scheduled
-     * to resume.
+     * Returns a list of the times at which all queued effects are scheduled to
+     * resume.
      */
     def sleeps(implicit trace: ZTraceElement): UIO[List[Duration]] =
       clockState.get.map(_.sleeps.map(_._1))
@@ -209,8 +208,8 @@ object TestClock extends Serializable {
       clockState.get.map(_.timeZone)
 
     /**
-     * Cancels the warning message that is displayed if a test is advancing
-     * the `TestClock` but a fiber is not suspending.
+     * Cancels the warning message that is displayed if a test is advancing the
+     * `TestClock` but a fiber is not suspending.
      */
     private[TestClock] def suspendedWarningDone(implicit trace: ZTraceElement): UIO[Unit] =
       suspendedWarningState.updateSomeZIO[Any, Nothing] { case SuspendedWarningData.Pending(fiber) =>
@@ -218,8 +217,8 @@ object TestClock extends Serializable {
       }
 
     /**
-     * Cancels the warning message that is displayed if a test is using time
-     * but is not advancing the `TestClock`.
+     * Cancels the warning message that is displayed if a test is using time but
+     * is not advancing the `TestClock`.
      */
     private[TestClock] def warningDone(implicit trace: ZTraceElement): UIO[Unit] =
       warningState.updateSomeZIO[Any, Nothing] {
@@ -245,11 +244,11 @@ object TestClock extends Serializable {
       live.provide(ZIO.sleep(5.milliseconds))
 
     /**
-     * Captures a "snapshot" of the identifier and status of all fibers in
-     * this test other than the current fiber. Fails with the `Unit` value if
-     * any of these fibers are not done or suspended. Note that because we
-     * cannot synchronize on the status of multiple fibers at the same time
-     * this snapshot may not be fully consistent.
+     * Captures a "snapshot" of the identifier and status of all fibers in this
+     * test other than the current fiber. Fails with the `Unit` value if any of
+     * these fibers are not done or suspended. Note that because we cannot
+     * synchronize on the status of multiple fibers at the same time this
+     * snapshot may not be fully consistent.
      */
     private def freeze(implicit trace: ZTraceElement): IO[Unit, Map[FiberId, Fiber.Status]] =
       supervisedFibers.flatMap { fibers =>
@@ -284,8 +283,8 @@ object TestClock extends Serializable {
       Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
 
     /**
-     * Runs all effects scheduled to occur on or before the specified
-     * duration, which may depend on the current time, in order.
+     * Runs all effects scheduled to occur on or before the specified duration,
+     * which may depend on the current time, in order.
      */
     private def run(f: Duration => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       awaitSuspended *>
@@ -332,8 +331,8 @@ object TestClock extends Serializable {
       Instant.ofEpochMilli(duration.toMillis)
 
     /**
-     * Forks a fiber that will display a warning message if a test is
-     * advancing the `TestClock` but a fiber is not suspending.
+     * Forks a fiber that will display a warning message if a test is advancing
+     * the `TestClock` but a fiber is not suspending.
      */
     private def suspendedWarningStart(implicit trace: ZTraceElement): UIO[Unit] =
       suspendedWarningState.updateSomeZIO { case SuspendedWarningData.Start =>
@@ -348,8 +347,8 @@ object TestClock extends Serializable {
       }
 
     /**
-     * Forks a fiber that will display a warning message if a test is using
-     * time but is not advancing the `TestClock`.
+     * Forks a fiber that will display a warning message if a test is using time
+     * but is not advancing the `TestClock`.
      */
     private def warningStart(implicit trace: ZTraceElement): UIO[Unit] =
       warningState.updateSomeZIO { case WarningData.Start =>
@@ -361,9 +360,8 @@ object TestClock extends Serializable {
   }
 
   /**
-   * Constructs a new `Test` object that implements the `TestClock`
-   * interface. This can be useful for mixing in with implementations of
-   * other interfaces.
+   * Constructs a new `Test` object that implements the `TestClock` interface.
+   * This can be useful for mixing in with implementations of other interfaces.
    */
   def live(
     data: Data
@@ -391,9 +389,9 @@ object TestClock extends Serializable {
     live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))(Tracer.newTrace)
 
   /**
-   * Accesses a `TestClock` instance in the environment and increments the
-   * time by the specified duration, running any actions scheduled for on or
-   * before the new time in order.
+   * Accesses a `TestClock` instance in the environment and increments the time
+   * by the specified duration, running any actions scheduled for on or before
+   * the new time in order.
    */
   def adjust(duration: => Duration)(implicit trace: ZTraceElement): URIO[Has[TestClock], Unit] =
     ZIO.accessZIO(_.get.adjust(duration))
@@ -407,33 +405,33 @@ object TestClock extends Serializable {
     ZIO.accessZIO(_.get.save)
 
   /**
-   * Accesses a `TestClock` instance in the environment and sets the clock
-   * time to the specified `OffsetDateTime`, running any actions scheduled
-   * for on or before the new time in order.
+   * Accesses a `TestClock` instance in the environment and sets the clock time
+   * to the specified `OffsetDateTime`, running any actions scheduled for on or
+   * before the new time in order.
    */
   def setDateTime(dateTime: => OffsetDateTime)(implicit trace: ZTraceElement): URIO[Has[TestClock], Unit] =
     ZIO.accessZIO(_.get.setDateTime(dateTime))
 
   /**
-   * Accesses a `TestClock` instance in the environment and sets the clock
-   * time to the specified time in terms of duration since the epoch,
-   * running any actions scheduled for on or before the new time in order.
+   * Accesses a `TestClock` instance in the environment and sets the clock time
+   * to the specified time in terms of duration since the epoch, running any
+   * actions scheduled for on or before the new time in order.
    */
   def setTime(duration: => Duration)(implicit trace: ZTraceElement): URIO[Has[TestClock], Unit] =
     ZIO.accessZIO(_.get.setTime(duration))
 
   /**
-   * Accesses a `TestClock` instance in the environment, setting the time
-   * zone to the specified time zone. The clock time in terms of nanoseconds
-   * since the epoch will not be altered and no scheduled actions will be
-   * run as a result of this effect.
+   * Accesses a `TestClock` instance in the environment, setting the time zone
+   * to the specified time zone. The clock time in terms of nanoseconds since
+   * the epoch will not be altered and no scheduled actions will be run as a
+   * result of this effect.
    */
   def setTimeZone(zone: => ZoneId)(implicit trace: ZTraceElement): URIO[Has[TestClock], Unit] =
     ZIO.accessZIO(_.get.setTimeZone(zone))
 
   /**
-   * Accesses a `TestClock` instance in the environment and returns a list
-   * of times that effects are scheduled to run.
+   * Accesses a `TestClock` instance in the environment and returns a list of
+   * times that effects are scheduled to run.
    */
   def sleeps(implicit trace: ZTraceElement): ZIO[Has[TestClock], Nothing, List[Duration]] =
     ZIO.accessZIO(_.get.sleeps)
@@ -456,19 +454,18 @@ object TestClock extends Serializable {
   )
 
   /**
-   * `Sleep` represents the state of a scheduled effect, including the time
-   * the effect is scheduled to run, a promise that can be completed to
-   * resume execution of the effect, and the fiber executing the effect.
+   * `Sleep` represents the state of a scheduled effect, including the time the
+   * effect is scheduled to run, a promise that can be completed to resume
+   * execution of the effect, and the fiber executing the effect.
    */
   final case class Sleep(duration: Duration, promise: Promise[Nothing, Unit], fiberId: FiberId)
 
   /**
-   * `WarningData` describes the state of the warning message that is
-   * displayed if a test is using time by is not advancing the `TestClock`.
-   * The possible states are `Start` if a test has not used time, `Pending`
-   * if a test has used time but has not adjusted the `TestClock`, and `Done`
-   * if a test has adjusted the `TestClock` or the warning message has
-   * already been displayed.
+   * `WarningData` describes the state of the warning message that is displayed
+   * if a test is using time by is not advancing the `TestClock`. The possible
+   * states are `Start` if a test has not used time, `Pending` if a test has
+   * used time but has not adjusted the `TestClock`, and `Done` if a test has
+   * adjusted the `TestClock` or the warning message has already been displayed.
    */
   sealed abstract class WarningData
 
@@ -485,8 +482,8 @@ object TestClock extends Serializable {
 
     /**
      * State indicating that a test has used time but has not adjusted the
-     * `TestClock` with a reference to the fiber that will display the
-     * warning message.
+     * `TestClock` with a reference to the fiber that will display the warning
+     * message.
      */
     def pending(fiber: Fiber[IOException, Unit]): WarningData = Pending(fiber)
 
@@ -511,9 +508,9 @@ object TestClock extends Serializable {
     val start: SuspendedWarningData = Start
 
     /**
-     * State indicating that a test has adjusted the clock but a fiber is
-     * still running with a reference to the fiber that will display the
-     * warning message.
+     * State indicating that a test has adjusted the clock but a fiber is still
+     * running with a reference to the fiber that will display the warning
+     * message.
      */
     def pending(fiber: Fiber[IOException, Unit]): SuspendedWarningData = Pending(fiber)
 
@@ -524,8 +521,8 @@ object TestClock extends Serializable {
   }
 
   /**
-   * The warning message that will be displayed if a test is using time but
-   * is not advancing the `TestClock`.
+   * The warning message that will be displayed if a test is using time but is
+   * not advancing the `TestClock`.
    */
   private val warning =
     "Warning: A test is using time, but is not advancing the test clock, " +
@@ -533,8 +530,8 @@ object TestClock extends Serializable {
       "manually advance the time."
 
   /**
-   * The warning message that will be displayed if a test is advancing the
-   * clock but a fiber is still running.
+   * The warning message that will be displayed if a test is advancing the clock
+   * but a fiber is still running.
    */
   private val suspendedWarning =
     "Warning: A test is advancing the test clock, but a fiber is not " +

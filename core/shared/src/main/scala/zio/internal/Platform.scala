@@ -27,9 +27,9 @@ object Platform extends PlatformSpecific {
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
    * and auto-yielding disabled.
    *
-   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
-   * optional feature and it's not valid to compare the performance of ZIO with
-   * enabled Tracing with effect types _without_ a comparable feature.
+   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an optional
+   * feature and it's not valid to compare the performance of ZIO with enabled
+   * Tracing with effect types _without_ a comparable feature.
    */
   @deprecated("use RuntimeConfig.benchmark", "2.0.0")
   lazy val benchmark: RuntimeConfig =

@@ -57,14 +57,14 @@ import scala.math.{log, sqrt}
  * } yield x + y + z == 11
  * }}}
  *
- * `TestRandom` will automatically take values from the buffer if a value of
- * the appropriate type is available and otherwise generate a pseudo-random
- * value, so there is nothing you need to do to switch between the two modes.
- * Just generate random values as you normally would to get pseudo-random
- * values, or feed in values of your own to get those values back. You can also
- * use methods like `clearInts` to clear the buffer of values of a given type
- * so you can fill the buffer with new values or go back to pseudo-random
- * number generation.
+ * `TestRandom` will automatically take values from the buffer if a value of the
+ * appropriate type is available and otherwise generate a pseudo-random value,
+ * so there is nothing you need to do to switch between the two modes. Just
+ * generate random values as you normally would to get pseudo-random values, or
+ * feed in values of your own to get those values back. You can also use methods
+ * like `clearInts` to clear the buffer of values of a given type so you can
+ * fill the buffer with new values or go back to pseudo-random number
+ * generation.
  */
 trait TestRandom extends Restorable {
   def clearBooleans(implicit trace: ZTraceElement): UIO[Unit]
@@ -92,7 +92,8 @@ trait TestRandom extends Restorable {
 object TestRandom extends Serializable {
 
   /**
-   * Adapted from @gzmo work in Scala.js (https://github.com/scala-js/scala-js/pull/780)
+   * Adapted from @gzmo work in Scala.js
+   * (https://github.com/scala-js/scala-js/pull/780)
    */
   final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends Random with TestRandom {
 
@@ -160,16 +161,16 @@ object TestRandom extends Serializable {
 
     /**
      * Feeds the buffer with specified sequence of chunks of bytes. The first
-     * value in the sequence will be the first to be taken. These values will
-     * be taken before any values that were previously in the buffer.
+     * value in the sequence will be the first to be taken. These values will be
+     * taken before any values that were previously in the buffer.
      */
     def feedBytes(bytes: Chunk[Byte]*)(implicit trace: ZTraceElement): UIO[Unit] =
       bufferState.update(data => data.copy(bytes = bytes.toList ::: data.bytes))
 
     /**
      * Feeds the buffer with specified sequence of characters. The first value
-     * in the sequence will be the first to be taken. These values will be
-     * taken before any values that were previously in the buffer.
+     * in the sequence will be the first to be taken. These values will be taken
+     * before any values that were previously in the buffer.
      */
     def feedChars(chars: Char*)(implicit trace: ZTraceElement): UIO[Unit] =
       bufferState.update(data => data.copy(chars = chars.toList ::: data.chars))
@@ -199,9 +200,9 @@ object TestRandom extends Serializable {
       bufferState.update(data => data.copy(integers = ints.toList ::: data.integers))
 
     /**
-     * Feeds the buffer with specified sequence of longs. The first value in
-     * the sequence will be the first to be taken. These values will be taken
-     * before any values that were previously in the buffer.
+     * Feeds the buffer with specified sequence of longs. The first value in the
+     * sequence will be the first to be taken. These values will be taken before
+     * any values that were previously in the buffer.
      */
     def feedLongs(longs: Long*)(implicit trace: ZTraceElement): UIO[Unit] =
       bufferState.update(data => data.copy(longs = longs.toList ::: data.longs))
@@ -215,9 +216,9 @@ object TestRandom extends Serializable {
       bufferState.update(data => data.copy(strings = strings.toList ::: data.strings))
 
     /**
-     * Feeds the buffer with specified sequence of UUIDs. The first value in
-     * the sequence will be the first to be taken. These values will be taken
-     * before any values that were previously in the buffer.
+     * Feeds the buffer with specified sequence of UUIDs. The first value in the
+     * sequence will be the first to be taken. These values will be taken before
+     * any values that were previously in the buffer.
      */
     def feedUUIDs(uuids: UUID*)(implicit trace: ZTraceElement): UIO[Unit] =
       bufferState.update(data => data.copy(uuids = uuids.toList ::: data.uuids))
@@ -348,8 +349,8 @@ object TestRandom extends Serializable {
       getOrElse(bufferedUUID)(Random.nextUUIDWith(nextLong))
 
     /**
-     * Saves the `TestRandom`'s current state in an effect which, when run,
-     * will restore the `TestRandom` state to the saved state.
+     * Saves the `TestRandom`'s current state in an effect which, when run, will
+     * restore the `TestRandom` state to the saved state.
      */
     def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
       for {
@@ -712,9 +713,9 @@ object TestRandom extends Serializable {
     ZIO.accessZIO(_.get.getSeed)
 
   /**
-   * Constructs a new `TestRandom` with the specified initial state. This can
-   * be useful for providing the required environment to an effect that
-   * requires a `Random`, such as with `ZIO#provide`.
+   * Constructs a new `TestRandom` with the specified initial state. This can be
+   * useful for providing the required environment to an effect that requires a
+   * `Random`, such as with `ZIO#provide`.
    */
   def make(data: Data): Layer[Nothing, Has[Random] with Has[TestRandom]] = {
     implicit val trace = Tracer.newTrace

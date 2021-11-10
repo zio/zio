@@ -25,8 +25,8 @@ private[zio] trait PlatformSpecific {
     java.lang.System.exit(code)
 
   /**
-   * Returns the name of the thread group to which this thread belongs. This
-   * is a side-effecting method.
+   * Returns the name of the thread group to which this thread belongs. This is
+   * a side-effecting method.
    */
   final def getCurrentThreadGroup: String =
     Thread.currentThread.getThreadGroup.getName

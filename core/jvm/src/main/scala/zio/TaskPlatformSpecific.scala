@@ -33,7 +33,10 @@ private[zio] trait TaskPlatformSpecific {
   ): Task[T] =
     asyncWithCompletionHandler(op)
 
-  /** Alias for `formCompletionStage` for a concrete implementation of CompletionStage */
+  /**
+   * Alias for `formCompletionStage` for a concrete implementation of
+   * CompletionStage
+   */
   def fromCompletableFuture[A](cs: => CompletableFuture[A])(implicit trace: ZTraceElement): Task[A] =
     fromCompletionStage(cs)
 

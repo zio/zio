@@ -14,7 +14,8 @@ import scala.collection.JavaConverters._
 final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashMap[K, V]) extends AnyVal {
 
   /**
-   * Finds the first element of a map for which the partial function is defined and applies the function to it.
+   * Finds the first element of a map for which the partial function is defined
+   * and applies the function to it.
    */
   def collectFirst[B](pf: PartialFunction[(K, V), B]): UIO[Option[B]] =
     UIO {
@@ -29,7 +30,8 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     }
 
   /**
-   * Attempts to compute a mapping for the given key and its current mapped value.
+   * Attempts to compute a mapping for the given key and its current mapped
+   * value.
    */
   def compute(key: K, remap: (K, V) => V): UIO[Option[V]] =
     UIO(Option(underlying.compute(key, remapWith(remap))))
@@ -48,7 +50,8 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     UIO(Option(underlying.computeIfPresent(key, remapWith(remap))))
 
   /**
-   * Tests whether a given predicate holds true for at least one element in a map.
+   * Tests whether a given predicate holds true for at least one element in a
+   * map.
    */
 
   def exists(p: (K, V) => Boolean): UIO[Boolean] =
@@ -111,7 +114,8 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     UIO(underlying.putAll(keyValues.toMap.asJava): @silent("JavaConverters"))
 
   /**
-   * Adds a new key-value pair, unless the key is already bound to some other value.
+   * Adds a new key-value pair, unless the key is already bound to some other
+   * value.
    */
   def putIfAbsent(key: K, value: V): UIO[Option[V]] =
     UIO(Option(underlying.putIfAbsent(key, value)))
@@ -164,8 +168,8 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
     UIO(Option(underlying.replace(key, value)))
 
   /**
-   * Replaces the entry for the given key only if it was previously mapped
-   * to a given value.
+   * Replaces the entry for the given key only if it was previously mapped to a
+   * given value.
    */
   def replace(key: K, oldValue: V, newValue: V): UIO[Boolean] =
     UIO(underlying.replace(key, oldValue, newValue))

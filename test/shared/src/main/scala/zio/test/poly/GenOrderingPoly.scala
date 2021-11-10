@@ -104,9 +104,8 @@ object GenOrderingPoly {
     GenNumericPoly.int
 
   /**
-   * Provides evidence that instances of `Gen[List[T]]` and
-   * `Ordering[List[T]]` exist for any type for which `Gen[T]` and
-   * `Ordering[T]` exist.
+   * Provides evidence that instances of `Gen[List[T]]` and `Ordering[List[T]]`
+   * exist for any type for which `Gen[T]` and `Ordering[T]` exist.
    */
   def list(poly: GenOrderingPoly)(implicit trace: ZTraceElement): GenOrderingPoly =
     GenOrderingPoly(Gen.listOf(poly.genT), ListOrdering(poly.ordT))
@@ -132,15 +131,14 @@ object GenOrderingPoly {
     GenNumericPoly.long
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * strings.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for strings.
    */
   def string(implicit trace: ZTraceElement): GenOrderingPoly =
     GenOrderingPoly(Gen.string, Ordering.String)
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * the unit value.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for the unit
+   * value.
    */
   def unit(implicit trace: ZTraceElement): GenOrderingPoly =
     GenOrderingPoly(Gen.unit, Ordering.Unit)

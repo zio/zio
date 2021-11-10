@@ -30,8 +30,8 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
     toPromiseJSWith(ev)
 
   /**
-   * Converts the current `ZIO` to a Scala.js promise and maps the
-   * error type with `f`.
+   * Converts the current `ZIO` to a Scala.js promise and maps the error type
+   * with `f`.
    */
   def toPromiseJSWith(f: E => Throwable)(implicit trace: ZTraceElement): URIO[R, JSPromise[A]] =
     self.foldCause(c => JSPromise.reject(c.squashWith(f)), JSPromise.resolve[A](_))

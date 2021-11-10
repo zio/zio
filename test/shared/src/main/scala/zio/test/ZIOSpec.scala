@@ -19,8 +19,8 @@ package zio.test
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-abstract class ZIOSpec[R <: Has[_]: Tag] extends ZIOSpecAbstract { self =>
+abstract class ZIOSpec[R <: Has[_]](implicit tag0: Tag[R]) extends ZIOSpecAbstract { self =>
   type Environment = R
 
-  final val tag: Tag[R] = Tag[R]
+  final val tag: Tag[R] = tag0
 }

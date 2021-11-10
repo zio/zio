@@ -32,8 +32,8 @@ trait Runtime[+R] {
   def environment: R
 
   /**
-   * The configuration of the runtime, which provides the essential
-   * capabilities necessary to bootstrap execution of tasks.
+   * The configuration of the runtime, which provides the essential capabilities
+   * necessary to bootstrap execution of tasks.
    */
   def runtimeConfig: RuntimeConfig
 
@@ -79,11 +79,12 @@ trait Runtime[+R] {
     }
 
   /**
-   * Executes the effect synchronously, failing
-   * with [[zio.FiberFailure]] if there are any errors. May fail on
-   * Scala.js if the effect cannot be entirely run synchronously.
+   * Executes the effect synchronously, failing with [[zio.FiberFailure]] if
+   * there are any errors. May fail on Scala.js if the effect cannot be entirely
+   * run synchronously.
    *
-   * This method is effectful and should only be done at the edges of your program.
+   * This method is effectful and should only be done at the edges of your
+   * program.
    */
   final def unsafeRun[E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): A =
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
@@ -91,17 +92,19 @@ trait Runtime[+R] {
   /**
    * Executes the effect asynchronously, discarding the result of execution.
    *
-   * This method is effectful and should only be invoked at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your
+   * program.
    */
   final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Unit =
     unsafeRunAsyncWith(zio)(_ => ())
 
   /**
-   * Executes the effect asynchronously,
-   * eventually passing the exit value to the specified callback.
-   * It returns a callback, which can be used to interrupt the running execution.
+   * Executes the effect asynchronously, eventually passing the exit value to
+   * the specified callback. It returns a callback, which can be used to
+   * interrupt the running execution.
    *
-   * This method is effectful and should only be invoked at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your
+   * program.
    */
   final def unsafeRunSync[E, A](zio0: => ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
     defaultUnsafeRunSync(zio0) // tryFastUnsafeRunSync(zio0, 0)
@@ -206,10 +209,11 @@ trait Runtime[+R] {
     }
 
   /**
-   * Executes the effect asynchronously,
-   * eventually passing the exit value to the specified callback.
+   * Executes the effect asynchronously, eventually passing the exit value to
+   * the specified callback.
    *
-   * This method is effectful and should only be invoked at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your
+   * program.
    */
   final def unsafeRunAsyncWith[E, A](
     zio: => ZIO[R, E, A]
@@ -219,11 +223,12 @@ trait Runtime[+R] {
   }
 
   /**
-   * Executes the effect asynchronously,
-   * eventually passing the exit value to the specified callback.
-   * It returns a callback, which can be used to interrupt the running execution.
+   * Executes the effect asynchronously, eventually passing the exit value to
+   * the specified callback. It returns a callback, which can be used to
+   * interrupt the running execution.
    *
-   * This method is effectful and should only be invoked at the edges of your program.
+   * This method is effectful and should only be invoked at the edges of your
+   * program.
    */
   final def unsafeRunAsyncCancelable[E, A](
     zio: => ZIO[R, E, A]
@@ -238,21 +243,24 @@ trait Runtime[+R] {
   }
 
   /**
-   * Executes the Task/RIO effect synchronously, failing
-   * with the original `Throwable` on both [[Cause.Fail]] and [[Cause.Die]].
-   * In addition, appends a new element to the `Throwable`s "caused by" chain,
-   * with this `Cause` "pretty printed" (in stackless mode) as the message.
-   * May fail on Scala.js if the effect cannot be entirely run synchronously.
+   * Executes the Task/RIO effect synchronously, failing with the original
+   * `Throwable` on both [[Cause.Fail]] and [[Cause.Die]]. In addition, appends
+   * a new element to the `Throwable`s "caused by" chain, with this `Cause`
+   * "pretty printed" (in stackless mode) as the message. May fail on Scala.js
+   * if the effect cannot be entirely run synchronously.
    *
-   * This method is effectful and should only be done at the edges of your program.
+   * This method is effectful and should only be done at the edges of your
+   * program.
    */
   final def unsafeRunTask[A](task: => RIO[R, A])(implicit trace: ZTraceElement): A =
     unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
 
   /**
-   * Runs the IO, returning a Future that will be completed when the effect has been executed.
+   * Runs the IO, returning a Future that will be completed when the effect has
+   * been executed.
    *
-   * This method is effectful and should only be used at the edges of your program.
+   * This method is effectful and should only be used at the edges of your
+   * program.
    */
   final def unsafeRunToFuture[E <: Throwable, A](
     zio: ZIO[R, E, A]
@@ -336,9 +344,9 @@ object Runtime {
   abstract class Managed[+R] extends Runtime[R] {
 
     /**
-     * Shuts down this runtime and releases resources allocated to it. Once
-     * this runtime has been shut down the behavior of methods on it is
-     * undefined and it should be discarded.
+     * Shuts down this runtime and releases resources allocated to it. Once this
+     * runtime has been shut down the behavior of methods on it is undefined and
+     * it should be discarded.
      */
     def shutdown(): Unit
 
@@ -384,23 +392,25 @@ object Runtime {
   }
 
   /**
-   * The default [[Runtime]] for most ZIO applications. This runtime is configured with
-   * the default environment, containing standard services, as well as the default
-   * runtime configuration, which is optimized for typical ZIO applications.
+   * The default [[Runtime]] for most ZIO applications. This runtime is
+   * configured with the default environment, containing standard services, as
+   * well as the default runtime configuration, which is optimized for typical
+   * ZIO applications.
    */
   lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, RuntimeConfig.default)
 
   /**
-   * The global [[Runtime]], which piggybacks atop the global execution context available
-   * to Scala applications. Use of this runtime is not generally recommended, unless the
-   * intention is to avoid creating any thread pools or other resources.
+   * The global [[Runtime]], which piggybacks atop the global execution context
+   * available to Scala applications. Use of this runtime is not generally
+   * recommended, unless the intention is to avoid creating any thread pools or
+   * other resources.
    */
   lazy val global: Runtime[ZEnv] = Runtime(ZEnv.Services.live, RuntimeConfig.global)
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
-   * allocated immediately, and not released until the `Runtime` is shut down
-   * or the end of the application.
+   * allocated immediately, and not released until the `Runtime` is shut down or
+   * the end of the application.
    *
    * This method is useful for small applications and integrating ZIO with
    * legacy code, but other applications should investigate using

@@ -21,11 +21,11 @@ import zio.metrics._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A `SetCount` represents the number of occurrences of specified values.
- * You can think of a SetCount as like a set of counters associated with
- * each value except that new counters will automatically be created when new
- * values are observed. This could be used to track the frequency of
- * different types of failures, for example.
+ * A `SetCount` represents the number of occurrences of specified values. You
+ * can think of a SetCount as like a set of counters associated with each value
+ * except that new counters will automatically be created when new values are
+ * observed. This could be used to track the frequency of different types of
+ * failures, for example.
  */
 private[zio] trait SetCount {
 
@@ -35,8 +35,7 @@ private[zio] trait SetCount {
   def observe(word: String)(implicit trace: ZTraceElement): UIO[Any]
 
   /**
-   * The number of occurences of every value observed by this
-   * set count.
+   * The number of occurences of every value observed by this set count.
    */
   def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]]
 
