@@ -120,11 +120,13 @@ trait Runtime[+R] {
   protected def tryFastUnsafeRunSync[E, A](zio: ZIO[R, E, A], stack: Int)(implicit trace: ZTraceElement): Exit[E, A] =
     if (stack >= 50) defaultUnsafeRunSync(zio)
     else {
-      type Erased  = ZIO[Any, Any, Any]
-      type ErasedK = Any => Erased
+      import ZIO.TracedCont
 
-      def erase(zio: ZIO[_, _, _]): Erased      = zio.asInstanceOf[Erased]
-      def eraseK(f: _ => ZIO[_, _, _]): ErasedK = f.asInstanceOf[ErasedK]
+      type Erased  = ZIO[Any, Any, Any]
+      type ErasedK = TracedCont[Any, Any, Any, Any]
+
+      def erase(zio: ZIO[_, _, _]): Erased           = zio.asInstanceOf[Erased]
+      def eraseK(f: TracedCont[_, _, _, _]): ErasedK = f.asInstanceOf[ErasedK]
 
       val nullK = null.asInstanceOf[ErasedK]
 
@@ -140,7 +142,7 @@ trait Runtime[+R] {
 
               curZio = erase(zio.zio)
 
-              val k = eraseK(zio.k)
+              val k = eraseK(zio)
 
               if (x1 eq null) x1 = k
               else if (x2 eq null) {
@@ -173,7 +175,24 @@ trait Runtime[+R] {
             case ZIO.Tags.Fail =>
               val zio = curZio.asInstanceOf[ZIO.Fail[E]]
 
-              done = Exit.failCause(zio.cause())
+              val chunkBuilder = ChunkBuilder.make[ZTraceElement]()
+
+              if (x1 ne null) {
+                chunkBuilder += x1.trace
+                if (x2 ne null) {
+                  chunkBuilder += x2.trace
+                  if (x3 ne null) {
+                    chunkBuilder += x3.trace
+                    if (x4 ne null) {
+                      chunkBuilder += x4.trace
+                    }
+                  }
+                }
+              }
+
+              val trace = ZTrace(FiberId.unsafeMake(), chunkBuilder.result())
+
+              done = Exit.failCause(zio.cause().traced(trace))
 
             case ZIO.Tags.Succeed =>
               val zio = curZio.asInstanceOf[ZIO.Succeed[A]]
@@ -302,7 +321,7 @@ trait Runtime[+R] {
   private final def unsafeRunWith[E, A](
     zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
-    val fiberId = Fiber.newFiberId()
+    val fiberId = FiberId.unsafeMake()
 
     val scope = ZScope.unsafeMake[Exit[E, A]]()
 

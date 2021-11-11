@@ -53,6 +53,11 @@ object FiberId {
   def combineAll(fiberIds: Set[FiberId]): FiberId =
     fiberIds.foldLeft[FiberId](FiberId.None)(_ combine _)
 
+  private[zio] def unsafeMake(): FiberId.Runtime =
+    FiberId.Runtime((java.lang.System.currentTimeMillis / 1000).toInt, _fiberCounter.getAndIncrement())
+
+  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
+
   case object None                                           extends FiberId
   final case class Runtime(id: Int, startTimeSeconds: Int)   extends FiberId
   final case class Composite(fiberIds: Set[FiberId.Runtime]) extends FiberId
