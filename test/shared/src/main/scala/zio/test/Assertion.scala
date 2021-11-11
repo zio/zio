@@ -274,7 +274,7 @@ object Assertion extends AssertionVariants {
    */
   def failsWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
     fails(isSubtype[E](anything))
-  
+
   /**
    * Makes a new assertion that requires an exit value to fail with a cause that
    * meets the specified assertion.
