@@ -651,7 +651,7 @@ private[zio] final class FiberContext[E, A](
 
     val parentScope = (forkScope orElse unsafeGetRef(forkScopeOverride)).getOrElse(scope)
 
-    val childId    = Fiber.newFiberId()
+    val childId    = FiberId.unsafeMake()
     val childScope = ZScope.unsafeMake[Exit[E, A]]()
 
     val childContext = new FiberContext[E, A](
