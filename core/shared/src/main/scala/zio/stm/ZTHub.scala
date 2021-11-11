@@ -329,15 +329,18 @@ object ZTHub {
                       var loop                 = true
                       while (loop) {
                         val node = currentPublisherHead.unsafeGet(journal)
-                        val head = node.head
-                        val tail = node.tail
-                        if (head != null) {
-                          val updatedNode = node.copy(head = null.asInstanceOf[A])
-                          currentPublisherHead.unsafeSet(journal, updatedNode)
-                          publisherHead.unsafeSet(journal, tail)
-                          loop = false
-                        } else {
-                          currentPublisherHead = tail
+                        if (node eq null) throw ZSTM.RetryException
+                        else {
+                          val head = node.head
+                          val tail = node.tail
+                          if (head != null) {
+                            val updatedNode = node.copy(head = null.asInstanceOf[A])
+                            currentPublisherHead.unsafeSet(journal, updatedNode)
+                            publisherHead.unsafeSet(journal, tail)
+                            loop = false
+                          } else {
+                            currentPublisherHead = tail
+                          }
                         }
                       }
                       val updatedPublisherTail = ZTRef.unsafeMake[Node[A]](null)
