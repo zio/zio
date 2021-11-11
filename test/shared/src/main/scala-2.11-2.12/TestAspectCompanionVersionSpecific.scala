@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+package zio.test
+
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-trait ZPipelineCompanionVersionSpecific
+trait TestAspectCompanionVersionSpecific
