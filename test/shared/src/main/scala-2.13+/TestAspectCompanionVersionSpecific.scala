@@ -18,7 +18,7 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.experimental.ZPipeline.Compose
+import zio.stream.ZPipeline.Compose
 
 trait TestAspectCompanionVersionSpecific {
 
