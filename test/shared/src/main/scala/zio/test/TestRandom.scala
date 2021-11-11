@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{PlatformSpecific => _, _}
+import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 

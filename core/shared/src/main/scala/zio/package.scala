@@ -22,9 +22,11 @@ package object zio
     with EitherCompat
     with FunctionToLayerOps
     with IntersectionTypeCompat
-    with PlatformSpecific
     with VersionSpecific
     with DurationModule {
+
+  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
+
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]

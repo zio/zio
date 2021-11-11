@@ -19,26 +19,21 @@ package zio
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-private[zio] trait PlatformSpecific {
-  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
+object ZEnv {
 
-  object ZEnv {
-
-    private[zio] object Services {
-      val live: ZEnv =
-        Has.allOf[Clock, Console, System, Random](
-          Clock.ClockLive,
-          Console.ConsoleLive,
-          System.SystemLive,
-          Random.RandomLive
-        )
-    }
-
-    val any: ZLayer[ZEnv, Nothing, ZEnv] = {
-      ZLayer.environment[ZEnv](Tracer.newTrace)
-    }
-
-    val live: Layer[Nothing, ZEnv] =
-      Clock.live ++ Console.live ++ System.live ++ Random.live
+  private[zio] object Services {
+    val live: ZEnv =
+      Has.allOf[Clock, Console, System, Random](
+        Clock.ClockLive,
+        Console.ConsoleLive,
+        System.SystemLive,
+        Random.RandomLive
+      )
   }
+
+  val any: ZLayer[ZEnv, Nothing, ZEnv] =
+    ZLayer.environment[ZEnv](Tracer.newTrace)
+
+  val live: Layer[Nothing, ZEnv] =
+    Clock.live ++ Console.live ++ System.live ++ Random.live
 }
