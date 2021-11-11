@@ -41,21 +41,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     }
 
   /**
-   * Syntax for adding aspects.
-   * {{{
-   * test("foo") { assert(42, equalTo(42)) } @@ ignore
-   * }}}
-   */
-  final def @@[R0 <: R1, R1 <: R, E0, E1, E2 >: E0 <: E1](
-    aspect: TestAspect[R0, R1, E0, E1]
-  )(implicit
-    ev1: E <:< TestFailure[E2],
-    ev2: T <:< TestSuccess,
-    trace: ZTraceElement
-  ): Spec[aspect.OutEnv[R1], TestFailure[aspect.OutErr[E2]], TestSuccess] =
-    aspect(self.asInstanceOf[ZSpec[R1, E2]])
-
-  /**
    * Annotates each test in this spec with the specified test annotation.
    */
   final def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): Spec[R, E, T] =
@@ -596,7 +581,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     }
 }
 
-object Spec {
+object Spec extends SpecLowPriority {
   sealed abstract class SpecCase[-R, +E, +T, +A] { self =>
     final def map[B](f: A => B)(implicit trace: ZTraceElement): SpecCase[R, E, T, B] = self match {
       case ExecCase(label, spec)       => ExecCase(label, f(spec))
@@ -672,5 +657,68 @@ object Spec {
       f: Service => Service
     )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]], trace: ZTraceElement): Spec[R1, E, T] =
       self.provideSome(ev.updateAt(_, key, f))
+  }
+
+  implicit final class ZSpecSyntax[Env, Err](private val self: ZSpec[Env, Err]) extends AnyVal {
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@[LowerEnv <: UpperEnv, UpperEnv <: Env, LowerErr >: Err, UpperErr >: LowerErr](
+      aspect: TestAspect[LowerEnv, UpperEnv, LowerErr, UpperErr]
+    )(implicit
+      trace: ZTraceElement
+    ): Spec[aspect.OutEnv[UpperEnv], TestFailure[aspect.OutErr[LowerErr]], TestSuccess] =
+      aspect(self.asInstanceOf[ZSpec[UpperEnv, LowerErr]])
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@[LowerEnv <: Env, LowerErr >: Err, UpperErr >: LowerErr](
+      aspect: TestAspect[LowerEnv, Any, LowerErr, UpperErr]
+    )(implicit
+      dummy: DummyImplicit,
+      trace: ZTraceElement
+    ): Spec[aspect.OutEnv[Env], TestFailure[aspect.OutErr[LowerErr]], TestSuccess] =
+      aspect(self.asInstanceOf[ZSpec[Env, LowerErr]])
+  }
+}
+
+trait SpecLowPriority {
+
+  implicit final class ZSpecSyntaxLowPriority[Env, Err](private val self: ZSpec[Env, Err]) {
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@[LowerEnv <: UpperEnv, UpperEnv <: Env, LowerErr >: Err](
+      aspect: TestAspect[LowerEnv, UpperEnv, LowerErr, Any]
+    )(implicit
+      trace: ZTraceElement
+    ): Spec[aspect.OutEnv[UpperEnv], TestFailure[aspect.OutErr[LowerErr]], TestSuccess] =
+      aspect(self.asInstanceOf[ZSpec[UpperEnv, LowerErr]])
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@[LowerEnv <: Env, LowerErr >: Err](
+      aspect: TestAspect[LowerEnv, Any, LowerErr, Any]
+    )(implicit
+      dummy: DummyImplicit,
+      trace: ZTraceElement
+    ): Spec[aspect.OutEnv[Env], TestFailure[aspect.OutErr[LowerErr]], TestSuccess] =
+      aspect(self.asInstanceOf[ZSpec[Env, LowerErr]])
   }
 }
