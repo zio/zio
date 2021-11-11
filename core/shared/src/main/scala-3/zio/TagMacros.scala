@@ -31,38 +31,40 @@ class Macros(val ctx: Quotes) {
     }
 
   def summonTag[A: Type]: Expr[Tag[A]] = {
-//     println(TypeRepr.of[A])
-//     println(TypeRepr.of[A].show)
     val tag0 = makeTag(TypeRepr.of[A].widen)
-//     println(tag0)
-//     println(tag0.render)
     '{
-      Tag(${ Expr(tag0) })
+      Tag($tag0)
     }
  }
 
  val nothingTypeRepr = TypeRepr.of[Nothing]
  val anyTypeRepr = TypeRepr.of[Any]
 
-  def makeTag(typeRepr0: TypeRepr)(using seen: Set[TypeRepr] = Set.empty): LightTypeTag = {
+  def makeTag(typeRepr0: TypeRepr)(using seen: Set[TypeRepr] = Set.empty): Expr[LightTypeTag] = {
     val typeRepr = typeRepr0.widen.dealias
     given Set[TypeRepr] = seen + typeRepr
 
     if (seen.contains(typeRepr)) {
-      return LightTypeTag.Recursive(typeRepr.show)
+      return '{ LightTypeTag.Recursive(${Expr(typeRepr.show)}) }
     }
 
     typeRepr match {
-      case `nothingTypeRepr` => LightTypeTag.NothingType
-      case `anyTypeRepr` => LightTypeTag.AnyType
-      case AppliedType(lhs, args) => LightTypeTag.Apply(makeTag(lhs), args.map(makeTag))
+      case `nothingTypeRepr` => '{ LightTypeTag.NothingType }
+      case `anyTypeRepr` => '{ LightTypeTag.AnyType }
+      case AppliedType(lhs, args) => '{ LightTypeTag.Apply(${makeTag(lhs)}, ${Expr.ofList(args.map(makeTag))}) }
       case ThisType(nested)       => makeTag(nested)
-      case NoPrefix()             => LightTypeTag.NoPrefix
-      case TermRef(lhs, name)     => LightTypeTag.TermRef(makeTag(lhs), name)
-      case TypeRef(lhs, name)     => LightTypeTag.TypeRef(makeTag(lhs), name)
-      case TypeBounds(lo, hi)     => LightTypeTag.Bounds(makeTag(lo), makeTag(hi))
-      case AndType(left, right)   => LightTypeTag.Intersection(makeTag(left), makeTag(right))
-      case OrType(left, right)    => LightTypeTag.Union(makeTag(left), makeTag(right))
+      case NoPrefix()             => '{ LightTypeTag.NoPrefix }
+      case TermRef(lhs, name)     => '{ LightTypeTag.TermRef(${makeTag(lhs)}, ${Expr(name)}) }
+      case x @ TypeRef(_, _) if x.typeSymbol.isAbstractType =>
+        x.asType match { 
+          case '[a] =>
+            val tag = Expr.summon[Tag[a]].getOrElse(report.errorAndAbort(s"Implicit not found for Tag[${x.show}]"))
+            '{ $tag.tag }
+        }
+      case x @TypeRef(lhs, name)     => '{ LightTypeTag.TypeRef(${makeTag(lhs)}, ${Expr(name)}) }
+      case TypeBounds(lo, hi)     => '{ LightTypeTag.Bounds(${makeTag(lo)}, ${makeTag(hi)}) }
+      case AndType(left, right)   => '{ LightTypeTag.Intersection(${makeTag(left)}, ${makeTag(right)}) }
+      case OrType(left, right)    => '{ LightTypeTag.Union(${makeTag(left)}, ${makeTag(right)}) }
       case other                  => throw new Error(other.toString)
     }
    }
