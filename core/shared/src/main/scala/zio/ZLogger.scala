@@ -13,8 +13,8 @@ trait ZLogger[+A] { self =>
   ): A
 
   /**
-   * Combines this logger with the specified logger to produce a new logger
-   * that logs to both this logger and that logger.
+   * Combines this logger with the specified logger to produce a new logger that
+   * logs to both this logger and that logger.
    */
   def ++[B](that: ZLogger[B])(implicit zippable: Zippable[A, B]): ZLogger[zippable.Out] =
     new ZLogger[zippable.Out] {
@@ -33,8 +33,8 @@ trait ZLogger[+A] { self =>
     }
 
   /**
-   * Returns a version of this logger that only logs messages when the log
-   * level satisfies the specified predicate.
+   * Returns a version of this logger that only logs messages when the log level
+   * satisfies the specified predicate.
    */
   final def filterLogLevel(f: LogLevel => Boolean): ZLogger[Option[A]] =
     new ZLogger[Option[A]] {

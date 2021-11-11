@@ -21,9 +21,10 @@ import zio.internal.macros.LayerMacros
 private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
 
   /**
-   * Automatically constructs the part of the environment that is not part of the `ZEnv`,
-   * leaving an effect that only depends on the `ZEnv`. This will also satisfy transitive
-   * `ZEnv` requirements with `ZEnv.any`, allowing them to be provided later.
+   * Automatically constructs the part of the environment that is not part of
+   * the `ZEnv`, leaving an effect that only depends on the `ZEnv`. This will
+   * also satisfy transitive `ZEnv` requirements with `ZEnv.any`, allowing them
+   * to be provided later.
    *
    * {{{
    * val managed: ZManaged[OldLady with Console, Nothing, Unit] = ???

@@ -45,13 +45,15 @@ abstract class AbstractRunnableSpec {
     runtimeConfig
 
   /**
-   * Returns an effect that executes the spec, producing the results of the execution.
+   * Returns an effect that executes the spec, producing the results of the
+   * execution.
    */
   final def run(implicit trace: ZTraceElement): ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
     runSpec(spec).provideCustomLayer(runner.bootstrap)
 
   /**
-   * Returns an effect that executes a given spec, producing the results of the execution.
+   * Returns an effect that executes a given spec, producing the results of the
+   * execution.
    */
   private[zio] def runSpec(
     spec: ZSpec[Environment, Failure]

@@ -21,16 +21,16 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.io.Serializable
 import java.util.concurrent.atomic.{AtomicReference, LongAdder}
 
+// format: off
 /**
- * This is a specialized implementation of MutableConcurrentQueue of
- * capacity 1. Since capacity 1 queues are by default used under the
- * hood in Streams as intermediate resource they should be very cheap
- * to create and throw away. Hence this queue is optimized (unlike
- * RingBuffer*) for a very small footprint, while still being plenty
- * fast.
+ * This is a specialized implementation of MutableConcurrentQueue of capacity 1.
+ * Since capacity 1 queues are by default used under the hood in Streams as
+ * intermediate resource they should be very cheap to create and throw away.
+ * Hence this queue is optimized (unlike RingBuffer*) for a very small
+ * footprint, while still being plenty fast.
  *
- * Allocating an object takes only 24 bytes + 8+ bytes in long adder (so 32+ bytes total),
- * which is 15x less than the smallest RingBuffer.
+ * Allocating an object takes only 24 bytes + 8+ bytes in long adder (so 32+
+ * bytes total), which is 15x less than the smallest RingBuffer.
  *
  * zio.internal.OneElementConcurrentQueue object internals:
  *  OFFSET  SIZE                                          TYPE DESCRIPTION
@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.{AtomicReference, LongAdder}
  * Instance size: 24 bytes
  * Space losses: 0 bytes internal + 0 bytes external = 0 bytes total
  */
+// format: on
 final class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with Serializable {
   private[this] val ref      = new AtomicReference[AnyRef]()
   private[this] val deqAdder = new LongAdder()

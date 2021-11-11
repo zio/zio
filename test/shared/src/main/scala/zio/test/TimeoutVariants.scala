@@ -21,8 +21,8 @@ import zio._
 trait TimeoutVariants {
 
   /**
-   * A test aspect that prints a warning to the console when a test takes
-   * longer than the specified duration.
+   * A test aspect that prints a warning to the console when a test takes longer
+   * than the specified duration.
    */
   def timeoutWarning(
     duration: Duration

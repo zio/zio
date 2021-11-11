@@ -28,14 +28,9 @@ final case class ZTrace(
   def ++(that: ZTrace): ZTrace =
     ZTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
 
-  def prettyPrint: String =
-    stackTrace.collect {
-      case s if s.toString.length > 0 => s"\tat ${s} on ${fiberId}"
-    }.mkString("\n")
-
   /**
-   * Converts the ZIO trace into a Java stack trace, by converting each trace element into a Java
-   * stack trace element.
+   * Converts the ZIO trace into a Java stack trace, by converting each trace
+   * element into a Java stack trace element.
    */
   def toJava: Chunk[StackTraceElement] =
     stackTrace.collect { case ZTraceElement.SourceLocation(location, file, line, _) =>

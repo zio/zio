@@ -46,10 +46,14 @@ sealed abstract class Fiber[+E, +A] { self =>
   /**
    * Same as `zip` but discards the output of the left hand side.
    *
-   * @param that fiber to be zipped
-   * @tparam E1 error type
-   * @tparam B type of the fiber
-   * @return `Fiber[E1, B]` combined fiber
+   * @param that
+   *   fiber to be zipped
+   * @tparam E1
+   *   error type
+   * @tparam B
+   *   type of the fiber
+   * @return
+   *   `Fiber[E1, B]` combined fiber
    */
   final def *>[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, B] =
     (self zipWith that)((_, b) => b)
@@ -57,22 +61,30 @@ sealed abstract class Fiber[+E, +A] { self =>
   /**
    * Same as `zip` but discards the output of the right hand side.
    *
-   * @param that fiber to be zipped
-   * @tparam E1 error type
-   * @tparam B type of the fiber
-   * @return `Fiber[E1, A]` combined fiber
+   * @param that
+   *   fiber to be zipped
+   * @tparam E1
+   *   error type
+   * @tparam B
+   *   type of the fiber
+   * @return
+   *   `Fiber[E1, A]` combined fiber
    */
   final def <*[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, A] =
     (self zipWith that)((a, _) => a)
 
   /**
-   * Zips this fiber and the specified fiber together, producing a tuple of their
-   * output.
+   * Zips this fiber and the specified fiber together, producing a tuple of
+   * their output.
    *
-   * @param that fiber to be zipped
-   * @tparam E1 error type
-   * @tparam B type of that fiber
-   * @return `Fiber[E1, (A, B)]` combined fiber
+   * @param that
+   *   fiber to be zipped
+   * @tparam E1
+   *   error type
+   * @tparam B
+   *   type of that fiber
+   * @return
+   *   `Fiber[E1, (A, B)]` combined fiber
    */
   final def <*>[E1 >: E, B](that: => Fiber[E1, B])(implicit
     zippable: Zippable[A, B]
@@ -94,9 +106,12 @@ sealed abstract class Fiber[+E, +A] { self =>
   /**
    * Maps the output of this fiber to the specified constant.
    *
-   * @param b constant
-   * @tparam B type of the fiber
-   * @return `Fiber[E, B]` fiber mapped to constant
+   * @param b
+   *   constant
+   * @tparam B
+   *   type of the fiber
+   * @return
+   *   `Fiber[E, B]` fiber mapped to constant
    */
   final def as[B](b: => B): Fiber.Synthetic[E, B] =
     self map (_ => b)
@@ -105,7 +120,8 @@ sealed abstract class Fiber[+E, +A] { self =>
    * Awaits the fiber, which suspends the awaiting fiber until the result of the
    * fiber has been determined.
    *
-   * @return `UIO[Exit[E, A]]`
+   * @return
+   *   `UIO[Exit[E, A]]`
    */
   def await(implicit trace: ZTraceElement): UIO[Exit[E, A]]
 
@@ -122,16 +138,17 @@ sealed abstract class Fiber[+E, +A] { self =>
     }
 
   /**
-   * Gets the value of the fiber ref for this fiber, or the initial value of
-   * the fiber ref, if the fiber is not storing the ref.
+   * Gets the value of the fiber ref for this fiber, or the initial value of the
+   * fiber ref, if the fiber is not storing the ref.
    */
   def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A]
 
   /**
-   * Inherits values from all [[FiberRef]] instances into current fiber.
-   * This will resume immediately.
+   * Inherits values from all [[FiberRef]] instances into current fiber. This
+   * will resume immediately.
    *
-   * @return `UIO[Unit]`
+   * @return
+   *   `UIO[Unit]`
    */
   def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]
 
@@ -140,7 +157,8 @@ sealed abstract class Fiber[+E, +A] { self =>
    * fiber has already exited, the returned effect will resume immediately.
    * Otherwise, the effect will resume when the fiber exits.
    *
-   * @return `UIO[Exit, E, A]]`
+   * @return
+   *   `UIO[Exit, E, A]]`
    */
   final def interrupt(implicit trace: ZTraceElement): UIO[Exit[E, A]] =
     ZIO.fiberId.flatMap(fiberId => self.interruptAs(fiberId))
@@ -150,7 +168,8 @@ sealed abstract class Fiber[+E, +A] { self =>
    * fiber has already exited, the returned effect will resume immediately.
    * Otherwise, the effect will resume when the fiber exits.
    *
-   * @return `UIO[Exit, E, A]]`
+   * @return
+   *   `UIO[Exit, E, A]]`
    */
   def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]]
 
@@ -159,7 +178,8 @@ sealed abstract class Fiber[+E, +A] { self =>
    * interruption will happen in a separate daemon fiber, and the returned
    * effect will always resume immediately without waiting.
    *
-   * @return `UIO[Unit]`
+   * @return
+   *   `UIO[Unit]`
    */
   final def interruptFork(implicit trace: ZTraceElement): UIO[Unit] = interrupt.forkDaemon.unit
 
@@ -167,19 +187,23 @@ sealed abstract class Fiber[+E, +A] { self =>
    * Joins the fiber, which suspends the joining fiber until the result of the
    * fiber has been determined. Attempting to join a fiber that has erred will
    * result in a catchable error. Joining an interrupted fiber will result in an
-   * "inner interruption" of this fiber, unlike interruption triggered by another
-   * fiber, "inner interruption" can be caught and recovered.
+   * "inner interruption" of this fiber, unlike interruption triggered by
+   * another fiber, "inner interruption" can be caught and recovered.
    *
-   * @return `IO[E, A]`
+   * @return
+   *   `IO[E, A]`
    */
   final def join(implicit trace: ZTraceElement): IO[E, A] = await.flatMap(IO.done(_)) <* inheritRefs
 
   /**
    * Maps over the value the Fiber computes.
    *
-   * @param f mapping function
-   * @tparam B result type of f
-   * @return `Fiber[E, B]` mapped fiber
+   * @param f
+   *   mapping function
+   * @tparam B
+   *   result type of f
+   * @return
+   *   `Fiber[E, B]` mapped fiber
    */
   final def map[B](f: A => B): Fiber.Synthetic[E, B] =
     mapZIO(f andThen UIO.succeedNow)
@@ -188,9 +212,12 @@ sealed abstract class Fiber[+E, +A] { self =>
    * Passes the success of this fiber to the specified callback, and continues
    * with the fiber that it returns.
    *
-   * @param f The callback.
-   * @tparam B The success value.
-   * @return `Fiber[E, B]` The continued fiber.
+   * @param f
+   *   The callback.
+   * @tparam B
+   *   The success value.
+   * @return
+   *   `Fiber[E, B]` The continued fiber.
    */
   final def mapFiber[E1 >: E, B](f: A => Fiber[E1, B])(implicit trace: ZTraceElement): UIO[Fiber[E1, B]] =
     self.await.map(_.fold(Fiber.failCause(_), f))
@@ -219,14 +246,18 @@ sealed abstract class Fiber[+E, +A] { self =>
     }
 
   /**
-   * Returns a fiber that prefers `this` fiber, but falls back to the
-   * `that` one when `this` one fails. Interrupting the returned fiber
-   * will interrupt both fibers, sequentially, from left to right.
+   * Returns a fiber that prefers `this` fiber, but falls back to the `that` one
+   * when `this` one fails. Interrupting the returned fiber will interrupt both
+   * fibers, sequentially, from left to right.
    *
-   * @param that fiber to fall back to
-   * @tparam E1 error type
-   * @tparam A1 type of the other fiber
-   * @return `Fiber[E1, A1]`
+   * @param that
+   *   fiber to fall back to
+   * @tparam E1
+   *   error type
+   * @tparam A1
+   *   type of the other fiber
+   * @return
+   *   `Fiber[E1, A1]`
    */
   def orElse[E1, A1 >: A](that: => Fiber[E1, A1])(implicit ev: CanFail[E]): Fiber.Synthetic[E1, A1] =
     new Fiber.Synthetic[E1, A1] {
@@ -258,45 +289,55 @@ sealed abstract class Fiber[+E, +A] { self =>
     }
 
   /**
-   * Returns a fiber that prefers `this` fiber, but falls back to the
-   * `that` one when `this` one fails. Interrupting the returned fiber
-   * will interrupt both fibers, sequentially, from left to right.
+   * Returns a fiber that prefers `this` fiber, but falls back to the `that` one
+   * when `this` one fails. Interrupting the returned fiber will interrupt both
+   * fibers, sequentially, from left to right.
    *
-   * @param that fiber to fall back to
-   * @tparam E1 error type
-   * @tparam B type of the other fiber
-   * @return `Fiber[E1, B]`
+   * @param that
+   *   fiber to fall back to
+   * @tparam E1
+   *   error type
+   * @tparam B
+   *   type of the other fiber
+   * @return
+   *   `Fiber[E1, B]`
    */
   final def orElseEither[E1, B](that: => Fiber[E1, B]): Fiber.Synthetic[E1, Either[A, B]] =
     (self map (Left(_))) orElse (that map (Right(_)))
 
   /**
-   * Tentatively observes the fiber, but returns immediately if it is not already done.
+   * Tentatively observes the fiber, but returns immediately if it is not
+   * already done.
    *
-   * @return `UIO[Option[Exit, E, A]]]`
+   * @return
+   *   `UIO[Option[Exit, E, A]]]`
    */
   def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]]
 
   /**
    * Converts this fiber into a [[scala.concurrent.Future]].
    *
-   * @param ev implicit witness that E is a subtype of Throwable
-   * @return `UIO[Future[A]]`
+   * @param ev
+   *   implicit witness that E is a subtype of Throwable
+   * @return
+   *   `UIO[Future[A]]`
    */
   final def toFuture(implicit ev: E IsSubtypeOfError Throwable, trace: ZTraceElement): UIO[CancelableFuture[A]] =
     self toFutureWith ev
 
   /**
-   * Converts this fiber into a [[scala.concurrent.Future]], translating
-   * any errors to [[java.lang.Throwable]] with the specified conversion function,
+   * Converts this fiber into a [[scala.concurrent.Future]], translating any
+   * errors to [[java.lang.Throwable]] with the specified conversion function,
    * using [[Cause.squashTraceWith]]
    *
-   * @param f function to the error into a Throwable
-   * @return `UIO[Future[A]]`
+   * @param f
+   *   function to the error into a Throwable
+   * @return
+   *   `UIO[Future[A]]`
    */
   final def toFutureWith(f: E => Throwable)(implicit trace: ZTraceElement): UIO[CancelableFuture[A]] =
     UIO.suspendSucceed {
-      val p: concurrent.Promise[A] = scala.concurrent.Promise[A]()
+      val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashTraceWith(f)))
       def success(value: A): UIO[p.type]        = UIO(p.success(value))
@@ -314,9 +355,11 @@ sealed abstract class Fiber[+E, +A] { self =>
     }.uninterruptible
 
   /**
-   * Converts this fiber into a [[zio.ZManaged]]. Fiber is interrupted on release.
+   * Converts this fiber into a [[zio.ZManaged]]. Fiber is interrupted on
+   * release.
    *
-   * @return `ZManaged[Any, Nothing, Fiber[E, A]]`
+   * @return
+   *   `ZManaged[Any, Nothing, Fiber[E, A]]`
    */
   final def toManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Fiber[E, A]] =
     ZManaged.acquireReleaseWith(UIO.succeedNow(self))(_.interrupt)
@@ -324,17 +367,22 @@ sealed abstract class Fiber[+E, +A] { self =>
   /**
    * Maps the output of this fiber to `()`.
    *
-   * @return `Fiber[E, Unit]` fiber mapped to `()`
+   * @return
+   *   `Fiber[E, Unit]` fiber mapped to `()`
    */
   final def unit: Fiber.Synthetic[E, Unit] = as(())
 
   /**
    * Named alias for `<*>`.
    *
-   * @param that fiber to be zipped
-   * @tparam E1 error type
-   * @tparam B type of that fiber
-   * @return `Fiber[E1, (A, B)]` combined fiber
+   * @param that
+   *   fiber to be zipped
+   * @tparam E1
+   *   error type
+   * @tparam B
+   *   type of that fiber
+   * @return
+   *   `Fiber[E1, (A, B)]` combined fiber
    */
   final def zip[E1 >: E, B](that: => Fiber[E1, B])(implicit
     zippable: Zippable[A, B]
@@ -344,10 +392,14 @@ sealed abstract class Fiber[+E, +A] { self =>
   /**
    * Named alias for `<*`.
    *
-   * @param that fiber to be zipped
-   * @tparam E1 error type
-   * @tparam B type of the fiber
-   * @return `Fiber[E1, A]` combined fiber
+   * @param that
+   *   fiber to be zipped
+   * @tparam E1
+   *   error type
+   * @tparam B
+   *   type of the fiber
+   * @return
+   *   `Fiber[E1, A]` combined fiber
    */
   final def zipLeft[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, A] =
     self <* that
@@ -355,25 +407,35 @@ sealed abstract class Fiber[+E, +A] { self =>
   /**
    * Named alias for `*>`.
    *
-   * @param that fiber to be zipped
-   * @tparam E1 error type
-   * @tparam B type of the fiber
-   * @return `Fiber[E1, B]` combined fiber
+   * @param that
+   *   fiber to be zipped
+   * @tparam E1
+   *   error type
+   * @tparam B
+   *   type of the fiber
+   * @return
+   *   `Fiber[E1, B]` combined fiber
    */
   final def zipRight[E1 >: E, B](that: Fiber[E1, B]): Fiber.Synthetic[E1, B] =
     self *> that
 
   /**
-   * Zips this fiber with the specified fiber, combining their results using
-   * the specified combiner function. Both joins and interruptions are performed
-   * in sequential order from left to right.
+   * Zips this fiber with the specified fiber, combining their results using the
+   * specified combiner function. Both joins and interruptions are performed in
+   * sequential order from left to right.
    *
-   * @param that fiber to be zipped
-   * @param f function to combine the results of both fibers
-   * @tparam E1 error type
-   * @tparam B type of that fiber
-   * @tparam C type of the resulting fiber
-   * @return `Fiber[E1, C]` combined fiber
+   * @param that
+   *   fiber to be zipped
+   * @param f
+   *   function to combine the results of both fibers
+   * @tparam E1
+   *   error type
+   * @tparam B
+   *   type of that fiber
+   * @tparam C
+   *   type of the resulting fiber
+   * @return
+   *   `Fiber[E1, C]` combined fiber
    */
   final def zipWith[E1 >: E, B, C](that: => Fiber[E1, B])(f: (A, B) => C): Fiber.Synthetic[E1, C] =
     new Fiber.Synthetic[E1, C] {
@@ -469,10 +531,14 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * A record containing information about a [[Fiber]].
      *
-     * @param id            The fiber's unique identifier
-     * @param interrupters  The set of fibers attempting to interrupt the fiber or its ancestors.
-     * @param executor      The [[Executor]] executing this fiber
-     * @param children      The fiber's forked children.
+     * @param id
+     *   The fiber's unique identifier
+     * @param interrupters
+     *   The set of fibers attempting to interrupt the fiber or its ancestors.
+     * @param executor
+     *   The [[Executor]] executing this fiber
+     * @param children
+     *   The fiber's forked children.
      */
     def apply(
       id0: FiberId,
@@ -505,7 +571,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * {{{
      * "Fiber Name" #432 (16m2s) waiting on fiber #283
-     *    Status: Suspended (interruptible, 12 asyncs, ...)
+     *     Status: Suspended (interruptible, 12 asyncs, ...)
      *     at ...
      *     at ...
      *     at ...
@@ -592,8 +658,10 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * Awaits on all fibers to be completed, successfully or not.
    *
-   * @param fs `Iterable` of fibers to be awaited
-   * @return `UIO[Unit]`
+   * @param fs
+   *   `Iterable` of fibers to be awaited
+   * @return
+   *   `UIO[Unit]`
    */
   def awaitAll(fs: Iterable[Fiber[Any, Any]])(implicit trace: ZTraceElement): UIO[Unit] =
     collectAll(fs).await.unit
@@ -630,10 +698,14 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * A fiber that is done with the specified [[zio.Exit]] value.
    *
-   * @param exit [[zio.Exit]] value
-   * @tparam E error type
-   * @tparam A type of the fiber
-   * @return `Fiber[E, A]`
+   * @param exit
+   *   [[zio.Exit]] value
+   * @tparam E
+   *   error type
+   * @tparam A
+   *   type of the fiber
+   * @return
+   *   `Fiber[E, A]`
    */
   def done[E, A](exit: => Exit[E, A]): Fiber.Synthetic[E, A] =
     new Fiber.Synthetic[E, A] {
@@ -661,9 +733,12 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * A fiber that has already failed with the specified value.
    *
-   * @param e failure value
-   * @tparam E error type
-   * @return `Fiber[E, Nothing]` failed fiber
+   * @param e
+   *   failure value
+   * @tparam E
+   *   error type
+   * @return
+   *   `Fiber[E, Nothing]` failed fiber
    */
   def fail[E](e: E): Fiber.Synthetic[E, Nothing] = done(Exit.fail(e))
 
@@ -676,10 +751,14 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * Lifts an [[zio.IO]] into a `Fiber`.
    *
-   * @param io `IO[E, A]` to turn into a `Fiber`
-   * @tparam E error type
-   * @tparam A type of the fiber
-   * @return `UIO[Fiber[E, A]]`
+   * @param io
+   *   `IO[E, A]` to turn into a `Fiber`
+   * @tparam E
+   *   error type
+   * @tparam A
+   *   type of the fiber
+   * @return
+   *   `UIO[Fiber[E, A]]`
    */
   @deprecated("use fromZIO", "2.0.0")
   def fromEffect[E, A](io: IO[E, A])(implicit trace: ZTraceElement): UIO[Fiber.Synthetic[E, A]] =
@@ -688,9 +767,12 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * Returns a `Fiber` that is backed by the specified `Future`.
    *
-   * @param thunk `Future[A]` backing the `Fiber`
-   * @tparam A type of the `Fiber`
-   * @return `Fiber[Throwable, A]`
+   * @param thunk
+   *   `Future[A]` backing the `Fiber`
+   * @tparam A
+   *   type of the `Fiber`
+   * @return
+   *   `Fiber[Throwable, A]`
    */
   def fromFuture[A](thunk: => Future[A])(implicit trace: ZTraceElement): Fiber.Synthetic[Throwable, A] =
     new Fiber.Synthetic[Throwable, A] {
@@ -716,10 +798,14 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * Lifts an [[zio.IO]] into a `Fiber`.
    *
-   * @param io `IO[E, A]` to turn into a `Fiber`
-   * @tparam E error type
-   * @tparam A type of the fiber
-   * @return `UIO[Fiber[E, A]]`
+   * @param io
+   *   `IO[E, A]` to turn into a `Fiber`
+   * @tparam E
+   *   error type
+   * @tparam A
+   *   type of the fiber
+   * @return
+   *   `UIO[Fiber[E, A]]`
    */
   def fromZIO[E, A](io: IO[E, A])(implicit trace: ZTraceElement): UIO[Fiber.Synthetic[E, A]] =
     io.exit.map(done(_))
@@ -734,18 +820,24 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * Interrupts all fibers, awaiting their interruption.
    *
-   * @param fs `Iterable` of fibers to be interrupted
-   * @return `UIO[Unit]`
+   * @param fs
+   *   `Iterable` of fibers to be interrupted
+   * @return
+   *   `UIO[Unit]`
    */
   def interruptAll(fs: Iterable[Fiber[Any, Any]])(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.fiberId.flatMap(interruptAllAs(_)(fs))
 
   /**
-   * Interrupts all fibers as by the specified fiber, awaiting their interruption.
+   * Interrupts all fibers as by the specified fiber, awaiting their
+   * interruption.
    *
-   * @param fiberId The identity of the fiber to interrupt as.
-   * @param fs `Iterable` of fibers to be interrupted
-   * @return `UIO[Unit]`
+   * @param fiberId
+   *   The identity of the fiber to interrupt as.
+   * @param fs
+   *   `Iterable` of fibers to be interrupted
+   * @return
+   *   `UIO[Unit]`
    */
   def interruptAllAs(fiberId: FiberId)(fs: Iterable[Fiber[Any, Any]])(implicit trace: ZTraceElement): UIO[Unit] =
     fs.foldLeft(IO.unit)((io, f) => io <* f.interruptAs(fiberId))
@@ -753,18 +845,21 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * A fiber that is already interrupted.
    *
-   * @return `Fiber[Nothing, Nothing]` interrupted fiber
+   * @return
+   *   `Fiber[Nothing, Nothing]` interrupted fiber
    */
   def interruptAs(id: FiberId): Fiber.Synthetic[Nothing, Nothing] =
     done(Exit.interrupt(id))
 
   /**
-   * Joins all fibers, awaiting their _successful_ completion.
-   * Attempting to join a fiber that has erred will result in
-   * a catchable error, _if_ that error does not result from interruption.
+   * Joins all fibers, awaiting their _successful_ completion. Attempting to
+   * join a fiber that has erred will result in a catchable error, _if_ that
+   * error does not result from interruption.
    *
-   * @param fs `Iterable` of fibers to be joined
-   * @return `UIO[Unit]`
+   * @param fs
+   *   `Iterable` of fibers to be joined
+   * @return
+   *   `UIO[Unit]`
    */
   def joinAll[E](fs: Iterable[Fiber[E, Any]])(implicit trace: ZTraceElement): IO[E, Unit] =
     collectAll(fs).join.unit
@@ -793,10 +888,14 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * Returns a fiber that has already succeeded with the specified value.
    *
-   * @param a success value
-   * @tparam E error type
-   * @tparam A type of the fiber
-   * @return `Fiber[E, A]` succeeded fiber
+   * @param a
+   *   success value
+   * @tparam E
+   *   error type
+   * @tparam A
+   *   type of the fiber
+   * @return
+   *   `Fiber[E, A]` succeeded fiber
    */
   def succeed[A](a: A): Fiber.Synthetic[Nothing, A] =
     done(Exit.succeed(a))

@@ -36,16 +36,16 @@ abstract class Supervisor[+A] { self =>
     new Supervisor.ProxySupervisor(trace => value(trace).map(f)(trace), self)
 
   /**
-   * Returns an effect that succeeds with the value produced by this
-   * supervisor. This value may change over time, reflecting what the
-   * supervisor produces as it supervises fibers.
+   * Returns an effect that succeeds with the value produced by this supervisor.
+   * This value may change over time, reflecting what the supervisor produces as
+   * it supervises fibers.
    */
   def value(implicit trace: ZTraceElement): UIO[A]
 
   /**
-   * Returns a new supervisor that performs the function of this supervisor,
-   * and the function of the specified supervisor, producing a tuple of the
-   * outputs produced by both supervisors.
+   * Returns a new supervisor that performs the function of this supervisor, and
+   * the function of the specified supervisor, producing a tuple of the outputs
+   * produced by both supervisors.
    */
   final def ++[B](that0: Supervisor[B]): Supervisor[(A, B)] =
     new Supervisor[(A, B)] {
@@ -104,8 +104,9 @@ object Supervisor {
   /**
    * Creates a new supervisor that tracks children in a set.
    *
-   * @param weak Whether or not to track the children in a weak set, if
-   *             possible (platform-dependent).
+   * @param weak
+   *   Whether or not to track the children in a weak set, if possible
+   *   (platform-dependent).
    */
   def track(weak: Boolean)(implicit trace: ZTraceElement): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] =
     ZIO.succeed(unsafeTrack(weak))

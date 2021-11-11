@@ -20,9 +20,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * `ZState[S]` models a value of type `S` that can be read from and written to
- * during the execution of an effect. The idiomatic way to work with `ZState`
- * is as part of the environment using operators defined on `ZIO`. For
- * example:
+ * during the execution of an effect. The idiomatic way to work with `ZState` is
+ * as part of the environment using operators defined on `ZIO`. For example:
  *
  * {{{
  * final case class MyState(counter: Int)
@@ -34,12 +33,12 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * }}}
  *
  * Because `ZState` is typically used as part of the environment, it is
- * recommended to define your own state type `S` such as `MyState` above
- * rather than using a type such as `Int` to avoid the risk of ambiguity.
+ * recommended to define your own state type `S` such as `MyState` above rather
+ * than using a type such as `Int` to avoid the risk of ambiguity.
  *
  * To run an effect that depends on some state, create the initial state with
- * the `make` constructor and then use `toLayer` to convert it into a layer
- * that you can provide along with your application's other dependencies.
+ * the `make` constructor and then use `toLayer` to convert it into a layer that
+ * you can provide along with your application's other dependencies.
  */
 sealed trait ZState[S] {
 

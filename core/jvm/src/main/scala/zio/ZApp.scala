@@ -47,7 +47,8 @@ trait ZApp[R] extends ZBootstrapRuntime[R] {
 
   /**
    * The main function of the application, which will be passed the command-line
-   * arguments to the program and has to return an `IO` with the errors fully handled.
+   * arguments to the program and has to return an `IO` with the errors fully
+   * handled.
    */
   def run(args: List[String]): URIO[R, ExitCode]
 

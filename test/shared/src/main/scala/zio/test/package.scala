@@ -35,19 +35,19 @@ import scala.util.Try
  * combinators.
  *
  * {{{
- *  import zio.test._
- *  import zio.Clock.nanoTime
- *  import Assertion.isGreaterThan
+ *   import zio.test._
+ *   import zio.Clock.nanoTime
+ *   import Assertion.isGreaterThan
  *
- *  object MyTest extends DefaultRunnableSpec {
- *    def spec = suite("clock")(
- *      test("time is non-zero") {
- *        for {
- *          time <- Live.live(nanoTime)
- *        } yield assertTrue(time >= 0)
- *      }
- *    )
- *  }
+ *   object MyTest extends DefaultRunnableSpec {
+ *     def spec = suite("clock")(
+ *       test("time is non-zero") {
+ *         for {
+ *           time <- Live.live(nanoTime)
+ *         } yield assertTrue(time >= 0)
+ *       }
+ *     )
+ *   }
  * }}}
  */
 package object test extends CompileVariants {
@@ -104,7 +104,7 @@ package object test extends CompileVariants {
    * while ensuring that the effect itself uses the test environment.
    *
    * {{{
-   *  withLive(test)(_.timeout(duration))
+   *   withLive(test)(_.timeout(duration))
    * }}}
    */
   def withLive[R, E, E1, A, B](
@@ -113,7 +113,8 @@ package object test extends CompileVariants {
     Live.withLive(zio)(f)
 
   /**
-   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
+   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in
+   * its environment.
    */
   type TestAspectAtLeastR[R] =
     TestAspect[Nothing, R, Nothing, Any] {
@@ -122,8 +123,8 @@ package object test extends CompileVariants {
     }
 
   /**
-   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
-   * having no requirements on error or environment.
+   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic, having
+   * no requirements on error or environment.
    */
   type TestAspectPoly =
     TestAspect[Nothing, Any, Nothing, Any] {
@@ -135,7 +136,7 @@ package object test extends CompileVariants {
 
   object TestResult {
     implicit def trace2TestResult(assert: Assert): TestResult = {
-      val trace = Arrow.run(assert.arrow, Right(()))
+      val trace = TestArrow.run(assert.arrow, Right(()))
       if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
       else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
     }
@@ -156,7 +157,8 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.Restorable Restorable]]
+   * A `ZRTestEnv` is an alias for all ZIO provided
+   * [[zio.test.Restorable Restorable]]
    * [[zio.test.TestEnvironment TestEnvironment]] objects
    */
   type ZTestEnv = Has[TestClock] with Has[TestConsole] with Has[TestRandom] with Has[TestSystem]
@@ -209,8 +211,8 @@ package object test extends CompileVariants {
   type ZSpec[-R, +E] = Spec[R, TestFailure[E], TestSuccess]
 
   /**
-   * An `Annotated[A]` contains a value of type `A` along with zero or more
-   * test annotations.
+   * An `Annotated[A]` contains a value of type `A` along with zero or more test
+   * annotations.
    */
   type Annotated[+A] = (A, TestAnnotationMap)
 
@@ -278,8 +280,8 @@ package object test extends CompileVariants {
     } yield traverseResult(value, assertResult, assertion, None)
 
   /**
-   * Checks the test passes for "sufficient" numbers of samples from the
-   * given random variable.
+   * Checks the test passes for "sufficient" numbers of samples from the given
+   * random variable.
    */
   def check[R <: Has[TestConfig], A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -584,9 +586,9 @@ package object test extends CompileVariants {
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
-   * Checks in parallel the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
+   * Checks in parallel the effectual test passes for all values from the given
+   * random variable. This is useful for deterministic `Gen` that
+   * comprehensively explore all possibilities in a given domain.
    */
   @deprecated("use checkPar", "2.0.0")
   def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
@@ -666,9 +668,9 @@ package object test extends CompileVariants {
     checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(test.tupled)
 
   /**
-   * Checks in parallel the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
+   * Checks in parallel the effectual test passes for all values from the given
+   * random variable. This is useful for deterministic `Gen` that
+   * comprehensively explore all possibilities in a given domain.
    */
   def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, In](rv: Gen[R, A], parallelism: Int)(
     test: A => In
@@ -984,7 +986,7 @@ package object test extends CompileVariants {
       .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
       .flatMap(_.shrinkSearch(_.fold(_ => true, _.isFailure)).take(maxShrinks.toLong + 1))
-      .run(ZSink.collectAll[Either[E, TestResult]]) // Collect all the shrunken values
+      .run(ZSink.collectAll[Nothing, Either[E, TestResult]]) // Collect all the shrunken values
       .flatMap { shrinks =>
         // Get the "last" failure, the smallest according to the shrinker:
         shrinks
@@ -1065,7 +1067,7 @@ package object test extends CompileVariants {
         ZIO.uninterruptibleMask { restore =>
           for {
             releaseMap <- ZManaged.ReleaseMap.make
-            pull       <- restore(f(a).process.zio.provideSome[R1]((_, releaseMap)).map(_._2))
+            pull       <- restore(f(a).toPull.zio.provideSome[R1]((_, releaseMap)).map(_._2))
             finalizer  <- innerFinalizers.add(releaseMap.releaseAll(_, ExecutionStrategy.Sequential))
           } yield (pull, finalizer)
         }
@@ -1179,10 +1181,10 @@ package object test extends CompileVariants {
       }
     }
 
-    ZStream {
+    ZStream.fromPull {
       for {
         outerDone          <- Ref.make(false).toManaged
-        outerStream        <- stream.process
+        outerStream        <- stream.toPull
         currentOuterChunk  <- Ref.make[(Chunk[Option[A]], Int)]((Chunk.empty, 0)).toManaged
         currentInnerStream <- Ref.make[Option[PullInner]](None).toManaged
         currentStreams     <- Ref.make[ScalaQueue[State]](ScalaQueue(PullOuter)).toManaged
@@ -1199,4 +1201,141 @@ package object test extends CompileVariants {
     right: ZStream[R, Nothing, Option[A]]
   )(implicit trace: ZTraceElement): ZStream[R, Nothing, Option[A]] =
     flatMapStream(ZStream(Some(left), Some(right)))(identity)
+
+  implicit final class TestLensOptionOps[A](private val self: TestLens[Option[A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[scala.Option]] to its `Some` value `A`, otherwise fails
+     * if it is a `None`.
+     */
+    def some: TestLens[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensEitherOps[E, A](private val self: TestLens[Either[E, A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[scala.Either]] to its [[scala.Left]] value `E`, otherwise
+     * fails if it is a [[scala.Right]].
+     */
+    def left: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[scala.Either]] to its [[scala.Right]] value `A`,
+     * otherwise fails if it is a [[scala.Left]].
+     */
+    def right: TestLens[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensExitOps[E, A](private val self: TestLens[Exit[E, A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`,
+     * otherwise fails.
+     */
+    def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to its failure type (`E`) if it is a `fail`,
+     * otherwise fails.
+     */
+    def failure: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to its success type (`A`) if it is a `succeed`,
+     * otherwise fails.
+     */
+    def success: TestLens[A] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to its underlying [[Cause]] if it has one,
+     * otherwise fails.
+     */
+    def cause: TestLens[Cause[E]] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to a boolean value representing whether or not it
+     * was interrupted.
+     */
+    def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensCauseOps[E](private val self: TestLens[Cause[E]]) extends AnyVal {
+
+    /**
+     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`,
+     * otherwise fails.
+     */
+    def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a [[Cause]] to its failure type (`E`) if it is a `fail`,
+     * otherwise fails.
+     */
+    def failure: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a [[Cause]] to a boolean value representing whether or not it
+     * was interrupted.
+     */
+    def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensAnyOps[A](private val self: TestLens[A]) extends AnyVal {
+
+    /**
+     * Always returns true as long the chain of preceding transformations has
+     * succeeded.
+     *
+     * {{{
+     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
+     *   assertTrue(option.is(_.right.some.anything)) // returns true
+     *   assertTrue(option.is(_.left.anything)) // will fail because of `.left`.
+     * }}}
+     */
+    def anything: TestLens[Boolean] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a value of some type into the given `Subtype` if possible,
+     * otherwise fails.
+     *
+     * {{{
+     *   sealed trait CustomError
+     *   case class Explosion(blastRadius: Int) extends CustomError
+     *   case class Melting(degrees: Double) extends CustomError
+     *   case class Fulminating(wow: Boolean) extends CustomError
+     *
+     *   val error: CustomError = Melting(100)
+     *   assertTrue(option.is(_.subtype[Melting]).degrees > 10) // succeeds
+     *   assertTrue(option.is(_.subtype[Explosion]).blastRadius == 12) // fails
+     * }}}
+     */
+    def subtype[Subtype <: A]: TestLens[Subtype] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a value with the given [[CustomAssertion]]
+     */
+    def custom[B](customAssertion: CustomAssertion[A, B]): TestLens[B] = {
+      val _ = customAssertion
+      throw SmartAssertionExtensionError()
+    }
+  }
+
+  implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
+
+    /**
+     * This extension method can only be called inside of the `assertTrue`
+     * method. It will transform the value using the given [[TestLens]].
+     *
+     * {{{
+     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
+     *   assertTrue(option.is(_.right.some) == "Cool") // returns true
+     *   assertTrue(option.is(_.left) < 100) // will fail because of `.left`.
+     * }}}
+     */
+    def is[B](f: TestLens[A] => TestLens[B]): B = {
+      val _ = f
+      throw SmartAssertionExtensionError()
+    }
+  }
+
 }

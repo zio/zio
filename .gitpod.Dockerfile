@@ -1,12 +1,12 @@
 FROM gitpod/workspace-full
-USER gitpod
-RUN brew install scala coursier/formulas/coursier sbt scalaenv ammonite-repl
-RUN sudo env "PATH=$PATH" coursier bootstrap org.scalameta:scalafmt-cli_2.12:2.4.2 \
-  -r sonatype:snapshots \
-  -o /usr/local/bin/scalafmt --standalone --main org.scalafmt.cli.Cli
-RUN bash -cl "set -eux \
-    version=0.9.0 \
-    coursier fetch \
-        org.scalameta:metals_2.12:$version \
-        org.scalameta:mtags_2.13.3:$version \
-        org.scalameta:mtags_2.12.12:$version"
+
+RUN curl -fLo cs https://git.io/coursier-cli-"$(uname | tr LD ld)" && \
+    chmod +x cs && \
+    ./cs install cs && \
+    echo 'export PATH="$PATH:/home/gitpod/.local/share/coursier/bin"' >> ~/.zshrc && \
+    echo 'export PATH="$PATH:/home/gitpod/.local/share/coursier/bin"' >> ~/.bashrc && \
+    ./cs install scala sbt scalafix scalafmt ammonite && \
+    ./cs install bloop --only-prebuilt=true && \
+    rm cs
+
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended

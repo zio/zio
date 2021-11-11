@@ -33,9 +33,9 @@ import scala.{
 
 /**
  * A `ChunkBuilder[A]` can build a `Chunk[A]` given elements of type `A`.
- * `ChunkBuilder` is a mutable data structure that is implemented to
- * efficiently build chunks of unboxed primitives and for compatibility with
- * the Scala collection library.
+ * `ChunkBuilder` is a mutable data structure that is implemented to efficiently
+ * build chunks of unboxed primitives and for compatibility with the Scala
+ * collection library.
  */
 sealed abstract class ChunkBuilder[A] extends Builder[A, Chunk[A]]
 
@@ -252,8 +252,7 @@ object ChunkBuilder {
   }
 
   /**
-   * A `ChunkBuilder` specialized for building chunks of unboxed `Float`
-   * values.
+   * A `ChunkBuilder` specialized for building chunks of unboxed `Float` values.
    */
   final class Float extends ChunkBuilder[SFloat] { self =>
     private val arrayBuilder: ArrayBuilder[SFloat] = {
@@ -343,8 +342,7 @@ object ChunkBuilder {
   }
 
   /**
-   * A `ChunkBuilder` specialized for building chunks of unboxed `Short`
-   * values.
+   * A `ChunkBuilder` specialized for building chunks of unboxed `Short` values.
    */
   final class Short extends ChunkBuilder[SShort] { self =>
     private val arrayBuilder: ArrayBuilder[SShort] = {
