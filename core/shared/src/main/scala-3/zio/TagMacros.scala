@@ -23,7 +23,9 @@ class Macros(val ctx: Quotes) {
         case TypeRef(parent, name)    => '{ TypeRef(${ Expr(parent) }, ${ Expr(name) }) }
         case TermRef(parent, name)    => '{ TermRef(${ Expr(parent) }, ${ Expr(name) }) }
         case NoPrefix                 => '{ NoPrefix }
-	case Recursive(tpe)           => '{ Recursive(${ Expr(tpe) }) }
+        case Recursive(tpe)           => '{ Recursive(${ Expr(tpe) }) }
+        case NothingType => '{ NothingType }
+        case AnyType => '{ AnyType }
       }
       }
     }
@@ -39,6 +41,9 @@ class Macros(val ctx: Quotes) {
     }
  }
 
+ val nothingTypeRepr = TypeRepr.of[Nothing]
+ val anyTypeRepr = TypeRepr.of[Any]
+
   def makeTag(typeRepr0: TypeRepr)(using seen: Set[TypeRepr] = Set.empty): LightTypeTag = {
     val typeRepr = typeRepr0.widen.dealias
     given Set[TypeRepr] = seen + typeRepr
@@ -48,6 +53,8 @@ class Macros(val ctx: Quotes) {
     }
 
     typeRepr match {
+      case `nothingTypeRepr` => LightTypeTag.NothingType
+      case `anyTypeRepr` => LightTypeTag.AnyType
       case AppliedType(lhs, args) => LightTypeTag.Apply(makeTag(lhs), args.map(makeTag))
       case ThisType(nested)       => makeTag(nested)
       case NoPrefix()             => LightTypeTag.NoPrefix

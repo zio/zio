@@ -1,14 +1,20 @@
 package zio
 
 enum LightTypeTag {
-
-  def <:<(that: LightTypeTag): Boolean = this == that
+  self =>
+ 
+  // This is, obviously, a hack. However, it helps PolyMockSpec pass with flying colors.
+  def <:<(that: LightTypeTag): Boolean = {
+    if (self == NothingType) true
+    else if (that == AnyType) true
+    else this == that
+  }
 
   def getHasTypes: List[LightTypeTag] = 
     flattenIntersection.map { tpe =>
       tpe match {
         case Apply(_, List(tpe)) => tpe
-	case other => other
+        case other => other
       }
     }
   
@@ -41,7 +47,9 @@ enum LightTypeTag {
       case Bounds(lower, upper)     =>
         s"_ <: ${lower.render} >: ${upper.render}"
       case Recursive(name) =>
-	s"Rec($name)"
+        s"Rec($name)"
+      case NothingType => "Nothing"
+      case AnyType => "Any"
     }
 
   case Apply(tag: LightTypeTag, args: List[LightTypeTag])
@@ -61,4 +69,8 @@ enum LightTypeTag {
   case Intersection(left: LightTypeTag, right: LightTypeTag)
 
   case Bounds(lower: LightTypeTag, upper: LightTypeTag)
+
+  case NothingType 
+
+  case AnyType 
 }
