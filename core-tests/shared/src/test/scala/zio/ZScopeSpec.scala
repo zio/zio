@@ -16,7 +16,7 @@ object ZScopeSpec extends ZIOBaseSpec {
       } yield assert(value)(isTrue) && assert(actual)(equalTo(expected))
     }
 
-  def spec: ZSpec[Environment, Failure] = suite("ZScopeSpec")(
+  def spec = suite("ZScopeSpec")(
     test("make returns an empty and open scope") {
       for {
         open  <- ZScope.make[Unit]

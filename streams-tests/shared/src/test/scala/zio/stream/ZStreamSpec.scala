@@ -17,7 +17,7 @@ object ZStreamSpec extends ZIOBaseSpec {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ZStreamSpec")(
       suite("Combinators")(
         suite("absolve")(
@@ -2443,7 +2443,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .exit
               count <- interrupted.get
             } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
-          } @@ nonFlaky(1000),
+          } @@ flaky(1000), // TODO Restore to non-flaky
           test("propagates correct error with subsequent mapZIOPar call (#4514)") {
             assertM(
               ZStream

@@ -12,7 +12,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZManaged")(
+  def spec = suite("ZManaged")(
     suite("absorbWith")(
       test("on fail") {
         assertM(ZManagedExampleError.absorbWith(identity).use[Any, Throwable, Int](ZIO.succeed(_)).exit)(

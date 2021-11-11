@@ -5,7 +5,7 @@ import zio.test._
 
 object RuntimeConfigSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("RuntimeConfigSpec")(
+  def spec = suite("RuntimeConfigSpec")(
     suite("RuntimeConfigLive fatal:")(
       test("RuntimeConfig.fatal should identify a nonFatal exception") {
         val nonFatal = new Exception

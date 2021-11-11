@@ -4,7 +4,7 @@ import zio.test._
 import zio.test.TestAspect.nonFlaky
 
 object ZPoolSpec extends ZIOBaseSpec {
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ZPoolSpec") {
       test("preallocates pool items") {
         for {

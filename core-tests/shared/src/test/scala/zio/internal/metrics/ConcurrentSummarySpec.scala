@@ -1,6 +1,5 @@
 package zio.internal.metrics
 
-import zio.ZIOBaseSpec
 import zio._
 import zio.test._
 

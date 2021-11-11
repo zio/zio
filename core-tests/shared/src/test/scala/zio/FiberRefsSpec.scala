@@ -4,7 +4,7 @@ import zio.test._
 
 object FiberRefsSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("FiberRefSpec")(
+  def spec = suite("FiberRefSpec")(
     test("propagate FiberRef values across fiber boundaries") {
       for {
         fiberRef <- FiberRef.make(false)

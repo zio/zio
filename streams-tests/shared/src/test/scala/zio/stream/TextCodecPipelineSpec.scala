@@ -152,7 +152,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
     if (Charset.isSupported(charset)) jvmOnly
     else ignore
 
-  override def spec: ZSpec[Environment, Failure] =
+  override def spec =
     suite("TextCodecPipelineSpec")(
       suite("Text Decoders")(
         test("iso_8859_1Decode") {

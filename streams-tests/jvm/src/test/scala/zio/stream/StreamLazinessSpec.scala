@@ -11,7 +11,7 @@ object StreamLazinessSpec extends ZIOBaseSpec {
       assertCompletes
     }
 
-  def spec: ZSpec[Environment, Failure] = suite("StreamLazinessSpec")(
+  def spec = suite("StreamLazinessSpec")(
     suite("ZSink")(
       test("die")(assertLazy(ZSink.die)),
       test("fail")(assertLazy(ZSink.fail)),

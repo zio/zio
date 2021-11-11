@@ -18,7 +18,7 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
   lazy val genNonEmptyChunkFunction: Gen[Has[Random] with Has[Sized], Any => NonEmptyChunk[Int]] =
     Gen.function(genNonEmptyChunk)
 
-  def spec: ZSpec[Environment, Failure] = suite("NonEmptyChunkSpec")(
+  def spec = suite("NonEmptyChunkSpec")(
     test("+") {
       check(genNonEmptyChunk, genInt)((as, a) => assert((as :+ a).toChunk)(equalTo(as.toChunk :+ a)))
     },

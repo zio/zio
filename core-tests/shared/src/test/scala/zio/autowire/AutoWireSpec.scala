@@ -11,7 +11,7 @@ object AutoWireSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("AutoWireSpec")(
       suite("ZIO")(
         suite("`zio.inject`")(

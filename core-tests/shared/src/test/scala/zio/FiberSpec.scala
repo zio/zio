@@ -9,7 +9,7 @@ object FiberSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("FiberSpec")(
       suite("Create a new Fiber and")(test("lift it into Managed") {
         for {

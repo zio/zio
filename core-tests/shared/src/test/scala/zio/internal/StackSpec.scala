@@ -7,7 +7,7 @@ import zio.{Has, Random, ZIOBaseSpec}
 
 object StackSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("StackSpec")(
+  def spec = suite("StackSpec")(
     test("Size tracking") {
       checkAll(gen)(list => assert(Stack.fromIterable(list).size)(equalTo(list.length)))
     },

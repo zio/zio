@@ -8,7 +8,7 @@ object TArraySpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("TArraySpec")(
+  def spec = suite("TArraySpec")(
     suite("apply")(
       test("happy-path") {
         val res = for {

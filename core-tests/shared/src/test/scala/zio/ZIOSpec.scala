@@ -14,7 +14,7 @@ object ZIOSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
+  def spec = suite("ZIOSpec")(
     suite("heap")(
       test("unit.forever is safe") {
         for {
@@ -4056,4 +4056,5 @@ object ZIOSpec extends ZIOBaseSpec {
     trait Service
     val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
   }
+
 }

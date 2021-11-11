@@ -6,7 +6,7 @@ import zio.test._
 import zio.{Chunk, Has, IO, Random, ZIO, ZIOBaseSpec}
 
 object ZChannelSimulatedChecks extends ZIOBaseSpec {
-  override def spec: ZSpec[Environment, Failure] =
+  override def spec =
     suite("ZChannel simulated checks")(
       test("done channel")(
         check(gen) { sim =>

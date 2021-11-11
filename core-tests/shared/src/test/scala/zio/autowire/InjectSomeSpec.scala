@@ -1,6 +1,6 @@
 package zio.autowire
 
-import zio._
+import zio.{test => _, _}
 import zio.test._
 
 import java.io.IOException

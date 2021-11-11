@@ -10,7 +10,7 @@ object ZSinkSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = {
+  def spec = {
     suite("ZSinkSpec")(
       suite("Constructors")(
         suite("collectAllN")(

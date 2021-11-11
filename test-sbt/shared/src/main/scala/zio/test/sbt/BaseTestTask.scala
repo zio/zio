@@ -41,26 +41,20 @@ abstract class BaseTestTask(
         ZIOAppArgs(Chunk.empty)
       )
 
-    val zEnvLayerThatIsNotBeingRecognizedByScala3 // Only here to make types more explicit
-      : Layer[Nothing, zio.Has[zio.Clock] with zio.Has[zio.Console] with zio.Has[zio.System] with zio.Has[zio.Random]] =
-      zio.ZEnv.live
-
     val filledTestLayer: Layer[Nothing, TestEnvironment] =
-      zEnvLayerThatIsNotBeingRecognizedByScala3 >>> TestEnvironment.live
+      zio.ZEnv.live >>> TestEnvironment.live
 
     val layer: Layer[Error, spec.Environment] =
       (argsLayer +!+ filledTestLayer) >>> spec.layer.mapError(e => new Error(e.toString))
 
-    val fullLayer: Layer[Error, spec.Environment with Has[ZIOAppArgs] with TestEnvironment with zio.Has[
-      zio.Clock
-    ] with zio.Has[zio.Console] with zio.Has[zio.System] with zio.Has[zio.Random]] =
-      layer +!+ argsLayer +!+ filledTestLayer +!+ zEnvLayerThatIsNotBeingRecognizedByScala3
+    val fullLayer: Layer[Error, spec.Environment with Has[ZIOAppArgs] with TestEnvironment with zio.ZEnv] =
+      layer +!+ argsLayer +!+ filledTestLayer
 
     for {
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args)
                 .provideLayer(
-                  zEnvLayerThatIsNotBeingRecognizedByScala3 >>> fullLayer
+                  fullLayer
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))

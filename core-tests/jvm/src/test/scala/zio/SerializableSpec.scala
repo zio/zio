@@ -9,7 +9,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, 
 
 object SerializableSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("SerializableSpec")(
+  def spec = suite("SerializableSpec")(
     test("Semaphore is serializable") {
       val n = 20L
       for {

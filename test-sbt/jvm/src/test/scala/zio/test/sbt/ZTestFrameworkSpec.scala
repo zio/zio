@@ -1,6 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.test.Assertion.equalTo
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
 import zio.{Has, ZIO, ZLayer, ZTraceElement, durationInt}
@@ -123,14 +124,35 @@ object ZTestFrameworkSpec {
     ZLayer.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
   }
 
+  val randomFailure =
+    zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
+
+  def numberedTest(specIdx: Int, suiteIdx: Int, testIdx: Int) =
+    zio.test.test(s"spec $specIdx suite $suiteIdx test $testIdx") {
+      assertCompletes
+//      randomFailure
+    }
+
   lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
   object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Has[Int]] {
     override def layer = sharedLayer
 
+    /*
+      TODO
+        - Create some big entities in each test, to highlight memory usage
+        - Wrap BEGIN/END messages around specs, to see if they're overlapping
+        - Check how large just the test reports are
+            Some of these classes have thousands of lines of tests
+     */
+    val numberOfSuites = 1
+    val numberOfTests  = 1
     def spec =
-      zio.test.test("test completes with shared layer 1") {
-        assertCompletes
-      }
+      suite("basic suite")(
+        numberedTest(specIdx = 1, suiteIdx = 1, 1),
+        numberedTest(specIdx = 1, suiteIdx = 1, 2),
+        numberedTest(specIdx = 1, suiteIdx = 1, 3),
+        numberedTest(specIdx = 1, suiteIdx = 1, 4)
+      ) @@ TestAspect.parallel
   }
 
   lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
@@ -145,7 +167,9 @@ object ZTestFrameworkSpec {
 
   def testSharedLayers(): Unit = {
     val reported = ArrayBuffer[Event]()
-    loadAndExecuteAll(Seq(spec1UsingSharedLayer, spec2UsingSharedLayer), reported.append(_))
+
+//    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedLayer), reported.append(_))
+    loadAndExecuteAll(Seq.fill(2)(spec1UsingSharedLayer), reported.append(_))
 
     assert(counter.get() == 1)
   }
