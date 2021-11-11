@@ -1,6 +1,10 @@
 package zio.test
 
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
+import zio.test.mock.Expectation._
+import zio.test.mock.internal.InvalidCall._
+import zio.test.mock.internal.MockException._
+import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.render.TestRenderer
 import zio.{Cause, Clock, Has, Layer, Promise, ZIO, ZTraceElement}
 
@@ -156,7 +160,6 @@ object ReportingTestUtils {
 
   def suite1(implicit trace: ZTraceElement): Spec[Any, TestFailure[Nothing], TestSuccess] =
     suite("Suite1")(test1, test2)
-
   def suite1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedSuccess("Suite1"),
     withOffset(2)(test1Expected),
@@ -165,7 +168,6 @@ object ReportingTestUtils {
 
   def suite2(implicit trace: ZTraceElement): Spec[Any, TestFailure[Nothing], TestSuccess] =
     suite("Suite2")(test1, test2, test3)
-
   def suite2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedFailure("Suite2"),
     withOffset(2)(test1Expected),
@@ -174,7 +176,6 @@ object ReportingTestUtils {
 
   def suite3(implicit trace: ZTraceElement): Spec[Any, TestFailure[Nothing], TestSuccess] =
     suite("Suite3")(suite1, suite2, test3)
-
   def suite3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(expectedFailure("Suite3")) ++
     suite1Expected.map(withOffset(2)) ++
     suite2Expected.map(withOffset(2)) ++
@@ -183,11 +184,89 @@ object ReportingTestUtils {
 
   def suite4(implicit trace: ZTraceElement): Spec[Any, TestFailure[Nothing], TestSuccess] =
     suite("Suite4")(suite1, suite("Empty")(), test3)
-
   def suite4Expected(implicit trace: ZTraceElement): Vector[String] = Vector(expectedFailure("Suite4")) ++
     suite1Expected.map(withOffset(2)) ++
     Vector(withOffset(2)(expectedIgnored("Empty"))) ++
     test3Expected.map(withOffset(2))
+
+  def mock1(implicit trace: ZTraceElement): ZSpec[Any, Nothing] = test("Invalid call") {
+    throw InvalidCallException(
+      List(
+        InvalidCapability(PureModuleMock.SingleParam, PureModuleMock.ParameterizedCommand, equalTo(1)),
+        InvalidArguments(PureModuleMock.ParameterizedCommand, 2, equalTo(1))
+      )
+    )
+  }
+
+  def mock1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+    expectedFailure("Invalid call"),
+    withOffset(2)(s"${red("- could not find a matching expectation")}\n"),
+    withOffset(4)(
+      s"${red("- zio.test.mock.module.PureModuleMock.ParameterizedCommand called with invalid arguments")}\n"
+    ),
+    withOffset(6)(s"${blue("2")} did not satisfy ${cyan("equalTo(1)")}\n"),
+    withOffset(6)(assertSourceLocation() + "\n"),
+    withOffset(4)("\n"),
+    withOffset(4)(s"${red("- invalid call to zio.test.mock.module.PureModuleMock.SingleParam")}\n"),
+    withOffset(6)(
+      s"expected zio.test.mock.module.PureModuleMock.ParameterizedCommand with arguments ${cyan("equalTo(1)")}\n"
+    )
+  )
+
+  def mock2(implicit trace: ZTraceElement): ZSpec[Any, Nothing] = test("Unsatisfied expectations") {
+    throw UnsatisfiedExpectationsException(
+      PureModuleMock.SingleParam(equalTo(2), value("foo")) ++
+        PureModuleMock.SingleParam(equalTo(3), value("bar"))
+    )
+  }
+
+  def mock2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+    expectedFailure("Unsatisfied expectations"),
+    withOffset(2)(s"${red("- unsatisfied expectations")}\n"),
+    withOffset(4)(s"in sequential order\n"),
+    withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(2)")}\n"""),
+    withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(3)")}\n""")
+  )
+
+  def mock3(implicit trace: ZTraceElement): ZSpec[Any, Nothing] = test("Extra calls") {
+    throw UnexpectedCallException(PureModuleMock.ManyParams, (2, "3", 4L))
+  }
+
+  val mock3Expected: Vector[String] = Vector(
+    expectedFailure("Extra calls"),
+    withOffset(2)(s"${red("- unexpected call to zio.test.mock.module.PureModuleMock.ManyParams with arguments")}\n"),
+    withOffset(4)(s"${cyan("(2,3,4)")}\n")
+  )
+
+  def mock4(implicit trace: ZTraceElement): ZSpec[Any, Nothing] = test("Invalid range") {
+    throw InvalidRangeException(4 to 2 by -1)
+  }
+
+  val mock4Expected: Vector[String] = Vector(
+    expectedFailure("Invalid range"),
+    withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
+  )
+
+  val mock5: ZSpec[Any, String] = test("Failing layer") {
+    for {
+      promise     <- Promise.make[Nothing, Unit]
+      failingLayer = (promise.await *> ZIO.fail("failed!")).toLayer[String]
+      mock = PureModuleMock.ZeroParams(value("mocked")).toLayer.tap { _ =>
+               promise.succeed(())
+             }
+      f       = ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
+      result <- f.provideLayer(failingLayer ++ mock)
+    } yield assert(result)(equalTo("mocked"))
+  }
+
+  val mock5Expected: Vector[String] = Vector(
+    """.*Failing layer.*""",
+    """.*- unsatisfied expectations.*""",
+    """\s*zio\.test\.mock\.module\.PureModuleMock\.ZeroParams with arguments.*""",
+    """\s*Fiber failed\.""",
+    """[\s║╠─]*A checked error was not handled.""",
+    """[\s║]*failed!"""
+  )
 
   def assertSourceLocation()(implicit trace: ZTraceElement): String =
     Option(trace).collect { case ZTraceElement.SourceLocation(_, path, line, _) =>
