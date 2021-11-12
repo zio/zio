@@ -23,12 +23,11 @@ import java.util.Set
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * A `ZHub[RA, RB, EA, EB, A, B]` is an asynchronous message hub. Publishers
- * can publish messages of type `A` to the hub and subscribers can subscribe to
- * take messages of type `B` from the hub. Publishing messages can require an
- * environment of type `RA` and fail with an error of type `EA`. Taking
- * messages can require an environment of type `RB` and fail with an error of
- * type `EB`.
+ * A `ZHub[RA, RB, EA, EB, A, B]` is an asynchronous message hub. Publishers can
+ * publish messages of type `A` to the hub and subscribers can subscribe to take
+ * messages of type `B` from the hub. Publishing messages can require an
+ * environment of type `RA` and fail with an error of type `EA`. Taking messages
+ * can require an environment of type `RB` and fail with an error of type `EB`.
  */
 sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
@@ -48,14 +47,14 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
   def isShutdown(implicit trace: ZTraceElement): UIO[Boolean]
 
   /**
-   * Publishes a message to the hub, returning whether the message was
-   * published to the hub.
+   * Publishes a message to the hub, returning whether the message was published
+   * to the hub.
    */
   def publish(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean]
 
   /**
-   * Publishes all of the specified messages to the hub, returning whether
-   * they were published to the hub.
+   * Publishes all of the specified messages to the hub, returning whether they
+   * were published to the hub.
    */
   def publishAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean]
 
@@ -70,8 +69,8 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
   def size(implicit trace: ZTraceElement): UIO[Int]
 
   /**
-   * Subscribes to receive messages from the hub. The resulting subscription
-   * can be evaluated multiple times within the scope of the managed to take a
+   * Subscribes to receive messages from the hub. The resulting subscription can
+   * be evaluated multiple times within the scope of the managed to take a
    * message from the hub each time.
    */
   def subscribe(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZDequeue[RB, EB, B]]
@@ -98,15 +97,15 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     dimapZIO(f, ZIO.succeedNow)
 
   /**
-   * Transforms messages published to and taken from the hub using the
-   * specified functions.
+   * Transforms messages published to and taken from the hub using the specified
+   * functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZHub[RA, RB, EA, EB, C, D] =
     dimapZIO(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
 
   /**
-   * Transforms messages published to and taken from the hub using the
-   * specified effectual functions.
+   * Transforms messages published to and taken from the hub using the specified
+   * effectual functions.
    */
   @deprecated("use dimapZIO", "2.0.0")
   final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
@@ -116,8 +115,8 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     dimapZIO(f, g)
 
   /**
-   * Transforms messages published to and taken from the hub using the
-   * specified effectual functions.
+   * Transforms messages published to and taken from the hub using the specified
+   * effectual functions.
    */
   final def dimapZIO[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
     f: C => ZIO[RC, EC, A],
@@ -191,8 +190,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     filterOutputZIO(b => ZIO.succeedNow(f(b)))
 
   /**
-   * Filters messages taken from the hub using the specified effectual
-   * function.
+   * Filters messages taken from the hub using the specified effectual function.
    */
   @deprecated("use filterOutputZIO", "2.0.0")
   final def filterOutputM[RB1 <: RB, EB1 >: EB](
@@ -201,8 +199,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     filterOutputZIO(f)
 
   /**
-   * Filters messages taken from the hub using the specified effectual
-   * function.
+   * Filters messages taken from the hub using the specified effectual function.
    */
   final def filterOutputZIO[RB1 <: RB, EB1 >: EB](
     f: B => ZIO[RB1, EB1, Boolean]
@@ -520,8 +517,8 @@ object ZHub {
 
     /**
      * Describes how subscribers waiting for additional values from the hub
-     * should take those values and signal to publishers that they are no
-     * longer waiting for additional values.
+     * should take those values and signal to publishers that they are no longer
+     * waiting for additional values.
      */
     final def unsafeCompletePollers(
       hub: internal.Hub[A],
@@ -573,8 +570,8 @@ object ZHub {
      * A strategy that applies back pressure to publishers when the hub is at
      * capacity. This guarantees that all subscribers will receive all messages
      * published to the hub while they are subscribed. However, it creates the
-     * risk that a slow subscriber will slow down the rate at which messages
-     * are published and received by other subscribers.
+     * risk that a slow subscriber will slow down the rate at which messages are
+     * published and received by other subscribers.
      */
     final case class BackPressure[A]() extends Strategy[A] {
       val publishers: MutableConcurrentQueue[(A, Promise[Nothing, Boolean], Boolean)] =
@@ -678,8 +675,8 @@ object ZHub {
      * A strategy that adds new messages and drops old messages when the hub is
      * at capacity. This guarantees that a slow subscriber will not slow down
      * the rate at which messages are published and received by other
-     * subscribers. However, it creates the risk that a slow subscriber will
-     * not receive some messages published to the hub while it is subscribed.
+     * subscribers. However, it creates the risk that a slow subscriber will not
+     * receive some messages published to the hub while it is subscribed.
      */
     final case class Sliding[A]() extends Strategy[A] {
 

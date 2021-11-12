@@ -20,7 +20,6 @@ import izumi.reflect.Tag
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.environment.TestEnvironment
 
 import scala.util.control.NoStackTrace
 
@@ -127,7 +126,6 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
    */
   final def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[R with TestEnvironment, In],
-    sourceLocation: SourceLocation,
     trace: ZTraceElement
   ): TestBuilder = {
     if (specBuilt)
@@ -146,7 +144,7 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
     label: String
   )(
     assertion: => ZIO[R with TestEnvironment, Failure, TestResult]
-  )(implicit loc: SourceLocation, trace: ZTraceElement): TestBuilder =
+  )(implicit trace: ZTraceElement): TestBuilder =
     test(label)(assertion)
 
   final override def spec: ZSpec[Environment, Failure] = {
@@ -162,7 +160,8 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
     defaultTestRunner
 
   /**
-   * Returns an effect that executes a given spec, producing the results of the execution.
+   * Returns an effect that executes a given spec, producing the results of the
+   * execution.
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]

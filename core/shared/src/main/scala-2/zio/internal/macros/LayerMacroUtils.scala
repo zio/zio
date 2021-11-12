@@ -198,8 +198,8 @@ private[zio] trait LayerMacroUtils {
   }
 
   /**
-   * Generates a link of the Layer graph for the Mermaid.js graph viz
-   * library's live-editor (https://mermaid-js.github.io/mermaid-live-editor)
+   * Generates a link of the Layer graph for the Mermaid.js graph viz library's
+   * live-editor (https://mermaid-js.github.io/mermaid-live-editor)
    */
   private def generateMermaidJsLink[R <: Has[_]: c.WeakTypeTag, R0: c.WeakTypeTag, E](
     requirements: List[c.Type],

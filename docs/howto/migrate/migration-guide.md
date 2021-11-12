@@ -124,7 +124,7 @@ Here are some of the most important changes:
 | `ZIO#forkOn`                   | `ZIO#onExecutionContext(ec).fork` |
 | `ZIO.fromFiberM`               | `ZIO.fromFiberZIO`                |
 | `ZIO.require`                  | `ZIO.someOrFail`                  |
-| `ZIO#on`                       | `ZIO#lockExecutionContext`        |
+| `ZIO#on`                       | `ZIO#onExecutionContext`          |
 | `ZIO#rejectM`                  | `ZIO#rejectZIO`                   |
 | `ZIO#run`                      | `ZIO#exit`                        |
 | `ZIO#timeoutHalt`              | `ZIO#timeoutFailCause`            |

@@ -21,7 +21,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 object RingBuffer {
 
   /**
-   * @note minimum supported capacity is 2
+   * @note
+   *   minimum supported capacity is 2
    */
   def apply[A](requestedCapacity: Int): MutableConcurrentQueue[A] = {
     assert(requestedCapacity >= 2)
@@ -37,8 +38,7 @@ object RingBuffer {
 }
 
 /**
- * See [[zio.internal.RingBuffer]] for details
- * on design, tradeoffs, etc.
+ * See [[zio.internal.RingBuffer]] for details on design, tradeoffs, etc.
  */
 abstract class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQueue[A] {
   private[this] val buf: Array[AnyRef] = new Array[AnyRef](capacity)

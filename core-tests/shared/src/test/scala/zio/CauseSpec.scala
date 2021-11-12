@@ -6,7 +6,7 @@ import zio.test._
 
 object CauseSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("CauseSpec")(
+  def spec = suite("CauseSpec")(
     suite("Cause")(
       test("`Cause#died` and `Cause#stripFailures` are consistent") {
         check(causes)(c => assert(c.keepDefects)(if (c.isDie) isSome(anything) else isNone))
@@ -20,7 +20,7 @@ object CauseSpec extends ZIOBaseSpec {
         }
       },
       test("`Cause#untraced` removes all traces") {
-        check(causes)(c => assert(c.untraced.traces.headOption)(isNone))
+        check(causes)(c => assert(c.untraced.traces.headOption)(isNone || isSome(equalTo(ZTrace.none))))
       },
       test("`Cause.failures is stack safe") {
         val n     = 100000
@@ -79,14 +79,14 @@ object CauseSpec extends ZIOBaseSpec {
         }
       }
     ),
-    suite("Meta")(
-      test("`Meta` is excluded from equals") {
+    suite("Stackless")(
+      test("`Stackless` is excluded from equals") {
         check(causes) { c =>
           assert(Cause.stackless(c))(equalTo(c)) &&
           assert(c)(equalTo(Cause.stackless(c)))
         }
       },
-      test("`Meta` is excluded from hashCode") {
+      test("`Stackless` is excluded from hashCode") {
         check(causes)(c => assert(Cause.stackless(c).hashCode)(equalTo(c.hashCode)))
       }
     ),
@@ -106,7 +106,7 @@ object CauseSpec extends ZIOBaseSpec {
     ),
     suite("Monad Laws:")(
       test("Left identity") {
-        check(causes)(c => assert(c.flatMap(Cause.fail))(equalTo(c)))
+        check(causes)(c => assert(c.flatMap(Cause.fail(_)))(equalTo(c)))
       },
       test("Right identity") {
         check(errors, errorCauseFunctions)((e, f) => assert(Cause.fail(e).flatMap(f))(equalTo(f(e))))
@@ -128,10 +128,10 @@ object CauseSpec extends ZIOBaseSpec {
             )
             .map(new Throwable(msg1, _))
         }
-        val failOrDie = Gen.elements[Throwable => Cause[Throwable]](Cause.fail, Cause.die)
+        val failOrDie = Gen.elements[Throwable => Cause[Throwable]](Cause.fail(_), Cause.die(_))
         check(throwable, failOrDie) { (e, makeCause) =>
           val rootCause        = makeCause(e)
-          val cause            = Cause.traced(rootCause, ZTrace(FiberId(0L, 0L), Nil, Nil, None))
+          val cause            = rootCause
           val causeMessage     = e.getCause.getMessage
           val throwableMessage = e.getMessage
           val renderedCause    = Cause.stackless(cause).prettyPrint
@@ -169,7 +169,6 @@ object CauseSpec extends ZIOBaseSpec {
     (causes <*> causes <*> causes).flatMap { case (a, b, c) =>
       Gen.elements(
         (a, a),
-        (a, Cause.traced(a, ZTrace(FiberId(0L, 0L), Nil, Nil, None))),
         (Then(Then(a, b), c), Then(a, Then(b, c))),
         (Then(a, Both(b, c)), Both(Then(a, b), Then(a, c))),
         (Both(Both(a, b), c), Both(a, Both(b, c))),
@@ -188,7 +187,7 @@ object CauseSpec extends ZIOBaseSpec {
     Gen.string
 
   val fiberIds: Gen[Has[Random], FiberId] =
-    Gen.long.zipWith(Gen.long)(FiberId(_, _))
+    Gen.int.zipWith(Gen.int)(FiberId(_, _))
 
   val throwables: Gen[Has[Random], Throwable] =
     Gen.throwable

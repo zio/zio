@@ -1,8 +1,7 @@
-package zio.test.environment
+package zio.test
 
 import zio._
 import zio.test.Assertion._
-import zio.test._
 
 import java.util.concurrent.TimeUnit
 
@@ -110,5 +109,5 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           } yield assert(values.reverse)(equalTo(List(5L)))
         }
       )
-    ) @@ TestAspect.nonFlaky
+    ) @@ TestAspect.nonFlaky(10)
 }

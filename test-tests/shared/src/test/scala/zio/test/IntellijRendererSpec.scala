@@ -3,9 +3,8 @@ package zio.test
 import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
-import zio.test.environment.{TestClock, TestConsole, TestEnvironment, testEnvironment}
 import zio.test.render.IntelliJRenderer
-import zio.{Clock, Has, Layer, ZIO}
+import zio.{Clock, Has, Layer, ZIO, ZTraceElement}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -17,9 +16,6 @@ object IntellijRendererSpec extends ZIOBaseSpec {
       },
       test("correctly reports a failed test") {
         assertM(runLog(test3))(equalTo(test3Expected.mkString))
-      },
-      test("correctly reports an error in a test") {
-        assertM(runLog(test4))(equalTo(test4Expected.mkString))
       },
       test("correctly reports successful test suite") {
         assertM(runLog(suite1))(equalTo(suite1Expected.mkString))
@@ -43,7 +39,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         assertM(runLog(test7))(equalTo(test7Expected.mkString))
       },
       test("correctly reports negated failures") {
-        assertM(runLog(test8))(equalTo(test8Expected.mkString))
+        runLog(test8).map(str => assertTrue(str == test8Expected.mkString))
       },
       test("correctly reports mock failure of invalid call") {
         assertM(runLog(mock1))(equalTo(mock1Expected.mkString))
@@ -59,17 +55,17 @@ object IntellijRendererSpec extends ZIOBaseSpec {
       }
     ) @@ silent
 
-  val test1Expected: Vector[String] = Vector(
+  def test1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Addition works fine"),
     testFinished("Addition works fine")
   )
 
-  val test2Expected: Vector[String] = Vector(
+  def test2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Subtraction works fine"),
     testFinished("Subtraction works fine")
   )
 
-  val test3Expected: Vector[String] = Vector(
+  def test3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Value falls within range"),
     testFailed(
       "Value falls within range",
@@ -79,54 +75,43 @@ object IntellijRendererSpec extends ZIOBaseSpec {
           s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
         ),
         withOffset(2)(assertSourceLocation() + "\n"),
+        "\n",
         withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
         withOffset(2)(
           s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
 
-  val test4Expected: Vector[String] = Vector(
-    testStarted("Failing test", location = None),
-    testFailed(
-      "Failing test",
-      Vector(
-        withOffset(2)("Fiber failed.\n") +
-          withOffset(2)("A checked error was not handled.\n") +
-          withOffset(2)("Fail\n") +
-          withOffset(2)("No ZIO Trace available.")
-      )
-    )
-  )
-
-  val suite1Expected: Vector[String] = Vector(
+  def suite1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     suiteStarted("Suite1")
   ) ++ test1Expected ++ test2Expected ++
     Vector(
       suiteFinished("Suite1")
     )
 
-  val suite2Expected: Vector[String] = Vector(
+  def suite2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     suiteStarted("Suite2")
   ) ++ test1Expected ++ test2Expected ++ test3Expected ++
     Vector(
       suiteFinished("Suite2")
     )
 
-  val suite3Expected: Vector[String] = Vector(
+  def suite3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     suiteStarted("Suite3")
   ) ++ suite1Expected ++ suite2Expected ++ test3Expected ++ Vector(
     suiteFinished("Suite3")
   )
 
-  val suite4Expected: Vector[String] = Vector(
+  def suite4Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     suiteStarted("Suite4")
   ) ++ suite1Expected ++ Vector(suiteStarted("Empty"), suiteFinished("Empty")) ++
     test3Expected ++ Vector(suiteFinished("Suite4"))
 
-  val test5Expected: Vector[String] = Vector(
+  def test5Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Addition works fine"),
     testFailed(
       "Addition works fine",
@@ -134,12 +119,13 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue(expressionIfNotRedundant(showExpression(1 + 1), 2))} did not satisfy ${cyan("equalTo(3)")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
 
-  val test6Expected: Vector[String] = Vector(
+  def test6Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Multiple nested failures"),
     testFailed(
       "Multiple nested failures",
@@ -151,12 +137,13 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
 
-  val test7Expected: Vector[String] = Vector(
+  def test7Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("labeled failures"),
     testFailed(
       "labeled failures",
@@ -165,12 +152,13 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue("`c` = Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
 
-  val test8Expected: Vector[String] = Vector(
+  def test8Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Not combinator"),
     testFailed(
       "Not combinator",
@@ -179,12 +167,13 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         withOffset(2)(
           s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}\n"
         ),
-        withOffset(2)(assertSourceLocation())
+        withOffset(2)(assertSourceLocation()),
+        "\n"
       )
     )
   )
 
-  val mock1Expected: Vector[String] = Vector(
+  def mock1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Invalid call"),
     testFailed(
       "Invalid call",
@@ -194,6 +183,8 @@ object IntellijRendererSpec extends ZIOBaseSpec {
           s"${red("- zio.test.mock.module.PureModuleMock.ParameterizedCommand called with invalid arguments")}\n"
         ),
         withOffset(6)(s"${blue("2")} did not satisfy ${cyan("equalTo(1)")}\n"),
+        withOffset(6)(assertSourceLocation() + "\n"),
+        withOffset(4)("\n"),
         withOffset(4)(s"${red("- invalid call to zio.test.mock.module.PureModuleMock.SingleParam")}\n"),
         withOffset(6)(
           s"expected zio.test.mock.module.PureModuleMock.ParameterizedCommand with arguments ${cyan("equalTo(1)")}"
@@ -202,7 +193,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  val mock2Expected: Vector[String] = Vector(
+  def mock2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Unsatisfied expectations"),
     testFailed(
       "Unsatisfied expectations",
@@ -215,7 +206,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  val mock3Expected: Vector[String] = Vector(
+  def mock3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Extra calls"),
     testFailed(
       "Extra calls",
@@ -228,7 +219,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  val mock4Expected: Vector[String] = Vector(
+  def mock4Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     testStarted("Invalid range"),
     testFailed(
       "Invalid range",
@@ -247,8 +238,12 @@ object IntelliJRenderUtils {
   def suiteFinished(name: String): String =
     s"##teamcity[testSuiteFinished name='$name']" + "\n"
 
-  def testStarted(name: String, location: Option[String] = Some(ReportingTestUtils.sourceFilePath)): String = {
-    val loc = location.fold("")(s => s"file://$s:XXX")
+  def testStarted(name: String)(implicit trace: ZTraceElement): String = {
+    val location = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, line, _) =>
+      (file, line)
+    }
+
+    val loc = location.fold("") { case (file, line) => s"file://$file:$line" }
     s"##teamcity[testStarted name='$name' locationHint='$loc']" + "\n"
   }
 
@@ -258,7 +253,9 @@ object IntelliJRenderUtils {
   def testFailed(name: String, error: Vector[String]): String =
     s"##teamcity[testFailed name='$name' message='Assertion failed:' details='${escape(error.mkString)}']" + "\n"
 
-  def runLog(spec: ZSpec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
+  def runLog(
+    spec: ZSpec[TestEnvironment, String]
+  )(implicit trace: ZTraceElement): ZIO[TestEnvironment, Nothing, String] =
     for {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
@@ -266,9 +263,11 @@ object IntelliJRenderUtils {
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
-    } yield output.mkString.withNoLineNumbers
+    } yield output.mkString
 
-  private[this] def IntelliJTestRunner(testEnvironment: Layer[Nothing, TestEnvironment]) =
+  private[this] def IntelliJTestRunner(
+    testEnvironment: Layer[Nothing, TestEnvironment]
+  )(implicit trace: ZTraceElement) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
       reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)

@@ -2,7 +2,6 @@ package zio
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.Live
 
 object RandomSpec extends ZIOBaseSpec {
 
@@ -12,7 +11,7 @@ object RandomSpec extends ZIOBaseSpec {
   implicit val FloatOrdering: Ordering[Float] =
     (l, r) => java.lang.Float.compare(l, r)
 
-  def spec: ZSpec[Environment, Failure] = suite("RandomSpec")(
+  def spec = suite("RandomSpec")(
     test("nextDoubleBetween generates doubles in specified range") {
       check(genDoubles) { case (min, max) =>
         for {

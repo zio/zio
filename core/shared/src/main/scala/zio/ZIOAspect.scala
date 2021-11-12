@@ -106,8 +106,8 @@ object ZIOAspect {
     }
 
   /**
-   * An aspect that logs values using a specified function that convers the value
-   * into a log message. The log message is logged using [[ZIO.log]].
+   * An aspect that logs values using a specified function that convers the
+   * value into a log message. The log message is logged using [[ZIO.log]].
    */
   def loggedWith[A](f: A => String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A] {
@@ -143,8 +143,8 @@ object ZIOAspect {
     }
 
   /**
-   * As aspect that runs effects with the specified maximum number of fibers
-   * for parallel operators.
+   * As aspect that runs effects with the specified maximum number of fibers for
+   * parallel operators.
    */
   def parallel(n: Int): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
@@ -178,23 +178,5 @@ object ZIOAspect {
     new ZIOAspect[Nothing, Has[Clock], E1, Any, Nothing, Any] {
       def apply[R <: Has[Clock], E >: E1, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.timeoutFail(e)(d)
-    }
-
-  /**
-   * As aspect that enables tracing for effects.
-   */
-  val traced: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.traced
-    }
-
-  /**
-   * As aspect that disables tracing for effects.
-   */
-  val untraced: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.untraced
     }
 }

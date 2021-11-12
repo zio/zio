@@ -2,7 +2,7 @@ package zio.test
 
 import zio.Chunk
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.Arrow.Span
+import zio.test.TestArrow.Span
 import zio.test.ConsoleUtils._
 import zio.test.render.LogLine.Message
 
@@ -107,40 +107,14 @@ object FailureCase {
     }
 
     FailureCase(
-      node.message.render(node.isSuccess),
-      highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0)), node.parentSpan, color),
-      node.location.getOrElse("<LOCATION>"),
-      path,
-      node.span.getOrElse(Span(0, 0)),
-      node.children.map(fromTrace).getOrElse(Chunk.empty),
-      node.result
+      errorMessage = node.message.render(node.isSuccess),
+      codeString =
+        highlight(node.fullCode.getOrElse("<CODE>"), node.span.getOrElse(Span(0, 0)), node.parentSpan, color),
+      location = node.location.getOrElse("<LOCATION>"),
+      path = path,
+      span = node.span.getOrElse(Span(0, 0)),
+      nestedFailures = node.children.map(fromTrace).getOrElse(Chunk.empty),
+      result = node.result
     )
   }
-
-  def renderFailureCase(failureCase: FailureCase, isNested: Boolean = false): Chunk[String] =
-    failureCase match {
-      case FailureCase(errorMessage, _, _, path, _, _, _) if isNested =>
-        val errorMessageLines =
-          Chunk.fromIterable(errorMessage.lines) match {
-            case head +: tail => (red("• ") + head) +: tail.map("  " + _)
-            case _            => Chunk.empty
-          }
-
-        errorMessageLines ++
-          Chunk.fromIterable(path.drop(path.length - 1).map { case (label, value) =>
-            dim(s"$label = ") + blue(PrettyPrint(value))
-          })
-
-      case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
-        val errorMessageLines =
-          Chunk.fromIterable(errorMessage.lines) match {
-            case head +: tail => (red("• ") + head) +: tail.map("  " + _)
-            case _            => Chunk.empty
-          }
-
-        errorMessageLines ++ Chunk(codeString) ++ nested.flatMap(renderFailureCase(_, true)).map("  " + _) ++
-          Chunk.fromIterable(path.map { case (label, value) => dim(s"$label = ") + blue(PrettyPrint(value)) }) ++
-          Chunk(cyan(s"at $location")) ++ Chunk("")
-
-    }
 }

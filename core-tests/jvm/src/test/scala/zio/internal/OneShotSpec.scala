@@ -6,7 +6,7 @@ import zio.test._
 
 object OneShotSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("OneShotSpec")(
+  def spec = suite("OneShotSpec")(
     suite("OneShotSpec")(
       suite("Make a new OneShot")(
         test("set must accept a non-null value") {

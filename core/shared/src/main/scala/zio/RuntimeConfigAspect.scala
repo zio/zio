@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.tracing.Tracing
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
@@ -36,6 +35,11 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
   def addSupervisor(supervisor: Supervisor[Any]): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(supervisor = self.supervisor ++ supervisor))
 
+  val enableCurrentFiber: RuntimeConfigAspect =
+    RuntimeConfigAspect(self =>
+      self.copy(runtimeConfigFlags = self.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
+    )
+
   val identity: RuntimeConfigAspect =
     RuntimeConfigAspect(Predef.identity(_))
 
@@ -45,8 +49,10 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
   def setExecutor(executor: Executor): RuntimeConfigAspect =
     RuntimeConfigAspect(_.copy(executor = executor))
 
-  def setTracing(tracing: Tracing): RuntimeConfigAspect =
-    RuntimeConfigAspect(_.copy(tracing = tracing))
+  val superviseOperations: RuntimeConfigAspect =
+    RuntimeConfigAspect(self =>
+      self.copy(runtimeConfigFlags = self.runtimeConfigFlags + RuntimeConfigFlag.SuperviseOperations)
+    )
 
   /**
    * An aspect that adds a supervisor that tracks all forked fibers in a set.

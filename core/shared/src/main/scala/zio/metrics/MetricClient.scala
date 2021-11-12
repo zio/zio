@@ -25,15 +25,15 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * corresponding to the two ways that third party metrics services use metrics.
  *
  * First, metrics services can poll for the current state of all recorded
- * metrics using the `unsafeSnapshot` method, which provides a snapshot, as of
- * a point in time, of all metrics recorded by the ZIO application.
+ * metrics using the `unsafeSnapshot` method, which provides a snapshot, as of a
+ * point in time, of all metrics recorded by the ZIO application.
  *
  * Second, metrics services can install a listener that will be notified every
  * time a metric is updated.
  *
  * `MetricClient` is a lower level interface and is intended to be used by
- * implementers of integrations with third party metrics services but not by
- * end users.
+ * implementers of integrations with third party metrics services but not by end
+ * users.
  */
 object MetricClient {
 

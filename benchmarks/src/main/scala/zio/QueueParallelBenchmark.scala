@@ -15,7 +15,8 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
 @Fork(3)
 /**
- * This benchmark offers and takes a number of items in parallel, without back pressure.
+ * This benchmark offers and takes a number of items in parallel, without back
+ * pressure.
  */
 class QueueParallelBenchmark {
 

@@ -42,6 +42,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 
 * [AdGear / Samsung Ads](https://adgear.com/en/)
 * [Adidas](https://www.adidas.com/)
+* [adpulse.io](https://www.adpulse.io/)
 * [adsquare](https://www.adsquare.com/)
 * [Ayolab](https://www.ayolab.com/)
 * [Asana](https://asana.com/)
@@ -107,6 +108,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Playtika](https://www.playtika.com)
 * [PPC Samurai](https://ppcsamurai.com/)
 * [Randstad Groep Nederland](https://www.werkenbijrandstad.nl)
+* [PIM Solutions](https://pimsolutions.ru/)
 * [Risk Ident](https://riskident.com/)
 * [Rocker](https://rocker.com/)
 * [Rudder](https://www.rudder.io/)

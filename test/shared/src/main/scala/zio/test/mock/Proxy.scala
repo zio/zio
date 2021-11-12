@@ -20,8 +20,8 @@ import zio.{Has, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A `Proxy` provides the machinery to map mocked invocations to predefined results
- * and check some constraints on the way.
+ * A `Proxy` provides the machinery to map mocked invocations to predefined
+ * results and check some constraints on the way.
  */
 abstract class Proxy {
 

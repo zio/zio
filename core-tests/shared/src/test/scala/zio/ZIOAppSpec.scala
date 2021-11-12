@@ -3,7 +3,7 @@ package zio
 import zio.test._
 
 object ZIOAppSpec extends ZIOBaseSpec {
-  def spec: ZSpec[Environment, Failure] = suite("ZIOAppSpec")(
+  def spec = suite("ZIOAppSpec")(
     test("fromZIO") {
       for {
         ref <- Ref.make(0)
@@ -36,7 +36,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
       val logger1 = new ZLogger[Unit] {
         def apply(
           trace: ZTraceElement,
-          fiberId: zio.FiberId,
+          fiberId: zio.FiberId.Runtime,
           logLevel: zio.LogLevel,
           message: () => String,
           context: Map[zio.FiberRef.Runtime[_], AnyRef],

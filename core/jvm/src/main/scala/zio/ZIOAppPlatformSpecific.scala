@@ -17,10 +17,10 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
           IO.succeed(Platform.addShutdownHook { () =>
             shuttingDown = true
 
-            if (FiberContext.fatal.get) {
+            if (FiberContext.catastrophicFailure.get) {
               println(
                 "**** WARNING ****\n" +
-                  "Catastrophic JVM error encountered. " +
+                  "Catastrophic error encountered. " +
                   "Application not safely interrupted. " +
                   "Resources may be leaked. " +
                   "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."

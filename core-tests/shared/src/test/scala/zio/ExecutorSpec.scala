@@ -43,7 +43,7 @@ object TestExecutor {
 
 object ExecutorSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("ExecutorSpec")(
+  def spec = suite("ExecutorSpec")(
     suite("Create the default unyielding executor and check that:")(
       test("When converted to an EC, it reports Throwables to stdout") {
         val t = new CheckPrintThrowable

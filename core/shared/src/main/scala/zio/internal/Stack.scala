@@ -22,76 +22,113 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A very fast, growable/shrinkable, mutable stack.
  */
 private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
-  private[this] var array   = new Array[AnyRef](13)
-  private[this] var _used   = 0
-  private[this] var nesting = 0
+  private[this] var array  = new Array[AnyRef](13)
+  private[this] var packed = 0
 
-  override def size: Int = _used + (12 * nesting)
+  private def getUsed: Int          = packed & 0xffff
+  private def setUsed(n: Int): Unit = packed = (packed & 0xffff0000) + (n & 0xffff)
+
+  private def getNesting: Int          = (packed >> 16)
+  private def setNesting(n: Int): Unit = packed = (packed & 0x0000ffff) + (n << 16)
+
+  override def size: Int = getUsed + (12 * getNesting)
 
   def iterator: Iterator[A] =
     new Iterator[A] {
-      var currentArray   = self.array
-      var currentIndex   = _used - 1
-      var iterated       = 0
-      var currentNesting = self.nesting
+      var currentArray = self.array
+      var currentIndex = findNonNull(currentArray)
+      var _next        = computeNext()
 
-      def hasNext: Boolean = iterated < self.size
+      private def hasMoreChunks(): Boolean = (currentArray ne null) && currentArray(0).isInstanceOf[Array[_]]
 
-      def next(): A =
+      def hasNext: Boolean = _next ne null
+
+      def next(): A = {
         if (!hasNext) throw new NoSuchElementException("There are no elements to iterate")
+
+        val value = _next
+
+        var result = null.asInstanceOf[A]
+
+        while (result == null && currentIndex >= 0) {
+          result = computeNext()
+        }
+
+        _next = result
+
+        value
+      }
+
+      private def computeNext(): A =
+        if (currentIndex < 0) null.asInstanceOf[A]
         else {
-          if (currentIndex == 0 && currentNesting > 0) {
+          if (currentIndex == 0 && hasMoreChunks()) {
             currentArray = currentArray(0).asInstanceOf[Array[AnyRef]]
             currentIndex = 12
-            currentNesting = currentNesting - 1
           }
 
-          val a = currentArray(currentIndex).asInstanceOf[A]
+          val value = currentArray(currentIndex).asInstanceOf[A]
 
-          iterated = iterated + 1
           currentIndex = currentIndex - 1
 
-          a
+          value
         }
+
+      private def findNonNull[A <: AnyRef](array: Array[A]): Int = {
+        var index = -1
+
+        var i = array.length - 1
+
+        while (i >= 0) {
+          if (array(i) ne null) {
+            index = i
+            i = -1 // Terminate loop
+          } else {
+            i = i - 1
+          }
+        }
+
+        index
+      }
     }
 
   /**
    * Determines if the stack is empty.
    */
   override def isEmpty: Boolean =
-    _used <= 0
+    getUsed <= 0
 
   /**
    * Pushes an item onto the stack.
    */
   def push(a: A): Unit =
-    if (_used == 13) {
+    if (getUsed == 13) {
       array = Array(array, a, null, null, null, null, null, null, null, null, null, null, null)
-      _used = 2
-      nesting += 1
+      setUsed(2)
+      setNesting(getNesting + 1)
     } else {
-      array(_used) = a
-      _used += 1
+      array(getUsed) = a
+      setUsed(getUsed + 1)
     }
 
   /**
    * Pops an item off the stack, or returns `null` if the stack is empty.
    */
   def pop(): A =
-    if (_used <= 0) {
+    if (getUsed <= 0) {
       null.asInstanceOf[A]
     } else {
-      val idx = _used - 1
+      val idx = getUsed - 1
       var a   = array(idx)
-      if (idx == 0 && nesting > 0) {
+      if (idx == 0 && getNesting > 0) {
         array = a.asInstanceOf[Array[AnyRef]]
         a = array(12)
         array(12) = null // GC
-        _used = 12
-        nesting -= 1
+        setUsed(12)
+        setNesting(getNesting - 1)
       } else {
         array(idx) = null // GC
-        _used = idx
+        setUsed(idx)
       }
       a.asInstanceOf[A]
     }
@@ -106,16 +143,16 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
    * Peeks the item on the head of the stack, or returns `null` if empty.
    */
   def peek(): A =
-    if (_used <= 0) {
+    if (getUsed <= 0) {
       null.asInstanceOf[A]
     } else {
-      val idx = _used - 1
+      val idx = getUsed - 1
       var a   = array(idx)
-      if (idx == 0 && nesting > 0) a = (a.asInstanceOf[Array[AnyRef]])(12)
+      if (idx == 0 && getNesting > 0) a = (a.asInstanceOf[Array[AnyRef]])(12)
       a.asInstanceOf[A]
     }
 
-  def peekOrElse(a: A): A = if (_used <= 0) a else peek()
+  def peekOrElse(a: A): A = if (getUsed <= 0) a else peek()
 }
 
 private[zio] object Stack {

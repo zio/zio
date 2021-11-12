@@ -715,6 +715,11 @@ object GenSpec extends ZIOBaseSpec {
         }
         assertCompletes
       }
+    },
+    test("resize") {
+      for {
+        size <- Gen.size.resize(42).runHead.some
+      } yield assertTrue(size == 42)
     }
   )
 }

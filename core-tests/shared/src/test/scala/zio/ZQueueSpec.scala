@@ -4,14 +4,13 @@ import zio.ZQueueSpecUtil._
 import zio.test.Assertion._
 import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
-import zio.test.environment.Live
 
 import scala.collection.immutable.Range
 
 object ZQueueSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZQueueSpec")(
+  def spec = suite("ZQueueSpec")(
     test("sequential offer and take") {
       for {
         queue <- Queue.bounded[Int](100)

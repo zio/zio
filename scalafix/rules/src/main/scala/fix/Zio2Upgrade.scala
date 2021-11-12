@@ -10,6 +10,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val renames =
     Map(
       "accessM"                -> "accessZIO",
+      "asEC"                   -> "asExecutionContext",
       "bimap"                  -> "mapBoth",
       "bracket"                -> "acquireReleaseWith",
       "bracketExit"            -> "acquireReleaseExitWith",
@@ -19,6 +20,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "bracket_"               -> "acquireRelease",
       "bracket_"               -> "acquireRelease",
       "checkM"                 -> "check",
+      "checkNM"                -> "checkN",
+      "checkAllM"              -> "checkAll",
       "collectAllPar_"         -> "collectAllParDiscard",
       "collectAll_"            -> "collectAllDiscard",
       "collectM"               -> "collectZIO",
@@ -53,6 +56,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "halt"                   -> "failCause",
       "haltWith"               -> "failCauseWith",
       "ifM"                    -> "ifZIO",
+      "interrupted"            -> "isInterrupted",
+      "lockExecutionContext"   -> "onExecutionContext", // Hard to test, because this only existed in a non-deprecated state in an earlier milestone
       "loop_"                  -> "loopDiscard",
       "makeReserve"            -> "fromReservationZIO",
       "mapConcatM"             -> "mapConcatZIO",
@@ -60,7 +65,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "mapM"                   -> "mapZIO",
       "mapMPar"                -> "mapZIOPar",
       "mapMParUnordered"       -> "mapZIOParUnordered",
+      "on"                     -> "onExecutionContext",
       "optional"               -> "unsome",
+      "unoption"               -> "unsome",
       "paginateChunkM"         -> "paginateChunkZIO",
       "paginateM"              -> "paginateZIO",
       "partitionPar_"          -> "partitionParDiscard",
@@ -99,6 +106,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.DefaultRunnableSpec",
     "zio.Exit",
     "zio.ZIO",
+    "zio.Cause",
+    "zio.Chunk",
+    "zio.Executor",
     "zio.IO",
     "zio.Managed",
     "zio.RIO",
@@ -110,12 +120,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.ZRef",
     "zio.Ref",
     "zio.Promise",
+    "zio.internal.Executor",
     "zio.stream.ZSink",
     "zio.stream.ZStream",
     "zio.stream.ZTransducer",
-    "zio.stream.experimental.ZChannel",
-    "zio.stream.experimental.Take",
-    "zio.stream.experimental.ZPipeline",
+    "zio.stream.ZChannel",
+    "zio.stream.Take",
+    "zio.stream.ZPipeline",
     "zio.test.TestFailure",
     "zio.Runtime"
   )
@@ -147,28 +158,54 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     }
   }
   
-  case class AppRecognizer() {
-    object Matcher {
-      def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
-        tree match {
-          case t@ q"..$mods class $tname[..$tparams] ..$ctorMods (...$paramss) extends $template"  =>
-            template.tokens.foreach(println)
-            Some(Patch.replaceTree(t, s"${mods.mkString(" ")} class $tname[${tparams.mkString(",")}] ${ctorMods.mkString(" ")} (${paramss.mkString(",")} extends Foo$template"))
-          case t @ q"..$mods trait $tname[..$tparams] extends $template" =>
-            template.tokens.foreach(println)
-            Some(Patch.replaceTree(t, s"${mods.mkString(" ")} class $tname[${tparams.mkString(",")}]  extends Foo$template"))
-          case _ => None
-        }
-    }
-  }
-  
-  val AppRecognizerStable = AppRecognizer()
-
   val UniversalRenames = Renames(scopes, renames)
 
   val ZIORenames = Renames(
     List("zio.ZIO"),
     Map("run" -> "exit")
+  )
+
+  val STMRenames = Renames(
+    List("zio.stm.ZSTM", "zio.stm.STM"),
+    Map(
+      "collectAll_"            -> "collectAllDiscard",
+      "foldM" -> "foldSTM",
+      "foreach_"               -> "foreachDiscard",
+      "fromFunction"              -> "access",
+      "fromFunctionM"             -> "accessSTM",
+      "ifM" -> "ifSTM",
+      "loop_"                  -> "loopDiscard",
+      "partial" -> "attempt",
+      "replicateM" -> "replicateSTM",
+      "replicateM_" -> "replicateSTMDiscard",
+      "require" -> "someOrFail",
+      "unlessM" -> "unlessSTM",
+      "whenCaseM" -> "whenCaseSTM",
+      "whenM" -> "whenSTM",
+    )
+  )
+  
+  val ScheduleRenames = Renames(
+    List("zio.Schedule", "zio.stm.STM"),
+    Map(
+      "addDelayM" -> "addDelayZIO",
+      "checkM" -> "checkZIO",
+      "contramapM"             -> "contramapZIO",
+      "delayedM" -> "delayedZIO",
+      "dimapM" -> "dimapZIO",
+      "foldM" -> "foldZIO",
+      "mapM" -> "mapZIO",
+      "modifyDelayM" -> "modifyDelayZIO",
+      "reconsiderM" -> "reconsiderZIO",
+      "untilInputM" -> "untilInputZIO",
+      "untilOutputM" -> "untilOutputZIO",
+      "whileInputM" -> "whileInputZIO",
+      "whileOutputM" -> "whileOutputZIO",
+      "collectWhileM" -> "collectWhileZIO",
+      "collectUntilM" -> "collectUntilZIO",
+      "recurWhileM" -> "recureWhileZIO",
+      "recurUntilM" -> "recureUntilZIO",
+    )
   )
 
   val ZManagedRenames = Renames(
@@ -178,7 +215,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "foldCauseM"                -> "foldCauseManaged",
       "foldM"                     -> "foldManaged",
       "fromEffectUninterruptible" -> "fromZIOUninterruptible",
-      "fromFunctionM"             -> "fromFunctionManaged",
+      "fromFunction"              -> "access",
+      "fromFunctionM"             -> "accessManaged",
       "ifM"                       -> "ifManaged",
       "make"                      -> "acquireReleaseWith",
       "makeEffect"                -> "acquireReleaseAttemptWith",
@@ -217,6 +255,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val TestConsoleService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestConsole.Service#")
   val TestRandom_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestRandom#")
   val TestRandomService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestRandom.Service#")
+  val FiberId_Old      = SymbolMatcher.normalized("zio/Fiber.Id#")
 
   val Blocking_Old_Exact   = SymbolMatcher.exact("zio/blocking/package.Blocking#")
   val Random_Old_Exact     = SymbolMatcher.exact("zio/random/package.Random#")
@@ -240,6 +279,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val TestConsoleService_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestConsole.Service#")
   val TestRandom_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestRandom#")
   val TestRandomService_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestRandom.Service#")
+  
+  val FiberId_Old_Exact      = SymbolMatcher.exact("zio/Fiber.Id#")
 
   val hasImport    = Symbol("zio/Has#")
   val newRandom    = Symbol("zio/Random#")
@@ -255,6 +296,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val newTestSystem      = Symbol("zio/test/environment/TestSystem#")
   val newTestConsole      = Symbol("zio/test/environment/TestConsole#")
   val newTestRandom      = Symbol("zio/test/environment/TestRandom#")
+
+  val newFiberId      = Symbol("zio/FiberId#")
 
   val Clock_Old_Package   = SymbolMatcher.normalized("zio.clock")
   val Random_Old_Package  = SymbolMatcher.normalized("zio.random")
@@ -291,8 +334,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.clock.localDateTime"   -> "zio.Clock.localDateTime",
     "zio.clock.currentTime"     -> "zio.Clock.currentTime",
     "zio.clock.currentDateTime" -> "zio.Clock.currentDateTime",
-    // Intentionally removed. It breaks because of the different depth. It was not forgotten
-    //    "zio.duration.Duration"     -> "zio.Duration",
     // Random
     "zio.random.nextString"        -> "zio.Random.nextString",
     "zio.random.nextBoolean"       -> "zio.Random.nextBoolean",
@@ -352,7 +393,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.TimeVariants.anyZoneOffset" -> "zio.test.Gen.zoneOffset",
     "zio.test.TimeVariants.anyZoneId" -> "zio.test.Gen.zoneId",
     // App
-    "zio.App" -> "zio.ZIOAppDefault"
+    "zio.App" -> "zio.ZIOAppDefault",
+    "zio.Executor.asEC" -> "zio.Executor.asExecutionContext"
   )
 
   val foreachParN             = ParNRenamer("foreachPar", 3)
@@ -367,8 +409,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     doc.tree.collect {
       case ZIORenames.Matcher(patch)       => patch
       case ZManagedRenames.Matcher(patch)  => patch
+      case STMRenames.Matcher(patch) => patch
+      case ScheduleRenames.Matcher(patch) => patch
       case UniversalRenames.Matcher(patch) => patch
-//      case AppRecognizerStable.Matcher(patch) => patch // TODO Decide if this is worth pursuing
 
       // Replace >>= with flatMap. For some reason, this doesn't work with the
       // technique used above.
@@ -394,6 +437,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case mergeAllParN.Matcher(patch)            => patch
 
       case t @ q"import zio.blocking._" =>
+        Patch.removeTokens(t.tokens)
+        
+      case t @ q"import zio.blocking.Blocking" =>
         Patch.removeTokens(t.tokens)
 
       case t @ q"import zio.duration._" =>
@@ -462,8 +508,11 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.addGlobalImport(newConsole)
 
       case t @ Blocking_Old_Exact(Name(_)) =>
-        Patch.addGlobalImport(newRandom) +
           Patch.replaceTree(unwindSelect(t), s"Any")
+
+      case t @ FiberId_Old_Exact(Name(_)) =>
+        Patch.replaceTree(unwindSelect(t), "FiberId") +
+          Patch.addGlobalImport(newFiberId)
 
       case t @ Random_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
@@ -539,12 +588,42 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | SizedService_Old(_) | 
         Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) | 
         TestConsole_Old(_) | TestConsoleService_Old(_) | TestRandom_Old(_) | TestRandomService_Old(_) | 
-        TestAnnotations_Old(_) | TestAnnotationsService_Old(_) | TestLogger_Old(_) | TestLoggerService_Old(_)) =>
+        TestAnnotations_Old(_) | TestAnnotationsService_Old(_) | TestLogger_Old(_) | TestLoggerService_Old(_) | FiberId_Old(_)) =>
         Patch.removeImportee(t)
 
       case t @ q"import zio.console._" =>
         Patch.replaceTree(t, "") +
           Patch.addGlobalImport(wildcardImport(q"zio.Console"))
+
+      case t @ q"Fiber.Id" =>
+        Patch.replaceTree(t, "FiberId") +
+          Patch.addGlobalImport(Symbol("zio/FiberId#"))
+
+      // TODO Safe to do for many similar types?
+      case t @ q"import zio.duration.Duration" =>
+        Patch.replaceTree(t, "import zio.Duration")
+
+      case t @ q"zio.duration.Duration" =>
+        Patch.replaceTree(t, "zio.Duration")
+        
+      case t @ q"zio.random.Random" =>
+        Patch.replaceTree(t, "zio.Random")
+
+      case t @ q"zio.internal.Executor" =>
+        Patch.replaceTree(t, "zio.Executor")
+
+      case t @ q"Platform.fromExecutor" =>
+        Patch.replaceTree(t, "RuntimeConfig.fromExecutor")
+        
+      case t @ q"zio.internal.Platform" =>
+        Patch.replaceTree(t, "zio.RuntimeConfig")
+
+      case t @ q"zio.internal.Tracing" =>
+        Patch.replaceTree(t, "zio.internal.tracing.Tracing")
+        
+      case t @ q"import zio.internal.Tracing" =>
+        Patch.replaceTree(t, "import zio.internal.tracing.Tracing")
+
     }.asPatch + replaceSymbols
 
   private def wildcardImport(ref: Term.Ref): Importer =
