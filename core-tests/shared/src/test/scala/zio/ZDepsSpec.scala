@@ -3,7 +3,6 @@ package zio
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.test.environment._
 
 object ZDepsSpec extends ZIOBaseSpec {
 
@@ -65,7 +64,7 @@ object ZDepsSpec extends ZIOBaseSpec {
   def makeRef: UIO[Ref[Vector[String]]] =
     Ref.make(Vector.empty)
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ZDepsSpec")(
       test("Size of >>> (1)") {
         val deps = ZDeps.succeed(1) >>> ((i: Int) => i.toString).toDeps

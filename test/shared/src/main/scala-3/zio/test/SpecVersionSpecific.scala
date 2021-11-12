@@ -1,7 +1,6 @@
 package zio.test
 
 import zio.{ZIO, Has, ZDeps}
-import zio.test.environment.TestEnvironment
 
 trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
 

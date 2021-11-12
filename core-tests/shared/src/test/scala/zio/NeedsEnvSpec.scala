@@ -5,7 +5,7 @@ import zio.test._
 
 object NeedsEnvSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("NeedsEnvSpec")(
+  def spec = suite("NeedsEnvSpec")(
     test("useful combinators compile") {
       val result = typeCheck {
         """

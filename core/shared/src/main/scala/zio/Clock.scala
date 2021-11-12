@@ -297,9 +297,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
   /**
    * Returns a new effect that repeats this effect according to the specified
    * schedule or until the first failure. Scheduled recurrences are in addition
-   * to the first execution, so that `io.repeat(Schedule.once)` yields an
-   * effect that executes `io`, and then if that succeeds, executes `io` an
-   * additional time.
+   * to the first execution, so that `io.repeat(Schedule.once)` yields an effect
+   * that executes `io`, and then if that succeeds, executes `io` an additional
+   * time.
    */
   def repeat[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, A, B]
@@ -308,12 +308,12 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
   /**
    * Returns a new effect that repeats this effect according to the specified
-   * schedule or until the first failure, at which point, the failure value
-   * and schedule output are passed to the specified handler.
+   * schedule or until the first failure, at which point, the failure value and
+   * schedule output are passed to the specified handler.
    *
    * Scheduled recurrences are in addition to the first execution, so that
-   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then
-   * if that succeeds, executes `io` an additional time.
+   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then if
+   * that succeeds, executes `io` an additional time.
    */
   final def repeatOrElse[R, R1 <: R, E, E2, A, B](
     zio: => ZIO[R, E, A]
@@ -324,12 +324,12 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
   /**
    * Returns a new effect that repeats this effect according to the specified
-   * schedule or until the first failure, at which point, the failure value
-   * and schedule output are passed to the specified handler.
+   * schedule or until the first failure, at which point, the failure value and
+   * schedule output are passed to the specified handler.
    *
    * Scheduled recurrences are in addition to the first execution, so that
-   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then
-   * if that succeeds, executes `io` an additional time.
+   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then if
+   * that succeeds, executes `io` an additional time.
    */
   final def repeatOrElseEither[R, R1 <: R, E, E2, A, B, C](
     zio: => ZIO[R, E, A]
@@ -340,10 +340,10 @@ object Clock extends ClockPlatformSpecific with Serializable {
     ZIO.accessZIO(_.get.repeatOrElseEither(zio)(schedule, orElse))
 
   /**
-   * Retries with the specified retry policy.
-   * Retries are done following the failure of the original `io` (up to a fixed maximum with
-   * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
-   * "execute `io` and in case of failure, try again once".
+   * Retries with the specified retry policy. Retries are done following the
+   * failure of the original `io` (up to a fixed maximum with `once` or `recurs`
+   * for example), so that that `io.retry(Schedule.once)` means "execute `io`
+   * and in case of failure, try again once".
    */
   final def retry[R, R1 <: R, E, A, S](zio: => ZIO[R, E, A])(policy: => Schedule[R1, E, S])(implicit
     ev: CanFail[E],
@@ -363,9 +363,10 @@ object Clock extends ClockPlatformSpecific with Serializable {
     ZIO.accessZIO(_.get.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
 
   /**
-   * Returns an effect that retries this effect with the specified schedule when it fails, until
-   * the schedule is done, then both the value produced by the schedule together with the last
-   * error are passed to the specified recovery function.
+   * Returns an effect that retries this effect with the specified schedule when
+   * it fails, until the schedule is done, then both the value produced by the
+   * schedule together with the last error are passed to the specified recovery
+   * function.
    */
   final def retryOrElseEither[R, R1 <: R, E, E1, A, B, Out](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, E, Out],

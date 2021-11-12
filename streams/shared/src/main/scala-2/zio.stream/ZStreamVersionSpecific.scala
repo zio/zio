@@ -6,9 +6,10 @@ import zio.{Has, NeedsEnv, ZEnv, ZDeps}
 private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
 
   /**
-   * Automatically constructs the part of the environment that is not part of the `ZEnv`,
-   * leaving an effect that only depends on the `ZEnv`. This will also satisfy transitive
-   * `ZEnv` requirements with `ZEnv.any`, allowing them to be provided later.
+   * Automatically constructs the part of the environment that is not part of
+   * the `ZEnv`, leaving an effect that only depends on the `ZEnv`. This will
+   * also satisfy transitive `ZEnv` requirements with `ZEnv.any`, allowing them
+   * to be provided later.
    *
    * {{{
    * val stream: ZStream[OldLady with Console, Nothing, Unit] = ???

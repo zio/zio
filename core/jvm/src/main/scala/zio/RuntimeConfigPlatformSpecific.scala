@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.tracing.{Tracing, TracingConfig}
 import zio.internal.Blocking
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -28,12 +27,11 @@ private[zio] trait RuntimeConfigPlatformSpecific {
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
    * and auto-yielding disabled.
    *
-   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
-   * optional feature and it's not valid to compare the performance of ZIO with
-   * enabled Tracing with effect types _without_ a comparable feature.
+   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an optional
+   * feature and it's not valid to compare the performance of ZIO with enabled
+   * Tracing with effect types _without_ a comparable feature.
    */
-  lazy val benchmark: RuntimeConfig =
-    makeDefault(Int.MaxValue).copy(tracing = Tracing.disabled)
+  lazy val benchmark: RuntimeConfig = makeDefault(Int.MaxValue)
 
   /**
    * The default runtime configuration, with settings designed to work well for
@@ -76,17 +74,14 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val supervisor = Supervisor.none
 
-    val tracing = Tracing(TracingConfig.enabled)
-
     RuntimeConfig(
       blockingExecutor,
       executor,
-      tracing,
       fatal,
       reportFatal,
       supervisor,
-      false,
-      logger
+      logger,
+      RuntimeConfigFlags.empty
     )
   }
 
@@ -97,8 +92,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
-   * Makes a new default runtime configuration. This is a side-effecting
-   * method.
+   * Makes a new default runtime configuration. This is a side-effecting method.
    */
   def makeDefault(yieldOpCount: Int = defaultYieldOpCount): RuntimeConfig =
     fromExecutor(Executor.makeDefault(yieldOpCount))

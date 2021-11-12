@@ -31,8 +31,8 @@ trait GenIntegralPoly extends GenNumericPoly {
 object GenIntegralPoly {
 
   /**
-   * Constructs an instance of `GenIntegralPoly` using the specified `Gen`
-   * and `Integral` instances, existentially hiding the underlying type.
+   * Constructs an instance of `GenIntegralPoly` using the specified `Gen` and
+   * `Integral` instances, existentially hiding the underlying type.
    */
   def apply[A](gen: Gen[Has[Random] with Has[Sized], A], num: Integral[A]): GenIntegralPoly =
     new GenIntegralPoly {

@@ -3,7 +3,6 @@ package zio
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._
-import zio.test.environment.Live
 
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
@@ -12,7 +11,7 @@ object RTSSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
+  def spec = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     test("blocking caches threads") {
 
       def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Has[Clock], Nothing, Boolean] =

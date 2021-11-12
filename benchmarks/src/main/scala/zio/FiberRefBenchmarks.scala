@@ -29,19 +29,15 @@ class FiberRefBenchmarks {
   var n: Int = _
 
   @Benchmark
-  def tracedCreateUpdateAndRead(): Unit =
-    createUpdateAndRead(BenchmarkUtil.TracedRuntime)
-
-  @Benchmark
-  def unTracedCreateUpdateAndRead(): Unit =
+  def createUpdateAndRead(): Unit =
     createUpdateAndRead(BenchmarkUtil)
 
   @Benchmark
-  def unTracedJustYield(): Unit =
+  def justYield(): Unit =
     justYield(BenchmarkUtil)
 
   @Benchmark
-  def unTracedCreateFiberRefsAndYield(): Unit =
+  def createFiberRefsAndYield(): Unit =
     createFiberRefsAndYield(BenchmarkUtil)
 
   private def justYield(runtime: Runtime[Any]) = runtime.unsafeRun {

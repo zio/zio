@@ -7,18 +7,73 @@ title: "ZIO 2.x Migration Guide"
 import zio._
 ```
 
-## Upgrading Dependencies
+In this guide we want to introduce the migration process to ZIO 2.x. So if you have a project written in ZIO 1.x and want to migrate that to ZIO 2.x, this article is for you. 
 
-If we are using one of the following dependencies, we need to upgrade them to the `2.0.0-M2` version:
+ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
 
-```scala
-libraryDependencies += "dev.zio" %% "zio"         % "2.0.0-M3"
-libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0-M3"
-libraryDependencies += "dev.zio" %% "zio-test"    % "2.0.0-M3"
-```
+ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to the ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
 
-## Automated Scalafix Rules
-TODO
+1. First, we should ensure that all of our direct and transitive dependencies [have released their compatible versions with ZIO 2.x](https://docs.google.com/spreadsheets/d/1QIKgavognTRgh84xAqPTJriJ1VDGbaw8S1fmzMGgf98/). Note that we shouldn't update our dependencies to the 2.x compatible versions, before running scalafix.
+
+2. Next, we need to install the [Scalafix SBT Plugin](https://github.com/scalacenter/sbt-scalafix), by adding the following line into `project/plugins.sbt` file:
+    ```scala
+    // project/plugins.sbt
+    addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "<version>")
+    ```
+
+3. We are ready to apply the migration rule:
+    ```bash
+    sbt "scalafixEnable; scalafixAll github:zio/zio/Zio2Upgrade?sha=series/2.x" 
+    ```
+
+4. After running scalafix, it's time to upgrade ZIO dependencies. If we are using one of the following dependencies, we need to bump them into the `2.x` version:
+
+    ```scala
+    libraryDependencies += "dev.zio" %% "zio"         % "2.0.0"
+    libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0"
+    libraryDependencies += "dev.zio" %% "zio-test"    % "2.0.0"
+    ```
+
+   Other than ZIO, we should upgrade all other (official or community) ZIO libraries we are using in our `build.sbt` file.
+
+5. Now, we have performed most of the migration. Finally, we should fix the remaining compilation errors with the help of the remaining sections in this article.
+
+## Guidelines for Library Authors
+
+As a contributor to ZIO ecosystem libraries, we also should cover these guidelines:
+
+1. We should add _implicit trace parameter_ to all our codebase, this prevents the guts of our library from messing up the user's execution trace. 
+ 
+    Let's see an example of that in the ZIO source code:
+
+    ```diff
+    trait ZIO[-R, +E, +A] {
+    -  def map[B](f: A => B): ZIO[R, E, B] =
+         flatMap(a => ZIO.succeedNow(f(a)))
+    +  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
+         flatMap(a => ZIO.succeedNow(f(a)))
+    }
+    ```
+2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters). Also, we should be sure to capture any parameters that are referenced more than once as a lazy val in our implementation to prevent _double evaluation_. 
+    
+    The overall pattern in implementing such methods will be:
+
+    ```diff
+    - def foreachParN[A](n: Int)(a: Iterable[A]) = {
+        ... // The function body
+    - }
+    + def foreachParN[A](n0: => Int)(a0: => Iterable[A]) = 
+    +   ZIO.suspendSucceed {
+    +    val n = n0 
+    +    val a = a0
+          ... // The function body
+    +   }
+    ```
+   
+    As a result, the code will be robust to _double evaluation_ as well as to _side-effects embedded within parameters_.
+
+3. We should update names to match [ZIO 2.0 naming conventions](#zio-20-naming-conventions).
+4. ZIO 2.0 introduced [new structured concurrently operators](#compositional-concurrency) which helps us to change the regional parallelism settings of our application. So if applicable, we should use these operators instead of the old parallel operators.
 
 ## ZIO
 
@@ -28,7 +83,7 @@ TODO
 
 As the _Module Pattern 2.0_ encourages users to use `Has` with the environment `R` (`Has[R]`), it doesn't make sense to have arrow combinators. An arrow makes the `R` parameter as the _input_ of the arrow function, and it doesn't match properly with environments with the `Has` data type. So In ZIO 2.0, all arrow combinators are removed, and we need to use alternatives like doing monadic for-comprehension style `flatMap` with combinators like `provide`, `zip`, and so on.
 
-### Deprecated Methods
+### ZIO 2.0 Naming Conventions
 
 In ZIO 2.0, the name of constructors and operators becomes more ergonomic and simple. They reflect more about their purpose rather than just using idiomatic jargon of category theory or functional terms in functional programming with Haskell.
 
@@ -69,7 +124,7 @@ Here are some of the most important changes:
 | `ZIO#forkOn`                   | `ZIO#onExecutionContext(ec).fork` |
 | `ZIO.fromFiberM`               | `ZIO.fromFiberZIO`                |
 | `ZIO.require`                  | `ZIO.someOrFail`                  |
-| `ZIO#on`                       | `ZIO#lockExecutionContext`        |
+| `ZIO#on`                       | `ZIO#onExecutionContext`          |
 | `ZIO#rejectM`                  | `ZIO#rejectZIO`                   |
 | `ZIO#run`                      | `ZIO#exit`                        |
 | `ZIO#timeoutHalt`              | `ZIO#timeoutFailCause`            |
@@ -135,9 +190,63 @@ Here are some of the most important changes:
 | `ZIO.replicateM`               | `ZIO.replicateZIO`                |
 | `ZIO.replicateM_`              | `ZIO.replicateZIODiscard`         |
 |                                |                                   |
-|                                |                                   |
 | `ZIO.validate_`                | `ZIO.validateDiscard`             |
 | `ZIO.validatePar_`             | `ZIO.validateParDiscard`          |
+
+### Lazy Evaluation of Parameters
+
+In ZIO 2.x, we changed the signature of those functions that return effects to use _by-name parameters_. And we also encourage library authors to do the same for any functions that return effects.
+
+Our motivation for this change was a common mistake among new users of ZIO, which they _accidentally embed raw effects_ inside the function they pass to ZIO constructors and operators. This mistake may produce some unwanted behaviors.
+
+Let's see an example of this anti-pattern in ZIO 1.x:
+
+```scala mdoc:silent:nest:warn
+ZIO.bracket({
+  val random = scala.util.Random.nextInt()
+  ZIO.succeed(random)
+})(_ => ZIO.unit)(x => console.putStrLn(x.toString)).repeatN(2)
+```
+
+The newbie user expects that this program prints 3 different random numbers, while the output would be something as follows:
+
+```
+1085597917
+1085597917
+1085597917
+```
+
+This is because the user incorrectly introduced a raw effect into the `acquire` parameter of `bracket` operation. As the `acuqire` is _by-value parameter_, the value passed to the function evaluated _eagerly_, only once:
+
+```scala
+def bracket[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A]
+```
+
+If we make the `acquire` to _by-name parameter_, we can prevent these mistakes:
+
+```diff
+- def bracket[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A]
++ def bracket[R, E, A](acquire: => ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A]
+```
+
+So, in ZIO 2.x if we accidentally introduce an effect to the ZIO parameters, the lazy parameter prevents the program from producing undesired behaviors:
+
+```scala mdoc:silent:nest:warn
+// Note that in ZIO 2.x, the `bracket` is deprecated and renamed to the `acquireReleaseWith`. In this example to prevent the consistency of our example, we used the `bracket`.
+
+ZIO.bracket({
+  val random = scala.util.Random.nextInt()
+  ZIO.succeed(random)
+})(_ => ZIO.unit)(x => console.putStrLn(x.toString)).repeatN(2)
+```
+
+The output would be something like this:
+
+```scala
+355191016
+2046799548
+333146616
+```
 
 ### Composable Zips
 
@@ -180,6 +289,44 @@ Here is the list of `zip` variants that are deprecated:
 | `ZIO.tupledPar` | `ZIO.zipPar` |
 | `ZIO.mapN`      | `ZIO.zip`    |
 | `ZIO.mapParN`   | `ZIO.zipPar` |
+
+### Compositional Concurrency
+
+We introduced two operations that modify the parallel factor of a concurrent ZIO effect, `ZIO#withParallelism` and `ZIO#withParallelismUnbounded`. This makes the maximum number of fibers for parallel operators as a regional setting. Therefore, all parallelism operators ending in `N`, such as `foreachParN` and `collectAllParN`, have been deprecated:
+
+| ZIO 1.x                   | ZIO 2.x                  |
+|---------------------------|--------------------------|
+| `foreachParN`             | `foreachPar`             |
+| `foreachParN_`            | `foreachParDiscard`      |
+| `collectAllParN`          | `collectAllPar`          |
+| `collectAllParN_`         | `collectAllParDiscard`   |
+| `collectAllWithParN`      | `collectAllWithPar`      |
+| `collectAllSuccessesParN` | `collectAllSuccessesPar` |
+
+Having separate methods for changing the parallelism factor of a parallel effect deprecates lots of extra operators and makes concurrency more compositional.
+
+So instead of writing a parallel task like this:
+
+```scala mdoc:invisible
+val urls: List[String] = List.empty
+def download(url: String): Task[String] = Task.attempt(???)
+```
+
+```scala mdoc:silent:warn
+ZIO.foreachParN(8)(urls)(download)
+```
+
+We should use the `withParallelism` method:
+
+```scala mdoc:nest:silent
+ZIO.foreachPar(urls)(download).withParallelism(8)
+```
+
+The `withParallelismUnbounded` method is useful when we want to run a parallel effect with an unbounded maximum number of fibers:
+
+```scala mdoc:silent:nest
+ZIO.foreachPar(urls)(download).withParallelismUnbounded
+```
 
 ### Either Values
 
@@ -1495,3 +1642,165 @@ ZIO.logSpan("myspan") {
 
 ZIO Logging calculates the running duration of that span and includes that in the logging data corresponding to its span label.
 
+### Compile-time Execution Tracing
+
+ZIO 1.x's execution trace is not as useful as it could be because it contains tracing information for internal ZIO operators that it not helpful to the user is understanding where in their code an error occurred.
+
+Let's say we have the following application, in ZIO 1.x:
+
+```scala
+import zio._
+import zio.console.Console
+
+object TracingExample extends zio.App {
+
+  def doSomething(input: Int): ZIO[Console, String, Unit] =
+    for {
+      _ <- console.putStrLn(s"Do something $input").orDie // line number 8
+      _ <- ZIO.fail("Boom!")
+      _ <- console.putStrLn("Finished my job").orDie
+    } yield ()
+
+  def myApp: ZIO[Console, String, Unit] =
+    for {
+      _ <- console.putStrLn("Hello!").orDie
+      _ <- doSomething(5)
+      _ <- console.putStrLn("Bye Bye!").orDie
+    } yield ()
+
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+    myApp.exitCode
+}
+```
+
+The output would be something like this:
+
+```
+Hello!
+Do something 5
+Fiber failed.
+A checked error was not handled.
+Boom!
+
+Fiber:Id(1634884059941,1) was supposed to continue to:
+  a future continuation at TracingExample$.myApp(TracingExample.scala:16)
+  a future continuation at zio.ZIO.exitCode(ZIO.scala:606)
+
+Fiber:Id(1634884059941,1) execution trace:
+  at TracingExample$.doSomething(TracingExample.scala:8)
+  at zio.ZIO.orDieWith(ZIO.scala:1118)
+  at zio.ZIO.refineOrDieWith(ZIO.scala:1497)
+  at zio.console.package$Console$Service$.putStrLn(package.scala:44)
+  at zio.console.package$.putStrLn(package.scala:88)
+  at TracingExample$.myApp(TracingExample.scala:15)
+  at zio.ZIO.orDieWith(ZIO.scala:1118)
+  at zio.ZIO.refineOrDieWith(ZIO.scala:1497)
+  at zio.console.package$Console$Service$.putStrLn(package.scala:44)
+  at zio.console.package$.putStrLn(package.scala:88)
+
+Fiber:Id(1634884059941,1) was spawned by:
+
+Fiber:Id(1634884059516,0) was supposed to continue to:
+  a future continuation at zio.App.main(App.scala:59)
+  a future continuation at zio.App.main(App.scala:58)
+
+Fiber:Id(1634884059516,0) ZIO Execution trace: <empty trace>
+
+Fiber:Id(1634884059516,0) was spawned by: <empty trace>
+```
+
+The execution trace, is somehow at a good degree informative, but it doesn't lead us to the exact point where the failure happened. It's a little hard to see what is going here. 
+
+Let's rewrite the previous example in ZIO 2.0:
+
+```scala mdoc:compile-only
+import zio._
+
+object TracingExample extends ZIOAppDefault {
+
+  def doSomething(input: Int): ZIO[Has[Console], String, Unit] =
+    for {
+      _ <- Console.printLine(s"Do something $input").orDie
+      _ <- ZIO.fail("Boom!") // line number 8
+      _ <- Console.printLine("Finished my job").orDie
+    } yield ()
+
+  def myApp: ZIO[Has[Console], String, Unit] =
+    for {
+      _ <- Console.printLine("Hello!").orDie
+      _ <- doSomething(5)
+      _ <- Console.printLine("Bye Bye!").orDie
+    } yield ()
+
+  def run = myApp
+}
+```
+
+The output is more descriptive than the ZIO 1.x:
+
+```
+Hello!
+Do something 5
+timestamp=2021-10-22T06:24:57.958955503Z level=ERROR thread=#0 message="Fiber failed.
+A checked error was not handled.
+Boom!
+
+Fiber:FiberId(1634883897813,2) was supposed to continue to:
+  a future continuation at 
+  a future continuation at 
+  a future continuation at 
+  a future continuation at 
+  a future continuation at 
+  a future continuation at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:15:9)
+
+Fiber:FiberId(1634883897813,2) execution trace:
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:8:20)
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:9)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:54)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at 
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:9)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:40)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
+  at 
+```
+
+As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), line number 8 and column 20:
+
+```
+Fiber:FiberId(1634883897813,2) execution trace:
+  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:8:20)
+```
+
+Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterward. So it adds a huge amount of complexity at the runtime.
+
+Some users often turn off the tracing when they need more speed, so they lose this ability to trace their application when something breaks.
+
+In ZIO 2.x, we moved execution tracing from the run-time to the compile-time. This is done by capturing tracing information from source code at compile time using macros. So most tracing information is pre-allocated at startup and never needs garbage collected. As a result, we end up with much better performance in execution tracing.

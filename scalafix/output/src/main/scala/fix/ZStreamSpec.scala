@@ -14,7 +14,8 @@ import zio.test.environment.TestClock
 import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
-import zio.Clock
+import zio.{ Clock, Clock, Has }
+import zio.test.Gen
 import zio.test.environment.TestClock
 
 object ZStreamSpec extends DefaultRunnableSpec {
@@ -25,15 +26,19 @@ object ZStreamSpec extends DefaultRunnableSpec {
     suite("ZStreamSpec")(
       suite("Combinators")(
         suite("absolve")(
-          test("happy path")(checkM(tinyChunkOf(Gen.anyInt)) { xs =>
+          test("happy path")(check(tinyChunkOf(Gen.int)) { xs =>
             val stream = ZStream.fromIterable(xs.map(Right(_)))
             assertM(stream.absolve.runCollect)(equalTo(xs))
           }),
-          test("failure")(checkM(tinyChunkOf(Gen.anyInt)) { xs =>
+          test("happy path all")(checkAll(tinyChunkOf(Gen.int)) { xs =>
+            val stream = ZStream.fromIterable(xs.map(Right(_)))
+            assertM(stream.absolve.runCollect)(equalTo(xs))
+          }),
+          test("failure")(check(tinyChunkOf(Gen.int)) { xs =>
             val stream = ZStream.fromIterable(xs.map(Right(_))) ++ ZStream.succeed(Left("Ouch"))
             assertM(stream.absolve.runCollect.exit)(fails(equalTo("Ouch")))
           }),
-          test("round-trip #1")(checkM(tinyChunkOf(Gen.anyInt), Gen.anyString) { (xs, s) =>
+          test("round-trip #1")(check(tinyChunkOf(Gen.int), Gen.string) { (xs, s) =>
             val xss    = ZStream.fromIterable(xs.map(Right(_)))
             val stream = xss ++ ZStream(Left(s)) ++ xss
             for {
@@ -41,7 +46,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
               res2 <- stream.absolve.either.runCollect
             } yield assert(res1)(startsWith(res2))
           }),
-          test("round-trip #2")(checkM(tinyChunkOf(Gen.anyInt), Gen.anyString) { (xs, s) =>
+          test("round-trip #2")(check(tinyChunkOf(Gen.int), Gen.string) { (xs, s) =>
             val xss    = ZStream.fromIterable(xs)
             val stream = xss ++ ZStream.fail(s)
             for {
@@ -462,7 +467,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         suite("buffer")(
-          test("maintains elements and ordering")(checkM(tinyChunkOf(tinyChunkOf(Gen.anyInt))) { chunk =>
+          test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
             assertM(
               ZStream
                 .fromChunks(chunk: _*)
@@ -618,7 +623,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         suite("bufferUnbounded")(
-          test("buffer the Stream")(checkM(Gen.chunkOf(Gen.anyInt)) { chunk =>
+          test("buffer the Stream")(check(Gen.chunkOf(Gen.int)) { chunk =>
             assertM(
               ZStream
                 .fromIterable(chunk)
@@ -726,7 +731,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         test("changes") {
-          checkM(pureStreamOfInts) { stream =>
+          check(pureStreamOfInts) { stream =>
             for {
               actual <- stream.changes.runCollect.map(_.toList)
               expected <- stream.runCollect.map { as =>
@@ -766,7 +771,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
-        test("collectSome")(checkM(Gen.bounded(0, 5)(pureStreamGen(Gen.option(Gen.anyInt), _))) { s =>
+        test("collectSome")(check(Gen.bounded(0, 5)(pureStreamGen(Gen.option(Gen.int), _))) { s =>
           for {
             res1 <- (s.collectSome.runCollect)
             res2 <- (s.runCollect.map(_.collect { case Some(x) => x }))
@@ -824,7 +829,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         suite("concat")(
-          test("concat")(checkM(streamOfInts, streamOfInts) { (s1, s2) =>
+          test("concat")(check(streamOfInts, streamOfInts) { (s1, s2) =>
             for {
               chunkConcat  <- s1.runCollect.zipWith(s2.runCollect)(_ ++ _).exit
               streamConcat <- (s1 ++ s2).runCollect.exit
@@ -905,7 +910,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         suite("drop")(
-          test("drop")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
+          test("drop")(check(streamOfInts, Gen.int) { (s, n) =>
             for {
               dropStreamResult <- s.drop(n.toLong).runCollect.exit
               dropListResult   <- s.runCollect.map(_.drop(n)).exit
@@ -924,7 +929,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         test("dropUntil") {
-          checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+          check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               res1 <- s.dropUntil(p).runCollect
               res2 <- s.runCollect.map(_.dropWhile(!p(_)).drop(1))
@@ -933,7 +938,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         },
         suite("dropWhile")(
           test("dropWhile")(
-            checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+            check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
               for {
                 res1 <- s.dropWhile(p).runCollect
                 res2 <- s.runCollect.map(_.dropWhile(p))
@@ -975,14 +980,14 @@ object ZStreamSpec extends DefaultRunnableSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
         },
-        test("filter")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+        test("filter")(check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
             res2 <- s.runCollect.map(_.filter(p))
           } yield assert(res1)(equalTo(res2))
         }),
         suite("filterM")(
-          test("filterM")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+          test("filterM")(check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               res1 <- s.filterZIO(s => IO.succeed(p(s))).runCollect
               res2 <- s.runCollect.map(_.filter(p))
@@ -1009,14 +1014,14 @@ object ZStreamSpec extends DefaultRunnableSpec {
 
             assertM(stream.runCollect)(equalTo(Chunk(expected)))
           } @@ TestAspect.jvmOnly, // Too slow on Scala.js
-          test("left identity")(checkM(Gen.anyInt, Gen.function(pureStreamOfInts)) { (x, f) =>
+          test("left identity")(check(Gen.int, Gen.function(pureStreamOfInts)) { (x, f) =>
             for {
               res1 <- ZStream(x).flatMap(f).runCollect
               res2 <- f(x).runCollect
             } yield assert(res1)(equalTo(res2))
           }),
           test("right identity")(
-            checkM(pureStreamOfInts)(m =>
+            check(pureStreamOfInts)(m =>
               for {
                 res1 <- m.flatMap(i => ZStream(i)).runCollect
                 res2 <- m.runCollect
@@ -1024,9 +1029,9 @@ object ZStreamSpec extends DefaultRunnableSpec {
             )
           ),
           test("associativity") {
-            val tinyStream = Gen.int(0, 2).flatMap(pureStreamGen(Gen.anyInt, _))
+            val tinyStream = Gen.int(0, 2).flatMap(pureStreamGen(Gen.int, _))
             val fnGen      = Gen.function(tinyStream)
-            checkM(tinyStream, fnGen, fnGen) { (m, f, g) =>
+            check(tinyStream, fnGen, fnGen) { (m, f, g) =>
               for {
                 leftStream  <- m.flatMap(f).flatMap(g).runCollect
                 rightStream <- m.flatMap(x => f(x).flatMap(g)).runCollect
@@ -1127,14 +1132,14 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         suite("flatMapPar")(
-          test("guarantee ordering")(checkM(tinyListOf(Gen.anyInt)) { (m: List[Int]) =>
+          test("guarantee ordering")(check(tinyListOf(Gen.int)) { (m: List[Int]) =>
             for {
               flatMap    <- ZStream.fromIterable(m).flatMap(i => ZStream(i, i)).runCollect
               flatMapPar <- ZStream.fromIterable(m).flatMapPar(1)(i => ZStream(i, i)).runCollect
             } yield assert(flatMap)(equalTo(flatMapPar))
           }),
           test("consistent with flatMap")(
-            checkM(Gen.int(1, Int.MaxValue), tinyListOf(Gen.anyInt)) { (n, m) =>
+            check(Gen.int(1, Int.MaxValue), tinyListOf(Gen.int)) { (n, m) =>
               for {
                 flatMap <- ZStream
                              .fromIterable(m)
@@ -1414,11 +1419,11 @@ object ZStreamSpec extends DefaultRunnableSpec {
             )(fails(equalTo(e)))
           }
         ),
-        test("flattenIterables")(checkM(tinyListOf(tinyListOf(Gen.anyInt))) { lists =>
+        test("flattenIterables")(check(tinyListOf(tinyListOf(Gen.int))) { lists =>
           assertM(ZStream.fromIterable(lists).flattenIterables.runCollect)(equalTo(Chunk.fromIterable(lists.flatten)))
         }),
         suite("flattenTake")(
-          test("happy path")(checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+          test("happy path")(check(tinyListOf(Gen.chunkOf(Gen.int))) { chunks =>
             assertM(
               ZStream
                 .fromChunks(chunks: _*)
@@ -1734,10 +1739,10 @@ object ZStreamSpec extends DefaultRunnableSpec {
 
           val int = Gen.int(0, 5)
 
-          checkM(
+          check(
             int.flatMap(pureStreamGen(Gen.boolean, _)),
-            int.flatMap(pureStreamGen(Gen.anyInt, _)),
-            int.flatMap(pureStreamGen(Gen.anyInt, _))
+            int.flatMap(pureStreamGen(Gen.int, _)),
+            int.flatMap(pureStreamGen(Gen.int, _))
           ) { (b, s1, s2) =>
             for {
               interleavedStream <- s1.interleaveWith(s2)(b).runCollect
@@ -1778,10 +1783,10 @@ object ZStreamSpec extends DefaultRunnableSpec {
               .map(result => assert(result)(equalTo(Chunk("[", "1", "]"))))
           },
           test("mkString(Sep) equivalence") {
-            checkM(
+            check(
               Gen
                 .int(0, 10)
-                .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))))
+                .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.int))))
             ) { chunks =>
               val stream = ZStream.fromChunks(chunks: _*)
 
@@ -1792,10 +1797,10 @@ object ZStreamSpec extends DefaultRunnableSpec {
             }
           },
           test("mkString(Before, Sep, After) equivalence") {
-            checkM(
+            check(
               Gen
                 .int(0, 10)
-                .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))))
+                .flatMap(Gen.listOfN(_)(Gen.small(Gen.chunkOfN(_)(Gen.int))))
             ) { chunks =>
               val stream = ZStream.fromChunks(chunks: _*)
 
@@ -1944,7 +1949,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
               assert(uninterruptible)(isSome(equalTo(InterruptStatus.Uninterruptible)))
           }
         ),
-        test("map")(checkM(pureStreamOfInts, Gen.function(Gen.anyInt)) { (s, f) =>
+        test("map")(check(pureStreamOfInts, Gen.function(Gen.int)) { (s, f) =>
           for {
             res1 <- s.map(f).runCollect
             res2 <- s.runCollect.map(_.map(f))
@@ -1982,13 +1987,13 @@ object ZStreamSpec extends DefaultRunnableSpec {
             )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
           }
         ),
-        test("mapConcat")(checkM(pureStreamOfInts, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
+        test("mapConcat")(check(pureStreamOfInts, Gen.function(Gen.listOf(Gen.int))) { (s, f) =>
           for {
             res1 <- s.mapConcat(f).runCollect
             res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
           } yield assert(res1)(equalTo(res2))
         }),
-        test("mapConcatChunk")(checkM(pureStreamOfInts, Gen.function(Gen.chunkOf(Gen.anyInt))) { (s, f) =>
+        test("mapConcatChunk")(check(pureStreamOfInts, Gen.function(Gen.chunkOf(Gen.int))) { (s, f) =>
           for {
             res1 <- s.mapConcatChunk(f).runCollect
             res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
@@ -1996,7 +2001,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         }),
         suite("mapConcatChunkM")(
           test("mapConcatChunkM happy path") {
-            checkM(pureStreamOfInts, Gen.function(Gen.chunkOf(Gen.anyInt))) { (s, f) =>
+            check(pureStreamOfInts, Gen.function(Gen.chunkOf(Gen.int))) { (s, f) =>
               for {
                 res1 <- s.mapConcatChunkM(b => UIO.succeedNow(f(b))).runCollect
                 res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
@@ -2013,7 +2018,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         ),
         suite("mapConcatM")(
           test("mapConcatM happy path") {
-            checkM(pureStreamOfInts, Gen.function(Gen.listOf(Gen.anyInt))) { (s, f) =>
+            check(pureStreamOfInts, Gen.function(Gen.listOf(Gen.int))) { (s, f) =>
               for {
                 res1 <- s.mapConcatZIO(b => UIO.succeedNow(f(b))).runCollect
                 res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
@@ -2046,7 +2051,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         },
         suite("mapM")(
           test("ZIO#foreach equivalence") {
-            checkM(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
+            check(Gen.small(Gen.listOfN(_)(Gen.byte)), Gen.function(Gen.successes(Gen.byte))) { (data, f) =>
               val s = ZStream.fromIterable(data)
 
               for {
@@ -2066,12 +2071,12 @@ object ZStreamSpec extends DefaultRunnableSpec {
         ),
         suite("mapMPar")(
           test("foreachParN equivalence") {
-            checkNM(10)(Gen.small(Gen.listOfN(_)(Gen.anyByte)), Gen.function(Gen.successes(Gen.anyByte))) { (data, f) =>
+            checkN(10)(Gen.small(Gen.listOfN(_)(Gen.byte)), Gen.function(Gen.successes(Gen.byte))) { (data, f) =>
               val s = ZStream.fromIterable(data)
 
               for {
                 l <- s.mapZIOPar(8)(f).runCollect
-                r <- IO.foreachParN(8)(data)(f)
+                r <- IO.foreachPar(data)(f).withParallelism(8)
               } yield assert(l.toList)(equalTo(r))
             }
           },
@@ -2095,7 +2100,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
               result <- interrupted.get
             } yield assert(result)(isTrue)
           },
-          test("guarantee ordering")(checkM(Gen.int(1, 4096), Gen.listOf(Gen.anyInt)) { (n: Int, m: List[Int]) =>
+          test("guarantee ordering")(check(Gen.int(1, 4096), Gen.listOf(Gen.int)) { (n: Int, m: List[Int]) =>
             for {
               mapM    <- ZStream.fromIterable(m).mapZIO(UIO.succeedNow).runCollect
               mapMPar <- ZStream.fromIterable(m).mapZIOPar(n)(UIO.succeedNow).runCollect
@@ -2109,7 +2114,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
                 .mapZIOPar(8)(_ => ZIO(1).repeatN(2000))
                 .runDrain
                 .exit
-                .map(_.interrupted)
+                .map(_.isInterrupted)
             )(equalTo(false))
           } @@ nonFlaky(10) @@ TestAspect.jvmOnly,
           test("interrupts pending tasks when one of the tasks fails") {
@@ -2189,7 +2194,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         suite("mergeWith")(
-          test("equivalence with set union")(checkM(streamOfInts, streamOfInts) {
+          test("equivalence with set union")(check(streamOfInts, streamOfInts) {
             (s1: ZStream[Any, String, Int], s2: ZStream[Any, String, Int]) =>
               for {
                 mergedStream <- (s1 merge s2).runCollect.map(_.toSet).exit
@@ -2465,7 +2470,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           )
         ),
         suite("scan")(
-          test("scan")(checkM(pureStreamOfInts) { s =>
+          test("scan")(check(pureStreamOfInts) { s =>
             for {
               streamResult <- s.scan(0)(_ + _).runCollect
               chunkResult  <- s.runCollect.map(_.scan(0)(_ + _))
@@ -2473,7 +2478,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           })
         ),
         suite("scanReduce")(
-          test("scanReduce")(checkM(pureStreamOfInts) { s =>
+          test("scanReduce")(check(pureStreamOfInts) { s =>
             for {
               streamResult <- s.scanReduce(_ + _).runCollect
               chunkResult  <- s.runCollect.map(_.scan(0)(_ + _).tail)
@@ -2616,7 +2621,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           s1.someOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))
         },
         suite("take")(
-          test("take")(checkM(streamOfInts, Gen.anyInt) { (s, n) =>
+          test("take")(check(streamOfInts, Gen.int) { (s, n) =>
             for {
               takeStreamResult <- s.take(n.toLong).runCollect.exit
               takeListResult   <- s.runCollect.map(_.take(n)).exit
@@ -2644,7 +2649,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           )
         ),
         test("takeRight") {
-          checkM(pureStreamOfInts, Gen.int(1, 4)) { (s, n) =>
+          check(pureStreamOfInts, Gen.int(1, 4)) { (s, n) =>
             for {
               streamTake <- s.takeRight(n).runCollect
               chunkTake  <- s.runCollect.map(_.takeRight(n))
@@ -2652,7 +2657,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         },
         test("takeUntil") {
-          checkM(streamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+          check(streamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               streamTakeUntil <- s.takeUntil(p).runCollect.exit
               chunkTakeUntil <- s.runCollect
@@ -2664,7 +2669,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         },
         test("takeUntilM") {
-          checkM(streamOfInts, Gen.function(Gen.successes(Gen.boolean))) { (s, p) =>
+          check(streamOfInts, Gen.function(Gen.successes(Gen.boolean))) { (s, p) =>
             for {
               streamTakeUntilM <- s.takeUntilM(p).runCollect.exit
               chunkTakeUntilM <- s.runCollect
@@ -2679,7 +2684,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         },
         suite("takeWhile")(
-          test("takeWhile")(checkM(streamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
+          test("takeWhile")(check(streamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
             for {
               streamTakeWhile <- s.takeWhile(p).runCollect.exit
               chunkTakeWhile  <- s.runCollect.map(_.takeWhile(p)).exit
@@ -3013,7 +3018,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         ),
         suite("toInputStream")(
           test("read one-by-one") {
-            checkM(tinyListOf(Gen.chunkOf(Gen.anyByte))) { chunks =>
+            check(tinyListOf(Gen.chunkOf(Gen.byte))) { chunks =>
               val content = chunks.flatMap(_.toList)
               ZStream.fromChunks(chunks: _*).toInputStream.use[Any, Throwable, TestResult] { is =>
                 ZIO.succeedNow(
@@ -3025,7 +3030,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             }
           },
           test("read in batches") {
-            checkM(tinyListOf(Gen.chunkOf(Gen.anyByte))) { chunks =>
+            check(tinyListOf(Gen.chunkOf(Gen.byte))) { chunks =>
               val content = chunks.flatMap(_.toList)
               ZStream.fromChunks(chunks: _*).toInputStream.use[Any, Throwable, TestResult] { is =>
                 val batches: List[(Array[Byte], Int)] = Iterator.continually {
@@ -3130,7 +3135,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           } yield assert(out)(equalTo(Chunk.fromIterable(1 to n)))).use(ZIO.succeed(_))
         } @@ TestAspect.jvmOnly, // Until #3360 is solved
         suite("toQueue")(
-          test("toQueue")(checkM(Gen.chunkOfBounded(0, 3)(Gen.anyInt)) { (c: Chunk[Int]) =>
+          test("toQueue")(check(Gen.chunkOfBounded(0, 3)(Gen.int)) { (c: Chunk[Int]) =>
             val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
             assertM(
               s.toQueue(1000)
@@ -3140,7 +3145,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
               equalTo(c.toSeq.toList.map(Take.single) :+ Take.end)
             )
           }),
-          test("toQueueUnbounded")(checkM(Gen.chunkOfBounded(0, 3)(Gen.anyInt)) { (c: Chunk[Int]) =>
+          test("toQueueUnbounded")(check(Gen.chunkOfBounded(0, 3)(Gen.int)) { (c: Chunk[Int]) =>
             val s = ZStream.fromChunk(c).flatMap(ZStream.succeed(_))
             assertM(
               s.toQueueUnbounded
@@ -3153,7 +3158,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         ),
         suite("toReader")(
           test("read one-by-one") {
-            checkM(tinyListOf(Gen.chunkOf(Gen.anyChar))) { chunks =>
+            check(tinyListOf(Gen.chunkOf(Gen.char))) { chunks =>
               val content = chunks.flatMap(_.toList)
               ZStream.fromChunks(chunks: _*).toReader.use[Any, Throwable, TestResult] { reader =>
                 ZIO.succeedNow(
@@ -3165,7 +3170,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             }
           },
           test("read in batches") {
-            checkM(tinyListOf(Gen.chunkOf(Gen.anyChar))) { chunks =>
+            check(tinyListOf(Gen.chunkOf(Gen.char))) { chunks =>
               val content = chunks.flatMap(_.toList)
               ZStream.fromChunks(chunks: _*).toReader.use[Any, Throwable, TestResult] { reader =>
                 val batches: List[(Array[Char], Int)] = Iterator.continually {
@@ -3283,9 +3288,9 @@ object ZStreamSpec extends DefaultRunnableSpec {
             assertM(l.zip(r).runCollect)(equalTo(Chunk((1, "a"), (2, "b"), (3, "c"))))
           },
           test("zip equivalence with Chunk#zipWith") {
-            checkM(
-              tinyListOf(Gen.chunkOf(Gen.anyInt)),
-              tinyListOf(Gen.chunkOf(Gen.anyInt))
+            check(
+              tinyListOf(Gen.chunkOf(Gen.int)),
+              tinyListOf(Gen.chunkOf(Gen.int))
             ) { (l, r) =>
               val expected = Chunk.fromIterable(l).flatten.zip(Chunk.fromIterable(r).flatten)
               assertM(ZStream.fromChunks(l: _*).zip(ZStream.fromChunks(r: _*)).runCollect)(
@@ -3304,11 +3309,11 @@ object ZStreamSpec extends DefaultRunnableSpec {
         ),
         suite("zipAllWith")(
           test("zipAllWith") {
-            checkM(
+            check(
               // We're using ZStream.fromChunks in the test, and that discards empty
               // chunks; so we're only testing for non-empty chunks here.
-              tinyListOf(Gen.chunkOf(Gen.anyInt).filter(_.size > 0)),
-              tinyListOf(Gen.chunkOf(Gen.anyInt).filter(_.size > 0))
+              tinyListOf(Gen.chunkOf(Gen.int).filter(_.size > 0)),
+              tinyListOf(Gen.chunkOf(Gen.int).filter(_.size > 0))
             ) { (l, r) =>
               val expected =
                 Chunk
@@ -3336,7 +3341,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             )(isLeft(equalTo("Ouch")))
           }
         ),
-        test("zipWithIndex")(checkM(pureStreamOfInts) { s =>
+        test("zipWithIndex")(check(pureStreamOfInts) { s =>
           for {
             res1 <- (s.zipWithIndex.runCollect)
             res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
@@ -3383,7 +3388,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             assertM(ZStream.empty.zipWithNext.runCollect)(isEmpty)
           },
           test("should output same values as zipping with tail plus last element") {
-            checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+            check(tinyListOf(Gen.chunkOf(Gen.int))) { chunks =>
               val stream = ZStream.fromChunks(chunks: _*)
               for {
                 result0 <- stream.zipWithNext.runCollect
@@ -3407,7 +3412,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             assertM(ZStream.empty.zipWithPrevious.runCollect)(isEmpty)
           },
           test("should output same values as first element plus zipping with init") {
-            checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+            check(tinyListOf(Gen.chunkOf(Gen.int))) { chunks =>
               val stream = ZStream.fromChunks(chunks: _*)
               for {
                 result0 <- stream.zipWithPrevious.runCollect
@@ -3451,7 +3456,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         },
         suite("when")(
           test("returns the stream if the condition is satisfied") {
-            checkM(pureStreamOfInts) { stream =>
+            check(pureStreamOfInts) { stream =>
               for {
                 result1  <- stream.when(true).runCollect
                 result2  <- ZStream.when(true)(stream).runCollect
@@ -3460,7 +3465,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             }
           },
           test("returns an empty stream if the condition is not satisfied") {
-            checkM(pureStreamOfInts) { stream =>
+            check(pureStreamOfInts) { stream =>
               for {
                 result1 <- stream.when(false).runCollect
                 result2 <- ZStream.when(false)(stream).runCollect
@@ -3469,7 +3474,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             }
           },
           test("dies if the condition throws an exception") {
-            checkM(pureStreamOfInts) { stream =>
+            check(pureStreamOfInts) { stream =>
               val exception     = new Exception
               def cond: Boolean = throw exception
               assertM(stream.when(cond).runDrain.exit)(dies(equalTo(exception)))
@@ -3478,7 +3483,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         ),
         suite("whenCase")(
           test("returns the resulting stream if the given partial function is defined for the given value") {
-            checkM(Gen.anyInt) { o =>
+            check(Gen.int) { o =>
               for {
                 result  <- ZStream.whenCase(Some(o)) { case Some(v) => ZStream(v) }.runCollect
                 expected = Chunk(o)
@@ -3503,7 +3508,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         ),
         suite("whenCaseM")(
           test("returns the resulting stream if the given partial function is defined for the given effectful value") {
-            checkM(Gen.anyInt) { o =>
+            check(Gen.int) { o =>
               for {
                 result  <- ZStream.whenCaseZIO(ZIO.succeed(Some(o))) { case Some(v) => ZStream(v) }.runCollect
                 expected = Chunk(o)
@@ -3541,7 +3546,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
         ),
         suite("whenM")(
           test("returns the stream if the effectful condition is satisfied") {
-            checkM(pureStreamOfInts) { stream =>
+            check(pureStreamOfInts) { stream =>
               for {
                 result1  <- stream.whenZIO(ZIO.succeed(true)).runCollect
                 result2  <- ZStream.whenZIO(ZIO.succeed(true))(stream).runCollect
@@ -3550,7 +3555,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             }
           },
           test("returns an empty stream if the effectful condition is not satisfied") {
-            checkM(pureStreamOfInts) { stream =>
+            check(pureStreamOfInts) { stream =>
               for {
                 result1 <- stream.whenZIO(ZIO.succeed(false)).runCollect
                 result2 <- ZStream.whenZIO(ZIO.succeed(false))(stream).runCollect
@@ -3559,7 +3564,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
             }
           },
           test("fails if the effectful condition fails") {
-            checkM(pureStreamOfInts) { stream =>
+            check(pureStreamOfInts) { stream =>
               val exception = new Exception
               assertM(stream.whenZIO(ZIO.fail(exception)).runDrain.exit)(fails(equalTo(exception)))
             }
@@ -3622,7 +3627,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         test("chunkN") {
-          checkM(tinyChunkOf(Gen.chunkOf(Gen.anyInt)) <*> (Gen.int(1, 100))) { case (chunk, n) =>
+          check(tinyChunkOf(Gen.chunkOf(Gen.int)) <*> (Gen.int(1, 100))) { case (chunk, n) =>
             val expected = Chunk.fromIterable(chunk.flatten.grouped(n).toList)
             assertM(
               ZStream
@@ -3634,7 +3639,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         },
         test("concatAll") {
-          checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { chunks =>
+          check(tinyListOf(Gen.chunkOf(Gen.int))) { chunks =>
             assertM(
               ZStream.concatAll(Chunk.fromIterable(chunks.map(ZStream.fromChunk(_)))).runCollect
             )(
@@ -3667,11 +3672,11 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         test("fromChunk") {
-          checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)))(c => assertM(ZStream.fromChunk(c).runCollect)(equalTo(c)))
+          check(Gen.small(Gen.chunkOfN(_)(Gen.int)))(c => assertM(ZStream.fromChunk(c).runCollect)(equalTo(c)))
         },
         suite("fromChunks")(
           test("fromChunks") {
-            checkM(tinyListOf(Gen.chunkOf(Gen.anyInt))) { cs =>
+            check(tinyListOf(Gen.chunkOf(Gen.int))) { cs =>
               assertM(ZStream.fromChunks(cs: _*).runCollect)(
                 equalTo(Chunk.fromIterable(cs).flatten)
               )
@@ -3705,26 +3710,26 @@ object ZStreamSpec extends DefaultRunnableSpec {
             ZStream.fromInputStream(is, chunkSize).runCollect map { bytes => assert(bytes.toArray)(equalTo(data)) }
           },
           test("example 2") {
-            checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyByte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
+            check(Gen.small(Gen.chunkOfN(_)(Gen.byte)), Gen.int(1, 10)) { (bytes, chunkSize) =>
               val is = new ByteArrayInputStream(bytes.toArray)
               ZStream.fromInputStream(is, chunkSize).runCollect.map(assert(_)(equalTo(bytes)))
             }
           }
         ),
-        test("fromIterable")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { l =>
+        test("fromIterable")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           def lazyL = l
           assertM(ZStream.fromIterable(lazyL).runCollect)(equalTo(l))
         }),
-        test("fromIterableM")(checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt))) { l =>
+        test("fromIterableM")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           assertM(ZStream.fromIterableZIO(UIO.succeed(l)).runCollect)(equalTo(l))
         }),
         test("fromIterator") {
-          checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
+          check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
             assertM(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
           }
         },
         test("fromIteratorTotal") {
-          checkM(Gen.small(Gen.chunkOfN(_)(Gen.anyInt)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
+          check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
             assertM(ZStream.fromIteratorSucceed(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
           }
         },
@@ -3961,7 +3966,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
               result <- ref.get
             } yield assert(result)(equalTo(List(1, 1)))
           ),
-          test("allow schedule rely on effect value")(checkNM(10)(Gen.int(1, 100)) { (length: Int) =>
+          test("allow schedule rely on effect value")(checkN(10)(Gen.int(1, 100)) { (length: Int) =>
             for {
               ref     <- Ref.make(0)
               effect   = ref.getAndUpdate(_ + 1).filterOrFail(_ <= length + 1)(())

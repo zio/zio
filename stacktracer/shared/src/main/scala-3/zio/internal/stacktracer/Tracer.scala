@@ -8,7 +8,7 @@ object Tracer {
    * implicitly required (or the method is explicitly called)
    *
    * This can be disabled by importing
-   * `import zio.stacktracer.TracingImplicits.disableAutoTrace``
+   * `import zio.stacktracer.TracingImplicits.disableAutoTrace`
    */
   inline given autoTrace: Tracer.instance.Type =
     ${Macros.autoTraceImpl}
@@ -21,23 +21,27 @@ object Tracer {
 
   val instance: Tracer = new Tracer {
     type Type = String
-    val empty = ""
+    val empty = "".intern()
     def unapply(trace: Type): Option[(String, String, Int, Int)] = {
       trace match {
         case regex(location, file, line, column) => Some((location, file, line.toInt, column.toInt))
         case _                                   => None
       }
     }
+
+    def apply(location: String, file: String, line: Int, column: Int): Type with Traced =
+      createTrace(location, file, line, column).asInstanceOf[Type with Traced]
   }
 
   private[internal] def createTrace(location: String, file: String, line: Int, column: Int): String =
     s"$location($file:$line:$column)".intern
 
-  private val regex = """(.*?)\((.*?):(.*?):(.*?)\)""".r
+  private val regex = """(.*?)\((.*?):([^:]*?):([^:]*?)\)""".r
 }
 
 sealed trait Tracer {
   type Type <: AnyRef
   val empty: Type
   def unapply(trace: Type): Option[(String, String, Int, Int)]
+  def apply(location: String, file: String, line: Int, column: Int): Type with Tracer.Traced
 }

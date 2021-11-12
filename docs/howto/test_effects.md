@@ -27,7 +27,6 @@ The most common and easy way to create suites is to use the `suite` function. Fo
 
 ```scala mdoc
 import zio.test._
-import zio.test.environment.Live
 import zio.Clock.nanoTime
 import Assertion.isGreaterThan
 
@@ -209,7 +208,6 @@ It is easy to accidentally use different test instances at the same time.
 
 ```scala
 import zio.test._
-import zio.test.environment.TestClock
 import Assertion._
 
 test("`acquire` doesn't leak permits upon cancellation") {
@@ -251,7 +249,6 @@ In the first mode it is a purely functional pseudo-random number generator. Duri
 
 ```scala mdoc
 import zio.test.assert
-import zio.test.environment.TestRandom
 import zio.test.Assertion.equalTo
 
 test("Use setSeed to generate stable values") {
@@ -272,7 +269,6 @@ test("Use setSeed to generate stable values") {
 In the second mode `TestRandom` maintains an internal buffer of values that can be "fed" upfront with methods such as `feedInts`. When random values are being generated, the first values from that buffer are being used.
 
 ```scala mdoc
-import zio.test.environment.TestRandom
 test("One can provide its own list of ints") {
   for {
     _  <- TestRandom.feedInts(1, 9, 2, 8, 3, 7, 4, 6, 5)
@@ -318,7 +314,6 @@ import java.util.concurrent.TimeUnit
 import zio.Clock.currentTime
 import zio.test.Assertion.isGreaterThanEqualTo
 import zio.test._
-import zio.test.environment.TestClock
 
 test("One can move time very fast") {
   for {
@@ -336,7 +331,6 @@ test("One can move time very fast") {
 ```scala mdoc
 import zio.test.Assertion.equalTo
 import zio.test._
-import zio.test.environment.TestClock
 
 test("One can control time as he see fit") {
   for {
@@ -361,7 +355,6 @@ A more complex example leveraging dependencies and multiple services is shown be
 ```scala mdoc:reset
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{ TestClock, TestEnvironment }
 import zio.{test => _, _}
 
 trait SchedulingService {
@@ -414,7 +407,6 @@ Even if you have a non-trivial flow of data from multiple streams that can produ
 ```scala mdoc
 import zio.test.Assertion.equalTo
 import zio.test._
-import zio.test.environment.TestClock
 import zio.stream._
 
 test("zipWithLatest") {
@@ -437,7 +429,6 @@ test("zipWithLatest") {
 `TestConsole` allows testing of applications that interact with the console by modeling working with standard input and output as writing and reading to and from internal buffers:
 
 ```scala mdoc
-import zio.test.environment.TestConsole
 import zio.Console
 
 val consoleSuite = suite("ConsoleTest")(
@@ -472,8 +463,6 @@ With the increased usage of containers and runtimes like Kubernetes, more and mo
 For this purpose `zio-test` exposes `TestSystem` module. Additionally, to setting the environment variables it also allows for setting JVM system properties like in the code below:
 
 ```scala mdoc
-import zio.test.environment._
-
 for {
   _      <- TestSystem.putProperty("java.vm.name", "VM")
   result <- System.property("java.vm.name")

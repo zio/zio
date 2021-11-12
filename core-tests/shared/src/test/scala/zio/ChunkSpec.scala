@@ -33,7 +33,7 @@ object ChunkSpec extends ZIOBaseSpec {
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
-  def spec: ZSpec[Environment, Failure] = suite("ChunkSpec")(
+  def spec = suite("ChunkSpec")(
     suite("size/length")(
       test("concatenated size must match length") {
         val chunk = Chunk.empty ++ Chunk.fromArray(Array(1, 2)) ++ Chunk(3, 4, 5) ++ Chunk.single(6)
@@ -297,6 +297,10 @@ object ChunkSpec extends ZIOBaseSpec {
       check(smallChunks(intGen), fn) { (c, f) =>
         assert(c.flatMap(f).toList)(equalTo(c.toList.flatMap(f.andThen(_.toList))))
       }
+    },
+    test("flatten") {
+      val chunk = Chunk(Some(1), Some(2), None, None)
+      assertTrue(chunk.flatten == Chunk(1, 2))
     },
     test("headOption") {
       check(mediumChunks(intGen))(c => assert(c.headOption)(equalTo(c.toList.headOption)))
@@ -653,6 +657,17 @@ object ChunkSpec extends ZIOBaseSpec {
       check(Gen.chunkOf(Gen.int)) { as =>
         assert(Chunk.fromIterator(as.iterator))(equalTo(as))
       }
+    },
+    test("fromIterable should works with Iterables traversing only once") {
+      val traversableOnceIterable = new Iterable[Int] {
+        val it = new Iterator[Int] {
+          var c: Int                    = 3
+          override def hasNext: Boolean = c > 0
+          override def next(): Int      = { c = c - 1; c }
+        }
+        override def iterator: Iterator[Int] = it
+      }
+      assert(Chunk.fromIterable(traversableOnceIterable))(equalTo(Chunk(2, 1, 0)))
     },
     suite("unapplySeq")(
       test("matches a nonempty chunk") {

@@ -26,7 +26,14 @@ abstract class AbstractRunnableSpec {
   type Environment
   type Failure
 
-  def aspects: List[TestAspect[Nothing, Environment, Nothing, Any]]
+  def aspects: List[TestAspect.WithOut[
+    Nothing,
+    Environment,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ]]
   def runner: TestRunner[Environment, Failure]
   def spec: ZSpec[Environment, Failure]
 
@@ -38,13 +45,15 @@ abstract class AbstractRunnableSpec {
     runtimeConfig
 
   /**
-   * Returns an effect that executes the spec, producing the results of the execution.
+   * Returns an effect that executes the spec, producing the results of the
+   * execution.
    */
   final def run(implicit trace: ZTraceElement): ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
     runSpec(spec).provideCustomDeps(runner.bootstrap)
 
   /**
-   * Returns an effect that executes a given spec, producing the results of the execution.
+   * Returns an effect that executes a given spec, producing the results of the
+   * execution.
    */
   private[zio] def runSpec(
     spec: ZSpec[Environment, Failure]

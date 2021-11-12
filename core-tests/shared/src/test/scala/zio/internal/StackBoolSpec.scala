@@ -1,14 +1,14 @@
 package zio.internal
 
 import zio.test.Assertion.equalTo
-import zio.test.{Gen, ZSpec, assert, checkAll}
+import zio.test._
 import zio.{Has, Random, ZIOBaseSpec}
 
 import scala.util.Random.nextInt
 
 object StackBoolSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("StackBoolSpec")(
+  def spec = suite("StackBoolSpec")(
     test("Size tracking") {
       checkAll(gen)(list => assert(StackBool.fromIterable(list).size.toInt)(equalTo(list.length)))
     },

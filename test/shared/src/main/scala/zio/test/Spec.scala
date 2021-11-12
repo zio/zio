@@ -19,7 +19,6 @@ package zio.test
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Spec._
-import zio.test.environment.TestEnvironment
 
 /**
  * A `Spec[R, E, T]` is the backbone of _ZIO Test_. Every spec is either a
@@ -40,17 +39,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case (_, MultipleCase(that))                  => Spec.multiple(self +: that)
       case _                                        => Spec.multiple(Chunk(self, that))
     }
-
-  /**
-   * Syntax for adding aspects.
-   * {{{
-   * test("foo") { assert(42, equalTo(42)) } @@ ignore
-   * }}}
-   */
-  final def @@[R0 <: R1, R1 <: R, E0, E1, E2 >: E0 <: E1](
-    aspect: TestAspect[R0, R1, E0, E1]
-  )(implicit ev1: E <:< TestFailure[E2], ev2: T <:< TestSuccess, trace: ZTraceElement): ZSpec[R1, E2] =
-    aspect(self.asInstanceOf[ZSpec[R1, E2]])
 
   /**
    * Annotates each test in this spec with the specified test annotation.
@@ -122,9 +110,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
 
   /**
    * Returns a new spec with only those tests with annotations satisfying the
-   * specified predicate. If no annotations satisfy the specified predicate
-   * then returns `Some` with an empty suite if this is a suite or `None`
-   * otherwise.
+   * specified predicate. If no annotations satisfy the specified predicate then
+   * returns `Some` with an empty suite if this is a suite or `None` otherwise.
    */
   final def filterAnnotations[V](
     key: TestAnnotation[V]
@@ -147,8 +134,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * specified predicate. If a suite label satisfies the predicate the entire
    * suite will be included in the new spec. Otherwise only those specs in a
    * suite that satisfy the specified predicate will be included in the new
-   * spec. If no labels satisfy the specified predicate then returns `Some`
-   * with an empty suite if this is a suite or `None` otherwise.
+   * spec. If no labels satisfy the specified predicate then returns `Some` with
+   * an empty suite if this is a suite or `None` otherwise.
    */
   final def filterLabels(f: String => Boolean)(implicit trace: ZTraceElement): Option[Spec[R, E, T]] =
     caseValue match {
@@ -346,8 +333,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     provideSome(_ => r)
 
   /**
-   * Provides each test with the part of the environment that is not part of
-   * the `TestEnvironment`, leaving a spec that only depends on the
+   * Provides each test with the part of the environment that is not part of the
+   * `TestEnvironment`, leaving a spec that only depends on the
    * `TestEnvironment`.
    *
    * {{{
@@ -368,8 +355,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
 
   /**
    * Provides all tests with a shared version of the part of the environment
-   * that is not part of the `TestEnvironment`, leaving a spec that only
-   * depends on the `TestEnvironment`.
+   * that is not part of the `TestEnvironment`, leaving a spec that only depends
+   * on the `TestEnvironment`.
    *
    * {{{
    * val loggingDeps: ZDeps[Any, Nothing, Logging] = ???
@@ -388,8 +375,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     provideSomeDepsShared[TestEnvironment](deps)
 
   /**
-   * Provides each test with the part of the environment that is not part of
-   * the `TestEnvironment`, leaving a spec that only depends on the
+   * Provides each test with the part of the environment that is not part of the
+   * `TestEnvironment`, leaving a spec that only depends on the
    * `TestEnvironment`.
    *
    * {{{
@@ -411,8 +398,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
 
   /**
    * Provides all tests with a shared version of the part of the environment
-   * that is not part of the `TestEnvironment`, leaving a spec that only
-   * depends on the `TestEnvironment`.
+   * that is not part of the `TestEnvironment`, leaving a spec that only depends
+   * on the `TestEnvironment`.
    *
    * {{{
    * val loggingLayer: ZDeps[Any, Nothing, Logging] = ???
@@ -512,8 +499,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
 
   /**
    * Splits the environment into two parts, providing all tests with a shared
-   * version of one part using the specified set of dependencies and leaving
-   * the remainder `R0`.
+   * version of one part using the specified set of dependencies and leaving the
+   * remainder `R0`.
    *
    * {{{
    * val clockDeps: ZDeps[Any, Nothing, Clock] = ???
@@ -689,7 +676,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     }
 }
 
-object Spec {
+object Spec extends SpecLowPriority {
   sealed abstract class SpecCase[-R, +E, +T, +A] { self =>
     final def map[B](f: A => B)(implicit trace: ZTraceElement): SpecCase[R, E, T, B] = self match {
       case ExecCase(label, spec)       => ExecCase(label, f(spec))
@@ -765,5 +752,68 @@ object Spec {
       f: Service => Service
     )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]], trace: ZTraceElement): Spec[R1, E, T] =
       self.provideSome(ev.updateAt(_, key, f))
+  }
+
+  implicit final class ZSpecSyntax[Env, Err](private val self: ZSpec[Env, Err]) extends AnyVal {
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@[LowerEnv <: UpperEnv, UpperEnv <: Env, LowerErr >: Err, UpperErr >: LowerErr](
+      aspect: TestAspect[LowerEnv, UpperEnv, LowerErr, UpperErr]
+    )(implicit
+      trace: ZTraceElement
+    ): Spec[aspect.OutEnv[UpperEnv], TestFailure[aspect.OutErr[LowerErr]], TestSuccess] =
+      aspect(self.asInstanceOf[ZSpec[UpperEnv, LowerErr]])
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@[LowerEnv <: Env, LowerErr >: Err, UpperErr >: LowerErr](
+      aspect: TestAspect[LowerEnv, Any, LowerErr, UpperErr]
+    )(implicit
+      dummy: DummyImplicit,
+      trace: ZTraceElement
+    ): Spec[aspect.OutEnv[Env], TestFailure[aspect.OutErr[LowerErr]], TestSuccess] =
+      aspect(self.asInstanceOf[ZSpec[Env, LowerErr]])
+  }
+}
+
+trait SpecLowPriority {
+
+  implicit final class ZSpecSyntaxLowPriority[Env, Err](private val self: ZSpec[Env, Err]) {
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@[LowerEnv <: UpperEnv, UpperEnv <: Env, LowerErr >: Err](
+      aspect: TestAspect[LowerEnv, UpperEnv, LowerErr, Any]
+    )(implicit
+      trace: ZTraceElement
+    ): Spec[aspect.OutEnv[UpperEnv], TestFailure[aspect.OutErr[LowerErr]], TestSuccess] =
+      aspect(self.asInstanceOf[ZSpec[UpperEnv, LowerErr]])
+
+    /**
+     * Syntax for adding aspects.
+     * {{{
+     * test("foo") { assert(42, equalTo(42)) } @@ ignore
+     * }}}
+     */
+    final def @@[LowerEnv <: Env, LowerErr >: Err](
+      aspect: TestAspect[LowerEnv, Any, LowerErr, Any]
+    )(implicit
+      dummy: DummyImplicit,
+      trace: ZTraceElement
+    ): Spec[aspect.OutEnv[Env], TestFailure[aspect.OutErr[LowerErr]], TestSuccess] =
+      aspect(self.asInstanceOf[ZSpec[Env, LowerErr]])
   }
 }

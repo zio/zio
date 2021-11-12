@@ -5,7 +5,7 @@ import zio.test._
 
 object ZRefSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("ZRefSpec")(
+  def spec = suite("ZRefSpec")(
     suite("Atomic")(
       test("get") {
         for {

@@ -48,9 +48,8 @@ trait ZIOAppDefault extends ZIOApp {
 object ZIOAppDefault {
 
   /**
-   * Creates a [[ZIOAppDefault]] from an effect, which can consume the
-   * arguments of the program, as well as a hook into the ZIO runtime
-   * configuration.
+   * Creates a [[ZIOAppDefault]] from an effect, which can consume the arguments
+   * of the program, as well as a hook into the ZIO runtime configuration.
    */
   def apply(
     run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any],

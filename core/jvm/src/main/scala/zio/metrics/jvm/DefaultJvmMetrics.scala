@@ -3,7 +3,10 @@ package zio.metrics.jvm
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-/** JVM metrics, compatible with the prometheus-hotspot library, with configurable schedule */
+/**
+ * JVM metrics, compatible with the prometheus-hotspot library, with
+ * configurable schedule
+ */
 trait DefaultJvmMetrics extends MultipleJvmMetrics {
   protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit]
 
@@ -21,7 +24,7 @@ trait DefaultJvmMetrics extends MultipleJvmMetrics {
 
   /**
    * Set of dependencies that starts collecting the same JVM metrics as the
-   * Prometheus Java client's default exporters.
+   * Prometheus Java client's default exporters
    */
   lazy val live: ZDeps[Has[Clock] with Has[System], Throwable, Has[BufferPools] with Has[ClassLoading] with Has[
     GarbageCollector

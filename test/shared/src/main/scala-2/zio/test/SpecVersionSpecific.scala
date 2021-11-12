@@ -2,7 +2,6 @@ package zio.test
 
 import zio.{Has, NeedsEnv, ZDeps}
 import zio.internal.macros.DepsMacros
-import zio.test.environment.TestEnvironment
 
 private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
 
@@ -14,10 +13,11 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
     macro DepsMacros.injectImpl[Spec, R, E1, T]
 
   /**
-   * Automatically constructs the part of the environment that is not part of the
-   * `TestEnvironment`, leaving an effect that only depends on the `TestEnvironment`.
-   * This will also satisfy transitive `TestEnvironment` requirements with
-   * `TestEnvironment.any`, allowing them to be provided later.
+   * Automatically constructs the part of the environment that is not part of
+   * the `TestEnvironment`, leaving an effect that only depends on the
+   * `TestEnvironment`. This will also satisfy transitive `TestEnvironment`
+   * requirements with `TestEnvironment.any`, allowing them to be provided
+   * later.
    *
    * {{{
    * val spec: ZIO[Has[UserRepo] with Has[Console], Nothing, Unit] = ???
@@ -55,9 +55,9 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
     macro SpecDepsMacros.injectSharedImpl[R, E1, T]
 
   /**
-   * Automatically constructs the part of the environment that is not part of the
-   * `TestEnvironment`, leaving an effect that only depends on the `TestEnvironment`,
-   * sharing services between all tests.
+   * Automatically constructs the part of the environment that is not part of
+   * the `TestEnvironment`, leaving an effect that only depends on the
+   * `TestEnvironment`, sharing services between all tests.
    *
    * This will also satisfy transitive `TestEnvironment` requirements with
    * `TestEnvironment.any`, allowing them to be provided later.
@@ -78,8 +78,8 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
 
   /**
    * Splits the environment into two parts, providing all tests with a shared
-   * version of one part using the specified set of dependencies and leaving
-   * the remainder `R0`.
+   * version of one part using the specified set of dependencies and leaving the
+   * remainder `R0`.
    *
    * {{{
    * val spec: ZSpec[Has[Int] with Has[Random], Nothing] = ???

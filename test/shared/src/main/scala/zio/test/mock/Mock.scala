@@ -43,10 +43,11 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
         }
     }
 
-  abstract class Effect[I: Tag, E: Tag, A: Tag]               extends Capability[R, I, E, A](self)
-  abstract class Method[I: Tag, E <: Throwable: Tag, A: Tag]  extends Capability[R, I, E, A](self)
-  abstract class Sink[I: Tag, E: Tag, A: Tag, L: Tag, B: Tag] extends Capability[R, I, E, ZSink[Any, E, A, L, B]](self)
-  abstract class Stream[I: Tag, E: Tag, A: Tag]               extends Capability[R, I, Nothing, ZStream[Any, E, A]](self)
+  abstract class Effect[I: Tag, E: Tag, A: Tag]              extends Capability[R, I, E, A](self)
+  abstract class Method[I: Tag, E <: Throwable: Tag, A: Tag] extends Capability[R, I, E, A](self)
+  abstract class Sink[I: Tag, InErr: Tag, A: Tag, OutErr: Tag, L: Tag, B: Tag]
+      extends Capability[R, I, OutErr, ZSink[Any, InErr, A, OutErr, L, B]](self)
+  abstract class Stream[I: Tag, E: Tag, A: Tag] extends Capability[R, I, Nothing, ZStream[Any, E, A]](self)
 
   object Poly {
 

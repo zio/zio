@@ -15,7 +15,10 @@ trait MultipleJvmMetrics {
   def collectDefaultJvmMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock] with Has[System], Throwable, Unit] =
     ZManaged.foreachParDiscard(collectors)(_.collectMetrics)
 
-  /** A ZIO application that collects the same JVM metrics as the Prometheus Java client's default exporters. */
+  /**
+   * A ZIO application that collects the same JVM metrics as the Prometheus Java
+   * client's default exporters.
+   */
   lazy val app: ZIOApp = {
     implicit val trace: ZTraceElement = Tracer.newTrace
     collectors.tail.map(_.app).foldLeft(collectors.head.app)(_ <> _)

@@ -20,8 +20,8 @@ package object sbt {
   }
 
   /**
-   * Inserts the ANSI escape code for the current color at the beginning of
-   * each line of the specified string so the string will be displayed with the
+   * Inserts the ANSI escape code for the current color at the beginning of each
+   * line of the specified string so the string will be displayed with the
    * correct color by the `SBTTestLogger`.
    */
   private[sbt] def colored(s: String): String = {

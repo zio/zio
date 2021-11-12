@@ -68,9 +68,9 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
   ): ZFiberRef[EC, ED, C, D]
 
   /**
-   * Folds over the error and value types of the `ZFiberRef`, allowing access
-   * to the state in transforming the `set` value. This is a more powerful
-   * version of `fold` but requires unifying the error types.
+   * Folds over the error and value types of the `ZFiberRef`, allowing access to
+   * the state in transforming the `set` value. This is a more powerful version
+   * of `fold` but requires unifying the error types.
    */
   def foldAll[EC, ED, C, D](
     ea: EA => EC,
@@ -100,8 +100,8 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Returns a managed effect that sets the value associated with the curent
-   * fiber to the specified value as its `acquire` action and restores it to
-   * its original value as its `release` action.
+   * fiber to the specified value as its `acquire` action and restores it to its
+   * original value as its `release` action.
    */
   def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit]
 
@@ -113,8 +113,8 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Maps and filters the `get` value of the `ZFiberRef` with the specified
    * partial function, returning a `ZFiberRef` with a `get` value that succeeds
-   * with the result of the partial function if it is defined or else fails
-   * with `None`.
+   * with the result of the partial function if it is defined or else fails with
+   * `None`.
    */
   def collect[C](pf: PartialFunction[B, C]): ZFiberRef[EA, Option[EB], A, C] =
     fold(identity, Some(_), Right(_), pf.lift(_).toRight(None))
@@ -346,11 +346,14 @@ object ZFiberRef {
       }
 
     /**
-     * Returns a `ThreadLocal` that can be used to interact with this `FiberRef` from side effecting code.
+     * Returns a `ThreadLocal` that can be used to interact with this `FiberRef`
+     * from side effecting code.
      *
-     * This feature is meant to be used for integration with side effecting code, that needs to access fiber specific data,
-     * like MDC contexts and the like. The returned `ThreadLocal` will be backed by this `FiberRef` on all threads that are
-     * currently managed by ZIO, and behave like an ordinary `ThreadLocal` on all other threads.
+     * This feature is meant to be used for integration with side effecting
+     * code, that needs to access fiber specific data, like MDC contexts and the
+     * like. The returned `ThreadLocal` will be backed by this `FiberRef` on all
+     * threads that are currently managed by ZIO, and behave like an ordinary
+     * `ThreadLocal` on all other threads.
      */
     def unsafeAsThreadLocal(implicit trace: ZTraceElement): UIO[ThreadLocal[A]] =
       ZIO.succeed {
@@ -367,7 +370,7 @@ object ZFiberRef {
             val fiberRef     = self.asInstanceOf[FiberRef.Runtime[Any]]
 
             if (fiberContext eq null) super.set(a)
-            else fiberContext.setFiberRefValue(fiberRef, a)
+            else fiberContext.unsafeSetRef(fiberRef, a)
           }
 
           override def remove(): Unit = {
@@ -375,7 +378,7 @@ object ZFiberRef {
             val fiberRef     = self
 
             if (fiberContext eq null) super.remove()
-            else fiberContext.removeFiberRef(fiberRef)
+            else fiberContext.unsafeDeleteRef(fiberRef)
           }
 
           override def initialValue(): A = initial
@@ -547,8 +550,8 @@ object ZFiberRef {
       modify(v => (v, a))
 
     /**
-     * Atomically modifies the `FiberRef` with the specified function and returns
-     * the old value.
+     * Atomically modifies the `FiberRef` with the specified function and
+     * returns the old value.
      */
     def getAndUpdate(f: A => A)(implicit trace: ZTraceElement): IO[E, A] =
       modify { v =>
@@ -557,9 +560,9 @@ object ZFiberRef {
       }
 
     /**
-     * Atomically modifies the `FiberRef` with the specified partial function and
-     * returns the old value.
-     * If the function is undefined on the current value it doesn't change it.
+     * Atomically modifies the `FiberRef` with the specified partial function
+     * and returns the old value. If the function is undefined on the current
+     * value it doesn't change it.
      */
     def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): IO[E, A] =
       modify { v =>
@@ -568,9 +571,9 @@ object ZFiberRef {
       }
 
     /**
-     * Atomically modifies the `FiberRef` with the specified function, which computes
-     * a return value for the modification. This is a more powerful version of
-     * `update`.
+     * Atomically modifies the `FiberRef` with the specified function, which
+     * computes a return value for the modification. This is a more powerful
+     * version of `update`.
      */
     def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): IO[E, B] =
       self match {
@@ -604,10 +607,10 @@ object ZFiberRef {
       }
 
     /**
-     * Atomically modifies the `FiberRef` with the specified partial function, which computes
-     * a return value for the modification if the function is defined in the current value
-     * otherwise it returns a default value.
-     * This is a more powerful version of `updateSome`.
+     * Atomically modifies the `FiberRef` with the specified partial function,
+     * which computes a return value for the modification if the function is
+     * defined in the current value otherwise it returns a default value. This
+     * is a more powerful version of `updateSome`.
      */
     def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: ZTraceElement): IO[E, B] =
       modify { v =>
@@ -624,8 +627,8 @@ object ZFiberRef {
       }
 
     /**
-     * Atomically modifies the `FiberRef` with the specified function and returns
-     * the result.
+     * Atomically modifies the `FiberRef` with the specified function and
+     * returns the result.
      */
     def updateAndGet(f: A => A)(implicit trace: ZTraceElement): IO[E, A] =
       modify { v =>
@@ -645,8 +648,8 @@ object ZFiberRef {
 
     /**
      * Atomically modifies the `FiberRef` with the specified partial function.
-     * If the function is undefined on the current value it returns the old value
-     * without changing it.
+     * If the function is undefined on the current value it returns the old
+     * value without changing it.
      */
     def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): IO[E, A] =
       modify { v =>

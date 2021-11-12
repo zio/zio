@@ -17,19 +17,27 @@
 package zio.test
 
 import zio._
-import zio.test.environment.Live
 
 trait TimeoutVariants {
 
   /**
-   * A test aspect that prints a warning to the console when a test takes
-   * longer than the specified duration.
+   * A test aspect that prints a warning to the console when a test takes longer
+   * than the specified duration.
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect[Nothing, Has[Live], Nothing, Any] =
+  ): TestAspect.WithOut[
+    Nothing,
+    Has[Live],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect[Nothing, Has[Live], Nothing, Any] {
-      def some[R <: Has[Live], E](
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R <: Has[Live], E](
         spec: ZSpec[R, E]
       )(implicit trace: ZTraceElement): ZSpec[R, E] = {
         def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Has[Live], E] =

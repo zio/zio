@@ -10,7 +10,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       assertCompletes
     }
 
-  def spec: ZSpec[Environment, Failure] = suite("ZIOLazinessSpec")(
+  def spec = suite("ZIOLazinessSpec")(
     suite("IO")(
       test("die")(assertLazy(IO.die)),
       test("dieMessage")(assertLazy(IO.dieMessage)),

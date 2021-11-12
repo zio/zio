@@ -207,31 +207,6 @@ val runtime: Runtime[ZEnv] =
 runtime.unsafeRun(program.provideCustomDeps(diagnosticsDeps))
 ```
 
-### Application Tracing
-
-We can enable or disable execution tracing or configure its setting. Execution tracing has full of junk. There are lots of allocations that all need to be garbage collected afterward. So it has a tremendous impact on the complexity of the application runtime.
-
-Users often turn off tracing in critical areas of their application. Also, when we are doing benchmark operation, it is better to create a `Runtime` without tracing capability:
-
-```scala mdoc:silent:nest
-import zio.internal.tracing.{Tracing, TracingConfig}
-
-val rt1 = Runtime.default.mapRuntimeConfig(_.copy(tracing = Tracing.disabled))
-val rt2 = Runtime.default.mapRuntimeConfig(_.copy(tracing = Tracing.enabledWith(TracingConfig.stackOnly)))
-
-val config = TracingConfig(
-  traceExecution = true,
-  traceEffectOpsInExecution = true,
-  traceStack = true,
-  executionTraceLength = 100,
-  stackTraceLength = 100,
-  ancestryLength = 10,
-  ancestorExecutionTraceLength = 10,
-  ancestorStackTraceLength = 10
-)
-val rt3 = Runtime.default.mapRuntimeConfig(runtimeConfig => runtimeConfig.copy(tracing = runtimeConfig.tracing.copy(tracingConfig = config)))
-```
-
 ### User-defined Executor
 
 An executor is responsible for executing effects. The way how each effect will be run including detail of threading, scheduling, and so forth, is separated from the caller. So, if we need to have a specialized executor according to our requirements, we can provide that to the ZIO `Runtime`:
@@ -278,7 +253,6 @@ It has the following constructors:
 | `RuntimeConfigAspect.identity`            |                               | `RuntimeConfigAspect` |
 | `RuntimeConfigAspect.setBlockingExecutor` | `executor: Executor`          | `RuntimeConfigAspect` |
 | `RuntimeConfigAspect.setExecutor`         | `executor: Executor`          | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.setTracing`          | `tracing: Tracing`            | `RuntimeConfigAspect` |
 
 
 The `ZIOAppDefault` (and also the `ZIOApp`) has a `hook` member of a type `RuntimeConfigAspect`. The following code illustrates how to hook into the ZIO runtime system by creating and composing multiple aspects:
@@ -289,14 +263,12 @@ val myAppLogic = ZIO.succeed(???)
 
 ```scala mdoc:compile-only
 import zio._
-import zio.internal.tracing.Tracing
 
 val loggly  = RuntimeConfigAspect.addLogger(???)
 val zmx     = RuntimeConfigAspect.addSupervisor(???)
-val tracing = RuntimeConfigAspect.setTracing(Tracing.enabled)
 
 object Main extends ZIOAppDefault {
-  override def hook = loggly >>> zmx >>> tracing
+  override def hook = loggly >>> zmx
   
   def run = myAppLogic
 }

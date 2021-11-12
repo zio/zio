@@ -18,7 +18,10 @@ trait MemoryAllocation extends JvmMetrics {
   override val featureTag: Tag[MemoryAllocation] = Tag[MemoryAllocation]
   implicit val trace: ZTraceElement              = ZTraceElement.empty
 
-  /** Total bytes allocated in a given JVM memory pool. Only updated after GC, not continuously. */
+  /**
+   * Total bytes allocated in a given JVM memory pool. Only updated after GC,
+   * not continuously.
+   */
   private def countAllocations(pool: String): Counter[Long] =
     ZIOMetric.countValueWith("jvm_memory_pool_allocated_bytes_total", MetricLabel("pool", pool))(_.toDouble)
 

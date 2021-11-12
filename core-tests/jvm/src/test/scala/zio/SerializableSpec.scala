@@ -2,15 +2,14 @@ package zio
 
 import zio.SerializableSpecHelpers._
 import zio.test.Assertion._
-import zio.test.TestAspect.scala2Only
-import zio.test.environment.Live
+import zio.test.TestAspect._
 import zio.test.{test => testSync, _}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
 object SerializableSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("SerializableSpec")(
+  def spec = suite("SerializableSpec")(
     test("Semaphore is serializable") {
       val n = 20L
       for {
@@ -95,24 +94,19 @@ object SerializableSpec extends ZIOBaseSpec {
     testSync("Cause.die is serializable") {
       val cause = Cause.die(TestException("test"))
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
+    } @@ exceptDotty,
     testSync("Cause.fail is serializable") {
       val cause = Cause.fail("test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
-    testSync("Cause.traced is serializable") {
-      val fiberId = FiberId(0L, 0L)
-      val cause   = Cause.traced(Cause.fail("test"), ZTrace(fiberId, List.empty, List.empty, None))
-      assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
+    } @@ exceptDotty,
     testSync("Cause.&& is serializable") {
       val cause = Cause.fail("test") && Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
+    } @@ exceptDotty,
     testSync("Cause.++ is serializable") {
       val cause = Cause.fail("test") ++ Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    },
+    } @@ exceptDotty,
     testSync("Exit.succeed is serializable") {
       val exit = Exit.succeed("test")
       assert(serializeAndDeserialize(exit))(equalTo(exit))
@@ -120,15 +114,15 @@ object SerializableSpec extends ZIOBaseSpec {
     testSync("Exit.fail is serializable") {
       val exit = Exit.fail("test")
       assert(serializeAndDeserialize(exit))(equalTo(exit))
-    },
+    } @@ exceptDotty,
     testSync("Exit.die is serializable") {
       val exit = Exit.die(TestException("test"))
       assert(serializeAndDeserialize(exit))(equalTo(exit))
-    },
+    } @@ exceptDotty,
     testSync("FiberFailure is serializable") {
       val failure = FiberFailure(Cause.fail("Uh oh"))
       assert(serializeAndDeserialize(failure))(equalTo(failure))
-    },
+    } @@ exceptDotty,
     testSync("InterruptStatus.interruptible is serializable") {
       val interruptStatus = InterruptStatus.interruptible
       assert(serializeAndDeserialize(interruptStatus))(equalTo(interruptStatus))
@@ -204,23 +198,14 @@ object SerializableSpec extends ZIOBaseSpec {
         result  <- managed.use(_ => UIO.unit)
       } yield assert(result)(equalTo(()))
     },
-    test("TracingStatus.Traced is serializable") {
-      val traced = TracingStatus.Traced
+    test("Chunk is serializable") {
+      val chunk =
+        Chunk(1, 2, 3, 4, 5).take(4) ++ Chunk(9, 92, 2, 3) ++ Chunk.fromIterable(List(1, 2, 3))
+
       for {
-        result <- serializeAndBack(traced)
-      } yield assert(result)(equalTo(traced))
-    },
-    test("TracingStatus.Untraced is serializable") {
-      val traced = TracingStatus.Untraced
-      for {
-        result <- serializeAndBack(traced)
-      } yield assert(result)(equalTo(traced))
-    },
-    test("TracingStatus.Untraced is serializable") {
-      Live.live(for {
-        system <- ZIO.serviceWith[System](serializeAndBack(_))
-        result <- system.property("notpresent")
-      } yield assert(result)(equalTo(Option.empty[String])))
+        chunk  <- ZIO.succeed(chunk)
+        result <- serializeAndBack(chunk)
+      } yield assertTrue(chunk == result)
     }
   )
 }

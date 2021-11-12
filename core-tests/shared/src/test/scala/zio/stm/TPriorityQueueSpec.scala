@@ -23,7 +23,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
   val genPredicate: Gen[Has[Random], Event => Boolean] =
     Gen.function(Gen.boolean)
 
-  def spec: ZSpec[Environment, Failure] = suite("TPriorityQueueSpec")(
+  def spec = suite("TPriorityQueueSpec")(
     test("isEmpty") {
       check(genEvents) { as =>
         val transaction = for {

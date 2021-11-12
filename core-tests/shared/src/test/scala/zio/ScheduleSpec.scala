@@ -4,7 +4,6 @@ import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.timeout
 import zio.test._
-import zio.test.environment.{TestClock, TestRandom}
 
 import java.time.temporal.{ChronoField, ChronoUnit}
 import java.time.{Instant, OffsetDateTime, ZoneId}
@@ -15,15 +14,16 @@ object ScheduleSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   /**
-   * Retry `once` means that we try to exec `io`, get and error,
-   * try again to exec `io`, and whatever the output is, we return that
-   * second result.
+   * Retry `once` means that we try to exec `io`, get and error, try again to
+   * exec `io`, and whatever the output is, we return that second result.
+   *
    * The three following tests test retry when:
-   * - the first time succeeds (no retry)
-   * - the first time fails and the second succeeds (one retry, result success)
-   * - both first time and retry fail (one retry, result failure)
+   *   - the first time succeeds (no retry)
+   *   - the first time fails and the second succeeds (one retry, result
+   *     success)
+   *   - both first time and retry fail (one retry, result failure)
    */
-  def spec: ZSpec[Environment, Failure] = suite("ScheduleSpec")(
+  def spec = suite("ScheduleSpec")(
     suite("Repeat on success according to a provided strategy")(
       test("for 'recurs(a negative number)' repeats 0 additional time") {
         // A repeat with a negative number of times should not repeat the action at all
@@ -684,8 +684,8 @@ object ScheduleSpec extends ZIOBaseSpec {
     assertM(repeat(schedule))(equalTo(expected))
 
   /**
-   * A function that increments ref each time it is called.
-   * It always fails, with the incremented value in error
+   * A function that increments ref each time it is called. It always fails,
+   * with the incremented value in error
    */
   def alwaysFail(ref: Ref[Int]): IO[String, Int] =
     for {
@@ -694,9 +694,9 @@ object ScheduleSpec extends ZIOBaseSpec {
     } yield x
 
   /**
-   * A function that increments ref each time it is called.
-   * It returns either a failure if ref value is 0 or less
-   * before increment, and the value in other cases.
+   * A function that increments ref each time it is called. It returns either a
+   * failure if ref value is 0 or less before increment, and the value in other
+   * cases.
    */
   def failOn0(ref: Ref[Int]): IO[String, Int] =
     for {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2020 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A `SubscriptionRef[A]` contains a `Ref.Synchronized` with a value of type
- * `A` and a `ZStream` that can be subscribed to in order to receive the
- * current value as well as all changes to the value.
+ * A `SubscriptionRef[A]` contains a `Ref.Synchronized` with a value of type `A`
+ * and a `ZStream` that can be subscribed to in order to receive the current
+ * value as well as all changes to the value.
  */
 final class SubscriptionRef[A] private (
   val ref: ZRef.Synchronized[Any, Any, Nothing, Nothing, A, A],
-  val changes: Stream[Nothing, A]
+  val changes: ZStream[Any, Nothing, A]
 )
 
 object SubscriptionRef {

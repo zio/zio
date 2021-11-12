@@ -1,15 +1,15 @@
 package zio.stm
 
 import zio._
-import zio.test._
 import zio.test.Assertion._
+import zio.test.{assert, Gen, Sized, check}
 
 object THubSpec extends ZIOBaseSpec {
 
   val smallInt: Gen[Has[Random] with Has[Sized], Int] =
     Gen.small(Gen.const(_), 1)
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("THubSpec")(
       suite("sequential publishers and subscribers")(
         test("with one publisher and one subscriber") {

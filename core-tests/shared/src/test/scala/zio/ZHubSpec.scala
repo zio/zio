@@ -7,7 +7,7 @@ object ZHubSpec extends ZIOBaseSpec {
   val smallInt: Gen[Has[Random] with Has[Sized], Int] =
     Gen.small(Gen.const(_), 1)
 
-  def spec: ZSpec[Environment, Failure] = suite("ZHubSpec")(
+  def spec = suite("ZHubSpec")(
     suite("sequential publishers and subscribers")(
       test("with one publisher and one subscriber") {
         check(smallInt, Gen.listOf(smallInt)) { (n, as) =>

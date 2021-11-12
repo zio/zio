@@ -9,7 +9,7 @@ import zio.{Has, UIO, URDeps, ZIO}
  */
 object StreamModuleMock extends Mock[StreamModule] {
 
-  object Sink   extends Sink[Any, String, Int, Nothing, List[Int]]
+  object Sink   extends Sink[Any, String, Int, String, Nothing, List[Int]]
   object Stream extends Stream[Any, String, Int]
 
   val compose: URDeps[Has[Proxy], StreamModule] =
@@ -19,7 +19,7 @@ object StreamModuleMock extends Mock[StreamModule] {
         withRuntime[Has[Proxy]].map { rts =>
           new StreamModule.Service {
             def sink(a: Int) =
-              rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail[String, Int](error).dropLeftover)))
+              rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail[String](error).dropLeftover)))
             def stream(a: Int) = rts.unsafeRun(proxy(Stream, a))
           }
         }

@@ -24,8 +24,9 @@ import java.{util => ju}
 import scala.annotation.tailrec
 
 /**
- * Performs few steps of parsing header, then decompresses body and checks trailer.
- * With reasonably chosen bufferSize there shouldn't occur many concatenation of arrays.
+ * Performs few steps of parsing header, then decompresses body and checks
+ * trailer. With reasonably chosen bufferSize there shouldn't occur many
+ * concatenation of arrays.
  */
 private[compression] class Gunzipper private (bufferSize: Int) {
 

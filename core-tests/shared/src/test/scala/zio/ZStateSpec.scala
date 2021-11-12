@@ -6,7 +6,7 @@ import zio.test._
 
 object ZStateSpec extends DefaultRunnableSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("StateSpec")(
       test("state can be updated") {
         final case class MyState(counter: Int)

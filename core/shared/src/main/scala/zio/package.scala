@@ -22,9 +22,11 @@ package object zio
     with EitherCompat
     with FunctionToDepsOps
     with IntersectionTypeCompat
-    with PlatformSpecific
     with VersionSpecific
     with DurationModule {
+
+  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
+
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
   type Canceler[-R] = URIO[R, Any]
@@ -104,8 +106,12 @@ package object zio
 
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
   object ZTraceElement {
-    val empty = Tracer.instance.empty
+    val empty: ZTraceElement      = Tracer.instance.empty
+    val NoLocation: ZTraceElement = Tracer.instance.empty
     object SourceLocation {
+      def apply(location: String, file: String, line: Int, column: Int): ZTraceElement =
+        Tracer.instance.apply(location, file, line, column)
+
       def unapply(trace: ZTraceElement): Option[(String, String, Int, Int)] =
         Tracer.instance.unapply(trace)
     }

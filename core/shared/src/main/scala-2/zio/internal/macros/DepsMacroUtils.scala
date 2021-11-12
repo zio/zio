@@ -198,7 +198,7 @@ private[zio] trait DepsMacroUtils {
   }
 
   /**
-   * Generates a link of the dependencies graph for the Mermaid.js graph viz
+   * Generates a link of the dependency graph for the Mermaid.js graph viz
    * library's live-editor (https://mermaid-js.github.io/mermaid-live-editor)
    */
   private def generateMermaidJsLink[R <: Has[_]: c.WeakTypeTag, R0: c.WeakTypeTag, E](

@@ -22,11 +22,11 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `Histogram` is a metric representing a collection of numerical with the
- * distribution of the cumulative values over time. A typical use of this
- * metric would be to track the time to serve requests. Histograms allow
- * visualizing not only the value of the quantity being measured but its
- * distribution. Histograms are constructed with user specified boundaries
- * which describe the buckets to aggregate values into.
+ * distribution of the cumulative values over time. A typical use of this metric
+ * would be to track the time to serve requests. Histograms allow visualizing
+ * not only the value of the quantity being measured but its distribution.
+ * Histograms are constructed with user specified boundaries which describe the
+ * buckets to aggregate values into.
  */
 private[zio] trait Histogram {
 
@@ -50,6 +50,8 @@ private[zio] trait Histogram {
    * The current sum of values in the histogram.
    */
   def sum(implicit trace: ZTraceElement): UIO[Double]
+
+  private[zio] def unsafeObserve(value: Double): Unit
 }
 
 private[zio] object Histogram {
@@ -61,8 +63,8 @@ private[zio] object Histogram {
     metricState.getHistogram(key)
 
   /**
-   * Constructs a histogram with the specified name, boundaries, and labels.
-   * The boundaries must be in strictly increasing order.
+   * Constructs a histogram with the specified name, boundaries, and labels. The
+   * boundaries must be in strictly increasing order.
    */
   def apply(name: String, boundaries: ZIOMetric.Histogram.Boundaries, tags: Chunk[MetricLabel]): Histogram =
     apply(MetricKey.Histogram(name, boundaries, tags))

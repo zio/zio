@@ -5,7 +5,7 @@ import zio.test.Assertion._
 
 object HasManySpec extends DefaultRunnableSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("HasManySpec")(
+  def spec = suite("HasManySpec")(
     suite("accessAt")(
       test("access a service at a single key") {
         val zio1 = ZIO.serviceAt[Int]("Jane Doe")

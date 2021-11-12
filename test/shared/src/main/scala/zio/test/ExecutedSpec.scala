@@ -29,12 +29,10 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
    * Determines if any node in the spec is satisfied by the given predicate.
    */
   def exists(f: SpecCase[E, Boolean] => Boolean): Boolean =
-    fold[Boolean] { c =>
-      c match {
-        case c @ LabeledCase(_, spec) => spec || f(c)
-        case c @ MultipleCase(specs)  => specs.exists(identity) || f(c)
-        case c @ TestCase(_, _)       => f(c)
-      }
+    fold[Boolean] {
+      case c @ LabeledCase(_, spec) => spec || f(c)
+      case c @ MultipleCase(specs)  => specs.exists(identity) || f(c)
+      case c @ TestCase(_, _)       => f(c)
     }
 
   /**
@@ -51,24 +49,20 @@ final case class ExecutedSpec[+E](caseValue: SpecCase[E, ExecutedSpec[E]]) { sel
    * Determines if all nodes in the spec are satisfied by the given predicate.
    */
   def forall(f: SpecCase[E, Boolean] => Boolean): Boolean =
-    fold[Boolean] { c =>
-      c match {
-        case c @ LabeledCase(_, spec) => spec && f(c)
-        case c @ MultipleCase(specs)  => specs.forall(identity) && f(c)
-        case c @ TestCase(_, _)       => f(c)
-      }
+    fold[Boolean] {
+      case c @ LabeledCase(_, spec) => spec && f(c)
+      case c @ MultipleCase(specs)  => specs.forall(identity) && f(c)
+      case c @ TestCase(_, _)       => f(c)
     }
 
   /**
    * Computes the size of the spec, i.e. the number of tests in the spec.
    */
   def size: Int =
-    fold[Int] { c =>
-      c match {
-        case LabeledCase(_, count) => count
-        case MultipleCase(counts)  => counts.sum
-        case TestCase(_, _)        => 1
-      }
+    fold[Int] {
+      case LabeledCase(_, count) => count
+      case MultipleCase(counts)  => counts.sum
+      case TestCase(_, _)        => 1
     }
 
   /**

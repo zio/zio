@@ -1,9 +1,8 @@
 package zio.test.mock
 
 import zio._
-import zio.test.environment.Live
 import zio.test.mock.module.T22
-import zio.test.{Assertion, ZSpec, assertM, test}
+import zio.test.{Assertion, Live, ZSpec, assertM, test}
 
 trait MockSpecUtils[R] {
 

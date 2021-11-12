@@ -426,7 +426,7 @@ case class RowData()
 ```scala mdoc:silent:nest
 case class PageResult(results: Chunk[RowData], isLast: Boolean)
 
-def listPaginated(pageNumber: Int): ZIO[Has[Console], Throwable, PageResult] = ???
+def listPaginated(pageNumber: Int): ZIO[Has[Console], Throwable, PageResult] = ZIO.fail(???)
 ```
 
 We want to convert this API to a stream of `RowData` events. For the first attempt, we might think we can do it by using `unfold` operation as below:
@@ -669,20 +669,16 @@ val myApp: ZStream[Has[Console], IOException, Any] =
 
 #### Ensuring
 
-We might want to run some code before or after the execution of the stream's finalization. To do so, we can use `ZStream#ensuringFirst` and `ZStream#ensuring` operators:
+We might want to run some code after the execution of the stream's finalization. To do so, we can use the `ZStream#ensuring` operator:
 
 ```scala mdoc:silent:nest
 ZStream
   .finalizer(Console.printLine("Finalizing the stream").orDie)
-  .ensuringFirst(
-    printLine("Doing some works before stream's finalization").orDie
-  )
   .ensuring(
     printLine("Doing some other works after stream's finalization").orDie
   )
   
 // Output:
-// Doing some works before stream's finalization
 // Finalizing the stream
 // Doing some other works after stream's finalization
 ```
@@ -837,7 +833,7 @@ val scan = ZStream(1, 2, 3, 4, 5).scan(0)(_ + _)
 //  6 + 4 => 10
 // 10 + 5 => 15
 
-val fold = ZStream(1, 2, 3, 4, 5).fold(0)(_ + _)
+val fold = ZStream(1, 2, 3, 4, 5).runFold(0)(_ + _)
 // Output: 10 (ZIO effect containing 10)
 ```
 
@@ -1187,7 +1183,7 @@ val classifyStudents: ZStream[Has[Console], IOException, (String, Seq[String])] 
     ) { case (classroom, students) =>
       ZStream.fromZIO(
         students
-          .fold(Seq.empty[String])((s, e) => s :+ e)
+          .runFold(Seq.empty[String])((s, e) => s :+ e)
           .map(students => classroom -> students)
       )
     }
@@ -1458,7 +1454,7 @@ val stream: ZIO[Has[Console] with Has[Random] with Has[Clock], IOException, Unit
     .use {
       case s1 :: s2 :: Nil =>
         for {
-          out1 <- s1.fold(0)((acc, e) => Math.max(acc, e))
+          out1 <- s1.runFold(0)((acc, e) => Math.max(acc, e))
                     .flatMap(x => printLine(s"Maximum: $x"))
                     .fork
           out2 <- s2.schedule(Schedule.spaced(1.second))
@@ -1555,10 +1551,7 @@ Let's see an example of synchronous aggregation:
 
 ```scala mdoc:silent:nest
 val stream = ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-val s1 = stream.transduce(ZTransducer.collectAllN(3))
-// Output Chunk(1,2,3), Chunk(4,5,6), Chunk(7,8,9), Chunk(10)
-
-val s2 = stream.aggregate(ZTransducer.collectAllN(3))
+val s1 = stream.transduce(ZSink.collectAllN[Nothing, Int](3))
 // Output Chunk(1,2,3), Chunk(4,5,6), Chunk(7,8,9), Chunk(10)
 ```
 
@@ -1581,7 +1574,7 @@ val sink =
   )
   
 val myApp = 
-  source.aggregate(ZTransducer.collectAllN[Int](5)).run(sink)
+  source.transduce(ZSink.collectAllN[IOException, Int](5)).run(sink)
 ```
 
 Let's see one output of running this program:
@@ -1611,11 +1604,11 @@ Elements are grouped into Chunks of 5 elements and then processed in a batch way
 Asynchronous aggregations, aggregate elements of upstream as long as the downstream operators are busy. To apply an asynchronous aggregation to the stream, we can use `ZStream#aggregateAsync`, `ZStream#aggregateAsyncWithin`, and `ZStream#aggregateAsyncWithinEither` operations.
 
 
-For example, consider `source.aggregateAsync(ZTransducer.collectAllN(5)).mapZIO(processChunks)`. Whenever the downstream (`mapZIO(processChunks)`) is ready for consumption and pulls the upstream, the transducer `(ZTransducer.collectAllN(5))` will flush out its buffer, regardless of whether the `collectAllN` buffered all its 5 elements or not. So the `ZStream#aggregateAsync` will emit when downstream pulls:
+For example, consider `source.aggregateAsync(ZSink.collectAllN[Nothing, Int](5)).mapZIO(processChunks)`. Whenever the downstream (`mapZIO(processChunks)`) is ready for consumption and pulls the upstream, the transducer `(ZTransducer.collectAllN(5))` will flush out its buffer, regardless of whether the `collectAllN` buffered all its 5 elements or not. So the `ZStream#aggregateAsync` will emit when downstream pulls:
 
 ```scala mdoc:silent:nest
 val myApp = 
-  source.aggregateAsync(ZTransducer.collectAllN[Int](5)).run(sink)
+  source.aggregateAsync(ZSink.collectAllN[IOException, Int](5)).run(sink)
 ```
 
 Let's see one output of running this program:
@@ -1647,10 +1640,10 @@ The `ZStream#aggregateAsyncWithin` is another aggregator which takes a scheduler
 
 ```scala
 abstract class ZStream[-R, +E, +O] {
-  def aggregateAsyncWithin[R1 <: R, E1 >: E, P](
-    transducer: ZTransducer[R1, E1, O, P],
-    schedule: Schedule[R1, Chunk[P], Any]
-  ): ZStream[R1 with Clock, E1, P] = ???
+  final def aggregateAsyncWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
+    sink: ZSink[R1, E1, A1, E2, A1, B],
+    schedule: Schedule[R1, Option[B], Any]
+  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E2, B] = ???
 }
 ```
 
@@ -1663,7 +1656,7 @@ val dataStream: ZStream[Any, Nothing, Record] = ZStream.repeat(Record())
 
 ```scala mdoc:silent:nest
 dataStream.aggregateAsyncWithin(
-   ZTransducer.collectAllN(2000),
+   ZSink.collectAllN[Nothing, Record](2000),
    Schedule.fixed(30.seconds)
  )
 ```
@@ -1673,14 +1666,14 @@ So it will collect elements into a chunk up to 2000 elements and if we have got 
 Instead, thanks to `Schedule` we can create a much smarter **adaptive batching algorithm** that can balance between **throughput** and **latency*. So what we are doing here is that we are creating a schedule that operates on chunks of records. What the `Schedule` does is that it starts off with 30-second timeouts for as long as its input has a size that is lower than 1000, now once we see an input that has a size look higher than 1000, we will switch to a second schedule with some jittery, and we will remain with this schedule for as long as the batch size is over 1000:
 
 ```scala mdoc:silent:nest
-val schedule: Schedule[Has[Clock] with Has[Random], Chunk[Chunk[Record]], Long] =
-  // Start off with 30-second timeouts as long as the batch size is < 1000
-  Schedule.fixed(30.seconds).whileInput[Chunk[Chunk[Record]]](_.flatten.length < 100) andThen
+val schedule: Schedule[Has[Clock] with Has[Random], Option[Chunk[Record]], Long] =
+// Start off with 30-second timeouts as long as the batch size is < 1000
+  Schedule.fixed(30.seconds).whileInput[Option[Chunk[Record]]](_.getOrElse(Chunk.empty).length < 100) andThen
     // and then, switch to a shorter jittered schedule for as long as batches remain over 1000
-    Schedule.fixed(5.seconds).jittered.whileInput[Chunk[Chunk[Record]]](_.flatten.length >= 1000)
+    Schedule.fixed(5.seconds).jittered.whileInput[Option[Chunk[Record]]](_.getOrElse(Chunk.empty).length >= 1000)
     
 dataStream
-  .aggregateAsyncWithin(ZTransducer.collectAllN(2000), schedule)
+  .aggregateAsyncWithin(ZSink.collectAllN[Nothing, Record](2000), schedule)
 ```
 
 ## Scheduling
@@ -1716,8 +1709,8 @@ val sum: UIO[Int] = ZStream(1,2,3).run(Sink.sum)
 The `ZStream#fold` method executes the fold operation over the stream of values and returns a `ZIO` effect containing the result:
 
 ```scala mdoc:silent:nest
-val s1: ZIO[Any, Nothing, Int] = ZStream(1, 2, 3, 4, 5).fold(0)(_ + _)
-val s2: ZIO[Any, Nothing, Int] = ZStream.iterate(1)(_ + 1).foldWhile(0)(_ <= 5)(_ + _)
+val s1: ZIO[Any, Nothing, Int] = ZStream(1, 2, 3, 4, 5).runFold(0)(_ + _)
+val s2: ZIO[Any, Nothing, Int] = ZStream.iterate(1)(_ + 1).runFoldWhile(0)(_ <= 5)(_ + _)
 ```
 
 ### Using foreach
@@ -1793,7 +1786,7 @@ And, to recover from a specific cause, we should use `ZStream#catchSomeCause` me
 ```scala mdoc:silent:nest
 val s1 = ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5)
 val s2 = ZStream(7, 8, 9)
-val stream = s1.catchSomeCause { case Die(value) => s2 }
+val stream = s1.catchSomeCause { case Die(value, _) => s2 }
 ```
 
 ### Recovering to ZIO Effect
@@ -1875,10 +1868,10 @@ val res: ZStream[Any, IllegalArgumentException, Int] =
 
 ### Timing Out
 
-We can timeout a stream if it does not produce a value after some duration using `ZStream#timeout`, `ZStream#timeoutError` and `timeoutErrorCause` operators:
+We can timeout a stream if it does not produce a value after some duration using `ZStream#timeout`, `ZStream#timeoutFail` and `timeoutFailCause` operators:
 
 ```scala mdoc:silent:nest
-stream.timeoutError(new TimeoutException)(10.seconds)
+stream.timeoutFail(new TimeoutException)(10.seconds)
 ```
 
 Or we can switch to another stream if the first stream does not produce a value after some duration:

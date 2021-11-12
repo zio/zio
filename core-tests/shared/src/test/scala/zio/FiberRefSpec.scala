@@ -4,13 +4,12 @@ import zio.FiberRefSpecUtil._
 import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
-import zio.test.environment.Live
 
 object FiberRefSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("FiberRefSpec")(
+  def spec = suite("FiberRefSpec")(
     suite("Create a new FiberRef with a specified value and check if:")(
       test("`delete` restores the original value") {
         for {

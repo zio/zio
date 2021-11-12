@@ -47,7 +47,8 @@ trait ZApp[R] extends ZBootstrapRuntime[R] {
 
   /**
    * The main function of the application, which will be passed the command-line
-   * arguments to the program and has to return an `IO` with the errors fully handled.
+   * arguments to the program and has to return an `IO` with the errors fully
+   * handled.
    */
   def run(args: List[String]): URIO[R, ExitCode]
 
@@ -63,9 +64,9 @@ trait ZApp[R] extends ZBootstrapRuntime[R] {
           fiber <- run(args0.toList).fork
           _ <- IO.succeed(java.lang.Runtime.getRuntime.addShutdownHook(new Thread {
                  override def run() =
-                   if (FiberContext.fatal.get) {
+                   if (FiberContext.catastrophicFailure.get) {
                      println(
-                       "**** WARNING ***\n" +
+                       "**** WARNING ****\n" +
                          "Catastrophic JVM error encountered. " +
                          "Application not safely interrupted. " +
                          "Resources may be leaked. " +

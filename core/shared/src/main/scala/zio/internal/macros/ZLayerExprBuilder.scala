@@ -91,7 +91,8 @@ $body
   }
 
   /**
-   * Return only the first level of circular dependencies, as these will be the most relevant.
+   * Return only the first level of circular dependencies, as these will be the
+   * most relevant.
    */
   private def sortErrors(errors: ::[GraphError[Key, A]]): Chunk[GraphError[Key, A]] = {
     val (circularDependencyErrors, otherErrors) =

@@ -18,13 +18,15 @@ package zio
 import zio.internal._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 /**
- * An entry point for a ZIO application that allows sharing dependencies
- * between applications. For a simpler version that uses the default ZIO
- * environment see `ZIOAppDefault`.
+ * An entry point for a ZIO application that allows sharing dependencies between
+ * applications. For a simpler version that uses the default ZIO environment see
+ * `ZIOAppDefault`.
  */
 trait ZIOApp extends ZIOAppPlatformSpecific { self =>
-  @volatile private[zio] var shuttingDown = false
+  private[zio] val shuttingDown = new AtomicBoolean(false)
 
   implicit def tag: Tag[Environment]
 
@@ -37,16 +39,17 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
   def deps: ZDeps[Has[ZIOAppArgs], Any, Environment]
 
   /**
-   * The main function of the application, which can access the command-line arguments through
-   * the `args` helper method of this class. If the provided effect fails for any reason, the
-   * cause will be logged, and the exit code of the application will be non-zero. Otherwise,
-   * the exit code of the application will be zero.
+   * The main function of the application, which can access the command-line
+   * arguments through the `args` helper method of this class. If the provided
+   * effect fails for any reason, the cause will be logged, and the exit code of
+   * the application will be non-zero. Otherwise, the exit code of the
+   * application will be zero.
    */
   def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any]
 
   /**
-   * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application that
-   * executes the logic of both applications.
+   * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
+   * that executes the logic of both applications.
    */
   final def <>(that: ZIOApp)(implicit trace: ZTraceElement): ZIOApp =
     ZIOApp(self.run.zipPar(that.run), self.deps +!+ that.deps, self.hook >>> that.hook)
@@ -63,8 +66,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    */
   final def exit(code: ExitCode)(implicit trace: ZTraceElement): UIO[Unit] =
     UIO {
-      if (!shuttingDown) {
-        shuttingDown = true
+      if (!shuttingDown.getAndSet(true)) {
         try Platform.exit(code.code)
         catch { case _: SecurityException => }
       }
@@ -113,8 +115,8 @@ object ZIOApp {
   }
 
   /**
-   * Creates a [[ZIOApp]] from an effect, which can consume the arguments of the program, as well
-   * as a hook into the ZIO runtime configuration.
+   * Creates a [[ZIOApp]] from an effect, which can consume the arguments of the
+   * program, as well as a hook into the ZIO runtime configuration.
    */
   def apply[R <: Has[_]](
     run0: ZIO[R with ZEnv with Has[ZIOAppArgs], Any, Any],
@@ -130,7 +132,8 @@ object ZIOApp {
     }
 
   /**
-   * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's configuration.
+   * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's
+   * configuration.
    */
   def fromZIO(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any])(implicit trace: ZTraceElement): ZIOApp =
     ZIOApp(run0, ZDeps.environment, RuntimeConfigAspect.identity)

@@ -17,8 +17,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{Summary, TestArgs}
-import zio.{Exit, Runtime, ZIO}
+import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpecAbstract, sbt}
+import zio.{Chunk, Exit, Runtime, UIO, ZDeps, ZIO, ZIOAppArgs}
 
 import scala.collection.mutable
 
@@ -43,7 +43,7 @@ sealed abstract class ZTestRunner(
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    defs.map(new ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
+    defs.map(ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
 
   override def receiveMessage(summary: String): Option[String] = {
     SummaryProtocol.deserialize(summary).foreach(s => summaries += s)
@@ -55,7 +55,7 @@ sealed abstract class ZTestRunner(
     serializer(task.taskDef())
 
   override def deserializeTask(task: String, deserializer: String => TaskDef): Task =
-    new ZTestTask(deserializer(task), testClassLoader, runnerType, sendSummary, TestArgs.parse(args))
+    ZTestTask(deserializer(task), testClassLoader, runnerType, sendSummary, TestArgs.parse(args))
 }
 
 final class ZMasterTestRunner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader)
@@ -76,22 +76,90 @@ final class ZSlaveTestRunner(
   val sendSummary: SendSummary
 ) extends ZTestRunner(args, remoteArgs, testClassLoader, "slave") {}
 
-final class ZTestTask(
+sealed class ZTestTask(
   taskDef: TaskDef,
   testClassLoader: ClassLoader,
   runnerType: String,
   sendSummary: SendSummary,
-  testArgs: TestArgs
-) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs) {
+  testArgs: TestArgs,
+  spec: NewOrLegacySpec
+) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
-    Runtime((), specInstance.runtimeConfig).unsafeRunAsyncWith {
-      run(eventHandler).toManaged.provideDeps(sbtTestDeps(loggers)).useDiscard(ZIO.unit)
-    } { exit =>
-      exit match {
-        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-        case _                   =>
-      }
-      continuation(Array())
+    spec match {
+      case NewSpecWrapper(zioSpec) =>
+        Runtime((), zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
+          zioSpec.run
+            .provideDeps(ZDeps.succeed(ZIOAppArgs(Chunk.empty)) ++ zio.ZEnv.live)
+            .onError(e => UIO(println(e.prettyPrint)))
+        } { exit =>
+          exit match {
+            case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+            case _                   =>
+          }
+          continuation(Array())
+        }
+      case LegacySpecWrapper(abstractRunnableSpec) =>
+        Runtime((), abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
+          run(eventHandler, abstractRunnableSpec).toManaged.provideDeps(sbtTestDeps(loggers)).useDiscard(ZIO.unit)
+        } { exit =>
+          exit match {
+            case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+            case _                   =>
+          }
+          continuation(Array())
+        }
     }
 }
+object ZTestTask {
+  def apply(
+    taskDef: TaskDef,
+    testClassLoader: ClassLoader,
+    runnerType: String,
+    sendSummary: SendSummary,
+    args: TestArgs
+  ): ZTestTask =
+    disectTask(taskDef, testClassLoader) match {
+      case NewSpecWrapper(zioSpec) =>
+        new ZTestTaskNew(taskDef, testClassLoader, runnerType, sendSummary, args, zioSpec)
+      case LegacySpecWrapper(abstractRunnableSpec) =>
+        new ZTestTaskLegacy(taskDef, testClassLoader, runnerType, sendSummary, args, abstractRunnableSpec)
+    }
+
+  def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
+    import org.portablescala.reflect._
+    val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
+    val module =
+      Reflect
+        .lookupLoadableModuleClass(fqn, testClassLoader)
+        .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
+        .loadModule()
+    module match {
+      case specAbstract: ZIOSpecAbstract => sbt.NewSpecWrapper(specAbstract)
+      case _ =>
+        sbt.LegacySpecWrapper(
+          module
+            .asInstanceOf[AbstractRunnableSpec]
+        )
+    }
+
+  }
+}
+
+final class ZTestTaskLegacy(
+  taskDef: TaskDef,
+  testClassLoader: ClassLoader,
+  runnerType: String,
+  sendSummary: SendSummary,
+  testArgs: TestArgs,
+  spec: AbstractRunnableSpec
+) extends ZTestTask(taskDef, testClassLoader, runnerType, sendSummary, testArgs, sbt.LegacySpecWrapper(spec))
+
+final class ZTestTaskNew(
+  taskDef: TaskDef,
+  testClassLoader: ClassLoader,
+  runnerType: String,
+  sendSummary: SendSummary,
+  testArgs: TestArgs,
+  val newSpec: ZIOSpecAbstract
+) extends ZTestTask(taskDef, testClassLoader, runnerType, sendSummary, testArgs, sbt.NewSpecWrapper(newSpec))

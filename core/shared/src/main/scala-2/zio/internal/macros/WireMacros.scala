@@ -22,8 +22,8 @@ final class WireMacros(val c: blackbox.Context) extends DepsMacroUtils {
   }
 
   /**
-   * Ensures the macro has been annotated with the intended result type.
-   * The macro will not behave correctly otherwise.
+   * Ensures the macro has been annotated with the intended result type. The
+   * macro will not behave correctly otherwise.
    */
   private def assertEnvIsNotNothing[R <: Has[_]: c.WeakTypeTag](): Unit = {
     val outType     = weakTypeOf[R]

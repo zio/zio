@@ -2,7 +2,6 @@ package zio.test
 
 import zio._
 import zio.internal.macros.DepsMacroUtils
-import zio.test.environment.TestEnvironment
 
 import scala.reflect.macros.blackbox
 

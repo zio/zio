@@ -15,8 +15,8 @@ trait JvmMetrics { self =>
   def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock] with Has[System], Throwable, Feature]
 
   /**
-   * A dependency that when constructed forks a fiber that periodically updates
-   * the JVM metrics.
+   * A set of dependencies that when constructed forks a fiber that periodically
+   * updates the JVM metrics
    */
   lazy val live: ZDeps[Has[Clock] with Has[System], Throwable, Has[Feature]] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
