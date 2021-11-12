@@ -790,16 +790,15 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
   def nonTermination(duration: Duration): TestAspect.WithOut[Nothing, Has[
     Live
   ], Nothing, Any, ({ type OutEnv[Env] = Env })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] = {
-    val nonTermination = timeout(duration)
-    //  >>>
-    //   failing[Any] {
-    //     case TestFailure.Assertion(_) => false
-    //     case TestFailure.Runtime(cause) =>
-    //       cause.dieOption match {
-    //         case Some(t) => t.getMessage == s"Timeout of ${duration.render} exceeded."
-    //         case None    => false
-    //       }
-    //   }
+    val nonTermination = timeout(duration) >>>
+      failing[Any] {
+        case TestFailure.Assertion(_) => false
+        case TestFailure.Runtime(cause) =>
+          cause.dieOption match {
+            case Some(t) => t.getMessage == s"Timeout of ${duration.render} exceeded."
+            case None    => false
+          }
+      }
     nonTermination
   }
 
