@@ -5,7 +5,14 @@ import zio.test._
 import scala.annotation.tailrec
 
 trait ZIOBaseSpec extends DefaultRunnableSpec {
-  override def aspects =
+  override def aspects: List[TestAspect.WithOut[
+    Nothing,
+    TestEnvironment,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ]] =
     if (TestPlatform.isJVM) List(TestAspect.timeout(120.seconds))
     else List(TestAspect.sequential, TestAspect.timeout(120.seconds))
 
@@ -30,7 +37,14 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
     case object supervision  extends ZIOTag { override val value = "supervision"  }
   }
 
-  def zioTag(zioTag: ZIOTag, zioTags: ZIOTag*) = {
+  def zioTag(zioTag: ZIOTag, zioTags: ZIOTag*): TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
     val tags = zioTags.map(_.value) ++ getSubTags(zioTag) ++ zioTags.flatMap(getSubTags)
     TestAspect.tag(zioTag.value, tags.distinct: _*)
   }

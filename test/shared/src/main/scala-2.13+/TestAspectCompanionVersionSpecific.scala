@@ -18,7 +18,6 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.ZPipeline.Compose
 
 trait TestAspectCompanionVersionSpecific {
 
@@ -34,8 +33,8 @@ trait TestAspectCompanionVersionSpecific {
     def <<<[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2[Env], OutErr2[Err]](
       that: TestAspect.WithOut[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2, OutErr2]
     )(implicit
-      composeEnv: Compose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
-      composeErr: Compose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr]
+      composeEnv: ZCompose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
+      composeErr: ZCompose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr]
     ): TestAspect.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -54,8 +53,8 @@ trait TestAspectCompanionVersionSpecific {
     def >>>[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2[Env], OutErr2[Err]](
       that: TestAspect.WithOut[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2, OutErr2]
     )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2]
+      composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
+      composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2]
     ): TestAspect.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -89,8 +88,8 @@ trait TestAspectCompanionVersionSpecific {
     def @@[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2[Env], OutErr2[Err]](
       that: TestAspect.WithOut[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2, OutErr2]
     )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2]
+      composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
+      composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2]
     ): TestAspect.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -107,8 +106,8 @@ trait TestAspectCompanionVersionSpecific {
     def andThen[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2[Env], OutErr2[Err]](
       that: TestAspect.WithOut[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2, OutErr2]
     )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2]
+      composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
+      composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2]
     ): TestAspect.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -125,8 +124,8 @@ trait TestAspectCompanionVersionSpecific {
     def compose[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2[Env], OutErr2[Err]](
       that: TestAspect.WithOut[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2, OutEnv2, OutErr2]
     )(implicit
-      composeEnv: Compose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
-      composeErr: Compose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr]
+      composeEnv: ZCompose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
+      composeErr: ZCompose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr]
     ): TestAspect.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,

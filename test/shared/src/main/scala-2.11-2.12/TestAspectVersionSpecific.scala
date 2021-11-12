@@ -18,7 +18,6 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.ZPipeline.Compose
 
 import scala.annotation.unchecked.uncheckedVariance
 
@@ -32,8 +31,8 @@ trait TestAspectVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr] {
    */
   def <<<[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2](that: TestAspect[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2])(
     implicit
-    composeEnv: Compose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr] @uncheckedVariance
   ): TestAspect.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,
@@ -66,8 +65,8 @@ trait TestAspectVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr] {
    */
   def >>>[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2](that: TestAspect[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2])(
     implicit
-    composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance
   ): TestAspect.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,
@@ -94,14 +93,14 @@ trait TestAspectVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr] {
     }
 
   /**
-   * Composes two test aspects into one test asecpt, by first applying the
-   * transformation of this test asecpt, and then applying the transformation
+   * Composes two test aspects into one test aspect, by first applying the
+   * transformation of this test aspect, and then applying the transformation
    * of the specified test aspect.
    */
   def @@[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2](that: TestAspect[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2])(
     implicit
-    composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance
   ): TestAspect.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,
@@ -132,8 +131,8 @@ trait TestAspectVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr] {
    */
   def andThen[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2](that: TestAspect[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2])(
     implicit
-    composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance
   ): TestAspect.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,
@@ -164,8 +163,8 @@ trait TestAspectVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr] {
    */
   def compose[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2](that: TestAspect[LowerEnv2, UpperEnv2, LowerErr2, UpperErr2])(
     implicit
-    composeEnv: Compose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr] @uncheckedVariance
   ): TestAspect.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,

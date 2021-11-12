@@ -234,12 +234,12 @@ object TestAspectSpec extends ZIOBaseSpec {
         time <- Clock.nanoTime
       } yield assert(time)(isGreaterThan(0L))
     } @@ provideLayer(Clock.live),
-    test("provideSomeLayer provides a test with part of its required environment") {
+    test("provideCustomLayer provides a test with part of its required environment") {
       for {
-        _    <- Random.nextInt
         time <- Clock.nanoTime
+        _    <- Random.nextInt
       } yield assert(time)(isGreaterThan(0L))
-    } @@ provideSomeLayer[Has[Random]](Clock.live),
+    } @@ provideCustomLayer(Clock.live),
     test("repeats sets the number of times to repeat a test to the specified value") {
       for {
         ref   <- Ref.make(0)

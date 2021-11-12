@@ -26,9 +26,14 @@ trait TimeoutVariants {
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect.WithOut[Nothing, Has[
-    Live
-  ], Nothing, Any, ({ type OutEnv[Env] = Env })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
+  ): TestAspect.WithOut[
+    Nothing,
+    Has[Live],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect[Nothing, Has[Live], Nothing, Any] {
       type OutEnv[Env] = Env
       type OutErr[Err] = Err

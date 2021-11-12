@@ -20,7 +20,6 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait ZPipelineCompanionVersionSpecific {
-  import ZPipeline._
 
   implicit final class ZPipelineSyntax[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem, OutEnv[
     Env
@@ -58,9 +57,9 @@ trait ZPipelineCompanionVersionSpecific {
         OutElem2
       ]
     )(implicit
-      composeEnv: Compose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
-      composeErr: Compose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr],
-      composeElem: Compose[LowerElem2, UpperElem2, OutElem2, LowerElem, UpperElem, OutElem]
+      composeEnv: ZCompose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
+      composeErr: ZCompose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr],
+      composeElem: ZCompose[LowerElem2, UpperElem2, OutElem2, LowerElem, UpperElem, OutElem]
     ): ZPipeline.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -94,9 +93,9 @@ trait ZPipelineCompanionVersionSpecific {
         OutElem2
       ]
     )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
-      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
+      composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
+      composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
+      composeElem: ZCompose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
     ): ZPipeline.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -152,9 +151,9 @@ trait ZPipelineCompanionVersionSpecific {
         OutElem2
       ]
     )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
-      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
+      composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
+      composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
+      composeElem: ZCompose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
     ): ZPipeline.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -186,9 +185,9 @@ trait ZPipelineCompanionVersionSpecific {
         OutElem2
       ]
     )(implicit
-      composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
-      composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
-      composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
+      composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, OutEnv2],
+      composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, OutErr2],
+      composeElem: ZCompose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, OutElem2]
     ): ZPipeline.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
@@ -220,9 +219,9 @@ trait ZPipelineCompanionVersionSpecific {
         OutElem2
       ]
     )(implicit
-      composeEnv: Compose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
-      composeErr: Compose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr],
-      composeElem: Compose[LowerElem2, UpperElem2, OutElem2, LowerElem, UpperElem, OutElem]
+      composeEnv: ZCompose[LowerEnv2, UpperEnv2, OutEnv2, LowerEnv, UpperEnv, OutEnv],
+      composeErr: ZCompose[LowerErr2, UpperErr2, OutErr2, LowerErr, UpperErr, OutErr],
+      composeElem: ZCompose[LowerElem2, UpperElem2, OutElem2, LowerElem, UpperElem, OutElem]
     ): ZPipeline.WithOut[
       composeEnv.Lower,
       composeEnv.Upper,
