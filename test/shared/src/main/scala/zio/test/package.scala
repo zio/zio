@@ -112,26 +112,6 @@ package object test extends CompileVariants {
   )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R with Has[Live], E1, B] =
     Live.withLive(zio)(f)
 
-  /**
-   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in
-   * its environment.
-   */
-  type TestAspectAtLeastR[R] =
-    TestAspect[Nothing, R, Nothing, Any] {
-      type OutEnv[Env] = Env
-      type OutErr[Err] = Err
-    }
-
-  /**
-   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic, having
-   * no requirements on error or environment.
-   */
-  type TestAspectPoly =
-    TestAspect[Nothing, Any, Nothing, Any] {
-      type OutEnv[Env] = Env
-      type OutErr[Err] = Err
-    }
-
   type TestResult = BoolAlgebra[AssertionResult]
 
   object TestResult {
