@@ -27,12 +27,12 @@ module.exports = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { to: 'overview/overview_index', label: 'Overview', position: 'right' },
-        { to: 'datatypes/index', label: 'Data Types', position: 'right' },
-        { to: 'usecases/usecases_index', label: 'Use Cases', position: 'right' },
-        { to: 'howto/index', label: 'How to', position: 'right' },
-        { to: 'resources/index', label: 'Resources', position: 'right' },
-        { to: 'about/index', label: 'About', position: 'right' },
+        { to: 'version-1.x/overview/overview_index', label: 'Overview', position: 'right' },
+        { to: 'version-1.x/datatypes/index', label: 'Data Types', position: 'right' },
+        { to: 'version-1.x/usecases/usecases_index', label: 'Use Cases', position: 'right' },
+        { to: 'version-1.x/howto/index', label: 'How to', position: 'right' },
+        { to: 'version-1.x/resources/index', label: 'Resources', position: 'right' },
+        { to: 'version-1.x/about/about_index', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
@@ -117,17 +117,14 @@ module.exports = {
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
-          lastVersion: undefined,
+          lastVersion: '1.x',
           versions: {
-            current: {
-              label: 'ZIO 2.x (WIP)',
-              path: 'version-2.x',
-              banner: 'none'
+            'current': {
+              label: 'ZIO 2.x (WIP)'
             },
             '1.x': {
               label: 'ZIO 1.x',
-              path: 'version-2.x',
-              banner: 'none'
+              path: 'version-1.x'
             }
           },
           remarkPlugins: [
