@@ -15,22 +15,23 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
         fiber <- invoke(Chunk.fromIterable(args0)).provide(runtime.environment).fork
         _ <-
           IO.succeed(Platform.addShutdownHook { () =>
-            shuttingDown = true
+            if (!shuttingDown.getAndSet(true)) {
 
-            if (FiberContext.catastrophicFailure.get) {
-              println(
-                "**** WARNING ****\n" +
-                  "Catastrophic error encountered. " +
-                  "Application not safely interrupted. " +
-                  "Resources may be leaked. " +
-                  "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
-              )
-            } else {
-              try runtime.unsafeRunSync(fiber.interrupt)
-              catch { case _: Throwable => }
+              if (FiberContext.catastrophicFailure.get) {
+                println(
+                  "**** WARNING ****\n" +
+                    "Catastrophic error encountered. " +
+                    "Application not safely interrupted. " +
+                    "Resources may be leaked. " +
+                    "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
+                )
+              } else {
+                try runtime.unsafeRunSync(fiber.interrupt)
+                catch { case _: Throwable => }
+              }
+
+              ()
             }
-
-            ()
           })
         result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_)).exitCode
         _      <- exit(result)

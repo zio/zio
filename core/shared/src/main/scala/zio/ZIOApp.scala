@@ -18,13 +18,15 @@ package zio
 import zio.internal._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 /**
  * An entry point for a ZIO application that allows sharing layers between
  * applications. For a simpler version that uses the default ZIO environment see
  * `ZIOAppDefault`.
  */
 trait ZIOApp extends ZIOAppPlatformSpecific { self =>
-  @volatile private[zio] var shuttingDown = false
+  private[zio] val shuttingDown = new AtomicBoolean(false)
 
   implicit def tag: Tag[Environment]
 
@@ -64,8 +66,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    */
   final def exit(code: ExitCode)(implicit trace: ZTraceElement): UIO[Unit] =
     UIO {
-      if (!shuttingDown) {
-        shuttingDown = true
+      if (!shuttingDown.getAndSet(true)) {
         try Platform.exit(code.code)
         catch { case _: SecurityException => }
       }
