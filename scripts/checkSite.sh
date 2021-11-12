@@ -9,7 +9,7 @@ mv docusaurus.config.js docusaurus.config.js.org
 cp version2-only-docusaurus.config.js docusaurus.config.js 
 
 mv src/pages/index.js src/pages/index.js.org
-cp src/pages/version2-only-index.js src/pages/index.js
+cp src/pages/version2-only-index.js.txt src/pages/index.js
 
 mv versions.json versions.json.org
 
