@@ -117,15 +117,24 @@ module.exports = {
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
-          lastVersion: "current",
+          lastVersion: undefined,
           versions: {
-            current: { label: "ZIO 2.x" }
+            current: {
+              label: 'ZIO 2.x (WIP)',
+              path: 'version-2.x',
+              banner: 'none'
+            },
+            '1.x': {
+              label: 'ZIO 1.x',
+              path: 'version-2.x',
+              banner: 'none'
+            }
           },
           remarkPlugins: [
             [require('blended-include-code-plugin'), { marker: 'CODE_INCLUDE' }],
             [require('remark-kroki-plugin'), { krokiBase: 'https://kroki.io', lang: "kroki", imgRefDir: "/img/kroki", imgDir: "static/img/kroki" }]
           ],
-          editUrl: 'https://github.com/zio/zio/edit/series/2.x', 
+          editUrl: 'https://github.com/zio/zio/edit/series/2.x',
         },
         theme: {
           customCss: [require.resolve('./src/css/custom.css')],
