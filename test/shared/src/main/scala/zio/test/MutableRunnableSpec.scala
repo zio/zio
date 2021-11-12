@@ -42,7 +42,14 @@ import scala.util.control.NoStackTrace
 @deprecated("use RunnableSpec", "2.0.0")
 class MutableRunnableSpec[R <: Has[_]: Tag](
   layer: ZLayer[TestEnvironment, Throwable, R],
-  aspect: TestAspect[R with TestEnvironment, R with TestEnvironment, Any, Any] = TestAspect.identity
+  aspect: TestAspect.WithOut[
+    R with TestEnvironment,
+    R with TestEnvironment,
+    Any,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = TestAspect.identity
 ) extends RunnableSpec[TestEnvironment, Any] {
   self =>
 
@@ -58,7 +65,14 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
   sealed case class SuiteBuilder(label: String) extends SpecBuilder {
 
     private[test] var nested: Chunk[SpecBuilder] = Chunk.empty
-    private var aspects: Chunk[TestAspect[R with TestEnvironment, R with TestEnvironment, Failure, Failure]] =
+    private var aspects: Chunk[TestAspect.WithOut[
+      R with TestEnvironment,
+      R with TestEnvironment,
+      Failure,
+      Failure,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ]] =
       Chunk.empty
 
     /**
@@ -68,7 +82,14 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
      * }}}
      */
     final def @@(
-      aspect: TestAspect[R with TestEnvironment, R with TestEnvironment, Failure, Failure]
+      aspect: TestAspect.WithOut[
+        R with TestEnvironment,
+        R with TestEnvironment,
+        Failure,
+        Failure,
+        ({ type OutEnv[Env] = Env })#OutEnv,
+        ({ type OutErr[Err] = Err })#OutErr
+      ]
     )(implicit trace: ZTraceElement): SuiteBuilder = {
       aspects = aspects :+ aspect
       this
@@ -93,7 +114,14 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
      * }}}
      */
     final def @@(
-      aspect: TestAspect[R with TestEnvironment, R with TestEnvironment, Failure, Failure]
+      aspect: TestAspect.WithOut[
+        R with TestEnvironment,
+        R with TestEnvironment,
+        Failure,
+        Failure,
+        ({ type OutEnv[Env] = Env })#OutEnv,
+        ({ type OutErr[Err] = Err })#OutErr
+      ]
     )(implicit trace: ZTraceElement): TestBuilder = {
       toSpec = toSpec @@ aspect
       this
@@ -153,7 +181,14 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
     (stack.head @@ aspect).toSpec.provideCustomLayerShared(layer.mapError(TestFailure.fail))
   }
 
-  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
+  override def aspects: List[TestAspect.WithOut[
+    Nothing,
+    TestEnvironment,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ]] =
     List(TestAspect.timeoutWarning(60.seconds))
 
   override def runner: TestRunner[TestEnvironment, Any] =

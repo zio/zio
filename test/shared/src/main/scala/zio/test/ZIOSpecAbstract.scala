@@ -27,7 +27,14 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any]
 
-  def aspects: Chunk[TestAspect[Nothing, Environment with TestEnvironment with Has[ZIOAppArgs], Nothing, Any]] =
+  def aspects: Chunk[TestAspect.WithOut[
+    Nothing,
+    Environment with TestEnvironment with Has[ZIOAppArgs],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ]] =
     Chunk.empty
 
   final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {

@@ -8,7 +8,14 @@ import zio.test.Assertion._
 import java.util.zip.Deflater
 
 object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
-  override def aspects: List[TestAspectAtLeastR[Has[Live]]] =
+  override def aspects: List[TestAspect.WithOut[
+    Nothing,
+    TestEnvironment,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ]] =
     List(TestAspect.timeout(300.seconds))
 
   def spec: ZSpec[Environment, Failure] = suite("ZPipeline JVM")(

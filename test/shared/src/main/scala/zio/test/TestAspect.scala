@@ -27,82 +27,74 @@ import scala.collection.immutable.SortedSet
  * an aspect as a polymorphic function, capable of transforming one test into
  * another, possibly enlarging the environment or error type.
  */
-abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
-
-  /**
-   * Applies the aspect to some tests in the spec, chosen by the provided
-   * predicate.
-   */
-  def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E]
+trait TestAspect[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr]
+    extends TestAspectVersionSpecific[LowerEnv, UpperEnv, LowerErr, UpperErr] { self =>
+  type OutEnv[Env]
+  type OutErr[Err]
 
   /**
    * An alias for [[all]].
    */
-  final def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE](spec: ZSpec[R, E])(implicit
-    trace: ZTraceElement
-  ): ZSpec[R, E] =
-    all(spec)
-
-  /**
-   * Applies the aspect to every test in the spec.
-   */
-  final def all[R >: LowerR <: UpperR, E >: LowerE <: UpperE](spec: ZSpec[R, E])(implicit
-    trace: ZTraceElement
-  ): ZSpec[R, E] =
-    some[R, E](spec)
-
-  /**
-   * Returns a new aspect that represents the sequential composition of this
-   * aspect with the specified one.
-   */
-  final def >>>[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
-    that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
-  ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
-    new TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] {
-      def some[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1](
-        spec: ZSpec[R, E]
-      )(implicit trace: ZTraceElement): ZSpec[R, E] =
-        that.some(self.some(spec))
-    }
-
-  /**
-   * Returns a new aspect that represents the sequential composition of this
-   * aspect with the specified one.
-   */
-  final def @@[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
-    that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
-  ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
-    self >>> that
-
-  final def andThen[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
-    that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
-  ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
-    self >>> that
+  def apply[Env >: LowerEnv <: UpperEnv, Err >: LowerErr <: UpperErr](spec: Spec[Env, TestFailure[Err], TestSuccess])(
+    implicit trace: ZTraceElement
+  ): Spec[OutEnv[Env], TestFailure[OutErr[Err]], TestSuccess]
 }
-object TestAspect extends TimeoutVariants {
+
+object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariants {
+
+  type WithOut[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, OutEnv0[Err], OutErr0[Env]] =
+    TestAspect[LowerEnv, UpperEnv, LowerErr, UpperErr] {
+      type OutEnv[Env] = OutEnv0[Env]
+      type OutErr[Err] = OutErr0[Err]
+    }
 
   /**
    * An aspect that returns the tests unchanged
    */
-  val identity: TestAspectPoly =
-    new TestAspectPoly {
-      def some[R, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+  val identity: TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[Nothing, Any, Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
         spec
     }
 
   /**
    * An aspect that marks tests as ignored.
    */
-  val ignore: TestAspectAtLeastR[Has[Annotations]] =
-    new TestAspectAtLeastR[Has[Annotations]] {
-      def some[R <: Has[Annotations], E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+  val ignore: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[Nothing, Has[Annotations], Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R <: Has[Annotations], E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
         spec.when(false)
     }
 
   /**
    * Constructs an aspect that runs the specified effect after every test.
    */
-  def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+  def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect.WithOut[
+    Nothing,
+    R0,
+    E0,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](
         test: ZIO[R, TestFailure[E], TestSuccess]
@@ -115,15 +107,31 @@ object TestAspect extends TimeoutVariants {
   /**
    * Constructs an aspect that runs the specified effect after all tests.
    */
-  def afterAll[R0](effect: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, Nothing, Any] =
+  def afterAll[R0](effect: ZIO[R0, Nothing, Any]): TestAspect.WithOut[
+    Nothing,
+    R0,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     aroundAll(ZIO.unit, effect)
 
   /**
    * Annotates tests with the specified test annotation.
    */
-  def annotate[V](key: TestAnnotation[V], value: V): TestAspectPoly =
-    new TestAspectPoly {
-      def some[R, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+  def annotate[V](key: TestAnnotation[V], value: V): TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[Nothing, Any, Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
         spec.annotate(key, value)
     }
 
@@ -133,7 +141,14 @@ object TestAspect extends TimeoutVariants {
    */
   def aroundWith[R0, E0, A0](
     before: ZIO[R0, E0, A0]
-  )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+  )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect.WithOut[
+    Nothing,
+    R0,
+    E0,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
@@ -145,7 +160,14 @@ object TestAspect extends TimeoutVariants {
    * A less powerful variant of `around` where the result of `before` is not
    * required by after.
    */
-  def around[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+  def around[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect.WithOut[
+    Nothing,
+    R0,
+    E0,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     aroundWith(before)(_ => after)
 
   /**
@@ -154,9 +176,18 @@ object TestAspect extends TimeoutVariants {
    */
   def aroundAllWith[R0, E0, A0](
     before: ZIO[R0, E0, A0]
-  )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+  )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect.WithOut[
+    Nothing,
+    R0,
+    E0,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect[Nothing, R0, E0, Any] {
-      def some[R <: R0, E >: E0](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R <: R0, E >: E0](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
         Spec.managed(ZManaged.acquireReleaseWith(before)(after).mapError(TestFailure.fail).as(spec))
     }
 
@@ -164,7 +195,14 @@ object TestAspect extends TimeoutVariants {
    * A less powerful variant of `aroundAll` where the result of `before` is not
    * required by `after`.
    */
-  def aroundAll[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
+  def aroundAll[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect.WithOut[
+    Nothing,
+    R0,
+    E0,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     aroundAllWith(before)(_ => after)
 
   /**
@@ -173,7 +211,14 @@ object TestAspect extends TimeoutVariants {
    */
   def aroundTest[R0, E0](
     managed: ZManaged[R0, TestFailure[E0], TestSuccess => ZIO[R0, TestFailure[E0], TestSuccess]]
-  ): TestAspect[Nothing, R0, E0, Any] =
+  ): TestAspect.WithOut[
+    Nothing,
+    R0,
+    E0,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
@@ -187,7 +232,7 @@ object TestAspect extends TimeoutVariants {
    */
   def aspect[R0, E0](
     f: ZIO[R0, TestFailure[E0], TestSuccess] => ZIO[R0, TestFailure[E0], TestSuccess]
-  ): TestAspect[R0, R0, E0, E0] =
+  ): TestAspect.WithOut[R0, R0, E0, E0, ({ type OutEnv[Env] = Env })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
     new TestAspect.PerTest[R0, R0, E0, E0] {
       def perTest[R >: R0 <: R0, E >: E0 <: E0](
         test: ZIO[R, TestFailure[E], TestSuccess]
@@ -198,7 +243,14 @@ object TestAspect extends TimeoutVariants {
   /**
    * Constructs an aspect that runs the specified effect before every test.
    */
-  def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+  def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect.WithOut[
+    Nothing,
+    R0,
+    E0,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
@@ -210,16 +262,27 @@ object TestAspect extends TimeoutVariants {
    * Constructs an aspect that runs the specified effect a single time before
    * all tests.
    */
-  def beforeAll[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
+  def beforeAll[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect.WithOut[
+    Nothing,
+    R0,
+    E0,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     aroundAll(effect, ZIO.unit)
 
   /**
    * An aspect that runs each test on a separate fiber and prints a fiber dump
    * if the test fails or has not terminated within the specified duration.
    */
-  def diagnose(duration: Duration): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
-    new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
-      def some[R <: Has[Live] with Has[Annotations], E](
+  def diagnose(duration: Duration): TestAspect.WithOut[Nothing, Has[Live] with Has[
+    Annotations
+  ], Nothing, Any, ({ type OutEnv[Env] = Env })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
+    new TestAspect[Nothing, Has[Live] with Has[Annotations], Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R <: Has[Live] with Has[Annotations], E](
         spec: ZSpec[R, E]
       )(implicit trace: ZTraceElement): ZSpec[R, E] = {
         def diagnose[R <: Has[Live] with Has[Annotations], E](
@@ -246,8 +309,10 @@ object TestAspect extends TimeoutVariants {
    * environment set to debug mode so that console output is rendered to
    * standard output in addition to being written to the output buffer.
    */
-  val debug: TestAspectAtLeastR[Has[TestConsole]] =
-    new PerTest.AtLeastR[Has[TestConsole]] {
+  val debug: TestAspect.WithOut[Nothing, Has[
+    TestConsole
+  ], Nothing, Any, ({ type OutEnv[Env] = Env })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
+    new TestAspect.PerTest[Nothing, Has[TestConsole], Nothing, Any] {
       def perTest[R <: Has[TestConsole], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
@@ -258,84 +323,185 @@ object TestAspect extends TimeoutVariants {
    * An aspect that applies the specified aspect on Dotty.
    */
   def dotty[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    that: TestAspect.WithOut[
+      LowerR,
+      UpperR,
+      LowerE,
+      UpperE,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ]
+  ): TestAspect.WithOut[
+    LowerR,
+    UpperR,
+    LowerE,
+    UpperE,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isDotty) that else identity
 
   /**
    * An aspect that only runs tests on Dotty.
    */
-  val dottyOnly: TestAspectAtLeastR[Has[Annotations]] =
+  val dottyOnly: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isDotty) identity else ignore
 
   /**
    * An aspect that retries a test until success, without limit.
    */
-  val eventually: TestAspectAtLeastR[ZTestEnv] = {
-    val eventually = new PerTest.Poly {
+  val eventually: TestAspect.WithOut[
+    Nothing,
+    ZTestEnv,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
+    val eventually: TestAspect.WithOut[
+      Nothing,
+      Any,
+      Nothing,
+      Any,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ] = new PerTest[Nothing, Any, Nothing, Any] {
       def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
       ): ZIO[R, TestFailure[E], TestSuccess] =
         test.eventually
     }
-    restoreTestEnvironment >>> eventually
+    val restore = restoreTestEnvironment >>> eventually
+    restore
   }
 
   /**
    * An aspect that runs tests on all versions except Dotty.
    */
-  val exceptDotty: TestAspectAtLeastR[Has[Annotations]] =
+  val exceptDotty: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isDotty) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except ScalaJS.
    */
-  val exceptJS: TestAspectAtLeastR[Has[Annotations]] =
+  val exceptJS: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestPlatform.isJS) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except the JVM.
    */
-  val exceptJVM: TestAspectAtLeastR[Has[Annotations]] =
+  val exceptJVM: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestPlatform.isJVM) ignore else identity
 
   /**
    * An aspect that runs tests on all platforms except ScalaNative.
    */
-  val exceptNative: TestAspectAtLeastR[Has[Annotations]] =
+  val exceptNative: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestPlatform.isNative) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala 2.
    */
-  val exceptScala2: TestAspectAtLeastR[Has[Annotations]] =
+  val exceptScala2: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala2) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala 2.11.
    */
-  val exceptScala211: TestAspectAtLeastR[Has[Annotations]] =
+  val exceptScala211: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala211) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala 2.12.
    */
-  val exceptScala212: TestAspectAtLeastR[Has[Annotations]] =
+  val exceptScala212: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala212) ignore else identity
 
   /**
    * An aspect that runs tests on all versions except Scala 2.13.
    */
-  val exceptScala213: TestAspectAtLeastR[Has[Annotations]] =
+  val exceptScala213: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala213) ignore else identity
 
   /**
    * An aspect that sets suites to the specified execution strategy, but only if
    * their current strategy is inherited (undefined).
    */
-  def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
-    new TestAspectPoly {
-      def some[R, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+  def executionStrategy(exec: ExecutionStrategy): TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[Nothing, Any, Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
         Spec.exec(exec, spec)
     }
 
@@ -343,7 +509,14 @@ object TestAspect extends TimeoutVariants {
    * An aspect that makes a test that failed for any reason pass. Note that if
    * the test passes this aspect will make it fail.
    */
-  val failing: TestAspectPoly =
+  val failing: TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     failing(_ => true)
 
   /**
@@ -351,7 +524,14 @@ object TestAspect extends TimeoutVariants {
    * Note that the test will fail for other failures and also if it passes
    * correctly.
    */
-  def failing[E0](assertion: TestFailure[E0] => Boolean): TestAspect[Nothing, Any, Nothing, E0] =
+  def failing[E0](assertion: TestFailure[E0] => Boolean): TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    E0,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect.PerTest[Nothing, Any, Nothing, E0] {
       def perTest[R, E <: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
@@ -370,7 +550,14 @@ object TestAspect extends TimeoutVariants {
    * but not in [[RunnableSpec]]. This aspect is required for the proper
    * functioning of `TestClock.adjust`.
    */
-  lazy val fibers: TestAspect[Nothing, Has[Annotations], Nothing, Any] =
+  lazy val fibers: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect.PerTest[Nothing, Has[Annotations], Nothing, Any] {
       def perTest[R <: Has[Annotations], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
@@ -398,37 +585,66 @@ object TestAspect extends TimeoutVariants {
    * An aspect that retries a test until success, with a default limit, for use
    * with flaky tests.
    */
-  val flaky: TestAspectAtLeastR[Has[Annotations] with Has[TestConfig] with ZTestEnv] = {
-    val flaky = new PerTest.AtLeastR[Has[Annotations] with Has[TestConfig] with ZTestEnv] {
-      def perTest[R <: Has[Annotations] with Has[TestConfig] with ZTestEnv, E](
-        test: ZIO[R, TestFailure[E], TestSuccess]
-      )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-        TestConfig.retries.flatMap { n =>
-          test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
-        }
-    }
-    restoreTestEnvironment >>> flaky
+  val flaky: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations] with Has[TestConfig] with ZTestEnv,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
+    val flaky: TestAspect.WithOut[Nothing, Has[Annotations] with Has[
+      TestConfig
+    ] with ZTestEnv, Nothing, Any, ({ type OutEnv[Env] = Env })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
+      new PerTest[Nothing, Has[Annotations] with Has[TestConfig] with ZTestEnv, Nothing, Any] {
+        def perTest[R <: Has[Annotations] with Has[TestConfig] with ZTestEnv, E](
+          test: ZIO[R, TestFailure[E], TestSuccess]
+        )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
+          TestConfig.retries.flatMap { n =>
+            test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
+          }
+      }
+    val restore = restoreTestEnvironment >>> flaky
+    restore
   }
 
   /**
    * An aspect that retries a test until success, with the specified limit, for
    * use with flaky tests.
    */
-  def flaky(n: Int): TestAspectAtLeastR[ZTestEnv with Has[Annotations]] = {
-    val flaky = new PerTest.AtLeastR[ZTestEnv with Has[Annotations]] {
-      def perTest[R <: ZTestEnv with Has[Annotations], E](
-        test: ZIO[R, TestFailure[E], TestSuccess]
-      )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-        test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
-    }
-    restoreTestEnvironment >>> flaky
+  def flaky(n: Int): TestAspect.WithOut[
+    Nothing,
+    ZTestEnv with Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
+    val flaky: TestAspect.WithOut[Nothing, ZTestEnv with Has[
+      Annotations
+    ], Nothing, Any, ({ type OutEnv[Env] = Env })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
+      new PerTest[Nothing, ZTestEnv with Has[Annotations], Nothing, Any] {
+        def perTest[R <: ZTestEnv with Has[Annotations], E](
+          test: ZIO[R, TestFailure[E], TestSuccess]
+        )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
+          test.catchAll(_ => test.tapError(_ => Annotations.annotate(TestAnnotation.retried, 1)).retryN(n - 1))
+      }
+    val restore = restoreTestEnvironment >>> flaky
+    restore
   }
 
   /**
    * An aspect that runs each test on its own separate fiber.
    */
-  val forked: TestAspectPoly =
-    new PerTest.Poly {
+  val forked: TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Any, Nothing, Any] {
       def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
       ): ZIO[R, TestFailure[E], TestSuccess] =
@@ -439,9 +655,20 @@ object TestAspect extends TimeoutVariants {
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
-  def ifEnv(env: String)(assertion: String => Boolean): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
-    new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
-      def some[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+  def ifEnv(env: String)(assertion: String => Boolean): TestAspect.WithOut[
+    Nothing,
+    Has[Live] with Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[Nothing, Has[Live] with Has[Annotations], Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E])(implicit
+        trace: ZTraceElement
+      ): ZSpec[R, E] =
         spec.whenZIO(Live.live(System.env(env)).orDie.map(_.fold(false)(assertion)))
     }
 
@@ -449,116 +676,247 @@ object TestAspect extends TimeoutVariants {
    * As aspect that only runs a test if the specified environment variable is
    * set.
    */
-  def ifEnvSet(env: String): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+  def ifEnvSet(env: String): TestAspect.WithOut[
+    Nothing,
+    Has[Live] with Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     ifEnv(env)(_ => true)
 
   /**
    * An aspect that only runs a test if the specified Java property satisfies
    * the specified assertion.
    */
-  def ifProp(prop: String)(assertion: String => Boolean): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
-    new TestAspectAtLeastR[Has[Live] with Has[Annotations]] {
-      def some[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+  def ifProp(prop: String)(assertion: String => Boolean): TestAspect.WithOut[
+    Nothing,
+    Has[Live] with Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[Nothing, Has[Live] with Has[Annotations], Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R <: Has[Live] with Has[Annotations], E](spec: ZSpec[R, E])(implicit
+        trace: ZTraceElement
+      ): ZSpec[R, E] =
         spec.whenZIO(Live.live(System.property(prop)).orDie.map(_.fold(false)(assertion)))
     }
 
   /**
    * As aspect that only runs a test if the specified Java property is set.
    */
-  def ifPropSet(prop: String): TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
+  def ifPropSet(prop: String): TestAspect.WithOut[
+    Nothing,
+    Has[Live] with Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     ifProp(prop)(_ => true)
 
   /**
    * An aspect that applies the specified aspect on ScalaJS.
    */
   def js[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    that: TestAspect.WithOut[
+      LowerR,
+      UpperR,
+      LowerE,
+      UpperE,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ]
+  ): TestAspect.WithOut[
+    LowerR,
+    UpperR,
+    LowerE,
+    UpperE,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestPlatform.isJS) that else identity
 
   /**
    * An aspect that only runs tests on ScalaJS.
    */
-  val jsOnly: TestAspectAtLeastR[Has[Annotations]] =
+  val jsOnly: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestPlatform.isJS) identity else ignore
 
   /**
    * An aspect that applies the specified aspect on the JVM.
    */
   def jvm[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    that: TestAspect.WithOut[
+      LowerR,
+      UpperR,
+      LowerE,
+      UpperE,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ]
+  ): TestAspect.WithOut[
+    LowerR,
+    UpperR,
+    LowerE,
+    UpperE,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestPlatform.isJVM) that else identity
 
   /**
    * An aspect that only runs tests on the JVM.
    */
-  val jvmOnly: TestAspectAtLeastR[Has[Annotations]] =
+  val jvmOnly: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestPlatform.isJVM) identity else ignore
 
   /**
    * An aspect that runs only on operating systems accepted by the specified
    * predicate.
    */
-  def os(f: System.OS => Boolean): TestAspectAtLeastR[Has[Annotations]] =
+  def os(f: System.OS => Boolean): TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (f(System.os)) identity else ignore
 
   /**
    * Runs only on Mac operating systems.
    */
-  val mac: TestAspectAtLeastR[Has[Annotations]] = os(_.isMac)
+  val mac: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = os(_.isMac)
 
   /**
    * An aspect that applies the specified aspect on ScalaNative.
    */
   def native[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    that: TestAspect.WithOut[
+      LowerR,
+      UpperR,
+      LowerE,
+      UpperE,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ]
+  ): TestAspect.WithOut[
+    LowerR,
+    UpperR,
+    LowerE,
+    UpperE,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestPlatform.isNative) that else identity
 
   /**
    * An aspect that only runs tests on ScalaNative.
    */
-  val nativeOnly: TestAspectAtLeastR[Has[Annotations]] =
+  val nativeOnly: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestPlatform.isNative) identity else ignore
 
   /**
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  val nonFlaky: TestAspectAtLeastR[ZTestEnv with Has[Annotations] with Has[TestConfig]] = {
-    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Has[Annotations] with Has[TestConfig]] {
-      def perTest[R <: ZTestEnv with Has[Annotations] with Has[TestConfig], E](
-        test: ZIO[R, TestFailure[E], TestSuccess]
-      )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-        TestConfig.repeats.flatMap { n =>
-          test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
-        }
-    }
-    restoreTestEnvironment >>> nonFlaky
+  val nonFlaky: TestAspect.WithOut[
+    Nothing,
+    ZTestEnv with Has[Annotations] with Has[TestConfig],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
+    val nonFlaky: TestAspect.WithOut[Nothing, ZTestEnv with Has[Annotations] with Has[
+      TestConfig
+    ], Nothing, Any, ({ type OutEnv[Env] = Env })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
+      new PerTest[Nothing, ZTestEnv with Has[Annotations] with Has[TestConfig], Nothing, Any] {
+        def perTest[R <: ZTestEnv with Has[Annotations] with Has[TestConfig], E](
+          test: ZIO[R, TestFailure[E], TestSuccess]
+        )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
+          TestConfig.repeats.flatMap { n =>
+            test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
+          }
+      }
+    val restore = restoreTestEnvironment >>> nonFlaky
+    restore
   }
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.
    */
-  def nonFlaky(n: Int): TestAspectAtLeastR[ZTestEnv with Has[Annotations]] = {
-    val nonFlaky = new PerTest.AtLeastR[ZTestEnv with Has[Annotations]] {
-      def perTest[R <: ZTestEnv with Has[Annotations], E](
-        test: ZIO[R, TestFailure[E], TestSuccess]
-      )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-        test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
-    }
-    restoreTestEnvironment >>> nonFlaky
+  def nonFlaky(n: Int): TestAspect.WithOut[
+    Nothing,
+    ZTestEnv with Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
+    val nonFlaky: TestAspect.WithOut[Nothing, ZTestEnv with Has[
+      Annotations
+    ], Nothing, Any, ({ type OutEnv[Env] = Env })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
+      new PerTest[Nothing, ZTestEnv with Has[Annotations], Nothing, Any] {
+        def perTest[R <: ZTestEnv with Has[Annotations], E](
+          test: ZIO[R, TestFailure[E], TestSuccess]
+        )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
+          test *> test.tap(_ => Annotations.annotate(TestAnnotation.repeated, 1)).repeatN(n - 1)
+      }
+    val restore = restoreTestEnvironment >>> nonFlaky
+    restore
   }
 
   /**
    * Constructs an aspect that requires a test to not terminate within the
    * specified time.
    */
-  def nonTermination(duration: Duration): TestAspectAtLeastR[Has[Live]] =
-    timeout(duration) >>>
-      failing {
+  def nonTermination(duration: Duration): TestAspect.WithOut[
+    Nothing,
+    Has[Live],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
+    val nonTermination = timeout(duration) >>>
+      failing[Any] {
         case TestFailure.Assertion(_) => false
         case TestFailure.Runtime(cause) =>
           cause.dieOption match {
@@ -566,12 +924,21 @@ object TestAspect extends TimeoutVariants {
             case None    => false
           }
       }
+    nonTermination
+  }
 
   /**
    * Sets the seed of the `TestRandom` instance in the environment to a random
    * value before each test.
    */
-  val nondeterministic: TestAspectAtLeastR[Has[Live] with Has[TestRandom]] =
+  val nondeterministic: TestAspect.WithOut[
+    Nothing,
+    Has[Live] with Has[TestRandom],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     before(
       Live
         .live(Clock.nanoTime(ZTraceElement.empty))(ZTraceElement.empty)
@@ -581,23 +948,200 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that executes the members of a suite in parallel.
    */
-  val parallel: TestAspectPoly =
+  val parallel: TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     executionStrategy(ExecutionStrategy.Parallel)
 
   /**
    * An aspect that executes the members of a suite in parallel, up to the
    * specified number of concurrent fibers.
    */
-  def parallelN(n: Int): TestAspectPoly =
+  def parallelN(n: Int): TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     executionStrategy(ExecutionStrategy.ParallelN(n))
+
+  /**
+   * An aspect that provides each test in the spec with its required
+   * environment.
+   */
+  final def provide[R0](r: R0): TestAspect.WithOut[
+    R0,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Any })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[R0, Any, Nothing, Any] {
+      type OutEnv[Env] = Any
+      type OutErr[Err] = Err
+      def apply[R >: R0, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[Any, E] =
+        spec.provide(r)
+    }
+
+  /**
+   * Provides each test with the part of the environment that is not part of the
+   * `TestEnvironment`, leaving a spec that only depends on the
+   * `TestEnvironment`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   *
+   * val spec2 = spec.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  def provideCustomLayer[E, R](layer: ZLayer[TestEnvironment, TestFailure[E], R])(implicit
+    ev2: Has.Union[TestEnvironment, R],
+    tagged: Tag[R],
+    trace: ZTraceElement
+  ): TestAspect.WithOut[
+    TestEnvironment with R,
+    Any,
+    E,
+    Any,
+    ({ type OutEnv[Env] = TestEnvironment })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    provideSomeLayer[TestEnvironment][E, R](layer)
+
+  /**
+   * Provides each test with the part of the environment that is not part of the
+   * `TestEnvironment`, leaving a spec that only depends on the
+   * `TestEnvironment`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   *
+   * val spec2 = spec.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  def provideCustomLayerShared[E, R](layer: ZLayer[TestEnvironment, TestFailure[E], R])(implicit
+    ev2: Has.Union[TestEnvironment, R],
+    tagged: Tag[R],
+    trace: ZTraceElement
+  ): TestAspect.WithOut[
+    TestEnvironment with R,
+    Any,
+    E,
+    Any,
+    ({ type OutEnv[Env] = TestEnvironment })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    provideSomeLayerShared[TestEnvironment][E, R](layer)
+
+  /**
+   * An aspect that provides a layer to the spec, translating it up a level.
+   */
+  final def provideLayer[R0, E1, R1](
+    layer: ZLayer[R0, TestFailure[E1], R1]
+  ): TestAspect.WithOut[R1, Any, E1, Any, ({ type OutEnv[Env] = R0 })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
+    new TestAspect[R1, Any, E1, Any] {
+      type OutEnv[Env] = R0
+      type OutErr[Err] = Err
+      def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
+        spec.provideLayer(layer)
+    }
+
+  /**
+   * An aspect that provides a layer to the spec, translating it up a level.
+   */
+  final def provideLayerShared[R0, E1, R1](
+    layer: ZLayer[R0, TestFailure[E1], R1]
+  ): TestAspect.WithOut[R1, Any, E1, Any, ({ type OutEnv[Env] = R0 })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
+    new TestAspect[R1, Any, E1, Any] {
+      type OutEnv[Env] = R0
+      type OutErr[Err] = Err
+      def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
+        spec.provideLayerShared(layer)
+    }
+
+  /**
+   * Uses the specified function to provide each test in this spec with part of
+   * its required environment.
+   */
+  final def provideSome[R0, R1](f: R0 => R1): TestAspect.WithOut[
+    R1,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = R0 })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[R1, Any, Nothing, Any] {
+      type OutEnv[Env] = R0
+      type OutErr[Err] = Err
+      def apply[R >: R1, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
+        spec.provideSome(f)
+    }
+
+  /**
+   * Splits the environment into two parts, providing each test with one part
+   * using the specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
+   *
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
+   *
+   * val spec2 = spec @@ provideSomeLayer[Has[Random]](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayer[R0]: TestAspect.ProvideSomeLayer[R0] =
+    new TestAspect.ProvideSomeLayer[R0]
+
+  /**
+   * Splits the environment into two parts, providing all tests with a shared
+   * version of one part using the specified layer and leaving the remainder
+   * `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
+   *
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
+   *
+   * val spec2 = spec.provideSomeLayerShared[Has[Random]](clockLayer)
+   * }}}
+   */
+  final def provideSomeLayerShared[R0]: TestAspect.ProvideSomeLayerShared[R0] =
+    new TestAspect.ProvideSomeLayerShared[R0]
 
   /**
    * An aspect that repeats successful tests according to a schedule.
    */
   def repeat[R0 <: ZTestEnv with Has[Annotations] with Has[Live]](
     schedule: Schedule[R0, TestSuccess, Any]
-  ): TestAspectAtLeastR[R0] = {
-    val repeat = new PerTest.AtLeastR[R0] {
+  ): TestAspect.WithOut[
+    Nothing,
+    R0,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
+    val repeat: TestAspect.WithOut[
+      Nothing,
+      R0,
+      Nothing,
+      Any,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ] = new PerTest[Nothing, R0, Nothing, Any] {
       def perTest[R <: R0, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
@@ -610,15 +1154,23 @@ object TestAspect extends TimeoutVariants {
           Live.live(test.provide(r).repeat(repeatSchedule))
         }
     }
-    restoreTestEnvironment >>> repeat
+    val restore = restoreTestEnvironment >>> repeat
+    restore
   }
 
   /**
    * An aspect that runs each test with the number of times to repeat tests to
    * ensure they are stable set to the specified value.
    */
-  def repeats(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
-    new PerTest.AtLeastR[Has[TestConfig]] {
+  def repeats(n: Int): TestAspect.WithOut[
+    Nothing,
+    Has[TestConfig],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Has[TestConfig], Nothing, Any] {
       def perTest[R <: Has[TestConfig], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
@@ -637,7 +1189,14 @@ object TestAspect extends TimeoutVariants {
    * to its starting state after the test is run. Note that this is only useful
    * when repeating tests.
    */
-  def restore[R0](service: R0 => Restorable): TestAspectAtLeastR[R0] =
+  def restore[R0](service: R0 => Restorable): TestAspect.WithOut[
+    Nothing,
+    R0,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     aroundWith(ZIO.accessZIO[R0](r => service(r).save(ZTraceElement.empty))(ZTraceElement.empty))(restore => restore)
 
   /**
@@ -645,7 +1204,14 @@ object TestAspect extends TimeoutVariants {
    * starting state after the test is run. Note that this is only useful when
    * repeating tests.
    */
-  def restoreTestClock: TestAspectAtLeastR[Has[TestClock]] =
+  def restoreTestClock: TestAspect.WithOut[
+    Nothing,
+    Has[TestClock],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     restore[Has[TestClock]](_.get)
 
   /**
@@ -653,7 +1219,14 @@ object TestAspect extends TimeoutVariants {
    * its starting state after the test is run. Note that this is only useful
    * when repeating tests.
    */
-  def restoreTestConsole: TestAspectAtLeastR[Has[TestConsole]] =
+  def restoreTestConsole: TestAspect.WithOut[
+    Nothing,
+    Has[TestConsole],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     restore[Has[TestConsole]](_.get)
 
   /**
@@ -661,7 +1234,14 @@ object TestAspect extends TimeoutVariants {
    * its starting state after the test is run. Note that this is only useful
    * when repeating tests.
    */
-  def restoreTestRandom: TestAspectAtLeastR[Has[TestRandom]] =
+  def restoreTestRandom: TestAspect.WithOut[
+    Nothing,
+    Has[TestRandom],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     restore[Has[TestRandom]](_.get)
 
   /**
@@ -669,7 +1249,14 @@ object TestAspect extends TimeoutVariants {
    * its starting state after the test is run. Note that this is only useful
    * when repeating tests.
    */
-  def restoreTestSystem: TestAspectAtLeastR[ZTestEnv] =
+  def restoreTestSystem: TestAspect.WithOut[
+    Nothing,
+    Has[TestSystem],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     restore[Has[TestSystem]](_.get)
 
   /**
@@ -679,15 +1266,31 @@ object TestAspect extends TimeoutVariants {
    * and [[zio.test.TestSystem TestSystem]]) to their starting state after the
    * test is run. Note that this is only useful when repeating tests.
    */
-  def restoreTestEnvironment: TestAspectAtLeastR[ZTestEnv] =
-    restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
+  def restoreTestEnvironment: TestAspect.WithOut[
+    Nothing,
+    ZTestEnv,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
+    val restoreTestEnvironment = restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
+    restoreTestEnvironment
+  }
 
   /**
    * An aspect that runs each test with the number of times to retry flaky tests
    * set to the specified value.
    */
-  def retries(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
-    new PerTest.AtLeastR[Has[TestConfig]] {
+  def retries(n: Int): TestAspect.WithOut[
+    Nothing,
+    Has[TestConfig],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Has[TestConfig], Nothing, Any] {
       def perTest[R <: Has[TestConfig], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
@@ -706,27 +1309,50 @@ object TestAspect extends TimeoutVariants {
    */
   def retry[R0 <: ZTestEnv with Has[Annotations] with Has[Live], E0](
     schedule: Schedule[R0, TestFailure[E0], Any]
-  ): TestAspect[Nothing, R0, Nothing, E0] = {
-    val retry = new TestAspect.PerTest[Nothing, R0, Nothing, E0] {
-      def perTest[R <: R0, E <: E0](
-        test: ZIO[R, TestFailure[E], TestSuccess]
-      )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.accessZIO[R] { r =>
-          val retrySchedule: Schedule[Any, TestFailure[E0], Any] =
-            schedule
-              .tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1))
-              .provide(r)
-          Live.live(test.provide(r).retry(retrySchedule))
-        }
-    }
-    restoreTestEnvironment >>> retry
+  ): TestAspect.WithOut[
+    Nothing,
+    R0,
+    Nothing,
+    E0,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] = {
+    val retry: TestAspect.WithOut[
+      Nothing,
+      R0,
+      Nothing,
+      E0,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ] =
+      new TestAspect.PerTest[Nothing, R0, Nothing, E0] {
+        def perTest[R <: R0, E <: E0](
+          test: ZIO[R, TestFailure[E], TestSuccess]
+        )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
+          ZIO.accessZIO[R] { r =>
+            val retrySchedule: Schedule[Any, TestFailure[E0], Any] =
+              schedule
+                .tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1))
+                .provide(r)
+            Live.live(test.provide(r).retry(retrySchedule))
+          }
+      }
+    val restore = restoreTestEnvironment >>> retry
+    restore
   }
 
   /**
    * As aspect that runs each test with the specified `RuntimeConfigAspect`.
    */
-  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): TestAspectPoly =
-    new PerTest.Poly {
+  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Any, Nothing, Any] {
       def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
       ): ZIO[R, TestFailure[E], TestSuccess] =
@@ -737,8 +1363,15 @@ object TestAspect extends TimeoutVariants {
    * An aspect that runs each test with the number of sufficient samples to
    * check for a random variable set to the specified value.
    */
-  def samples(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
-    new PerTest.AtLeastR[Has[TestConfig]] {
+  def samples(n: Int): TestAspect.WithOut[
+    Nothing,
+    Has[TestConfig],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Has[TestConfig], Nothing, Any] {
       def perTest[R <: Has[TestConfig], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
@@ -755,78 +1388,183 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that executes the members of a suite sequentially.
    */
-  val sequential: TestAspectPoly =
+  val sequential: TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     executionStrategy(ExecutionStrategy.Sequential)
 
   /**
    * An aspect that applies the specified aspect on Scala 2.
    */
   def scala2[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    that: TestAspect.WithOut[
+      LowerR,
+      UpperR,
+      LowerE,
+      UpperE,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ]
+  ): TestAspect.WithOut[
+    LowerR,
+    UpperR,
+    LowerE,
+    UpperE,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala2) that else identity
 
   /**
    * An aspect that applies the specified aspect on Scala 2.11.
    */
   def scala211[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    that: TestAspect.WithOut[
+      LowerR,
+      UpperR,
+      LowerE,
+      UpperE,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ]
+  ): TestAspect.WithOut[
+    LowerR,
+    UpperR,
+    LowerE,
+    UpperE,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala211) that else identity
 
   /**
    * An aspect that applies the specified aspect on Scala 2.12.
    */
   def scala212[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    that: TestAspect.WithOut[
+      LowerR,
+      UpperR,
+      LowerE,
+      UpperE,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ]
+  ): TestAspect.WithOut[
+    LowerR,
+    UpperR,
+    LowerE,
+    UpperE,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala212) that else identity
 
   /**
    * An aspect that applies the specified aspect on Scala 2.13.
    */
   def scala213[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    that: TestAspect.WithOut[
+      LowerR,
+      UpperR,
+      LowerE,
+      UpperE,
+      ({ type OutEnv[Env] = Env })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ]
+  ): TestAspect.WithOut[
+    LowerR,
+    UpperR,
+    LowerE,
+    UpperE,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala213) that else identity
 
   /**
    * An aspect that only runs tests on Scala 2.
    */
-  val scala2Only: TestAspectAtLeastR[Has[Annotations]] =
+  val scala2Only: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala2) identity else ignore
 
   /**
    * An aspect that only runs tests on Scala 2.11.
    */
-  val scala211Only: TestAspectAtLeastR[Has[Annotations]] =
+  val scala211Only: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala211) identity else ignore
 
   /**
    * An aspect that only runs tests on Scala 2.12.
    */
-  val scala212Only: TestAspectAtLeastR[Has[Annotations]] =
+  val scala212Only: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala212) identity else ignore
 
   /**
    * An aspect that only runs tests on Scala 2.13.
    */
-  val scala213Only: TestAspectAtLeastR[Has[Annotations]] =
+  val scala213Only: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     if (TestVersion.isScala213) identity else ignore
 
   /**
    * Sets the seed of the `TestRandom` instance in the environment to the
    * specified value before each test.
    */
-  def setSeed(seed: => Long): TestAspectAtLeastR[Has[TestRandom]] =
+  def setSeed(seed: => Long): TestAspect.WithOut[
+    Nothing,
+    Has[TestRandom],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     before(TestRandom.setSeed(seed)(ZTraceElement.empty))
 
   /**
    * An aspect that runs each test with the maximum number of shrinkings to
    * minimize large failures set to the specified value.
    */
-  def shrinks(n: Int): TestAspectAtLeastR[Has[TestConfig]] =
-    new PerTest.AtLeastR[Has[TestConfig]] {
+  def shrinks(n: Int): TestAspect.WithOut[
+    Nothing,
+    Has[TestConfig],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Has[TestConfig], Nothing, Any] {
       def perTest[R <: Has[TestConfig], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
@@ -845,8 +1583,15 @@ object TestAspect extends TimeoutVariants {
    * instance in the environment set to silent mode so that console output is
    * only written to the output buffer and not rendered to standard output.
    */
-  val silent: TestAspectAtLeastR[Has[TestConsole]] =
-    new PerTest.AtLeastR[Has[TestConsole]] {
+  val silent: TestAspect.WithOut[
+    Nothing,
+    Has[TestConsole],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Has[TestConsole], Nothing, Any] {
       def perTest[R <: Has[TestConsole], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
@@ -856,8 +1601,15 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that runs each test with the size set to the specified value.
    */
-  def sized(n: Int): TestAspectAtLeastR[Has[Sized]] =
-    new PerTest.AtLeastR[Has[Sized]] {
+  def sized(n: Int): TestAspect.WithOut[
+    Nothing,
+    Has[Sized],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Has[Sized], Nothing, Any] {
       def perTest[R <: Has[Sized], E](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
       ): ZIO[R, TestFailure[E], TestSuccess] =
@@ -867,8 +1619,15 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that converts ignored tests into test failures.
    */
-  val success: TestAspectPoly =
-    new PerTest.Poly {
+  val success: TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Any, Nothing, Any] {
       def perTest[R, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
@@ -882,14 +1641,28 @@ object TestAspect extends TimeoutVariants {
   /**
    * Annotates tests with string tags.
    */
-  def tag(tag: String, tags: String*): TestAspectPoly =
+  def tag(tag: String, tags: String*): TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     annotate(TestAnnotation.tagged, Set(tag) union tags.toSet)
 
   /**
    * Annotates tests with their execution times.
    */
-  val timed: TestAspectAtLeastR[Has[Live] with Has[Annotations]] =
-    new TestAspect.PerTest.AtLeastR[Has[Live] with Has[Annotations]] {
+  val timed: TestAspect.WithOut[
+    Nothing,
+    Has[Live] with Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect.PerTest[Nothing, Has[Live] with Has[Annotations], Nothing, Any] {
       def perTest[R <: Has[Live] with Has[Annotations], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
@@ -905,8 +1678,15 @@ object TestAspect extends TimeoutVariants {
    */
   def timeout(
     duration: Duration
-  ): TestAspectAtLeastR[Has[Live]] =
-    new PerTest.AtLeastR[Has[Live]] {
+  ): TestAspect.WithOut[
+    Nothing,
+    Has[Live],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new PerTest[Nothing, Has[Live], Nothing, Any] {
       def perTest[R <: Has[Live], E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] = {
@@ -923,7 +1703,14 @@ object TestAspect extends TimeoutVariants {
   /**
    * Verifies the specified post-condition after each test is run.
    */
-  def verify[R0, E0](condition: => ZIO[R0, E0, TestResult]): TestAspect[Nothing, R0, E0, Any] =
+  def verify[R0, E0](condition: => ZIO[R0, E0, TestResult]): TestAspect.WithOut[
+    Nothing,
+    R0,
+    E0,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
@@ -934,40 +1721,93 @@ object TestAspect extends TimeoutVariants {
   /**
    * Runs only on Unix / Linux operating systems.
    */
-  val unix: TestAspectAtLeastR[Has[Annotations]] = os(_.isUnix)
+  val unix: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    os(_.isUnix)
 
   /**
    * Runs only on Windows operating systems.
    */
-  val windows: TestAspectAtLeastR[Has[Annotations]] = os(_.isWindows)
+  val windows: TestAspect.WithOut[
+    Nothing,
+    Has[Annotations],
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    os(_.isWindows)
 
   abstract class PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
+    type OutEnv[Env] = Env
+    type OutErr[Err] = Err
 
     def perTest[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
       test: ZIO[R, TestFailure[E], TestSuccess]
     )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess]
 
-    final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
-      spec: ZSpec[R, E]
-    )(implicit trace: ZTraceElement): ZSpec[R, E] =
+    final def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
+      spec: Spec[R, TestFailure[E], TestSuccess]
+    )(implicit trace: ZTraceElement): Spec[R, TestFailure[E], TestSuccess] =
       spec.transform[R, TestFailure[E], TestSuccess] {
         case Spec.TestCase(test, annotations) => Spec.TestCase(perTest(test), annotations)
         case c                                => c
       }
   }
-  object PerTest {
 
-    /**
-     * A `PerTest.AtLeast[R]` is a `TestAspect.PerTest` that that requires at
-     * least an `R` in its environment
-     */
-    type AtLeastR[R] = TestAspect.PerTest[Nothing, R, Nothing, Any]
-
-    /**
-     * A `PerTest.Poly` is a `TestAspect.PerTest` that is completely
-     * polymorphic, having no requirements ZRTestEnv on error or environment.
-     */
-    type Poly = TestAspect.PerTest[Nothing, Any, Nothing, Any]
+  final class ProvideSomeLayer[R0](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E1, R1](
+      layer: ZLayer[R0, TestFailure[E1], R1]
+    )(implicit
+      ev: Has.Union[R0, R1],
+      tagged: Tag[R1],
+      trace: ZTraceElement
+    ): TestAspect.WithOut[
+      R0 with R1,
+      Any,
+      E1,
+      Any,
+      ({ type OutEnv[Env] = R0 })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ] =
+      new TestAspect[R0 with R1, Any, E1, Any] {
+        type OutEnv[Env] = R0
+        type OutErr[Err] = Err
+        def apply[R >: R0 with R1, E >: E1](
+          spec: Spec[R, TestFailure[E], TestSuccess]
+        )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
+          spec.provideLayer[TestFailure[E], R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      }
   }
 
+  final class ProvideSomeLayerShared[R0](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E1, R1](
+      layer: ZLayer[R0, TestFailure[E1], R1]
+    )(implicit
+      ev2: Has.Union[R0, R1],
+      tagged: Tag[R1],
+      trace: ZTraceElement
+    ): TestAspect.WithOut[
+      R0 with R1,
+      Any,
+      E1,
+      Any,
+      ({ type OutEnv[Env] = R0 })#OutEnv,
+      ({ type OutErr[Err] = Err })#OutErr
+    ] =
+      new TestAspect[R0 with R1, Any, E1, Any] {
+        type OutEnv[Env] = R0
+        type OutErr[Err] = Err
+        def apply[R >: R0 with R1, E >: E1](
+          spec: Spec[R, TestFailure[E], TestSuccess]
+        )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
+          spec.provideLayerShared[TestFailure[E], R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      }
+  }
 }

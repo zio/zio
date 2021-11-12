@@ -23,7 +23,6 @@ import scala.annotation.unchecked.uncheckedVariance
 
 trait ZPipelineVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem] {
   self: ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem] =>
-  import ZPipeline._
 
   /**
    * Composes two pipelines into one pipeline, by first applying the
@@ -40,9 +39,9 @@ trait ZPipelineVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +Lowe
       UpperElem2
     ]
   )(implicit
-    composeEnv: Compose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr] @uncheckedVariance,
-    composeElem: Compose[LowerElem2, UpperElem2, that.OutElem, LowerElem, UpperElem, OutElem] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr] @uncheckedVariance,
+    composeElem: ZCompose[LowerElem2, UpperElem2, that.OutElem, LowerElem, UpperElem, OutElem] @uncheckedVariance
   ): ZPipeline.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,
@@ -93,9 +92,9 @@ trait ZPipelineVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +Lowe
       UpperElem2
     ]
   )(implicit
-    composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance,
-    composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, that.OutElem] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance,
+    composeElem: ZCompose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, that.OutElem] @uncheckedVariance
   ): ZPipeline.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,
@@ -146,9 +145,9 @@ trait ZPipelineVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +Lowe
       UpperElem2
     ]
   )(implicit
-    composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance,
-    composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, that.OutElem] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance,
+    composeElem: ZCompose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, that.OutElem] @uncheckedVariance
   ): ZPipeline.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,
@@ -197,9 +196,9 @@ trait ZPipelineVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +Lowe
       UpperElem2
     ]
   )(implicit
-    composeEnv: Compose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance,
-    composeElem: Compose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, that.OutElem] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv, UpperEnv, OutEnv, LowerEnv2, UpperEnv2, that.OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr, UpperErr, OutErr, LowerErr2, UpperErr2, that.OutErr] @uncheckedVariance,
+    composeElem: ZCompose[LowerElem, UpperElem, OutElem, LowerElem2, UpperElem2, that.OutElem] @uncheckedVariance
   ): ZPipeline.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,
@@ -248,9 +247,9 @@ trait ZPipelineVersionSpecific[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +Lowe
       UpperElem2
     ]
   )(implicit
-    composeEnv: Compose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv] @uncheckedVariance,
-    composeErr: Compose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr] @uncheckedVariance,
-    composeElem: Compose[LowerElem2, UpperElem2, that.OutElem, LowerElem, UpperElem, OutElem] @uncheckedVariance
+    composeEnv: ZCompose[LowerEnv2, UpperEnv2, that.OutEnv, LowerEnv, UpperEnv, OutEnv] @uncheckedVariance,
+    composeErr: ZCompose[LowerErr2, UpperErr2, that.OutErr, LowerErr, UpperErr, OutErr] @uncheckedVariance,
+    composeElem: ZCompose[LowerElem2, UpperElem2, that.OutElem, LowerElem, UpperElem, OutElem] @uncheckedVariance
   ): ZPipeline.WithOut[
     composeEnv.Lower,
     composeEnv.Upper,
