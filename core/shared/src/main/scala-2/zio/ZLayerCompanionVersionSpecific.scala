@@ -31,8 +31,8 @@ private[zio] trait ZLayerCompanionVersionSpecific {
     new WirePartiallyApplied[R]
 
   /**
-   * Automatically constructs a layer for the provided type `R`, leaving
-   * a remainder `R0`.
+   * Automatically constructs a layer for the provided type `R`, leaving a
+   * remainder `R0`.
    *
    * {{{
    * val carLayer: ZLayer[Engine with Wheels, Nothing, Car] = ???
@@ -46,8 +46,8 @@ private[zio] trait ZLayerCompanionVersionSpecific {
 
   /**
    * Automatically constructs a layer for the provided type `R`, leaving a
-   * remainder `ZEnv`. This will satisfy all transitive `ZEnv` requirements
-   * with `ZEnv.any`, allowing them to be provided later.
+   * remainder `ZEnv`. This will satisfy all transitive `ZEnv` requirements with
+   * `ZEnv.any`, allowing them to be provided later.
    *
    * {{{
    * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???

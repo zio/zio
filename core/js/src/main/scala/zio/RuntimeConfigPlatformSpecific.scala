@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.tracing.{Tracing, TracingConfig}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
@@ -25,15 +24,10 @@ import scala.scalajs.js.Dynamic.{global => jsglobal}
 private[zio] trait RuntimeConfigPlatformSpecific {
 
   /**
-   * A Runtime with settings suitable for benchmarks, specifically with Tracing
-   * and auto-yielding disabled.
-   *
-   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
-   * optional feature and it's not valid to compare the performance of ZIO with
-   * enabled Tracing with effect types _without_ a comparable feature.
+   * A Runtime with settings suitable for benchmarks, specifically with
+   * auto-yielding disabled.
    */
-  lazy val benchmark: RuntimeConfig =
-    makeDefault(Int.MaxValue).copy(tracing = Tracing.disabled)
+  lazy val benchmark: RuntimeConfig = makeDefault(Int.MaxValue)
 
   /**
    * The default runtime configuration, with settings designed to work well for
@@ -66,7 +60,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     val logger: ZLogger[Unit] =
       (
         trace: ZTraceElement,
-        fiberId: FiberId,
+        fiberId: FiberId.Runtime,
         level: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -92,21 +86,16 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       throw t
     }
 
-    val tracing = Tracing(TracingConfig.enabled)
-
     val supervisor = Supervisor.none
-
-    val enableCurrentFiber = false
 
     RuntimeConfig(
       blockingExecutor,
       executor,
-      tracing,
       fatal,
       reportFatal,
       supervisor,
-      enableCurrentFiber,
-      logger.filterLogLevel(_ >= LogLevel.Info)
+      logger.filterLogLevel(_ >= LogLevel.Info),
+      RuntimeConfigFlags.empty
     )
   }
 
@@ -117,8 +106,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
-   * Makes a new default runtime configuration. This is a side-effecting
-   * method.
+   * Makes a new default runtime configuration. This is a side-effecting method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): RuntimeConfig =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))

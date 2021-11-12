@@ -19,8 +19,8 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * `TestPlatform` provides information about the platform tests are being run
- * on to enable platform specific test configuration.
+ * `TestPlatform` provides information about the platform tests are being run on
+ * to enable platform specific test configuration.
  */
 object TestPlatform {
 

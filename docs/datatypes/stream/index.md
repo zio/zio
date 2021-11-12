@@ -6,7 +6,7 @@ title: "Introduction"
 ```scala mdoc:invisible
 import zio.{ZIO, Task}
 import zio.Queue
-import zio.stream.{ZStream, ZTransducer}
+import zio.stream.{ZStream, ZPipeline}
 import java.nio.file.{Files, Path, Paths}
 import zio.Console._
 import java.io.IOException
@@ -185,7 +185,7 @@ The only problem here is that if we run this code with a file that is very large
 
 ```scala mdoc:silent:nest
 ZStream.fromFile(Paths.get("file.txt"))
-  .transduce(ZTransducer.utf8Decode >>> ZTransducer.splitLines)
+  .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
   .foreach(printLine(_))
 ```
 
@@ -199,7 +199,7 @@ To define a stream workflow there are three core abstraction in ZIO stream; _Str
 
 2. **[ZSink](zsink.md)** — Sinks act as _receptacles_ or _sinks_ for values. They consume values.
 
-3. **[Transducer](ztransducer.md)** — Transducers act as _transformers_ of values. They take individual values, and they transform or decode them. 
+3. **[Transducer](zpipeline.md)** — Transducers act as _transformers_ of values. They take individual values, and they transform or decode them. 
 
 ### Stream
 

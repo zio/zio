@@ -151,8 +151,8 @@ object ZSTMConcurrencyTests {
   }
 
   /**
-   * Tests the implementation of `TSemaphore#withPermitManaged`. If a permit
-   * is successfully acquired it should be released no matter what.
+   * Tests the implementation of `TSemaphore#withPermitManaged`. If a permit is
+   * successfully acquired it should be released no matter what.
    */
   @JCStressTest
   @Outcome.Outcomes(

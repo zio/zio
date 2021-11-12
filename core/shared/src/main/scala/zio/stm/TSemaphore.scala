@@ -22,29 +22,29 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 /**
  * A `TSemaphore` is a semaphore that can be composed transactionally. Because
  * of the extremely high performance of ZIO's implementation of software
- * transactional memory `TSemaphore` can support both controlling access to
- * some resource on a standalone basis as well as composing with other STM
- * data structures to solve more advanced concurrency problems.
+ * transactional memory `TSemaphore` can support both controlling access to some
+ * resource on a standalone basis as well as composing with other STM data
+ * structures to solve more advanced concurrency problems.
  *
  * For basic use cases, the most idiomatic way to work with a semaphore is to
- * use the `withPermit` operator, which acquires a permit before executing
- * some `ZIO` effect and release the permit immediately afterward. The permit
- * is guaranteed to be released immediately after the effect completes
- * execution, whether by success, failure, or interruption. Attempting to
- * acquire a permit when a sufficient number of permits are not available will
- * semantically block until permits become available without blocking any
- * underlying operating system threads. If you want to acquire more than one
- * permit at a time you can use `withPermits`, which allows specifying a
- * number of permits to acquire. You can also use `withPermitManaged` or
- * `withPermitsManaged` to acquire and release permits within the context of
- * a managed effect for composing with other resources.
+ * use the `withPermit` operator, which acquires a permit before executing some
+ * `ZIO` effect and release the permit immediately afterward. The permit is
+ * guaranteed to be released immediately after the effect completes execution,
+ * whether by success, failure, or interruption. Attempting to acquire a permit
+ * when a sufficient number of permits are not available will semantically block
+ * until permits become available without blocking any underlying operating
+ * system threads. If you want to acquire more than one permit at a time you can
+ * use `withPermits`, which allows specifying a number of permits to acquire.
+ * You can also use `withPermitManaged` or `withPermitsManaged` to acquire and
+ * release permits within the context of a managed effect for composing with
+ * other resources.
  *
  * For more advanced concurrency problems you can use the `acquire` and
  * `release` operators directly, or their variants `acquireN` and `releaseN`,
  * all of which return STM transactions. Thus, they can be composed to form
  * larger STM transactions, for example acquiring permits from two different
- * semaphores transactionally and later releasing them transactionally to
- * safely synchronize on access to two different mutable variables.
+ * semaphores transactionally and later releasing them transactionally to safely
+ * synchronize on access to two different mutable variables.
  */
 final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
 
@@ -101,8 +101,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     withPermits(1L)(zio)
 
   /**
-   * Returns a managed effect that describes acquiring a permit as the
-   * `acquire` action and releasing it as the `release` action.
+   * Returns a managed effect that describes acquiring a permit as the `acquire`
+   * action and releasing it as the `release` action.
    */
   def withPermitManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
     withPermitsManaged(1L)
@@ -118,8 +118,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
 
   /**
    * Returns a managed effect that describes acquiring the specified number of
-   * permits as the `acquire` action and releasing them as the `release`
-   * action.
+   * permits as the `acquire` action and releasing them as the `release` action.
    */
   def withPermitsManaged(n: Long)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
     ZManaged.acquireReleaseInterruptible(acquireN(n).commit)(release.commit)

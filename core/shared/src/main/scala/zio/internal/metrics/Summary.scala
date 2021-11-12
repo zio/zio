@@ -64,8 +64,8 @@ private[zio] object Summary {
 
   /**
    * Constructs a new summary with the specified name, maximum age, maximum
-   * size, quantiles, and labels. The quantiles must be between 0.0 and 1.0.
-   * The error is a percentage and must be between 0.0 and 1.0.
+   * size, quantiles, and labels. The quantiles must be between 0.0 and 1.0. The
+   * error is a percentage and must be between 0.0 and 1.0.
    */
   def apply(
     name: String,

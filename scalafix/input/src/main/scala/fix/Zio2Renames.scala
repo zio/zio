@@ -6,7 +6,11 @@ package fix
 import zio._
 import zio.blocking.effectBlockingIO
 import zio.blocking._
+import zio.blocking.Blocking
 import zio.console._
+import zio.duration.Duration
+import zio.internal.Platform
+import zio.stream.ZStream
 import zio.test.Gen
 
 object Zio2Renames {
@@ -68,4 +72,30 @@ object Zio2Renames {
 
   // Blocking
   effectBlockingIO(1)
+
+  ZIO.succeed(1).on _
+
+  Cause.fail("Die").interrupted
+
+  Fiber.Id
+
+  zio.duration.Duration
+  
+  val x: Layer[Nothing, zio.random.Random] = zio.random.Random.live
+
+  zio.internal.Executor
+
+  Platform
+    .fromExecutor(???)
+  
+  zio.internal.Platform
+    .fromExecutor(???)
+
+  Chunk.succeed(1).mapM(???)
+  ZStream.succeed("hi") >>= (x => ZStream.succeed(x))
+
+  ZIO.executor.map(_.asEC)
+  
+  ZManaged.fromFunction( (x: Int) => x)
+  ZManaged.fromFunctionM( (x: Int) => ZManaged.succeed(x))
 }

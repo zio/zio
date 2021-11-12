@@ -3,8 +3,12 @@ package fix
 import zio._
 
 
+
+import zio.Duration
+import zio.internal.Platform
+import zio.stream.ZStream
 import zio.test.Gen
-import zio.Console
+import zio.{ Console, FiberId, Has, Random }
 import zio.Console._
 import zio.ZIO.attemptBlockingIO
 import zio.test.Gen
@@ -68,4 +72,29 @@ object Zio2Renames {
 
   // Blocking
   attemptBlockingIO(1)
+
+  ZIO.succeed(1).onExecutionContext _
+
+  Cause.fail("Die").isInterrupted
+
+  FiberId
+
+  zio.Duration
+  
+  val x: Layer[Nothing, Has[Random]] = zio.Random.live
+
+  zio.Executor
+
+  RuntimeConfig.fromExecutor(???)
+  
+  zio.RuntimeConfig
+    .fromExecutor(???)
+
+  Chunk.succeed(1).mapZIO(???)
+  ZStream.succeed("hi") flatMap (x => ZStream.succeed(x))
+
+  ZIO.executor.map(_.asExecutionContext)
+  
+  ZManaged.access( (x: Int) => x)
+  ZManaged.accessManaged( (x: Int) => ZManaged.succeed(x))
 }

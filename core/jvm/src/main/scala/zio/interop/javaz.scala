@@ -88,7 +88,10 @@ private[zio] object javaz {
       }
     }
 
-  /** WARNING: this uses the blocking Future#get, consider using `fromCompletionStage` */
+  /**
+   * WARNING: this uses the blocking Future#get, consider using
+   * `fromCompletionStage`
+   */
   def fromFutureJava[A](thunk: => Future[A])(implicit trace: ZTraceElement): Task[A] =
     RIO.attempt(thunk).flatMap { future =>
       RIO.suspendSucceedWith { (p, _) =>

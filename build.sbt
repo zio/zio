@@ -23,7 +23,7 @@ inThisBuild(
   )
 )
 
-addCommandAlias("build", "; prepare; testJVM")
+addCommandAlias("build", "; fmt; testJVM")
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
@@ -393,14 +393,15 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio-test-scalacheck"))
   .settings(crossProjectSettings)
   .settings(
+    crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++= Seq(
       ("org.scalacheck" %%% "scalacheck" % "1.15.4")
     )
   )
 
-lazy val testScalaCheckJVM    = test.jvm.settings(dottySettings)
-lazy val testScalaCheckJS     = test.js
-lazy val testScalaCheckNative = test.native.settings(nativeSettings)
+lazy val testScalaCheckJVM    = testScalaCheck.jvm.settings(dottySettings)
+lazy val testScalaCheckJS     = testScalaCheck.js.settings(dottySettings)
+lazy val testScalaCheckNative = testScalaCheck.native.settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -497,10 +498,19 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
         .value
   )
 
+lazy val profiling = crossProject(JVMPlatform)
+  .in(file("profiling"))
+  .settings(stdSettings("zio-profiling"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .dependsOn(core)
+
+lazy val profilingJVM = profiling.jvm.settings(dottySettings)
+
 /**
  * Examples sub-project that is not included in the root project.
- * To run tests :
- * `sbt "examplesJVM/test"`
+ *
+ * To run tests: `sbt "examplesJVM/test"`
  */
 lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
@@ -509,13 +519,15 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(macroExpansionSettings)
   .settings(scalacOptions += "-Xfatal-warnings")
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(publish / skip := true)
   .dependsOn(macros, testRunner)
 
 lazy val examplesJS = examples.js
   .settings(dottySettings)
+
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
-  .dependsOn(testJunitRunnerJVM)
+  .dependsOn(testJunitRunnerJVM, profilingJVM)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM, testJVM)
@@ -523,7 +535,7 @@ lazy val benchmarks = project.module
   .settings(replSettings)
   .settings(
     // skip 2.11 benchmarks because akka stop supporting scala 2.11 in 2.6.x
-    crossScalaVersions -= Scala211,
+    crossScalaVersions --= List(Scala211, Scala3),
     //
     publish / skip := true,
     libraryDependencies ++=
@@ -560,11 +572,7 @@ lazy val benchmarks = project.module
       "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
-    ),
-    resolvers += Resolver.url(
-      "bintray-scala-hedgehog",
-      url("https://dl.bintray.com/hedgehogqa/scala-hedgehog")
-    )(Resolver.ivyStylePatterns)
+    )
   )
 
 lazy val jsdocs = project
@@ -586,7 +594,7 @@ lazy val docs = project.module
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
-    crossScalaVersions --= List(Scala211),
+    crossScalaVersions --= List(Scala211, Scala3),
     mdocIn  := (LocalRootProject / baseDirectory).value / "docs",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(

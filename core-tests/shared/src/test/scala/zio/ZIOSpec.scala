@@ -6,7 +6,6 @@ import zio.internal.Platform
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment.{Live, TestClock}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
@@ -15,7 +14,17 @@ object ZIOSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
+  def spec = suite("ZIOSpec")(
+    suite("heap")(
+      test("unit.forever is safe") {
+        for {
+          _     <- ZIO.debug("Press any line to stop...")
+          fiber <- ZIO.unit.forever.fork
+          _     <- ZIO.attempt(scala.io.StdIn.readLine())
+          _     <- fiber.interrupt
+        } yield assertCompletes
+      } @@ ignore
+    ),
     suite("&&")(
       test("true and true is true") {
         assertM(ZIO.succeed(true) && ZIO.succeed(true))(isTrue)
@@ -423,7 +432,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("done")(
       test("Check done lifts exit result into IO") {
 
-        val fiberId = FiberId(0L, 123L)
+        val fiberId = FiberId(0, 123)
         val error   = exampleError
 
         for {
@@ -1009,12 +1018,12 @@ object ZIOSpec extends ZIOBaseSpec {
           fiber2 <- ZIO.forkAll(List(die, ZIO.succeed(42)))
           fiber3 <- ZIO.forkAll(List(die, ZIO.succeed(42), ZIO.never))
 
-          result1 <- joinDefect(fiber1)
-          result2 <- joinDefect(fiber2)
-          result3 <- joinDefect(fiber3)
+          result1 <- joinDefect(fiber1).map(_.untraced)
+          result2 <- joinDefect(fiber2).map(_.untraced)
+          result3 <- joinDefect(fiber3).map(_.untraced)
         } yield {
-          assert(result1)(equalTo(Cause.die(boom))) && {
-            assert(result2)(equalTo(Cause.die(boom))) ||
+          assert(result1.dieOption)(isSome(equalTo(boom))) && {
+            assert(result2.dieOption)(isSome(equalTo(boom))) ||
             (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
           } && {
             assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.isInterrupted)(isTrue)
@@ -1030,27 +1039,6 @@ object ZIOSpec extends ZIOBaseSpec {
           _      <- fiber.interrupt
           value  <- ref.get
         } yield assert(value)(equalTo(0))
-      }
-    ),
-    suite("forkAs")(
-      test("child has specified name") {
-        for {
-          fiber <- Fiber.fiberName.get.forkAs("child")
-          name  <- fiber.join
-        } yield assert(name)(isSome(equalTo("child")))
-      },
-      test("parent name is unchanged") {
-        for {
-          _    <- ZIO.unit.forkAs("child")
-          name <- Fiber.fiberName.get
-        } yield assert(name)(isNone)
-      },
-      test("parent does not inherit child name on join") {
-        for {
-          fiber <- ZIO.unit.forkAs("child")
-          _     <- fiber.join
-          name  <- Fiber.fiberName.get
-        } yield assert(name)(isNone)
       }
     ),
     suite("forkIn") {
@@ -1381,12 +1369,18 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("onExecutor")(
       test("effects continue on current executor if no executor is specified") {
+        val thread = ZIO.succeed(Thread.currentThread())
+
         val global =
-          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+          Executor.fromExecutionContext(Int.MaxValue)(scala.concurrent.ExecutionContext.global)
         for {
-          _        <- ZIO.unit.onExecutor(global)
-          executor <- ZIO.descriptor.map(_.executor)
-        } yield assert(executor)(equalTo(global))
+          which   <- Ref.make[Option[Thread]](None)
+          beforeL <- ZIO.descriptor.map(_.isLocked)
+          _       <- thread.flatMap(t => which.set(Some(t))).onExecutor(global)
+          after   <- thread
+          during  <- which.get.some
+          afterL  <- ZIO.descriptor.map(_.isLocked)
+        } yield assert(beforeL)(isFalse) && assert(afterL)(isFalse) && assert(during)(equalTo(after))
       },
       test("effects are shifted back if executor is specified") {
         val default = RuntimeConfig.default.executor
@@ -1667,7 +1661,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("orElse")(
       test("does not recover from defects") {
         val ex               = new Exception("Died")
-        val fiberId          = FiberId(0L, 123L)
+        val fiberId          = FiberId(0, 123)
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> IO.unit).exit
@@ -1683,8 +1677,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val z1                = Task.fail(new Throwable("1"))
         val z2: Task[Nothing] = Task.die(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-          case Traced(Die(e: Throwable), _) => Task(e.getMessage == "2")
-          case _                            => Task(false)
+          case Die(e: Throwable, _) => Task(e.getMessage == "2")
+          case _                    => Task(false)
         }
         assertM(orElse)(equalTo(true))
       },
@@ -1692,8 +1686,8 @@ object ZIOSpec extends ZIOBaseSpec {
         val z1                = Task.fail(new Throwable("1"))
         val z2: Task[Nothing] = Task.fail(new Throwable("2"))
         val orElse: Task[Boolean] = z1.orElse(z2).catchAllCause {
-          case Traced(Fail(e: Throwable), _) => Task(e.getMessage == "2")
-          case _                             => Task(false)
+          case Fail(e: Throwable, _) => Task(e.getMessage == "2")
+          case _                     => Task(false)
         }
         assertM(orElse)(equalTo(true))
       },
@@ -3706,11 +3700,11 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO(1).validateWith(ZIO(2))(_ + _))(equalTo(3))
       },
       test("fails") {
-        assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2))))
+        assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2, ZTrace.none))))
       },
       test("combines both cause") {
         assertM(ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either)(
-          isLeft(equalTo(Cause.Then(Cause.Fail(1), Cause.Fail(2))))
+          isLeft(equalTo(Cause.Then(Cause.Fail(1, ZTrace.none), Cause.Fail(2, ZTrace.none))))
         )
       }
     ),
@@ -3890,7 +3884,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
           result <- ZIO.fromFuture(_ => future).either
-        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("Fiber:FiberId("))))))
+        } yield assert(result)(isLeft(hasSuppressed(exists(hasMessage(containsString("zio-fiber"))))))
       }
     ) @@ zioTag(future),
     suite("resurrect")(
@@ -4062,4 +4056,5 @@ object ZIOSpec extends ZIOBaseSpec {
     trait Service
     val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
   }
+
 }

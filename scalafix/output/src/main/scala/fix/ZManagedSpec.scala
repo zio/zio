@@ -8,7 +8,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
 import zio.test.environment._
-import zio.{ Clock, Has, _ }
+import zio.{ Clock, FiberId, Has, _ }
 import zio.test.environment.Live
 
 object ZManagedSpec extends DefaultRunnableSpec {
@@ -1271,7 +1271,7 @@ object ZManagedSpec extends DefaultRunnableSpec {
       test("The canceler will run with an exit value indicating the effect was interrupted") {
         for {
           ref    <- Ref.make(false)
-          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.interrupted))
+          managed = ZManaged.acquireReleaseExitWith(ZIO.unit)((_, e) => ref.set(e.isInterrupted))
           _      <- managed.withEarlyRelease.use(_._1)
           result <- ref.get
         } yield assert(result)(isTrue)
@@ -1606,7 +1606,7 @@ object ZManagedSpec extends DefaultRunnableSpec {
 
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
-    expected: Fiber.Id => Option[Exit[Nothing, Unit]]
+    expected: FiberId => Option[Exit[Nothing, Unit]]
   ): ZIO[Has[Live], Nothing, TestResult] =
     for {
       fiberId            <- ZIO.fiberId

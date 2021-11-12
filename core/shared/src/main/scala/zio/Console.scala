@@ -107,15 +107,16 @@ object Console extends Serializable {
     ZIO.serviceWith(_.printLine(line))
 
   /**
-   * Prints a line of text to the standard error console, including a newline character.
+   * Prints a line of text to the standard error console, including a newline
+   * character.
    */
   def printLineError(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
     ZIO.serviceWith(_.printLineError(line))
 
   /**
-   * Retrieves a line of input from the console.
-   * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
-   * returns null.
+   * Retrieves a line of input from the console. Fails with an
+   * [[java.io.EOFException]] when the underlying [[java.io.Reader]] returns
+   * null.
    */
   def readLine(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, String] =
     ZIO.accessZIO(_.get.readLine)
@@ -142,16 +143,17 @@ object Console extends Serializable {
     printLine(line)
 
   /**
-   * Prints a line of text to the standard error console, including a newline character.
+   * Prints a line of text to the standard error console, including a newline
+   * character.
    */
   @deprecated("use `printLineError`", "2.0.0")
   def putStrLnErr(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
     printLineError(line)
 
   /**
-   * Retrieves a line of input from the console.
-   * Fails with an [[java.io.EOFException]] when the underlying [[java.io.Reader]]
-   * returns null.
+   * Retrieves a line of input from the console. Fails with an
+   * [[java.io.EOFException]] when the underlying [[java.io.Reader]] returns
+   * null.
    */
   @deprecated("use `readLine`", "2.0.0")
   def getStrLn(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, String] =

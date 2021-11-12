@@ -49,9 +49,6 @@ class ParallelMergeSortBenchmark {
   def zioSort(): Unit = benchMergeSort(BenchmarkUtil)
 
   @Benchmark
-  def zioSortTraced(): Unit = benchMergeSort(BenchmarkUtil.TracedRuntime)
-
-  @Benchmark
   def scalaCollectionSort(): Unit = {
     val sortOutput = sortInput.map(_.sorted)
     sortInput.zip(sortOutput).foreach(verifySorted)
@@ -78,7 +75,7 @@ class ParallelMergeSortBenchmark {
       array <- UIO(is.toArray)
       buf   <- UIO(new Array[Int](array.length / 2))
       _     <- mergeSortInPlace(array, buf, 0, array.length)
-    } yield array.toIterable
+    } yield array
 
   private def mergeSortInPlace(is: Array[Int], buf: Array[Int], start: Int, end: Int): UIO[Unit] = {
     val len = end - start

@@ -24,8 +24,8 @@ trait FunctionVariants {
 
   /**
    * Constructs a generator of functions from `A` to `B` given a generator of
-   * `B` values. Two `A` values will be considered to be equal, and thus will
-   * be guaranteed to generate the same `B` value, if they have the same
+   * `B` values. Two `A` values will be considered to be equal, and thus will be
+   * guaranteed to generate the same `B` value, if they have the same
    * `hashCode`.
    */
   final def function[R, A, B](gen: Gen[R, B])(implicit trace: ZTraceElement): Gen[R, A => B] =
@@ -61,7 +61,7 @@ trait FunctionVariants {
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit trace: ZTraceElement): Gen[R, A => B] =
     Gen.fromZIO {
-      gen.sample.forever.collectSome.process.use { pull =>
+      gen.sample.forever.collectSome.toPull.use { pull =>
         for {
           lock    <- Semaphore.make(1)
           bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)

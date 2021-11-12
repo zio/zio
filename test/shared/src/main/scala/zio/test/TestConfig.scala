@@ -24,8 +24,8 @@ import zio.ZTraceElement
  * The `TestConfig` service provides access to default configuration settings
  * used by ZIO Test, including the number of times to repeat tests to ensure
  * they are stable, the number of times to retry flaky tests, the sufficient
- * number of samples to check from a random variable, and the maximum number
- * of shrinkings to minimize large failures.
+ * number of samples to check from a random variable, and the maximum number of
+ * shrinkings to minimize large failures.
  */
 trait TestConfig extends Serializable {
 
@@ -51,6 +51,12 @@ trait TestConfig extends Serializable {
 }
 
 object TestConfig {
+
+  /**
+   * Constructs a new `TestConfig` with the default settings.
+   */
+  val default: ZLayer[Any, Nothing, Has[TestConfig]] =
+    live(100, 100, 200, 1000)(ZTraceElement.empty)
 
   /**
    * Constructs a new `TestConfig` service with the specified settings.

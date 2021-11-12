@@ -398,7 +398,7 @@ You can also create a sink that sends values to a hub.
 object ZSink {
   def fromHub[R, E, I](
     hub: ZHub[R, Nothing, E, Any, I, Any]
-  ): ZSink[R, E, I, Nothing, Unit] =
+  ): ZSink[R, E, I, E, Nothing, Unit] =
     ???
 }
 ```

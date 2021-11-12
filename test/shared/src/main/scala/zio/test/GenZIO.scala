@@ -27,12 +27,14 @@ trait GenZIO {
   final def causes[R <: Has[Random] with Has[Sized], E](e: Gen[R, E], t: Gen[R, Throwable])(implicit
     trace: ZTraceElement
   ): Gen[R, Cause[E]] = {
-    val failure        = e.map(Cause.fail)
-    val die            = t.map(Cause.die)
-    val empty          = Gen.const(Cause.empty)
-    val interrupt      = Gen.long.zipWith(Gen.long)((l, r) => Cause.interrupt(FiberId(l, r)))
-    def traced(n: Int) = Gen.suspend(causesN(n - 1).map(Cause.Traced(_, ZTrace(FiberId(0L, 0L), Nil, Nil, None))))
-    def meta(n: Int)   = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
+    val fiberId           = Gen.int.zipWith(Gen.int)(FiberId(_, _))
+    val zTraceElement     = Gen.string.map(_.asInstanceOf[ZTraceElement])
+    val zTrace            = fiberId.zipWith(Gen.chunkOf(zTraceElement))(ZTrace(_, _))
+    val failure           = e.zipWith(zTrace)(Cause.fail(_, _))
+    val die               = t.zipWith(zTrace)(Cause.die(_, _))
+    val empty             = Gen.const(Cause.empty)
+    val interrupt         = fiberId.zipWith(zTrace)(Cause.interrupt(_, _))
+    def stackless(n: Int) = Gen.suspend(causesN(n - 1).flatMap(c => Gen.elements(Cause.stack(c), Cause.stackless(c))))
 
     def sequential(n: Int) = Gen.suspend {
       for {
@@ -52,16 +54,16 @@ trait GenZIO {
 
     def causesN(n: Int): Gen[R, Cause[E]] = Gen.suspend {
       if (n == 1) Gen.oneOf(empty, failure, die, interrupt)
-      else if (n == 2) Gen.oneOf(traced(n), meta(n))
-      else Gen.oneOf(traced(n), meta(n), sequential(n), parallel(n))
+      else if (n == 2) stackless(n)
+      else Gen.oneOf(stackless(n), sequential(n), parallel(n))
     }
 
     Gen.small(causesN, 1)
   }
 
   /**
-   * A generator of effects that are the result of chaining the specified
-   * effect with itself a random number of times.
+   * A generator of effects that are the result of chaining the specified effect
+   * with itself a random number of times.
    */
   final def chained[R <: Has[Random] with Has[Sized], Env, E, A](gen: Gen[R, ZIO[Env, E, A]])(implicit
     trace: ZTraceElement
@@ -69,8 +71,8 @@ trait GenZIO {
     Gen.small(chainedN(_)(gen))
 
   /**
-   * A generator of effects that are the result of chaining the specified
-   * effect with itself a given number of times.
+   * A generator of effects that are the result of chaining the specified effect
+   * with itself a given number of times.
    */
   final def chainedN[R <: Has[Random], Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]])(implicit
     trace: ZTraceElement
