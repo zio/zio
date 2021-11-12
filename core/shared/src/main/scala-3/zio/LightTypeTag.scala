@@ -73,4 +73,6 @@ enum LightTypeTag {
   case NothingType 
 
   case AnyType 
+
+  case TypeParamRef
 }

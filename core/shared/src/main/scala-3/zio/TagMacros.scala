@@ -24,6 +24,7 @@ class Macros(val ctx: Quotes) {
         case TermRef(parent, name)    => '{ TermRef(${ Expr(parent) }, ${ Expr(name) }) }
         case NoPrefix                 => '{ NoPrefix }
         case Recursive(tpe)           => '{ Recursive(${ Expr(tpe) }) }
+        case TypeParamRef => '{ TypeParamRef }
         case NothingType => '{ NothingType }
         case AnyType => '{ AnyType }
       }
@@ -48,6 +49,20 @@ class Macros(val ctx: Quotes) {
       return '{ LightTypeTag.Recursive(${Expr(typeRepr.show)}) }
     }
 
+    object TypeVariable {
+      def unapply(tpe: TypeRepr): Option[TypeRepr] = tpe match {
+        case x @ TypeRef(_, _) if x.typeSymbol.isAbstractType =>
+        x.asType match { 
+          case '[a] =>
+            Some(x)
+          case _ =>
+            None
+        }
+        case _ => None
+      }
+    }
+
+
     typeRepr match {
       case `nothingTypeRepr` => '{ LightTypeTag.NothingType }
       case `anyTypeRepr` => '{ LightTypeTag.AnyType }
@@ -55,7 +70,7 @@ class Macros(val ctx: Quotes) {
       case ThisType(nested)       => makeTag(nested)
       case NoPrefix()             => '{ LightTypeTag.NoPrefix }
       case TermRef(lhs, name)     => '{ LightTypeTag.TermRef(${makeTag(lhs)}, ${Expr(name)}) }
-      case x @ TypeRef(_, _) if x.typeSymbol.isAbstractType =>
+      case TypeVariable(x) =>
         x.asType match { 
           case '[a] =>
             val tag = Expr.summon[Tag[a]].getOrElse(report.errorAndAbort(s"Implicit not found for Tag[${x.show}]"))
@@ -65,6 +80,28 @@ class Macros(val ctx: Quotes) {
       case TypeBounds(lo, hi)     => '{ LightTypeTag.Bounds(${makeTag(lo)}, ${makeTag(hi)}) }
       case AndType(left, right)   => '{ LightTypeTag.Intersection(${makeTag(left)}, ${makeTag(right)}) }
       case OrType(left, right)    => '{ LightTypeTag.Union(${makeTag(left)}, ${makeTag(right)}) }
+      case TypeLambda(tparams, _, body) =>
+        // List[String], List[TypeBound], TypeRepr]
+        println("I'm here!!!")
+        // val tparams0 = tparams.map(tparam => Expr(tparam))
+        // '{ LightTypeTag.TypeLambda(${Expr.ofList(tparams0)}) }
+        // '{ LightTypeTag.TypeLambda(${Expr(body.toString) }) }
+        // AppliedType(TypeRef(TermRef(ThisType(TypeRef(NoPrefix,module class <root>)),object scala),class Option),List(TypeParamRef(A)))
+        println(body)
+        makeTag(body)
+        // Option[A]
+        // Option((a) => A)(Int)
+        // ((a) => A)(Int)
+
+        // Apply(
+        //   TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),zio),Example$),Cache),
+        //   List(
+        //     Apply(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),scala),Option),List(TypeParamRef)), 
+        //     TypeRef(TypeRef(TypeRef(NoPrefix,<root>),scala),Int), 
+        //     TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),java),lang),String))
+        // )
+        // 
+      case _ : TypeParamClause => '{ LightTypeTag.TypeParamRef }
       case other                  => throw new Error(other.toString)
     }
    }
