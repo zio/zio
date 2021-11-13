@@ -49,7 +49,7 @@ abstract class AbstractRunnableSpec {
    * execution.
    */
   final def run(implicit trace: ZTraceElement): ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
-    runSpec(spec).provideCustomService(runner.bootstrap)
+    runSpec(spec).provideCustomServices(runner.bootstrap)
 
   /**
    * Returns an effect that executes a given spec, producing the results of the

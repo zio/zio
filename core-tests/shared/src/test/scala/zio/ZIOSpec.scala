@@ -1833,19 +1833,19 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       } @@ zioTag(errors)
     ),
-    suite("provideCustomService")(
+    suite("provideCustomServices")(
       test("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]                    = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                                        = zio.provideCustomService(loggingServiceBuilder)
+        val zio2: URIO[ZEnv, Unit]                                        = zio.provideCustomServices(loggingServiceBuilder)
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSomeService")(
+    suite("provideSomeServices")(
       test("can split environment into two parts") {
         val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]] = Clock.live
         val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit]           = ZIO.unit
-        val zio2: URIO[Has[Random], Unit]                                  = zio.provideSomeService[Has[Random]](clockServiceBuilder)
+        val zio2: URIO[Has[Random], Unit]                                  = zio.provideSomeServices[Has[Random]](clockServiceBuilder)
         assertM(zio2)(anything)
       }
     ),
@@ -3600,7 +3600,7 @@ object ZIOSpec extends ZIOBaseSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provideService(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(

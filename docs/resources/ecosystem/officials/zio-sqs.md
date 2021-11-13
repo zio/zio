@@ -71,6 +71,6 @@ object ProducerConsumerExample extends zio.App {
   } yield ()
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    program.provideCustomService(client).exitCode
+    program.provideCustomServices(client).exitCode
 }
 ```

@@ -65,23 +65,23 @@ private final class ProvideSomeServiceBuilderManagedPartiallyApplied[R0 <: Has[_
   val self: ZManaged[R, E, A]
 ) extends AnyVal {
 
-  def provideService[E1 >: E, R1](
+  def provideServices[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    self.provideService(serviceBuilder)
+    self.provideServices(serviceBuilder)
 
-  @deprecated("use provideService", "2.0.0")
+  @deprecated("use provideServices", "2.0.0")
   def provideLayer[E1 >: E, R1](
     layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    provideService(layer)
+    provideServices(layer)
 
-  def provideSomeService[R0 <: Has[_]]: ZManaged.ProvideSomeServiceBuilder[R0, R, E, A] =
-    new ZManaged.ProvideSomeServiceBuilder[R0, R, E, A](self)
+  def provideSomeServices[R0 <: Has[_]]: ZManaged.ProvideSomeServices[R0, R, E, A] =
+    new ZManaged.ProvideSomeServices[R0, R, E, A](self)
 
-  @deprecated("use provideSomeService", "2.0.0")
-  def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeServiceBuilder[R0, R, E, A] =
-    provideSomeService
+  @deprecated("use provideSomeServices", "2.0.0")
+  def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeServices[R0, R, E, A] =
+    provideSomeServices
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[R0, E1, A] =
     macro ServiceBuilderMacros.injectSomeImpl[ZManaged, R0, R, E1, A]

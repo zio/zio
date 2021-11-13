@@ -71,11 +71,11 @@ case class CounterApp(port: String) {
       for {
         queue <- Cluster
           .clusterEvents(true)
-          .provideCustomService(ZServiceBuilder.succeedMany(sys))
+          .provideCustomServices(ZServiceBuilder.succeedMany(sys))
 
         pubsub <- zio.akka.cluster.pubsub.PubSub
           .createPubSub[Int]
-          .provideCustomService(ZServiceBuilder.succeedMany(sys))
+          .provideCustomServices(ZServiceBuilder.succeedMany(sys))
 
         liveUsersLogger <- pubsub
           .listen("LiveUsers")
@@ -108,7 +108,7 @@ case class CounterApp(port: String) {
           } yield ()
         cluster <- Sharding
           .start("CounterEntity", counterEntityLogic)
-          .provideCustomService(ZServiceBuilder.succeedMany(sys))
+          .provideCustomServices(ZServiceBuilder.succeedMany(sys))
 
         _ <- cluster.send("LiveUsers", Inc)
         _ <- cluster.send("TotalRequests", Inc)

@@ -831,7 +831,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideCustomLayer(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomService", "2.0.0")
+  @deprecated("use provideCustomServices", "2.0.0")
   final def provideCustomLayer[E1 >: E, R1](
     layer: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
@@ -840,7 +840,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
-    provideCustomService(layer)
+    provideCustomServices(layer)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -851,10 +851,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideCustomService(loggingServiceBuilder)
+   * val managed2 = managed.provideCustomServices(loggingServiceBuilder)
    * }}}
    */
-  final def provideCustomService[E1 >: E, R1](
+  final def provideCustomServices[E1 >: E, R1](
     serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
     ev1: ZEnv with R1 <:< R,
@@ -862,22 +862,22 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
-    provideSomeService[ZEnv](serviceBuilder)
+    provideSomeServices[ZEnv](serviceBuilder)
 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  @deprecated("use provideService", "2.0.0")
+  @deprecated("use provideServices", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
     layer: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    provideService(layer)
+    provideServices(layer)
 
   /**
    * Provides a service builder to the `ZManaged`, which translates it to
    * another level.
    */
-  final def provideService[E1 >: E, R0, R1](
+  final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
     ZManaged.suspend(serviceBuilder.build.map(ev).flatMap(r => self.provide(r)))
@@ -903,9 +903,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  @deprecated("use provideSomeService", "2.0.0")
-  final def provideSomeLayer[R0]: ZManaged.ProvideSomeServiceBuilder[R0, R, E, A] =
-    provideSomeService
+  @deprecated("use provideSomeServices", "2.0.0")
+  final def provideSomeLayer[R0]: ZManaged.ProvideSomeServices[R0, R, E, A] =
+    provideSomeServices
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -916,11 +916,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * val managed: ZManaged[Has[Clock] with Has[Random], Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideSomeService[Has[Random]](clockServiceBuilder)
+   * val managed2 = managed.provideSomeServices[Has[Random]](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeService[R0]: ZManaged.ProvideSomeServiceBuilder[R0, R, E, A] =
-    new ZManaged.ProvideSomeServiceBuilder[R0, R, E, A](self)
+  final def provideSomeServices[R0]: ZManaged.ProvideSomeServices[R0, R, E, A] =
+    new ZManaged.ProvideSomeServices[R0, R, E, A](self)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -1566,7 +1566,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.suspend(b().flatMap(b => if (b) onTrue else onFalse))
   }
 
-  final class ProvideSomeServiceBuilder[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
+  final class ProvideSomeServices[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: => ZServiceBuilder[R0, E1, R1]
     )(implicit
@@ -1575,7 +1575,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZManaged[R0, E1, A] =
-      self.provideService[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+      self.provideServices[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {

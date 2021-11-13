@@ -414,7 +414,7 @@ object Runtime {
    *
    * This method is useful for small applications and integrating ZIO with
    * legacy code, but other applications should investigate using
-   * [[ZIO.provideService]] directly in their application entry points.
+   * [[ZIO.provideServices]] directly in their application entry points.
    */
   def unsafeFromServiceBuilder[R](
     serviceBuilder: ServiceBuilder[Any, R],

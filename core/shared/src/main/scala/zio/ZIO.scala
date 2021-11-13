@@ -1478,7 +1478,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val zio2 = zio.provideCustomLayer(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomService", "2.0.0")
+  @deprecated("use provideCustomServices", "2.0.0")
   final def provideCustomLayer[E1 >: E, R1](
     layer: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
@@ -1487,7 +1487,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZIO[ZEnv, E1, A] =
-    provideCustomService(layer)
+    provideCustomServices(layer)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -1498,10 +1498,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
    *
-   * val zio2 = zio.provideCustomService(loggingServiceBuilder)
+   * val zio2 = zio.provideCustomServices(loggingServiceBuilder)
    * }}}
    */
-  final def provideCustomService[E1 >: E, R1](
+  final def provideCustomServices[E1 >: E, R1](
     serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
     ev1: ZEnv with R1 <:< R,
@@ -1509,22 +1509,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZIO[ZEnv, E1, A] =
-    provideSomeService[ZEnv](serviceBuilder)
+    provideSomeServices[ZEnv](serviceBuilder)
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
-  @deprecated("use provideService", "2.0.0")
+  @deprecated("use provideServices", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
     layer: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    provideService(layer)
+    provideServices(layer)
 
   /**
    * Provides a service builder to the ZIO effect, which translates it to
    * another level.
    */
-  final def provideService[E1 >: E, R0, R1](
+  final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
     ZIO.suspendSucceed(serviceBuilder.build.map(ev).use(r => self.provide(r)))
@@ -1550,9 +1550,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val zio2 = zio.provideSomeLayer[Has[Random]](clockLayer)
    * }}}
    */
-  @deprecated("use provideSomeService", "2.0.0")
-  final def provideSomeLayer[R0]: ZIO.ProvideSomeServiceBuilder[R0, R, E, A] =
-    provideSomeService
+  @deprecated("use provideSomeServices", "2.0.0")
+  final def provideSomeLayer[R0]: ZIO.ProvideSomeServices[R0, R, E, A] =
+    provideSomeServices
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -1563,11 +1563,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]] = ???
    *
-   * val zio2 = zio.provideSomeService[Has[Random]](clockServiceBuilder)
+   * val zio2 = zio.provideSomeServices[Has[Random]](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeService[R0]: ZIO.ProvideSomeServiceBuilder[R0, R, E, A] =
-    new ZIO.ProvideSomeServiceBuilder[R0, R, E, A](self)
+  final def provideSomeServices[R0]: ZIO.ProvideSomeServices[R0, R, E, A] =
+    new ZIO.ProvideSomeServices[R0, R, E, A](self)
 
   /**
    * Returns a new effect that will utilize the default scope (fiber scope) to
@@ -5620,11 +5620,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       self.refineOrDie { case e: E1 => e }
   }
 
-  final class ProvideSomeServiceBuilder[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
+  final class ProvideSomeServices[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: => ZServiceBuilder[R0, E1, R1]
     )(implicit ev1: R0 with R1 <:< R, ev2: Has.Union[R0, R1], tagged: Tag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
-      self.provideService[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+      self.provideServices[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {

@@ -52,7 +52,7 @@ object TranzactIOExample extends zio.App {
   } yield ()
 
   val myApp: ZIO[zio.ZEnv, Throwable, Unit] =
-    Database.transactionOrWidenR(query).provideCustomService(services.database)
+    Database.transactionOrWidenR(query).provideCustomServices(services.database)
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
     myApp.exitCode

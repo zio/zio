@@ -58,7 +58,7 @@ object ZIOK8sLogsExample extends zio.App {
     case List(podName, containerName) => tailLogs(podName, Some(containerName))
     case _ => console.putStrLnErr("Usage: <podname> [containername]")
   })
-    .provideCustomService(k8sDefault >>> Pods.live)
+    .provideCustomServices(k8sDefault >>> Pods.live)
     .exitCode
 
   def tailLogs(podName: String,

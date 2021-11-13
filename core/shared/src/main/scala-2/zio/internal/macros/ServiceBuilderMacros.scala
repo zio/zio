@@ -11,13 +11,13 @@ private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends Service
   def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[F[Any, E, A]] =
-    injectBaseImpl[F, Any, R, E, A](serviceBuilder, "provideService")
+    injectBaseImpl[F, Any, R, E, A](serviceBuilder, "provideServices")
 
   def injectSomeImpl[F[_, _, _], R0 <: Has[_]: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[F[R0, E, A]] = {
     assertEnvIsNotNothing[R0]()
-    injectBaseImpl[F, R0, R, E, A](serviceBuilder, "provideService")
+    injectBaseImpl[F, R0, R, E, A](serviceBuilder, "provideServices")
   }
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =

@@ -66,7 +66,7 @@ abstract class BaseTestTask(
     for {
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args)
-                .provideService(
+                .provideServices(
                   fullServiceBuilder
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
@@ -93,7 +93,7 @@ abstract class BaseTestTask(
         case LegacySpecWrapper(abstractRunnableSpec) =>
           Runtime((), abstractRunnableSpec.runtimeConfig).unsafeRun {
             run(eventHandler, abstractRunnableSpec)
-              .provideService(sbtTestServiceBuilder(loggers))
+              .provideServices(sbtTestServiceBuilder(loggers))
               .onError(e => UIO(println(e.prettyPrint)))
           }
       }

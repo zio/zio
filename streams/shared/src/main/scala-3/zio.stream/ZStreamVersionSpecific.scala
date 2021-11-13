@@ -35,6 +35,6 @@ object ZStreamProvideMacro {
 
   def injectImpl[R0: Type, R: Type, E: Type, A: Type](zstream: Expr[ZStream[R,E,A]], serviceBuilder: Expr[Seq[ZServiceBuilder[_,E,_]]])(using Quotes): Expr[ZStream[R0,E,A]] = {
     val serviceBuilderExpr = ServiceBuilderMacros.fromAutoImpl[R0, R, E](serviceBuilder)
-    '{$zstream.provideService($serviceBuilderExpr.asInstanceOf[ZServiceBuilder[R0,E,R]])}
+    '{$zstream.provideServices($serviceBuilderExpr.asInstanceOf[ZServiceBuilder[R0,E,R]])}
   }
 }

@@ -91,7 +91,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
         ZServiceBuilder.environment[ZEnv] +!+ ZServiceBuilder.succeed(ZIOAppArgs(args)) >>>
           serviceBuilder +!+ ZServiceBuilder.environment[ZEnv with Has[ZIOAppArgs]]
 
-      newRuntime.run(run.provideService(newServiceBuilder))
+      newRuntime.run(run.provideServices(newServiceBuilder))
     }
 
   def runtime: Runtime[ZEnv] = Runtime.default

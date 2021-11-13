@@ -59,7 +59,7 @@ object ZIOFTPExample extends zio.App {
   } yield ()
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = myApp
-    .provideCustomService(
+    .provideCustomServices(
       unsecure(settings) ++ Blocking.live
     )
     .exitCode

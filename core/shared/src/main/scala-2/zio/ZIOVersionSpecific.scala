@@ -50,8 +50,8 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * val zio2 = zio.injectSome[Random](clockServiceBuilder)
    * }}}
    */
-  def injectSome[R0 <: Has[_]]: ProvideSomeServiceBuilderPartiallyApplied[R0, R, E, A] =
-    new ProvideSomeServiceBuilderPartiallyApplied[R0, R, E, A](self)
+  def injectSome[R0 <: Has[_]]: ProvideSomeServicesPartiallyApplied[R0, R, E, A] =
+    new ProvideSomeServicesPartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a service builder for the ZIO effect.
@@ -61,26 +61,26 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 }
 
-private final class ProvideSomeServiceBuilderPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZIO[R, E, A])
+private final class ProvideSomeServicesPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZIO[R, E, A])
     extends AnyVal {
 
-  def provideService[E1 >: E, R1](
+  def provideServices[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
-    self.provideService(serviceBuilder)
+    self.provideServices(serviceBuilder)
 
-  @deprecated("use provideService", "2.0.0")
+  @deprecated("use provideServices", "2.0.0")
   def provideLayer[E1 >: E, R1](
     layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
-    provideService(layer)
+    provideServices(layer)
 
-  def provideSomeService[R0 <: Has[_]]: ZIO.ProvideSomeServiceBuilder[R0, R, E, A] =
-    new ZIO.ProvideSomeServiceBuilder[R0, R, E, A](self)
+  def provideSomeServices[R0 <: Has[_]]: ZIO.ProvideSomeServices[R0, R, E, A] =
+    new ZIO.ProvideSomeServices[R0, R, E, A](self)
 
-  @deprecated("use provideSomeService", "2.0.0")
-  def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeServiceBuilder[R0, R, E, A] =
-    provideSomeService
+  @deprecated("use provideSomeServices", "2.0.0")
+  def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeServices[R0, R, E, A] =
+    provideSomeServices
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZIO[R0, E1, A] =
     macro ServiceBuilderMacros.injectSomeImpl[ZIO, R0, R, E1, A]

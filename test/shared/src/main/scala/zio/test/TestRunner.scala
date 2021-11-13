@@ -51,7 +51,7 @@ final case class TestRunner[R, E](
   def unsafeRun(
     spec: ZSpec[R, E]
   )(implicit trace: ZTraceElement): ExecutedSpec[E] =
-    runtime.unsafeRun(run(spec).provideService(bootstrap))
+    runtime.unsafeRun(run(spec).provideServices(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
@@ -61,7 +61,7 @@ final case class TestRunner[R, E](
   )(
     k: ExecutedSpec[E] => Unit
   )(implicit trace: ZTraceElement): Unit =
-    runtime.unsafeRunAsyncWith(run(spec).provideService(bootstrap)) {
+    runtime.unsafeRunAsyncWith(run(spec).provideServices(bootstrap)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -72,7 +72,7 @@ final case class TestRunner[R, E](
   def unsafeRunSync(
     spec: ZSpec[R, E]
   )(implicit trace: ZTraceElement): Exit[Nothing, ExecutedSpec[E]] =
-    runtime.unsafeRunSync(run(spec).provideService(bootstrap))
+    runtime.unsafeRunSync(run(spec).provideServices(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the platform

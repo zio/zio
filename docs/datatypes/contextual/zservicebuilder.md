@@ -395,7 +395,7 @@ val horizontal: ZServiceBuilder[Has[Console], Nothing, Logging with UserRepo] = 
 val fullServiceBuilder: ServiceBuilder[Nothing, Logging with UserRepo] = Console.live >>> horizontal
 
 // provide the services to the program
-makeUser.provideSomeService(fullServiceBuilder)
+makeUser.provideSomeServices(fullServiceBuilder)
 ```
 
 Given a service builder, it is possible to update one or more components it provides. We update a dependency in two ways:
@@ -552,7 +552,7 @@ object Example extends ZIOAppDefault {
   val nameServiceBuilder: UServiceBuilder[Has[String]] = ZServiceBuilder.succeed("Adam")
 
   // Run the program, providing the `nameServiceBuilder`
-  def run = zio.provideSomeService(nameServiceBuilder)
+  def run = zio.provideSomeServices(nameServiceBuilder)
 }
 
 ```
@@ -633,7 +633,7 @@ object ZServiceBuilderApp0 extends zio.App {
     } yield ()
 
   def run(args: List[String]) =
-    program.provideSomeService(env).exitCode
+    program.provideSomeServices(env).exitCode
 
 }
 
@@ -704,7 +704,7 @@ object ZServiceBuilderApp1 extends scala.App {
 
   val env = (ModuleA.live ++ ModuleB.live ++ ZServiceBuilder.environment[Has[Clock]]) >>> ModuleC.live
 
-  val res = ModuleC.foo.provideCustomService(env)
+  val res = ModuleC.foo.provideCustomServices(env)
 
   val out = rt.unsafeRun(res)
   println(out)

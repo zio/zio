@@ -43,7 +43,7 @@ object InjectSomeSpec extends DefaultRunnableSpec {
   def spec: ZSpec[Has[Console] with Has[TestConsole], Any] =
     suite("InjectSomeSpec")(
       test("basic") {
-        testCase("basic").provideSomeService[Has[Console]](partial)
+        testCase("basic").provideSomeServices[Has[Console]](partial)
       },
       test("injectSome") {
         testCase("injectSome").injectSome[Has[Console]](
@@ -59,7 +59,7 @@ object InjectSomeSpec extends DefaultRunnableSpec {
           .injectSome[Has[Console]](Clock.live)
       },
       test("wireSome") {
-        testCase("wireSome").provideSomeService[Has[Console]](partialServiceBuilder)
+        testCase("wireSome").provideSomeServices[Has[Console]](partialServiceBuilder)
       }
     ) @@ TestAspect.silent
 }

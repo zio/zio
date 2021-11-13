@@ -204,7 +204,7 @@ val diagnosticsServiceBuilder: ZServiceBuilder[ZEnv, Throwable, Has[Diagnostics]
 val runtime: Runtime[ZEnv] =
   Runtime.default.mapRuntimeConfig(_.withSupervisor(ZMXSupervisor))
 
-runtime.unsafeRun(program.provideCustomService(diagnosticsServiceBuilder))
+runtime.unsafeRun(program.provideCustomServices(diagnosticsServiceBuilder))
 ```
 
 ### User-defined Executor

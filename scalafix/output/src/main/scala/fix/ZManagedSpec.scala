@@ -1228,7 +1228,7 @@ object ZManagedSpec extends DefaultRunnableSpec {
         val managed = ZEnv.live.build
         val serviceBuilder   = managed.toServiceBuilderMany
         val zio1    = ZIO.environment[ZEnv]
-        val zio2    = zio1.provideService(serviceBuilder)
+        val zio2    = zio1.provideServices(serviceBuilder)
         assertM(zio2)(anything)
       }
     ),

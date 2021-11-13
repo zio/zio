@@ -155,7 +155,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
             val serviceBuilder =
               ZServiceBuilder.wire[Has[Int]](intServiceBuilder, stringServiceBuilder, doubleServiceBuilder)
-            val provided = ZIO.service[Int].provideService(serviceBuilder)
+            val provided = ZIO.service[Int].provideServices(serviceBuilder)
             assertM(provided)(equalTo(128))
           },
           test("reports the inclusion of non-Has types within the environment") {
@@ -198,7 +198,9 @@ object AutoWireSpec extends ZIOBaseSpec {
             val serviceBuilder =
               ZServiceBuilder.wireSome[Has[Double] with Has[Boolean], Has[Int]](intServiceBuilder, stringServiceBuilder)
             val provided =
-              program.provideService(ZServiceBuilder.succeed(true) ++ ZServiceBuilder.succeed(100.1) >>> serviceBuilder)
+              program.provideServices(
+                ZServiceBuilder.succeed(true) ++ ZServiceBuilder.succeed(100.1) >>> serviceBuilder
+              )
             assertM(provided)(equalTo(128))
           }
         )

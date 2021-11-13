@@ -39,7 +39,7 @@ object ConsoleSpec extends ZIOBaseSpec {
             assert(input1)(equalTo("Input 1")) &&
             assert(input2)(equalTo("Input 2"))
           }
-        }.provideService(TestConsole.make(Data(List("Input 1", "Input 2"), Vector.empty)))
+        }.provideServices(TestConsole.make(Data(List("Input 1", "Input 2"), Vector.empty)))
       },
       test("fails on empty input") {
         for {

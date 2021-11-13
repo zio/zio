@@ -1001,10 +1001,10 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomService(loggingServiceBuilder)
+   * val spec2 = spec.provideCustomServices(loggingServiceBuilder)
    * }}}
    */
-  def provideCustomService[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
+  def provideCustomServices[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
     ev2: Has.Union[TestEnvironment, R],
     tagged: Tag[R],
     trace: ZTraceElement
@@ -1016,7 +1016,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     ({ type OutEnv[Env] = TestEnvironment })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ] =
-    provideSomeService[TestEnvironment][E, R](serviceBuilder)
+    provideSomeServices[TestEnvironment][E, R](serviceBuilder)
 
   /**
    * Provides each test with the part of the environment that is not part of the
@@ -1028,10 +1028,10 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomService(loggingServiceBuilder)
+   * val spec2 = spec.provideCustomServices(loggingServiceBuilder)
    * }}}
    */
-  def provideCustomServiceShared[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
+  def provideCustomServicesShared[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
     ev2: Has.Union[TestEnvironment, R],
     tagged: Tag[R],
     trace: ZTraceElement
@@ -1043,34 +1043,34 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     ({ type OutEnv[Env] = TestEnvironment })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ] =
-    provideSomeServiceShared[TestEnvironment][E, R](serviceBuilder)
+    provideSomeServicesShared[TestEnvironment][E, R](serviceBuilder)
 
   /**
    * An aspect that provides a service builder to the spec, translating it up a
    * level.
    */
-  final def provideService[R0, E1, R1](
+  final def provideServices[R0, E1, R1](
     serviceBuilder: ZServiceBuilder[R0, TestFailure[E1], R1]
   ): TestAspect.WithOut[R1, Any, E1, Any, ({ type OutEnv[Env] = R0 })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
     new TestAspect[R1, Any, E1, Any] {
       type OutEnv[Env] = R0
       type OutErr[Err] = Err
       def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.provideService(serviceBuilder)
+        spec.provideServices(serviceBuilder)
     }
 
   /**
    * An aspect that provides a service builder to the spec, translating it up a
    * level.
    */
-  final def provideServiceShared[R0, E1, R1](
+  final def provideServicesShared[R0, E1, R1](
     serviceBuilder: ZServiceBuilder[R0, TestFailure[E1], R1]
   ): TestAspect.WithOut[R1, Any, E1, Any, ({ type OutEnv[Env] = R0 })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
     new TestAspect[R1, Any, E1, Any] {
       type OutEnv[Env] = R0
       type OutErr[Err] = Err
       def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.provideServiceShared(serviceBuilder)
+        spec.provideServicesShared(serviceBuilder)
     }
 
   /**
@@ -1101,10 +1101,10 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    *
    * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec @@ provideSomeService[Has[Random]](clockServiceBuilder)
+   * val spec2 = spec @@ provideSomeServices[Has[Random]](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeService[R0]: TestAspect.ProvideSomeServiceBuilder[R0] =
+  final def provideSomeServices[R0]: TestAspect.ProvideSomeServiceBuilder[R0] =
     new TestAspect.ProvideSomeServiceBuilder[R0]
 
   /**
@@ -1117,10 +1117,10 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    *
    * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec.provideSomeServiceShared[Has[Random]](clockServiceBuilder)
+   * val spec2 = spec.provideSomeServicesShared[Has[Random]](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeServiceShared[R0]: TestAspect.ProvideSomeServiceBuilderShared[R0] =
+  final def provideSomeServicesShared[R0]: TestAspect.ProvideSomeServiceBuilderShared[R0] =
     new TestAspect.ProvideSomeServiceBuilderShared[R0]
 
   /**
@@ -1784,7 +1784,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def apply[R >: R0 with R1, E >: E1](
           spec: Spec[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
-          spec.provideService[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+          spec.provideServices[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
       }
   }
 
@@ -1809,7 +1809,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def apply[R >: R0 with R1, E >: E1](
           spec: Spec[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
-          spec.provideServiceShared[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+          spec.provideServicesShared[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
       }
   }
 }

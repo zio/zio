@@ -229,17 +229,17 @@ object TestAspectSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("fail"))(anything)
       } @@ nonTermination(1.minute) @@ failing
     ),
-    test("provideService provides a test with its required environment") {
+    test("provideServices provides a test with its required environment") {
       for {
         time <- Clock.nanoTime
       } yield assert(time)(isGreaterThan(0L))
-    } @@ provideService(Clock.live),
-    test("provideCustomService provides a test with part of its required environment") {
+    } @@ provideServices(Clock.live),
+    test("provideCustomServices provides a test with part of its required environment") {
       for {
         time <- Clock.nanoTime
         _    <- Random.nextInt
       } yield assert(time)(isGreaterThan(0L))
-    } @@ provideCustomService(Clock.live),
+    } @@ provideCustomServices(Clock.live),
     test("repeats sets the number of times to repeat a test to the specified value") {
       for {
         ref   <- Ref.make(0)

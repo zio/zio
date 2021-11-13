@@ -692,7 +692,7 @@ val appServiceBuilder: URServiceBuilder[Any, Has[DocRepo] with Has[UserRepo]] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
     
-val res: ZIO[Any, Nothing, Unit] = myApp.provideService(appServiceBuilder)
+val res: ZIO[Any, Nothing, Unit] = myApp.provideServices(appServiceBuilder)
 ```
 
 As the development of our application progress, the number of service builders will grow, and maintaining the dependency graph would be tedious and hard to debug.
@@ -700,7 +700,7 @@ As the development of our application progress, the number of service builders w
 For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
 
 ```scala
-myApp.provideService(
+myApp.provideServices(
   ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
     (Database.live >>> UserRepo.live)
 )
@@ -791,11 +791,11 @@ val serviceBuilder = ZServiceBuilder.wireSome[Has[Console], Has[DocRepo] with Ha
 )
 ```
 
-In ZIO 1.x, the `ZIO#provideSomeService` provides environment partially:
+In ZIO 1.x, the `ZIO#provideSomeServices` provides environment partially:
 
 ```scala mdoc:silent:nest
 val app: ZIO[Has[Console], Nothing, Unit] =
-  myApp.provideSomeService[Has[Console]](
+  myApp.provideSomeServices[Has[Console]](
     ((Logging.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
   )
@@ -814,11 +814,11 @@ val app: ZIO[Has[Console], Nothing, Unit] =
   )
 ```
 
-In ZIO 1.x, the `ZIO#provideCustomService` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
+In ZIO 1.x, the `ZIO#provideCustomServices` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
 
 ```scala mdoc:silent:nest
 val app: ZIO[zio.ZEnv, Nothing, Unit] = 
-  myApp.provideCustomService(
+  myApp.provideCustomServices(
     ((Logging.live ++ Database.live ++ (Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       ((Logging.live ++ Database.live) >>> UserRepo.live)
   )
@@ -844,8 +844,8 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 | ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
 |--------------------------------------------------------|----------------------------|
 | `ZIO#provide`                                          | `ZIO#inject`               |
-| `ZIO#provideSomeService`                               | `ZIO#injectSome`           |
-| `ZIO#provideCustomService`                             | `ZIO#injectCustom`         |
+| `ZIO#provideSomeServices`                              | `ZIO#injectSome`           |
+| `ZIO#provideCustomServices`                            | `ZIO#injectCustom`         |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wire`     |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wireSome` |
 

@@ -279,8 +279,8 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
           memoized = makeServiceBuilder1(ref).memoize
           _ <- memoized.use { serviceBuilder =>
                  for {
-                   _ <- ZIO.environment[Module1].provideService(serviceBuilder)
-                   _ <- ZIO.environment[Module1].provideService(serviceBuilder)
+                   _ <- ZIO.environment[Module1].provideServices(serviceBuilder)
+                   _ <- ZIO.environment[Module1].provideServices(serviceBuilder)
                  } yield ()
                }
           actual <- ref.get
@@ -380,7 +380,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         val serviceBuilder3 = ZServiceBuilder.succeed("baz")
         val serviceBuilder4 = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toServiceBuilder
         val env             = serviceBuilder1 ++ ((serviceBuilder2 ++ serviceBuilder3) >+> serviceBuilder4)
-        assertM(ZIO.unit.provideCustomService(env).exit)(fails(equalTo("foo")))
+        assertM(ZIO.unit.provideCustomServices(env).exit)(fails(equalTo("foo")))
       },
       test("project") {
         final case class Person(name: String, age: Int)

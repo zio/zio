@@ -51,7 +51,7 @@ object RandomSpec extends ZIOBaseSpec {
     },
     test("scalaRandom") {
       val serviceBuilder = ZServiceBuilder.fromZIO(ZIO.succeed(new scala.util.Random)) >>> Random.scalaRandom
-      val sample         = ZIO.replicateZIO(5)((Random.setSeed(91) *> Random.nextInt).provideSomeService(serviceBuilder.fresh))
+      val sample         = ZIO.replicateZIO(5)((Random.setSeed(91) *> Random.nextInt).provideSomeServices(serviceBuilder.fresh))
       for {
         values <- ZIO.collectAllPar(ZIO.replicate(5)(sample))
       } yield assertTrue(values.toSet.size == 1)
