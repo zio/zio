@@ -33,7 +33,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import zio.akka.cluster.Cluster
 import zio.akka.cluster.sharding.{Entity, Sharding}
 import zio.console.putStrLn
-import zio.{ExitCode, Has, Managed, Task, URIO, ZIO, ZLayer}
+import zio.{ExitCode, Has, Managed, Task, URIO, ZIO, ZServiceBuilder}
 
 sealed trait Counter extends Product with Serializable
 case object Inc extends Counter
@@ -59,8 +59,8 @@ case class CounterApp(port: String) {
          |}
          |""".stripMargin)
 
-  val actorSystem: ZLayer[Any, Throwable, Has[ActorSystem]] =
-    ZLayer.fromManaged(
+  val actorSystem: ZServiceBuilder[Any, Throwable, Has[ActorSystem]] =
+    ZServiceBuilder.fromManaged(
       Managed.make(Task(ActorSystem("CounterApp", config)))(sys =>
         Task.fromFuture(_ => sys.terminate()).either
       )
@@ -71,11 +71,11 @@ case class CounterApp(port: String) {
       for {
         queue <- Cluster
           .clusterEvents(true)
-          .provideCustomLayer(ZLayer.succeedMany(sys))
+          .provideCustomServices(ZServiceBuilder.succeedMany(sys))
 
         pubsub <- zio.akka.cluster.pubsub.PubSub
           .createPubSub[Int]
-          .provideCustomLayer(ZLayer.succeedMany(sys))
+          .provideCustomServices(ZServiceBuilder.succeedMany(sys))
 
         liveUsersLogger <- pubsub
           .listen("LiveUsers")
@@ -108,7 +108,7 @@ case class CounterApp(port: String) {
           } yield ()
         cluster <- Sharding
           .start("CounterEntity", counterEntityLogic)
-          .provideCustomLayer(ZLayer.succeedMany(sys))
+          .provideCustomServices(ZServiceBuilder.succeedMany(sys))
 
         _ <- cluster.send("LiveUsers", Inc)
         _ <- cluster.send("TotalRequests", Inc)

@@ -66,9 +66,9 @@ package object test extends CompileVariants {
       with ZEnv
 
   object TestEnvironment {
-    val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
-      ZLayer.environment[TestEnvironment](Tracer.newTrace)
-    val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
+    val any: ZServiceBuilder[TestEnvironment, Nothing, TestEnvironment] =
+      ZServiceBuilder.environment[TestEnvironment](Tracer.newTrace)
+    val live: ZServiceBuilder[ZEnv, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
       Annotations.live ++
         Live.default ++
@@ -81,9 +81,9 @@ package object test extends CompileVariants {
     }
   }
 
-  val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
+  val liveEnvironment: ServiceBuilder[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironment: Layer[Nothing, TestEnvironment] = {
+  val testEnvironment: ServiceBuilder[Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
     ZEnv.live >>> TestEnvironment.live
   }
@@ -111,18 +111,6 @@ package object test extends CompileVariants {
     zio: ZIO[R, E, A]
   )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R with Has[Live], E1, B] =
     Live.withLive(zio)(f)
-
-  /**
-   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in
-   * its environment.
-   */
-  type TestAspectAtLeastR[R] = TestAspect[Nothing, R, Nothing, Any]
-
-  /**
-   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic, having
-   * no requirements on error or environment.
-   */
-  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
   type TestResult = BoolAlgebra[AssertionResult]
 

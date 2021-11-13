@@ -25,7 +25,14 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  */
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
-  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
+  override def aspects: List[TestAspect.WithOut[
+    Nothing,
+    TestEnvironment,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ]] =
     List(TestAspect.timeoutWarning(60.seconds))
 
   override def runner: TestRunner[TestEnvironment, Any] =

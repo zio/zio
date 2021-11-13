@@ -9,7 +9,7 @@ object FiberRefSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("FiberRefSpec")(
+  def spec = suite("FiberRefSpec")(
     suite("Create a new FiberRef with a specified value and check if:")(
       test("`delete` restores the original value") {
         for {

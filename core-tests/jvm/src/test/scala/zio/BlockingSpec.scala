@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 object BlockingSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("BlockingSpec")(
+  def spec = suite("BlockingSpec")(
     suite("Make a Blocking Service and verify that")(
       test("attemptBlocking completes successfully") {
         assertM(ZIO.attemptBlocking(()))(isUnit)

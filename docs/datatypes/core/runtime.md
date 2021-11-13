@@ -198,13 +198,13 @@ val program: ZIO[Console, Throwable, Unit] =
     _ <- putStrLn("Thank you for " + a)
   } yield ()
 
-val diagnosticsLayer: ZLayer[ZEnv, Throwable, Has[Diagnostics]] =
+val diagnosticsServiceBuilder: ZServiceBuilder[ZEnv, Throwable, Has[Diagnostics]] =
   Diagnostics.make("localhost", 1111)
 
 val runtime: Runtime[ZEnv] =
   Runtime.default.mapRuntimeConfig(_.withSupervisor(ZMXSupervisor))
 
-runtime.unsafeRun(program.provideCustomLayer(diagnosticsLayer))
+runtime.unsafeRun(program.provideCustomServices(diagnosticsServiceBuilder))
 ```
 
 ### User-defined Executor

@@ -23,7 +23,7 @@ object ScheduleSpec extends ZIOBaseSpec {
    *     success)
    *   - both first time and retry fail (one retry, result failure)
    */
-  def spec: ZSpec[Environment, Failure] = suite("ScheduleSpec")(
+  def spec = suite("ScheduleSpec")(
     suite("Repeat on success according to a provided strategy")(
       test("for 'recurs(a negative number)' repeats 0 additional time") {
         // A repeat with a negative number of times should not repeat the action at all
@@ -722,6 +722,6 @@ object ScheduleSpec extends ZIOBaseSpec {
 
   object Logging {
     trait Service
-    val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
+    val live: ZServiceBuilder[Any, Nothing, Logging] = ZServiceBuilder.succeed(new Logging.Service {})
   }
 }

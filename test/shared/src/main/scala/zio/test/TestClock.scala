@@ -365,7 +365,9 @@ object TestClock extends Serializable {
    */
   def live(
     data: Data
-  )(implicit trace: ZTraceElement): ZLayer[Has[Annotations] with Has[Live], Nothing, Has[Clock] with Has[TestClock]] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[Has[Annotations] with Has[Live], Nothing, Has[Clock] with Has[TestClock]] = {
     for {
       live                  <- ZManaged.service[Live]
       annotations           <- ZManaged.service[Annotations]
@@ -378,14 +380,14 @@ object TestClock extends Serializable {
             test.warningDone *> test.suspendedWarningDone
         }
     } yield Has.allOf(test: Clock, test: TestClock)
-  }.toLayerMany
+  }.toServiceBuilderMany
 
   //    case class FooLive(int: Int, string: String)
 
-  val any: ZLayer[Has[Clock] with Has[TestClock], Nothing, Has[Clock] with Has[TestClock]] =
-    ZLayer.environment[Has[Clock] with Has[TestClock]](Tracer.newTrace)
+  val any: ZServiceBuilder[Has[Clock] with Has[TestClock], Nothing, Has[Clock] with Has[TestClock]] =
+    ZServiceBuilder.environment[Has[Clock] with Has[TestClock]](Tracer.newTrace)
 
-  val default: ZLayer[Has[Live] with Has[Annotations], Nothing, Has[Clock] with Has[TestClock]] =
+  val default: ZServiceBuilder[Has[Live] with Has[Annotations], Nothing, Has[Clock] with Has[TestClock]] =
     live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))(Tracer.newTrace)
 
   /**

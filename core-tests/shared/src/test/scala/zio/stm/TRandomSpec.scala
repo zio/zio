@@ -2,7 +2,7 @@ package zio.stm
 
 import zio.stm.TRandom._
 import zio.test.Assertion.{isGreaterThanEqualTo, isLessThan}
-import zio.test.{Gen, ZSpec, assert, check}
+import zio.test._
 import zio.{Has, Random, ZIOBaseSpec}
 
 object TRandomSpec extends ZIOBaseSpec {
@@ -13,7 +13,7 @@ object TRandomSpec extends ZIOBaseSpec {
   implicit val FloatOrdering: Ordering[Float] =
     (l, r) => java.lang.Float.compare(l, r)
 
-  def spec: ZSpec[Environment, Failure] = suite("TRandomSpec")(
+  def spec = suite("TRandomSpec")(
     test("nextDoubleBetween generates doubles in specified range") {
       check(genDoubles) { case (min, max) =>
         for {
@@ -46,7 +46,7 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     }
-  ).provideCustomLayer(TRandom.live)
+  ).provideCustomServices(TRandom.live)
 
   val genDoubles: Gen[Has[Random], (Double, Double)] =
     for {

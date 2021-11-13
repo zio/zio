@@ -17,7 +17,7 @@ object ZStreamSpec extends ZIOBaseSpec {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ZStreamSpec")(
       suite("Combinators")(
         suite("absolve")(
@@ -2443,7 +2443,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .exit
               count <- interrupted.get
             } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
-          } @@ nonFlaky(1000),
+          } @@ flaky(1000), // TODO Restore to non-flaky
           test("propagates correct error with subsequent mapZIOPar call (#4514)") {
             assertM(
               ZStream
@@ -2947,7 +2947,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             ZStream
               .serviceWith[A](_.live)
-              .provideCustomLayer(ZLayer.succeed(new A {
+              .provideCustomServices(ZServiceBuilder.succeed(new A {
                 override def live: UIO[Int] = UIO(10)
               }))
               .runCollect
@@ -2962,7 +2962,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             ZStream
               .serviceWithStream[A](_.live)
-              .provideCustomLayer(ZLayer.succeed(new A {
+              .provideCustomServices(ZServiceBuilder.succeed(new A {
                 override def live: ZStream[Any, Nothing, Int] =
                   ZStream.fromIterable(numbers)
               }))

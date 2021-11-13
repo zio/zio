@@ -3,7 +3,7 @@ package zio
 import zio.test._
 
 object ZIOAppSpec extends ZIOBaseSpec {
-  def spec: ZSpec[Environment, Failure] = suite("ZIOAppSpec")(
+  def spec = suite("ZIOAppSpec")(
     test("fromZIO") {
       for {
         ref <- Ref.make(0)

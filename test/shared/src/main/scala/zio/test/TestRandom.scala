@@ -717,31 +717,31 @@ object TestRandom extends Serializable {
    * useful for providing the required environment to an effect that requires a
    * `Random`, such as with `ZIO#provide`.
    */
-  def make(data: Data): Layer[Nothing, Has[Random] with Has[TestRandom]] = {
+  def make(data: Data): ServiceBuilder[Nothing, Has[Random] with Has[TestRandom]] = {
     implicit val trace = Tracer.newTrace
     (for {
       data   <- Ref.make(data)
       buffer <- Ref.make(Buffer())
       test    = Test(data, buffer)
-    } yield Has.allOf[Random, TestRandom](test, test)).toLayerMany
+    } yield Has.allOf[Random, TestRandom](test, test)).toServiceBuilderMany
   }
 
-  val any: ZLayer[Has[Random] with Has[TestRandom], Nothing, Has[Random] with Has[TestRandom]] =
-    ZLayer.environment[Has[Random] with Has[TestRandom]](Tracer.newTrace)
+  val any: ZServiceBuilder[Has[Random] with Has[TestRandom], Nothing, Has[Random] with Has[TestRandom]] =
+    ZServiceBuilder.environment[Has[Random] with Has[TestRandom]](Tracer.newTrace)
 
-  val deterministic: Layer[Nothing, Has[Random] with Has[TestRandom]] =
+  val deterministic: ServiceBuilder[Nothing, Has[Random] with Has[TestRandom]] =
     make(DefaultData)
 
-  val random: ZLayer[Has[Clock], Nothing, Has[Random] with Has[TestRandom]] = {
+  val random: ZServiceBuilder[Has[Clock], Nothing, Has[Random] with Has[TestRandom]] = {
     implicit val trace = Tracer.newTrace
-    (ZLayer.service[Clock] ++ deterministic) >>> {
+    (ZServiceBuilder.service[Clock] ++ deterministic) >>> {
       for {
         random     <- ZIO.service[Random]
         testRandom <- ZIO.service[TestRandom]
         time       <- Clock.nanoTime
         _          <- TestRandom.setSeed(time)
       } yield Has.allOf[Random, TestRandom](random, testRandom)
-    }.toLayerMany
+    }.toServiceBuilderMany
   }
 
   /**

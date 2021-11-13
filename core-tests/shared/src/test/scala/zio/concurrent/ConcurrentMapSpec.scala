@@ -5,7 +5,7 @@ import zio.test._
 import zio.test.Assertion._
 
 object ConcurrentMapSpec extends ZIOBaseSpec {
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ConcurrentMap")(
       suite("collectFirst")(
         test("returns Some of first result for which the partial function is defined") {

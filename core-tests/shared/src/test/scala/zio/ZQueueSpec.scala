@@ -10,7 +10,7 @@ import scala.collection.immutable.Range
 object ZQueueSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZQueueSpec")(
+  def spec = suite("ZQueueSpec")(
     test("sequential offer and take") {
       for {
         queue <- Queue.bounded[Int](100)

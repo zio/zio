@@ -1,7 +1,7 @@
 package zio.stream
 
-import zio.{ZLayer, ZEnv}
-import zio.internal.macros.LayerMacros
+import zio.{ZServiceBuilder, ZEnv}
+import zio.internal.macros.ServiceBuilderMacros
 
 trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
   /**
@@ -11,29 +11,30 @@ trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
    *
    * {{{
    * val stream: ZStream[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
+   * val oldLadyServiceBuilder: ZServiceBuilder[Fly, Nothing, OldLady] = ???
+   * val flyServiceBuilder: ZServiceBuilder[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to stream
-   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.injectCustom(oldLadyLayer, flyLayer)
+   * // The ZEnv you use later will provide both Blocking to flyServiceBuilder and Console to stream
+   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.injectCustom(oldLadyServiceBuilder, flyServiceBuilder)
    * }}}
    */
-  inline def injectCustom[E1 >: E](inline layers: ZLayer[_,E1,_]*): ZStream[ZEnv, E1, O] =
-    ${ZStreamProvideMacro.injectImpl[ZEnv, R, E1, O]('self, 'layers)}
+  inline def injectCustom[E1 >: E](inline serviceBuilder: ZServiceBuilder[_,E1,_]*): ZStream[ZEnv, E1, O] =
+    ${ZStreamProvideMacro.injectImpl[ZEnv, R, E1, O]('self, 'serviceBuilder)}
 
   /**
-   * Automatically assembles a layer for the ZStream effect, which translates it to another level.
+   * Automatically assembles a service builder for the ZStream effect,
+   * which translates it to another level.
    */
-  inline def inject[E1 >: E](inline layers: ZLayer[_,E1,_]*): ZStream[Any, E1, O] =
-    ${ZStreamProvideMacro.injectImpl[Any, R, E1, O]('self, 'layers)}
+  inline def inject[E1 >: E](inline serviceBuilder: ZServiceBuilder[_,E1,_]*): ZStream[Any, E1, O] =
+    ${ZStreamProvideMacro.injectImpl[Any, R, E1, O]('self, 'serviceBuilder)}
 
 }
 
 object ZStreamProvideMacro {
   import scala.quoted._
 
-  def injectImpl[R0: Type, R: Type, E: Type, A: Type](zstream: Expr[ZStream[R,E,A]], layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZStream[R0,E,A]] = {
-    val layerExpr = LayerMacros.fromAutoImpl[R0, R, E](layers)
-    '{$zstream.provideLayer($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
+  def injectImpl[R0: Type, R: Type, E: Type, A: Type](zstream: Expr[ZStream[R,E,A]], serviceBuilder: Expr[Seq[ZServiceBuilder[_,E,_]]])(using Quotes): Expr[ZStream[R0,E,A]] = {
+    val serviceBuilderExpr = ServiceBuilderMacros.fromAutoImpl[R0, R, E](serviceBuilder)
+    '{$zstream.provideServices($serviceBuilderExpr.asInstanceOf[ZServiceBuilder[R0,E,R]])}
   }
 }

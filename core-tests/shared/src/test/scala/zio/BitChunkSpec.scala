@@ -16,7 +16,7 @@ object BitChunkSpec extends ZIOBaseSpec {
   def toBinaryString(byte: Byte): String =
     String.format("%8s", (byte.toInt & 0xff).toBinaryString).replace(' ', '0')
 
-  def spec: ZSpec[Environment, Failure] = suite("BitChunkSpec")(
+  def spec = suite("BitChunkSpec")(
     test("drop") {
       check(genByteChunk, genInt) { (bytes, n) =>
         val actual   = bytes.asBits.drop(n).toBinaryString

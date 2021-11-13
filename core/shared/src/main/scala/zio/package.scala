@@ -20,32 +20,12 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 package object zio
     extends BuildFromCompat
     with EitherCompat
-    with FunctionToLayerOps
+    with FunctionToServiceBuilderOps
     with IntersectionTypeCompat
     with VersionSpecific
     with DurationModule {
 
   type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
-
-  object ZEnv {
-
-    private[zio] object Services {
-      val live: ZEnv =
-        Has.allOf[Clock, Console, System, Random](
-          Clock.ClockLive,
-          Console.ConsoleLive,
-          System.SystemLive,
-          Random.RandomLive
-        )
-    }
-
-    val any: ZLayer[ZEnv, Nothing, ZEnv] = {
-      ZLayer.environment[ZEnv](Tracer.newTrace)
-    }
-
-    val live: Layer[Nothing, ZEnv] =
-      Clock.live ++ Console.live ++ System.live ++ Random.live
-  }
 
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
@@ -65,11 +45,27 @@ package object zio
 
   val Managed: ZManaged.type = ZManaged
 
-  type RLayer[-RIn, +ROut]  = ZLayer[RIn, Throwable, ROut]
-  type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]
-  type Layer[+E, +ROut]     = ZLayer[Any, E, ROut]
-  type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
-  type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
+  type RServiceBuilder[-RIn, +ROut]  = ZServiceBuilder[RIn, Throwable, ROut]
+  type URServiceBuilder[-RIn, +ROut] = ZServiceBuilder[RIn, Nothing, ROut]
+  type ServiceBuilder[+E, +ROut]     = ZServiceBuilder[Any, E, ROut]
+  type UServiceBuilder[+ROut]        = ZServiceBuilder[Any, Nothing, ROut]
+  type TaskServiceBuilder[+ROut]     = ZServiceBuilder[Any, Throwable, ROut]
+
+  @deprecated("use ZServiceBuilder", "2.0.0")
+  type ZLayer[-RIn, +E, +ROut] = ZServiceBuilder[RIn, E, ROut]
+  @deprecated("use ZServiceBuilder", "2.0.0")
+  val ZLayer: ZServiceBuilder.type = ZServiceBuilder
+
+  @deprecated("use RServiceBuilder", "2.0.0")
+  type RLayer[-RIn, +ROut] = ZServiceBuilder[RIn, Throwable, ROut]
+  @deprecated("use URServiceBuilder", "2.0.0")
+  type URLayer[-RIn, +ROut] = ZServiceBuilder[RIn, Nothing, ROut]
+  @deprecated("use ServiceBuilder", "2.0.0")
+  type Layer[+E, +ROut] = ZServiceBuilder[Any, E, ROut]
+  @deprecated("use UServiceBuilder", "2.0.0")
+  type ULayer[+ROut] = ZServiceBuilder[Any, Nothing, ROut]
+  @deprecated("use TaskServiceBuilder", "2.0.0")
+  type TaskLayer[+ROut] = ZServiceBuilder[Any, Throwable, ROut]
 
   type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
   val Queue: ZQueue.type = ZQueue

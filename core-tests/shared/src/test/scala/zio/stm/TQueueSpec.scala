@@ -6,7 +6,7 @@ import zio.test._
 
 object TQueueSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("TQueue")(
+  def spec = suite("TQueue")(
     suite("factories")(
       test("bounded") {
         val capacity = 5
