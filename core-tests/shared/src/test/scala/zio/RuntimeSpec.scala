@@ -1,6 +1,7 @@
 package zio
 
 import zio.test._
+import zio.test.TestAspect._
 
 object RuntimeSpec extends ZIOBaseSpec {
   val r = Runtime.default
@@ -47,7 +48,7 @@ object RuntimeSpec extends ZIOBaseSpec {
           } yield assertTrue(
             trace.exists(_.contains("foo")) && trace.exists(_.contains("bar")) && trace.exists(_.contains("buz"))
           )
-        }
+        } @@ jvmOnly
       } +
       suite("traces") {
         test("depth of 2") {
