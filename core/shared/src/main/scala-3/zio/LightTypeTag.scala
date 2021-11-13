@@ -11,11 +11,9 @@ enum LightTypeTag {
   }
 
   def getHasTypes: List[LightTypeTag] = 
-    flattenIntersection.map { tpe =>
-      tpe match {
-        case Apply(_, List(tpe)) => tpe
-        case other => other
-      }
+    flattenIntersection.map {
+      case Apply(_, List(tpe)) => tpe
+      case other => other
     }
   
   def flattenIntersection: List[LightTypeTag] = 

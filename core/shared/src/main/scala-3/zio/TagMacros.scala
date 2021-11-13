@@ -31,15 +31,28 @@ class Macros(val ctx: Quotes) {
       }
     }
 
-  def summonTag[A: Type]: Expr[Tag[A]] = {
-    val tag0 = makeTag(TypeRepr.of[A].widen)
-    '{
-      Tag($tag0)
-    }
- }
+    def summonTag[A: Type]: Expr[Tag[A]] = {
+      val tag0 = makeTag(TypeRepr.of[A].widen)
+      '{
+        Tag($tag0)
+      }
+   }
 
- val nothingTypeRepr = TypeRepr.of[Nothing]
- val anyTypeRepr = TypeRepr.of[Any]
+  val nothingTypeRepr = TypeRepr.of[Nothing]
+  val anyTypeRepr = TypeRepr.of[Any]
+
+  object TypeVariable {
+    def unapply(tpe: TypeRepr): Option[TypeRepr] = tpe match {
+      case x @ TypeRef(_, _) if x.typeSymbol.isAbstractType =>
+        x.asType match {
+          case '[a] =>
+        Some(x)
+          case _ =>
+            None
+        }
+      case _ => None
+    }
+  }
 
   def makeTag(typeRepr0: TypeRepr)(using seen: Set[TypeRepr] = Set.empty): Expr[LightTypeTag] = {
     val typeRepr = typeRepr0.widen.dealias
@@ -48,20 +61,6 @@ class Macros(val ctx: Quotes) {
     if (seen.contains(typeRepr)) {
       return '{ LightTypeTag.Recursive(${Expr(typeRepr.show)}) }
     }
-
-    object TypeVariable {
-      def unapply(tpe: TypeRepr): Option[TypeRepr] = tpe match {
-        case x @ TypeRef(_, _) if x.typeSymbol.isAbstractType =>
-        x.asType match { 
-          case '[a] =>
-            Some(x)
-          case _ =>
-            None
-        }
-        case _ => None
-      }
-    }
-
 
     typeRepr match {
       case `nothingTypeRepr` => '{ LightTypeTag.NothingType }

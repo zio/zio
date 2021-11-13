@@ -3,7 +3,6 @@ package zio
 import scala.quoted.*
 
 case class Tag[A](tag: LightTypeTag) {
-  override def toString = tag.toString
   def render: String    = tag.render
 }
 
