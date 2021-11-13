@@ -47,7 +47,39 @@ package object clock {
 
     object Service {
 
-      val live: Service = new ClockJava(java.time.Clock.systemDefaultZone())
+      val live: Service = new Service {
+        def currentTime(unit: TimeUnit): UIO[Long] =
+          instant.map { inst =>
+            // A nicer solution without loss of precision or range would be
+            // unit.toChronoUnit.between(Instant.EPOCH, inst)
+            // However, ChronoUnit is not available on all platforms
+            unit match {
+              case TimeUnit.NANOSECONDS =>
+                inst.getEpochSecond() * 1000000000 + inst.getNano()
+              case TimeUnit.MICROSECONDS =>
+                inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
+              case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
+            }
+          }
+
+        val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
+
+        def sleep(duration: Duration): UIO[Unit] =
+          UIO.effectAsyncInterrupt { cb =>
+            val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+            Left(UIO.effectTotal(canceler()))
+          }
+
+        def currentDateTime: IO[DateTimeException, OffsetDateTime] =
+          ZIO.effectTotal(OffsetDateTime.now())
+
+        override def instant: zio.UIO[Instant] =
+          ZIO.effectTotal(Instant.now())
+
+        override def localDateTime: zio.IO[DateTimeException, LocalDateTime] =
+          ZIO.effectTotal(LocalDateTime.now())
+
+      }
 
       def javaClock(clock: java.time.Clock): Service = new ClockJava(clock)
     }
