@@ -39,14 +39,14 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {
     implicit val trace = Tracer.newTrace
-    runSpec.provideSomeDeps[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ deps)
+    runSpec.provideSomeService[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ serviceBuilder)
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      def deps: ZDeps[Has[ZIOAppArgs], Any, Environment] =
-        self.deps +!+ that.deps
+      def serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, Environment] =
+        self.serviceBuilder +!+ that.serviceBuilder
       override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
@@ -103,15 +103,17 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       env <- ZIO.environment[Environment with TestEnvironment with Has[ZIOAppArgs]]
       runner =
         TestRunner(
-          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](ZDeps.succeedMany(env))
+          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](
+            ZServiceBuilder.succeedMany(env)
+          )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideDeps(runner.bootstrap)
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideService(runner.bootstrap)
       _ <- TestLogger
              .logLine(SummaryBuilder.buildSummary(results).summary)
              .when(testArgs.printSummary)
-             .provideDeps(runner.bootstrap)
+             .provideService(runner.bootstrap)
     } yield results
   }
 }

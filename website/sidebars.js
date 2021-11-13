@@ -44,12 +44,12 @@ module.exports = {
             type: "category",
             label: "ZIO Dependencies",
             items: [
-                "datatypes/contextual/zdeps",
-                "datatypes/contextual/rdeps",
-                "datatypes/contextual/udeps",
-                "datatypes/contextual/deps",
-                "datatypes/contextual/urdeps",
-                "datatypes/contextual/taskdeps"
+                "datatypes/contextual/zservicebuilder",
+                "datatypes/contextual/rservicebuilder",
+                "datatypes/contextual/uservicebuilder",
+                "datatypes/contextual/servicebuilder",
+                "datatypes/contextual/urservicebuilder",
+                "datatypes/contextual/taskservicebuilder"
             ]
         },
         {

@@ -40,7 +40,7 @@ trait ZIOAppDefault extends ZIOApp {
 
   type Environment = ZEnv
 
-  val deps: ZDeps[Has[ZIOAppArgs], Any, ZEnv] = ZEnv.live
+  val serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, ZEnv] = ZEnv.live
 
   val tag: Tag[ZEnv] = Tag[ZEnv]
 }

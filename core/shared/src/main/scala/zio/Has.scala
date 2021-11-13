@@ -53,11 +53,11 @@ object Has {
   type MustHave[A, B] = A <:< Has[B]
 
   @implicitNotFound(
-    "Currently, your ZDeps produces ${R}, but to use this operator, you " +
-      "must produce Has[${R}]. You can either map over your dependencies, " +
-      "and wrap it with the Has(_) constructor, or you can directly wrap " +
-      "your service in Has at the point where it is currently being " +
-      "constructed."
+    "Currently, your ZServiceBuilder produces ${R}, but to use this " +
+      "operator, you must produce Has[${R}]. You can either map over your " +
+      "service builder, and wrap it with the Has(_) constructor, or you can " +
+      "directly wrap your service in Has at the point where it is currently " +
+      "being constructed."
   )
   abstract class IsHas[-R] {
     def add[R0 <: R, M: Tag](r: R0, m: M): R0 with Has[M]
@@ -77,11 +77,11 @@ object Has {
   }
 
   @implicitNotFound(
-    "The ZDeps operator you are trying to use needs to combine multiple " +
-      "services. While services cannot directly be combined, they can be " +
-      "combined if first wrapped in the Has data type. Before you use this " +
-      "operator, you must ensure the service produced by your dependencies " +
-      "is wrapped in Has."
+    "The ZServiceBuilder operator you are trying to use needs to combine " +
+    "multiple services. While services cannot directly be combined, they " +
+    "can be combined if first wrapped in the Has data type. Before you use " +
+    "this operator, you must ensure the service produced by your service " +
+    "builder is wrapped in Has."
   )
   abstract class Union[R, R1] {
     def union(r: R, r1: R1): R with R1
@@ -118,11 +118,11 @@ object Has {
   }
 
   @implicitNotFound(
-    "The ZDeps operator you are trying to use needs to combine multiple " +
+    "The ZServiceBuilder operator you are trying to use needs to combine multiple " +
       "services. While services cannot directly be combined, they can be " +
       "combined if first wrapped in the Has data type. Before you use this " +
-      "operator, you must ensure the service produced by your dependencies " +
-      "is wrapped in Has."
+      "operator, you must ensure the service produced by your service " +
+      "builder is wrapped in Has."
   )
   abstract class UnionAll[R, R1] {
     def unionAll(r: R, r1: R1): R with R1

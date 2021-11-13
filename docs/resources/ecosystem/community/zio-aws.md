@@ -11,8 +11,8 @@ The goal is to have access to all AWS functionality for cases when only simple, 
 
 Key features of ZIO AWS:
 
-- Common configuration dependency
-- ZIO module dependecy per AWS service
+- Common configuration service builder
+- ZIO module service builder per AWS service
 - Wrapper for all operations on all services
 - HTTP service implementations for functional Scala HTTP libraries, injected through ZIO’s module system
 - ZStream wrapper around paginated operations
@@ -131,7 +131,7 @@ object ZIOAWSExample extends zio.App {
     val aws        = awsConfig >>> (ec2.live ++ elasticbeanstalk.live)
 
     program
-      .provideCustomDeps(aws)
+      .provideCustomService(aws)
       .either
       .flatMap {
         case Left(error) =>

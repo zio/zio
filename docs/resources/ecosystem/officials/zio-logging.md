@@ -83,7 +83,7 @@ object ZIOLoggingExample extends zio.App {
     ) >>> Logging.withRootLoggerName("MyZIOApp")
 
   override def run(args: List[String]) =
-    myApp.provideCustomDeps(env).as(ExitCode.success)
+    myApp.provideCustomService(env).as(ExitCode.success)
 }
 ```
 

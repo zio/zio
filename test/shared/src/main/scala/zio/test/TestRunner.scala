@@ -31,7 +31,7 @@ final case class TestRunner[R, E](
   runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] =
     DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
-  bootstrap: Deps[Nothing, Has[TestLogger] with Has[Clock]] =
+  bootstrap: ServiceBuilder[Nothing, Has[TestLogger] with Has[Clock]] =
     (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(ZTraceElement.empty)) ++ Clock.live
 ) { self =>
 
@@ -51,7 +51,7 @@ final case class TestRunner[R, E](
   def unsafeRun(
     spec: ZSpec[R, E]
   )(implicit trace: ZTraceElement): ExecutedSpec[E] =
-    runtime.unsafeRun(run(spec).provideDeps(bootstrap))
+    runtime.unsafeRun(run(spec).provideService(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
@@ -61,7 +61,7 @@ final case class TestRunner[R, E](
   )(
     k: ExecutedSpec[E] => Unit
   )(implicit trace: ZTraceElement): Unit =
-    runtime.unsafeRunAsyncWith(run(spec).provideDeps(bootstrap)) {
+    runtime.unsafeRunAsyncWith(run(spec).provideService(bootstrap)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -72,7 +72,7 @@ final case class TestRunner[R, E](
   def unsafeRunSync(
     spec: ZSpec[R, E]
   )(implicit trace: ZTraceElement): Exit[Nothing, ExecutedSpec[E]] =
-    runtime.unsafeRunSync(run(spec).provideDeps(bootstrap))
+    runtime.unsafeRunSync(run(spec).provideService(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the platform

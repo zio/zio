@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.DepsMacros
+import zio.internal.macros.ServiceBuilderMacros
 
 private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
 
@@ -28,60 +28,61 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
    *
    * {{{
    * val managed: ZManaged[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyDeps: ZDeps[Fly, Nothing, OldLady] = ???
-   * val flyDeps: ZDeps[Blocking, Nothing, Fly] = ???
+   * val oldLadyServiceBuilder: ZServiceBuilder[Fly, Nothing, OldLady] = ???
+   * val flyServiceBuilder: ZServiceBuilder[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyDeps and Console to managed
-   * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.injectCustom(oldLadyDeps, flyDeps)
+   * // The ZEnv you use later will provide both Blocking to flyServiceBuilder and Console to managed
+   * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.injectCustom(oldLadyServiceBuilder, flyServiceBuilder)
    * }}}
    */
-  def injectCustom[E1 >: E](deps: ZDeps[_, E1, _]*): ZManaged[ZEnv, E1, A] =
-    macro DepsMacros.injectSomeImpl[ZManaged, ZEnv, R, E1, A]
+  def injectCustom[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[ZEnv, E1, A] =
+    macro ServiceBuilderMacros.injectSomeImpl[ZManaged, ZEnv, R, E1, A]
 
   /**
    * Splits the environment into two parts, assembling one part using the
-   * specified set of dependencies and leaving the remainder `R0`.
+   * specified service builder and leaving the remainder `R0`.
    *
    * {{{
-   * val clockDeps: ZDeps[Any, Nothing, Clock] = ???
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
    *
    * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
    *
-   * val managed2 = managed.injectSome[Random](clockDeps)
+   * val managed2 = managed.injectSome[Random](clockServiceBuilder)
    * }}}
    */
-  def injectSome[R0 <: Has[_]]: ProvideSomeDepsManagedPartiallyApplied[R0, R, E, A] =
-    new ProvideSomeDepsManagedPartiallyApplied[R0, R, E, A](self)
+  def injectSome[R0 <: Has[_]]: ProvideSomeServiceBuilderManagedPartiallyApplied[R0, R, E, A] =
+    new ProvideSomeServiceBuilderManagedPartiallyApplied[R0, R, E, A](self)
 
   /**
-   * Automatically assembles a set of dependencies for the ZManaged effect.
+   * Automatically assembles a service builder for the ZManaged effect.
    */
-  def inject[E1 >: E](deps: ZDeps[_, E1, _]*): ZManaged[Any, E1, A] =
-    macro DepsMacros.injectImpl[ZManaged, R, E1, A]
+  def inject[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[Any, E1, A] =
+    macro ServiceBuilderMacros.injectImpl[ZManaged, R, E1, A]
 
 }
 
-private final class ProvideSomeDepsManagedPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZManaged[R, E, A])
-    extends AnyVal {
+private final class ProvideSomeServiceBuilderManagedPartiallyApplied[R0 <: Has[_], -R, +E, +A](
+  val self: ZManaged[R, E, A]
+) extends AnyVal {
 
-  def provideDeps[E1 >: E, R1](
-    deps: ZDeps[R0, E1, R1]
+  def provideService[E1 >: E, R1](
+    serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    self.provideDeps(deps)
+    self.provideService(serviceBuilder)
 
-  @deprecated("use provideDeps", "2.0.0")
+  @deprecated("use provideService", "2.0.0")
   def provideLayer[E1 >: E, R1](
-    layer: ZDeps[R0, E1, R1]
+    layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    provideDeps(layer)
+    provideService(layer)
 
-  def provideSomeDeps[R0 <: Has[_]]: ZManaged.ProvideSomeDeps[R0, R, E, A] =
-    new ZManaged.ProvideSomeDeps[R0, R, E, A](self)
+  def provideSomeService[R0 <: Has[_]]: ZManaged.ProvideSomeServiceBuilder[R0, R, E, A] =
+    new ZManaged.ProvideSomeServiceBuilder[R0, R, E, A](self)
 
-  @deprecated("use provideSomeDeps", "2.0.0")
-  def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeDeps[R0, R, E, A] =
-    provideSomeDeps
+  @deprecated("use provideSomeService", "2.0.0")
+  def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeServiceBuilder[R0, R, E, A] =
+    provideSomeService
 
-  def apply[E1 >: E](deps: ZDeps[_, E1, _]*): ZManaged[R0, E1, A] =
-    macro DepsMacros.injectSomeImpl[ZManaged, R0, R, E1, A]
+  def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[R0, E1, A] =
+    macro ServiceBuilderMacros.injectSomeImpl[ZManaged, R0, R, E1, A]
 }

@@ -1,23 +1,23 @@
 package zio.test
 
 import zio._
-import zio.internal.macros.DepsMacroUtils
+import zio.internal.macros.ServiceBuilderMacroUtils
 
 import scala.reflect.macros.blackbox
 
-class SpecDepsMacros(val c: blackbox.Context) extends DepsMacroUtils {
+class SpecServiceBuilderMacros(val c: blackbox.Context) extends ServiceBuilderMacroUtils {
   def injectSharedImpl[R: c.WeakTypeTag, E, A](
-    deps: c.Expr[ZDeps[_, E, _]]*
+    serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[Spec[Any, E, A]] =
-    injectBaseImpl[Spec, Any, R, E, A](deps, "provideDepsShared")
+    injectBaseImpl[Spec, Any, R, E, A](serviceBuilder, "provideServiceShared")
 
   def injectCustomSharedImpl[R: c.WeakTypeTag, E, A](
-    deps: c.Expr[ZDeps[_, E, _]]*
+    serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[Spec[TestEnvironment, E, A]] =
-    injectBaseImpl[Spec, TestEnvironment, R, E, A](deps, "provideDepsShared")
+    injectBaseImpl[Spec, TestEnvironment, R, E, A](serviceBuilder, "provideServiceShared")
 
   def injectSomeSharedImpl[R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
-    deps: c.Expr[ZDeps[_, E, _]]*
+    serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[Spec[R0, E, A]] =
-    injectBaseImpl[Spec, R0, R, E, A](deps, "provideDepsShared")
+    injectBaseImpl[Spec, R0, R, E, A](serviceBuilder, "provideServiceShared")
 }

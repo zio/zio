@@ -1,8 +1,8 @@
 package zio.autowire
 
-import zio.{Has, Tag, UIO, ZIO, ZDeps}
+import zio.{Has, Tag, UIO, ZIO, ZServiceBuilder}
 import zio.test._
-import zio.UDeps
+import zio.UServiceBuilder
 
 // https://github.com/kitlangton/zio-magic/issues/76
 object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
@@ -23,7 +23,7 @@ object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
     }.inject(ParameterizedServiceWithTypeAlias.live),
     test("compile using the type directly if not using wire macro") {
       ParameterizedService.something[Has[String]].as(assertCompletes)
-    }.provideDeps(ParameterizedServiceWithTypeAlias.live)
+    }.provideService(ParameterizedServiceWithTypeAlias.live)
   ) @@ TestAspect.exceptDotty
 
   trait ParameterizedService[A] {
@@ -38,15 +38,17 @@ object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
   object ParameterizedServiceWithTypeAlias {
     type Alias = Has[String]
 
-    val live: UDeps[Has[ParameterizedService[Alias]]] = ZDeps.succeed(new ParameterizedService[Alias] {
-      override def something: UIO[Unit] = ZIO.unit
-    })
+    val live: UServiceBuilder[Has[ParameterizedService[Alias]]] =
+      ZServiceBuilder.succeed(new ParameterizedService[Alias] {
+        override def something: UIO[Unit] = ZIO.unit
+      })
   }
 
   object ParameterisedServiceWithoutTypeAlias {
-    val live: UDeps[Has[ParameterizedService[Has[String]]]] = ZDeps.succeed(new ParameterizedService[Has[String]] {
-      override def something: UIO[Unit] = ZIO.unit
-    })
+    val live: UServiceBuilder[Has[ParameterizedService[Has[String]]]] =
+      ZServiceBuilder.succeed(new ParameterizedService[Has[String]] {
+        override def something: UIO[Unit] = ZIO.unit
+      })
   }
 
 }

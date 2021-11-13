@@ -15,12 +15,12 @@ trait JvmMetrics { self =>
   def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock] with Has[System], Throwable, Feature]
 
   /**
-   * A set of dependencies that when constructed forks a fiber that periodically
+   * Service builder that when constructed forks a fiber that periodically
    * updates the JVM metrics
    */
-  lazy val live: ZDeps[Has[Clock] with Has[System], Throwable, Has[Feature]] = {
+  lazy val live: ZServiceBuilder[Has[Clock] with Has[System], Throwable, Has[Feature]] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    collectMetrics.toDeps(featureTag, trace)
+    collectMetrics.toServiceBuilder(featureTag, trace)
   }
 
   /** A ZIO application that periodically updates the JVM metrics */
@@ -29,7 +29,7 @@ trait JvmMetrics { self =>
     private implicit val trace: ZTraceElement           = Tracer.newTrace
     override val tag: Tag[Environment]                  = Tag[Environment]
     override type Environment = Has[Clock] with Has[System] with Has[Feature]
-    override val deps: ZDeps[Has[ZIOAppArgs], Any, Environment] = {
+    override val serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, Environment] = {
       Clock.live ++ System.live >+> live
     }
     override def run: ZIO[Environment with Has[ZIOAppArgs], Any, Any] = ZIO.unit

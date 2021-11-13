@@ -16,7 +16,7 @@
 
 package zio.test.mock
 
-import zio.{Has, IO, System, UIO, URDeps, ZIO, ZTraceElement}
+import zio.{Has, IO, System, UIO, URServiceBuilder, ZIO, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -32,7 +32,7 @@ object MockSystem extends Mock[Has[System]] {
   object PropertyOrOption extends Effect[(String, Option[String]), Throwable, Option[String]]
   object LineSeparator    extends Effect[Unit, Nothing, String]
 
-  val compose: URDeps[Has[Proxy], Has[System]] = {
+  val compose: URServiceBuilder[Has[Proxy], Has[System]] = {
     implicit val trace = Tracer.newTrace
     ZIO
       .service[Proxy]
@@ -65,6 +65,6 @@ object MockSystem extends Mock[Has[System]] {
 
         }
       )
-      .toDeps
+      .toServiceBuilder
   }
 }

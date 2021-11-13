@@ -23,12 +23,13 @@ trait DefaultJvmMetrics extends MultipleJvmMetrics {
     )
 
   /**
-   * Set of dependencies that starts collecting the same JVM metrics as the
+   * Service builder that starts collecting the same JVM metrics as the
    * Prometheus Java client's default exporters
    */
-  lazy val live: ZDeps[Has[Clock] with Has[System], Throwable, Has[BufferPools] with Has[ClassLoading] with Has[
-    GarbageCollector
-  ] with Has[MemoryAllocation] with Has[MemoryPools] with Has[Standard] with Has[Thread] with Has[VersionInfo]] = {
+  lazy val live
+    : ZServiceBuilder[Has[Clock] with Has[System], Throwable, Has[BufferPools] with Has[ClassLoading] with Has[
+      GarbageCollector
+    ] with Has[MemoryAllocation] with Has[MemoryPools] with Has[Standard] with Has[Thread] with Has[VersionInfo]] = {
     BufferPools.live ++
       ClassLoading.live ++
       GarbageCollector.live ++

@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{Has, IO, ZEnv, ZIO, ZDeps, ZManaged, ZTraceElement}
+import zio.{Has, IO, ZEnv, ZIO, ZServiceBuilder, ZManaged, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -36,7 +36,7 @@ object Live {
    * live versions of all the standard ZIO environment types but could be useful
    * if you are mixing in interfaces to create your own environment type.
    */
-  def default: ZDeps[ZEnv, Nothing, Has[Live]] = {
+  def default: ZServiceBuilder[ZEnv, Nothing, Has[Live]] = {
     implicit val trace = Tracer.newTrace
     ZManaged
       .access[ZEnv] { zenv =>
@@ -45,7 +45,7 @@ object Live {
             zio.provide(zenv)
         }
       }
-      .toDeps
+      .toServiceBuilder
   }
 
   /**

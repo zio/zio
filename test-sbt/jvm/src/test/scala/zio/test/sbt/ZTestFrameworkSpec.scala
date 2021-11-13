@@ -4,7 +4,7 @@ import sbt.testing._
 import zio.test.Assertion.equalTo
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
-import zio.{Has, ZDeps, ZIO, ZTraceElement, durationInt}
+import zio.{Has, ZServiceBuilder, ZIO, ZTraceElement, durationInt}
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
@@ -24,7 +24,7 @@ object ZTestFrameworkSpec {
     test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
     test("should return summary when done")(testSummary()),
-    test("should use a shared deps without re-initializing it")(testSharedDeps()),
+    test("should use a shared service builder without re-initializing it")(testSharedServiceBuilder()),
     test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
@@ -120,8 +120,8 @@ object ZTestFrameworkSpec {
 
   private val counter = new AtomicInteger(0)
 
-  lazy val sharedDeps: ZDeps[Any, Nothing, Has[Int]] = {
-    ZDeps.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
+  lazy val sharedServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Int]] = {
+    ZServiceBuilder.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
   }
 
   val randomFailure =
@@ -133,9 +133,9 @@ object ZTestFrameworkSpec {
 //      randomFailure
     }
 
-  lazy val spec1UsingSharedDeps = Spec1UsingSharedDeps.getClass.getName
-  object Spec1UsingSharedDeps extends zio.test.ZIOSpec[Has[Int]] {
-    override def deps = sharedDeps
+  lazy val spec1UsingSharedServiceBuilder = Spec1UsingSharedServiceBuilder.getClass.getName
+  object Spec1UsingSharedServiceBuilder extends zio.test.ZIOSpec[Has[Int]] {
+    override def serviceBuilder = sharedServiceBuilder
 
     /*
       TODO
@@ -155,21 +155,21 @@ object ZTestFrameworkSpec {
       ) @@ TestAspect.parallel
   }
 
-  lazy val spec2UsingSharedDeps = Spec2UsingSharedDeps.getClass.getName
-  object Spec2UsingSharedDeps extends zio.test.ZIOSpec[Has[Int]] {
-    override def deps = sharedDeps
+  lazy val spec2UsingSharedServiceBuilder = Spec2UsingSharedServiceBuilder.getClass.getName
+  object Spec2UsingSharedServiceBuilder extends zio.test.ZIOSpec[Has[Int]] {
+    override def serviceBuilder = sharedServiceBuilder
 
     def spec =
-      zio.test.test("test completes with shared deps 2") {
+      zio.test.test("test completes with shared service builder 2") {
         assertCompletes
       }
   }
 
-  def testSharedDeps(): Unit = {
+  def testSharedServiceBuilder(): Unit = {
     val reported = ArrayBuffer[Event]()
 
-//    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedDeps), reported.append(_))
-    loadAndExecuteAll(Seq.fill(2)(spec1UsingSharedDeps), reported.append(_))
+//    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedServiceBuilder), reported.append(_))
+    loadAndExecuteAll(Seq.fill(2)(spec1UsingSharedServiceBuilder), reported.append(_))
 
     assert(counter.get() == 1)
   }

@@ -47,8 +47,8 @@ object EnvironmentSpec extends ZIOBaseSpec {
     },
     test("Random is deterministic") {
       for {
-        i <- Random.nextInt.provideDeps(testEnvironment)
-        j <- Random.nextInt.provideDeps(testEnvironment)
+        i <- Random.nextInt.provideService(testEnvironment)
+        j <- Random.nextInt.provideService(testEnvironment)
       } yield assert(i)(equalTo(j))
     },
     test("System returns an environment variable when it is set") {
@@ -71,7 +71,7 @@ object EnvironmentSpec extends ZIOBaseSpec {
     },
     test("clock service can be overwritten") {
       val withLiveClock = TestEnvironment.live ++ Clock.live
-      val time          = Clock.nanoTime.provideDeps(withLiveClock)
+      val time          = Clock.nanoTime.provideService(withLiveClock)
       assertM(time)(isGreaterThan(0L))
     } @@ nonFlaky
   )

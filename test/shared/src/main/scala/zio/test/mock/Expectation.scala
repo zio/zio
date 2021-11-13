@@ -21,7 +21,7 @@ import zio.test.Assertion
 import zio.test.mock.Expectation.{And, Chain, Exactly, Or, Repeated}
 import zio.test.mock.Result.{Fail, Succeed}
 import zio.test.mock.internal.{ExpectationState, MockException, MockState, ProxyFactory}
-import zio.{Has, IO, Managed, Tag, UDeps, URDeps, ZDeps, ZTraceElement}
+import zio.{Has, IO, Managed, Tag, UServiceBuilder, URServiceBuilder, ZServiceBuilder, ZTraceElement}
 
 import scala.language.implicitConversions
 
@@ -159,15 +159,15 @@ sealed abstract class Expectation[R <: Has[_]: Tag] { self =>
     Repeated(self, range)
 
   /**
-   * Converts this expectation to ZDeps.
+   * Converts this expectation to ZServiceBuilder.
    */
-  def toDeps(implicit trace: ZTraceElement): UDeps[R] = Expectation.toDeps(self)
+  def toServiceBuilder(implicit trace: ZTraceElement): UServiceBuilder[R] = Expectation.toServiceBuilder(self)
 
   /**
-   * Converts this expectation to ZDeps.
+   * Converts this expectation to ZServiceBuilder.
    */
-  @deprecated("use toDeps", "2.0.0")
-  def toLayer(implicit trace: ZTraceElement): UDeps[R] = toDeps
+  @deprecated("use toServiceBuilder", "2.0.0")
+  def toLayer(implicit trace: ZTraceElement): UServiceBuilder[R] = toServiceBuilder
 
   /**
    * Invocations log.
@@ -203,7 +203,7 @@ object Expectation {
 
   private[test] object And {
 
-    def apply[R <: Has[_]: Tag](compose: URDeps[Has[Proxy], R])(children: List[Expectation[_]]): And[R] =
+    def apply[R <: Has[_]: Tag](compose: URServiceBuilder[Has[Proxy], R])(children: List[Expectation[_]]): And[R] =
       And(
         children.asInstanceOf[List[Expectation[R]]],
         if (children.exists(_.state.isFailed)) Unsatisfied else Satisfied,
@@ -254,7 +254,7 @@ object Expectation {
 
   private[test] object Chain {
 
-    def apply[R <: Has[_]: Tag](compose: URDeps[Has[Proxy], R])(children: List[Expectation[_]]): Chain[R] =
+    def apply[R <: Has[_]: Tag](compose: URServiceBuilder[Has[Proxy], R])(children: List[Expectation[_]]): Chain[R] =
       Chain(
         children.asInstanceOf[List[Expectation[R]]],
         if (children.exists(_.state.isFailed)) Unsatisfied else Satisfied,
@@ -291,7 +291,7 @@ object Expectation {
 
   private[test] object Or {
 
-    def apply[R <: Has[_]: Tag](compose: URDeps[Has[Proxy], R])(children: List[Expectation[_]]): Or[R] =
+    def apply[R <: Has[_]: Tag](compose: URServiceBuilder[Has[Proxy], R])(children: List[Expectation[_]]): Or[R] =
       Or(
         children.asInstanceOf[List[Expectation[R]]],
         if (children.exists(_.state == Satisfied)) Satisfied else Unsatisfied,
@@ -389,10 +389,12 @@ object Expectation {
   def valueM[I, A](f: I => IO[Nothing, A]): Succeed[I, A] = Succeed(f)
 
   /**
-   * Implicitly converts Expectation to ZDeps mock environment.
+   * Implicitly converts Expectation to ZServiceBuilder mock environment.
    */
-  implicit def toDeps[R <: Has[_]: Tag](trunk: Expectation[R])(implicit trace: ZTraceElement): UDeps[R] =
-    ZDeps(
+  implicit def toServiceBuilder[R <: Has[_]: Tag](
+    trunk: Expectation[R]
+  )(implicit trace: ZTraceElement): UServiceBuilder[R] =
+    ZServiceBuilder(
       for {
         state <- Managed.acquireReleaseWith(MockState.make(trunk))(MockState.checkUnmetExpectations)
         env   <- (ProxyFactory.mockProxy(state) >>> trunk.mock.compose).build

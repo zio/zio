@@ -33,7 +33,7 @@ object MockClock extends Mock[Has[Clock]] {
   object Scheduler       extends Effect[Unit, Nothing, Scheduler]
   object Sleep           extends Effect[Duration, Nothing, Unit]
 
-  val compose: URDeps[Has[Proxy], Has[Clock]] = {
+  val compose: URServiceBuilder[Has[Proxy], Has[Clock]] = {
     implicit val trace = Tracer.newTrace
     ZIO
       .service[Proxy]
@@ -48,6 +48,6 @@ object MockClock extends Mock[Has[Clock]] {
           def localDateTime(implicit trace: ZTraceElement): zio.UIO[java.time.LocalDateTime] = proxy(LocalDateTime)
         }
       }
-      .toDeps
+      .toServiceBuilder
   }
 }

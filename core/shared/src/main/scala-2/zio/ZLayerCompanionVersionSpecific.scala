@@ -18,43 +18,43 @@ package zio
 
 import zio.internal.macros.{DummyK, WireMacros}
 
-private[zio] trait ZDepsCompanionVersionSpecific {
+private[zio] trait ZServiceBuilderCompanionVersionSpecific {
 
   /**
-   * Automatically assembles a set of dependencies for the provided type.
+   * Automatically assembles a service builder for the provided type.
    *
    * {{{
-   * ZDeps.wire[Car](carDeps, wheelsDeps, engineDeps)
+   * ZServiceBuilder.wire[Car](carServiceBuilder, wheelsServiceBuilder, engineServiceBuilder)
    * }}}
    */
   def wire[R <: Has[_]]: WirePartiallyApplied[R] =
     new WirePartiallyApplied[R]
 
   /**
-   * Automatically constructs a set of dependencies for the provided type `R`,
+   * Automatically constructs a service builder for the provided type `R`,
    * leaving a remainder `R0`.
    *
    * {{{
-   * val carDeps: ZDeps[Engine with Wheels, Nothing, Car] = ???
-   * val wheelsDeps: ZDeps[Any, Nothing, Wheels] = ???
+   * val carServiceBuilder: ZServiceBuilder[Engine with Wheels, Nothing, Car] = ???
+   * val wheelsServiceBuilder: ZServiceBuilder[Any, Nothing, Wheels] = ???
    *
-   * val deps = ZDeps.wireSome[Engine, Car](carDeps, wheelsDeps)
+   * val serviceBuilder = ZServiceBuilder.wireSome[Engine, Car](carServiceBuilder, wheelsServiceBuilder)
    * }}}
    */
   def wireSome[R0 <: Has[_], R <: Has[_]]: WireSomePartiallyApplied[R0, R] =
     new WireSomePartiallyApplied[R0, R]
 
   /**
-   * Automatically constructs a set of dependencies for the provided type `R`,
+   * Automatically constructs a service builder for the provided type `R`,
    * leaving a remainder `ZEnv`. This will satisfy all transitive `ZEnv`
    * requirements with `ZEnv.any`, allowing them to be provided later.
    *
    * {{{
-   * val oldLadyDeps: ZDeps[Fly, Nothing, OldLady] = ???
-   * val flyDeps: ZDeps[Blocking, Nothing, Fly] = ???
+   * val oldLadyServiceBuilder: ZServiceBuilder[Fly, Nothing, OldLady] = ???
+   * val flyServiceBuilder: ZServiceBuilder[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyDeps and Console to zio
-   * val deps : ZDeps[ZEnv, Nothing, OldLady] = ZDeps.wireCustom[OldLady](oldLadyDeps, flyDeps)
+   * // The ZEnv you use later will provide both Blocking to flyServiceBuilder and Console to zio
+   * val serviceBuilder : ZServiceBuilder[ZEnv, Nothing, OldLady] = ZServiceBuilder.wireCustom[OldLady](oldLadyServiceBuilder, flyServiceBuilder)
    * }}}
    */
   def wireCustom[R <: Has[_]]: WireSomePartiallyApplied[ZEnv, R] =
@@ -63,13 +63,17 @@ private[zio] trait ZDepsCompanionVersionSpecific {
 }
 
 private[zio] final class WirePartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
-  def apply[E](deps: ZDeps[_, E, _]*)(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZDeps[Any, E, R] =
+  def apply[E](
+    serviceBuilder: ZServiceBuilder[_, E, _]*
+  )(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZServiceBuilder[Any, E, R] =
     macro WireMacros.wireImpl[E, Any, R]
 }
 
 private[zio] final class WireSomePartiallyApplied[R0 <: Has[_], R <: Has[_]](
   val dummy: Boolean = true
 ) extends AnyVal {
-  def apply[E](deps: ZDeps[_, E, _]*)(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZDeps[R0, E, R] =
+  def apply[E](
+    serviceBuilder: ZServiceBuilder[_, E, _]*
+  )(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZServiceBuilder[R0, E, R] =
     macro WireMacros.wireImpl[E, R0, R]
 }

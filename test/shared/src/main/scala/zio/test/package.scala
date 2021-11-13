@@ -66,9 +66,9 @@ package object test extends CompileVariants {
       with ZEnv
 
   object TestEnvironment {
-    val any: ZDeps[TestEnvironment, Nothing, TestEnvironment] =
-      ZDeps.environment[TestEnvironment](Tracer.newTrace)
-    val live: ZDeps[ZEnv, Nothing, TestEnvironment] = {
+    val any: ZServiceBuilder[TestEnvironment, Nothing, TestEnvironment] =
+      ZServiceBuilder.environment[TestEnvironment](Tracer.newTrace)
+    val live: ZServiceBuilder[ZEnv, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
       Annotations.live ++
         Live.default ++
@@ -81,9 +81,9 @@ package object test extends CompileVariants {
     }
   }
 
-  val liveEnvironment: Deps[Nothing, ZEnv] = ZEnv.live
+  val liveEnvironment: ServiceBuilder[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironment: Deps[Nothing, TestEnvironment] = {
+  val testEnvironment: ServiceBuilder[Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
     ZEnv.live >>> TestEnvironment.live
   }

@@ -1,38 +1,38 @@
 package zio
 
-import zio.internal.macros.DepsMacros
+import zio.internal.macros.ServiceBuilderMacros
 
 final class WirePartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
-  inline def apply[E](inline deps: ZDeps[_, E, _]*): ZDeps[Any, E, R] =
-    ${DepsMacros.fromAutoImpl[Any, R, E]('deps)}
+  inline def apply[E](inline serviceBuilder: ZServiceBuilder[_, E, _]*): ZServiceBuilder[Any, E, R] =
+    ${ServiceBuilderMacros.fromAutoImpl[Any, R, E]('serviceBuilder)}
 }
 
 final class WireSomePartiallyApplied[R0 <: Has[_], R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
-  inline def apply[E](inline deps: ZDeps[_, E, _]*): ZDeps[R0, E, R] =
-    ${DepsMacros.fromAutoImpl[R0, R, E]('deps)}
+  inline def apply[E](inline serviceBuilder: ZServiceBuilder[_, E, _]*): ZServiceBuilder[R0, E, R] =
+    ${ServiceBuilderMacros.fromAutoImpl[R0, R, E]('serviceBuilder)}
 }
 
-trait ZDepsCompanionVersionSpecific {
+trait ZServiceBuilderCompanionVersionSpecific {
 
   /**
-   * Automatically assembles a set of dependencies for the provided type.
+   * Automatically assembles a service builder for the provided type.
    *
    * {{{
-   * val deps = ZDeps.wire[Car](carDeps, wheelsDeps, engineDeps)
+   * val serviceBuilder = ZServiceBuilder.wire[Car](carServiceBuilder, wheelsServiceBuilder, engineServiceBuilder)
    * }}}
    */
   inline def wire[R <: Has[_]]: WirePartiallyApplied[R] =
     new WirePartiallyApplied[R]()
 
     /**
-   * Automatically assembles a set of dependencies for the provided type `R`,
+   * Automatically assembles a service builder for the provided type `R`,
    * leaving a remainder `R0`.
    *
    * {{{
-   * val carDeps: ZDeps[Engine with Wheels, Nothing, Car] = ???
-   * val wheelsDeps: ZDeps[Any, Nothing, Wheels] = ???
+   * val carServiceBuilder: ZServiceBuilder[Engine with Wheels, Nothing, Car] = ???
+   * val wheelsServiceBuilder: ZServiceBuilder[Any, Nothing, Wheels] = ???
    *
-   * val deps = ZDeps.wireSome[Engine, Car](carDeps, wheelsDeps)
+   * val serviceBuilder = ZServiceBuilder.wireSome[Engine, Car](carServiceBuilder, wheelsServiceBuilder)
    * }}}
    */
   def wireSome[R0 <: Has[_], R <: Has[_]] =

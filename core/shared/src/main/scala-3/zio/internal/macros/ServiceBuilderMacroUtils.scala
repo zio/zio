@@ -6,56 +6,56 @@ import scala.compiletime._
 import zio.internal.macros.StringUtils.StringOps
 import zio.internal.ansi.AnsiStringOps
 
-private [zio] object DepsMacroUtils {
-  type DepsExpr = Expr[ZDeps[_,_,_]]
+private [zio] object ServiceBuilderMacroUtils {
+  type ServiceBuilderExpr = Expr[ZServiceBuilder[_,_,_]]
 
   def renderExpr[A](expr: Expr[A])(using Quotes): String = {
     import quotes.reflect._
     expr.asTerm.pos.sourceCode.getOrElse(expr.show)
   }
 
-  def buildMemoizedDeps(ctx: Quotes)(exprGraph: ZDepsExprBuilder[ctx.reflect.TypeRepr, DepsExpr], requirements: List[ctx.reflect.TypeRepr]) : DepsExpr = {
+  def buildMemoizedServiceBuilder(ctx: Quotes)(exprGraph: ZServiceBuilderExprBuilder[ctx.reflect.TypeRepr, ServiceBuilderExpr], requirements: List[ctx.reflect.TypeRepr]) : ServiceBuilderExpr = {
     import ctx.reflect._
 
     // This is run for its side effects: Reporting compile errors with the original source names.
-    val _ = exprGraph.buildDepsFor(requirements)
+    val _ = exprGraph.buildServiceBuilderFor(requirements)
 
-    val depsExprs = exprGraph.graph.nodes.map(_.value)
+    val serviceBuilderExprs = exprGraph.graph.nodes.map(_.value)
 
-    ValDef.let(Symbol.spliceOwner, depsExprs.map(_.asTerm)) { idents =>
-      val exprMap = depsExprs.zip(idents).toMap
+    ValDef.let(Symbol.spliceOwner, serviceBuilderExprs.map(_.asTerm)) { idents =>
+      val exprMap = serviceBuilderExprs.zip(idents).toMap
       val valGraph = exprGraph.copy( graph =
         exprGraph.graph.map { node =>
           val ident = exprMap(node)
-          ident.asExpr.asInstanceOf[DepsExpr]
+          ident.asExpr.asInstanceOf[ServiceBuilderExpr]
         }
       )
-      valGraph.buildDepsFor(requirements).asTerm
-    }.asExpr.asInstanceOf[DepsExpr]
+      valGraph.buildServiceBuilderFor(requirements).asTerm
+    }.asExpr.asInstanceOf[ServiceBuilderExpr]
   }
 
-  def getNodes(deps: Expr[Seq[ZDeps[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, DepsExpr]] = {
+  def getNodes(serviceBuilder: Expr[Seq[ZServiceBuilder[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, ServiceBuilderExpr]] = {
     import quotes.reflect._
-    deps match {
-      case Varargs(deps) =>
-        getNodes(deps)
+    serviceBuilder match {
+      case Varargs(serviceBuilder) =>
+        getNodes(serviceBuilder)
 
       case other =>
         report.throwError(
-          "  ZDeps Wiring Error  ".yellow.inverted + "\n" +
-          "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the dependencies themselves into this method."
+          "  ZServiceBuilder Wiring Error  ".yellow.inverted + "\n" +
+          "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the service builders themselves into this method."
         )
     }
   }
 
 
-  def getNodes(deps: Seq[Expr[ZDeps[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, DepsExpr]] = {
+  def getNodes(serviceBuilder: Seq[Expr[ZServiceBuilder[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, ServiceBuilderExpr]] = {
     import quotes.reflect._
-    deps.map {
-      case '{$deps: ZDeps[in, e, out]} =>
-      val inputs = getRequirements[in]("Input for " + deps.show.cyan.bold)
-      val outputs = getRequirements[out]("Output for " + deps.show.cyan.bold)
-      Node(inputs, outputs, deps)
+    serviceBuilder.map {
+      case '{$serviceBuilder: ZServiceBuilder[in, e, out]} =>
+      val inputs = getRequirements[in]("Input for " + serviceBuilder.show.cyan.bold)
+      val outputs = getRequirements[out]("Output for " + serviceBuilder.show.cyan.bold)
+      Node(inputs, outputs, serviceBuilder)
     }.toList
   }
 
@@ -68,7 +68,7 @@ private [zio] object DepsMacroUtils {
       }
 
     if (nonHasTypes.nonEmpty) report.throwError(
-      "  ZDeps Wiring Error  ".yellow.inverted + "\n" +
+      "  ZServiceBuilder Wiring Error  ".yellow.inverted + "\n" +
       s"${description} contains non-Has types:\n- ${nonHasTypes.mkString("\n- ")}"
     )
 
@@ -102,10 +102,10 @@ private [zio] object DepsMacroUtils {
 
 private[zio] object MacroUnitTestUtils {
 //  def getRequirements[R]: List[String] = '{
-//    DepsMacros.debugGetRequirements[R]
+//    ServiceBuilderMacros.debugGetRequirements[R]
 //  }
 //
 //  def showTree(any: Any): String = '{
-//    DepsMacros.debugShowTree
+//    ServiceBuilderMacros.debugShowTree
 //  }
 }

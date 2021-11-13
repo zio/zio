@@ -31,7 +31,7 @@ import zio.logging.Logging
 import zio.{ExitCode, URIO, _}
 
 object ZIOKinesisConsumerExample extends zio.App {
-  val loggingDeps: ZDeps[Any, Nothing, Logging] =
+  val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] =
     (Console.live ++ Clock.live) >>>
       Logging.console() >>>
       Logging.withRootLoggerName(getClass.getName)
@@ -46,7 +46,7 @@ object ZIOKinesisConsumerExample extends zio.App {
         checkpointBatchSize = 1000L,
         checkpointDuration = 5.minutes
       )(record => putStrLn(s"Processing record $record"))
-      .provideCustomDeps(Consumer.defaultEnvironment ++ loggingDeps)
+      .provideCustomService(Consumer.defaultEnvironment ++ loggingServiceBuilder)
       .exitCode
 }
 ```

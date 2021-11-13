@@ -35,13 +35,13 @@ import zio.sqs.producer.{Producer, ProducerEvent}
 import zio.sqs.serialization.Serializer
 import zio.sqs.{SqsStream, SqsStreamSettings, Utils}
 import zio.stream.ZStream
-import zio.{ExitCode, RIO, URIO, ZDeps, _}
+import zio.{ExitCode, RIO, URIO, ZServiceBuilder, _}
 
 object ProducerConsumerExample extends zio.App {
   val queueName = "MyQueue"
 
-  val client: ZDeps[Any, Throwable, Sqs] = zioaws.netty.default ++
-    ZDeps.succeed(
+  val client: ZServiceBuilder[Any, Throwable, Sqs] = zioaws.netty.default ++
+    ZServiceBuilder.succeed(
       CommonAwsConfig(
         region = Some(Region.of("ap-northeast-2")),
         credentialsProvider = StaticCredentialsProvider.create(
@@ -71,6 +71,6 @@ object ProducerConsumerExample extends zio.App {
   } yield ()
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    program.provideCustomDeps(client).exitCode
+    program.provideCustomService(client).exitCode
 }
 ```

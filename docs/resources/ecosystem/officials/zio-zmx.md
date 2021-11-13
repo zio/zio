@@ -74,7 +74,7 @@ object ZmxSampleApp extends zio.App {
     } yield ()
 
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    myApp.provideCustomDeps(PrometheusClient.live).exitCode
+    myApp.provideCustomService(PrometheusClient.live).exitCode
 
   private def request: UIO[Unit] = ZIO.unit
 }

@@ -11,7 +11,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
   import Expectation._
 
   private def testValueComposed[R1 <: Has[_]: Tag, E, A](name: String)(
-    mock: UDeps[R1],
+    mock: UServiceBuilder[R1],
     app: ZIO[R1, E, A],
     check: Assertion[A]
   ) = test(name) {

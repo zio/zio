@@ -121,7 +121,7 @@ object HelloWorldClient extends zio.App {
       _ <- putStrLn(r.message)
     } yield ()
 
-  val clientDeps =
+  val clientServiceBuilder =
     GreeterClient.live(
       ZManagedChannel(
         ManagedChannelBuilder.forAddress("localhost", 9000).usePlaintext()
@@ -129,7 +129,7 @@ object HelloWorldClient extends zio.App {
     )
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideCustomDeps(clientDeps).exitCode
+    myApp.provideCustomService(clientServiceBuilder).exitCode
 }
 ```
 

@@ -7,17 +7,21 @@ import java.nio.charset.StandardCharsets
 import java.util.Base64
 import scala.reflect.macros.blackbox
 
-private[zio] trait DepsMacroUtils {
+private[zio] trait ServiceBuilderMacroUtils {
   val c: blackbox.Context
   import c.universe._
 
-  type DepsExpr = c.Expr[ZDeps[_, _, _]]
+  type ServiceBuilderExpr = c.Expr[ZServiceBuilder[_, _, _]]
 
-  def generateExprGraph(deps: Seq[DepsExpr]): ZDepsExprBuilder[c.Type, DepsExpr] =
-    generateExprGraph(deps.map(getNode).toList)
+  def generateExprGraph(
+    serviceBuilder: Seq[ServiceBuilderExpr]
+  ): ZServiceBuilderExprBuilder[c.Type, ServiceBuilderExpr] =
+    generateExprGraph(serviceBuilder.map(getNode).toList)
 
-  def generateExprGraph(nodes: List[Node[c.Type, DepsExpr]]): ZDepsExprBuilder[c.Type, DepsExpr] =
-    ZDepsExprBuilder[c.Type, DepsExpr](
+  def generateExprGraph(
+    nodes: List[Node[c.Type, ServiceBuilderExpr]]
+  ): ZServiceBuilderExprBuilder[c.Type, ServiceBuilderExpr] =
+    ZServiceBuilderExprBuilder[c.Type, ServiceBuilderExpr](
       graph = Graph(
         nodes = nodes,
         // They must be `.toString`-ed as a backup in the case of refinement
@@ -27,41 +31,44 @@ private[zio] trait DepsMacroUtils {
       showKey = tpe => tpe.toString,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       abort = c.abort(c.enclosingPosition, _),
-      emptyExpr = reify(ZDeps.succeed(())),
+      emptyExpr = reify(ZServiceBuilder.succeed(())),
       composeH = (lhs, rhs) => c.Expr(q"""$lhs ++ $rhs"""),
       composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
     )
 
-  def buildMemoizedDeps(exprGraph: ZDepsExprBuilder[c.Type, DepsExpr], requirements: List[c.Type]): DepsExpr = {
+  def buildMemoizedServiceBuilder(
+    exprGraph: ZServiceBuilderExprBuilder[c.Type, ServiceBuilderExpr],
+    requirements: List[c.Type]
+  ): ServiceBuilderExpr = {
     // This is run for its side effects: Reporting compile errors with the original source names.
-    val _ = exprGraph.buildDepsFor(requirements)
+    val _ = exprGraph.buildServiceBuilderFor(requirements)
 
     val nodes = exprGraph.graph.nodes
     val memoizedNodes = nodes.map { node =>
-      val freshName = c.freshName("deps")
+      val freshName = c.freshName("serviceBuilder")
       val termName  = TermName(freshName)
-      node.copy(value = c.Expr[ZDeps[_, _, _]](q"$termName"))
+      node.copy(value = c.Expr[ZServiceBuilder[_, _, _]](q"$termName"))
     }
 
     val definitions = memoizedNodes.zip(nodes).map { case (memoizedNode, node) =>
       ValDef(Modifiers(), TermName(memoizedNode.value.tree.toString()), TypeTree(), node.value.tree)
     }
-    val depsExpr = exprGraph
-      .copy(graph = Graph[c.Type, DepsExpr](memoizedNodes, exprGraph.graph.keyEquals))
-      .buildDepsFor(requirements)
+    val serviceBuilderExpr = exprGraph
+      .copy(graph = Graph[c.Type, ServiceBuilderExpr](memoizedNodes, exprGraph.graph.keyEquals))
+      .buildServiceBuilderFor(requirements)
 
     c.Expr(q"""
     ..$definitions
-    ${depsExpr.tree}
+    ${serviceBuilderExpr.tree}
     """)
   }
 
-  def getNode(deps: DepsExpr): Node[c.Type, DepsExpr] = {
-    val typeArgs = deps.actualType.dealias.typeArgs
+  def getNode(serviceBuilder: ServiceBuilderExpr): Node[c.Type, ServiceBuilderExpr] = {
+    val typeArgs = serviceBuilder.actualType.dealias.typeArgs
     // ZIO[in, _, out]
     val in  = typeArgs.head
     val out = typeArgs(2)
-    Node(getRequirements(in), getRequirements(out), deps)
+    Node(getRequirements(in), getRequirements(out), serviceBuilder)
   }
 
   def getRequirements[T: c.WeakTypeTag]: List[c.Type] =
@@ -71,67 +78,67 @@ private[zio] trait DepsMacroUtils {
     tpe.isHas || tpe.isAny
 
   def injectBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
-    deps: Seq[c.Expr[ZDeps[_, E, _]]],
+    serviceBuilder: Seq[c.Expr[ZServiceBuilder[_, E, _]]],
     method: String
   ): c.Expr[F[R0, E, A]] = {
-    val expr = constructDeps[R0, R, E](deps)
+    val expr = constructServiceBuilder[R0, R, E](serviceBuilder)
     c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}(${expr.tree})")
   }
 
-  def constructDeps[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
-    deps0: Seq[c.Expr[ZDeps[_, E, _]]]
-  ): c.Expr[ZDeps[Any, E, R]] = {
-    assertProperVarArgs(deps0)
+  def constructServiceBuilder[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
+    serviceBuilder0: Seq[c.Expr[ZServiceBuilder[_, E, _]]]
+  ): c.Expr[ZServiceBuilder[Any, E, R]] = {
+    assertProperVarArgs(serviceBuilder0)
 
-    val debug = deps0.collectFirst {
+    val debug = serviceBuilder0.collectFirst {
       _.tree match {
-        case q"zio.ZDeps.Debug.tree"    => ZDeps.Debug.Tree
-        case q"zio.ZDeps.Debug.mermaid" => ZDeps.Debug.Mermaid
+        case q"zio.ZServiceBuilder.Debug.tree"    => ZServiceBuilder.Debug.Tree
+        case q"zio.ZServiceBuilder.Debug.mermaid" => ZServiceBuilder.Debug.Mermaid
       }
     }
-    val deps = deps0.filter {
+    val serviceBuilder = serviceBuilder0.filter {
       _.tree match {
-        case q"zio.ZDeps.Debug.tree" | q"zio.ZDeps.Debug.mermaid" => false
-        case _                                                    => true
+        case q"zio.ZServiceBuilder.Debug.tree" | q"zio.ZServiceBuilder.Debug.mermaid" => false
+        case _                                                                        => true
       }
     }
 
     val remainderExpr =
       if (weakTypeOf[R0] =:= weakTypeOf[ZEnv]) reify(ZEnv.any)
-      else reify(ZDeps.environment[R0])
+      else reify(ZServiceBuilder.environment[R0])
     val remainderNode =
       if (weakTypeOf[R0] =:= weakTypeOf[Any]) List.empty
       else List(Node(List.empty, getRequirements[R0], remainderExpr))
-    val nodes = remainderNode ++ deps.map(getNode)
+    val nodes = remainderNode ++ serviceBuilder.map(getNode)
 
     val graph        = generateExprGraph(nodes)
     val requirements = getRequirements[R]
-    val expr         = buildMemoizedDeps(graph, requirements)
+    val expr         = buildMemoizedServiceBuilder(graph, requirements)
     debug.foreach { debug =>
-      debugDeps(debug, graph, requirements)
+      debugServiceBuilder(debug, graph, requirements)
     }
-    expr.asInstanceOf[c.Expr[ZDeps[Any, E, R]]]
+    expr.asInstanceOf[c.Expr[ZServiceBuilder[Any, E, R]]]
   }
 
-  private def debugDeps(
-    debug: ZDeps.Debug,
-    graph: ZDepsExprBuilder[c.Type, DepsExpr],
+  private def debugServiceBuilder(
+    debug: ZServiceBuilder.Debug,
+    graph: ZServiceBuilderExprBuilder[c.Type, ServiceBuilderExpr],
     requirements: List[c.Type]
   ): Unit = {
     val graphString: String =
       eitherToOption(
         graph.graph
-          .map(deps => RenderedGraph(deps.showTree))
+          .map(serviceBuilder => RenderedGraph(serviceBuilder.showTree))
           .buildComplete(requirements)
       ).get
         .fold[RenderedGraph](RenderedGraph.Row(List.empty), identity, _ ++ _, _ >>> _)
         .render
 
-    val title   = "  ZDeps Wiring Graph  ".yellow.bold.inverted
+    val title   = "  ZServiceBuilder Wiring Graph  ".yellow.bold.inverted
     val builder = new StringBuilder
     builder ++= "\n" + title + "\n\n" + graphString + "\n\n"
 
-    if (debug == ZDeps.Debug.Mermaid) {
+    if (debug == ZServiceBuilder.Debug.Mermaid) {
       val mermaidLink: String = generateMermaidJsLink(requirements, graph)
       builder ++= "Mermaid Live Editor Link".underlined + "\n" + mermaidLink.faint + "\n\n"
     }
@@ -165,11 +172,11 @@ private[zio] trait DepsMacroUtils {
       .distinct
   }
 
-  def assertProperVarArgs(deps: Seq[c.Expr[_]]): Unit = {
-    val _ = deps.map(_.tree) collect { case Typed(_, Ident(typeNames.WILDCARD_STAR)) =>
+  def assertProperVarArgs(serviceBuilder: Seq[c.Expr[_]]): Unit = {
+    val _ = serviceBuilder.map(_.tree) collect { case Typed(_, Ident(typeNames.WILDCARD_STAR)) =>
       c.abort(
         c.enclosingPosition,
-        "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the dependencies themselves into this method."
+        "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the service builders themselves into this method."
       )
     }
   }
@@ -198,16 +205,16 @@ private[zio] trait DepsMacroUtils {
   }
 
   /**
-   * Generates a link of the dependency graph for the Mermaid.js graph viz
+   * Generates a link of the service builder graph for the Mermaid.js graph viz
    * library's live-editor (https://mermaid-js.github.io/mermaid-live-editor)
    */
   private def generateMermaidJsLink[R <: Has[_]: c.WeakTypeTag, R0: c.WeakTypeTag, E](
     requirements: List[c.Type],
-    graph: ZDepsExprBuilder[c.Type, DepsExpr]
+    graph: ZServiceBuilderExprBuilder[c.Type, ServiceBuilderExpr]
   ): String = {
     val cool = eitherToOption(
       graph.graph
-        .map(deps => deps.showTree)
+        .map(serviceBuilder => serviceBuilder.showTree)
         .buildComplete(requirements)
     ).get
 

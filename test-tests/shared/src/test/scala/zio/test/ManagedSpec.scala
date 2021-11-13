@@ -14,7 +14,7 @@ object ManagedSpec extends ZIOBaseSpec {
       def incrementAndGet: UIO[Int]
     }
 
-    val live: Deps[Nothing, Counter] =
+    val live: ServiceBuilder[Nothing, Counter] =
       Ref
         .make(1)
         .toManagedWith(_.set(-10))
@@ -23,7 +23,7 @@ object ManagedSpec extends ZIOBaseSpec {
             val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
           }
         }
-        .toDeps
+        .toServiceBuilder
 
     val incrementAndGet: URIO[Counter, Int] =
       ZIO.accessZIO[Counter](_.get[Counter.Service].incrementAndGet)
@@ -47,7 +47,7 @@ object ManagedSpec extends ZIOBaseSpec {
           assertM(Counter.incrementAndGet)(equalTo(5))
         }
       )
-    ).provideDepsShared(Counter.live) @@ sequential,
+    ).provideServiceShared(Counter.live) @@ sequential,
     suite("managed per test")(
       suite("first suite")(
         test("first test") {
@@ -65,6 +65,6 @@ object ManagedSpec extends ZIOBaseSpec {
           assertM(Counter.incrementAndGet)(equalTo(2))
         }
       )
-    ).provideDeps(Counter.live)
+    ).provideService(Counter.live)
   )
 }

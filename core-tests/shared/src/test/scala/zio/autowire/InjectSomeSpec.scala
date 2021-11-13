@@ -18,15 +18,15 @@ object InjectSomeSpec extends DefaultRunnableSpec {
   }
 
   object TestService {
-    val live: ZDeps[Has[Clock] with Has[Console], Nothing, Has[TestService]] =
-      (TestService.apply _).toDeps
+    val live: ZServiceBuilder[Has[Clock] with Has[Console], Nothing, Has[TestService]] =
+      (TestService.apply _).toServiceBuilder
   }
 
-  val partial: ZDeps[Has[Console], Nothing, Has[Clock] with Has[Console] with Has[TestService]] =
-    (Clock.live ++ ZDeps.service[Console]) >+> TestService.live
+  val partial: ZServiceBuilder[Has[Console], Nothing, Has[Clock] with Has[Console] with Has[TestService]] =
+    (Clock.live ++ ZServiceBuilder.service[Console]) >+> TestService.live
 
-  val partialDeps: ZDeps[Has[Console], Nothing, Has[TestService] with Has[Clock]] =
-    ZDeps.wireSome[Has[Console], Has[TestService] with Has[Clock]](
+  val partialServiceBuilder: ZServiceBuilder[Has[Console], Nothing, Has[TestService] with Has[Clock]] =
+    ZServiceBuilder.wireSome[Has[Console], Has[TestService] with Has[Clock]](
       Clock.live,
       TestService.live
     )
@@ -43,7 +43,7 @@ object InjectSomeSpec extends DefaultRunnableSpec {
   def spec: ZSpec[Has[Console] with Has[TestConsole], Any] =
     suite("InjectSomeSpec")(
       test("basic") {
-        testCase("basic").provideSomeDeps[Has[Console]](partial)
+        testCase("basic").provideSomeService[Has[Console]](partial)
       },
       test("injectSome") {
         testCase("injectSome").injectSome[Has[Console]](
@@ -59,7 +59,7 @@ object InjectSomeSpec extends DefaultRunnableSpec {
           .injectSome[Has[Console]](Clock.live)
       },
       test("wireSome") {
-        testCase("wireSome").provideSomeDeps[Has[Console]](partialDeps)
+        testCase("wireSome").provideSomeService[Has[Console]](partialServiceBuilder)
       }
     ) @@ TestAspect.silent
 }

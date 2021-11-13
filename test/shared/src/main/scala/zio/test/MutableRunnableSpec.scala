@@ -26,7 +26,7 @@ import scala.util.control.NoStackTrace
 /**
  * Syntax for writing test like
  * {{{
- * object MySpec extends MutableRunnableSpec(deps, aspect) {
+ * object MySpec extends MutableRunnableSpec(serviceBuilder, aspect) {
  *   suite("foo") {
  *     test("name") {
  *     } @@ ignore
@@ -41,7 +41,7 @@ import scala.util.control.NoStackTrace
  */
 @deprecated("use RunnableSpec", "2.0.0")
 class MutableRunnableSpec[R <: Has[_]: Tag](
-  deps: ZDeps[TestEnvironment, Throwable, R],
+  serviceBuilder: ZServiceBuilder[TestEnvironment, Throwable, R],
   aspect: TestAspect.WithOut[
     R with TestEnvironment,
     R with TestEnvironment,
@@ -178,7 +178,7 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
   final override def spec: ZSpec[Environment, Failure] = {
     implicit val trace = Tracer.newTrace
     specBuilt = true
-    (stack.head @@ aspect).toSpec.provideCustomDepsShared(deps.mapError(TestFailure.fail))
+    (stack.head @@ aspect).toSpec.provideCustomServiceShared(serviceBuilder.mapError(TestFailure.fail))
   }
 
   override def aspects: List[TestAspect.WithOut[

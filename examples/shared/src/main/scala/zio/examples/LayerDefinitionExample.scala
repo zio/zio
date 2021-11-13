@@ -1,14 +1,14 @@
 package zio.examples
 import zio._
 
-object DepsDefinitionExample extends ZIOAppDefault {
+object ServiceBuilderDefinitionExample extends ZIOAppDefault {
   trait Foo {
     def bar: UIO[Unit]
   }
 
   object Foo {
-    val live: URDeps[Has[Console] with Has[String] with Has[Int], Has[Foo]] =
-      (FooLive.apply _).toDeps
+    val live: URServiceBuilder[Has[Console] with Has[String] with Has[Int], Has[Foo]] =
+      (FooLive.apply _).toServiceBuilder
 
     case class FooLive(console: Console, string: String, int: Int) extends Foo {
       override def bar: UIO[Unit] = console.printLine(s"$string and $int").orDie
@@ -22,8 +22,8 @@ object DepsDefinitionExample extends ZIOAppDefault {
     program
       .inject(
         Console.live,
-        ZDeps.succeed("Hello"),
-        ZDeps.succeed(3),
+        ZServiceBuilder.succeed("Hello"),
+        ZServiceBuilder.succeed(3),
         Foo.live
       )
   }

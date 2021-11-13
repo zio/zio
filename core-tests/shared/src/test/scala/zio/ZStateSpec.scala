@@ -14,7 +14,7 @@ object ZStateSpec extends DefaultRunnableSpec {
           _     <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 1))
           count <- ZIO.getStateWith[MyState](_.counter)
         } yield count
-        assertM(zio.provideDeps(ZState.make(MyState(0)).toDeps))(equalTo(1))
+        assertM(zio.provideService(ZState.make(MyState(0)).toServiceBuilder))(equalTo(1))
       }
     ) @@ exceptDotty
 }

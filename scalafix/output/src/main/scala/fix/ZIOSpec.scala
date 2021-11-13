@@ -1636,19 +1636,19 @@ object ZIOSpec extends DefaultRunnableSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
-    suite("provideCustomDeps")(
+    suite("provideCustomService")(
       test("provides the part of the environment that is not part of the `ZEnv`") {
-        val loggingDeps: ZDeps[Any, Nothing, Logging] = Logging.live
+        val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomDeps(loggingDeps)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomService(loggingServiceBuilder)
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSomeDeps")(
+    suite("provideSomeService")(
       test("can split environment into two parts") {
-        val clockDeps: ZDeps[Any, Nothing, Has[Clock]]    = Clock.live
+        val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]]    = Clock.live
         val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Has[Random], Unit]                   = zio.provideSomeDeps[Has[Random]](clockDeps)
+        val zio2: URIO[Has[Random], Unit]                   = zio.provideSomeService[Has[Random]](clockServiceBuilder)
         assertM(zio2)(anything)
       }
     ),
@@ -3077,7 +3077,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("serviceWith")(
       test("effectfully accesses a service in the environment") {
         val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
-        assertM(zio.provideDeps(ZDeps.succeed(0)))(equalTo(3))
+        assertM(zio.provideService(ZServiceBuilder.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3360,7 +3360,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provideDeps(ZDeps.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provideService(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(
@@ -3796,6 +3796,6 @@ object ZIOSpec extends DefaultRunnableSpec {
 
   object Logging {
     trait Service
-    val live: ZDeps[Any, Nothing, Logging] = ZDeps.succeed(new Logging.Service {})
+    val live: ZServiceBuilder[Any, Nothing, Logging] = ZServiceBuilder.succeed(new Logging.Service {})
   }
 }

@@ -3,7 +3,7 @@ package zio.internal.macros
 import zio._
 import zio.internal.ansi.AnsiStringOps
 
-final case class ZDepsExprBuilder[Key, A](
+final case class ZServiceBuilderExprBuilder[Key, A](
   graph: Graph[Key, A],
   showKey: Key => String,
   showExpr: A => String,
@@ -12,7 +12,7 @@ final case class ZDepsExprBuilder[Key, A](
   composeH: (A, A) => A,
   composeV: (A, A) => A
 ) {
-  def buildDepsFor(output: List[Key]): A =
+  def buildServiceBuilderFor(output: List[Key]): A =
     output match {
       case Nil => emptyExpr
       case output =>
@@ -27,8 +27,8 @@ final case class ZDepsExprBuilder[Key, A](
         }
     }
 
-  private def assertNoLeftovers(depsCompose: DepsCompose[A]): Unit = {
-    val used      = depsCompose.toSet
+  private def assertNoLeftovers(serviceBuilderCompose: ServiceBuilderCompose[A]): Unit = {
+    val used      = serviceBuilderCompose.toSet
     val leftovers = graph.nodes.filterNot(node => used.contains(node.value))
 
     if (leftovers.nonEmpty) {
@@ -52,7 +52,7 @@ final case class ZDepsExprBuilder[Key, A](
 
     if (outputMap.nonEmpty) {
       val message = outputMap.map { case (output, nodes) =>
-        s"${output.toString.cyan} is provided by multiple dependencies:\n" +
+        s"${output.toString.cyan} is provided by multiple service builders:\n" +
           nodes.map(node => "— " + showExpr(node.value).bold.cyan).mkString("\n")
       }
         .mkString("\n")
@@ -72,7 +72,7 @@ final case class ZDepsExprBuilder[Key, A](
 
     abort(s"""
 
-${s"  ZDeps Wiring Error  ".red.inverted.bold}
+${s"  ZServiceBuilder Wiring Error  ".red.inverted.bold}
 
 $body
 
@@ -109,8 +109,8 @@ $body
     }
 
     val groupedTransitiveErrors = transitiveDepErrors.groupBy(_.node).map { case (node, errors) =>
-      val deps = errors.flatMap(_.dependency)
-      GraphError.MissingTransitiveDependencies(node, deps)
+      val serviceBuilder = errors.flatMap(_.dependency)
+      GraphError.MissingTransitiveDependencies(node, serviceBuilder)
     }
 
     initialCircularErrors ++ groupedTransitiveErrors ++ remainingErrors
@@ -125,9 +125,9 @@ $body
           s"""$prefix $styled"""
         }
           .mkString("\n")
-        val styledDeps = showExpr(node.value).blue
+        val styledServiceBuilder = showExpr(node.value).blue
         s"""$styledDependencies
-    ${"for".underlined} $styledDeps"""
+    ${"for".underlined} $styledServiceBuilder"""
 
       case GraphError.MissingTopLevelDependency(dependency) =>
         val styledDependency = showKey(dependency).blue.bold
@@ -142,4 +142,4 @@ $styledNode both requires ${"and".bold} is transitively required by $styledDepen
     }
 }
 
-object ZDepsExprBuilder extends ExprGraphCompileVariants {}
+object ZServiceBuilderExprBuilder extends ExprGraphCompileVariants {}

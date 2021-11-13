@@ -124,7 +124,7 @@ object ExampleMock extends Mock[Example] {
   object Sink     extends Sink[Any, String, Int, String, Int, List[Int]]
   object Stream   extends Stream[Any, String, Int]
 
-  val compose: URDeps[Has[Proxy], Example] = ???
+  val compose: URServiceBuilder[Has[Proxy], Example] = ???
 }
 ```
 
@@ -154,7 +154,7 @@ def withRuntime[R]: URIO[R, Runtime[R]] = ???
 ```scala mdoc:silent
 import ExampleMock._
 
-val compose: URDeps[Has[Proxy], Example] =
+val compose: URServiceBuilder[Has[Proxy], Example] =
   ZIO.serviceWith[Proxy] { proxy =>
     withRuntime[Any].map { rts =>
       new Example.Service {
@@ -172,7 +172,7 @@ val compose: URDeps[Has[Proxy], Example] =
         def stream(a: Int)                         = rts.unsafeRun(proxy(Stream, a))
       }
     }
-  }.toDeps
+  }.toServiceBuilder
 ```
 
 > **Note:** The `withRuntime` helper is defined in `Mock`. It accesses the Runtime via `ZIO.runtime` and if you're on JS platform, it will replace the executor to an unyielding one.
@@ -208,7 +208,7 @@ object AccountObserver {
   def runCommand() =
     ZIO.accessZIO[AccountObserver](_.get.runCommand())
 
-  val live: ZDeps[Has[Console], Nothing, AccountObserver] =
+  val live: ZServiceBuilder[Has[Console], Nothing, AccountObserver] =
     { (console: Console) =>
       new Service {
         def processEvent(event: AccountEvent): UIO[Unit] =
@@ -221,7 +221,7 @@ object AccountObserver {
         def runCommand(): UIO[Unit] =
           console.printLine("Done!").orDie
       }
-    }.toDeps
+    }.toServiceBuilder
 }
 ```
 
@@ -233,13 +233,13 @@ object AccountObserverMock extends Mock[AccountObserver] {
   object ProcessEvent extends Effect[AccountEvent, Nothing, Unit]
   object RunCommand   extends Effect[Unit, Nothing, Unit]
 
-  val compose: URDeps[Has[Proxy], AccountObserver] =
+  val compose: URServiceBuilder[Has[Proxy], AccountObserver] =
     ZIO.service[Proxy].map { proxy =>
       new AccountObserver.Service {
         def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
         def runCommand(): UIO[Unit]           = proxy(RunCommand)
       }
-    }.toDeps
+    }.toServiceBuilder
 }
 ```
 
@@ -267,13 +267,13 @@ object Example {
 object ExampleMock extends Mock[Has[Example.Service]] {
   object ZeroArgs  extends Effect[Unit, Nothing, Int]
   object SingleArg extends Effect[Int, Nothing, String]
-  val compose: URDeps[Has[Proxy], Has[Example.Service]] =
+  val compose: URServiceBuilder[Has[Proxy], Has[Example.Service]] =
     ZIO.service[Proxy].map { proxy =>
       new Example.Service {
         def zeroArgs             = proxy(ZeroArgs)
         def singleArg(arg1: Int) = proxy(SingleArg, arg1)
       }
-    }.toDeps
+    }.toServiceBuilder
 }
 ```
 
@@ -329,7 +329,7 @@ import zio.test._
 
 val event = new AccountEvent {}
 val app: URIO[AccountObserver, Unit] = AccountObserver.processEvent(event)
-val mockEnv: UDeps[Has[Console]] = (
+val mockEnv: UServiceBuilder[Has[Console]] = (
   MockConsole.PrintLine(equalTo(s"Got $event"), unit) ++
   MockConsole.ReadLine(value("42")) ++
   MockConsole.PrintLine(equalTo("You entered: 42"), unit)
@@ -352,7 +352,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     test("calls printLine > readLine > printLine and returns unit") {
-      val result = app.provideSomeDeps(mockEnv >>> AccountObserver.live)
+      val result = app.provideSomeService(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
   )
@@ -361,7 +361,7 @@ object AccountObserverSpec extends DefaultRunnableSpec {
 
 ## Mocking unused collaborators
 
-Often the dependency on a collaborator is only in some branches of the code. To test the correct behaviour of branches without depedencies, we still have to provide it to the environment, but we would like to assert it was never called. With the `Mock.empty` method you can obtain a `ZDeps` with an empty service (no calls expected).
+Often the dependency on a collaborator is only in some branches of the code. To test the correct behaviour of branches without depedencies, we still have to provide it to the environment, but we would like to assert it was never called. With the `Mock.empty` method you can obtain a `ZServiceBuilder` with an empty service (no calls expected).
 
 ```scala mdoc:silent
 object MaybeConsoleSpec extends DefaultRunnableSpec {
@@ -370,8 +370,8 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
-      val maybeTest1 = maybeConsole(false).unit.provideSomeDeps(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).unit.provideSomeDeps(MockConsole.PrintLine(equalTo("foo"), unit))
+      val maybeTest1 = maybeConsole(false).unit.provideSomeService(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).unit.provideSomeService(MockConsole.PrintLine(equalTo("foo"), unit))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )
@@ -385,7 +385,7 @@ In some cases we have more than one collaborating service being called. You can 
 ```scala mdoc:silent
 import zio.test.mock.MockRandom
 
-val combinedEnv: UDeps[Has[Console] with Has[Random]] = (
+val combinedEnv: UServiceBuilder[Has[Console] with Has[Random]] = (
   MockConsole.PrintLine(equalTo("What is your name?"), unit) ++
   MockConsole.ReadLine(value("Mike")) ++
   MockRandom.NextInt(value(42)) ++
@@ -400,7 +400,7 @@ val combinedApp =
     _    <- Console.printLine(s"$name, your lucky number today is $num!")
   } yield ()
 
-val result = combinedApp.provideSomeDeps(combinedEnv)
+val result = combinedApp.provideSomeService(combinedEnv)
 assertM(result)(isUnit)
 ```
 
@@ -435,7 +435,7 @@ object PolyExampleMock extends Mock[PolyExample] {
   object PolyOutput extends Poly.Effect.Output[Int, Throwable]
   object PolyAll    extends Poly.Effect.InputErrorOutput
 
-  val compose: URDeps[Has[Proxy], PolyExample] =
+  val compose: URServiceBuilder[Has[Proxy], PolyExample] =
     ZIO.serviceWith[Proxy] { proxy =>
       withRuntime[Any].map { rts =>
         new PolyExample.Service {
@@ -445,7 +445,7 @@ object PolyExampleMock extends Mock[PolyExample] {
           def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
         }
       }
-    }.toDeps
+    }.toServiceBuilder
 }
 ```
 

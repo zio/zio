@@ -31,12 +31,12 @@ import scala.jdk.CollectionConverters._
 object ZIOAWSS3Example extends zio.App {
   val BUCKET = "<bucket name>"
 
-  val awsEnv: ZDeps[S3AsyncClient, Throwable, AwsLink] =
-    AwsApp.ExtDeps.live >>> AwsApp.AwsLink.live
+  val awsEnv: ZServiceBuilder[S3AsyncClient, Throwable, AwsLink] =
+    AwsApp.ExtServiceBuilder.live >>> AwsApp.AwsLink.live
 
   val app: ZIO[Any, Throwable, Unit] = for {
     s3 <- AwsAgent.createClient(Region.US_WEST_2, "<endpoint>")
-    response <- AwsApp.listBuckets().provideDeps(awsEnv).provide(s3)
+    response <- AwsApp.listBuckets().provideService(awsEnv).provide(s3)
     buckets <- Task(response.buckets.asScala.toList.map(_.name))
     _ = buckets.foreach(println)
   } yield ()
