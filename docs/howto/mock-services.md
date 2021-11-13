@@ -77,7 +77,7 @@ ZIO Test provides a framework for mocking your modules.
 
 ## Creating a mock service
 
-We'll be assuming you've read about modules and dependencies in the [contextual types][doc-contextual-types] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose dependency.
+We'll be assuming you've read about modules and service builders in the [contextual types][doc-contextual-types] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose service builder_.
 
 ```scala mdoc:silent
 // main sources
@@ -144,7 +144,7 @@ We model input arguments according to following scheme:
 
 For overloaded methods we nest a list of numbered objects, each representing subsequent overloads.
 
-Finally we need to define a _compose dependency_ that can create our environment from a `Proxy`.
+Finally we need to define a _compose service builder_ that can create our environment from a `Proxy`.
 A `Proxy` holds the mock state and serves predefined responses to calls.
 
 ```scala mdoc:invisible
@@ -177,7 +177,7 @@ val compose: URServiceBuilder[Has[Proxy], Example] =
 
 > **Note:** The `withRuntime` helper is defined in `Mock`. It accesses the Runtime via `ZIO.runtime` and if you're on JS platform, it will replace the executor to an unyielding one.
 
-A reference to this dependency is passed to _capability tags_ so it can be used to automatically build environment for composed expectations on
+A reference to this service builder is passed to _capability tags_ so it can be used to automatically build environment for composed expectations on
 multiple services.
 
 > **Note:** for non-effectful capabilities you need to unsafely run the final effect to satisfy the required interface. For `ZSink` you also need to map the error into a failed sink as demonstrated above.
@@ -380,7 +380,7 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
 
 ## Mocking multiple collaborators
 
-In some cases we have more than one collaborating service being called. You can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlying mocked dependency will be updated.
+In some cases we have more than one collaborating service being called. You can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlying mocked service builder will be updated.
 
 ```scala mdoc:silent
 import zio.test.mock.MockRandom

@@ -338,48 +338,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * `TestEnvironment`.
    *
    * {{{
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
-   *
-   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
-   *
-   * val spec2 = spec.provideCustomService(loggingServiceBuilder)
-   * }}}
-   */
-  def provideCustomService[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
-    ev1: TestEnvironment with R1 <:< R,
-    ev2: Has.Union[TestEnvironment, R1],
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): Spec[TestEnvironment, E1, T] =
-    provideSomeService[TestEnvironment](serviceBuilder)
-
-  /**
-   * Provides all tests with a shared version of the part of the environment
-   * that is not part of the `TestEnvironment`, leaving a spec that only depends
-   * on the `TestEnvironment`.
-   *
-   * {{{
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
-   *
-   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
-   *
-   * val spec2 = spec.provideCustomServiceShared(loggingServiceBuilder)
-   * }}}
-   */
-  def provideCustomServiceShared[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
-    ev1: TestEnvironment with R1 <:< R,
-    ev2: Has.Union[TestEnvironment, R1],
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): Spec[TestEnvironment, E1, T] =
-    provideSomeServiceShared[TestEnvironment](serviceBuilder)
-
-  /**
-   * Provides each test with the part of the environment that is not part of the
-   * `TestEnvironment`, leaving a spec that only depends on the
-   * `TestEnvironment`.
-   *
-   * {{{
    * val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = ???
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
@@ -419,6 +377,66 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     provideSomeServiceShared(layer)
 
   /**
+   * Provides each test with the part of the environment that is not part of the
+   * `TestEnvironment`, leaving a spec that only depends on the
+   * `TestEnvironment`.
+   *
+   * {{{
+   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   *
+   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   *
+   * val spec2 = spec.provideCustomService(loggingServiceBuilder)
+   * }}}
+   */
+  def provideCustomService[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
+    ev1: TestEnvironment with R1 <:< R,
+    ev2: Has.Union[TestEnvironment, R1],
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): Spec[TestEnvironment, E1, T] =
+    provideSomeService[TestEnvironment](serviceBuilder)
+
+  /**
+   * Provides all tests with a shared version of the part of the environment
+   * that is not part of the `TestEnvironment`, leaving a spec that only depends
+   * on the `TestEnvironment`.
+   *
+   * {{{
+   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   *
+   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   *
+   * val spec2 = spec.provideCustomServiceShared(loggingServiceBuilder)
+   * }}}
+   */
+  def provideCustomServiceShared[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
+    ev1: TestEnvironment with R1 <:< R,
+    ev2: Has.Union[TestEnvironment, R1],
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): Spec[TestEnvironment, E1, T] =
+    provideSomeServiceShared[TestEnvironment](serviceBuilder)
+
+  /**
+   * Provides a layer to the spec, translating it up a level.
+   */
+  @deprecated("use provideService", "2.0.0")
+  final def provideLayer[E1 >: E, R0, R1](
+    layer: ZServiceBuilder[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
+    provideService(layer)
+
+  /**
+   * Provides a layer to the spec, sharing services between all tests.
+   */
+  @deprecated("use provideServiceShared", "2.0.0")
+  final def provideLayerShared[E1 >: E, R0, R1](
+    layer: ZServiceBuilder[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
+    provideServiceShared(layer)
+
+  /**
    * Provides a service builder to the spec, translating it up a level.
    */
   final def provideService[E1 >: E, R0, R1](
@@ -451,24 +469,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     }
 
   /**
-   * Provides a layer to the spec, translating it up a level.
-   */
-  @deprecated("use provideService", "2.0.0")
-  final def provideLayer[E1 >: E, R0, R1](
-    layer: ZServiceBuilder[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provideService(layer)
-
-  /**
-   * Provides a layer to the spec, sharing services between all tests.
-   */
-  @deprecated("use provideServiceShared", "2.0.0")
-  final def provideLayerShared[E1 >: E, R0, R1](
-    layer: ZServiceBuilder[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provideServiceShared(layer)
-
-  /**
    * Uses the specified function to provide each test in this spec with part of
    * its required environment.
    */
@@ -480,37 +480,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case MultipleCase(specs)         => MultipleCase(specs)
       case TestCase(test, annotations) => TestCase(test.provideSome(f), annotations)
     }
-
-  /**
-   * Splits the environment into two parts, providing each test with one part
-   * using the specified service builder and leaving the remainder `R0`.
-   *
-   * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
-   *
-   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
-   *
-   * val spec2 = spec.provideSomeService[Has[Random]](clockServiceBuilder)
-   * }}}
-   */
-  final def provideSomeService[R0]: Spec.ProvideSomeServiceBuilder[R0, R, E, T] =
-    new Spec.ProvideSomeServiceBuilder[R0, R, E, T](self)
-
-  /**
-   * Splits the environment into two parts, providing all tests with a shared
-   * version of one part using the specified service builder and leaving the
-   * remainder `R0`.
-   *
-   * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
-   *
-   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
-   *
-   * val spec2 = spec.provideSomeServiceShared[Has[Random]](clockServiceBuilder)
-   * }}}
-   */
-  final def provideSomeServiceShared[R0]: Spec.ProvideSomeServiceBuilderShared[R0, R, E, T] =
-    new Spec.ProvideSomeServiceBuilderShared[R0, R, E, T](self)
 
   /**
    * Splits the environment into two parts, providing each test with one part
@@ -543,6 +512,37 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   @deprecated("use provideSomeServiceShared", "2.0.0")
   final def provideSomeLayerShared[R0]: Spec.ProvideSomeServiceBuilderShared[R0, R, E, T] =
+    new Spec.ProvideSomeServiceBuilderShared[R0, R, E, T](self)
+
+  /**
+   * Splits the environment into two parts, providing each test with one part
+   * using the specified service builder and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   *
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
+   *
+   * val spec2 = spec.provideSomeService[Has[Random]](clockServiceBuilder)
+   * }}}
+   */
+  final def provideSomeService[R0]: Spec.ProvideSomeServiceBuilder[R0, R, E, T] =
+    new Spec.ProvideSomeServiceBuilder[R0, R, E, T](self)
+
+  /**
+   * Splits the environment into two parts, providing all tests with a shared
+   * version of one part using the specified service builder and leaving the
+   * remainder `R0`.
+   *
+   * {{{
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   *
+   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
+   *
+   * val spec2 = spec.provideSomeServiceShared[Has[Random]](clockServiceBuilder)
+   * }}}
+   */
+  final def provideSomeServiceShared[R0]: Spec.ProvideSomeServiceBuilderShared[R0, R, E, T] =
     new Spec.ProvideSomeServiceBuilderShared[R0, R, E, T](self)
 
   /**

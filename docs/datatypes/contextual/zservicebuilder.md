@@ -5,15 +5,15 @@ title: "ZServiceBuilder"
 
 A `ZServiceBuilder[-RIn, +E, +ROut]` describes a service builder of an application: every service builder in an application requires some services as input `RIn` and produces some services as the output `ROut`. 
 
-ZServiceBuilder are:
+Service builders are:
 
 1. **Recipes for Creating Services** — They describe how a given dependencies produces another services. For example, the `ZServiceBuilder[Logging with Database, Throwable, UserRepo]` is a recipe for building a service that requires `Logging` and `Database` service, and it produces a `UserRepo` service.
 
 2. **An Alternative to Constructors** — We can think of `ZServiceBuilder` as a more powerful version of a constructor, it is an alternative way to represent a constructor. Like a constructor, it allows us to build the `ROut` service in terms of its dependencies (`RIn`).
 
-3. **Composable** — Because of their excellent **composition properties**, dependencies are the idiomatic way in ZIO to create services that depend on other services. We can define dependencies that are relying on each other. 
+3. **Composable** — Because of their excellent **composition properties**, service builders are the idiomatic way in ZIO to create services that depend on other services. We can define service builders that are relying on each other. 
 
-4. **Effectful and Resourceful** — The construction of ZIO dependencies can be effectful and resourceful, they can be acquired and safely released when the services are done being utilized.
+4. **Effectful and Resourceful** — The construction of ZIO service builders can be effectful and resourceful, they can be acquired and safely released when the services are done being utilized.
 
 5. **Asynchronous** — Unlike class constructors which are blocking, ZServiceBuilder is fully asynchronous and non-blocking.
 
@@ -38,17 +38,17 @@ Let's see how we can create a service builder:
 In some cases, a `ZServiceBuilder` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The `ServiceBuilder` type alias provided by ZIO is a convenient way to define a service builder without requirements.
 
 There are many ways to create a ZServiceBuilder. Here's an incomplete list:
- - `ZServiceBuilder.succeed` to create a dependency from an existing service
+ - `ZServiceBuilder.succeed` to create a service builder from an existing service
  - `ZServiceBuilder.succeedMany` to create a service builder from a value that's one or more services
- - `ZServiceBuilder.fromFunction` to create a dependency from a function from the requirement to the service
- - `ZServiceBuilder.fromEffect` to lift a `ZIO` effect to a dependency requiring the effect environment
- - `ZServiceBuilder.fromAcquireRelease` for a dependency based on resource acquisition/release. The idea is the same as `ZManaged`.
- - `ZServiceBuilder.fromService` to build a dependency from a service
- - `ZServiceBuilder.fromServices` to build a dependency from a number of required services
+ - `ZServiceBuilder.fromFunction` to create a service builder from a function from the requirement to the service
+ - `ZServiceBuilder.fromEffect` to lift a `ZIO` effect to a service builder requiring the effect environment
+ - `ZServiceBuilder.fromAcquireRelease` for a service builder based on resource acquisition/release. The idea is the same as `ZManaged`.
+ - `ZServiceBuilder.fromService` to build a service builer from a service
+ - `ZServiceBuilder.fromServices` to build a service builder from a number of required services
  - `ZServiceBuilder.identity` to express the requirement for a dependency
- - `ZIO#toServiceBuilder` or `ZManaged#toServiceBuilder` to construct a dependency from an effect
+ - `ZIO#toServiceBuilder` or `ZManaged#toServiceBuilder` to construct a service builder from an effect
 
-Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `M`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
+Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `ZIO`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
 
 Let's review some of the `ZServiceBuilder`'s most useful constructors:
 
@@ -70,7 +70,7 @@ import zio._
 val nameServiceBuilder: UServiceBuilder[Has[String]] = ZServiceBuilder.succeed("Adam")
 ```
 
-In most cases, we use `ZServiceBuilder.succeed` to create a dependency of type `A`.
+In most cases, we use `ZServiceBuilder.succeed` to create a service builder of type `A`.
 
 For example, assume we have written the following service:
 
@@ -104,7 +104,7 @@ val live: ZServiceBuilder[Any, Nothing, Terminal] = ZServiceBuilder.succeed(Term
 
 Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). 
 
-Fortunately, the construction of ZIO dependencies can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
+Fortunately, the construction of ZIO service builders can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
 `ZServiceBuilder` relies on the powerful `ZManaged` data type and this makes this process extremely simple.
 
@@ -182,7 +182,7 @@ val serviceBuilder = ZServiceBuilder.fromZIO(ZIO.succeed("Hello, World!"))
 val serviceBuilder_ = ZIO.succeed("Hello, World!").toServiceBuilder
 ```
 
-Assume we have a `ZIO` effect that read the application config from a file, we can create a dependency from that:
+Assume we have a `ZIO` effect that read the application config from a file, we can create a service builder from that:
 
 ```scala mdoc:invisible
 trait AppConfig
@@ -195,9 +195,9 @@ val configServiceBuilder = ZServiceBuilder.fromZIO(loadConfig)
 
 ### From another Service
 
-Every `ZServiceBuilder` describes an application that requires some services as input and produces some services as output. Sometimes when we are creating a dependency, we may need to access and depend on one or several services.
+Every `ZServiceBuilder` describes an application that requires some services as input and produces some services as output. Sometimes when we are creating a service builder, we may need to access and depend on one or several services.
 
-The `ZServiceBuilder.fromService` construct a dependency that purely depends on the specified service:
+The `ZServiceBuilder.fromService` construct a service builder that purely depends on the specified service:
 
 ```scala
 def fromService[A: Tag, B: Tag](f: A => B): ZServiceBuilder[Has[A], Nothing, Has[B]]
@@ -238,7 +238,7 @@ We said that we can think of the `ZServiceBuilder` as a more powerful _construct
 
 `ZServiceBuilder`s can be composed together horizontally or vertically:
 
-1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose two sets of dependencies horizontally, the new service builder requires all the services that both of them require and produces all services that both of them produce. Horizontal composition is a way of composing two sets of dependencies side-by-side. It is useful when we combine two sets of dependencies that they don't have any relationship with each other. 
+1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose service builders horizontally, the new service builder requires all the services that both of them require and produces all services that both of them produce. Horizontal composition is a way of composing two service builders side-by-side. It is useful when we combine two service builders that they don't have any relationship with each other. 
 
 2. **Vertical Composition** — If we have a service builder that requires `A` and produces `B`, we can compose this with another service builder that requires `B` and produces `C`; this composition produces a service builder that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one service builder to an input of another.
 
@@ -291,11 +291,11 @@ And then we can compose the `newServiceBuilder` with `userRepo` vertically:
 val myServiceBuilder: ZServiceBuilder[Has[Console], Throwable, Has[UserRepo]] = newServiceBuilder >>> userRepo
 ```
 
-## Dependency Memoization
+## Service Builder Memoization
 
-One important feature of `ZIO` dependencies is that **they are shared by default**, meaning that if the same dependency is used twice, the dependency will only be allocated a single time. 
+One important feature of `ZIO` service builders is that **they are shared by default**, meaning that if the same service builder is used twice, the service builder will only be allocated a single time. 
 
-For every dependency in our dependency graph, there is only one instance of it that is shared between all the dependencies that depend on it. 
+For every service builder in our dependency graph, there is only one instance of it that is shared between all the service builders that depend on it. 
 
 If we don't want to share a module, we should create a fresh, non-shared version of it through `ZServiceBuilder#fresh`.
 
@@ -410,7 +410,7 @@ val withPostgresService = horizontal.update[UserRepo.Service]{ oldRepo  => new U
   }
 ```
 
-2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a dependency that provides the updated service. The resulting composition will replace the old dependency with the new one:
+2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a service builder that provides the updated service. The resulting composition will replace the old service builder with the new one:
 
 ```scala mdoc:silent:nest
 val dbServiceBuilder: ServiceBuilder[Nothing, UserRepo] = ZServiceBuilder.succeed(new UserRepo.Service {
@@ -645,7 +645,7 @@ object ZServiceBuilderApp0 extends zio.App {
 
 ### ZServiceBuilder example with complex dependencies
 
-In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, and `Clock`. The dependencies provided to the runnable application shows how dependencies can be combined using `++` into a single combined service builder. The combined service builder will then be able to produce both of the outputs of the original sets as a single service builder:
+In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, and `Clock`. The service builder provided to the runnable application shows how dependency service builders can be combined using `++` into a single combined service builder. The combined service builder will then be able to produce both of the outputs of the original sets as a single service builder:
 
 ```scala mdoc:compile-only
 import zio._

@@ -21,7 +21,7 @@ val myApp: ZIO[Has[Console], IOException, Unit] =
   } yield ()
 ```
 
-The idiomatic way to work with `ZState` is as part of the environment using operators defined on `ZIO`. So instead of creating `ZState` directly using `ZState.make` constructor, we can access the `ZState` from the environment, and finally, provide proper dependency using `ZState.makeServiceBuilder` constructor:
+The idiomatic way to work with `ZState` is as part of the environment using operators defined on `ZIO`. So instead of creating `ZState` directly using `ZState.make` constructor, we can access the `ZState` from the environment, and finally, provide proper service builder using `ZState.makeServiceBuilder` constructor:
 
 ```scala mdoc:compile-only
 import zio._

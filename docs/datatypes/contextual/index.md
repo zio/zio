@@ -55,7 +55,7 @@ val effect: ZIO[Has[Console] with Has[Random], Nothing, Unit] = for {
 val mainApp: ZIO[Any, Nothing, Unit] = effect.provideService(Console.live ++ Random.live)
 ```
 
-We don't need to provide dependencies for built-in services (don't worry, we will discuss dependencies later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
+We don't need to provide live service builders for built-in services (don't worry, we will discuss service builders later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
 
 ```scala mdoc:compile-only
 import zio._
@@ -105,7 +105,7 @@ ZIO wrap services with `Has` data type to:
 
 We can compose `serviceBuilderA` and `serviceBuilderB` _horizontally_ to build a service builder that has the requirements of both, to provide the capabilities of both, through `serviceBuilderA ++ serviceBuilderB`
 
-We can also compose sets of dependencies _vertically_, meaning the output of one service builder is used as input for the subsequent service builder, resulting in one service builder with the requirement of the first, and the output of the second: `serviceBuilderA >>> serviceBuilderB`. When doing this, the first service builder must output all the services required by the second service builder, but we can defer creating some of these services and require them as part of the input of the final service builder using `ZServiceBuilder.identity`.  
+We can also compose service builders _vertically_, meaning the output of one service builder is used as input for the subsequent service builder, resulting in one service builder with the requirement of the first, and the output of the second: `serviceBuilderA >>> serviceBuilderB`. When doing this, the first service builder must output all the services required by the second service builder, but we can defer creating some of these services and require them as part of the input of the final service builder using `ZServiceBuilder.identity`.  
 
 ## Defining Services in OOP
 
@@ -171,7 +171,7 @@ In the functional Scala as well as in object-oriented programming the best pract
 
 It is not mandatory but ZIO encourages us to follow this principle by bundling related functionality as an interface by using _Module Pattern_. 
 
-The core idea is that a service builder depends upon the interfaces exposed by the dependencies immediately below itself, but is completely unaware of its dependencies' internal implementations.
+The core idea is that a service builder depends upon the interfaces exposed by the service builders immediately below itself, but is completely unaware of its dependencies' internal implementations.
 
 In object-oriented programming:
 
@@ -353,7 +353,7 @@ That's it! Very simple! ZIO encourages us to follow some of the best practices i
 >
 > So instead of writing `ZServiceBuilder[Console with Clock, Nothing, Logging]`, we write `ZServiceBuilder[Has[Console] with Has[Clock], Nothing, Has[Logging]]`.
 
-Finally, we provide required dependencies to our `app` effect:
+Finally, we provide required service builders to our `app` effect:
 
 ```scala mdoc:silent:nest
  import zio._
@@ -378,7 +378,7 @@ By using ZServiceBuilder and ZIO Environment we can solve the propagation and wi
 
 ### Building Dependency Graph
 
-Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZServiceBuilder` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing dependencies horizontally and vertically. More information about how to compose dependencies is on the [ZServiceBuilder](zservicebuilder.md) page.
+Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZServiceBuilder` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing service builders horizontally and vertically. More information about how to compose service builders is on the [ZServiceBuilder](zservicebuilder.md) page.
 
 ### Dependency Propagation
 
@@ -467,7 +467,7 @@ As we see, the type of our effect converted from `ZIO[Random with Console with C
 
 #### Using `provideSomeService` Method
 
-Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSomeService` to partially apply some dependencies to the `ZIO` effect.
+Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSomeService` to partially apply some service builders to the `ZIO` effect.
 
 In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeService`:
 
@@ -482,11 +482,11 @@ val mainEffect: ZIO[Has[Random] with Has[Clock], Nothing, Unit] =
 
 #### Using `provideCustomService` Method
 
-`ZEnv` is a convenient type alias that provides several built-in ZIO dependencies that are useful in most applications.
+`ZEnv` is a convenient type alias that provides several built-in ZIO services that are useful in most applications.
 
 Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.  
 
- As `ZEnv` provides us the implementation of built-in services, we just need to provide dependencies for those services that are not part of the `ZEnv`. 
+ As `ZEnv` provides us the implementation of built-in services, we just need to provide service builders for those services that are not part of the `ZEnv`. 
 
 `ZIO#provideCustomService` helps us to do so and returns an effect that only depends on `ZEnv`.
 
@@ -524,7 +524,7 @@ val myApp: ZIO[Has[Logging] with Has[Console] with Has[Clock], Nothing, Unit] = 
 
 This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
 
-By using `ZIO#provideCustomService` we only provide the `Logging` dependecy, and it returns a `ZIO` effect which only requires `ZEnv`:
+By using `ZIO#provideCustomService` we only provide the `Logging` service builder, and it returns a `ZIO` effect which only requires `ZEnv`:
 
 ```scala mdoc:silent
 val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomService(LoggingLive.serviceBuilder)

@@ -824,28 +824,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * leaving a managed effect that only depends on the `ZEnv`.
    *
    * {{{
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
-   *
-   * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
-   *
-   * val managed2 = managed.provideCustomService(loggingServiceBuilder)
-   * }}}
-   */
-  final def provideCustomService[E1 >: E, R1](
-    serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
-  )(implicit
-    ev1: ZEnv with R1 <:< R,
-    ev2: Has.Union[ZEnv, R1],
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): ZManaged[ZEnv, E1, A] =
-    provideSomeService[ZEnv](serviceBuilder)
-
-  /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving a managed effect that only depends on the `ZEnv`.
-   *
-   * {{{
    * val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = ???
    *
    * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
@@ -865,13 +843,26 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     provideCustomService(layer)
 
   /**
-   * Provides a service builder to the `ZManaged`, which translates it to
-   * another level.
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a managed effect that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   *
+   * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideCustomService(loggingServiceBuilder)
+   * }}}
    */
-  final def provideService[E1 >: E, R0, R1](
-    serviceBuilder: => ZServiceBuilder[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    ZManaged.suspend(serviceBuilder.build.map(ev).flatMap(r => self.provide(r)))
+  final def provideCustomService[E1 >: E, R1](
+    serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
+  )(implicit
+    ev1: ZEnv with R1 <:< R,
+    ev2: Has.Union[ZEnv, R1],
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZManaged[ZEnv, E1, A] =
+    provideSomeService[ZEnv](serviceBuilder)
 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
@@ -883,6 +874,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     provideService(layer)
 
   /**
+   * Provides a service builder to the `ZManaged`, which translates it to
+   * another level.
+   */
+  final def provideService[E1 >: E, R0, R1](
+    serviceBuilder: => ZServiceBuilder[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
+    ZManaged.suspend(serviceBuilder.build.map(ev).flatMap(r => self.provide(r)))
+
+  /**
    * Provides some of the environment required to run this effect when the
    * environment is not a subtype of `Has[_]`. This is useful primarily for
    * implementing operators that are polymorphic in the environment type. When
@@ -890,21 +890,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
     ZManaged(zio.provideSome[(R0, ZManaged.ReleaseMap)](tp => (f(tp._1), tp._2)))
-
-  /**
-   * Splits the environment into two parts, providing one part using the
-   * specified service builder and leaving the remainder `R0`.
-   *
-   * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]] = ???
-   *
-   * val managed: ZManaged[Has[Clock] with Has[Random], Nothing, Unit] = ???
-   *
-   * val managed2 = managed.provideSomeService[Has[Random]](clockServiceBuilder)
-   * }}}
-   */
-  final def provideSomeService[R0]: ZManaged.ProvideSomeServiceBuilder[R0, R, E, A] =
-    new ZManaged.ProvideSomeServiceBuilder[R0, R, E, A](self)
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -921,6 +906,21 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   @deprecated("use provideSomeService", "2.0.0")
   final def provideSomeLayer[R0]: ZManaged.ProvideSomeServiceBuilder[R0, R, E, A] =
     provideSomeService
+
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified service builder and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]] = ???
+   *
+   * val managed: ZManaged[Has[Clock] with Has[Random], Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideSomeService[Has[Random]](clockServiceBuilder)
+   * }}}
+   */
+  final def provideSomeService[R0]: ZManaged.ProvideSomeServiceBuilder[R0, R, E, A] =
+    new ZManaged.ProvideSomeServiceBuilder[R0, R, E, A](self)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.

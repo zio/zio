@@ -106,7 +106,7 @@ libraryDependencies += "dev.zio" %% "zio-test" % "<zio-version>"
 
 ### Description
 
-The `@mockable[A]` generates _capability tags_ and _mock dependency_ into annotated object.
+The `@mockable[A]` generates _capability tags_ and _mock service builder_ into annotated object.
 
 ```scala
 import zio.test.mock.mockable

@@ -1473,28 +1473,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * {{{
    * val zio: ZIO[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
-   *
-   * val zio2 = zio.provideCustomService(loggingServiceBuilder)
-   * }}}
-   */
-  final def provideCustomService[E1 >: E, R1](
-    serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
-  )(implicit
-    ev1: ZEnv with R1 <:< R,
-    ev2: Has.Union[ZEnv, R1],
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): ZIO[ZEnv, E1, A] =
-    provideSomeService[ZEnv](serviceBuilder)
-
-  /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving an effect that only depends on the `ZEnv`.
-   *
-   * {{{
-   * val zio: ZIO[ZEnv with Logging, Nothing, Unit] = ???
-   *
    * val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = ???
    *
    * val zio2 = zio.provideCustomLayer(loggingLayer)
@@ -1512,13 +1490,26 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     provideCustomService(layer)
 
   /**
-   * Provides a service builder to the ZIO effect, which translates it to
-   * another level.
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving an effect that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val zio: ZIO[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   *
+   * val zio2 = zio.provideCustomService(loggingServiceBuilder)
+   * }}}
    */
-  final def provideService[E1 >: E, R0, R1](
-    serviceBuilder: => ZServiceBuilder[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    ZIO.suspendSucceed(serviceBuilder.build.map(ev).use(r => self.provide(r)))
+  final def provideCustomService[E1 >: E, R1](
+    serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
+  )(implicit
+    ev1: ZEnv with R1 <:< R,
+    ev2: Has.Union[ZEnv, R1],
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZIO[ZEnv, E1, A] =
+    provideSomeService[ZEnv](serviceBuilder)
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
@@ -1530,6 +1521,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     provideService(layer)
 
   /**
+   * Provides a service builder to the ZIO effect, which translates it to
+   * another level.
+   */
+  final def provideService[E1 >: E, R0, R1](
+    serviceBuilder: => ZServiceBuilder[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
+    ZIO.suspendSucceed(serviceBuilder.build.map(ev).use(r => self.provide(r)))
+
+  /**
    * Provides some of the environment required to run this effect when the
    * environment is not a subtype of `Has[_]`. This is useful primarily for
    * implementing operators that are polymorphic in the environment type. When
@@ -1537,21 +1537,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def provideSome[R0](f: R0 => R)(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E, A] =
     ZIO.accessZIO(r0 => self.provide(f(r0)))
-
-  /**
-   * Splits the environment into two parts, providing one part using the
-   * specified service builder and leaving the remainder `R0`.
-   *
-   * {{{
-   * val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ???
-   *
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]] = ???
-   *
-   * val zio2 = zio.provideSomeService[Has[Random]](clockServiceBuilder)
-   * }}}
-   */
-  final def provideSomeService[R0]: ZIO.ProvideSomeServiceBuilder[R0, R, E, A] =
-    new ZIO.ProvideSomeServiceBuilder[R0, R, E, A](self)
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -1568,6 +1553,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   @deprecated("use provideSomeService", "2.0.0")
   final def provideSomeLayer[R0]: ZIO.ProvideSomeServiceBuilder[R0, R, E, A] =
     provideSomeService
+
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified service builder and leaving the remainder `R0`.
+   *
+   * {{{
+   * val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ???
+   *
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]] = ???
+   *
+   * val zio2 = zio.provideSomeService[Has[Random]](clockServiceBuilder)
+   * }}}
+   */
+  final def provideSomeService[R0]: ZIO.ProvideSomeServiceBuilder[R0, R, E, A] =
+    new ZIO.ProvideSomeServiceBuilder[R0, R, E, A](self)
 
   /**
    * Returns a new effect that will utilize the default scope (fiber scope) to

@@ -263,7 +263,7 @@ val myServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Logging] with Has[Random
     LoggingLive.serviceBuilder ++ RandomIntLive.serviceBuilder
 ```
 
-Finally, when we provide our dependencies to the ZIO effect, ZIO can access the binding configuration and extract each service. ZIO does internally these pieces of wiring machinery, we don't care about the implementation detail:
+Finally, when we provide our service builder into the ZIO effect, ZIO can access the binding configuration and extract each service. ZIO does internally these pieces of wiring machinery, we don't care about the implementation detail:
 
 ```scala mdoc:nest
 val mainApp: ZIO[Any, Nothing, Unit] = myApp.provideService(myServiceBuilder) 

@@ -15,7 +15,7 @@ trait JvmMetrics { self =>
   def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock] with Has[System], Throwable, Feature]
 
   /**
-   * Service builder that when constructed forks a fiber that periodically
+   * A service builder that when constructed forks a fiber that periodically
    * updates the JVM metrics
    */
   lazy val live: ZServiceBuilder[Has[Clock] with Has[System], Throwable, Has[Feature]] = {

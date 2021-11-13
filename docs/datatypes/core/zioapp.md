@@ -3,7 +3,7 @@ id: zioapp
 title: "ZIOApp"
 ---
 
-The `ZIOApp` trait is an entry point for a ZIO application that allows sharing dependencies between applications. It also
+The `ZIOApp` trait is an entry point for a ZIO application that allows sharing service builders between applications. It also
 provides us the ability to compose multiple ZIO applications.
 
 There is another simpler version of `ZIOApp` called `ZIOAppDefault`. We usually use `ZIOAppDefault` which uses the default ZIO environment (`ZEnv`).
@@ -111,4 +111,4 @@ object MyApp2 extends ZIOAppDefault {
 object Main extends ZIOApp.Proxy(MyApp1 <> MyApp2)
 ```
 
-The `<>` operator combines the dependencies of the two applications, composes their hooks, and then runs the two applications in parallel.
+The `<>` operator combines the service builders of the two applications, composes their hooks, and then runs the two applications in parallel.

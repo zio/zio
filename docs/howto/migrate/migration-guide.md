@@ -130,7 +130,7 @@ Here are some of the most important changes:
 | `ZIO#timeoutHalt`              | `ZIO#timeoutFailCause`            |
 |                                |                                   |
 | `ZIO#to`                       | `ZIO#intoPromise`                 |
-| `ZIO#asService`                | `ZIO#toServiceBuilder`                     |
+| `ZIO#asService`                | `ZIO#toServiceBuilder`            |
 |                                |                                   |
 | `ZIO.accessM`                  | `ZIO.accessZIO`                   |
 | `ZIO.fromFunctionM`            | `ZIO.accessZIO`                   |
@@ -503,7 +503,7 @@ After running the effect on the specified runtime configuration, it will restore
 
 ## ZServiceBuilder
 
-### Functions to Dependencies
+### Functions to Service Builders
 
 In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZServiceBuilder.fromService*` variants with a lot of boilerplate:
 
@@ -620,7 +620,7 @@ for {
 
 ### Building the Dependency Graph
 
-To create the dependency graph in ZIO 1.x, we should compose the required dependencies manually. As the ordering of dependency compositions matters, and also we should care about composing dependencies in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
+To create the dependency graph in ZIO 1.x, we should compose the required service buildera manually. As the ordering of service builder compositions matters, and also we should care about composing service builders in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
 
 Assume we have the following dependency graph with two top-level dependencies:
 
@@ -635,7 +635,7 @@ Assume we have the following dependency graph with two top-level dependencies:
                       Console    
 ```
 
-In ZIO 1.x, we had to compose these different dependencies together to create the whole application dependency graph:
+In ZIO 1.x, we had to compose these different service builders together to create the whole application dependency graph:
 
 ```scala mdoc:invisible:nest
 trait Logging {}
@@ -695,7 +695,7 @@ val appServiceBuilder: URServiceBuilder[Any, Has[DocRepo] with Has[UserRepo]] =
 val res: ZIO[Any, Nothing, Unit] = myApp.provideService(appServiceBuilder)
 ```
 
-As the development of our application progress, the number of dependencies will grow, and maintaining the dependency graph would be tedious and hard to debug.
+As the development of our application progress, the number of service builders will grow, and maintaining the dependency graph would be tedious and hard to debug.
 
 For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
 
@@ -841,17 +841,17 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 > All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `inject`/`wire` methods.
 
 
-| ZIO 1.x and 2.x (manually)                   | ZIO 2.x (automatically) |
-|----------------------------------------------|-------------------------|
-| `ZIO#provide`                                | `ZIO#inject`            |
-| `ZIO#provideSomeService`                        | `ZIO#injectSome`        |
-| `ZIO#provideCustomService`                      | `ZIO#injectCustom`      |
-| Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wire`           |
-| Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wireSome`       |
+| ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
+|--------------------------------------------------------|----------------------------|
+| `ZIO#provide`                                          | `ZIO#inject`               |
+| `ZIO#provideSomeService`                               | `ZIO#injectSome`           |
+| `ZIO#provideCustomService`                             | `ZIO#injectCustom`         |
+| Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wire`     |
+| Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wireSome` |
 
 ### ZServiceBuilder Debugging
 
-To debug ZServiceBuilder construction, we have two built-in dependencies, i.e., `ZServiceBuilder.Debug.tree` and `ZServiceBuilder.Debug.mermaid`. For example, by including `ZServiceBuilder.Debug.mermaid` into our dependency construction, the compiler generates the following debug information:
+To debug ZServiceBuilder construction, we have two built-in service builders, i.e., `ZServiceBuilder.Debug.tree` and `ZServiceBuilder.Debug.mermaid`. For example, by including `ZServiceBuilder.Debug.mermaid` into our service builder construction, the compiler generates the following debug information:
 
 ```scala
 val serviceBuilder = ZServiceBuilder.wire[Has[DocRepo] with Has[UserRepo]](
@@ -960,7 +960,7 @@ As we see, we have the following changes:
 
 1. **Deprecation of Type Alias for `Has` Wrappers** — In _Module Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Module Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Console = Has[Console.Service]` removed and the `Console.Service` will just be `Console`. **We should explicitly wrap services with `Has` data types everywhere**. 
 
-2. **Introducing Constructor-based Dependency Injection** — In _Module Pattern 1.0_ when we wanted to create a dependency that depends on other services, we had to use `ZServiceBuilder.fromService*` constructors. The problem with the `ZServiceBuilder` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
+2. **Introducing Constructor-based Dependency Injection** — In _Module Pattern 1.0_ when we wanted to create a service builder that depends on other services, we had to use `ZServiceBuilder.fromService*` constructors. The problem with the `ZServiceBuilder` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
 
     In _Module Pattern 2.0_ we don't worry about all these different `ZServiceBuilder` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZServiceBuilder` we call `toServiceBuilder` on the service implementation.
 
@@ -1011,7 +1011,7 @@ As we see, we have the following changes:
 
 3. **Separated Interface** — In the _Module Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
 
-    As our application grows, where we define our dependencies matters more. _Separated Interface_ is a very useful pattern while we are developing a complex application. It helps us to reduce the coupling between application components. 
+    As our application grows, where we define our service builders matters more. _Separated Interface_ is a very useful pattern while we are developing a complex application. It helps us to reduce the coupling between application components. 
 
     Following two changes in _Module Pattern_ we can define the service definition in one package but its implementations in other packages:
     
@@ -1021,9 +1021,9 @@ As we see, we have the following changes:
       > 
       > Module Pattern 2.0 supports the idea of _Separated Interface_, but it doesn't enforce us grouping them into different packages and modules. The decision is up to us, based on the complexity and requirements of our application.
    
-   2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting dependencies in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
+   2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting service builders in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
    
-    In Module Pattern 2.0, dependencies are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.serviceBuilder`.
+    In Module Pattern 2.0, service builders are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.serviceBuilder`.
 
 4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWith(_.log(line))`.
 
@@ -1052,8 +1052,8 @@ The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The 
 
 Here is list of other deprecated methods:
 
-| ZIO 1.x                    | ZIO 2.x                      |
-|----------------------------|------------------------------|
+| ZIO 1.x                             | ZIO 2.x                               |
+|-------------------------------------|---------------------------------------|
 | `ZServiceBuilder.fromEffect`        | `ZServiceBuilder.fromZIO`             |
 | `ZServiceBuilder.fromEffectMany`    | `ZServiceBuilder.fromZIOMany`         |
 | `ZServiceBuilder.fromFunctionM`     | `ZServiceBuilder.fromFunctionZIO`     |
@@ -1077,7 +1077,7 @@ Here is list of other deprecated methods:
 | `ZManaged#get`                       | `ZManaged#some`                            |
 | `ZManaged#someOrElseM`               | `ZManaged#someOrElseManaged`               |
 |                                      |                                            |
-| `ZManaged#asService`                 | `ZManaged#toServiceBuilder`                          |
+| `ZManaged#asService`                 | `ZManaged#toServiceBuilder`                |
 | `ZManaged.services`                  | `ZManaged.service`                         |
 |                                      |                                            |
 | `ZManaged.foreach_`                  | `ZManaged.foreachDiscard`                  |
@@ -1425,7 +1425,7 @@ There is a slight change in the Clock service; the return value of the `currentD
 
 In ZIO 2.0, without changing any API, the _retrying_, _repetition_, and _scheduling_ logic moved into the `Clock` service.
 
-Working with these three time-related APIs, always made us require `Clock` as our environment. So by moving these primitives into the `Clock` service, now we can directly call them via the `Clock` service. This change solves a common anti-pattern in ZIO 1.0, whereby a middleware that uses `Clock` via this retrying, repetition, or scheduling logic must provide the `Clock` dependency on every method invocation:
+Working with these three time-related APIs, always made us require `Clock` as our environment. So by moving these primitives into the `Clock` service, now we can directly call them via the `Clock` service. This change solves a common anti-pattern in ZIO 1.0, whereby a middleware that uses `Clock` via this retrying, repetition, or scheduling logic must provide the `Clock` service builder on every method invocation:
 
 ```scala mdoc:silent:nest
 trait Journal {
