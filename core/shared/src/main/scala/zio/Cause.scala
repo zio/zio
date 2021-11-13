@@ -510,6 +510,12 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     )
 
   /**
+    * Grabs a complete, linearized trace for the cause. Note: This linearization
+    * may be misleading in the presence of parallel errors.
+    */
+  def trace: ZTrace = traces.fold(ZTrace.none)(_ ++ _)
+
+  /**
    * Grabs a list of execution traces from the cause.
    */
   final def traces: List[ZTrace] =
@@ -585,7 +591,7 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Fail[+E](value: E, trace: ZTrace) extends Cause[E] {
+  final case class Fail[+E](value: E, override val trace: ZTrace) extends Cause[E] {
     override def equals(that: Any): Boolean = that match {
       case fail: Fail[_]      => value == fail.value
       case c @ Then(_, _)     => sym(empty)(this, c)
@@ -595,7 +601,7 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Die(value: Throwable, trace: ZTrace) extends Cause[Nothing] {
+  final case class Die(value: Throwable, override val trace: ZTrace) extends Cause[Nothing] {
     override def equals(that: Any): Boolean = that match {
       case die: Die           => value == die.value
       case c @ Then(_, _)     => sym(empty)(this, c)
@@ -605,7 +611,7 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Interrupt(fiberId: FiberId, trace: ZTrace) extends Cause[Nothing] {
+  final case class Interrupt(fiberId: FiberId, override val trace: ZTrace) extends Cause[Nothing] {
     override def equals(that: Any): Boolean =
       (this eq that.asInstanceOf[AnyRef]) || (that match {
         case interrupt: Interrupt => fiberId == interrupt.fiberId

@@ -107,9 +107,9 @@ trait Runtime[+R] {
    * program.
    */
   final def unsafeRunSync[E, A](zio0: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
-    tryFastUnsafeRunSync(zio0, 0)
+    tryFastUnsafeRunSync(zio0, 0, 50)
 
-  protected final def defaultUnsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] = {
+  private[zio] final def defaultUnsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
     unsafeRunWith(zio)(result.set)
@@ -117,8 +117,8 @@ trait Runtime[+R] {
     result.get()
   }
 
-  protected def tryFastUnsafeRunSync[E, A](zio: ZIO[R, E, A], stack: Int)(implicit trace: ZTraceElement): Exit[E, A] =
-    if (stack >= 50) defaultUnsafeRunSync(zio)
+  private[zio] def tryFastUnsafeRunSync[E, A](zio: ZIO[R, E, A], stack: Int, maxStack: Int)(implicit trace: ZTraceElement): Exit[E, A] =
+    if (stack >= maxStack) defaultUnsafeRunSync(zio)
     else {
       import ZIO.TracedCont
 
@@ -153,7 +153,7 @@ trait Runtime[+R] {
                 x4 = x3; x3 = x2; x2 = x1; x1 = k
               } else {
                 // Our "register"-based stack can't handle it, try consuming more JVM stack:
-                val exit = tryFastUnsafeRunSync(zio, stack + 1)
+                val exit = tryFastUnsafeRunSync(zio, stack + 1, maxStack)
 
                 curZio = exit match {
                   case Exit.Failure(cause) => ZIO.failCause(cause)
@@ -176,6 +176,8 @@ trait Runtime[+R] {
               val zio = curZio.asInstanceOf[ZIO.Fail[E]]
 
               val chunkBuilder = ChunkBuilder.make[ZTraceElement]()
+
+              chunkBuilder += zio.trace 
 
               if (x1 ne null) {
                 chunkBuilder += x1.trace
@@ -210,11 +212,13 @@ trait Runtime[+R] {
             case _ =>
               val zio = curZio
 
+              println(s"About to run mini-interpreter on ${zio}")
+              val exit = defaultUnsafeRunSync(zio)
+
               // Give up, the mini-interpreter can't handle it:
-              curZio = defaultUnsafeRunSync(zio) match {
-                case Exit.Failure(cause) => ZIO.failCause(cause)
-                case Exit.Success(value) => ZIO.succeedNow(value)
-              }
+              curZio = exit.toZIO
+
+              println(s"Done running mini-interpreter with exit ${exit}")
           }
         } catch {
           case ZIO.ZioError(e) =>

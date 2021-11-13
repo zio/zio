@@ -236,6 +236,15 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   }
 
   /**
+    * Converts the `Exit` to a `ZIO` effect.
+    */
+  final def toZIO(implicit trace: ZTraceElement): IO[E, A] = 
+    self match {
+      case Exit.Failure(cause) => ZIO.failCause(cause)
+      case Exit.Success(value) => ZIO.succeedNow(value)
+    }
+
+  /**
    * Discards the value.
    */
   final def unit: Exit[E, Unit] = as(())
