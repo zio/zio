@@ -37,8 +37,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * than using a type such as `Int` to avoid the risk of ambiguity.
  *
  * To run an effect that depends on some state, create the initial state with
- * the `make` constructor and then use `toLayer` to convert it into a layer that
- * you can provide along with your application's other dependencies.
+ * the `make` constructor and then use `toServiceBuilder` to convert it into a
+ * service builder that you can provide along with your application's other
+ * services.
  */
 sealed trait ZState[S] {
 
@@ -76,8 +77,9 @@ object ZState {
     }
 
   /**
-   * Creates a layer that outputs an initial state with the specified value.
+   * Creates a service builder that outputs an initial state with the specified
+   * value.
    */
-  def makeLayer[S: Tag](s: S)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Has[ZState[S]]] =
-    make(s).toLayer
+  def makeServiceBuilder[S: Tag](s: S)(implicit trace: ZTraceElement): ZServiceBuilder[Any, Nothing, Has[ZState[S]]] =
+    make(s).toServiceBuilder
 }

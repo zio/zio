@@ -997,14 +997,14 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    * `TestEnvironment`.
    *
    * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomLayer(loggingLayer)
+   * val spec2 = spec.provideCustomServices(loggingServiceBuilder)
    * }}}
    */
-  def provideCustomLayer[E, R](layer: ZLayer[TestEnvironment, TestFailure[E], R])(implicit
+  def provideCustomServices[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
     ev2: Has.Union[TestEnvironment, R],
     tagged: Tag[R],
     trace: ZTraceElement
@@ -1016,7 +1016,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     ({ type OutEnv[Env] = TestEnvironment })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ] =
-    provideSomeLayer[TestEnvironment][E, R](layer)
+    provideSomeServices[TestEnvironment][E, R](serviceBuilder)
 
   /**
    * Provides each test with the part of the environment that is not part of the
@@ -1024,14 +1024,14 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    * `TestEnvironment`.
    *
    * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomLayer(loggingLayer)
+   * val spec2 = spec.provideCustomServices(loggingServiceBuilder)
    * }}}
    */
-  def provideCustomLayerShared[E, R](layer: ZLayer[TestEnvironment, TestFailure[E], R])(implicit
+  def provideCustomServicesShared[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
     ev2: Has.Union[TestEnvironment, R],
     tagged: Tag[R],
     trace: ZTraceElement
@@ -1043,32 +1043,34 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     ({ type OutEnv[Env] = TestEnvironment })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ] =
-    provideSomeLayerShared[TestEnvironment][E, R](layer)
+    provideSomeServicesShared[TestEnvironment][E, R](serviceBuilder)
 
   /**
-   * An aspect that provides a layer to the spec, translating it up a level.
+   * An aspect that provides a service builder to the spec, translating it up a
+   * level.
    */
-  final def provideLayer[R0, E1, R1](
-    layer: ZLayer[R0, TestFailure[E1], R1]
+  final def provideServices[R0, E1, R1](
+    serviceBuilder: ZServiceBuilder[R0, TestFailure[E1], R1]
   ): TestAspect.WithOut[R1, Any, E1, Any, ({ type OutEnv[Env] = R0 })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
     new TestAspect[R1, Any, E1, Any] {
       type OutEnv[Env] = R0
       type OutErr[Err] = Err
       def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.provideLayer(layer)
+        spec.provideServices(serviceBuilder)
     }
 
   /**
-   * An aspect that provides a layer to the spec, translating it up a level.
+   * An aspect that provides a service builder to the spec, translating it up a
+   * level.
    */
-  final def provideLayerShared[R0, E1, R1](
-    layer: ZLayer[R0, TestFailure[E1], R1]
+  final def provideServicesShared[R0, E1, R1](
+    serviceBuilder: ZServiceBuilder[R0, TestFailure[E1], R1]
   ): TestAspect.WithOut[R1, Any, E1, Any, ({ type OutEnv[Env] = R0 })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
     new TestAspect[R1, Any, E1, Any] {
       type OutEnv[Env] = R0
       type OutErr[Err] = Err
       def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.provideLayerShared(layer)
+        spec.provideServicesShared(serviceBuilder)
     }
 
   /**
@@ -1092,34 +1094,34 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
 
   /**
    * Splits the environment into two parts, providing each test with one part
-   * using the specified layer and leaving the remainder `R0`.
+   * using the specified service builder and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]] = ???
    *
    * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec @@ provideSomeLayer[Has[Random]](clockLayer)
+   * val spec2 = spec @@ provideSomeServices[Has[Random]](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeLayer[R0]: TestAspect.ProvideSomeLayer[R0] =
-    new TestAspect.ProvideSomeLayer[R0]
+  final def provideSomeServices[R0]: TestAspect.ProvideSomeServiceBuilder[R0] =
+    new TestAspect.ProvideSomeServiceBuilder[R0]
 
   /**
    * Splits the environment into two parts, providing all tests with a shared
-   * version of one part using the specified layer and leaving the remainder
-   * `R0`.
+   * version of one part using the specified service builder and leaving the
+   * remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]] = ???
    *
    * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
    *
-   * val spec2 = spec.provideSomeLayerShared[Has[Random]](clockLayer)
+   * val spec2 = spec.provideSomeServicesShared[Has[Random]](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeLayerShared[R0]: TestAspect.ProvideSomeLayerShared[R0] =
-    new TestAspect.ProvideSomeLayerShared[R0]
+  final def provideSomeServicesShared[R0]: TestAspect.ProvideSomeServiceBuilderShared[R0] =
+    new TestAspect.ProvideSomeServiceBuilderShared[R0]
 
   /**
    * An aspect that repeats successful tests according to a schedule.
@@ -1761,9 +1763,9 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
       }
   }
 
-  final class ProvideSomeLayer[R0](private val dummy: Boolean = true) extends AnyVal {
+  final class ProvideSomeServiceBuilder[R0](private val dummy: Boolean = true) extends AnyVal {
     def apply[E1, R1](
-      layer: ZLayer[R0, TestFailure[E1], R1]
+      serviceBuilder: ZServiceBuilder[R0, TestFailure[E1], R1]
     )(implicit
       ev: Has.Union[R0, R1],
       tagged: Tag[R1],
@@ -1782,13 +1784,13 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def apply[R >: R0 with R1, E >: E1](
           spec: Spec[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
-          spec.provideLayer[TestFailure[E], R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+          spec.provideServices[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
       }
   }
 
-  final class ProvideSomeLayerShared[R0](private val dummy: Boolean = true) extends AnyVal {
+  final class ProvideSomeServiceBuilderShared[R0](private val dummy: Boolean = true) extends AnyVal {
     def apply[E1, R1](
-      layer: ZLayer[R0, TestFailure[E1], R1]
+      serviceBuilder: ZServiceBuilder[R0, TestFailure[E1], R1]
     )(implicit
       ev2: Has.Union[R0, R1],
       tagged: Tag[R1],
@@ -1807,7 +1809,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def apply[R >: R0 with R1, E >: E1](
           spec: Spec[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
-          spec.provideLayerShared[TestFailure[E], R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+          spec.provideServicesShared[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
       }
   }
 }

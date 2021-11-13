@@ -39,14 +39,14 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {
     implicit val trace = Tracer.newTrace
-    runSpec.provideSomeLayer[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ layer)
+    runSpec.provideSomeServices[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ serviceBuilder)
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
-        self.layer +!+ that.layer
+      def serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, Environment] =
+        self.serviceBuilder +!+ that.serviceBuilder
       override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
@@ -103,15 +103,17 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       env <- ZIO.environment[Environment with TestEnvironment with Has[ZIOAppArgs]]
       runner =
         TestRunner(
-          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](ZLayer.succeedMany(env))
+          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](
+            ZServiceBuilder.succeedMany(env)
+          )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideServices(runner.bootstrap)
       _ <- TestLogger
              .logLine(SummaryBuilder.buildSummary(results).summary)
              .when(testArgs.printSummary)
-             .provideLayer(runner.bootstrap)
+             .provideServices(runner.bootstrap)
     } yield results
   }
 }

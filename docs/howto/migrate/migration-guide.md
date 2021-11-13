@@ -100,9 +100,9 @@ Here are some of the most important changes:
 
 - **`Discard` instead of the underscore `_` suffix** — The underscore suffix is another legacy naming convention from Haskell's world. In ZIO 1.x, the underscore suffix means we are going to discard the result. The underscore version works exactly like the one without the underscore, but it discards the result and returns `Unit` in the ZIO context. For example, the `collectAll_` operator renamed to `collectAllDiscard`.
 
-- **`as`, `to`, `into` prefixes** — The `ZIO#asService` method is renamed to `ZIO#toLayer` and also the `ZIO#to` is renamed to the `ZIO#intoPromise`. So now we have three categories of conversion:
+- **`as`, `to`, `into` prefixes** — The `ZIO#asService` method is renamed to `ZIO#toServiceBuilder` and also the `ZIO#to` is renamed to the `ZIO#intoPromise`. So now we have three categories of conversion:
     1. **as** — The `ZIO#as` method and its variants like `ZIO#asSome`, `ZIO#asSomeError` and `ZIO#asService` are used when transforming the `A` inside of a `ZIO`, generally as shortcuts for `map(aToFoo(_))`.
-    2. **to** — The `ZIO#to` method and its variants like `ZIO#toLayer`, `ZIO#toManaged`, and `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than the `ZIO` data-type.
+    2. **to** — The `ZIO#to` method and its variants like `ZIO#toServiceBuilder`, `ZIO#toManaged`, and `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than the `ZIO` data-type.
     3. **into** — All `into*` methods, accept secondary data-type, modify it with the result of the current effect (e.g. `ZIO#intoPromise`, `ZStream#intoHub`, `ZStream#intoQueue` and `ZStream#intoManaged`)
 
 | ZIO 1.x                        | ZIO 2.x                           |
@@ -130,7 +130,7 @@ Here are some of the most important changes:
 | `ZIO#timeoutHalt`              | `ZIO#timeoutFailCause`            |
 |                                |                                   |
 | `ZIO#to`                       | `ZIO#intoPromise`                 |
-| `ZIO#asService`                | `ZIO#toLayer`                     |
+| `ZIO#asService`                | `ZIO#toServiceBuilder`            |
 |                                |                                   |
 | `ZIO.accessM`                  | `ZIO.accessZIO`                   |
 | `ZIO.fromFunctionM`            | `ZIO.accessZIO`                   |
@@ -501,15 +501,15 @@ ZIO.withRuntimeConfig(newRuntimeConfiguration)(effect)
 ```
 After running the effect on the specified runtime configuration, it will restore the old runtime configuration.
 
-## ZLayer
+## ZServiceBuilder
 
-### Functions to Layers
+### Functions to Service Builders
 
-In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZLayer.fromService*` variants with a lot of boilerplate:
+In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZServiceBuilder.fromService*` variants with a lot of boilerplate:
 
 ```scala
-val live: URLayer[Clock with Console, Logging] =
-  ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
+val live: URServiceBuilder[Clock with Console, Logging] =
+  ZServiceBuilder.fromServices[Clock.Service, Console.Service, Logging.Service] {
     (clock: Clock.Service, console: Console.Service) =>
       new Service {
         override def log(line: String): UIO[Unit] =
@@ -521,24 +521,24 @@ val live: URLayer[Clock with Console, Logging] =
   }
 ```
 
-ZIO 2.x deprecates all `ZLayer.fromService*` functions:
+ZIO 2.x deprecates all `ZServiceBuilder.fromService*` functions:
 
-| ZIO 1.0                          | ZIO 2.x   |
-|----------------------------------|-----------|
-| `ZLayer.fromService`             | `toLayer` |
-| `ZLayer.fromServices`            | `toLayer` |
-| `ZLayer.fromServiceM`            | `toLayer` |
-| `ZLayer.fromServicesM`           | `toLayer` |
-| `ZLayer.fromServiceManaged`      | `toLayer` |
-| `ZLayer.fromServicesManaged`     | `toLayer` |
-| `ZLayer.fromServiceMany`         | `toLayer` |
-| `ZLayer.fromServicesMany`        | `toLayer` |
-| `ZLayer.fromServiceManyM`        | `toLayer` |
-| `ZLayer.fromServicesManyM`       | `toLayer` |
-| `ZLayer.fromServiceManyManaged`  | `toLayer` |
-| `ZLayer.fromServicesManyManaged` | `toLayer` |
+| ZIO 1.0                          | ZIO 2.x |
+|----------------------------------|---------|
+| `ZServiceBuilder.fromService`             | `toServiceBuilder` |
+| `ZServiceBuilder.fromServices`            | `toServiceBuilder` |
+| `ZServiceBuilder.fromServiceM`            | `toServiceBuilder` |
+| `ZServiceBuilder.fromServicesM`           | `toServiceBuilder` |
+| `ZServiceBuilder.fromServiceManaged`      | `toServiceBuilder` |
+| `ZServiceBuilder.fromServicesManaged`     | `toServiceBuilder` |
+| `ZServiceBuilder.fromServiceMany`         | `toServiceBuilder` |
+| `ZServiceBuilder.fromServicesMany`        | `toServiceBuilder` |
+| `ZServiceBuilder.fromServiceManyM`        | `toServiceBuilder` |
+| `ZServiceBuilder.fromServicesManyM`       | `toServiceBuilder` |
+| `ZServiceBuilder.fromServiceManyManaged`  | `toServiceBuilder` |
+| `ZServiceBuilder.fromServicesManyManaged` | `toServiceBuilder` |
 
-Instead, it provides the `toLayer` extension methods for functions:
+Instead, it provides the `toServiceBuilder` extension methods for functions:
 
 ```scala
 case class LoggingLive(console: Console, clock: Clock) extends Logging {
@@ -550,12 +550,12 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 }
 
 object LoggingLive {
-  val layer: URLayer[Has[Console] with Has[Clock], Has[Logging]] =
-    (LoggingLive(_, _)).toLayer[Logging]
+  val serviceBuilder: URServiceBuilder[Has[Console] with Has[Clock], Has[Logging]] =
+    (LoggingLive(_, _)).toServiceBuilder[Logging]
 }
 ```
 
-Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toLayer` extension method for all `Function` arities, we can call the `toLayer` on any function to convert that to the `ZLayer`. Unlike the `ZLayer.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplates we have had in ZIO 1.x.
+Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toServiceBuilder` extension method for all `Function` arities, we can call the `toServiceBuilder` on any function to convert that to the `ZServiceBuilder`. Unlike the `ZServiceBuilder.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplates we have had in ZIO 1.x.
 
 ### Accessing a Service from the Environment
 
@@ -620,7 +620,7 @@ for {
 
 ### Building the Dependency Graph
 
-To create the dependency graph in ZIO 1.x, we should compose the required layers manually. As the ordering of layer compositions matters, and also we should care about composing layers in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
+To create the dependency graph in ZIO 1.x, we should compose the required service buildera manually. As the ordering of service builder compositions matters, and also we should care about composing service builders in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
 
 Assume we have the following dependency graph with two top-level dependencies:
 
@@ -635,7 +635,7 @@ Assume we have the following dependency graph with two top-level dependencies:
                       Console    
 ```
 
-In ZIO 1.x, we had to compose these different layers together to create the whole application dependency graph:
+In ZIO 1.x, we had to compose these different service builders together to create the whole application dependency graph:
 
 ```scala mdoc:invisible:nest
 trait Logging {}
@@ -659,48 +659,48 @@ case class BlobStorageImpl(logging: Logging) extends BlobStorage {}
 case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo {}
 
 object Logging {
-  val live: URLayer[Has[Console], Has[Logging]] =
-    LoggerImpl.toLayer[Logging]
+  val live: URServiceBuilder[Has[Console], Has[Logging]] =
+    LoggerImpl.toServiceBuilder[Logging]
 }
 
 object Database {
-  val live: URLayer[Any, Has[Database]] =
-    DatabaseImp.toLayer[Database]
+  val live: URServiceBuilder[Any, Has[Database]] =
+    DatabaseImp.toServiceBuilder[Database]
 }
 
 object UserRepo {
-  val live: URLayer[Has[Logging] with Has[Database], Has[UserRepo]] =
-    (UserRepoImpl(_, _)).toLayer[UserRepo]
+  val live: URServiceBuilder[Has[Logging] with Has[Database], Has[UserRepo]] =
+    (UserRepoImpl(_, _)).toServiceBuilder[UserRepo]
 }
 
 
 object BlobStorage {
-  val live: URLayer[Has[Logging], Has[BlobStorage]] =
-    BlobStorageImpl.toLayer[BlobStorage]
+  val live: URServiceBuilder[Has[Logging], Has[BlobStorage]] =
+    BlobStorageImpl.toServiceBuilder[BlobStorage]
 }
 
 object DocRepo {
-  val live: URLayer[Has[Logging] with Has[Database] with Has[BlobStorage], Has[DocRepo]] =
-    (DocRepoImpl(_, _, _)).toLayer[DocRepo]
+  val live: URServiceBuilder[Has[Logging] with Has[Database] with Has[BlobStorage], Has[DocRepo]] =
+    (DocRepoImpl(_, _, _)).toServiceBuilder[DocRepo]
 }
   
 val myApp: ZIO[Has[DocRepo] with Has[UserRepo], Nothing, Unit] = ZIO.succeed(???)
 ```
 
 ```scala mdoc:silent:nest
-val appLayer: URLayer[Any, Has[DocRepo] with Has[UserRepo]] =
+val appServiceBuilder: URServiceBuilder[Any, Has[DocRepo] with Has[UserRepo]] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
     
-val res: ZIO[Any, Nothing, Unit] = myApp.provideLayer(appLayer)
+val res: ZIO[Any, Nothing, Unit] = myApp.provideServices(appServiceBuilder)
 ```
 
-As the development of our application progress, the number of layers will grow, and maintaining the dependency graph would be tedious and hard to debug.
+As the development of our application progress, the number of service builders will grow, and maintaining the dependency graph would be tedious and hard to debug.
 
 For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
 
 ```scala
-myApp.provideLayer(
+myApp.provideServices(
   ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
     (Database.live >>> UserRepo.live)
 )
@@ -708,13 +708,13 @@ myApp.provideLayer(
 
 ```
 type mismatch;
- found   : zio.URLayer[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],zio.Has[DocRepo]]
-    (which expands to)  zio.ZLayer[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],Nothing,zio.Has[DocRepo]]
- required: zio.ZLayer[zio.Has[Database] with zio.Has[BlobStorage],?,?]
+ found   : zio.URServiceBuilder[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],zio.Has[DocRepo]]
+    (which expands to)  zio.ZServiceBuilder[zio.Has[Logging] with zio.Has[Database] with zio.Has[BlobStorage],Nothing,zio.Has[DocRepo]]
+ required: zio.ZServiceBuilder[zio.Has[Database] with zio.Has[BlobStorage],?,?]
     ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
 ```
 
-In ZIO 2.x, we can automatically construct layers with friendly compile-time hints, using `ZIO#inject` operator:
+In ZIO 2.x, we can automatically construct dependencies with friendly compile-time hints, using `ZIO#inject` operator:
 
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
@@ -757,7 +757,7 @@ val app: ZIO[Any, Nothing, Unit] =
 ```
 
 ```
-  ZLayer Wiring Error  
+  ZServiceBuilder Wiring Error  
 
 ❯ missing Logging
 ❯     for DocRepo.live
@@ -766,10 +766,10 @@ val app: ZIO[Any, Nothing, Unit] =
 ❯     for UserRepo.live
 ```
 
-We can also directly construct a layer using `ZLayer.wire`:
+We can also directly construct a service builder using `ZServiceBuilder.wire`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.wire[Has[DocRepo] with Has[UserRepo]](
+val serviceBuilder = ZServiceBuilder.wire[Has[DocRepo] with Has[UserRepo]](
   Console.live,
   Logging.live,
   DocRepo.live,
@@ -779,10 +779,10 @@ val layer = ZLayer.wire[Has[DocRepo] with Has[UserRepo]](
 )
 ```
 
-And also the `ZLayer.wireSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.wireSome[In, Out]`:
+And also the `ZServiceBuilder.wireSome` helps us to construct a service builder which requires on some service and produces some other services (`URServiceBuilder[Int, Out]`) using `ZServiceBuilder.wireSome[In, Out]`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.wireSome[Has[Console], Has[DocRepo] with Has[UserRepo]](
+val serviceBuilder = ZServiceBuilder.wireSome[Has[Console], Has[DocRepo] with Has[UserRepo]](
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -791,11 +791,11 @@ val layer = ZLayer.wireSome[Has[Console], Has[DocRepo] with Has[UserRepo]](
 )
 ```
 
-In ZIO 1.x, the `ZIO#provideSomeLayer` provides environment partially:
+In ZIO 1.x, the `ZIO#provideSomeServices` provides environment partially:
 
 ```scala mdoc:silent:nest
 val app: ZIO[Has[Console], Nothing, Unit] =
-  myApp.provideSomeLayer[Has[Console]](
+  myApp.provideSomeServices[Has[Console]](
     ((Logging.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
   )
@@ -814,11 +814,11 @@ val app: ZIO[Has[Console], Nothing, Unit] =
   )
 ```
 
-In ZIO 1.x, the `ZIO#provideCustomLayer` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
+In ZIO 1.x, the `ZIO#provideCustomServices` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
 
 ```scala mdoc:silent:nest
 val app: ZIO[zio.ZEnv, Nothing, Unit] = 
-  myApp.provideCustomLayer(
+  myApp.provideCustomServices(
     ((Logging.live ++ Database.live ++ (Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       ((Logging.live ++ Database.live) >>> UserRepo.live)
   )
@@ -841,32 +841,32 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 > All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `inject`/`wire` methods.
 
 
-| ZIO 1.x and 2.x (manually)                    | ZIO 2.x (automatically) |
-|-----------------------------------------------|-------------------------|
-| `ZIO#provide`                                 | `ZIO#inject`            |
-| `ZIO#provideSomeLayer`                        | `ZIO#injectSome`        |
-| `ZIO#provideCustomLayer`                      | `ZIO#injectCustom`      |
-| Composing manually using `ZLayer` combinators | `ZLayer#wire`           |
-| Composing manually using `ZLayer` combinators | `ZLayer#wireSome`       |
+| ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
+|--------------------------------------------------------|----------------------------|
+| `ZIO#provide`                                          | `ZIO#inject`               |
+| `ZIO#provideSomeServices`                              | `ZIO#injectSome`           |
+| `ZIO#provideCustomServices`                            | `ZIO#injectCustom`         |
+| Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wire`     |
+| Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wireSome` |
 
-### ZLayer Debugging
+### ZServiceBuilder Debugging
 
-To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.tree` and `ZLayer.Debug.mermaid`. For example, by including `ZLayer.Debug.mermaid` into our layer construction, the compiler generates the following debug information:
+To debug ZServiceBuilder construction, we have two built-in service builders, i.e., `ZServiceBuilder.Debug.tree` and `ZServiceBuilder.Debug.mermaid`. For example, by including `ZServiceBuilder.Debug.mermaid` into our service builder construction, the compiler generates the following debug information:
 
 ```scala
-val layer = ZLayer.wire[Has[DocRepo] with Has[UserRepo]](
+val serviceBuilder = ZServiceBuilder.wire[Has[DocRepo] with Has[UserRepo]](
   Console.live,
   Logging.live,
   DocRepo.live,
   Database.live,
   BlobStorage.live,
   UserRepo.live,
-  ZLayer.Debug.mermaid
+  ZServiceBuilder.Debug.mermaid
 )
 ```
 
 ```scala
-[info]   ZLayer Wiring Graph  
+[info]   ZServiceBuilder Wiring Graph  
 [info] 
 [info] ◉ DocRepo.live
 [info] ├─◑ Logging.live
@@ -901,8 +901,8 @@ object logging {
     }
     
     // Live implementation of the Logging service
-    val live: ZLayer[Clock with Console, Nothing, Logging] =
-      ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
+    val live: ZServiceBuilder[Clock with Console, Nothing, Logging] =
+      ZServiceBuilder.fromServices[Clock.Service, Console.Service, Logging.Service] {
         (clock: Clock.Service, console: Console.Service) =>
           new Logging.Service {
             override def log(line: String): UIO[Unit] =
@@ -949,10 +949,10 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
     } yield ()
 }
 
-// Converting the Service Implementation into the ZLayer
+// Converting the Service Implementation into the ZServiceBuilder
 object LoggingLive {
-  val layer: URLayer[Has[Console] with Has[Clock], Has[Logging]] =
-    (LoggingLive(_, _)).toLayer[Logging]
+  val serviceBuilder: URServiceBuilder[Has[Console] with Has[Clock], Has[Logging]] =
+    (LoggingLive(_, _)).toServiceBuilder[Logging]
 }
 ```
 
@@ -960,9 +960,9 @@ As we see, we have the following changes:
 
 1. **Deprecation of Type Alias for `Has` Wrappers** — In _Module Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Module Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Console = Has[Console.Service]` removed and the `Console.Service` will just be `Console`. **We should explicitly wrap services with `Has` data types everywhere**. 
 
-2. **Introducing Constructor-based Dependency Injection** — In _Module Pattern 1.0_ when we wanted to create a service layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
+2. **Introducing Constructor-based Dependency Injection** — In _Module Pattern 1.0_ when we wanted to create a service builder that depends on other services, we had to use `ZServiceBuilder.fromService*` constructors. The problem with the `ZServiceBuilder` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
 
-    In _Module Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we call `toLayer` on the service implementation.
+    In _Module Pattern 2.0_ we don't worry about all these different `ZServiceBuilder` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZServiceBuilder` we call `toServiceBuilder` on the service implementation.
 
     > **_Note:_**
     > 
@@ -974,28 +974,28 @@ As we see, we have the following changes:
     > }
     > 
     > object LoggingLive {
-    >   val layer: URLayer[Any, Has[Logging]] = LoggingLive().toLayer
+    >   val serviceBuilder: URServiceBuilder[Any, Has[Logging]] = LoggingLive().toServiceBuilder
     > }
     >``` 
     > Compiler Error:
     > ```
-    > value toLayer is not a member of LoggingLive
-    > val layer: URLayer[Any, Has[Logging]] = LoggingLive().toLayer
+    > value toServiceBuilder is not a member of LoggingLive
+    > val serviceBuilder: URServiceBuilder[Any, Has[Logging]] = LoggingLive().toServiceBuilder
     > ```
     > The problem here is that the companion object won't automatically extend `() => Logging`. So the workaround is doing that manually:
     > ```scala
     > object LoggingLive extends (() => Logging) {
-    >   val layer: URLayer[Any, Has[Logging]] = LoggingLive.toLayer
+    >   val serviceBuilder: URServiceBuilder[Any, Has[Logging]] = LoggingLive.toServiceBuilder
     > }
     > ```
-    > Or we can just write the `val layer: URLayer[Any, Has[Logging]] = (() => Logging).toLayer` to fix that.
+    > Or we can just write the `val serviceBuilder: URServiceBuilder[Any, Has[Logging]] = (() => Logging).toServiceBuilder` to fix that.
  
     > **_Note:_**
     > 
-    > The new pattern encourages us to parametrize _case classes_ to introduce service dependencies and then using `toLayer` syntax as a very simple way that always works. But it doesn't enforce us to do that. We can also just pull whatever services we want from the environment using `ZIO.service` or `ZManaged.service` and then implement the service and call `toLayer` on it:
+    > The new pattern encourages us to parametrize _case classes_ to introduce service dependencies and then using `toServiceBuilder` syntax as a very simple way that always works. But it doesn't enforce us to do that. We can also just pull whatever services we want from the environment using `ZIO.service` or `ZManaged.service` and then implement the service and call `toServiceBuilder` on it:
     > ```scala mdoc:silent:nest
     > object LoggingLive {
-    >   val layer: ZLayer[Has[Clock] with Has[Console], Nothing, Has[Logging]] =
+    >   val serviceBuilder: ZServiceBuilder[Has[Clock] with Has[Console], Nothing, Has[Logging]] =
     >     (for {
     >       console <- ZIO.service[Console]
     >       clock   <- ZIO.service[Clock]
@@ -1005,13 +1005,13 @@ As we see, we have the following changes:
     >           time <- clock.currentDateTime
     >           _    <- console.printLine(s"$time--$line").orDie
     >         } yield ()
-    >     }).toLayer
+    >     }).toServiceBuilder
     > }
     > ```
 
 3. **Separated Interface** — In the _Module Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
 
-    As our application grows, where we define our layers matters more. _Separated Interface_ is a very useful pattern while we are developing a complex application. It helps us to reduce the coupling between application components. 
+    As our application grows, where we define our service builders matters more. _Separated Interface_ is a very useful pattern while we are developing a complex application. It helps us to reduce the coupling between application components. 
 
     Following two changes in _Module Pattern_ we can define the service definition in one package but its implementations in other packages:
     
@@ -1021,9 +1021,9 @@ As we see, we have the following changes:
       > 
       > Module Pattern 2.0 supports the idea of _Separated Interface_, but it doesn't enforce us grouping them into different packages and modules. The decision is up to us, based on the complexity and requirements of our application.
    
-   2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting layers in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
+   2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting service builders in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
    
-    In Module Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
+    In Module Pattern 2.0, service builders are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.serviceBuilder`.
 
 4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWith(_.log(line))`.
 
@@ -1052,14 +1052,14 @@ The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The 
 
 Here is list of other deprecated methods:
 
-| ZIO 1.x                    | ZIO 2.x                      |
-|----------------------------|------------------------------|
-| `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
-| `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
-| `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
-| `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
-| `ZLayer.identity`          | `ZLayer.environment`         |
-| `ZLayer.requires`          | `ZLayer.environment`         |
+| ZIO 1.x                             | ZIO 2.x                               |
+|-------------------------------------|---------------------------------------|
+| `ZServiceBuilder.fromEffect`        | `ZServiceBuilder.fromZIO`             |
+| `ZServiceBuilder.fromEffectMany`    | `ZServiceBuilder.fromZIOMany`         |
+| `ZServiceBuilder.fromFunctionM`     | `ZServiceBuilder.fromFunctionZIO`     |
+| `ZServiceBuilder.fromFunctionManyM` | `ZServiceBuilder.fromFunctionManyZIO` |
+| `ZServiceBuilder.identity`          | `ZServiceBuilder.environment`         |
+| `ZServiceBuilder.requires`          | `ZServiceBuilder.environment`         |
 
 ## ZManaged
 
@@ -1077,7 +1077,7 @@ Here is list of other deprecated methods:
 | `ZManaged#get`                       | `ZManaged#some`                            |
 | `ZManaged#someOrElseM`               | `ZManaged#someOrElseManaged`               |
 |                                      |                                            |
-| `ZManaged#asService`                 | `ZManaged#toLayer`                         |
+| `ZManaged#asService`                 | `ZManaged#toServiceBuilder`                |
 | `ZManaged.services`                  | `ZManaged.service`                         |
 |                                      |                                            |
 | `ZManaged.foreach_`                  | `ZManaged.foreachDiscard`                  |
@@ -1383,7 +1383,7 @@ There are two significant changes in ZIO Services:
 
 2. In ZIO 2.0 all type aliases like `type Logging = Has[Logging.Service]` removed. So we should explicitly use `Has` wrappers when we want to specify dependencies on ZIO services.
 
-So instead of writing `ZLayer[Console with Clock, Nothing, ConsoleLogger]`, we should write `ZLayer[Has[Console] with Has[Clock], Nothing, Has[ConsoleLogger]]`, or when accessing services instead of `ZIO.service[Console.Service]` we also now do `ZIO.service[Console]`.
+So instead of writing `ZServiceBuilder[Console with Clock, Nothing, ConsoleLogger]`, we should write `ZServiceBuilder[Has[Console] with Has[Clock], Nothing, Has[ConsoleLogger]]`, or when accessing services instead of `ZIO.service[Console.Service]` we also now do `ZIO.service[Console]`.
 
 ### Blocking Service
 
@@ -1425,7 +1425,7 @@ There is a slight change in the Clock service; the return value of the `currentD
 
 In ZIO 2.0, without changing any API, the _retrying_, _repetition_, and _scheduling_ logic moved into the `Clock` service.
 
-Working with these three time-related APIs, always made us require `Clock` as our environment. So by moving these primitives into the `Clock` service, now we can directly call them via the `Clock` service. This change solves a common anti-pattern in ZIO 1.0, whereby a middleware that uses `Clock` via this retrying, repetition, or scheduling logic must provide the `Clock` layer on every method invocation:
+Working with these three time-related APIs, always made us require `Clock` as our environment. So by moving these primitives into the `Clock` service, now we can directly call them via the `Clock` service. This change solves a common anti-pattern in ZIO 1.0, whereby a middleware that uses `Clock` via this retrying, repetition, or scheduling logic must provide the `Clock` service builder on every method invocation:
 
 ```scala mdoc:silent:nest
 trait Journal {
@@ -1538,7 +1538,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _     <- Console.printLine(count)
   } yield count
 
-  def run = app.injectCustom(ZState.makeLayer(MyState(0)))
+  def run = app.injectCustom(ZState.makeServiceBuilder(MyState(0)))
 }
 ```
 

@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Console, FiberRef, Has, IO, Ref, UIO, URIO, ZIO, ZLayer, ZTraceElement}
+import zio.{Console, FiberRef, Has, IO, Ref, UIO, URIO, ZIO, ZServiceBuilder, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -193,22 +193,22 @@ object TestConsole extends Serializable {
    */
   def make(data: Data, debug: Boolean = true)(implicit
     trace: ZTraceElement
-  ): ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] = {
+  ): ZServiceBuilder[Has[Live], Nothing, Has[Console] with Has[TestConsole]] = {
     for {
       live     <- ZIO.service[Live]
       ref      <- Ref.make(data)
       debugRef <- FiberRef.make(debug)
       test      = Test(ref, live, debugRef)
     } yield Has.allOf[Console, TestConsole](test, test)
-  }.toLayerMany
+  }.toServiceBuilderMany
 
-  val any: ZLayer[Has[Console] with Has[TestConsole], Nothing, Has[Console] with Has[TestConsole]] =
-    ZLayer.environment[Has[Console] with Has[TestConsole]](Tracer.newTrace)
+  val any: ZServiceBuilder[Has[Console] with Has[TestConsole], Nothing, Has[Console] with Has[TestConsole]] =
+    ZServiceBuilder.environment[Has[Console] with Has[TestConsole]](Tracer.newTrace)
 
-  val debug: ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
+  val debug: ZServiceBuilder[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
     make(Data(Nil, Vector()), true)(Tracer.newTrace)
 
-  val silent: ZLayer[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
+  val silent: ZServiceBuilder[Has[Live], Nothing, Has[Console] with Has[TestConsole]] =
     make(Data(Nil, Vector()), false)(Tracer.newTrace)
 
   /**

@@ -722,6 +722,6 @@ object ScheduleSpec extends ZIOBaseSpec {
 
   object Logging {
     trait Service
-    val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
+    val live: ZServiceBuilder[Any, Nothing, Logging] = ZServiceBuilder.succeed(new Logging.Service {})
   }
 }

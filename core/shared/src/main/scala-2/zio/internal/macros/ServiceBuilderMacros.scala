@@ -5,19 +5,19 @@ import zio.internal.ansi.AnsiStringOps
 
 import scala.reflect.macros.blackbox
 
-private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
+private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends ServiceBuilderMacroUtils {
   import c.universe._
 
   def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
-    layers: c.Expr[ZLayer[_, E, _]]*
+    serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[F[Any, E, A]] =
-    injectBaseImpl[F, Any, R, E, A](layers, "provideLayer")
+    injectBaseImpl[F, Any, R, E, A](serviceBuilder, "provideServices")
 
   def injectSomeImpl[F[_, _, _], R0 <: Has[_]: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
-    layers: c.Expr[ZLayer[_, E, _]]*
+    serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[F[R0, E, A]] = {
     assertEnvIsNotNothing[R0]()
-    injectBaseImpl[F, R0, R, E, A](layers, "provideLayer")
+    injectBaseImpl[F, R0, R, E, A](serviceBuilder, "provideServices")
   }
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
@@ -39,7 +39,7 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
     if (outType =:= nothingType || outType =:= emptyHas) {
       val errorMessage =
         s"""
-${"  ZLayer Wiring Error  ".red.bold.inverted}
+${"  ZServiceBuilder Wiring Error  ".red.bold.inverted}
         
 You must provide a type to ${"injectSome".cyan.bold} (e.g. ${"foo.injectSome".cyan.bold}${"[Has[UserService] with Has[Config]".red.bold.underlined}${"(AnotherService.live)".cyan.bold})
 
@@ -53,7 +53,7 @@ This type represents the services you are ${"not".underlined} currently injectin
 }
 
 private[zio] object MacroUnitTestUtils {
-  def getRequirements[R]: List[String] = macro LayerMacros.debugGetRequirements[R]
+  def getRequirements[R]: List[String] = macro ServiceBuilderMacros.debugGetRequirements[R]
 
-  def showTree(any: Any): String = macro LayerMacros.debugShowTree
+  def showTree(any: Any): String = macro ServiceBuilderMacros.debugShowTree
 }

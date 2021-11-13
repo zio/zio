@@ -1,14 +1,15 @@
 package zio.test
 
-import zio.{ZIO, Has, ZLayer}
+import zio.{ZIO, Has, ZServiceBuilder}
 
 trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
 
   /**
-   * Automatically assembles a layer for the spec, translating it up a level.
+   * Automatically assembles a service builder for the spec, translating it
+   * up a level.
    */
-  inline def inject[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
-    ${SpecLayerMacros.injectImpl[Any, R, E1, T]('self, 'layers)}
+  inline def inject[E1 >: E](inline serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[Any, E1, T] =
+    ${SpecServiceBuilderMacros.injectImpl[Any, R, E1, T]('self, 'serviceBuilder)}
 
   def injectSome[R0 ] =
     new InjectSomePartiallyApplied[R0, R, E, T](self)
@@ -24,23 +25,24 @@ trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    *
    * {{{
    * val zio: ZIO[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
+   * val oldLadyServiceBuilder: ZServiceBuilder[Fly, Nothing, OldLady] = ???
+   * val flyServiceBuilder: ZServiceBuilder[Blocking, Nothing, Fly] = ???
    *
-   * // The TestEnvironment you use later will provide both Blocking to flyLayer and
+   * // The TestEnvironment you use later will provide both Blocking to flyServiceBuilder and
    * // Console to zio
    * val zio2 : ZIO[TestEnvironment, Nothing, Unit] =
-   *   zio.injectCustom(oldLadyLayer, flyLayer)
+   *   zio.injectCustom(oldLadyServiceBuilder, flyServiceBuilder)
    * }}}
    */
-  inline def injectCustom[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
-    ${SpecLayerMacros.injectImpl[TestEnvironment, R, E1, T]('self, 'layers)}
+  inline def injectCustom[E1 >: E](inline serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[TestEnvironment, E1, T] =
+    ${SpecServiceBuilderMacros.injectImpl[TestEnvironment, R, E1, T]('self, 'serviceBuilder)}
 
   /**
-   * Automatically assembles a layer for the spec, sharing services between all tests.
+   * Automatically assembles a service builder for the spec, sharing
+   * services between all tests.
    */
-  inline def injectShared[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
-    ${SpecLayerMacros.injectSharedImpl[Any, R, E1, T]('self, 'layers)}
+  inline def injectShared[E1 >: E](inline serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[Any, E1, T] =
+    ${SpecServiceBuilderMacros.injectSharedImpl[Any, R, E1, T]('self, 'serviceBuilder)}
 
   /**
    * Automatically constructs the part of the environment that is not part of the
@@ -52,25 +54,25 @@ trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    *
    * {{{
    * val zio: ZIO[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
+   * val oldLadyServiceBuilder: ZServiceBuilder[Fly, Nothing, OldLady] = ???
+   * val flyServiceBuilder: ZServiceBuilder[Blocking, Nothing, Fly] = ???
    *
-   * // The TestEnvironment you use later will provide both Blocking to flyLayer and
+   * // The TestEnvironment you use later will provide both Blocking to flyServiceBuilder and
    * // Console to zio
    * val zio2 : ZIO[TestEnvironment, Nothing, Unit] =
-   *   zio.injectCustom(oldLadyLayer, flyLayer)
+   *   zio.injectCustom(oldLadyServiceBuilder, flyServiceBuilder)
    * }}}
    */
-  inline def injectCustomShared[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
-    ${SpecLayerMacros.injectSharedImpl[TestEnvironment, R, E1, T]('self, 'layers)}
+  inline def injectCustomShared[E1 >: E](inline serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[TestEnvironment, E1, T] =
+    ${SpecServiceBuilderMacros.injectSharedImpl[TestEnvironment, R, E1, T]('self, 'serviceBuilder)}
 }
 
 private final class InjectSomePartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
-  inline def apply[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
-  ${SpecLayerMacros.injectImpl[R0, R, E1, T]('self, 'layers)}
+  inline def apply[E1 >: E](inline serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[R0, E1, T] =
+  ${SpecServiceBuilderMacros.injectImpl[R0, R, E1, T]('self, 'serviceBuilder)}
 }
 
 private final class InjectSomeSharedPartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
-  inline def apply[E1 >: E](inline layers: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
-  ${SpecLayerMacros.injectSharedImpl[R0, R, E1, T]('self, 'layers)}
+  inline def apply[E1 >: E](inline serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[R0, E1, T] =
+  ${SpecServiceBuilderMacros.injectSharedImpl[R0, R, E1, T]('self, 'serviceBuilder)}
 }

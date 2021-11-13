@@ -42,14 +42,14 @@ module.exports = {
         "datatypes/contextual/hasmany",
         {
             type: "category",
-            label: "ZIO Layers",
+            label: "ZIO Dependencies",
             items: [
-                "datatypes/contextual/zlayer",
-                "datatypes/contextual/rlayer",
-                "datatypes/contextual/ulayer",
-                "datatypes/contextual/layer",
-                "datatypes/contextual/urlayer",
-                "datatypes/contextual/tasklayer"
+                "datatypes/contextual/zservicebuilder",
+                "datatypes/contextual/rservicebuilder",
+                "datatypes/contextual/uservicebuilder",
+                "datatypes/contextual/servicebuilder",
+                "datatypes/contextual/urservicebuilder",
+                "datatypes/contextual/taskservicebuilder"
             ]
         },
         {

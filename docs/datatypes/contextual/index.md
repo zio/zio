@@ -24,7 +24,7 @@ val effect: ZIO[Has[Console], Nothing, Unit] = printLine("Hello, World!").orDie
 So finally when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
 
 ```scala mdoc:silent
-val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live)
+val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live)
 ```
 
 Finally, to run our application we can put our `mainApp` inside the `run` method:
@@ -35,7 +35,7 @@ import zio.Console._
 
 object MainApp extends ZIOAppDefault {
   val effect: ZIO[Has[Console], Nothing, Unit] = printLine("Hello, World!").orDie
-  val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live)
+  val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live)
 
   def run = mainApp
 }
@@ -52,10 +52,10 @@ val effect: ZIO[Has[Console] with Has[Random], Nothing, Unit] = for {
   _ <- printLine(s"random number: $r").orDie
 } yield ()
 
-val mainApp: ZIO[Any, Nothing, Unit] = effect.provideLayer(Console.live ++ Random.live)
+val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live ++ Random.live)
 ```
 
-We don't need to provide live layers for built-in services (don't worry, we will discuss layers later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
+We don't need to provide live service builders for built-in services (don't worry, we will discuss service builders later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
 
 ```scala mdoc:compile-only
 import zio._
@@ -84,7 +84,7 @@ Defining service in ZIO is not very different from object-oriented style, it has
 
 ZIO have two data type that plays a key role in writing ZIO services using _Module Pattern_: 
 1. Has
-2. ZLayer
+2. ZServiceBuilder
 
 So, before diving into the _Module Pattern_, We need to learn more about ZIO Contextual Data Types. Let's review each of them:
 
@@ -99,13 +99,13 @@ ZIO wrap services with `Has` data type to:
 2. **Combine** multiple services together. Two or more `Has[_]` elements can be combined _horizontally_ using their `++` operator.
 
 
-### ZLayer
+### ZServiceBuilder
 
-`ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
+`ZServiceBuilder[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
 
-We can compose `layerA` and `layerB` _horizontally_ to build a layer that has the requirements of both layers, to provide the capabilities of both layers, through `layerA ++ layerB`
+We can compose `serviceBuilderA` and `serviceBuilderB` _horizontally_ to build a service builder that has the requirements of both, to provide the capabilities of both, through `serviceBuilderA ++ serviceBuilderB`
 
-We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer to build the next layer, resulting in one layer with the requirement of the first, and the output of the second layer: `layerA >>> layerB`. When doing this, the first layer must output all the services required by the second layer, but we can defer creating some of these services and require them as part of the input of the final layer using `ZLayer.identity`.  
+We can also compose service builders _vertically_, meaning the output of one service builder is used as input for the subsequent service builder, resulting in one service builder with the requirement of the first, and the output of the second: `serviceBuilderA >>> serviceBuilderB`. When doing this, the first service builder must output all the services required by the second service builder, but we can defer creating some of these services and require them as part of the input of the final service builder using `ZServiceBuilder.identity`.  
 
 ## Defining Services in OOP
 
@@ -171,7 +171,7 @@ In the functional Scala as well as in object-oriented programming the best pract
 
 It is not mandatory but ZIO encourages us to follow this principle by bundling related functionality as an interface by using _Module Pattern_. 
 
-The core idea is that a layer depends upon the interfaces exposed by the layers immediately below itself, but is completely unaware of its dependencies' internal implementations.
+The core idea is that a service builder depends upon the interfaces exposed by the service builders immediately below itself, but is completely unaware of its dependencies' internal implementations.
 
 In object-oriented programming:
 
@@ -179,7 +179,7 @@ In object-oriented programming:
 - **Service Implementation** is done by implementing interfaces using _classes_ or creating _new object_ of the interface.
 - **Defining Dependencies** is done by using _constructors_. They allow us to build classes, give their dependencies. This is called constructor-based dependency injection.
 
-We have a similar analogy in Module Pattern, except instead of using _constructors_ we use **`ZLayer`** to define dependencies. So in ZIO fashion, we can think of `ZLayer` as a service constructor.
+We have a similar analogy in Module Pattern, except instead of using _constructors_ we use **`ZServiceBuilder`** to define dependencies. So in ZIO fashion, we can think of `ZServiceBuilder` as a service constructor.
 
 ZIO has two patterns to write services. The first version of _Module Pattern_ has some boilerplate, but the second version is very concise and straightforward. ZIO doesn't mandate any of them, you can use whichever you like.
 
@@ -193,9 +193,9 @@ Let's start learning this pattern by writing a `Logging` service:
 
 3. **Service Definition** — Then we create the `Logging` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
 
-4. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `ZLayer.succeed` constructor.
+4. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZServiceBuilder` data type by using the `ZServiceBuilder.succeed` constructor.
 
-5. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZLayer.fromService` and `ZLayer.fromServices`.
+5. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZServiceBuilder.fromService` and `ZServiceBuilder.fromServices`.
 
 6. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
 
@@ -207,7 +207,7 @@ import zio.Console._
 ```
 
 ```scala mdoc:invisible
-import zio.{Has, UIO, Layer, ZLayer, ZIO, URIO}
+import zio.{Has, UIO, ServiceBuilder, ZServiceBuilder, ZIO, URIO}
 ```
 
 ```scala mdoc:silent:nest
@@ -220,7 +220,7 @@ object logging {
       def log(line: String): UIO[Unit]
     }
 
-    val live: ULayer[Logging] = ZLayer.succeed {
+    val live: UServiceBuilder[Logging] = ZServiceBuilder.succeed {
       new Service {
         override def log(line: String): UIO[Unit] =
           ZIO.succeed(println(line))
@@ -234,7 +234,7 @@ object logging {
 }
 ```
 
-We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZLayer.fromServices` constructor:
+We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZServiceBuilder.fromServices` constructor:
 
 ```scala mdoc:silent:nest:warn
 object logging {
@@ -246,8 +246,8 @@ object logging {
       def log(line: String): UIO[Unit]
     }
 
-    val live: URLayer[Has[Clock] with Has[Console], Logging] =
-      ZLayer.fromServices[Clock, Console, Logging.Service] {
+    val live: URServiceBuilder[Has[Clock] with Has[Console], Logging] =
+      ZServiceBuilder.fromServices[Clock, Console, Logging.Service] {
         (clock: Clock, console: Console) =>
           new Logging.Service {
             override def log(line: String): UIO[Unit] =
@@ -275,17 +275,17 @@ object LoggingExample extends ZIOAppDefault {
  
   private val app: RIO[Logging, Unit] = log("Hello, World!") 
 
-  def run = app.provideLayer(Logging.live)
+  def run = app.provideServices(Logging.live)
 }
 ```
 
-During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provideLayer`.
+During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provideServices`.
 
 ### Module Pattern 2.0
 
 Writing services with _Module Pattern 2.0_ is much easier than the previous one. It removes some level of indirection from the previous version, and much more similar to the object-oriented approach in writing services.
 
-_Module Pattern 2.0_ has more similarity with object-oriented way of defining services. We use classes to implement services, and we use constructors to define service dependencies; At the end of the day, we lift class constructor into the `ZLayer`.
+_Module Pattern 2.0_ has more similarity with object-oriented way of defining services. We use classes to implement services, and we use constructors to define service dependencies; At the end of the day, we lift class constructor into the `ZServiceBuilder`.
 
 1. **Service Definition** — Defining service in this version has changed slightly compared to the previous version. We would take the service definition and pull it out into the top-level:
 
@@ -328,12 +328,12 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 }
 ```
 
-4. **Defining ZLayer** — Now, we create a companion object for `LoggingLive` data type and lift the service implementation into the `ZLayer`:
+4. **Defining ZServiceBuilder** — Now, we create a companion object for `LoggingLive` data type and lift the service implementation into the `ZServiceBuilder`:
 
 ```scala mdoc:silent
 object LoggingLive {
-  val layer: URLayer[Has[Console] with Has[Clock], Has[Logging]] =
-    (LoggingLive(_, _)).toLayer
+  val serviceBuilder: URServiceBuilder[Has[Console] with Has[Clock], Has[Logging]] =
+    (LoggingLive(_, _)).toServiceBuilder
 }
 ```
 
@@ -351,34 +351,34 @@ That's it! Very simple! ZIO encourages us to follow some of the best practices i
 >
 > In _Module Pattern 2.0_ we don't use type aliases for Has wrappers, like `type Logging = Has[Logging.Service]`. So unlike the previous pattern, we encourage using explicitly the `Has` wrappers whenever we want to specify the dependency on a service.
 >
-> So instead of writing `ZLayer[Console with Clock, Nothing, Logging]`, we write `ZLayer[Has[Console] with Has[Clock], Nothing, Has[Logging]]`.
+> So instead of writing `ZServiceBuilder[Console with Clock, Nothing, Logging]`, we write `ZServiceBuilder[Has[Console] with Has[Clock], Nothing, Has[Logging]]`.
 
-Finally, we provide required layers to our `app` effect:
+Finally, we provide required service builders to our `app` effect:
 
 ```scala mdoc:silent:nest
  import zio._
  val app = Logging.log("Application Started")
 
  zio.Runtime.default.unsafeRun(
-   app.provideLayer(LoggingLive.layer)
+   app.provideServices(LoggingLive.serviceBuilder)
  )
 ```
 
 ## Dependency Injection in ZIO
 
-ZLayers combined with the ZIO environment, allow us to use ZIO for dependency injection. There are two parts for dependency injection:
+ZServiceBuilder combined with the ZIO environment, allow us to use ZIO for dependency injection. There are two parts for dependency injection:
 1. **Building Dependency Graph**
 2. **Dependency Propagation**
 
-ZIO has a full solution to the dependency injection problem. It solves the first problem by using compositional properties of `ZLayer`, and solves the second by using ZIO Environment facilities like `ZIO#provide`. 
+ZIO has a full solution to the dependency injection problem. It solves the first problem by using compositional properties of `ZServiceBuilder`, and solves the second by using ZIO Environment facilities like `ZIO#provide`. 
 
 The way ZIO manages dependencies between application components gives us extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during _testing_ and _mocking_.
 
-By using ZLayer and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
+By using ZServiceBuilder and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
 
 ### Building Dependency Graph
 
-Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically. More information about how to compose layers is on the [ZLayer](zlayer.md) page.
+Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZServiceBuilder` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing service builders horizontally and vertically. More information about how to compose service builders is on the [ZServiceBuilder](zservicebuilder.md) page.
 
 ### Dependency Propagation
 
@@ -435,11 +435,11 @@ val loggingImpl = Has(new Logging {
 val effect = app.provide(loggingImpl)
 ```
 
-Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provideLayer` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZServiceBuilder` to construct the dependency graph of our application, then we use methods like `ZIO#provideServices` to propagate dependencies into the environment of our ZIO effect.
 
-#### Using `provideLayer` Method
+#### Using `provideServices` Method
 
-Unlike the `ZIO#provide` which takes and an `R`, the `ZIO#provideLayer` takes a `ZLayer` to the ZIO effect and translates it to another level. 
+Unlike the `ZIO#provide` which takes and an `R`, the `ZIO#provideServices` takes a `ZServiceBuilder` to the ZIO effect and translates it to another level. 
 
 Assume we have written this piece of program that requires Clock and Console services:
 
@@ -456,39 +456,39 @@ val myApp: ZIO[Has[Random] with Has[Console] with Has[Clock], Nothing, Unit] = f
 } yield ()
 ```
 
-We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provideLayer` method:
+We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provideServices` method:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
-  myApp.provideLayer(Random.live ++ Console.live ++ Clock.live)
+  myApp.provideServices(Random.live ++ Console.live ++ Clock.live)
 ```
 
 As we see, the type of our effect converted from `ZIO[Random with Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
 
-#### Using `provideSomeLayer` Method
+#### Using `provideSomeServices` Method
 
-Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSomeLayer` to partially apply some layers to the `ZIO` effect.
+Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSomeServices` to partially apply some service builders to the `ZIO` effect.
 
-In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeLayer`:
+In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeServices`:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Has[Random] with Has[Clock], Nothing, Unit] = 
-  myApp.provideSomeLayer[Has[Random] with Has[Clock]](Console.live)
+  myApp.provideSomeServices[Has[Random] with Has[Clock]](Console.live)
 ```
 
 > **Note:**
 >
-> When using `ZIO#provideSomeLayer[R0 <: Has[_]]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
+> When using `ZIO#provideSomeServices[R0 <: Has[_]]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
 
-#### Using `provideCustomLayer` Method
+#### Using `provideCustomServices` Method
 
-`ZEnv` is a convenient type alias that provides several built-in ZIO layers that are useful in most applications.
+`ZEnv` is a convenient type alias that provides several built-in ZIO services that are useful in most applications.
 
 Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.  
 
- As `ZEnv` provides us the implementation of built-in services, we just need to provide layers for those services that are not part of the `ZEnv`. 
+ As `ZEnv` provides us the implementation of built-in services, we just need to provide service builders for those services that are not part of the `ZEnv`. 
 
-`ZIO#provideCustomLayer` helps us to do so and returns an effect that only depends on `ZEnv`.
+`ZIO#provideCustomServices` helps us to do so and returns an effect that only depends on `ZEnv`.
 
 Let's write an effect that has some built-in services and also has a `Logging` service:
 
@@ -508,7 +508,7 @@ object Logging {
 }
 
 object LoggingLive {
-  val layer: ULayer[Has[Logging]] = ZLayer.succeed {
+  val serviceBuilder: UServiceBuilder[Has[Logging]] = ZServiceBuilder.succeed {
     new Logging {
       override def log(str: String): UIO[Unit] = ???
     }
@@ -524,8 +524,8 @@ val myApp: ZIO[Has[Logging] with Has[Console] with Has[Clock], Nothing, Unit] = 
 
 This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
 
-By using `ZIO#provideCustomLayer` we only provide the `Logging` layer, and it returns a `ZIO` effect which only requires `ZEnv`:
+By using `ZIO#provideCustomServices` we only provide the `Logging` service builder, and it returns a `ZIO` effect which only requires `ZEnv`:
 
 ```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomLayer(LoggingLive.layer)
+val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomServices(LoggingLive.serviceBuilder)
 ```

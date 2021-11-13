@@ -350,7 +350,7 @@ This is a pattern that will very often be used when `sleep` and `TestClock` are 
 
 **Example 3**
 
-A more complex example leveraging layers and multiple services is shown below:
+A more complex example leveraging dependencies and multiple services is shown below:
 
 ```scala mdoc:reset
 import zio.test.Assertion._
@@ -365,8 +365,8 @@ trait LoggingService {
   def log(msg: String): ZIO[Any, Exception, Unit]
 }
 
-val schedulingLayer: ZLayer[Has[Clock] with Has[LoggingService], Nothing, Has[SchedulingService]] =
-  ZLayer.fromFunction { env =>
+val schedulingServiceBuilder: ZServiceBuilder[Has[Clock] with Has[LoggingService], Nothing, Has[SchedulingService]] =
+  ZServiceBuilder.fromFunction { env =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
         (ZIO.sleep(10.seconds) *> promise.succeed(1))
@@ -376,11 +376,11 @@ val schedulingLayer: ZLayer[Has[Clock] with Has[LoggingService], Nothing, Has[Sc
 }
 
 test("One can control time for failing effects too") {
-  val failingLogger = ZLayer.succeed(new LoggingService {
+  val failingLogger = ZServiceBuilder.succeed(new LoggingService {
     override def log(msg: String): ZIO[Any, Exception, Unit] = ZIO.fail(new Exception("BOOM"))
   })
 
-  val partialLayer = (Clock.any ++ failingLogger) >>> schedulingLayer
+  val partialServiceBuilder = (Clock.any ++ failingLogger) >>> schedulingServiceBuilder
 
   val testCase =
     for {
@@ -390,13 +390,13 @@ test("One can control time for failing effects too") {
       readRef <- promise.await
       result  <- result.join
     } yield assert(1)(equalTo(readRef)) && assert(result)(fails(isSubtype[Exception](anything)))
-  testCase.provideSomeLayer[TestEnvironment](partialLayer)
+  testCase.provideSomeServices[TestEnvironment](partialServiceBuilder)
 }
 ```
 
-In this case, we want to test a layered effect that can potentially fail with an error. To do this we need to run the effect and use assertions that expect an `Exit` value.
+In this case, we want to test an effect with dependencies that can potentially fail with an error. To do this we need to run the effect and use assertions that expect an `Exit` value.
 
-Because we are providing a layer to the test we need to provide everything expected by our test case and leave the test environment behind using `.provideSomeLayer[TestEnvironment]`.
+Because we are providing dependencies to the test we need to provide everything expected by our test case and leave the test environment behind using `.provideSomeServices[TestEnvironment]`.
 
 Keep in mind we do not provide any implementation of the `Clock` because doing will make force `SchedulingService` to use it, while the clock we need here is the `TestClock` provided by the test environment.
 
