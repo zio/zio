@@ -147,6 +147,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
     }
   )
+  .dependsOn(tagMacros)
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
@@ -186,6 +187,16 @@ lazy val coreTestsJVM = coreTests.jvm
 
 lazy val coreTestsJS = coreTests.js
   .settings(dottySettings)
+
+lazy val tagMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("tag-macros"))
+  .settings(stdSettings("zio-tag-macros"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
+
+lazy val tagMacrosJVM = tagMacros.jvm
+lazy val tagMacrosJS  = tagMacros.js
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros"))
