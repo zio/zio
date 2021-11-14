@@ -1,5 +1,6 @@
 package zio
 
+import zio.Chunk.BitChunk
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test._
@@ -10,10 +11,6 @@ object BitChunkSpec extends ZIOBaseSpec {
     for {
       bytes <- Gen.listOf(Gen.anyByte)
     } yield Chunk.fromIterable(bytes)
-
-  val genBitChunk: Gen[Random with Sized, Chunk[Boolean]] = for {
-    bits <- Gen.listOf(Gen.boolean)
-  } yield Chunk.fromIterable(bits)
 
   val genInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_))
@@ -71,17 +68,53 @@ object BitChunkSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     },
-    testM("<<") {
-      check(genBitChunk, genInt) { (bits, n) =>
+    testM("<< BitChunk") {
+      check(genByteChunk, genInt) { (bytes, n) =>
+        val bits     = BitChunk(bytes, 0, bytes.length << 3)
         val actual   = (bits << n).toBinaryString
-        val expected = bits.takeRight(bits.size - n).toBinaryString + (if (bits.size <= n) "0" * bits.size else "0" * n)
+        val expected = bits.takeRight(bits.length - n).toBinaryString + "0" * math.min(n, bits.length)
         assert(actual)(equalTo(expected))
       }
     },
-    testM(">>") {
-      check(genBitChunk, genInt) { (bits, n) =>
-        val actual   = (bits >> n).toBinaryString
-        val expected = (if (bits.size <= n) "0" * bits.size else "0" * n) + bits.take(bits.size - n).toBinaryString
+    testM("<< Chunk of booleans") {
+      check(genByteChunk, genInt) { (bytes, n) =>
+        val bits     = bytes.asBits
+        val actual   = (bits << n).toBinaryString
+        val expected = bits.takeRight(bits.length - n).toBinaryString + "0" * math.min(n, bits.length)
+        assert(actual)(equalTo(expected))
+      }
+    },
+    testM(">> BitChunk") {
+      check(genByteChunk, genInt) { (bytes, n) =>
+        val bits   = BitChunk(bytes, 0, bytes.length << 3)
+        val actual = (bits >> n).toBinaryString
+        val expected =
+          bits.take(1).toBinaryString * math.min(n, bits.length) + bits.take(bits.length - n).toBinaryString
+        assert(actual)(equalTo(expected))
+      }
+    },
+    testM(">> Chunk of booleans") {
+      check(genByteChunk, genInt) { (bytes, n) =>
+        val bits   = bytes.asBits
+        val actual = (bits >> n).toBinaryString
+        val expected =
+          bits.take(1).toBinaryString * math.min(n, bits.length) + bits.take(bits.length - n).toBinaryString
+        assert(actual)(equalTo(expected))
+      }
+    },
+    testM(">>> BitChunk") {
+      check(genByteChunk, genInt) { (bytes, n) =>
+        val bits     = BitChunk(bytes, 0, bytes.length << 3)
+        val actual   = (bits >>> n).toBinaryString
+        val expected = "0" * math.min(n, bits.length) + bits.take(bits.length - n).toBinaryString
+        assert(actual)(equalTo(expected))
+      }
+    },
+    testM(">>> Chunk of booleans") {
+      check(genByteChunk, genInt) { (bytes, n) =>
+        val bits     = bytes.asBits
+        val actual   = (bits >>> n).toBinaryString
+        val expected = "0" * math.min(n, bits.length) + bits.take(bits.length - n).toBinaryString
         assert(actual)(equalTo(expected))
       }
     }

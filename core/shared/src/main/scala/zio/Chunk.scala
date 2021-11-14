@@ -125,7 +125,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     ev(apply(index))
 
   /**
-   * Shift left the specified number of bits.
+   * Shift left the specified number of booleans.
    */
   def <<(n: Int)(implicit ev: A <:< Boolean): Chunk[Boolean] =
     if (n >= length) Chunk.fill(length)(false)
@@ -135,9 +135,19 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     }
 
   /**
-   * Shift right the specified number of bits.
+   * Signed shift right the specified number of booleans.
    */
   def >>(n: Int)(implicit ev: A <:< Boolean): Chunk[Boolean] =
+    if (n >= length) Chunk.fill(length)(self.map(ev)(0))
+    else {
+      val paddedBits = Chunk.fill(n)(self.map(ev)(0))
+      paddedBits ++ self.map(ev).dropRight(n)
+    }
+
+  /**
+   * Unsigned shift right the specified number of booleans.
+   */
+  def >>>(n: Int)(implicit ev: A <:< Boolean): Chunk[Boolean] =
     if (n >= length) Chunk.fill(length)(false)
     else {
       val paddedBits = Chunk.fill(n)(false)
@@ -1806,6 +1816,39 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val index  = (minBitIndex + n) min maxBitIndex
       val toTake = (index + 7) >> 3
       BitChunk(bytes.take(toTake), minBitIndex, index)
+    }
+
+    /**
+     * Shift left the specified number of bits.
+     */
+    def <<(n: Int): BitChunk = {
+      val paddedBytes = Chunk.fill((n >> 3) + 1)(0.toByte)
+      val min         = n
+      val max         = n + maxBitIndex - minBitIndex
+      BitChunk(bytes ++ paddedBytes, min, max)
+    }
+
+    /**
+     * Signed shift right the specified number of bits.
+     */
+    def >>(n: Int): BitChunk =
+      if (self.isEmpty) {
+        self
+      } else {
+        val paddedBytes = Chunk.fill((n >> 3) + 1)(if (self(minBitIndex)) 255.toByte else 0.toByte)
+        val min         = 8 - (n & 7)
+        val max         = min + maxBitIndex - minBitIndex
+        BitChunk(paddedBytes ++ bytes, min, max)
+      }
+
+    /**
+     * Unsigned shift right the specified number of bits.
+     */
+    def >>>(n: Int): BitChunk = {
+      val paddedBytes = Chunk.fill((n >> 3) + 1)(0.toByte)
+      val min         = 8 - (n & 7)
+      val max         = min + maxBitIndex - minBitIndex
+      BitChunk(paddedBytes ++ bytes, min, max)
     }
 
     override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
