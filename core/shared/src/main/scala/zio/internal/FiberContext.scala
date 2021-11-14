@@ -552,18 +552,10 @@ private[zio] final class FiberContext[E, A](
     }
 
   private def unsafeCaptureTrace(prefix: List[ZTraceElement]): ZTrace = {
-    val builder = ChunkBuilder.make[ZTraceElement]()
-    val empty   = ZTraceElement.empty
-    var last    = empty
+    val builder = StackTraceBuilder.unsafeMake()
 
-    def addToTrace(trace: ZTraceElement): Unit =
-      if ((trace ne null) && (trace ne empty) && (trace ne last)) {
-        last = trace
-        builder += trace
-      }
-
-    prefix.foreach(addToTrace(_))
-    stack.foreach(k => addToTrace(k.trace))
+    prefix.foreach(builder += _)
+    stack.foreach(k => builder += k.trace)
 
     ZTrace(fiberId, builder.result())
   }

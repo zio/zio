@@ -363,50 +363,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Returns a `String` with the cause pretty-printed.
    */
   final def prettyPrint: String = {
-    final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement])
-
-    def renderFiberId(fiberId: FiberId): String = s"zio-fiber-${fiberId.ids.mkString(", ")}"
-
-    def unify(cause: Cause[E]): List[Unified] = {
-      @tailrec
-      def loop(
-        causes: List[Cause[E]],
-        fiberId: FiberId,
-        stackless: Boolean,
-        result: List[Unified]
-      ): List[Unified] = {
-        def unifyFail(fail: Cause.Fail[E]): Unified =
-          Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
-
-        def unifyDie(die: Cause.Die): Unified = {
-          val extra =
-            if (stackless) Chunk.empty else Chunk.fromArray(die.value.getStackTrace())
-
-          Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
-        }
-
-        def unifyInterrupt(interrupt: Cause.Interrupt): Unified = {
-          val message = "Interrupted by thread \"" + renderFiberId(fiberId) + "\""
-
-          Unified(interrupt.trace.fiberId, classOf[InterruptedException].getName(), message, interrupt.trace.toJava)
-        }
-
-        causes match {
-          case Nil => result
-
-          case Empty :: more                       => loop(more, fiberId, stackless, result)
-          case Both(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
-          case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
-          case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
-          case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) :: result)
-          case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) :: result)
-          case (cause @ Interrupt(_, _)) :: more =>
-            loop(more, fiberId, stackless, unifyInterrupt(cause) :: result)
-        }
-      }
-
-      loop(cause :: Nil, FiberId.None, false, Nil).reverse
-    }
+    import Cause.Unified
 
     def renderCause(cause: Cause[E]): String = {
       def renderUnified(indent: Int, prefix: String, unified: Unified) = {
@@ -417,9 +374,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
           unified.trace.map(trace => s"${traceIndent}at ${trace}").mkString("\n")
       }
 
-      unify(cause).zipWithIndex.map {
+      cause.unified.zipWithIndex.map {
         case (unified, 0) =>
-          renderUnified(0, "Exception in thread \"" + renderFiberId(unified.fiberId) + "\" ", unified)
+          renderUnified(0, "Exception in thread \"" + unified.fiberId.threadName + "\" ", unified)
         case (unified, n) => renderUnified(n, s"Suppressed: ", unified)
       }.mkString("\n")
     }
@@ -510,9 +467,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     )
 
   /**
-    * Grabs a complete, linearized trace for the cause. Note: This linearization
-    * may be misleading in the presence of parallel errors.
-    */
+   * Grabs a complete, linearized trace for the cause. Note: This linearization
+   * may be misleading in the presence of parallel errors.
+   */
   def trace: ZTrace = traces.fold(ZTrace.none)(_ ++ _)
 
   /**
@@ -535,6 +492,51 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     mapTrace(_ ++ trace)
 
   /**
+   * Returns a homogenized list of failures for the cause. This homogenization process throws
+   * away key information, but it is useful for interop with traditional stack traces.
+   */
+  final def unified: List[Unified] = {
+    @tailrec
+    def loop(
+      causes: List[Cause[E]],
+      fiberId: FiberId,
+      stackless: Boolean,
+      result: List[Unified]
+    ): List[Unified] = {
+      def unifyFail(fail: Cause.Fail[E]): Unified =
+        Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
+
+      def unifyDie(die: Cause.Die): Unified = {
+        val extra =
+          if (stackless) Chunk.empty else Chunk.fromArray(die.value.getStackTrace())
+
+        Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
+      }
+
+      def unifyInterrupt(interrupt: Cause.Interrupt): Unified = {
+        val message = "Interrupted by thread \"" + fiberId.threadName + "\""
+
+        Unified(interrupt.trace.fiberId, classOf[InterruptedException].getName(), message, interrupt.trace.toJava)
+      }
+
+      causes match {
+        case Nil => result
+
+        case Empty :: more                       => loop(more, fiberId, stackless, result)
+        case Both(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
+        case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
+        case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
+        case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) :: result)
+        case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) :: result)
+        case (cause @ Interrupt(_, _)) :: more =>
+          loop(more, fiberId, stackless, unifyInterrupt(cause) :: result)
+      }
+    }
+
+    loop(self :: Nil, FiberId.None, false, Nil).reverse
+  }
+
+  /**
    * Returns a `Cause` that has been stripped of all tracing information.
    */
   final def untraced: Cause[E] =
@@ -554,6 +556,15 @@ object Cause extends Serializable {
   def interrupt(fiberId: FiberId, trace: ZTrace = ZTrace.none): Cause[Nothing] = Interrupt(fiberId, trace)
   def stack[E](cause: Cause[E]): Cause[E]                                      = Stackless(cause, false)
   def stackless[E](cause: Cause[E]): Cause[E]                                  = Stackless(cause, true)
+
+  final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement]) {
+    def toThrowable: Throwable =
+      new Throwable(null, null, false, false) {
+        override final def getMessage(): String = message
+
+        override final def getStackTrace(): Array[StackTraceElement] = trace.toArray
+      }
+  }
 
   /**
    * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by

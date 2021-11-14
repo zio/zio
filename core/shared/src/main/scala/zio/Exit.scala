@@ -75,6 +75,15 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] =
     mapBoth(f, g)
 
+  /**
+   * Returns an option of the cause of failure.
+   */
+  final def causeOption: Option[Cause[E]] =
+    self match {
+      case Failure(cause) => Some(cause)
+      case _              => None
+    }
+
   final def exists(p: A => Boolean): Boolean =
     fold(_ => false, p)
 
@@ -103,6 +112,9 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
       case e @ Failure(_) => ZIO.succeedNow(e)
     }
 
+  /**
+   * Flattens an Exit of an Exit into a single Exit value.
+   */
   final def flatten[E1 >: E, B](implicit ev: A <:< Exit[E1, B]): Exit[E1, B] =
     Exit.flatten(self.map(ev))
 
@@ -236,9 +248,9 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   }
 
   /**
-    * Converts the `Exit` to a `ZIO` effect.
-    */
-  final def toZIO(implicit trace: ZTraceElement): IO[E, A] = 
+   * Converts the `Exit` to a `ZIO` effect.
+   */
+  final def toZIO(implicit trace: ZTraceElement): IO[E, A] =
     self match {
       case Exit.Failure(cause) => ZIO.failCause(cause)
       case Exit.Success(value) => ZIO.succeedNow(value)

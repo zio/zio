@@ -43,6 +43,22 @@ sealed trait FiberId extends Serializable { self =>
       case Runtime(id, _)      => Set(id)
       case Composite(fiberIds) => fiberIds.map(_.id)
     }
+
+  final def isNone: Boolean =
+    self match {
+      case None           => true
+      case Composite(set) => set.forall(_.isNone)
+      case _              => false
+    }
+
+  final def threadName: String = s"zio-fiber-${self.ids.mkString(",")}"
+
+  final def toOption: Option[FiberId] =
+    self match {
+      case None           => Option.empty[FiberId]
+      case Composite(set) => set.map(_.toOption).collect { case Some(fiberId) => fiberId }.reduceOption(_.combine(_))
+      case other          => Some(other)
+    }
 }
 
 object FiberId {
