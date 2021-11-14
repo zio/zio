@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - series/2.x
+    tags:
+      - docs.*
 
 jobs:
   publish:
