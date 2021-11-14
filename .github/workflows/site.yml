@@ -3,7 +3,7 @@ name: Website
 on:
   push:
     branches:
-      - documentation
+      - series/2.x
 
 jobs:
   publish:

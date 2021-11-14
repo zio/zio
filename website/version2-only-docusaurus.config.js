@@ -125,7 +125,7 @@ module.exports = {
             [require('blended-include-code-plugin'), { marker: 'CODE_INCLUDE' }],
             [require('remark-kroki-plugin'), { krokiBase: 'https://kroki.io', lang: "kroki", imgRefDir: "/img/kroki", imgDir: "static/img/kroki" }]
           ],
-          editUrl: 'https://github.com/zio/zio/edit/series/2.x', 
+          editUrl: 'https://github.com/zio/zio/edit/series/2.x',
         },
         theme: {
           customCss: [require.resolve('./src/css/custom.css')],
