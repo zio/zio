@@ -33,12 +33,14 @@ private[zio] class TagMacros(val c: blackbox.Context) {
 
   def makeTag(tpe0: Type)(seen0: Set[Type]): c.Tree = {
     // reimplementing the logic in `LightTypeTag.makeTag`
-    val tpe                        = tpe0.dealias.widen.finalResultType
-    val seen: Set[c.universe.Type] = seen0 + tpe
+    val tpe =
+      tpe0.dealias.widen
 
     if (seen0.contains(tpe)) {
       return q"_root_.zio.LightTypeTag.Recursive(${show(tpe)})"
     }
+
+    val seen: Set[c.universe.Type] = seen0 + tpe
 
     tpe match {
       case `nothingType` => q"_root_.zio.LightTypeTag.NothingType"
@@ -60,9 +62,23 @@ private[zio] class TagMacros(val c: blackbox.Context) {
         val tpes = tpes0.map(_.dealias.widen.finalResultType).filterNot(c.weakTypeOf[Object] <:< _)
         if (tpes.length == 1) makeTag(tpes.head)(seen)
         else q"_root_.zio.LightTypeTag.And(${tpes.map(makeTag(_)(seen))})"
-      case _ =>
+      case PolyType(params, TypeRef(lhs, s, args)) =>
+        val paramSet     = params.map(_.name.toString).toSet
+        val filteredArgs = args.filterNot(arg => paramSet(arg.typeSymbol.name.toString))
+        q"_root_.zio.LightTypeTag.TypeRef(${makeTag(lhs)(seen)}, ${s.name.toString}, ${filteredArgs.map(makeTag(_)(seen))})"
+      case PolyType(_, rhs) =>
+        q"_root_.zio.LightTypeTag.Poly(${makeTag(rhs)(seen)})"
+      case ExistentialType(_, tpe) =>
+        makeTag(tpe)(seen)
+      case other =>
+        println(s"UNKNOWN TYPE ${show(other)} ${showRaw(other)}")
         throw new Error("IMPOSSIBLE!")
     }
   }
+  // Create a method that debugs every property of a symbol
+  def debugSymbol(symbol: Symbol): String =
+    s"""
+owner: ${symbol.owner}
+       """
 
 }

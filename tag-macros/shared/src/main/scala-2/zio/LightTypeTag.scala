@@ -1,6 +1,6 @@
 package zio
 
-import zio.LightTypeTag.{And, AnyType, NoPrefix, NothingType, Primitive, Recursive, TypeRef}
+import zio.LightTypeTag._
 
 sealed trait LightTypeTag { self =>
   def getHasTypes: List[LightTypeTag] =
@@ -33,14 +33,16 @@ sealed trait LightTypeTag { self =>
       case TypeRef(parent, name, Nil) =>
         s"${parent.render}.$name"
       case TypeRef(NoPrefix, name, args) =>
-        s"$name[${args.map(_.render)}]"
+        s"$name[${args.map(_.render).mkString(", ")}]"
       case TypeRef(parent, name, args) =>
-        s"${parent.render}.$name[${args.map(_.render)}]"
+        s"${parent.render}.$name[${args.map(_.render).mkString(", ")}]"
       case Recursive(name) =>
         s"Rec($name)"
       case NothingType => "Nothing"
       case AnyType     => "Any"
       case And(tpes)   => tpes.map(_.render).mkString(" & ")
+
+      case Poly(tpe) => s"Poly(${tpe.render})"
     }
 
 }
@@ -56,6 +58,8 @@ object LightTypeTag { self =>
   case class TypeRef(parent: LightTypeTag, name: String, args: List[LightTypeTag]) extends LightTypeTag
 
   case class And(tpes: List[LightTypeTag]) extends LightTypeTag
+
+  final case class Poly(tpe: LightTypeTag) extends LightTypeTag
 
   case object NothingType extends LightTypeTag
 

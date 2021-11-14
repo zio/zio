@@ -81,7 +81,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 //            def provide: IO[Throwable, D]
 //          }
 //
-//          def layer[A: Tag, D <: Container[A]: Tag](container: D): Layer[Nothing, ContainerProvider[A, D]] =
+//          def layer[A: Tag, D <: Container[A]: Tag](container: D): UServiceBuilder[ContainerProvider[A, D]] =
 //            ZServiceBuilder.succeed {
 //              new Service[A, D] {
 //                def provide: IO[Throwable, D] = IO.succeed(container)
@@ -89,12 +89,12 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 //            }
 //
 //          def provide[A: Tag, D <: Container[A]: Tag]: ZIO[ContainerProvider[A, D], Throwable, D] =
-//            ZIO.accessM(_.get.provide)
+//            ZIO.accessZIO(_.get.provide)
 //        }
 //
 //        ZIO
-//          .accessZIO[ContainerProvider[Int, Container[Int]]] { x =>
-//            ContainerProvider.provide
+//          .accessZIO[ContainerProvider[Int, Container[Int]]] { _ =>
+//            ContainerProvider.provide[Int, Container[Int]]
 //          }
 //          .inject(ContainerProvider.layer[Int, Container[Int]](new Container(10)))
 //          .either
@@ -102,38 +102,13 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 //            assertTrue(result.isRight)
 //          }
 //      }
-      // https://github.com/zio/zio/issues/3629
-      // test("Issue #3629") {
-      //   import zio.stream._
-      //   import java.nio.ByteBuffer
-
-      //   val clock: Has[Clock] = Has(Clock.ClockLive)
-
-      //   def putObject[R <: zio.Has[_]: Tag](content: ZStream[R, Throwable, Byte]): ZIO[R, Throwable, Unit] = {
-      //     val _                                          = content
-      //     val z: ZIO[Has[Clock] with R, Throwable, Unit] = ZIO.unit
-      //     val e: Has[R]                                  = Has(1).asInstanceOf[Has[R]]
-      //     clock union e
-      //     ZIO.unit
-      //     // z.provideSomeLayer[R](r => clock.union(r))
-      //   }
-
-      //   val c                                 = Chunk.fromByteBuffer(ByteBuffer.allocate(1))
-      //   val data: ZStream[Any, Nothing, Byte] = ZStream.fromChunks(c)
-
-      //   putObject(data).map { res =>
-      //     assertTrue(res == ())
-      //   }
-
-      // }
     )
 }
 
 /**
  * Higher-Kinded Tag Correctness Example
  */
-
-//object HigherKindedTagCorrectness {
+//object HigherKindedTagCorrectness extends DefaultRunnableSpec {
 //
 //  trait Cache[F[+_], K, V] {
 //    def get(key: K): ZIO[Any, Nothing, F[V]]
@@ -155,10 +130,10 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 //      }).toServiceBuilder
 //
 //    def get[F[+_], K, V](key: K)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Has[Cache[F, K, V]], Nothing, F[V]] =
-//      ZIO.accessM(_.get.get(key))
+//      ZIO.accessZIO(_.get.get(key))
 //
 //    def put[F[+_], K, V](key: K, value: V)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Has[Cache[F, K, V]], Nothing, Unit] =
-//      ZIO.accessM(_.get.put(key, value))
+//      ZIO.accessZIO(_.get.put(key, value))
 //  }
 //
 //  val myCache: ZServiceBuilder[Any, Nothing, Has[Cache[Option, Int, String]]] =
@@ -176,32 +151,37 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 //  // Apply(TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),zio),Example$),Cache),List(Apply(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),scala),Option),List(TypeParamRef)), TypeRef(TypeRef(TypeRef(NoPrefix,<root>),scala),Int), TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),java),lang),String)))
 //  // Apply(TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),zio),Example$),Cache),List(Apply(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),scala),Option),List(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),scala),Double))), TypeRef(TypeRef(TypeRef(NoPrefix,<root>),scala),Int), TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),java),lang),String)))
 //
-//  type Apply1[A, B] = (A, B)
-//  type Apply2[A, B] = (B, A)
-//
-//  trait Cache2[F[_, _], K, V]
-//  type Cache2A = Cache2[Apply1, Int, String]
-//  type Cache2B = Cache2[Apply2, Int, String]
+////  type Apply1[A, B] = (A, B)
+////  type Apply2[A, B] = (B, A)
+////
+////  trait Cache2[F[_, _], K, V]
+////  type Cache2A = Cache2[Apply1, Int, String]
+////  type Cache2B = Cache2[Apply2, Int, String]
 //  // List String
 //  // Type Param Ref
 //  // De Bruin \.2 .1
 //  // (1, 2) => (2, 1)
 //
-//  val run =
-//    (for {
-//      _     <- Cache.put[Option, Int, String](1, "one")
-//      value <- Cache.get[Option, Int, String](1)
-//      _     <- ZIO.debug(value)
-//      a      = Tag[Cache[Option, Int, String]]
-//      b      = Tag[Cache[({ type Out[In] = Option[In] })#Out, Int, String]]
-//      c      = Tag[Cache[({ type Bar = Double; type Out[In] = Option[Bar] })#Out, Int, String]]
-//      d      = Tag[Cache[({ type Out[In] = Option[Double] })#Out, Int, String]]
-//      e      = Tag[Cache[({ type Id[A] = A; type Out[In] = Option[Id[In]] })#Out, Int, String]]
-//      f      = Tag[Cache2A]
-//      g      = Tag[Cache2B]
-//      _     <- ZIO.debug(a)
-//      _     <- ZIO.debug(e)
-//      _     <- ZIO.debug(a == e)
-//    } yield ()).provideLayer(myCache)
+//  def spec =
+//    suite("HigherKindedTagCorrectness")(
+//      test("wow") {
+//        (for {
+//          _     <- Cache.put[Option, Int, String](1, "one")
+//          value <- Cache.get[Option, Int, String](1)
+//          _     <- ZIO.debug(value)
+//          a      = Tag[Cache[Option, Int, String]]
+//          b      = Tag[Cache[({ type Out[+In] = Option[In] })#Out, Int, String]]
+//          c      = Tag[Cache[({ type Bar = Double; type Out[+In] = Option[Bar] })#Out, Int, String]]
+//          d      = Tag[Cache[({ type Out[+In] = Option[Double] })#Out, Int, String]]
+//          e      = Tag[Cache[({ type Id[+A] = A; type Out[+In] = Option[Id[In]] })#Out, Int, String]]
+//          _     <- ZIO.debug(s"WHAT" + b.render)
+//          _     <- ZIO.debug(s"WHAT" + b)
+//        } yield assertTrue(
+//          a == b,
+//          a == e,
+//          a.tag != c.tag
+//        )).provideServices(myCache)
+//      }
+//    )
 //
 //}

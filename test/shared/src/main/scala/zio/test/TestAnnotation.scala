@@ -80,7 +80,7 @@ object TestAnnotation {
    * location (i.e. file name and line number) of the calling test.
    */
   private[zio] val trace: TestAnnotation[List[ZTraceElement]] =
-    TestAnnotation("trace", List.empty, _ ++ _)
+    TestAnnotation[List[ZTraceElement]]("trace", List.empty, _ ++ _)
 
   val fibers: TestAnnotation[Either[Int, Chunk[AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]]]] =
     TestAnnotation("fibers", Left(0), compose(_, _))

@@ -43,7 +43,7 @@ class Macros(val ctx: Quotes) {
 
   object TypeVariable {
     def unapply(tpe: TypeRepr): Option[TypeRepr] = tpe match {
-      case x @ TypeRef(_, _) if x.typeSymbol.isAbstractType =>
+      case x @ TypeRef(_, _) if x.typeSymbol.isTypeParam =>
         x.asType match {
           case '[a] =>
         Some(x)
