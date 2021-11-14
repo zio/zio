@@ -11,9 +11,7 @@ object BitChunkSpec extends ZIOBaseSpec {
       bytes <- Gen.listOf(Gen.anyByte)
     } yield Chunk.fromIterable(bytes)
 
-  val genBitChunk: Gen[Random with Sized, Chunk[Boolean]] = for {
-    bits <- Gen.listOf(Gen.boolean)
-  } yield Chunk.fromIterable(bits)
+  val genBitChunk: Gen[Random with Sized, Chunk[Boolean]] = genByteChunk.map(_.asBits)
 
   val genInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_))

@@ -1784,6 +1784,16 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override private[zio] def reverseArrayIterator[A1 >: Boolean]: Iterator[Array[A1]] =
       arrayIterator
 
+    override def padToMod(n: Int)(implicit ev: Boolean <:< Boolean): Chunk[Boolean] = {
+      val maxByte           = (maxBitIndex + 7) >> 3
+      val bitsToAdd         = 0 max (n - length)
+      val paddedMaxBitIndex = maxBitIndex + bitsToAdd
+      val paddedMaxByte     = (paddedMaxBitIndex + 7) >> 3
+      val bytesToAppend     = Chunk.fill[Byte](paddedMaxByte - maxByte)(0)
+
+      BitChunk(bytes ++ bytesToAppend, minBitIndex, paddedMaxBitIndex)
+    }
+
   }
 
   private case object Empty extends Chunk[Nothing] { self =>
