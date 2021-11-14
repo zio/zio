@@ -13,4 +13,15 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) {
 }
 ```
 
+## Creating a Generator
+
 In the companion object of the `Gen` data type, there are tons of generators for various data types such as `Gen.int`, `Gen.double`, `Gen.boolean`, and so forth.
+
+Let's create an `Int` generator:
+
+```scala mdoc:silent:nest
+import zio._
+import zio.test._
+
+val intGen: Gen[Has[Random], Int] = Gen.int
+```
