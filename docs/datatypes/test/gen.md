@@ -25,3 +25,21 @@ import zio.test._
 
 val intGen: Gen[Has[Random], Int] = Gen.int
 ```
+
+## Running a Generator
+
+To run a generator, we can call `runCollect` operation:
+
+```scala mdoc:nest
+val ints: ZIO[Has[Random], Nothing, List[Int]] = intGen.runCollect.debug
+// Output: List(-2090696713)
+```
+
+This will return a `ZIO` effect containing all its values in a list, which in this example it contains only one element.
+
+To create more samples, we can use `Gen#runCollectN`, which repeatedly runs the generator as much as we need. In this example, it will generate a list of containing 5 integer elements:
+
+```scala mdoc:compile-only
+intGen.runCollectN(5).debug
+// Output: List(281023690, -1852531706, -21674662, 187993034, -868811035)
+```
