@@ -148,14 +148,14 @@ object AutoWireSpec extends ZIOBaseSpec {
             result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
           } yield assertTrue(result == "Your Lucky Number is -1295463240")
         }.injectSome[Has[Random]](ZServiceBuilder.succeed("Your Lucky Number is"))
-      },
-      suite(".injectCustom") {
-        test("automatically constructs a service builder, leaving off TestEnvironment") {
-          for {
-            result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
-          } yield assertTrue(result == "Your Lucky Number is -1295463240")
-        }.injectCustom(ZServiceBuilder.succeed("Your Lucky Number is"))
-      } @@ TestAspect.exceptDotty
+      }
+//      suite(".injectCustom") {
+//        test("automatically constructs a service builder, leaving off TestEnvironment") {
+//          for {
+//            result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
+//          } yield assertTrue(result == "Your Lucky Number is -1295463240")
+//        }.injectCustom(ZServiceBuilder.succeed("Your Lucky Number is"))
+//      } @@ TestAspect.exceptDotty
     )
 
   object TestServiceBuilder {

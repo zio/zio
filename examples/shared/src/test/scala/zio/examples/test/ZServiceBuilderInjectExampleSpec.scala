@@ -7,7 +7,7 @@ import zio.test._
 
 object ZServiceBuilderInjectExampleSpec extends DefaultRunnableSpec {
 
-  private val exampleZio: ZIO[Has[Console] with Has[OldLady], Nothing, Unit] =
+  private val exampleZio: ZIO[Has[Console] & Has[OldLady], Nothing, Unit] =
     OldLady.contentsOfStomach.flatMap { contents =>
       Console.printLine(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}").orDie
     }
