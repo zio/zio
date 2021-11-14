@@ -16,7 +16,6 @@
 
 package zio.test
 
-import izumi.reflect.Tag
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace

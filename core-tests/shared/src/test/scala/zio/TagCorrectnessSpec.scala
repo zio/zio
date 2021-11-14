@@ -2,6 +2,8 @@ package zio.test
 
 import zio._
 
+//  TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>,List()),zio,List()),test,List()),Live,List())
+//  TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>,List()),zio,List()),test,List()),Live,List())
 /**
  * There have been many issues with Tag on Scala 3. This suite collects and
  * tests those issues to ensure no regressions.
@@ -13,7 +15,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
       test("Issue #4802") {
         ZIO
           .serviceWith[Ref[Int]](_.get)
-          .inject(Ref.make(10).toLayer)
+          .inject(Ref.make(10).toServiceBuilder)
           .map { int =>
             assertTrue(int == 10)
           }
@@ -39,8 +41,8 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
         }
 
         object Service {
-          val live: ULayer[Has[Service[Int]]] =
-            ZLayer.succeed {
+          val live: UServiceBuilder[Has[Service[Int]]] =
+            ZServiceBuilder.succeed {
               new Service[Int] {
                 def foo(t: Int) =
                   ZIO.succeed(t)
@@ -58,15 +60,15 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
       // https://github.com/zio/zio/issues/4564
       test("Issue #4564") {
         trait Svc[A]
-        def testBaseLayer[R, A: Tag]: ZLayer[R, Nothing, Has[Svc[A]]] =
-          ZIO.access[R](env => new Svc[A] {}).toLayer[Svc[A]]
-        def testSecondLayer[A: Tag]: ZLayer[Has[Svc[A]], Nothing, Has[Svc[A]]] =
-          ZLayer.fromFunction[Has[Svc[A]], Svc[A]] { s =>
+        def testBaseLayer[R, A: Tag]: ZServiceBuilder[R, Nothing, Has[Svc[A]]] =
+          ZIO.access[R](_ => new Svc[A] {}).toServiceBuilder[Svc[A]]
+        def testSecondLayer[A: Tag]: ZServiceBuilder[Has[Svc[A]], Nothing, Has[Svc[A]]] =
+          ZServiceBuilder.fromFunction[Has[Svc[A]], Svc[A]] { s =>
             s.get
           }
 
         val layer = testBaseLayer[Any, String] >>> testSecondLayer[String]
-        ZIO.unit.provideCustomLayer(layer).as(assertTrue(true))
+        ZIO.unit.provideCustomServices(layer).as(assertTrue(true))
       }
       // https://github.com/zio/zio/issues/3816
 //      test("Issue #3816") {
@@ -80,7 +82,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 //          }
 //
 //          def layer[A: Tag, D <: Container[A]: Tag](container: D): Layer[Nothing, ContainerProvider[A, D]] =
-//            ZLayer.succeed {
+//            ZServiceBuilder.succeed {
 //              new Service[A, D] {
 //                def provide: IO[Throwable, D] = IO.succeed(container)
 //              }
@@ -141,7 +143,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 //  object Cache {
 //    def live[F[+_], K, V](
 //      f: Option[V] => F[V]
-//    )(implicit tag: Tag[Cache[F, K, V]]): ZLayer[Any, Nothing, Has[Cache[F, K, V]]] =
+//    )(implicit tag: Tag[Cache[F, K, V]]): ZServiceBuilder[Any, Nothing, Has[Cache[F, K, V]]] =
 //      (for {
 //        cache <- Ref.make(Map.empty[K, V])
 //      } yield new Cache[F, K, V] {
@@ -150,7 +152,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 //
 //        def put(key: K, value: V): ZIO[Any, Nothing, Unit] =
 //          cache.update(_.updated(key, value))
-//      }).toLayer
+//      }).toServiceBuilder
 //
 //    def get[F[+_], K, V](key: K)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Has[Cache[F, K, V]], Nothing, F[V]] =
 //      ZIO.accessM(_.get.get(key))
@@ -159,10 +161,10 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 //      ZIO.accessM(_.get.put(key, value))
 //  }
 //
-//  val myCache: ZLayer[Any, Nothing, Has[Cache[Option, Int, String]]] =
+//  val myCache: ZServiceBuilder[Any, Nothing, Has[Cache[Option, Int, String]]] =
 //    Cache.live[Option, Int, String](identity)
 //
-//  // val adamsBadCache: ZLayer[Any, Nothing, Has[Cache[({ type Out[In] = Option[In]})#Out, Int, String]]] =
+//  // val adamsBadCache: ZServiceBuilder[Any, Nothing, Has[Cache[({ type Out[In] = Option[In]})#Out, Int, String]]] =
 //  //   Cache.live[Option, Int, String](identity)
 //
 //  //   Apply(TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),zio),Example$),Cache),List(Apply(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),scala),Option),List(TypeParamRef)), TypeRef(TypeRef(TypeRef(NoPrefix,<root>),scala),Int), TypeRef(TypeRef(TypeRef(TypeRef(NoPrefix,<root>),java),lang),String)))

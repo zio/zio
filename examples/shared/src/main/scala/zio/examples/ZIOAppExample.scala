@@ -15,6 +15,7 @@
 //}
 
 import zio._
+import zio.test.TestEnvironment
 
 object Fun {
 
@@ -26,6 +27,10 @@ object Fun {
    * arguments to the program and has to return an `IO` with the errors fully
    * handled.
    */
-  def main(args: Array[String]): Unit =
-    println(Tag[Box[String, Boolean]].render)
+  def main(args: Array[String]): Unit = {
+    println(Tag[Has[Int] with Has[zio.test.Live]])
+    println(Tag[Has[Int] with Has[zio.test.Live]].render)
+    println(Tag[TestEnvironment].render)
+  }
+
 }

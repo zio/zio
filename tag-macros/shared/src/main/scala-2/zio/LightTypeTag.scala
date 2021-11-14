@@ -40,6 +40,7 @@ sealed trait LightTypeTag { self =>
         s"Rec($name)"
       case NothingType => "Nothing"
       case AnyType     => "Any"
+      case And(tpes)   => tpes.map(_.render).mkString(" & ")
     }
 
 }
