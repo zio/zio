@@ -1,4 +1,4 @@
-set -e 
+set -ex
 
 OLDDIR=`pwd`
 # Clean existing build and mdoc output directory

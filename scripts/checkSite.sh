@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e 
+set -ex
 
 ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/unidoc docs/mdoc
 cd website
