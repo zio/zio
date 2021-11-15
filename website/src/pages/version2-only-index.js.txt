@@ -95,6 +95,22 @@ function Sponsor(sponsor) {
   );
 }
 
+function Newsletter() {
+  return (
+    <form id="revue-form" name="revue-form" target="_blank" action="https://www.getrevue.co/profile/zio/add_subscriber" method="post">
+      <div className={styles.newsFormContainer}>
+        <label className={styles.newsLabel} htmlFor="member_email">Subscribe to ZIO News:</label>
+        <div className={styles.newsSubscribe}>
+          <input className={styles.newsInput} type="email" name="member[email]" id="member_email" required="" placeholder="Your eMail address..." />
+          <div>
+            <input className={styles.newsButton} type="submit" value="Subscribe" name="member[subscribe]" id="member_submit" />
+          </div>
+        </div>
+      </div>
+    </form>
+  );
+}
+
 // Construct the home page from all components 
 function Home() {
   const context = useDocusaurusContext();
@@ -105,19 +121,24 @@ function Home() {
       description={`${siteConfig.tagline}`}
       image='/img/navbar_brand2x.png'>
       <header className={styles.headerContainer}>
-        <div className={`container ${styles.headerInnerContainer}`}>
-          <img className={styles.headerImage} src="/img/jumbotron_pattern.png" alt={`${siteConfig.title}`} />
-          <div className={styles.headerDetailContainer}>
-            <p className={styles.headerTagline}>{siteConfig.tagline}</p>
-            <div className={styles.headerButtonContainer}>
-              <Link
-                className={`${styles.headerButton}`}
-                to={useBaseUrl('version-1.x/getting_started')}>
-                Get Started
-              </Link>
+        <div className={styles.headerRelative}>
+          <div className={styles.newsInnerContainer}>
+            <Newsletter />
+          </div>
+          <div className={`container {styles.headerInnerContainer}`}>
+            <img className={styles.headerImage} src="/img/jumbotron_pattern.png" alt={`${siteConfig.title}`} />
+            <div className={styles.headerDetailContainer}>
+              <p className={styles.headerTagline}>{siteConfig.tagline}</p>
+              <div className={styles.headerButtonContainer}>
+                <Link
+                  className={`${styles.headerButton}`}
+                  to={useBaseUrl('getting_started')}>
+                  Get Started
+                </Link>
+              </div>
             </div>
           </div>
-        </div >
+        </div>
       </header >
       <main>
         {features && features.length > 0 && (
