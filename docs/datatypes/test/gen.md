@@ -48,6 +48,8 @@ In addition, there is an operator called `Gen#runHead`, which returns the first 
 
 ## Shrinking
 
-In Property-Based Testing, we specify certain properties of a program, then we ask the testing framework to generate random test data to discover counterexamples. The existence of counterexamples shows that our function, which is under the test, is not correct. Unfortunately, in almost all cases, the first counterexample is not the minimal one. So it is not a pretty good sample to describe why our test is failing.
+In Property-Based Testing, we specify certain properties of a program, then we ask the testing framework to generate random test data to discover counterexamples. The existence of counterexamples shows that our function, which is under the test, is not correct. Unfortunately, in almost all cases, the first counterexample is not the minimal one, and they are fairly large or complex. So it is not a pretty good sample to describe why our test is failing.
 
 Shrinking is a mechanism that tries to find the smallest counterexample, which is the root cause of the test failure. So it helps a developer to find out why the test is failing.
+
+Finding the smallest failing case is somehow cumbersome and requires many attempts. As a developer, we do not need to do shrinking ourselves. All generators in ZIO Test have built-in shrinkers, so when we test properties, in case of test failures, the ZIO Test attempts to reduce the counterexamples forward their own zero points.
