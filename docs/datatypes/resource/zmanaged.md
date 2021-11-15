@@ -36,7 +36,7 @@ In the following example, we have a managed resource which requires `Console` as
 
 ```scala mdoc:silent:nest
 import zio.Console._
-def printFirstLine(file: String): ZIO[Has[Console], Throwable, Unit] = {
+def printFirstLine(file: String): ZIO[Console, Throwable, Unit] = {
   def acquire(file: String) = ZIO.attempt(new BufferedReader(new FileReader(file)))
   def release(reader: BufferedReader) = ZIO.succeed(reader.close())
 
@@ -98,7 +98,7 @@ object UserRepository {
 ```
 
 ```scala mdoc:silent:nest
-def userRepository: ZManaged[Has[Console], Throwable, UserRepository] = for {
+def userRepository: ZManaged[Console, Throwable, UserRepository] = for {
   cfg <- dbConfig.toManaged
   _ <- printLine("Read database config").toManaged
   _ <- initializeDb(cfg).toManaged
@@ -160,7 +160,7 @@ final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[An
 Inside the `use` block, we can use the managed resource and return a new value. The `use` method converts a managed resource from `ZManaged` world to `ZIO` world:
 
 ```scala mdoc:silent:nest
-def firstLine(file: String): ZIO[Has[Console], Throwable, Unit] =
+def firstLine(file: String): ZIO[Console, Throwable, Unit] =
   ZManaged.fromAutoCloseable(ZIO.attempt(fromFile(file))).use { reader =>
     printLine(reader.bufferedReader().readLine())
   }

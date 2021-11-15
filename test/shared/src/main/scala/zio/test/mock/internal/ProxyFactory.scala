@@ -19,7 +19,7 @@ package zio.test.mock.internal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
 import zio.test.mock.{Capability, Expectation, Proxy}
-import zio.{Has, IO, Tag, UServiceBuilder, ZIO, ZServiceBuilder, ZTraceElement}
+import zio.{IO, Tag, UServiceBuilder, ZIO, ZServiceBuilder, ZTraceElement}
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -35,9 +35,9 @@ object ProxyFactory {
   /**
    * Given initial `MockState[R]`, constructs a `Proxy` running that state.
    */
-  def mockProxy[R <: Has[_]: Tag](state: MockState[R])(implicit trace: ZTraceElement): UServiceBuilder[Has[Proxy]] =
+  def mockProxy[R: Tag](state: MockState[R])(implicit trace: ZTraceElement): UServiceBuilder[Proxy] =
     ZServiceBuilder.succeed(new Proxy {
-      def invoke[RIn <: Has[_], ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
+      def invoke[RIn, ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
         sealed trait MatchResult
         object MatchResult {
           case object UnexpectedCall                      extends MatchResult

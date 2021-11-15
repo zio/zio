@@ -317,32 +317,32 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             @accessibleMM[URManaged]
             object Module {
               trait Service[M[_, _]] {
-                val staticManaged                                 : M[Has[Int], String]
-                def zeroArgsManaged                               : M[Has[Int], Int]
-                def zeroArgsTypedManaged[T]                       : M[Has[Int], T]
-                def zeroArgsWithParensManaged()                   : M[Has[Int], Long]
-                def singleArgManaged(arg1: Int)                   : M[Has[Int], String]
-                def multiArgsManaged(arg1: Int, arg2: Long)       : M[Has[Int], String]
-                def multiParamListsManaged(arg1: Int)(arg2: Long) : M[Has[Int], String]
-                def typedVarargsManaged[T](arg1: Int, arg2: T*)   : M[Has[Int], T]
-                def commandManaged(arg1: Int)                     : M[Has[Int], Unit]
-                def overloadedManaged(arg1: Int)                  : M[Has[Int], String]
-                def overloadedManaged(arg1: Long)                 : M[Has[Int], String]
+                val staticManaged                                 : M[Int, String]
+                def zeroArgsManaged                               : M[Int, Int]
+                def zeroArgsTypedManaged[T]                       : M[Int, T]
+                def zeroArgsWithParensManaged()                   : M[Int, Long]
+                def singleArgManaged(arg1: Int)                   : M[Int, String]
+                def multiArgsManaged(arg1: Int, arg2: Long)       : M[Int, String]
+                def multiParamListsManaged(arg1: Int)(arg2: Long) : M[Int, String]
+                def typedVarargsManaged[T](arg1: Int, arg2: T*)   : M[Int, T]
+                def commandManaged(arg1: Int)                     : M[Int, Unit]
+                def overloadedManaged(arg1: Int)                  : M[Int, String]
+                def overloadedManaged(arg1: Long)                 : M[Int, String]
               }
             }
 
             object Check {
-              val staticManaged                                 : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.staticManaged
-              def zeroArgsManaged                               : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, Int]    = Module.zeroArgsManaged
-              def zeroArgsTypedManaged[T]                       : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, T]      = Module.zeroArgsTypedManaged[T]
-              def zeroArgsWithParensManaged()                   : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, Long]   = Module.zeroArgsWithParensManaged()
-              def singleArgManaged(arg1: Int)                   : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.singleArgManaged(arg1)
-              def multiArgsManaged(arg1: Int, arg2: Long)       : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.multiArgsManaged(arg1, arg2)
-              def multiParamListsManaged(arg1: Int)(arg2: Long) : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.multiParamListsManaged(arg1)(arg2)
-              def typedVarargsManaged[T](arg1: Int, arg2: T*)   : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, T]      = Module.typedVarargsManaged[T](arg1, arg2: _*)
-              def commandManaged(arg1: Int)                     : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, Unit]   = Module.commandManaged(arg1)
-              def overloadedManaged(arg1: Int)                  : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.overloadedManaged(arg1)
-              def overloadedManaged(arg1: Long)                 : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.overloadedManaged(arg1)
+              val staticManaged                                 : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, String] = Module.staticManaged
+              def zeroArgsManaged                               : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, Int]    = Module.zeroArgsManaged
+              def zeroArgsTypedManaged[T]                       : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, T]      = Module.zeroArgsTypedManaged[T]
+              def zeroArgsWithParensManaged()                   : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, Long]   = Module.zeroArgsWithParensManaged()
+              def singleArgManaged(arg1: Int)                   : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, String] = Module.singleArgManaged(arg1)
+              def multiArgsManaged(arg1: Int, arg2: Long)       : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, String] = Module.multiArgsManaged(arg1, arg2)
+              def multiParamListsManaged(arg1: Int)(arg2: Long) : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, String] = Module.multiParamListsManaged(arg1)(arg2)
+              def typedVarargsManaged[T](arg1: Int, arg2: T*)   : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, T]      = Module.typedVarargsManaged[T](arg1, arg2: _*)
+              def commandManaged(arg1: Int)                     : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, Unit]   = Module.commandManaged(arg1)
+              def overloadedManaged(arg1: Int)                  : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, String] = Module.overloadedManaged(arg1)
+              def overloadedManaged(arg1: Long)                 : ZManaged[Has[Module.Service[URManaged]] with Int, Nothing, String] = Module.overloadedManaged(arg1)
             }
           """
         })(isRight(anything))

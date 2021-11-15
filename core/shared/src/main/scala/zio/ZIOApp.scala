@@ -30,13 +30,13 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
 
   implicit def tag: Tag[Environment]
 
-  type Environment <: Has[_]
+  type Environment
 
   /**
    * A service builder that manages the acquisition and release of services
    * necessary for the application to run.
    */
-  def serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, Environment]
+  def serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, Environment]
 
   /**
    * The main function of the application, which can access the command-line
@@ -45,20 +45,20 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    * the application will be non-zero. Otherwise, the exit code of the
    * application will be zero.
    */
-  def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any]
+  def run: ZIO[Environment with ZEnv with ZIOAppArgs, Any, Any]
 
   /**
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
    * that executes the logic of both applications.
    */
   final def <>(that: ZIOApp)(implicit trace: ZTraceElement): ZIOApp =
-    ZIOApp(self.run.zipPar(that.run), self.serviceBuilder +!+ that.serviceBuilder, self.hook >>> that.hook)
+    ZIOApp(self.run.zipPar(that.run), self.serviceBuilder ++ that.serviceBuilder, self.hook >>> that.hook)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
    * application. You may use this helper function inside your `run` function.
    */
-  final def getArgs(implicit trace: ZTraceElement): ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] =
+  final def getArgs(implicit trace: ZTraceElement): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
     ZIOAppArgs.getArgs
 
   /**
@@ -88,8 +88,8 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
       val newRuntime = runtime.mapRuntimeConfig(hook)
 
       val newServiceBuilder =
-        ZServiceBuilder.environment[ZEnv] +!+ ZServiceBuilder.succeed(ZIOAppArgs(args)) >>>
-          serviceBuilder +!+ ZServiceBuilder.environment[ZEnv with Has[ZIOAppArgs]]
+        ZServiceBuilder.environment[ZEnv] ++ ZServiceBuilder.succeed(ZIOAppArgs(args)) >>>
+          serviceBuilder ++ ZServiceBuilder.environment[ZEnv with ZIOAppArgs]
 
       newRuntime.run(run.provideServices(newServiceBuilder))
     }
@@ -106,9 +106,9 @@ object ZIOApp {
     type Environment = app.Environment
     override final def hook: RuntimeConfigAspect =
       app.hook
-    final def serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, Environment] =
+    final def serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, Environment] =
       app.serviceBuilder
-    override final def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any] =
+    override final def run: ZIO[Environment with ZEnv with ZIOAppArgs, Any, Any] =
       app.run
     implicit final def tag: Tag[Environment] =
       app.tag
@@ -118,9 +118,9 @@ object ZIOApp {
    * Creates a [[ZIOApp]] from an effect, which can consume the arguments of the
    * program, as well as a hook into the ZIO runtime configuration.
    */
-  def apply[R <: Has[_]](
-    run0: ZIO[R with ZEnv with Has[ZIOAppArgs], Any, Any],
-    serviceBuilder0: ZServiceBuilder[Has[ZIOAppArgs], Any, R],
+  def apply[R](
+    run0: ZIO[R with ZEnv with ZIOAppArgs, Any, Any],
+    serviceBuilder0: ZServiceBuilder[ZIOAppArgs, Any, R],
     hook0: RuntimeConfigAspect
   )(implicit tagged: Tag[R]): ZIOApp =
     new ZIOApp {
@@ -135,6 +135,6 @@ object ZIOApp {
    * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's
    * configuration.
    */
-  def fromZIO(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any])(implicit trace: ZTraceElement): ZIOApp =
+  def fromZIO(run0: ZIO[ZEnv with ZIOAppArgs, Any, Any])(implicit trace: ZTraceElement): ZIOApp =
     ZIOApp(run0, ZServiceBuilder.environment, RuntimeConfigAspect.identity)
 }

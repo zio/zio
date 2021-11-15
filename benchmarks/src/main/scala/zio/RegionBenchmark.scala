@@ -57,7 +57,7 @@ class RegionBenchmark {
   def zioProvide(): Unit = {
     def nest(n: Int, uio: UIO[Unit]): UIO[Unit] =
       if (n <= 1) uio
-      else (ZIO.suspendSucceed(nest(n - 1, uio)): ZIO[Unit, Nothing, Unit]).provide(())
+      else (ZIO.suspendSucceed(nest(n - 1, uio)): ZIO[Unit, Nothing, Unit]).provide(ZEnvironment(()))
 
     val _ = unsafeRun(nest(nesting, ZIO.unit))
   }

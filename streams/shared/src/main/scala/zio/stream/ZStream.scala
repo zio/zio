@@ -110,7 +110,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def aggregateAsync[R1 <: R, E1 >: E, E2, A1 >: A, B](
     sink: ZSink[R1, E1, A1, E2, A1, B]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E2, B] =
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E2, B] =
     aggregateAsyncWithin(sink, Schedule.forever)
 
   /**
@@ -121,12 +121,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @param schedule
    *   signalling for when to stop the aggregation
    * @return
-   *   `ZStream[R1 with Has[Clock], E2, B]`
+   *   `ZStream[R1 with Clock, E2, B]`
    */
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], Any]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E2, B] =
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E2, B] =
     aggregateAsyncWithinEither(sink, schedule).collect { case Right(v) =>
       v
     }
@@ -148,12 +148,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @param schedule
    *   signalling for when to stop the aggregation
    * @return
-   *   `ZStream[R1 with Has[Clock], E2, Either[C, B]]`
+   *   `ZStream[R1 with Clock, E2, Either[C, B]]`
    */
   def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, E2, B, C](
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], C]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E2, Either[C, B]] = {
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E2, Either[C, B]] = {
     type HandoffSignal = ZStream.HandoffSignal[C, E1, A]
     import ZStream.HandoffSignal._
     type SinkEndReason = ZStream.SinkEndReason[C]
@@ -189,7 +189,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
       def scheduledAggregator(
         lastB: Option[B]
-      ): ZChannel[R1 with Has[Clock], Any, Any, Any, E2, Chunk[Either[C, B]], Any] = {
+      ): ZChannel[R1 with Clock, Any, Any, Any, E2, Chunk[Either[C, B]], Any] = {
         val timeout =
           scheduleDriver
             .next(lastB)
@@ -1724,7 +1724,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Emits elements of this stream with a fixed delay in between, regardless of
    * how long it takes to produce a value.
    */
-  final def fixed(duration: Duration)(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E, A] =
+  final def fixed(duration: Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] =
     schedule(Schedule.fixed(duration))
 
   /**
@@ -1922,7 +1922,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def groupedWithin(chunkSize: Int, within: Duration)(implicit
     trace: ZTraceElement
-  ): ZStream[R with Has[Clock], E, Chunk[A]] =
+  ): ZStream[R with Clock, E, Chunk[A]] =
     aggregateAsyncWithin(ZSink.collectAllN[E, A](chunkSize), Schedule.spaced(within))
 
   /**
@@ -1967,7 +1967,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * An element in the process of being pulled will not be interrupted when the
    * given duration completes. See `interruptAfter` for this behavior.
    */
-  final def haltAfter(duration: Duration)(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E, A] =
+  final def haltAfter(duration: Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] =
     haltWhen(Clock.sleep(duration))
 
   /**
@@ -2126,7 +2126,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Specialized version of interruptWhen which interrupts the evaluation of
    * this stream after the given duration.
    */
-  final def interruptAfter(duration: Duration)(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E, A] =
+  final def interruptAfter(duration: Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] =
     interruptWhen(Clock.sleep(duration))
 
   /**
@@ -2822,7 +2822,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Provides the stream with its required environment, which eliminates its
    * dependency on `R`.
    */
-  final def provide(r: R)(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[Any, E, A] =
+  final def provide(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[Any, E, A] =
     new ZStream(channel.provide(r))
 
   /**
@@ -2842,7 +2842,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     layer: ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
     ev1: ZEnv with R1 <:< R,
-    ev2: Has.Union[ZEnv, R1],
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
@@ -2864,7 +2863,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     serviceBuilder: ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
     ev1: ZEnv with R1 <:< R,
-    ev2: Has.Union[ZEnv, R1],
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
@@ -2888,14 +2886,16 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
     new ZStream(ZChannel.managed(serviceBuilder.build) { r =>
-      self.channel.provide(r)
+      self.channel.provide(ev.liftCo(r))
     })
 
   /**
    * Provides some of the environment required to run this effect, leaving the
    * remainder `R0`.
    */
-  final def provideSome[R0](env: R0 => R)(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[R0, E, A] =
+  final def provideSome[R0](
+    env: ZEnvironment[R0] => ZEnvironment[R]
+  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[R0, E, A] =
     ZStream.environment[R0].flatMap { r0 =>
       self.provide(env(r0))
     }
@@ -2905,11 +2905,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Has[Clock]] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val stream: ZStream[Has[Clock] with Has[Random], Nothing, Unit] = ???
+   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSomeLayer[Has[Random]](clockLayer)
+   * val stream2 = stream.provideSomeLayer[Random](clockLayer)
    * }}}
    */
   @deprecated("use provideSomeServices", "2.0.0")
@@ -2923,9 +2923,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * {{{
    * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
    *
-   * val stream: ZStream[Clock with Has[Random], Nothing, Unit] = ???
+   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSomeServices[Has[Random]](clockServiceBuilder)
+   * val stream2 = stream.provideSomeServices[Random](clockServiceBuilder)
    * }}}
    */
   final def provideSomeServices[R0]: ZStream.ProvideSomeServices[R0, R, E, A] =
@@ -2999,7 +2999,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeat[R1 <: R, B](schedule: Schedule[R1, Any, B])(implicit
     trace: ZTraceElement
-  ): ZStream[R1 with Has[Clock], E, A] =
+  ): ZStream[R1 with Clock, E, A] =
     repeatEither(schedule) collect { case Right(a) => a }
 
   /**
@@ -3009,7 +3009,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeatEither[R1 <: R, B](schedule: Schedule[R1, Any, B])(implicit
     trace: ZTraceElement
-  ): ZStream[R1 with Has[Clock], E, Either[B, A]] =
+  ): ZStream[R1 with Clock, E, Either[B, A]] =
     repeatWith(schedule)(Right(_), Left(_))
 
   /**
@@ -3021,7 +3021,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeatElements[R1 <: R](schedule: Schedule[R1, A, Any])(implicit
     trace: ZTraceElement
-  ): ZStream[R1 with Has[Clock], E, A] =
+  ): ZStream[R1 with Clock, E, A] =
     repeatElementsEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -3034,7 +3034,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeatElementsEither[R1 <: R, E1 >: E, B](
     schedule: Schedule[R1, A, B]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, Either[B, A]] =
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, Either[B, A]] =
     repeatElementsWith(schedule)(Right.apply, Left.apply)
 
   /**
@@ -3051,18 +3051,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeatElementsWith[R1 <: R, E1 >: E, B, C](
     schedule: Schedule[R1, A, B]
-  )(f: A => C, g: B => C)(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, C] = new ZStream(
+  )(f: A => C, g: B => C)(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, C] = new ZStream(
     self.channel >>> ZChannel.unwrap {
       for {
         driver <- schedule.driver
       } yield {
-        def feed(in: Chunk[A]): ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[C], Unit] =
+        def feed(in: Chunk[A]): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
           in.headOption.fold(loop)(a => ZChannel.write(Chunk.single(f(a))) *> step(in.drop(1), a))
 
-        def step(in: Chunk[A], a: A): ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[C], Unit] = {
+        def step(in: Chunk[A], a: A): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit] = {
           val advance = driver.next(a).as(ZChannel.write(Chunk.single(f(a))) *> step(in, a))
-          val reset
-            : ZIO[R1 with Has[Clock], Nothing, ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[C], Unit]] =
+          val reset: ZIO[R1 with Clock, Nothing, ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit]] =
             for {
               b <- driver.last.orDie
               _ <- driver.reset
@@ -3071,7 +3070,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           ZChannel.unwrap(advance orElse reset)
         }
 
-        lazy val loop: ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[C], Unit] =
+        lazy val loop: ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[C], Unit] =
           ZChannel.readWith(
             feed,
             ZChannel.fail(_),
@@ -3091,14 +3090,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def repeatWith[R1 <: R, B, C](
     schedule: Schedule[R1, Any, B]
-  )(f: A => C, g: B => C)(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E, C] =
+  )(f: A => C, g: B => C)(implicit trace: ZTraceElement): ZStream[R1 with Clock, E, C] =
     ZStream.unwrap(
       for {
         driver <- schedule.driver
       } yield {
         val scheduleOutput = driver.last.orDie.map(g)
         val process        = self.map(f).channel
-        lazy val loop: ZChannel[R1 with Has[Clock], Any, Any, Any, E, Chunk[C], Unit] =
+        lazy val loop: ZChannel[R1 with Clock, Any, Any, Any, E, Chunk[C], Unit] =
           ZChannel.unwrap(
             driver
               .next(())
@@ -3128,7 +3127,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def retry[R1 <: R](
     schedule: Schedule[R1, E, _]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E, A] =
     ZStream.unwrap {
       for {
         driver <- schedule.driver
@@ -3279,7 +3278,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def schedule[R1 <: R](schedule: Schedule[R1, A, Any])(implicit
     trace: ZTraceElement
-  ): ZStream[R1 with Has[Clock], E, A] =
+  ): ZStream[R1 with Clock, E, A] =
     scheduleEither(schedule).collect { case Right(a) => a }
 
   /**
@@ -3288,7 +3287,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def scheduleEither[R1 <: R, E1 >: E, B](
     schedule: Schedule[R1, A, B]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, Either[B, A]] =
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, Either[B, A]] =
     scheduleWith(schedule)(Right.apply, Left.apply)
 
   /**
@@ -3298,7 +3297,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def scheduleWith[R1 <: R, E1 >: E, B, C](
     schedule: Schedule[R1, A, B]
-  )(f: A => C, g: B => C)(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, C] = {
+  )(f: A => C, g: B => C)(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, C] = {
 
     def loop(
       driver: Schedule.Driver[Any, R1, A, B],
@@ -3522,7 +3521,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleEnforce(units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => Long
-  )(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] =
     throttleEnforceZIO(units, duration, burst)(as => UIO.succeedNow(costFn(as)))
 
   /**
@@ -3536,8 +3535,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   @deprecated("use throttleEnforceZIO", "2.0.0")
   final def throttleEnforceM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, A] =
-    throttleEnforceZIO[R1 with Has[Clock], E1](units, duration, burst)(costFn)
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, A] =
+    throttleEnforceZIO[R1 with Clock, E1](units, duration, burst)(costFn)
 
   /**
    * Throttles the chunks of this stream according to the given bandwidth
@@ -3549,9 +3548,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleEnforceZIO[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, A] = {
-    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[A], Unit] =
-      ZChannel.readWith[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[A], Unit](
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, A] = {
+    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
+      ZChannel.readWith[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit](
         (in: Chunk[A]) =>
           ZChannel.unwrap((costFn(in) <*> Clock.nanoTime).map { case (weight, current) =>
             val elapsed = current - timestamp
@@ -3587,7 +3586,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleShape(units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => Long
-  )(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] =
     throttleShapeZIO(units, duration, burst)(os => UIO.succeedNow(costFn(os)))
 
   /**
@@ -3600,8 +3599,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   @deprecated("use throttleShapeZIO", "2.0.0")
   final def throttleShapeM[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, A] =
-    throttleShapeZIO[R1 with Has[Clock], E1](units, duration, burst)(costFn)
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, A] =
+    throttleShapeZIO[R1 with Clock, E1](units, duration, burst)(costFn)
 
   /**
    * Delays the chunks of this stream according to the given bandwidth
@@ -3612,8 +3611,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def throttleShapeZIO[R1 <: R, E1 >: E](units: Long, duration: Duration, burst: Long = 0)(
     costFn: Chunk[A] => ZIO[R1, E1, Long]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, A] = {
-    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Has[Clock], E1, Chunk[A], Any, E1, Chunk[A], Unit] =
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, A] = {
+    def loop(tokens: Long, timestamp: Long): ZChannel[R1 with Clock, E1, Chunk[A], Any, E1, Chunk[A], Unit] =
       ZChannel.readWith(
         (in: Chunk[A]) =>
           ZChannel.unwrap(for {
@@ -3663,7 +3662,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   A search engine may only want to initiate a search after a user has
    *   paused typing so as to not prematurely recommend results.
    */
-  final def debounce(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E, A] = {
+  final def debounce(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] = {
     import DebounceState._
     import HandoffSignal._
 
@@ -3677,7 +3676,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             f <- Clock.sleep(d).as(last).forkIn(scope)
           } yield consumer(Previous(f))
 
-        lazy val producer: ZChannel[R with Has[Clock], E, Chunk[A], Any, E, Nothing, Any] =
+        lazy val producer: ZChannel[R with Clock, E, Chunk[A], Any, E, Nothing, Any] =
           ZChannel.readWithCause(
             (in: Chunk[A]) =>
               in.lastOption.fold(producer) { last =>
@@ -3687,7 +3686,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             (_: Any) => ZChannel.fromZIO(handoff.offer(End(ZStream.SinkEndReason.UpstreamEnd)))
           )
 
-        def consumer(state: DebounceState[E, A]): ZChannel[R with Has[Clock], Any, Any, Any, E, Chunk[A], Any] =
+        def consumer(state: DebounceState[E, A]): ZChannel[R with Clock, Any, Any, Any, E, Chunk[A], Any] =
           ZChannel.unwrap(
             state match {
               case NotStarted =>
@@ -3707,8 +3706,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                 }
               case Previous(fiber) =>
                 fiber.join
-                  .raceWith[R with Has[Clock], E, E, HandoffSignal[Unit, E, A], ZChannel[
-                    R with Has[Clock],
+                  .raceWith[R with Clock, E, E, HandoffSignal[Unit, E, A], ZChannel[
+                    R with Clock,
                     Any,
                     Any,
                     Any,
@@ -3747,7 +3746,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Ends the stream if it does not produce a value after d duration.
    */
-  final def timeout(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E, A] =
+  final def timeout(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] =
     ZStream.fromPull {
       self.toPull.map(pull => pull.timeoutFail(None)(d))
     }
@@ -3759,7 +3758,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   @deprecated("use timeoutFail", "2.0.0")
   final def timeoutError[E1 >: E](e: => E1)(d: Duration)(implicit
     trace: ZTraceElement
-  ): ZStream[R with Has[Clock], E1, A] =
+  ): ZStream[R with Clock, E1, A] =
     timeoutFail(e)(d)
 
   /**
@@ -3768,8 +3767,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def timeoutFail[E1 >: E](e: => E1)(d: Duration)(implicit
     trace: ZTraceElement
-  ): ZStream[R with Has[Clock], E1, A] =
-    self.timeoutTo[R with Has[Clock], E1, A](d)(ZStream.fail(e))
+  ): ZStream[R with Clock, E1, A] =
+    self.timeoutTo[R with Clock, E1, A](d)(ZStream.fail(e))
 
   /**
    * Fails the stream with given cause if it does not produce a value after d
@@ -3778,7 +3777,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   @deprecated("use timeoutFailCause", "2.0.0")
   final def timeoutErrorCause[E1 >: E](
     cause: Cause[E1]
-  )(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E1, A] =
+  )(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E1, A] =
     timeoutFailCause(cause)(d)
 
   /**
@@ -3787,7 +3786,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def timeoutFailCause[E1 >: E](
     cause: Cause[E1]
-  )(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E1, A] =
+  )(d: Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E1, A] =
     ZStream.fromPull {
       self.toPull.map(pull => pull.timeoutFailCause(cause.map(Some(_)))(d))
     }
@@ -3799,7 +3798,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   @deprecated("use timeoutFailCause", "2.0.0")
   final def timeoutHalt[E1 >: E](cause: Cause[E1])(d: Duration)(implicit
     trace: ZTraceElement
-  ): ZStream[R with Has[Clock], E1, A] =
+  ): ZStream[R with Clock, E1, A] =
     timeoutFailCause(cause)(d)
 
   /**
@@ -3807,7 +3806,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def timeoutTo[R1 <: R, E1 >: E, A2 >: A](
     d: Duration
-  )(that: ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E1, A2] = {
+  )(that: ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, A2] = {
     final case class StreamTimeout() extends Throwable
     self.timeoutFailCause(Cause.die(StreamTimeout()))(d).catchSomeCause { case Cause.Die(StreamTimeout(), _) => that }
   }
@@ -4542,7 +4541,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the whole environment of the stream.
    */
-  def environment[R](implicit trace: ZTraceElement): ZStream[R, Nothing, R] =
+  def environment[R](implicit trace: ZTraceElement): ZStream[R, Nothing, ZEnvironment[R]] =
     fromZIO(ZIO.environment[R])
 
   /**
@@ -5048,7 +5047,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def fromSchedule[R, A](schedule: Schedule[R, Any, A])(implicit
     trace: ZTraceElement
-  ): ZStream[R with Has[Clock], Nothing, A] =
+  ): ZStream[R with Clock, Nothing, A] =
     unwrap(schedule.driver.map(driver => repeatZIOOption(driver.next(()))))
 
   /**
@@ -5267,7 +5266,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   @deprecated("use repeatZIOWith", "2.0.0")
   def repeatEffectWith[R, E, A](effect: ZIO[R, E, A], schedule: Schedule[R, A, Any])(implicit
     trace: ZTraceElement
-  ): ZStream[R with Has[Clock], E, A] =
+  ): ZStream[R with Clock, E, A] =
     repeatZIOWithSchedule(effect, schedule)
 
   /**
@@ -5276,7 +5275,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   @deprecated("use repeatWithSchedule", "2.0.0")
   def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _])(implicit
     trace: ZTraceElement
-  ): ZStream[R with Has[Clock], Nothing, A] =
+  ): ZStream[R with Clock, Nothing, A] =
     repeatWithSchedule(a, schedule)
 
   /**
@@ -5284,7 +5283,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def repeatWithSchedule[R, A](a: => A, schedule: Schedule[R, A, _])(implicit
     trace: ZTraceElement
-  ): ZStream[R with Has[Clock], Nothing, A] =
+  ): ZStream[R with Clock, Nothing, A] =
     repeatZIOWithSchedule(UIO.succeed(a), schedule)
 
   /**
@@ -5327,7 +5326,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def repeatZIOWithSchedule[R, E, A](
     effect: ZIO[R, E, A],
     schedule: Schedule[R, A, Any]
-  )(implicit trace: ZTraceElement): ZStream[R with Has[Clock], E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] =
     ZStream.fromZIO(effect zip schedule.driver).flatMap { case (a, driver) =>
       ZStream.succeed(a) ++
         ZStream.unfoldZIO(a)(driver.next(_).foldZIO(ZIO.succeed(_), _ => effect.map(nextA => Some(nextA -> nextA))))
@@ -5336,7 +5335,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: Tag](implicit trace: ZTraceElement): ZStream[Has[A], Nothing, A] =
+  def service[A: Tag](implicit trace: ZTraceElement): ZStream[A, Nothing, A] =
     ZStream.access(_.get[A])
 
   /**
@@ -5349,7 +5348,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag](implicit trace: ZTraceElement): ZStream[Has[A] with Has[B], Nothing, (A, B)] =
+  def services[A: Tag, B: Tag](implicit trace: ZTraceElement): ZStream[A with B, Nothing, (A, B)] =
     ZStream.access(r => (r.get[A], r.get[B]))
 
   /**
@@ -5358,7 +5357,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag](implicit
     trace: ZTraceElement
-  ): ZStream[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+  ): ZStream[A with B with C, Nothing, (A, B, C)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
@@ -5367,7 +5366,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag, D: Tag](implicit
     trace: ZTraceElement
-  ): ZStream[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+  ): ZStream[A with B with C with D, Nothing, (A, B, C, D)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
@@ -5393,7 +5392,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * A stream that emits Unit values spaced by the specified duration.
    */
-  def tick(interval: Duration)(implicit trace: ZTraceElement): ZStream[Has[Clock], Nothing, Unit] =
+  def tick(interval: Duration)(implicit trace: ZTraceElement): ZStream[Clock, Nothing, Unit] =
     repeatWithSchedule((), Schedule.spaced(interval))
 
   /**
@@ -5557,17 +5556,21 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map(f.tupled)
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: R => A)(implicit trace: ZTraceElement): ZStream[R, Nothing, A] =
+    def apply[A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): ZStream[R, Nothing, A] =
       ZStream.environment[R].map(f)
   }
 
   final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R1 <: R, E, A](f: R => ZIO[R1, E, A])(implicit trace: ZTraceElement): ZStream[R with R1, E, A] =
+    def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit
+      trace: ZTraceElement
+    ): ZStream[R with R1, E, A] =
       ZStream.environment[R].mapZIO(f)
   }
 
   final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R1 <: R, E, A](f: R => ZStream[R1, E, A])(implicit trace: ZTraceElement): ZStream[R with R1, E, A] =
+    def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZStream[R1, E, A])(implicit
+      trace: ZTraceElement
+    ): ZStream[R with R1, E, A] =
       ZStream.environment[R].flatMap(f)
   }
 
@@ -5577,23 +5580,23 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     )(implicit
       tag: Tag[Map[Key, Service]],
       trace: ZTraceElement
-    ): ZStream[HasMany[Key, Service], Nothing, Option[Service]] =
+    ): ZStream[Map[Key, Service], Nothing, Option[Service]] =
       ZStream.access(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R <: Has[Service], E, A](f: Service => ZIO[R, E, A])(implicit
+    def apply[R <: Service, E, A](f: Service => ZIO[R, E, A])(implicit
       tag: Tag[Service],
       trace: ZTraceElement
-    ): ZStream[R with Has[Service], E, A] =
+    ): ZStream[R with Service, E, A] =
       ZStream.fromZIO(ZIO.serviceWith(f))
   }
 
   final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R <: Has[Service], E, A](f: Service => ZStream[R, E, A])(implicit
+    def apply[R <: Service, E, A](f: Service => ZStream[R, E, A])(implicit
       tag: Tag[Service],
       trace: ZTraceElement
-    ): ZStream[R with Has[Service], E, A] =
+    ): ZStream[R with Service, E, A] =
       ZStream.service[Service].flatMap(f)
   }
 
@@ -5687,7 +5690,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       serviceBuilder: ZServiceBuilder[R0, E1, R1]
     )(implicit
       ev1: R0 with R1 <:< R,
-      ev2: Has.Union[R0, R1],
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
@@ -5695,17 +5697,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
-    def apply[R1 <: R with Has[M]](
+    def apply[R1 <: R with M](
       f: M => M
-    )(implicit ev: Has.IsHas[R1], tag: Tag[M], trace: ZTraceElement): ZStream[R1, E, A] =
-      self.provideSome(ev.update(_, f))
+    )(implicit tag: Tag[M], trace: ZTraceElement): ZStream[R1, E, A] =
+      self.provideSome(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
-    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
+    def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZStream[R1, E, A] =
-      self.provideSome(ev.updateAt(_, key, f))
+    )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZStream[R1, E, A] =
+      self.provideSome(_.updateAt(key)(f))
   }
 
   /**
@@ -5851,10 +5853,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[R, Nothing, A]` from a `Schedule[R, Any, A]`.
      */
-    implicit def ScheduleConstructor[R, A]: WithOut[Schedule[R, Any, A], ZStream[R with Has[Clock], Nothing, A]] =
+    implicit def ScheduleConstructor[R, A]: WithOut[Schedule[R, Any, A], ZStream[R with Clock, Nothing, A]] =
       new ZStreamConstructor[Schedule[R, Any, A]] {
-        type Out = ZStream[R with Has[Clock], Nothing, A]
-        def make(input: => Schedule[R, Any, A])(implicit trace: ZTraceElement): ZStream[R with Has[Clock], Nothing, A] =
+        type Out = ZStream[R with Clock, Nothing, A]
+        def make(input: => Schedule[R, Any, A])(implicit trace: ZTraceElement): ZStream[R with Clock, Nothing, A] =
           ZStream.fromSchedule(input)
       }
 

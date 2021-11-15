@@ -48,7 +48,7 @@ abstract class AbstractRunnableSpec {
    * Returns an effect that executes the spec, producing the results of the
    * execution.
    */
-  final def run(implicit trace: ZTraceElement): ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
+  final def run(implicit trace: ZTraceElement): ZIO[ZEnv with ZIOAppArgs, Any, Any] =
     runSpec(spec).provideCustomServices(runner.bootstrap)
 
   /**
@@ -57,7 +57,7 @@ abstract class AbstractRunnableSpec {
    */
   private[zio] def runSpec(
     spec: ZSpec[Environment, Failure]
-  )(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
+  )(implicit trace: ZTraceElement): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _))
 
   /**

@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{ServiceBuilder, FiberRef, Has, UIO, URIO, ZIO, ZServiceBuilder, ZTraceElement}
+import zio.{ServiceBuilder, FiberRef, UIO, URIO, ZIO, ZServiceBuilder, ZTraceElement}
 import zio.stream.ZStream
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -12,10 +12,10 @@ trait Sized extends Serializable {
 
 object Sized {
 
-  val default: ZServiceBuilder[Any, Nothing, Has[Sized]] =
+  val default: ZServiceBuilder[Any, Nothing, Sized] =
     live(100)(ZTraceElement.empty)
 
-  def live(size: Int)(implicit trace: ZTraceElement): ServiceBuilder[Nothing, Has[Sized]] =
+  def live(size: Int)(implicit trace: ZTraceElement): ServiceBuilder[Nothing, Sized] =
     ZServiceBuilder.fromZIO(FiberRef.make(size).map { fiberRef =>
       new Sized {
         def size(implicit trace: ZTraceElement): UIO[Int] =
@@ -33,12 +33,12 @@ object Sized {
       }
     })
 
-  def size(implicit trace: ZTraceElement): URIO[Has[Sized], Int] =
-    ZIO.accessZIO[Has[Sized]](_.get.size)
+  def size(implicit trace: ZTraceElement): URIO[Sized, Int] =
+    ZIO.serviceWith[Sized](_.size)
 
-  def withSize[R <: Has[Sized], E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.accessZIO[R](_.get.withSize(size)(zio))
+  def withSize[R <: Sized, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.serviceWith[Sized](_.withSize(size)(zio))
 
-  def withSizeGen[R <: Has[Sized], A](size: Int)(gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
+  def withSizeGen[R <: Sized, A](size: Int)(gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
     Gen.fromZIO(ZIO.service[Sized]).flatMap(_.withSizeGen(size)(gen))
 }

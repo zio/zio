@@ -4048,8 +4048,8 @@ object ZStreamSpec extends DefaultRunnableSpec {
   def assertWithChunkCoordination[A](
     chunks: List[Chunk[A]]
   )(
-    assertion: ChunkCoordination[A] => ZIO[Has[Clock] with Has[TestClock], Nothing, TestResult]
-  ): ZIO[Has[Clock] with Has[TestClock], Nothing, TestResult] =
+    assertion: ChunkCoordination[A] => ZIO[Clock with Has[TestClock], Nothing, TestResult]
+  ): ZIO[Clock with Has[TestClock], Nothing, TestResult] =
     for {
       q  <- Queue.unbounded[Exit[Option[Nothing], Chunk[A]]]
       ps <- Queue.unbounded[Unit]

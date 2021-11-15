@@ -1,7 +1,7 @@
 package zio.internal.macros
 
 import zio.internal.ansi.AnsiStringOps
-import zio.{Has, ZServiceBuilder}
+import zio.ZServiceBuilder
 
 import scala.reflect.macros.blackbox
 
@@ -11,7 +11,7 @@ final class WireMacros(val c: blackbox.Context) extends ServiceBuilderMacroUtils
   def wireImpl[
     E,
     R0: c.WeakTypeTag,
-    R <: Has[_]: c.WeakTypeTag
+    R: c.WeakTypeTag
   ](serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*)(
     dummyKRemainder: c.Expr[DummyK[R0]],
     dummyK: c.Expr[DummyK[R]]
@@ -25,7 +25,7 @@ final class WireMacros(val c: blackbox.Context) extends ServiceBuilderMacroUtils
    * Ensures the macro has been annotated with the intended result type. The
    * macro will not behave correctly otherwise.
    */
-  private def assertEnvIsNotNothing[R <: Has[_]: c.WeakTypeTag](): Unit = {
+  private def assertEnvIsNotNothing[R: c.WeakTypeTag](): Unit = {
     val outType     = weakTypeOf[R]
     val nothingType = weakTypeOf[Nothing]
     if (outType == nothingType) {

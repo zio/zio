@@ -6,27 +6,25 @@ import zio.test.TestAspect.sequential
 
 object ManagedSpec extends ZIOBaseSpec {
 
-  type Counter = Has[Counter.Service]
+  trait Counter {
+    def incrementAndGet: UIO[Int]
+  }
 
   object Counter {
-
-    trait Service {
-      def incrementAndGet: UIO[Int]
-    }
 
     val live: ServiceBuilder[Nothing, Counter] =
       Ref
         .make(1)
         .toManagedWith(_.set(-10))
         .map { ref =>
-          new Counter.Service {
+          new Counter {
             val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
           }
         }
-        .toServiceBuilder
+        .toServiceBuilder[Counter]
 
     val incrementAndGet: URIO[Counter, Int] =
-      ZIO.accessZIO[Counter](_.get[Counter.Service].incrementAndGet)
+      ZIO.serviceWith(_.incrementAndGet)
   }
 
   def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("ManagedSpec")(

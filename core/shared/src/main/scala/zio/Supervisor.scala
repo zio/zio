@@ -54,7 +54,7 @@ abstract class Supervisor[+A] { self =>
       def value(implicit trace: ZTraceElement) = self.value zip that.value
 
       def unsafeOnStart[R, E, A](
-        environment: R,
+        environment: ZEnvironment[R],
         effect: ZIO[R, E, A],
         parent: Option[Fiber.Runtime[Any, Any]],
         fiber: Fiber.Runtime[E, A]
@@ -84,7 +84,7 @@ abstract class Supervisor[+A] { self =>
     }
 
   private[zio] def unsafeOnStart[R, E, A](
-    environment: R,
+    environment: ZEnvironment[R],
     effect: ZIO[R, E, A],
     parent: Option[Fiber.Runtime[Any, Any]],
     fiber: Fiber.Runtime[E, A]
@@ -129,7 +129,7 @@ object Supervisor {
           ZIO.succeed(ref.get)
 
         def unsafeOnStart[R, E, A](
-          environment: R,
+          environment: ZEnvironment[R],
           effect: ZIO[R, E, A],
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
@@ -160,7 +160,7 @@ object Supervisor {
     def value(implicit trace: ZTraceElement): UIO[A] = value0(trace)
 
     def unsafeOnStart[R, E, A](
-      environment: R,
+      environment: ZEnvironment[R],
       effect: ZIO[R, E, A],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, A]
@@ -181,7 +181,7 @@ object Supervisor {
         )
 
       def unsafeOnStart[R, E, A](
-        environment: R,
+        environment: ZEnvironment[R],
         effect: ZIO[R, E, A],
         parent: Option[Fiber.Runtime[Any, Any]],
         fiber: Fiber.Runtime[E, A]
@@ -201,7 +201,7 @@ object Supervisor {
     def value(implicit trace: ZTraceElement): UIO[A] = value0(trace)
 
     def unsafeOnStart[R, E, A](
-      environment: R,
+      environment: ZEnvironment[R],
       effect: ZIO[R, E, A],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, A]

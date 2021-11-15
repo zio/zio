@@ -75,7 +75,7 @@ private[zio] trait ServiceBuilderMacroUtils {
     getRequirements(weakTypeOf[T])
 
   def isValidHasType(tpe: Type): Boolean =
-    tpe.isHas || tpe.isAny
+    true
 
   def injectBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     serviceBuilder: Seq[c.Expr[ZServiceBuilder[_, E, _]]],
@@ -105,7 +105,7 @@ private[zio] trait ServiceBuilderMacroUtils {
 
     val remainderExpr =
       if (weakTypeOf[R0] =:= weakTypeOf[ZEnv]) reify(ZEnv.any)
-      else reify(ZServiceBuilder.environment[R0])
+      else reify(???)
     val remainderNode =
       if (weakTypeOf[R0] =:= weakTypeOf[Any]) List.empty
       else List(Node(List.empty, getRequirements[R0], remainderExpr))
@@ -167,7 +167,6 @@ private[zio] trait ServiceBuilderMacroUtils {
     }
 
     intersectionTypes
-      .filter(_.isHas)
       .map(_.dealias.typeArgs.head.dealias)
       .distinct
   }
@@ -182,8 +181,6 @@ private[zio] trait ServiceBuilderMacroUtils {
   }
 
   implicit class TypeOps(self: Type) {
-    def isHas: Boolean = self.dealias.typeSymbol == typeOf[Has[_]].typeSymbol
-
     def isAny: Boolean = self.dealias.typeSymbol == typeOf[Any].typeSymbol
 
     /**
@@ -208,7 +205,7 @@ private[zio] trait ServiceBuilderMacroUtils {
    * Generates a link of the service builder graph for the Mermaid.js graph viz
    * library's live-editor (https://mermaid-js.github.io/mermaid-live-editor)
    */
-  private def generateMermaidJsLink[R <: Has[_]: c.WeakTypeTag, R0: c.WeakTypeTag, E](
+  private def generateMermaidJsLink[R: c.WeakTypeTag, R0: c.WeakTypeTag, E](
     requirements: List[c.Type],
     graph: ZServiceBuilderExprBuilder[c.Type, ServiceBuilderExpr]
   ): String = {

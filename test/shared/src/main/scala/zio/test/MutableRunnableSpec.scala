@@ -40,7 +40,7 @@ import scala.util.control.NoStackTrace
  * }}}
  */
 @deprecated("use RunnableSpec", "2.0.0")
-class MutableRunnableSpec[R <: Has[_]: Tag](
+class MutableRunnableSpec[R: Tag](
   serviceBuilder: ZServiceBuilder[TestEnvironment, Throwable, R],
   aspect: TestAspect.WithOut[
     R with TestEnvironment,
@@ -200,6 +200,6 @@ class MutableRunnableSpec[R <: Has[_]: Tag](
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]
-  )(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
+  )(implicit trace: ZTraceElement): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 }

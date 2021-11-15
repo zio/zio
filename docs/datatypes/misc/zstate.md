@@ -11,7 +11,7 @@ Let's try a simple example of using `ZState`:
 import java.io.IOException
 import zio._
 
-val myApp: ZIO[Has[Console], IOException, Unit] =
+val myApp: ZIO[Console, IOException, Unit] =
   for {
     counter <- ZState.make(0)
     _ <- counter.update(_ + 1)
@@ -29,7 +29,7 @@ import zio._
 import java.io.IOException
 
 object ZStateExample extends zio.ZIOAppDefault {
-  val myApp: ZIO[Has[Console] with Has[ZState[Int]], IOException, Unit] = for {
+  val myApp: ZIO[Console with ZState[Int], IOException, Unit] = for {
     s <- ZIO.service[ZState[Int]]
     _ <- s.update(_ + 1)
     _ <- s.update(_ + 2)
@@ -37,7 +37,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _ <- Console.printLine(s"current state: $state")
   } yield ()
 
-  def run = myApp.injectCustom(ZState.makeServiceBuilder(0))
+  def run = myApp.provideCustomServices(ZState.makeServiceBuilder(0))
 }
 ```
 
@@ -51,7 +51,7 @@ final case class MyState(counter: Int)
 
 object ZStateExample extends zio.ZIOAppDefault {
 
-  val myApp: ZIO[Has[Console] with Has[ZState[MyState]], IOException, Unit] =
+  val myApp: ZIO[Console with ZState[MyState], IOException, Unit] =
     for {
       counter <- ZIO.service[ZState[MyState]]
       _ <- counter.update(state => state.copy(counter = state.counter + 1))
@@ -60,7 +60,7 @@ object ZStateExample extends zio.ZIOAppDefault {
       _ <- Console.printLine(s"Current state: $state")
     } yield ()
 
-  def run = myApp.injectCustom(ZState.makeServiceBuilder(MyState(0)))
+  def run = myApp.provideCustomServices(ZState.makeServiceBuilder(MyState(0)))
 }
 ```
 
@@ -69,7 +69,7 @@ The `ZIO` data type also has some helper methods to work with `ZState` as the en
 ```scala mdoc:compile-only
 final case class MyState(counter: Int)
 
-val myApp: ZIO[Has[Console] with Has[ZState[MyState]], IOException, Int] =
+val myApp: ZIO[Console with ZState[MyState], IOException, Int] =
   for {
     _ <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 1))
     _ <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 2))
@@ -105,7 +105,7 @@ object ZStateExample extends ZIOAppDefault {
   } yield ()
 
   def run =
-    myApp.injectCustom(
+    myApp.provideCustomServices(
       ZState.makeServiceBuilder(MyState(0))
     )
 }

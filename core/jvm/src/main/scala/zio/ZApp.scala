@@ -26,9 +26,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * import zio.ZApp
  * import zio.Console._
  *
- * object MyApp extends ZApp[Has[Console]] {
+ * object MyApp extends ZApp[Console] {
  *
- *   def environment: Has[Console] = Has(ConsoleLive)
+ *   def environment: Console = Has(ConsoleLive)
  *
  *   final def run(args: List[String]) =
  *     myAppLogic.exitCode

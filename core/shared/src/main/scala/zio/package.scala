@@ -25,7 +25,7 @@ package object zio
     with VersionSpecific
     with DurationModule {
 
-  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
+  type ZEnv = Clock with Console with System with Random
 
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
@@ -101,8 +101,6 @@ package object zio
   val Hub: ZHub.type = ZHub
 
   type Semaphore = stm.TSemaphore
-
-  type HasMany[K, A] = Has[Map[K, A]]
 
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
   object ZTraceElement {

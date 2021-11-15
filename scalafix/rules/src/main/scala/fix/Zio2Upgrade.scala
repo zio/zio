@@ -517,27 +517,27 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ Random_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newRandom) +
-          Patch.replaceTree(unwindSelect(t), s"Has[Random]")
+          Patch.replaceTree(unwindSelect(t), s"Random")
 
       case t @ Random_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newRandom) +
-          Patch.replaceTree(unwindSelect(t), s"Has[Random]")
+          Patch.replaceTree(unwindSelect(t), s"Random")
 
       case t @ Console_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newConsole) +
-          Patch.replaceTree(unwindSelect(t), s"Has[Console]")
+          Patch.replaceTree(unwindSelect(t), s"Console")
 
       case t @ System_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newSystem) +
-          Patch.replaceTree(unwindSelect(t), s"Has[System]")
+          Patch.replaceTree(unwindSelect(t), s"System")
 
       case t @ Clock_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newClock) +
-          Patch.replaceTree(unwindSelect(t), s"Has[Clock]")
+          Patch.replaceTree(unwindSelect(t), s"Clock")
 
       case t @ Test_Clock_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
@@ -547,17 +547,17 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ Sized_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newSized) +
-          Patch.replaceTree(unwindSelect(t), s"Has[Sized]")
+          Patch.replaceTree(unwindSelect(t), s"Sized")
 
       case t @ TestAnnotations_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newAnnotations) +
-          Patch.replaceTree(unwindSelect(t), s"Has[Annotations]")
+          Patch.replaceTree(unwindSelect(t), s"Annotations")
 
       case t @ TestConfig_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newTestConfig) +
-          Patch.replaceTree(unwindSelect(t), s"Has[TestConfig]")
+          Patch.replaceTree(unwindSelect(t), s"TestConfig")
 
       case t @ TestLogger_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
@@ -582,7 +582,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ Live_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newLive) +
-          Patch.replaceTree(unwindSelect(t), s"Has[Live]")
+          Patch.replaceTree(unwindSelect(t), s"Live")
 
       case t @ ImporteeNameOrRename(
         Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | SizedService_Old(_) | 

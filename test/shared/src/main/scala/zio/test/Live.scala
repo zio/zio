@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{Has, IO, ZEnv, ZIO, ZServiceBuilder, ZManaged, ZTraceElement}
+import zio.{IO, ZEnv, ZIO, ZServiceBuilder, ZManaged, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -36,7 +36,7 @@ object Live {
    * live versions of all the standard ZIO environment types but could be useful
    * if you are mixing in interfaces to create your own environment type.
    */
-  def default: ZServiceBuilder[ZEnv, Nothing, Has[Live]] = {
+  def default: ZServiceBuilder[ZEnv, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
     ZManaged
       .access[ZEnv] { zenv =>
@@ -51,7 +51,7 @@ object Live {
   /**
    * Provides an effect with the "live" environment.
    */
-  def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Has[Live], E, A] =
+  def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Live, E, A] =
     ZIO.accessZIO(_.get.provide(zio))
 
   /**
@@ -59,7 +59,7 @@ object Live {
    * while ensuring that the effect itself is provided with the test
    * environment.
    */
-  def withLive[R <: Has[Live], E, E1, A, B](
+  def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
   )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
     ZIO.environment[R].flatMap(r => live(f(zio.provide(r))))

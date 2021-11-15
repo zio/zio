@@ -1,6 +1,6 @@
 package zio.test.mock
 
-import zio.{Has, IO, Tag, UIO, ZIO}
+import zio.{IO, Tag, UIO, ZIO}
 import zio.stream.ZStream
 
 /**
@@ -9,19 +9,19 @@ import zio.stream.ZStream
  * We can't define module in the same scope with macro application
  */
 object modules {
-  type EmptyModule = Has[EmptyModule.Service]
+  type EmptyModule = EmptyModule.Service
   object EmptyModule {
     trait Service
   }
 
-  type SinglePureValModule = Has[SinglePureValModule.Service]
+  type SinglePureValModule = SinglePureValModule.Service
   object SinglePureValModule {
     trait Service {
       val foo: UIO[Unit]
     }
   }
 
-  type SimplePureDefsModule = Has[SimplePureDefsModule.Service]
+  type SimplePureDefsModule = SimplePureDefsModule.Service
   object SimplePureDefsModule {
     trait Service {
       val static: IO[String, String]
@@ -33,7 +33,7 @@ object modules {
     }
   }
 
-  type StreamDefsModule = Has[StreamDefsModule.Service]
+  type StreamDefsModule = StreamDefsModule.Service
   object StreamDefsModule {
     trait Service {
       val static: ZStream[Any, String, String]
@@ -45,7 +45,7 @@ object modules {
     }
   }
 
-  type SimpleImpureDefsModule = Has[SimpleImpureDefsModule.Service]
+  type SimpleImpureDefsModule = SimpleImpureDefsModule.Service
   object SimpleImpureDefsModule {
     trait Service {
       def zeroParams: String
@@ -56,7 +56,7 @@ object modules {
     }
   }
 
-  type OverloadedPureDefsModule = Has[OverloadedPureDefsModule.Service]
+  type OverloadedPureDefsModule = OverloadedPureDefsModule.Service
   object OverloadedPureDefsModule {
     trait Service {
       def overloaded(n: Int): IO[String, String]
@@ -64,7 +64,7 @@ object modules {
     }
   }
 
-  type OverloadedImpureDefsModule = Has[OverloadedImpureDefsModule.Service]
+  type OverloadedImpureDefsModule = OverloadedImpureDefsModule.Service
   object OverloadedImpureDefsModule {
     trait Service {
       def overloaded(n: Int): String
@@ -72,7 +72,7 @@ object modules {
     }
   }
 
-  type PolyPureDefsModule = Has[PolyPureDefsModule.Service]
+  type PolyPureDefsModule = PolyPureDefsModule.Service
   object PolyPureDefsModule {
     trait Service {
       def polyInput[I: Tag](v: I): IO[String, String]
@@ -87,7 +87,7 @@ object modules {
     }
   }
 
-  type PolyImpureDefsModule = Has[PolyImpureDefsModule.Service]
+  type PolyImpureDefsModule = PolyImpureDefsModule.Service
   object PolyImpureDefsModule {
     trait Service {
       def polyInput[I: Tag](v: I): String
@@ -102,7 +102,7 @@ object modules {
     }
   }
 
-  type VarargsPureDefsModule = Has[VarargsPureDefsModule.Service]
+  type VarargsPureDefsModule = VarargsPureDefsModule.Service
   object VarargsPureDefsModule {
     trait Service {
       def simpleVarargs(a: Int, b: String*): IO[String, Int]
@@ -110,7 +110,7 @@ object modules {
     }
   }
 
-  type VarargsImpureDefsModule = Has[VarargsImpureDefsModule.Service]
+  type VarargsImpureDefsModule = VarargsImpureDefsModule.Service
   object VarargsImpureDefsModule {
     trait Service {
       def simpleVarargs(a: Int, b: String*): String
@@ -118,7 +118,7 @@ object modules {
     }
   }
 
-  type DefaultImplPureDefsModule = Has[DefaultImplPureDefsModule.Service]
+  type DefaultImplPureDefsModule = DefaultImplPureDefsModule.Service
   object DefaultImplPureDefsModule {
     trait Service {
       def foo(i: Int): IO[String, String] = bar(i.toString)
@@ -126,7 +126,7 @@ object modules {
     }
   }
 
-  type DefaultImplImpureDefsModule = Has[DefaultImplImpureDefsModule.Service]
+  type DefaultImplImpureDefsModule = DefaultImplImpureDefsModule.Service
   object DefaultImplImpureDefsModule {
     trait Service {
       def foo(i: Int): String = bar(i.toString)
@@ -134,7 +134,7 @@ object modules {
     }
   }
 
-  type PolyModulePureDefsModule[R, E, A] = Has[PolyModulePureDefsModule.Service[R, E, A]]
+  type PolyModulePureDefsModule[R, E, A] = PolyModulePureDefsModule.Service[R, E, A]
   object PolyModulePureDefsModule {
     trait Service[R, E, A] {
       val static: ZIO[R, E, A]
@@ -146,7 +146,7 @@ object modules {
     }
   }
 
-  type MultipleTraitsDefModule = Has[MultipleTraitsDefModule.Service]
+  type MultipleTraitsDefModule = MultipleTraitsDefModule.Service
   object MultipleTraitsDefModule {
     trait ServiceA {
       def foo(i: Int): String

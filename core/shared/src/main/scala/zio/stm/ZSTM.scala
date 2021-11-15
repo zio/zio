@@ -556,14 +556,14 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Provides the transaction its required environment, which eliminates its
    * dependency on `R`.
    */
-  def provide(r: R): STM[E, A] =
+  def provide(r: ZEnvironment[R]): STM[E, A] =
     provideSome(_ => r)
 
   /**
    * Provides some of the environment required to run this effect, leaving the
    * remainder `R0`.
    */
-  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] = ProvideSome(self, f)
+  def provideSome[R0](f: ZEnvironment[R0] => ZEnvironment[R]): ZSTM[R0, E, A] = ProvideSome(self, f)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -842,12 +842,12 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def run(journal: Journal, fiberId: FiberId, r0: R): TExit[E, A] = {
+  private def run(journal: Journal, fiberId: FiberId, r0: ZEnvironment[R]): TExit[E, A] = {
     type Erased = ZSTM[Any, Any, Any]
     type Cont   = Any => Erased
 
     val contStack = Stack[Cont]()
-    val envStack  = Stack[AnyRef](r0.asInstanceOf[AnyRef])
+    val envStack  = Stack[ZEnvironment[Any]](r0)
     var exit      = null.asInstanceOf[TExit[Any, Any]]
     var curr      = self.asInstanceOf[Erased]
 
@@ -911,7 +911,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
         case Tags.ProvideSome =>
           val provideSome = curr.asInstanceOf[ProvideSome[Any, Any, Any, Any]]
 
-          envStack.push(provideSome.f.asInstanceOf[AnyRef => AnyRef](envStack.peek()))
+          envStack.push(provideSome.f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]](envStack.peek()))
 
           val cleanup = ZSTM.succeed(envStack.pop())
 
@@ -1088,7 +1088,7 @@ object ZSTM {
   /**
    * Retrieves the environment inside an stm.
    */
-  def environment[R]: URSTM[R, R] = Effect((_, _, r) => r)
+  def environment[R]: URSTM[R, ZEnvironment[R]] = Effect((_, _, r) => r)
 
   /**
    * Determines whether any element of the `Iterable[A]` satisfies the effectual
@@ -1241,7 +1241,7 @@ object ZSTM {
    * Lifts a function `R => A` into a `URSTM[R, A]`.
    */
   @deprecated("use access", "2.0.0")
-  def fromFunction[R, A](f: R => A): URSTM[R, A] =
+  def fromFunction[R, A](f: ZEnvironment[R] => A): URSTM[R, A] =
     access(f)
 
   /**
@@ -1249,7 +1249,7 @@ object ZSTM {
    * effect that requires the input to the function.
    */
   @deprecated("use accessSTM", "2.0.0")
-  def fromFunctionM[R, E, A](f: R => STM[E, A]): ZSTM[R, E, A] =
+  def fromFunctionM[R, E, A](f: ZEnvironment[R] => STM[E, A]): ZSTM[R, E, A] =
     accessSTM(f)
 
   /**
@@ -1510,7 +1510,7 @@ object ZSTM {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: Tag]: ZSTM[Has[A], Nothing, A] =
+  def service[A: Tag]: ZSTM[A, Nothing, A] =
     ZSTM.access(_.get[A])
 
   /**
@@ -1523,22 +1523,21 @@ object ZSTM {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag]: ZSTM[Has[A] with Has[B], Nothing, (A, B)] =
+  def services[A: Tag, B: Tag]: ZSTM[A with B, Nothing, (A, B)] =
     ZSTM.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag]: ZSTM[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag]: ZSTM[A with B with C, Nothing, (A, B, C)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag, D: Tag]
-    : ZSTM[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+  def services[A: Tag, B: Tag, C: Tag, D: Tag]: ZSTM[A with B with C with D, Nothing, (A, B, C, D)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
@@ -1670,26 +1669,26 @@ object ZSTM {
     new ZSTM.WhenSTM(b)
 
   final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: R => A): ZSTM[R, Nothing, A] =
+    def apply[A](f: ZEnvironment[R] => A): ZSTM[R, Nothing, A] =
       ZSTM.environment.map(f)
   }
 
   final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R1 <: R, E, A](f: R => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
+    def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
       ZSTM.environment.flatMap(f)
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
-    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[HasMany[Key, Service], Nothing, Option[Service]] =
+    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[Map[Key, Service], Nothing, Option[Service]] =
       ZSTM.access(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R <: Has[Service], E, A](f: Service => ZSTM[R, E, A])(implicit
+    def apply[R, E, A](f: Service => ZSTM[R, E, A])(implicit
       tag: Tag[Service]
-    ): ZSTM[R with Has[Service], E, A] =
+    ): ZSTM[R with Service, E, A] =
       ZSTM.service[Service].flatMap(f)
   }
 
@@ -1704,15 +1703,15 @@ object ZSTM {
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
-    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZSTM[R1, E, A] =
-      self.provideSome(ev.update(_, f))
+    def apply[R1 <: R with M](f: M => M)(implicit tag: Tag[M]): ZSTM[R1, E, A] =
+      self.provideSome(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
-    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
+    def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
-      self.provideSome(ev.updateAt(_, key, f))
+    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
+      self.provideSome(_.updateAt(key)(f))
   }
 
   final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
@@ -1728,7 +1727,7 @@ object ZSTM {
 
   private[stm] case object RetryException extends Throwable(null, null, false, false)
 
-  private[stm] final case class Effect[R, E, A](f: (Journal, FiberId, R) => A) extends ZSTM[R, E, A] {
+  private[stm] final case class Effect[R, E, A](f: (Journal, FiberId, ZEnvironment[R]) => A) extends ZSTM[R, E, A] {
     def tag: Int = Tags.Effect
   }
 
@@ -1752,7 +1751,10 @@ object ZSTM {
     def tag: Int = Tags.OnSuccess
   }
 
-  private[stm] final case class ProvideSome[R1, R2, E, A](effect: ZSTM[R1, E, A], f: R2 => R1) extends ZSTM[R2, E, A] {
+  private[stm] final case class ProvideSome[R1, R2, E, A](
+    effect: ZSTM[R1, E, A],
+    f: ZEnvironment[R2] => ZEnvironment[R1]
+  ) extends ZSTM[R2, E, A] {
     def tag: Int = Tags.ProvideSome
   }
 
@@ -1969,7 +1971,7 @@ object ZSTM {
       runtimeConfig: RuntimeConfig,
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
-      r: R
+      r: ZEnvironment[R]
     ): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[ZTRef.Atomic[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
@@ -2042,7 +2044,7 @@ object ZSTM {
       stm: ZSTM[R, E, A],
       txnId: TxnId,
       state: AtomicReference[State[E, A]],
-      r: R
+      r: ZEnvironment[R]
     )(
       k: ZIO[R, E, A] => Any
     )(implicit trace: ZTraceElement): Unit = {
@@ -2082,7 +2084,7 @@ object ZSTM {
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
-      r: R
+      r: ZEnvironment[R]
     ): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[ZTRef.Atomic[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]

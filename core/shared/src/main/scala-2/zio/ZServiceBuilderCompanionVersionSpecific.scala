@@ -27,7 +27,7 @@ private[zio] trait ZServiceBuilderCompanionVersionSpecific {
    * ZServiceBuilder.wire[Car](carServiceBuilder, wheelsServiceBuilder, engineServiceBuilder)
    * }}}
    */
-  def wire[R <: Has[_]]: WirePartiallyApplied[R] =
+  def wire[R]: WirePartiallyApplied[R] =
     new WirePartiallyApplied[R]
 
   /**
@@ -41,7 +41,7 @@ private[zio] trait ZServiceBuilderCompanionVersionSpecific {
    * val serviceBuilder = ZServiceBuilder.wireSome[Engine, Car](carServiceBuilder, wheelsServiceBuilder)
    * }}}
    */
-  def wireSome[R0 <: Has[_], R <: Has[_]]: WireSomePartiallyApplied[R0, R] =
+  def wireSome[R0, R]: WireSomePartiallyApplied[R0, R] =
     new WireSomePartiallyApplied[R0, R]
 
   /**
@@ -57,19 +57,19 @@ private[zio] trait ZServiceBuilderCompanionVersionSpecific {
    * val serviceBuilder : ZServiceBuilder[ZEnv, Nothing, OldLady] = ZServiceBuilder.wireCustom[OldLady](oldLadyServiceBuilder, flyServiceBuilder)
    * }}}
    */
-  def wireCustom[R <: Has[_]]: WireSomePartiallyApplied[ZEnv, R] =
+  def wireCustom[R]: WireSomePartiallyApplied[ZEnv, R] =
     new WireSomePartiallyApplied[ZEnv, R]
 
 }
 
-private[zio] final class WirePartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
+private[zio] final class WirePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
   def apply[E](
     serviceBuilder: ZServiceBuilder[_, E, _]*
   )(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZServiceBuilder[Any, E, R] =
     macro WireMacros.wireImpl[E, Any, R]
 }
 
-private[zio] final class WireSomePartiallyApplied[R0 <: Has[_], R <: Has[_]](
+private[zio] final class WireSomePartiallyApplied[R0, R](
   val dummy: Boolean = true
 ) extends AnyVal {
   def apply[E](

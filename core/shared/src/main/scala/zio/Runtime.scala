@@ -29,7 +29,7 @@ trait Runtime[+R] {
   /**
    * The environment of the runtime.
    */
-  def environment: R
+  def environment: ZEnvironment[R]
 
   /**
    * The configuration of the runtime, which provides the essential capabilities
@@ -40,13 +40,13 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified new environment.
    */
-  def as[R1](r1: R1): Runtime[R1] =
+  def as[R1](r1: ZEnvironment[R1]): Runtime[R1] =
     map(_ => r1)
 
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
-  def map[R1](f: R => R1): Runtime[R1] =
+  def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime[R1] =
     Runtime(f(environment), runtimeConfig)
 
   /**
@@ -312,7 +312,7 @@ trait Runtime[+R] {
       runtimeConfig,
       StackBool(InterruptStatus.Interruptible.toBoolean),
       new java.util.concurrent.atomic.AtomicReference(
-        Map(FiberContext.currentEnvironment -> environment.asInstanceOf[AnyRef])
+        Map(ZFiberRef.currentEnvironment -> environment.asInstanceOf[AnyRef])
       ),
       scope
     )
@@ -350,10 +350,10 @@ object Runtime {
      */
     def shutdown(): Unit
 
-    override final def as[R1](r1: R1): Runtime.Managed[R1] =
+    override final def as[R1](r1: ZEnvironment[R1]): Runtime.Managed[R1] =
       map(_ => r1)
 
-    override final def map[R1](f: R => R1): Runtime.Managed[R1] =
+    override final def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Managed[R1] =
       Managed(f(environment), runtimeConfig, () => shutdown())
 
     override final def mapRuntimeConfig(f: RuntimeConfig => RuntimeConfig): Runtime.Managed[R] =
@@ -375,7 +375,7 @@ object Runtime {
      * Builds a new managed runtime given an environment `R`, a
      * [[zio.RuntimeConfig]], and a shut down action.
      */
-    def apply[R](r: R, runtimeConfig0: RuntimeConfig, shutdown0: () => Unit): Runtime.Managed[R] =
+    def apply[R](r: ZEnvironment[R], runtimeConfig0: RuntimeConfig, shutdown0: () => Unit): Runtime.Managed[R] =
       new Runtime.Managed[R] {
         val environment   = r
         val runtimeConfig = runtimeConfig0
@@ -386,7 +386,7 @@ object Runtime {
   /**
    * Builds a new runtime given an environment `R` and a [[zio.RuntimeConfig]].
    */
-  def apply[R](r: R, runtimeConfig0: RuntimeConfig): Runtime[R] = new Runtime[R] {
+  def apply[R](r: ZEnvironment[R], runtimeConfig0: RuntimeConfig): Runtime[R] = new Runtime[R] {
     val environment   = r
     val runtimeConfig = runtimeConfig0
   }
@@ -397,7 +397,7 @@ object Runtime {
    * well as the default runtime configuration, which is optimized for typical
    * ZIO applications.
    */
-  lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, RuntimeConfig.default)
+  lazy val default: Runtime[ZEnv] = Runtime(ZEnvironment.default, RuntimeConfig.default)
 
   /**
    * The global [[Runtime]], which piggybacks atop the global execution context
@@ -405,7 +405,7 @@ object Runtime {
    * recommended, unless the intention is to avoid creating any thread pools or
    * other resources.
    */
-  lazy val global: Runtime[ZEnv] = Runtime(ZEnv.Services.live, RuntimeConfig.global)
+  lazy val global: Runtime[ZEnv] = Runtime(ZEnvironment.default, RuntimeConfig.global)
 
   /**
    * Unsafely creates a `Runtime` from a `ZServiceBuilder` whose resources will
@@ -419,23 +419,25 @@ object Runtime {
   def unsafeFromServiceBuilder[R](
     serviceBuilder: ServiceBuilder[Any, R],
     runtimeConfig: RuntimeConfig = RuntimeConfig.default
-  )(implicit trace: ZTraceElement): Runtime.Managed[R] = {
-    val runtime = Runtime((), runtimeConfig)
-    val (environment, shutdown) = runtime.unsafeRun {
-      ZManaged.ReleaseMap.make.flatMap { releaseMap =>
-        serviceBuilder.build.zio.provide(((), releaseMap)).flatMap { case (_, acquire) =>
-          val finalizer = () =>
-            runtime.unsafeRun {
-              releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
-            }
+  )(implicit trace: ZTraceElement): Runtime.Managed[R] =
+    ???
+  //   {
+  //   val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
+  //   val (environment, shutdown) = runtime.unsafeRun {
+  //     ZManaged.ReleaseMap.make.flatMap { releaseMap =>
+  //       serviceBuilder.build.zio.flatMap { case (_, acquire) =>
+  //         val finalizer = () =>
+  //           runtime.unsafeRun {
+  //             releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
+  //           }
 
-          UIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
-        }
-      }
-    }
+  //         UIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+  //       }
+  //     }
+  //   }
 
-    Runtime.Managed(environment, runtimeConfig, shutdown)
-  }
+  //   Runtime.Managed(environment, runtimeConfig, shutdown)
+  // }
 
   /**
    * Unsafely creates a `Runtime` from a `ZServiceBuilder` whose resources will

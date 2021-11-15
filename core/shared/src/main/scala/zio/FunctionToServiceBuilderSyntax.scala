@@ -27,12 +27,12 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive() extends Foo
      *
-     * val live: UServiceBuilder[Has[Foo]] =
+     * val live: UServiceBuilder[Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[A1 >: A: Tag](implicit trace: ZTraceElement): URServiceBuilder[Any, Has[A1]] =
-      UIO(self()).toServiceBuilder
+    def toServiceBuilder[A1 >: A: Tag](implicit trace: ZTraceElement): URServiceBuilder[Any, A1] =
+      UIO(self()).toServiceBuilder[A1]
 
     /**
      * Converts this function to a Layer.
@@ -40,13 +40,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive() extends Foo
      *
-     * val live: ULayer[Has[Foo]] =
+     * val live: ULayer[Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): URServiceBuilder[Any, Has[A1]] =
-      toServiceBuilder
+    def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): URServiceBuilder[Any, A1] =
+      toServiceBuilder[A1]
   }
 
   implicit final class Function1ToServiceBuilderSyntax[A: Tag, B: Tag](self: A => B) {
@@ -57,12 +57,12 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config], Has[Foo]] =
+     * val live: URServiceBuilder[Config, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[B1 >: B: Tag](implicit trace: ZTraceElement): URServiceBuilder[Has[A], Has[B1]] =
-      ZIO.service[A].map(self).toServiceBuilder
+    def toServiceBuilder[B1 >: B: Tag](implicit trace: ZTraceElement): URServiceBuilder[A, B1] =
+      ZIO.service[A].map(self).toServiceBuilder[B1]
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -70,13 +70,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config) extends Foo
      *
-     * val live: URLayer[Has[Config], Has[Foo]] =
+     * val live: URLayer[Config, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[B1 >: B: Tag](implicit trace: ZTraceElement): URServiceBuilder[Has[A], Has[B1]] =
-      toServiceBuilder
+    def toLayer[B1 >: B: Tag](implicit trace: ZTraceElement): URServiceBuilder[A, B1] =
+      toServiceBuilder[B1]
   }
 
   implicit final class Function2ToServiceBuilderSyntax[A: Tag, B: Tag, C: Tag](self: (A, B) => C) {
@@ -87,16 +87,16 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[C1 >: C: Tag](implicit trace: ZTraceElement): URServiceBuilder[Has[A] with Has[B], Has[C1]] = {
+    def toServiceBuilder[C1 >: C: Tag](implicit trace: ZTraceElement): URServiceBuilder[A with B, C1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
       } yield self(a, b)
-    }.toServiceBuilder
+    }.toServiceBuilder[C1]
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -104,12 +104,12 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[C1 >: C: Tag](implicit trace: ZTraceElement): URServiceBuilder[Has[A] with Has[B], Has[C1]] =
+    def toLayer[C1 >: C: Tag](implicit trace: ZTraceElement): URServiceBuilder[A with B, C1] =
       toServiceBuilder
   }
 
@@ -121,13 +121,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[D1 >: D: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C], Has[D1]] = {
+    ): URServiceBuilder[A with B with C, D1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -141,14 +141,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[D1 >: D: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C], Has[D1]] =
+    ): URServiceBuilder[A with B with C, D1] =
       toServiceBuilder
   }
 
@@ -162,13 +162,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[E1 >: E: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D], Has[E1]] = {
+    ): URServiceBuilder[A with B with C with D, E1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -183,14 +183,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[E1 >: E: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D], Has[E1]] =
+    ): URServiceBuilder[A with B with C with D, E1] =
       toServiceBuilder
   }
 
@@ -204,13 +204,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[F1 >: F: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E], Has[F1]] = {
+    ): URServiceBuilder[A with B with C with D with E, F1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -226,14 +226,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[F1 >: F: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E], Has[F1]] =
+    ): URServiceBuilder[A with B with C with D with E, F1] =
       toServiceBuilder
   }
 
@@ -247,13 +247,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[G1 >: G: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F], Has[G1]] = {
+    ): URServiceBuilder[A with B with C with D with E with F, G1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -270,14 +270,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[G1 >: G: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F], Has[G1]] =
+    ): URServiceBuilder[A with B with C with D with E with F, G1] =
       toServiceBuilder
   }
 
@@ -291,13 +291,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[H1 >: H: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G], Has[H1]] = {
+    ): URServiceBuilder[A with B with C with D with E with F with G, H1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -315,14 +315,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[H1 >: H: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G], Has[H1]] =
+    ): URServiceBuilder[A with B with C with D with E with F with G, H1] =
       toServiceBuilder
   }
 
@@ -346,15 +346,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[I1 >: I: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H], Has[
-      I1
-    ]] = {
+    ): URServiceBuilder[A with B with C with D with E with F with G with H, I1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -373,16 +371,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[I1 >: I: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H], Has[
-      I1
-    ]] =
+    ): URServiceBuilder[A with B with C with D with E with F with G with H, I1] =
       toServiceBuilder
   }
 
@@ -407,15 +403,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[J1 >: J: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I], Has[J1]] = {
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I, J1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -435,16 +429,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[J1 >: J: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I], Has[J1]] =
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I, J1] =
       toServiceBuilder
   }
 
@@ -470,15 +462,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[K1 >: K: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J], Has[K1]] = {
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J, K1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -499,16 +489,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[K1 >: K: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J], Has[K1]] =
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J, K1] =
       toServiceBuilder
   }
 
@@ -535,15 +523,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[L1 >: L: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K], Has[L1]] = {
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K, L1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -565,16 +551,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[L1 >: L: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K], Has[L1]] =
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K, L1] =
       toServiceBuilder
   }
 
@@ -602,15 +586,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[M1 >: M: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L], Has[M1]] = {
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K with L, M1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -633,16 +615,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[M1 >: M: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L], Has[M1]] =
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K with L, M1] =
       toServiceBuilder
   }
   implicit final class Function13ToServiceBuilderSyntax[
@@ -670,15 +650,13 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[N1 >: N: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M], Has[N1]] = {
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K with L with M, N1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -702,16 +680,14 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[N1 >: N: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M], Has[N1]] =
+    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K with L with M, N1] =
       toServiceBuilder
   }
 
@@ -741,15 +717,16 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[O1 >: O: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N], Has[O1]] = {
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N,
+      O1
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -774,16 +751,17 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[O1 >: O: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N], Has[O1]] =
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N,
+      O1
+    ] =
       toServiceBuilder
   }
 
@@ -814,15 +792,16 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[P1 >: P: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O], Has[P1]] = {
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
+      P1
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -848,16 +827,17 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[P1 >: P: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O], Has[P1]] =
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
+      P1
+    ] =
       toServiceBuilder
   }
 
@@ -889,17 +869,16 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[Q1 >: Q: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
       Q1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -926,18 +905,17 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[Q1 >: Q: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
       Q1
-    ]] =
+    ] =
       toServiceBuilder
   }
 
@@ -970,19 +948,16 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[R1 >: R: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
       R1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -1010,20 +985,17 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[R1 >: R: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
       R1
-    ]] =
+    ] =
       toServiceBuilder
   }
 
@@ -1057,19 +1029,16 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[S1 >: S: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
       S1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -1098,20 +1067,17 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[S1 >: S: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
       S1
-    ]] =
+    ] =
       toServiceBuilder
   }
 
@@ -1146,19 +1112,16 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[T1 >: T: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
       T1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -1188,20 +1151,17 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[T1 >: T: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
       T1
-    ]] =
+    ] =
       toServiceBuilder
   }
 
@@ -1237,19 +1197,16 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[U1 >: U: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S] with Has[T], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
       U1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -1280,20 +1237,17 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[U1 >: U: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S] with Has[T], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
       U1
-    ]] =
+    ] =
       toServiceBuilder
   }
 
@@ -1330,19 +1284,16 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URServiceBuilder[Config with Repo, Foo] =
      *   FooLive.toServiceBuilder
      * }}}
      */
     def toServiceBuilder[V1 >: V: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S] with Has[T] with Has[U], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
       V1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -1374,20 +1325,17 @@ trait FunctionToServiceBuilderOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[V1 >: V: Tag](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S] with Has[T] with Has[U], Has[
+    ): URServiceBuilder[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
       V1
-    ]] =
+    ] =
       toServiceBuilder
   }
 

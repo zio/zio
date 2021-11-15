@@ -14,10 +14,10 @@ import zio.{
   Chunk,
   Clock,
   ServiceBuilder,
-  Has,
   Runtime,
   UIO,
   UServiceBuilder,
+  ZEnvironment,
   ZIO,
   ZIOAppArgs,
   ZServiceBuilder,
@@ -35,11 +35,11 @@ abstract class BaseTestTask(
   protected def run(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
-  ): ZIO[Has[TestLogger] with Has[Clock], Throwable, Unit] =
+  ): ZIO[TestLogger with Clock, Throwable, Unit] =
     for {
       spec   <- spec.runSpec(FilteredSpec(spec.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
-      _      <- sendSummary.provide(summary)
+      _      <- sendSummary.provide(ZEnvironment.empty + summary)
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _      <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
     } yield ()
@@ -48,7 +48,7 @@ abstract class BaseTestTask(
     eventHandler: EventHandler,
     spec: ZIOSpecAbstract
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
-    val argsserviceBuilder: UServiceBuilder[Has[ZIOAppArgs]] =
+    val argsserviceBuilder: UServiceBuilder[ZIOAppArgs] =
       ZServiceBuilder.succeed(
         ZIOAppArgs(Chunk.empty)
       )
@@ -57,11 +57,10 @@ abstract class BaseTestTask(
       zio.ZEnv.live >>> TestEnvironment.live
 
     val serviceBuilder: ServiceBuilder[Error, spec.Environment] =
-      (argsserviceBuilder +!+ filledTestserviceBuilder) >>> spec.serviceBuilder.mapError(e => new Error(e.toString))
+      (argsserviceBuilder ++ filledTestserviceBuilder) >>> spec.serviceBuilder.mapError(e => new Error(e.toString))
 
-    val fullServiceBuilder
-      : ServiceBuilder[Error, spec.Environment with Has[ZIOAppArgs] with TestEnvironment with zio.ZEnv] =
-      serviceBuilder +!+ argsserviceBuilder +!+ filledTestserviceBuilder
+    val fullServiceBuilder: ServiceBuilder[Error, spec.Environment with ZIOAppArgs with TestEnvironment with zio.ZEnv] =
+      serviceBuilder ++ argsserviceBuilder ++ filledTestserviceBuilder
 
     for {
       spec <- spec
@@ -76,7 +75,7 @@ abstract class BaseTestTask(
 
   protected def sbtTestServiceBuilder(
     loggers: Array[Logger]
-  ): ServiceBuilder[Nothing, Has[TestLogger] with Has[Clock]] =
+  ): ServiceBuilder[Nothing, TestLogger with Clock] =
     ZServiceBuilder.succeed[TestLogger](new TestLogger {
       def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
@@ -86,12 +85,12 @@ abstract class BaseTestTask(
     try {
       spec match {
         case NewSpecWrapper(zioSpec) =>
-          Runtime((), zioSpec.runtime.runtimeConfig).unsafeRun {
+          Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
             run(eventHandler, zioSpec)
               .onError(e => UIO(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>
-          Runtime((), abstractRunnableSpec.runtimeConfig).unsafeRun {
+          Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
             run(eventHandler, abstractRunnableSpec)
               .provideServices(sbtTestServiceBuilder(loggers))
               .onError(e => UIO(println(e.prettyPrint)))

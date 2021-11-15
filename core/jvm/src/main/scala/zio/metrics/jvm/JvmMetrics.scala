@@ -12,27 +12,24 @@ trait JvmMetrics { self =>
 
   protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit]
 
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock] with Has[System], Throwable, Feature]
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock with System, Throwable, Feature]
 
   /**
    * A service builder that when constructed forks a fiber that periodically
    * updates the JVM metrics
    */
-  lazy val live: ZServiceBuilder[Has[Clock] with Has[System], Throwable, Has[Feature]] = {
-    implicit val trace: ZTraceElement = Tracer.newTrace
-    collectMetrics.toServiceBuilder(featureTag, trace)
-  }
+  lazy val live: ZServiceBuilder[Clock with System, Throwable, Feature] =
+    ???
 
   /** A ZIO application that periodically updates the JVM metrics */
   lazy val app: ZIOApp = new ZIOApp {
     @silent private implicit val ftag: zio.Tag[Feature] = featureTag
     private implicit val trace: ZTraceElement           = Tracer.newTrace
     override val tag: Tag[Environment]                  = Tag[Environment]
-    override type Environment = Has[Clock] with Has[System] with Has[Feature]
-    override val serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, Environment] = {
-      Clock.live ++ System.live >+> live
-    }
-    override def run: ZIO[Environment with Has[ZIOAppArgs], Any, Any] = ZIO.unit
+    override type Environment = Clock with System with Feature
+    override val serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, Environment] =
+      ???
+    override def run: ZIO[Environment with ZIOAppArgs, Any, Any] = ZIO.unit
   }
 }
 

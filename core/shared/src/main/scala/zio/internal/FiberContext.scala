@@ -351,24 +351,6 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = null
 
-                  case ZIO.Tags.Access =>
-                    val zio = curZio.asInstanceOf[ZIO.Read[Any, Any, Any]]
-
-                    val k = zio.k
-
-                    curZio = k(unsafeGetRef(currentEnvironment))
-
-                  case ZIO.Tags.Provide =>
-                    val zio = curZio.asInstanceOf[ZIO.Provide[Any, Any, Any]]
-
-                    val oldEnvironment = unsafeGetRef(currentEnvironment)
-
-                    unsafeSetRef(currentEnvironment, zio.r())
-
-                    unsafeAddFinalizer(ZIO.succeed(unsafeSetRef(currentEnvironment, oldEnvironment))(zio.trace))
-
-                    curZio = zio.zio
-
                   case ZIO.Tags.Trace =>
                     val zio = curZio.asInstanceOf[ZIO.Trace]
 
@@ -680,7 +662,12 @@ private[zio] final class FiberContext[E, A](
     )
 
     if (runtimeConfig.supervisor ne Supervisor.none) {
-      runtimeConfig.supervisor.unsafeOnStart(unsafeGetRef((currentEnvironment)), zio, Some(self), childContext)
+      runtimeConfig.supervisor.unsafeOnStart(
+        unsafeGetRef((ZFiberRef.currentEnvironment)),
+        zio,
+        Some(self),
+        childContext
+      )
 
       childContext.unsafeOnDone(exit => runtimeConfig.supervisor.unsafeOnEnd(exit.flatten, childContext))
     }
@@ -1244,8 +1231,8 @@ private[zio] object FiberContext {
   lazy val currentExecutor: FiberRef.Runtime[Option[zio.Executor]] =
     FiberRef.unsafeMake(None, a => a, (a, _) => a)
 
-  lazy val currentEnvironment: FiberRef.Runtime[Any] =
-    FiberRef.unsafeMake((), a => a, (a, _) => a)
+  // lazy val currentEnvironment: FiberRef.Runtime[ZEnvironment[Any]] =
+  //   FiberRef.unsafeMake(ZEnvironment.empty, a => a, (a, _) => a)
 
   lazy val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failure-causes", "").setCount
 

@@ -24,7 +24,7 @@ import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.{Fragment, Line, Message}
 import zio.test.render._
-import zio.{Cause, Has, _}
+import zio._
 
 import java.util.regex.Pattern
 import scala.annotation.tailrec
@@ -338,7 +338,7 @@ object DefaultTestReporter {
         )
     }.reverse.foldLeft(Message.empty)(_ ++ _)
 
-  private def renderUnsatisfiedExpectations[R <: Has[_]](expectation: Expectation[R]): Message = {
+  private def renderUnsatisfiedExpectations[R](expectation: Expectation[R]): Message = {
 
     @tailrec
     def loop(stack: List[(Int, Expectation[R])], lines: Vector[Line]): Vector[Line] =

@@ -22,6 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.io.{EOFException, IOException, PrintStream}
 import scala.io.StdIn
 import scala.{Console => SConsole}
+import zio.ZTraceElement
 
 trait Console extends Serializable {
   def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]
@@ -52,10 +53,12 @@ trait Console extends Serializable {
 
 object Console extends Serializable {
 
-  val any: ZServiceBuilder[Has[Console], Nothing, Has[Console]] =
-    ZServiceBuilder.service[Console](Tracer.newTrace)
+  val any: ZServiceBuilder[Console, Nothing, Console] = {
+    implicit val trace = ZTraceElement.empty
+    ZServiceBuilder.environment[Console](Tracer.newTrace)
+  }
 
-  val live: ServiceBuilder[Nothing, Has[Console]] =
+  val live: ServiceBuilder[Nothing, Console] =
     ZServiceBuilder.succeed[Console](ConsoleLive)(Tag[Console], Tracer.newTrace)
 
   object ConsoleLive extends Console {
@@ -89,26 +92,26 @@ object Console extends Serializable {
   /**
    * Prints text to the console.
    */
-  def print(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
+  def print(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
     ZIO.serviceWith(_.print(line))
 
   /**
    * Prints text to the standard error console.
    */
-  def printError(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
+  def printError(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
     ZIO.serviceWith(_.printError(line))
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def printLine(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
+  def printLine(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
     ZIO.serviceWith(_.printLine(line))
 
   /**
    * Prints a line of text to the standard error console, including a newline
    * character.
    */
-  def printLineError(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
+  def printLineError(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
     ZIO.serviceWith(_.printLineError(line))
 
   /**
@@ -116,28 +119,28 @@ object Console extends Serializable {
    * [[java.io.EOFException]] when the underlying [[java.io.Reader]] returns
    * null.
    */
-  def readLine(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, String] =
-    ZIO.accessZIO(_.get.readLine)
+  def readLine(implicit trace: ZTraceElement): ZIO[Console, IOException, String] =
+    ZIO.serviceWith(_.readLine)
 
   /**
    * Prints text to the console.
    */
   @deprecated("use `print`", "2.0.0")
-  def putStr(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
+  def putStr(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
     print(line)
 
   /**
    * Prints text to the standard error console.
    */
   @deprecated("use `printError`", "2.0.0")
-  def putStrErr(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
+  def putStrErr(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
     printError(line)
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
   @deprecated("use `printLine`", "2.0.0")
-  def putStrLn(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
+  def putStrLn(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
     printLine(line)
 
   /**
@@ -145,7 +148,7 @@ object Console extends Serializable {
    * character.
    */
   @deprecated("use `printLineError`", "2.0.0")
-  def putStrLnErr(line: => Any)(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, Unit] =
+  def putStrLnErr(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
     printLineError(line)
 
   /**
@@ -154,6 +157,6 @@ object Console extends Serializable {
    * null.
    */
   @deprecated("use `readLine`", "2.0.0")
-  def getStrLn(implicit trace: ZTraceElement): ZIO[Has[Console], IOException, String] =
+  def getStrLn(implicit trace: ZTraceElement): ZIO[Console, IOException, String] =
     readLine
 }

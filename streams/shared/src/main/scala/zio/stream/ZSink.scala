@@ -384,7 +384,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
   /**
    * Returns the sink that executes this one and times its execution.
    */
-  final def timed(implicit trace: ZTraceElement): ZSink[R with Has[Clock], InErr, In, OutErr, L, (Z, Duration)] =
+  final def timed(implicit trace: ZTraceElement): ZSink[R with Clock, InErr, In, OutErr, L, (Z, Duration)] =
     summarized(Clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
 
   def repeat(implicit ev: L <:< In, trace: ZTraceElement): ZSink[R, InErr, In, OutErr, L, Chunk[Z]] =
@@ -552,7 +552,7 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Provides the sink with its required environment, which eliminates its
    * dependency on `R`.
    */
-  def provide(r: R)(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZSink[Any, InErr, In, OutErr, L, Z] =
+  def provide(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZSink[Any, InErr, In, OutErr, L, Z] =
     new ZSink(channel.provide(r))
 }
 
@@ -1429,7 +1429,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       )
     }
 
-  def timed[Err](implicit trace: ZTraceElement): ZSink[Has[Clock], Err, Any, Err, Nothing, Duration] =
+  def timed[Err](implicit trace: ZTraceElement): ZSink[Clock, Err, Any, Err, Nothing, Duration] =
     ZSink.drain.timed.map(_._2)
 
   /**
@@ -1450,7 +1450,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, InErr, In, OutErr, L, Z](
-      f: R => ZSink[R1, InErr, In, OutErr, L, Z]
+      f: ZEnvironment[R] => ZSink[R1, InErr, In, OutErr, L, Z]
     )(implicit trace: ZTraceElement): ZSink[R with R1, InErr, In, OutErr, L, Z] =
       new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
   }

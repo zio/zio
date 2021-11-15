@@ -18,21 +18,19 @@ package zio
 
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.ZTraceElement
 
 object ZEnv {
 
   private[zio] object Services {
-    val live: ZEnv =
-      Has.allOf[Clock, Console, System, Random](
-        Clock.ClockLive,
-        Console.ConsoleLive,
-        System.SystemLive,
-        Random.RandomLive
-      )
+    lazy val live: ZEnv =
+      ???
   }
 
-  val any: ZServiceBuilder[ZEnv, Nothing, ZEnv] =
-    ZServiceBuilder.environment[ZEnv](Tracer.newTrace)
+  val any: ZServiceBuilder[ZEnv, Nothing, ZEnv] = {
+    implicit val trace = ZTraceElement.empty
+    ZServiceBuilder.environment[ZEnv]
+  }
 
   val live: ServiceBuilder[Nothing, ZEnv] =
     Clock.live ++ Console.live ++ System.live ++ Random.live

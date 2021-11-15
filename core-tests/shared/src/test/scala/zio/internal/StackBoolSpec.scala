@@ -2,7 +2,7 @@ package zio.internal
 
 import zio.test.Assertion.equalTo
 import zio.test._
-import zio.{Has, Random, ZIOBaseSpec}
+import zio.{Random, ZIOBaseSpec}
 
 import scala.util.Random.nextInt
 
@@ -47,5 +47,5 @@ object StackBoolSpec extends ZIOBaseSpec {
     }
   )
 
-  val gen: Gen[Has[Random], List[Boolean]] = Gen.listOfN(nextInt(200))(Gen.boolean)
+  val gen: Gen[Random, List[Boolean]] = Gen.listOfN(nextInt(200))(Gen.boolean)
 }

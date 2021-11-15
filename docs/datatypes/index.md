@@ -28,7 +28,6 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  - **[Cause](core/cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
 
 ## Contextual Data Types
-- **[Has](contextual/has.md)** — The trait `Has[A]` is used with the [ZIO environment](contextual/index.md#zio-environment) to express an effect's dependency on a service of type `A`. 
 - **[ZServiceBuilder](contextual/zservicebuilder.md)** — The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
     + **[RServiceBuilder](contextual/rservicebuilder.md)** — `RServiceBuilder[-RIn, +ROut]` is a type alias for `ZServiceBuilder[RIn, Throwable, ROut]`, which represents a service builder that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
     + **[UServiceBuilder](contextual/uservicebuilder.md)** — UServiceBuilder[+ROut] is a type alias for ZServiceBuilder[Any, Nothing, ROut], which represents a service builder that doesn't require any services as its input, it can't fail, and returns ROut as its output.

@@ -40,7 +40,7 @@ trait ZIOAppDefault extends ZIOApp {
 
   type Environment = ZEnv
 
-  val serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, ZEnv] = ZEnv.live
+  val serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, ZEnv] = ZEnv.live
 
   val tag: Tag[ZEnv] = Tag[ZEnv]
 }
@@ -52,7 +52,7 @@ object ZIOAppDefault {
    * of the program, as well as a hook into the ZIO runtime configuration.
    */
   def apply(
-    run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any],
+    run0: ZIO[ZEnv with ZIOAppArgs, Any, Any],
     hook0: RuntimeConfigAspect
   ): ZIOAppDefault =
     new ZIOAppDefault {
@@ -64,6 +64,6 @@ object ZIOAppDefault {
    * Creates a [[ZIOAppDefault]] from an effect, using the unmodified default
    * runtime's configuration.
    */
-  def fromZIO(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any]): ZIOAppDefault =
+  def fromZIO(run0: ZIO[ZEnv with ZIOAppArgs, Any, Any]): ZIOAppDefault =
     ZIOAppDefault(run0, RuntimeConfigAspect.identity)
 }

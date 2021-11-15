@@ -191,7 +191,7 @@ import java.util.concurrent.TimeUnit
 
 val currentTimeMillis = Clock.currentTime(TimeUnit.MILLISECONDS)
 
-val annotatedOut: UIO[ZQueue[Any, Has[Clock], Nothing, Nothing, String, (Long, String)]] =
+val annotatedOut: UIO[ZQueue[Any, Clock, Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[String](3)
     mapped = queue.mapZIO { el =>
@@ -207,7 +207,7 @@ elements as they are enqueued. This queue will annotate the elements
 with their enqueue timestamp:
 
 ```scala mdoc:silent
-val annotatedIn: UIO[ZQueue[Has[Clock], Any, Nothing, Nothing, String, (Long, String)]] =
+val annotatedIn: UIO[ZQueue[Clock, Any, Nothing, Nothing, String, (Long, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     mapped = queue.contramapZIO { el: String =>
@@ -224,7 +224,7 @@ To complete this example, we could combine this queue with `mapZIO` to
 compute the time that the elements stayed in the queue:
 
 ```scala mdoc:silent
-val timeQueued: UIO[ZQueue[Has[Clock], Has[Clock], Nothing, Nothing, String, (Duration, String)]] =
+val timeQueued: UIO[ZQueue[Clock, Clock, Nothing, Nothing, String, (Duration, String)]] =
   for {
     queue <- Queue.bounded[(Long, String)](3)
     enqueueTimestamps = queue.contramapZIO { el: String =>

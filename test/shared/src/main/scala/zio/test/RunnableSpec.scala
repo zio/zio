@@ -28,7 +28,7 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
 
   private def run(spec: ZSpec[Environment, Failure], testArgs: TestArgs)(implicit
     trace: ZTraceElement
-  ): URIO[Has[TestLogger] with Has[Clock], Int] = {
+  ): URIO[TestLogger with Clock, Int] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
     val testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
     for {

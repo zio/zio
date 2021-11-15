@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
 
-object MockClock extends Mock[Has[Clock]] {
+object MockClock extends Mock[Clock] {
 
   object CurrentTime     extends Effect[TimeUnit, Nothing, Long]
   object CurrentDateTime extends Effect[Unit, Nothing, OffsetDateTime]
@@ -33,7 +33,7 @@ object MockClock extends Mock[Has[Clock]] {
   object Scheduler       extends Effect[Unit, Nothing, Scheduler]
   object Sleep           extends Effect[Duration, Nothing, Unit]
 
-  val compose: URServiceBuilder[Has[Proxy], Has[Clock]] = {
+  val compose: URServiceBuilder[Proxy, Clock] = {
     implicit val trace = Tracer.newTrace
     ZIO
       .service[Proxy]

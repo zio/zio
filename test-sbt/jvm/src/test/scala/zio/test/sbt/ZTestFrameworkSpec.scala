@@ -4,7 +4,7 @@ import sbt.testing._
 import zio.test.Assertion.equalTo
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
-import zio.{Has, ZServiceBuilder, ZIO, ZTraceElement, durationInt}
+import zio.{ZEnvironment, ZIO, ZServiceBuilder, ZTraceElement, durationInt}
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
@@ -120,7 +120,7 @@ object ZTestFrameworkSpec {
 
   private val counter = new AtomicInteger(0)
 
-  lazy val sharedServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Int]] = {
+  lazy val sharedServiceBuilder: ZServiceBuilder[Any, Nothing, Int] = {
     ZServiceBuilder.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
   }
 
@@ -134,7 +134,7 @@ object ZTestFrameworkSpec {
     }
 
   lazy val spec1UsingSharedServiceBuilder = Spec1UsingSharedServiceBuilder.getClass.getName
-  object Spec1UsingSharedServiceBuilder extends zio.test.ZIOSpec[Has[Int]] {
+  object Spec1UsingSharedServiceBuilder extends zio.test.ZIOSpec[Int] {
     override def serviceBuilder = sharedServiceBuilder
 
     /*
@@ -156,7 +156,7 @@ object ZTestFrameworkSpec {
   }
 
   lazy val spec2UsingSharedServiceBuilder = Spec2UsingSharedServiceBuilder.getClass.getName
-  object Spec2UsingSharedServiceBuilder extends zio.test.ZIOSpec[Has[Int]] {
+  object Spec2UsingSharedServiceBuilder extends zio.test.ZIOSpec[Int] {
     override def serviceBuilder = sharedServiceBuilder
 
     def spec =
@@ -184,7 +184,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          zTestTask.sendSummary.provide(Summary(1, 0, 0, "foo")),
+          zTestTask.sendSummary.provide(ZEnvironment(Summary(1, 0, 0, "foo"))),
           TestArgs.empty,
           zTestTask.spec
         )
@@ -206,7 +206,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          zTestTask.sendSummary.provide(Summary(0, 0, 0, "foo")),
+          zTestTask.sendSummary.provide(ZEnvironment(Summary(0, 0, 0, "foo"))),
           TestArgs.empty,
           zTestTask.spec
         )
@@ -258,7 +258,7 @@ object ZTestFrameworkSpec {
 
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
   object SimpleFailingSpec extends DefaultRunnableSpec {
-    def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
+    def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
       test("failing test") {
         zio.test.assert(1)(Assertion.equalTo(2))
       },

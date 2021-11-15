@@ -33,7 +33,7 @@ trait GarbageCollector extends JvmMetrics {
     }
 
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock], Throwable, GarbageCollector] =
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, GarbageCollector] =
     for {
       classLoadingMXBean <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList).toManaged
       _ <- reportGarbageCollectionMetrics(classLoadingMXBean)

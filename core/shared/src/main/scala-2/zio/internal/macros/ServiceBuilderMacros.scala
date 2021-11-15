@@ -13,7 +13,7 @@ private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends Service
   ): c.Expr[F[Any, E, A]] =
     injectBaseImpl[F, Any, R, E, A](serviceBuilder, "provideServices")
 
-  def injectSomeImpl[F[_, _, _], R0 <: Has[_]: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+  def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[F[R0, E, A]] = {
     assertEnvIsNotNothing[R0]()
@@ -32,11 +32,10 @@ private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends Service
    * Ensures the macro has been annotated with the intended result type. The
    * macro will not behave correctly otherwise.
    */
-  private def assertEnvIsNotNothing[R <: Has[_]: c.WeakTypeTag](): Unit = {
+  private def assertEnvIsNotNothing[R: c.WeakTypeTag](): Unit = {
     val outType     = weakTypeOf[R]
     val nothingType = weakTypeOf[Nothing]
-    val emptyHas    = weakTypeOf[Has[_]]
-    if (outType =:= nothingType || outType =:= emptyHas) {
+    if (outType =:= nothingType) {
       val errorMessage =
         s"""
 ${"  ZServiceBuilder Wiring Error  ".red.bold.inverted}
