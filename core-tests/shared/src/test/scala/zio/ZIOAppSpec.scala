@@ -33,7 +33,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
     test("hook update platform") {
       val counter = new java.util.concurrent.atomic.AtomicInteger(0)
 
-      val logger1 = new ZLogger[Unit] {
+      val logger1 = new ZLogger[String, Unit] {
         def apply(
           trace: ZTraceElement,
           fiberId: zio.FiberId.Runtime,

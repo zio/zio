@@ -57,7 +57,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val fatal = (_: Throwable) => false
 
-    val logger: ZLogger[Unit] =
+    val logger: ZLogger[String, Unit] =
       (
         trace: ZTraceElement,
         fiberId: FiberId.Runtime,
