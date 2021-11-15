@@ -162,7 +162,11 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val ZIORenames = Renames(
     List("zio.ZIO"),
-    Map("run" -> "exit")
+    Map("run" -> "exit",
+      "provideLayer" -> "provideServices",
+      "provideSomeLayer" -> "provideSomeServices",
+      "provideCustomLayer" -> "provideCustomServices",
+    )
   )
 
   val STMRenames = Renames(
@@ -230,6 +234,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "rejectM"                   -> "rejectManaged",
       "run"                       -> "exit",
       "someOrElseM"               -> "someOrElseManaged",
+      "toLayer"                   -> "toServiceBuilder",
+      "toLayerMany"               -> "toServiceBuilderMany",
       "unlessM"                   -> "unlessManaged",
       "whenCaseM"                 -> "whenCaseManaged",
       "whenM"                     -> "whenManaged"
@@ -394,7 +400,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.TimeVariants.anyZoneId" -> "zio.test.Gen.zoneId",
     // App
     "zio.App" -> "zio.ZIOAppDefault",
-    "zio.Executor.asEC" -> "zio.Executor.asExecutionContext"
+    "zio.Executor.asEC" -> "zio.Executor.asExecutionContext",
+    "zio.ZLayer" -> "zio.ZServiceBuilder"
   )
 
   val foreachParN             = ParNRenamer("foreachPar", 3)

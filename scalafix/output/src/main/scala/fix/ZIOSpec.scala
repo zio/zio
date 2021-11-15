@@ -11,7 +11,7 @@ import zio.test.environment.TestClock
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
-import zio.{ Clock, Clock, FiberId, Has, Random, Random, _ }
+import zio.{ Clock, Clock, FiberId, Has, Random, Random, ZServiceBuilder, _ }
 import zio.test.{ Gen, Sized }
 import zio.test.environment.Live
 
@@ -1636,19 +1636,19 @@ object ZIOSpec extends DefaultRunnableSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
-    suite("provideCustomServices")(
+    suite("provideCustomLayer")(
       test("provides the part of the environment that is not part of the `ZEnv`") {
-        val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
+        val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomServices(loggingServiceBuilder)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomServices(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSomeServices")(
+    suite("provideSomeLayer")(
       test("can split environment into two parts") {
-        val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]]    = Clock.live
+        val clockLayer: ZServiceBuilder[Any, Nothing, Has[Clock]]    = Clock.live
         val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Has[Random], Unit]                   = zio.provideSomeServices[Has[Random]](clockServiceBuilder)
+        val zio2: URIO[Has[Random], Unit]                   = zio.provideSomeServices[Has[Random]](clockLayer)
         assertM(zio2)(anything)
       }
     ),
