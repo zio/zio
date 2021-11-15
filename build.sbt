@@ -28,7 +28,7 @@ addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "check",
-  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile"
+  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile; scalafixTests/test"
 )
 addCommandAlias(
   "compileJVM",
@@ -100,6 +100,7 @@ lazy val root = project
     macrosJVM,
     macrosTestsJS,
     macrosTestsJVM,
+    scalafixTests,
     stacktracerJS,
     stacktracerJVM,
     stacktracerNative,
@@ -574,6 +575,62 @@ val http4sV     = "0.23.6"
 val doobieV     = "1.0.0-RC1"
 val catsEffectV = "3.2.9"
 val zioActorsV  = "0.0.9"
+
+lazy val scalafixSettings = List(
+  scalaVersion := "2.13.7",
+  addCompilerPlugin(scalafixSemanticdb),
+  crossScalaVersions --= List(Scala211, Scala212, Scala3),
+  scalacOptions ++= List(
+    "-Yrangepos",
+    "-P:semanticdb:synthetics:on"
+  )
+)
+
+lazy val scalafixRules = project.module
+  .in(file("scalafix/rules")) // TODO .in needed when name matches?
+  .settings(
+    scalafixSettings,
+    semanticdbEnabled                      := true, // enable SemanticDB
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.32"
+  )
+
+val zio1Version = "1.0.12"
+
+lazy val scalafixInput = project
+  .in(file("scalafix/input"))
+  .settings(
+    scalafixSettings,
+    skip in publish                  := true,
+    libraryDependencies += "dev.zio" %% "zio"         % zio1Version,
+    libraryDependencies += "dev.zio" %% "zio-streams" % zio1Version,
+    libraryDependencies += "dev.zio" %% "zio-test"    % zio1Version
+  )
+
+lazy val scalafixOutput = project
+  .in(file("scalafix/output"))
+  .settings(
+    scalafixSettings,
+    skip in publish := true
+  )
+  .dependsOn(coreJVM, testJVM, streamsJVM)
+
+lazy val scalafixTests = project
+  .in(file("scalafix/tests"))
+  .settings(
+    scalafixSettings,
+    skip in publish                       := true,
+    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.9.32" % Test cross CrossVersion.full,
+    compile.in(Compile) :=
+      compile.in(Compile).dependsOn(compile.in(scalafixInput, Compile)).value,
+    scalafixTestkitOutputSourceDirectories :=
+      sourceDirectories.in(scalafixOutput, Compile).value,
+    scalafixTestkitInputSourceDirectories :=
+      sourceDirectories.in(scalafixInput, Compile).value,
+    scalafixTestkitInputClasspath :=
+      fullClasspath.in(scalafixInput, Compile).value
+  )
+  .dependsOn(scalafixRules)
+  .enablePlugins(ScalafixTestkitPlugin)
 
 lazy val docs = project.module
   .in(file("zio-docs"))
