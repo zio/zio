@@ -3,6 +3,7 @@ package zio.stream
 import zio._
 import zio.test.Assertion._
 import zio.test._
+import zio.test.TestAspect.flaky
 
 import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
 import java.net.InetSocketAddress
@@ -307,8 +308,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                                     ZIO
                                       .fromFutureJava(
                                         clientChannel.write(ByteBuffer.wrap(m.getBytes("UTF-8")))
-                                      )
-                                      .retry(Schedule.recurs(10)) *> serverChannel.read
+                                      ) *> serverChannel.read
                                       .take(m.size.toLong)
                                       .via(ZPipeline.utf8Decode)
                                       .mkString
@@ -339,7 +339,6 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                                              (buffer: Buffer).flip()
                                              new String(buffer.array)
                                            }
-                                           .retry(Schedule.recurs(10))
                                        }
                                      )
                                  }
@@ -348,7 +347,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           } yield assert(writtenMessages)(hasSameElementsDistinct(messages))
 
         }
-      ),
+      ) @@ flaky(20), // socket connections can be flaky some times
       suite("fromOutputStreamWriter")(
         test("reads what is written") {
           check(Gen.listOf(Gen.chunkOf(Gen.byte)), Gen.int(1, 10)) { (bytess, chunkSize) =>
