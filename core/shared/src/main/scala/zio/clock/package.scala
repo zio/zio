@@ -46,6 +46,7 @@ package object clock {
     }
 
     object Service {
+
       val live: Service = new Service {
         def currentTime(unit: TimeUnit): UIO[Long] =
           instant.map { inst =>
@@ -79,6 +80,43 @@ package object clock {
           ZIO.effectTotal(LocalDateTime.now())
 
       }
+
+      def javaClock(clock: java.time.Clock): Service = new ClockJava(clock)
+    }
+
+    final case class ClockJava(clock: java.time.Clock) extends Service {
+
+      def currentTime(unit: TimeUnit): UIO[Long] =
+        instant.map { inst =>
+          // A nicer solution without loss of precision or range would be
+          // unit.toChronoUnit.between(Instant.EPOCH, inst)
+          // However, ChronoUnit is not available on all platforms
+          unit match {
+            case TimeUnit.NANOSECONDS =>
+              inst.getEpochSecond() * 1000000000 + inst.getNano()
+            case TimeUnit.MICROSECONDS =>
+              inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
+            case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
+          }
+        }
+
+      val nanoTime: UIO[Long] = IO.effectTotal(System.nanoTime)
+
+      def sleep(duration: Duration): UIO[Unit] =
+        UIO.effectAsyncInterrupt { cb =>
+          val canceler = globalScheduler.schedule(() => cb(UIO.unit), duration)
+          Left(UIO.effectTotal(canceler()))
+        }
+
+      def currentDateTime: IO[DateTimeException, OffsetDateTime] =
+        ZIO.effectTotal(OffsetDateTime.now(clock))
+
+      override def instant: zio.UIO[Instant] =
+        ZIO.effectTotal(clock.instant())
+
+      override def localDateTime: zio.IO[DateTimeException, LocalDateTime] =
+        ZIO.effectTotal(LocalDateTime.now(clock))
+
     }
 
     val any: ZLayer[Clock, Nothing, Clock] =
@@ -86,6 +124,12 @@ package object clock {
 
     val live: Layer[Nothing, Clock] =
       ZLayer.succeed(Service.live)
+
+    val javaClock: ZLayer[Has[java.time.Clock], Nothing, Clock] = {
+      (for {
+        clock <- ZIO.service[java.time.Clock]
+      } yield ClockJava(clock)).toLayer
+    }
   }
 
   /**
