@@ -396,6 +396,18 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
           _             <- serviceBuilder.build.useNow
           value         <- ref.get
         } yield assert(value)(equalTo("bar"))
+      },
+      test("injecting a subtype") {
+        // Accesses an Animal
+        val zio: URIO[Animal, Animal] = ZIO.service[Animal]
+
+        // Provides a Dog
+        val dog: Dog                         = new Dog {}
+        val dogService: UServiceBuilder[Dog] = ZServiceBuilder.succeed(dog)
+
+        zio.zipLeft(ZIO.service[System]).injectCustom(dogService).map { result =>
+          assertTrue(result == dog)
+        }
       }
     )
 }

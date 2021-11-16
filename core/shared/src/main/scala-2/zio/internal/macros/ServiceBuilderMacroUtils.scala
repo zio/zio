@@ -26,7 +26,7 @@ private[zio] trait ServiceBuilderMacroUtils {
         nodes = nodes,
         // They must be `.toString`-ed as a backup in the case of refinement
         // types. Otherwise, [[examples.DumbExample]] will fail.
-        keyEquals = (t1, t2) => t1 =:= t2 || (t1.toString == t2.toString)
+        keyEquals = (t1, t2) => t1 <:< t2 || (t1.toString == t2.toString)
       ),
       showKey = tpe => tpe.toString,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
