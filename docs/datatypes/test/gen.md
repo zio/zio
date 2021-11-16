@@ -67,6 +67,7 @@ We know that if we reverse a list twice, it should give us the original list, so
 import zio.test._
 
 suite("ReverseSpec"){
+  // ∀ xs. reverse(reverse(xs)) == xs
   test("reversing a list twice must give the original list")(
     check(Gen.listOf(Gen.int)) { list =>
       assertTrue(reverse(reverse(list)) == list)
