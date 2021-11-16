@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZEnvironment, ZIO, ZServiceBuilder, ZTraceElement}
+import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZIO, ZServiceBuilder, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -199,8 +199,8 @@ object TestConsole extends Serializable {
       ref      <- Ref.make(data)
       debugRef <- FiberRef.make(debug)
       test      = Test(ref, live, debugRef)
-    } yield ZEnvironment[Console, TestConsole](test, test)
-  }.toServiceBuilderMany
+    } yield test
+  }.toServiceBuilder
 
   val any: ZServiceBuilder[TestConsole, Nothing, TestConsole] =
     ZServiceBuilder.environment[TestConsole](Tracer.newTrace)

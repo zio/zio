@@ -54,7 +54,11 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("accessZIO")(
           test("accessZIO") {
             for {
-              result <- ZStream.accessZIO[String](environment => ZIO.succeed(environment.get)).provide(ZEnvironment("test")).runHead.some
+              result <- ZStream
+                          .accessZIO[String](environment => ZIO.succeed(environment.get))
+                          .provide(ZEnvironment("test"))
+                          .runHead
+                          .some
             } yield assert(result)(equalTo("test"))
           },
           test("accessZIO fails") {
@@ -66,7 +70,11 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("accessStream")(
           test("accessStream") {
             for {
-              result <- ZStream.accessStream[String](environment => ZStream.succeed(environment.get)).provide(ZEnvironment("test")).runHead.some
+              result <- ZStream
+                          .accessStream[String](environment => ZStream.succeed(environment.get))
+                          .provide(ZEnvironment("test"))
+                          .runHead
+                          .some
             } yield assert(result)(equalTo("test"))
           },
           test("accessStream fails") {

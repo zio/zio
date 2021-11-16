@@ -723,7 +723,7 @@ object TestRandom extends Serializable {
       data   <- Ref.make(data)
       buffer <- Ref.make(Buffer())
       test    = Test(data, buffer)
-    } yield ZEnvironment[Random, TestRandom](test, test)).toServiceBuilderMany
+    } yield test).toServiceBuilder
   }
 
   val any: ZServiceBuilder[TestRandom, Nothing, TestRandom] =
@@ -740,8 +740,8 @@ object TestRandom extends Serializable {
         testRandom <- ZIO.service[TestRandom]
         time       <- Clock.nanoTime
         _          <- TestRandom.setSeed(time)
-      } yield ZEnvironment[Random, TestRandom](random, testRandom)
-    }.toServiceBuilderMany
+      } yield testRandom
+    }.toServiceBuilder
   }
 
   /**
