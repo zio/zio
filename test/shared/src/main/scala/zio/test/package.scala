@@ -170,8 +170,13 @@ package object test extends CompileVariants {
                 "Make sure you are not forking a fiber in an " +
                 "uninterruptible region."
             for {
-              fiber <- ZIO.logWarning(warning).delay(10.seconds).provideServices(Clock.live).interruptible.forkDaemon
-              _     <- (child.interrupt *> fiber.interrupt).forkDaemon
+              fiber <- ZIO
+                         .logWarning(warning)
+                         .delay(10.seconds)
+                         .provide(ZEnvironment(Clock.ClockLive))
+                         .interruptible
+                         .forkDaemon
+              _ <- (child.interrupt *> fiber.interrupt).forkDaemon
             } yield ()
           }
         }
