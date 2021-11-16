@@ -20,9 +20,9 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * later.
    *
    * {{{
-   * val spec: ZIO[Has[UserRepo] with Console, Nothing, Unit] = ???
-   * val userRepoServiceBuilder: ZServiceBuilder[Has[Database], Nothing, Has[UserRepo] = ???
-   * val databaseServiceBuilder: ZServiceBuilder[Clock, Nothing, Has[Database]] = ???
+   * val spec: ZIO[UserRepo with Console, Nothing, Unit] = ???
+   * val userRepoServiceBuilder: ZServiceBuilder[Database, Nothing, UserRepo = ???
+   * val databaseServiceBuilder: ZServiceBuilder[Clock, Nothing, Database] = ???
    *
    * // The TestEnvironment you use later will provide Clock to
    * // `databaseServiceBuilder` and Console to `spec`
@@ -63,9 +63,9 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * `TestEnvironment.any`, allowing them to be provided later.
    *
    * {{{
-   * val spec: ZIO[Has[UserRepo] with Console, Nothing, Unit] = ???
-   * val userRepoServiceBuilder: ZServiceBuilder[Has[Database], Nothing, Has[UserRepo] = ???
-   * val databaseServiceBuilder: ZServiceBuilder[Clock, Nothing, Has[Database]] = ???
+   * val spec: ZIO[UserRepo with Console, Nothing, Unit] = ???
+   * val userRepoServiceBuilder: ZServiceBuilder[Database, Nothing, UserRepo = ???
+   * val databaseServiceBuilder: ZServiceBuilder[Clock, Nothing, Database] = ???
    *
    * // The TestEnvironment you use later will provide Clock to
    * // `databaseServiceBuilder` and Console to `spec`
