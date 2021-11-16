@@ -21,6 +21,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZManaged.ReleaseMap
 
 import scala.collection.mutable.Builder
+import zio.ZTraceElement
+import zio.ZTraceElement
+import zio.ZTraceElement
 
 /**
  * A `ZServiceBuilder[E, A, B]` describes how to build one or more services in
@@ -133,7 +136,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def catchAll[RIn1 <: RIn, E1, ROut1 >: ROut](
     handler: E => ZServiceBuilder[RIn1, E1, ROut1]
   )(implicit trace: ZTraceElement): ZServiceBuilder[RIn1, E1, ROut1] =
-    ZServiceBuilder.fromManagedMany(self.build.catchAll(handler(_).build))
+    foldServices(handler, ZLayer.succeedMany(_))
 
   /**
    * Constructs a service builder dynamically based on the output of this
@@ -142,18 +145,29 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def flatMap[RIn1 <: RIn, E1 >: E, ROut2](
     f: ZEnvironment[ROut] => ZServiceBuilder[RIn1, E1, ROut2]
   )(implicit trace: ZTraceElement): ZServiceBuilder[RIn1, E1, ROut2] =
-    ZServiceBuilder(self.build.flatMap(environment => f(environment).build))
+    foldServices(ZLayer.fail, f)
 
   /**
    * Feeds the error or output services of this service builder into the input
    * of either the specified `failure` or `success` service builders,
    * resulting in a new service builder with the inputs of this service builder, and the error or outputs of the specified service builder.
    */
-  final def fold[E1, RIn1 <: RIn, ROut2](
-    failure: ZServiceBuilder[(RIn1, Cause[E]), E1, ROut2],
-    success: ZServiceBuilder[ROut, E1, ROut2]
+  final def foldServices[E1, RIn1 <: RIn, ROut2](
+    failure: E => ZServiceBuilder[RIn1, E1, ROut2],
+    success: ZEnvironment[ROut] => ZServiceBuilder[RIn1, E1, ROut2]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZServiceBuilder[RIn1, E1, ROut2] =
+    foldCauseServices(_.failureOrCause.fold(failure, ZLayer.failCause), success)
+
+  /**
+   * Feeds the error or output services of this service builder into the input
+   * of either the specified `failure` or `success` service builders,
+   * resulting in a new service builder with the inputs of this service builder, and the error or outputs of the specified service builder.
+   */
+  final def foldCauseServices[E1, RIn1 <: RIn, ROut2](
+    failure: Cause[E] => ZServiceBuilder[RIn1, E1, ROut2],
+    success: ZEnvironment[ROut] => ZServiceBuilder[RIn1, E1, ROut2]
   )(implicit ev: CanFail[E]): ZServiceBuilder[RIn1, E1, ROut2] =
-    ???
+    ZLayer.Fold(self, failure, success)
 
   /**
    * Creates a fresh version of this service builder that will not be shared.
@@ -205,7 +219,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
     ev2: CanFail[E],
     trace: ZTraceElement
   ): ZServiceBuilder[RIn, Nothing, ROut] =
-    ???
+    catchAll(e => ZServiceBuilder.die(ev1(e)))
 
   /**
    * Executes this service builder and returns its output, if it succeeds, but
@@ -214,7 +228,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def orElse[RIn1 <: RIn, E1, ROut1 >: ROut](
     that: ZServiceBuilder[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZServiceBuilder[RIn1, E1, ROut1] =
-    ???
+    catchAll(_ => that)
 
   /**
    * Retries constructing this service builder according to the specified
@@ -223,15 +237,15 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def retry[RIn1 <: RIn with Clock](
     schedule: Schedule[RIn1, E, Any]
   )(implicit trace: ZTraceElement): ZServiceBuilder[RIn1, E, ROut] =
-    ???
+    ZServiceBuilder(self.build.retry(schedule))
 
   /**
    * Performs the specified effect if this service builder succeeds.
    */
-  final def tap[RIn1 <: RIn, E1 >: E](f: ROut => ZIO[RIn1, E1, Any])(implicit
+  final def tap[RIn1 <: RIn, E1 >: E](f: ZEnvironment[ROut] => ZIO[RIn1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[RIn1, E1, ROut] =
-    ???
+    flatMap(environment => ZServiceBuilder(f(environment).as(environment)))
 
   /**
    * Performs the specified effect if this service builder fails.
@@ -290,6 +304,13 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
     trace: ZTraceElement
   ): Managed[Nothing, ZServiceBuilder.MemoMap => ZManaged[RIn, E, ZEnvironment[ROut]]] =
     self match {
+      case ZServiceBuilder.Fold(self, failure, success) =>
+        ZManaged.succeed { memoMap =>
+          memoMap.getOrElseMemoize(self).foldCauseManaged(
+            cause => memoMap.getOrElseMemoize(failure(cause)),
+            rout => memoMap.getOrElseMemoize(success(rout))
+          )
+        }
       case ZServiceBuilder.To(self, that) =>
         ZManaged.succeed(memoMap =>
           memoMap
@@ -317,6 +338,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     self: ZServiceBuilder[RIn, E, ROut],
     that: ZServiceBuilder[ROut, E, ROut1]
   ) extends ZServiceBuilder[RIn, E, ROut1]
+  private final case class Fold[RIn, E, E2, ROut, ROut2](
+    self: ZServiceBuilder[RIn, E, ROut],
+    failure: Cause[E] => ZServiceBuilder[RIn, E2, ROut2],
+    success: ZEnvironment[ROut] => ZServiceBuilder[RIn, E2, ROut2]
+  ) extends ZServiceBuilder[RIn, E2, ROut2]
   private final case class Fresh[RIn, E, ROut](self: ZServiceBuilder[RIn, E, ROut])
       extends ZServiceBuilder[RIn, E, ROut]
   private final case class Managed[-RIn, +E, +ROut](self: ZManaged[RIn, E, ZEnvironment[ROut]]) extends ZServiceBuilder[RIn, E, ROut]
@@ -435,11 +461,20 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   ): ZServiceBuilder[R, E, Collection[A]] =
     foreach(in)(i => i)
 
+  final def die(t: Throwable)(implicit trace: ZTraceElement): ZServiceBuilder[Any, Nothing, Nothing] =
+    ZServiceBuilder.failCause(Cause.die(t))
+
   /**
    * Constructs a service builder that fails with the specified value.
    */
   def fail[E](e: E)(implicit trace: ZTraceElement): ServiceBuilder[E, Nothing] =
-    ZServiceBuilder(ZManaged.fail(e))
+    failCause(Cause.fail(e))
+
+  /**
+   * Constructs a service builder that fails with the specified value.
+   */
+  def failCause[E](cause: Cause[E])(implicit trace: ZTraceElement): ServiceBuilder[E, Nothing] =
+    ZServiceBuilder(ZManaged.failCause(cause))
 
   /**
    * A service builder that passes along the first element of a tuple.
@@ -4208,7 +4243,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       out: Tag[ROut],
       trace: ZTraceElement
     ): ZServiceBuilder[RIn, E, RIn with ROut] =
-      ???//ZServiceBuilder.environment[RIn] ++ self
+      ZServiceBuilder.environment[RIn] ++ self
   }
 
   implicit final class ZServiceBuilderProjectOps[R, E, A](private val self: ZServiceBuilder[R, E, A])
@@ -4218,7 +4253,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
      * Projects out part of one of the services output by this service builder using the specified function.
      */
     def project[B: Tag](f: A => B)(implicit tag: Tag[A], trace: ZTraceElement): ZServiceBuilder[R, E, B] =
-      ???
+      self.map(environment => ZEnvironment(f(environment.get(tag))))
   }
 
   /**

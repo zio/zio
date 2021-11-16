@@ -32,6 +32,8 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
     new ZEnvironment(map + (Tag[A].tag -> a))
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): Option[V] =
     unsafeGet(tag).get.asInstanceOf[Map[K, V]].get(k)
+  def size: Int =
+    map.size
   def update[A >: R: Tag](f: A => A): ZEnvironment[R] =
     new ZEnvironment(map.updated(Tag[A].tag, f(get[A])))
   def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
