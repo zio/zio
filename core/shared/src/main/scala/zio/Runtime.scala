@@ -419,25 +419,23 @@ object Runtime {
   def unsafeFromServiceBuilder[R](
     serviceBuilder: ServiceBuilder[Any, R],
     runtimeConfig: RuntimeConfig = RuntimeConfig.default
-  )(implicit trace: ZTraceElement): Runtime.Managed[R] =
-    ???
-  //   {
-  //   val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
-  //   val (environment, shutdown) = runtime.unsafeRun {
-  //     ZManaged.ReleaseMap.make.flatMap { releaseMap =>
-  //       serviceBuilder.build.zio.flatMap { case (_, acquire) =>
-  //         val finalizer = () =>
-  //           runtime.unsafeRun {
-  //             releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
-  //           }
+  )(implicit trace: ZTraceElement): Runtime.Managed[R] ={
+    val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
+    val (environment, shutdown) = runtime.unsafeRun {
+      ZManaged.ReleaseMap.make.flatMap { releaseMap =>
+        serviceBuilder.build.zio.flatMap { case (_, acquire) =>
+          val finalizer = () =>
+            runtime.unsafeRun {
+              releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
+            }
 
-  //         UIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
-  //       }
-  //     }
-  //   }
+          UIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+        }
+      }
+    }
 
-  //   Runtime.Managed(environment, runtimeConfig, shutdown)
-  // }
+    Runtime.Managed(environment, runtimeConfig, shutdown)
+  }
 
   /**
    * Unsafely creates a `Runtime` from a `ZServiceBuilder` whose resources will
