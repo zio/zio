@@ -361,7 +361,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
                                _ <- ZManaged.unit
                              } yield ZEnvironment(ref)
                            }
-          _      <- serviceBuilder.build.use(environment => environment.get[Ref[Vector[String]]].update(_ :+ "test"))
+          _      <- serviceBuilder.build.use(environment => environment.get.update(_ :+ "test"))
           result <- testRef.get
         } yield assert(result)(equalTo(Vector("test")))
       },
