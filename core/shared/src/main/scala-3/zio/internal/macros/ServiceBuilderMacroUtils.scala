@@ -60,17 +60,9 @@ private [zio] object ServiceBuilderMacroUtils {
   }
 
   def getRequirements[T: Type](description: String)(using ctx: Quotes): List[ctx.reflect.TypeRepr] = {
-      import quotes.reflect._
+    import quotes.reflect._
 
-      val (nonHasTypes, requirements) = intersectionTypes[T].map(_.asType).partitionMap {
-        case '[Has[t]] => Right(TypeRepr.of[t])
-        case '[t] => Left(TypeRepr.of[t])
-      }
-
-    if (nonHasTypes.nonEmpty) report.throwError(
-      "  ZServiceBuilder Wiring Error  ".yellow.inverted + "\n" +
-      s"${description} contains non-Has types:\n- ${nonHasTypes.mkString("\n- ")}"
-    )
+    val requirements = intersectionTypes[T]
 
     requirements
   }

@@ -114,4 +114,8 @@ package object zio
         Tracer.instance.unapply(trace)
     }
   }
+
+  trait IsNotIntersection[A]
+
+  object IsNotIntersection extends IsNotIntersectionVersionSpecific {}
 }

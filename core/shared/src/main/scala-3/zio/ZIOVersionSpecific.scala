@@ -32,7 +32,7 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * val zio2 = zio.injectSome[Random](clockServiceBuilder)
    * }}}
    */
-  def injectSome[R0 <: Has[_]] =
+  def injectSome[R0] =
     new InjectSomePartiallyApplied[R0, R, E, A](self)
 
   /**
@@ -44,7 +44,7 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 }
 
-private final class InjectSomePartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
+private final class InjectSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
   inline def apply[E1 >: E](inline serviceBuilder: ZServiceBuilder[_, E1, _]*): ZIO[R0, E1, A] =
   ${ServiceBuilderMacros.injectImpl[R0, R, E1, A]('self, 'serviceBuilder)}
 }
