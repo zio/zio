@@ -379,7 +379,7 @@ object TestClock extends Serializable {
           test =>
             test.warningDone *> test.suspendedWarningDone
         }
-    } yield ZEnvironment[Clock](test) ++ ZEnvironment[TestClock](test)
+    } yield ZEnvironment(test: Clock, test: TestClock)
   }.toServiceBuilderMany
 
   val any: ZServiceBuilder[TestClock, Nothing, TestClock] =
