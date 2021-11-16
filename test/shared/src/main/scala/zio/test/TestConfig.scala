@@ -64,7 +64,7 @@ object TestConfig {
   def live(repeats0: Int, retries0: Int, samples0: Int, shrinks0: Int)(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[Any, Nothing, TestConfig] =
-    ZServiceBuilder.succeed[TestConfig] {
+    ZServiceBuilder.succeed {
       new TestConfig {
         val repeats = repeats0
         val retries = retries0
