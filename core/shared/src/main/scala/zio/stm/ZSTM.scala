@@ -1686,7 +1686,7 @@ object ZSTM {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R, E, A](f: Service => ZSTM[R, E, A])(implicit
+    def apply[R <: Service, E, A](f: Service => ZSTM[R, E, A])(implicit
       tag: Tag[Service]
     ): ZSTM[R with Service, E, A] =
       ZSTM.service[Service].flatMap(f)

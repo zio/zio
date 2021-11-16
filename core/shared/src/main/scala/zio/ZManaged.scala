@@ -1517,7 +1517,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R, E, A](f: Service => ZIO[R, E, A])(implicit
+    def apply[R <: Service, E, A](f: Service => ZIO[R, E, A])(implicit
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[R with Service, E, A] =
@@ -1525,7 +1525,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R, E, A](f: Service => ZManaged[R, E, A])(implicit
+    def apply[R <: Service, E, A](f: Service => ZManaged[R, E, A])(implicit
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[R with Service, E, A] =
