@@ -419,11 +419,11 @@ object Runtime {
   def unsafeFromServiceBuilder[R](
     serviceBuilder: ServiceBuilder[Any, R],
     runtimeConfig: RuntimeConfig = RuntimeConfig.default
-  )(implicit trace: ZTraceElement): Runtime.Managed[R] ={
+  )(implicit trace: ZTraceElement): Runtime.Managed[R] = {
     val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
     val (environment, shutdown) = runtime.unsafeRun {
       ZManaged.ReleaseMap.make.flatMap { releaseMap =>
-        serviceBuilder.build.zio.flatMap { case (_, acquire) =>
+        ZManaged.currentReleaseMap.locally(releaseMap)(serviceBuilder.build.zio).flatMap { case (_, acquire) =>
           val finalizer = () =>
             runtime.unsafeRun {
               releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
