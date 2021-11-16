@@ -81,7 +81,7 @@ object Zio2Renames {
 
   zio.Duration
   
-  val x: Layer[Nothing, Random] = zio.Random.live
+  val x: Layer[Nothing, Has[Random]] = zio.Random.live
 
   zio.Executor
 
