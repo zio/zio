@@ -17,7 +17,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
       },
       // https://github.com/zio/zio/issues/5421
       test("Issue #5421") {
-        def combine[A, B](
+        def combine[A, B: Tag](
           za: UIO[ZEnvironment[A]],
           zb: UIO[ZEnvironment[B]]
         ): UIO[ZEnvironment[A with B]] =

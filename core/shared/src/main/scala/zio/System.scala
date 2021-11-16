@@ -55,8 +55,10 @@ object System extends Serializable {
     ZServiceBuilder.service[System]
   }
 
-  val live: ServiceBuilder[Nothing, System] =
-    ZServiceBuilder.succeed[System](SystemLive)(Tag[System], Tracer.newTrace)
+  val live: ServiceBuilder[Nothing, System] = {
+    implicit val trace = Tracer.newTrace
+    ZServiceBuilder.succeed(SystemLive)
+  }
 
   object SystemLive extends System {
     def env(variable: => String)(implicit trace: ZTraceElement): IO[SecurityException, Option[String]] =
