@@ -26,6 +26,8 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
     }
   def ++[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     new ZEnvironment(map ++ that.prune.map)
+  def +!+[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+    new ZEnvironment(map ++ that.map)
   def +[A: Tag](a: A): ZEnvironment[R with A] =
     new ZEnvironment(map + (Tag[A].tag -> a))
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): Option[V] =
@@ -59,6 +61,7 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
 
     val missingServices = set.filterNot(key => map.exists { case (tag, _) => tag <:< key })
     if (missingServices.nonEmpty) {
+      println(set)
       println(map.keySet)
       throw new Error(
         s"Defect in zio.ZEnvironment: ${missingServices} statically known to be contained within the environment are missing"

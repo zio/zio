@@ -52,6 +52,11 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   ): ZServiceBuilder[RIn, Nothing, ROut] =
     self.orDie
 
+  final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
+     that: ZServiceBuilder[RIn2, E1, ROut2]
+   ): ZServiceBuilder[RIn with RIn2, E1, ROut1 with ROut2] =
+     self.zipWithPar(that)(_.+!+[ROut2](_))
+
   /**
    * Combines this service builder with the specified service builder, producing
    * a new service builder that has the inputs and outputs of = both.
