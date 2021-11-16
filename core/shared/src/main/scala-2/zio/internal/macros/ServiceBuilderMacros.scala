@@ -22,7 +22,6 @@ private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends Service
 
   def materializeIsNotIntersection[A: c.WeakTypeTag]: c.Expr[IsNotIntersection[A]] = {
     val tpe = c.weakTypeOf[A]
-//    throw new Error(s"HEY ${tpe}")
     tpe.dealias match {
       case RefinedType(_, _) =>
         c.abort(c.enclosingPosition, s"You must not use an intersection type, yet have provided: $tpe")
@@ -51,7 +50,7 @@ private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends Service
         s"""
 ${"  ZServiceBuilder Wiring Error  ".red.bold.inverted}
         
-You must provide a type to ${"injectSome".cyan.bold} (e.g. ${"foo.injectSome".cyan.bold}${"[Has[UserService] with Has[Config]".red.bold.underlined}${"(AnotherService.live)".cyan.bold})
+You must provide a type to ${"injectSome".cyan.bold} (e.g. ${"foo.injectSome".cyan.bold}${"[UserService with Config".red.bold.underlined}${"(AnotherService.live)".cyan.bold})
 
 This type represents the services you are ${"not".underlined} currently injecting, leaving them in the environment until later.
 
