@@ -726,7 +726,7 @@ object Spec extends SpecLowPriority {
           Spec.managed(
             serviceBuilder.build.flatMap { r =>
               managed
-                .map(_.provideSomeServices[R0](???))
+                .map(_.provideSomeServices[R0](ZServiceBuilder.succeedMany(r)))
                 .provideSomeServices[R0](ZServiceBuilder.succeedMany(r))
             }
           )
