@@ -22,29 +22,41 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
   val release2 = "Releasing Module 2"
   val release3 = "Releasing Module 3"
 
-  trait Module1
+  type Module1 = Module1.Service
+
+  object Module1 {
+    trait Service
+  }
 
   def makeServiceBuilder1(ref: Ref[Vector[String]]): ZServiceBuilder[Any, Nothing, Module1] =
     ZServiceBuilder {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(ZEnvironment(new Module1 {})))(_ =>
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(ZEnvironment(new Module1.Service {})))(_ =>
         ref.update(_ :+ release1)
       )
     }
 
-  trait Module2
+  type Module2 = Module2.Service
+
+  object Module2 {
+    trait Service
+  }
 
   def makeServiceBuilder2(ref: Ref[Vector[String]]): ZServiceBuilder[Any, Nothing, Module2] =
     ZServiceBuilder {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(ZEnvironment(new Module2 {})))(_ =>
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(ZEnvironment(new Module2.Service {})))(_ =>
         ref.update(_ :+ release2)
       )
     }
 
-  trait Module3
+  type Module3 = Module3.Service
+
+  object Module3 {
+    trait Service
+  }
 
   def makeServiceBuilder3(ref: Ref[Vector[String]]): ZServiceBuilder[Any, Nothing, Module3] =
     ZServiceBuilder {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(ZEnvironment(new Module3 {})))(_ =>
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(ZEnvironment(new Module3.Service {})))(_ =>
         ref.update(_ :+ release3)
       )
     }
@@ -95,7 +107,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
       test("sharing itself with ++") {
-        val m1              = new Module1 {}
+        val m1              = new Module1.Service {}
         val serviceBuilder1 = ZServiceBuilder.succeed(m1)
         val env             = serviceBuilder1 ++ (serviceBuilder1 ++ serviceBuilder1)
         env.build.use(m => ZIO(assert(m.get)(equalTo(m1))))
@@ -246,10 +258,11 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         for {
           promise        <- Promise.make[Nothing, Unit]
           serviceBuilder1 = ZServiceBuilder(ZManaged.never)
-          serviceBuilder2 = ZServiceBuilder.fromManaged(Managed.acquireReleaseWith(promise.succeed(()))(_ => ZIO.unit))
-          env             = (serviceBuilder1 ++ serviceBuilder2).build
-          _              <- env.useDiscard(ZIO.unit).forkDaemon
-          _              <- promise.await
+          serviceBuilder2 =
+            ZServiceBuilder(Managed.acquireReleaseWith(promise.succeed(()).map(ZEnvironment(_)))(_ => ZIO.unit))
+          env = (serviceBuilder1 ++ serviceBuilder2).build
+          _  <- env.useDiscard(ZIO.unit).forkDaemon
+          _  <- promise.await
         } yield assertCompletes
       },
       test("map can map a service builder to an unrelated type") {
@@ -341,14 +354,14 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
       test("preserves identity of acquired resources") {
         for {
           testRef <- Ref.make(Vector[String]())
-          serviceBuilder = ZServiceBuilder.fromManaged {
+          serviceBuilder = ZServiceBuilder {
                              for {
                                ref <-
                                  Ref.make[Vector[String]](Vector()).toManagedWith(ref => ref.get.flatMap(testRef.set))
                                _ <- ZManaged.unit
-                             } yield ref
+                             } yield ZEnvironment(ref)
                            }
-          _      <- serviceBuilder.build.use(ref => ref.get[Ref[Vector[String]]].update(_ :+ "test"))
+          _      <- serviceBuilder.build.use(environment => environment.get[Ref[Vector[String]]].update(_ :+ "test"))
           result <- testRef.get
         } yield assert(result)(equalTo(Vector("test")))
       },
