@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio._
+import zio.{IO, ServiceBuilder, Ref, System, UIO, URIO, ZEnvironment, ZIO, ZServiceBuilder, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZTrace
@@ -163,10 +163,7 @@ object TestSystem extends Serializable {
    */
   def live(data: Data): ServiceBuilder[Nothing, TestSystem] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    Ref
-      .make(data)
-      .map(ref => ZEnvironment[System](Test(ref)) ++ ZEnvironment[TestSystem](Test(ref)))
-      .toServiceBuilderMany
+    Ref.make(data).map(ref => ZEnvironment[System, TestSystem](Test(ref), Test(ref))).toServiceBuilderMany
   }
 
   val any: ZServiceBuilder[TestSystem, Nothing, TestSystem] =

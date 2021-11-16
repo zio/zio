@@ -84,6 +84,8 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
 object ZEnvironment {
   def apply[A: Tag](a: A): ZEnvironment[A] =
     new ZEnvironment(Map(Tag[A].tag -> a))
+  def apply[A: Tag, B: Tag](a: A, b: B): ZEnvironment[A with B] =
+    new ZEnvironment(Map(Tag[A].tag -> a, Tag[B].tag -> b))
   val empty: ZEnvironment[Any] =
     new ZEnvironment(Map.empty)
   lazy val default: ZEnvironment[Clock with Console with Random with System] =
