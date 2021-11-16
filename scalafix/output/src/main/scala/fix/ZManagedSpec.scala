@@ -1223,12 +1223,18 @@ object ZManagedSpec extends DefaultRunnableSpec {
         } yield assert(res)(isNone)
       }
     ),
-    suite("toServiceBuilderMany")(
-      test("converts a managed effect to a service builder") {
+    suite("toLayer")(
+      test("converts a managed effect to a layer") {
+        ZEnv.live.build.toServiceBuilder
+        ???
+      }
+    ),
+    suite("toLayerMany")(
+      test("converts a managed effect to a layer") {
         val managed = ZEnv.live.build
-        val serviceBuilder   = managed.toServiceBuilderMany
+        val layer   = managed.toServiceBuilderMany
         val zio1    = ZIO.environment[ZEnv]
-        val zio2    = zio1.provideServices(serviceBuilder)
+        val zio2    = zio1.provideServices(layer)
         assertM(zio2)(anything)
       }
     ),

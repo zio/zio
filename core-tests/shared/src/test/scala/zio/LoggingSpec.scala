@@ -15,7 +15,7 @@ object LoggingSpec extends ZIOBaseSpec {
     context: Map[FiberRef.Runtime[_], AnyRef],
     spans: List[LogSpan]
   ) {
-    def call[A](zlogger: ZLogger[A]): A =
+    def call[A](zlogger: ZLogger[String, A]): A =
       zlogger(trace, fiberId, logLevel, message, context, spans)
   }
 
@@ -25,8 +25,8 @@ object LoggingSpec extends ZIOBaseSpec {
 
   val clearOutput: UIO[Unit] = UIO(_logOutput.set(Vector.empty))
 
-  val testLogger: ZLogger[Unit] =
-    new ZLogger[Unit] {
+  val testLogger: ZLogger[String, Unit] =
+    new ZLogger[String, Unit] {
       @tailrec
       def apply(
         trace: ZTraceElement,

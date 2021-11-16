@@ -1638,19 +1638,19 @@ object ZIOSpec extends DefaultRunnableSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       }
     ),
-    suite("provideCustomServices")(
+    suite("provideCustomLayer")(
       testM("provides the part of the environment that is not part of the `ZEnv`") {
-        val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
+        val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomServices(loggingServiceBuilder)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomLayer(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSomeServices")(
+    suite("provideSomeLayer")(
       testM("can split environment into two parts") {
-        val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock]    = Clock.live
+        val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Random, Unit]                   = zio.provideSomeServices[Random](clockServiceBuilder)
+        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -3079,7 +3079,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("serviceWith")(
       testM("effectfully accesses a service in the environment") {
         val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
-        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo(3))
+        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3362,7 +3362,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(
@@ -3798,6 +3798,6 @@ object ZIOSpec extends DefaultRunnableSpec {
 
   object Logging {
     trait Service
-    val live: ZServiceBuilder[Any, Nothing, Logging] = ZServiceBuilder.succeed(new Logging.Service {})
+    val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
   }
 }
