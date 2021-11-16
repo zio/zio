@@ -3,9 +3,9 @@ package zio.stm
 import zio.stm.TRandom._
 import zio.test.Assertion.{isGreaterThanEqualTo, isLessThan}
 import zio.test._
-import zio.{Has, Random, ZIOBaseSpec}
+import zio.{Has, Random, ZIOBaseNewSpec}
 
-object TRandomSpec extends ZIOBaseSpec {
+object TRandomSpec extends ZIOBaseNewSpec {
 
   implicit val DoubleOrdering: Ordering[Double] =
     (l, r) => java.lang.Double.compare(l, r)

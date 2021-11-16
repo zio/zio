@@ -3,9 +3,9 @@ package zio.stm
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.{URIO, ZIO, ZIOBaseSpec}
+import zio.{URIO, ZIO, ZIOBaseNewSpec}
 
-object TMapSpec extends ZIOBaseSpec {
+object TMapSpec extends ZIOBaseNewSpec {
 
   def spec = suite("TMap")(
     suite("factories")(

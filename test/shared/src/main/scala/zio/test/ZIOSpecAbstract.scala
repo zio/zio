@@ -83,10 +83,14 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   }
 
   private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.succeed(
-      try if (!isAmmonite) sys.exit(exitCode)
-      catch { case _: SecurityException => }
-    )
+    if (TestPlatform.isJVM) {
+      ZIO.succeed(
+        try if (!isAmmonite) sys.exit(exitCode)
+        catch { case _: SecurityException => }
+      )
+    } else {
+      UIO.unit
+    }
 
   private def isAmmonite: Boolean =
     sys.env.exists { case (k, v) =>

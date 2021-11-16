@@ -4,7 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test.{assert, Gen, Sized, check}
 
-object THubSpec extends ZIOBaseSpec {
+object THubSpec extends ZIOBaseNewSpec {
 
   val smallInt: Gen[Has[Random] with Has[Sized], Int] =
     Gen.small(Gen.const(_), 1)

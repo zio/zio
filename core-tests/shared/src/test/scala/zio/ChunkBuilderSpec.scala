@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object ChunkBuilderSpec extends ZIOBaseSpec {
+object ChunkBuilderSpec extends ZIOBaseNewSpec {
 
   def spec = suite("ChunkBuilderSpec")(
     suite("Boolean")(

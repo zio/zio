@@ -2,12 +2,15 @@ package zio.test
 
 import zio._
 import zio.internal.stacktracer.Tracer
+import zio.internal.stacktracer.Tracer.{instance, newTrace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 abstract class ZIOSpecDefault extends ZIOSpec[TestEnvironment] {
 
-  final val testServiceBuilder: ZServiceBuilder[TestEnvironment, Any, TestEnvironment] =
-    ZServiceBuilder.environment(Tracer.newTrace)
+  override val serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, TestEnvironment] = {
+    implicit val trace: zio.ZTraceElement = Tracer.newTrace
+    zio.ZEnv.live >>> TestEnvironment.live
+  }
 
   def spec: ZSpec[TestEnvironment, Any]
 }

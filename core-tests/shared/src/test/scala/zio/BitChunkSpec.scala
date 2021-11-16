@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object BitChunkSpec extends ZIOBaseSpec {
+object BitChunkSpec extends ZIOBaseNewSpec {
 
   val genByteChunk: Gen[Has[Random] with Has[Sized], Chunk[Byte]] =
     for {

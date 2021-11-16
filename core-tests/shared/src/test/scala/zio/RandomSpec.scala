@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object RandomSpec extends ZIOBaseSpec {
+object RandomSpec extends ZIOBaseNewSpec {
 
   implicit val DoubleOrdering: Ordering[Double] =
     (l, r) => java.lang.Double.compare(l, r)

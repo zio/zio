@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.exceptScala211
 import zio.test._
 
-object ChunkSpec extends ZIOBaseSpec {
+object ChunkSpec extends ZIOBaseNewSpec {
 
   case class Value(i: Int) extends AnyVal
 

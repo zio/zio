@@ -6,7 +6,7 @@ import zio.test.TestAspect._
 
 import scala.annotation.tailrec
 
-object LoggingSpec extends ZIOBaseSpec {
+object LoggingSpec extends ZIOBaseNewSpec {
   final case class LogEntry(
     trace: ZTraceElement,
     fiberId: FiberId.Runtime,
@@ -46,7 +46,7 @@ object LoggingSpec extends ZIOBaseSpec {
       }
     }
 
-  override def runner: TestRunner[Environment, Any] = super.runner.withRuntimeConfig(_.copy(logger = testLogger))
+//  override def runner: TestRunner[Environment, Any] = super.runner.withRuntimeConfig(_.copy(logger = testLogger))
 
   def spec: ZSpec[Any, Any] =
     suite("LoggingSpec")(
@@ -102,5 +102,5 @@ object LoggingSpec extends ZIOBaseSpec {
           output <- logOutput
         } yield assertTrue(output.length == 0)
       }
-    ) @@ sequential @@ after(clearOutput)
+    ) @@ sequential @@ after(clearOutput) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.addLogger(testLogger))
 }

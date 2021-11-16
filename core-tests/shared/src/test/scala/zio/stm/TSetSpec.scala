@@ -1,10 +1,10 @@
 package zio.stm
 
-import zio.ZIOBaseSpec
+import zio.ZIOBaseNewSpec
 import zio.test.Assertion._
 import zio.test._
 
-object TSetSpec extends ZIOBaseSpec {
+object TSetSpec extends ZIOBaseNewSpec {
 
   def spec = suite("TSet")(
     suite("factories")(

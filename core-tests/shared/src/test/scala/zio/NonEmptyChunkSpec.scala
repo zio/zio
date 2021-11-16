@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object NonEmptyChunkSpec extends ZIOBaseSpec {
+object NonEmptyChunkSpec extends ZIOBaseNewSpec {
 
   lazy val genChunk: Gen[Has[Random] with Has[Sized], Chunk[Int]] = Gen.chunkOf(genInt)
 
