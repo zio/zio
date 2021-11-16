@@ -21,7 +21,7 @@ object ManagedSpec extends ZIOBaseSpec {
             val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
           }
         }
-        .toServiceBuilder[Counter]
+        .toServiceBuilder
 
     val incrementAndGet: URIO[Counter, Int] =
       ZIO.serviceWith(_.incrementAndGet)

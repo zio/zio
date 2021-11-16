@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpecAbstract, sbt}
-import zio.{Chunk, Exit, Runtime, UIO, ZServiceBuilder, ZEnvironment, ZIO, ZIOAppArgs}
+import zio.{Chunk, Exit, Runtime, UIO, ZEnvironment, ZServiceBuilder, ZIO, ZIOAppArgs}
 
 import scala.collection.mutable
 

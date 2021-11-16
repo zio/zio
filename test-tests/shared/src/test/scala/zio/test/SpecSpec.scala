@@ -15,14 +15,14 @@ object SpecSpec extends ZIOBaseSpec {
       test("provides the part of the environment that is not part of the `TestEnvironment`") {
         for {
           _ <- ZIO.environment[TestEnvironment]
-          _ <- ZIO.environment[Unit]
+          _ <- ZIO.service[Unit]
         } yield assertCompletes
       }.provideCustomServices(serviceBuilder)
     ),
     suite("provideServices")(
       test("does not have early initialization issues") {
         for {
-          _ <- ZIO.environment[Unit]
+          _ <- ZIO.service[Unit]
         } yield assertCompletes
       }.provideServices(serviceBuilder)
     ),

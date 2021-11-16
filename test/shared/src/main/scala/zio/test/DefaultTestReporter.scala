@@ -24,7 +24,7 @@ import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.{Fragment, Line, Message}
 import zio.test.render._
-import zio._
+import zio.{Cause, _}
 
 import java.util.regex.Pattern
 import scala.annotation.tailrec

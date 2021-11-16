@@ -34,7 +34,7 @@ object Sized {
     })
 
   def size(implicit trace: ZTraceElement): URIO[Sized, Int] =
-    ZIO.serviceWith[Sized](_.size)
+    ZIO.serviceWith(_.size)
 
   def withSize[R <: Sized, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.serviceWith[Sized](_.withSize(size)(zio))

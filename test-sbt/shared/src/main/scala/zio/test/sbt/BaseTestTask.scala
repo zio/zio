@@ -39,7 +39,7 @@ abstract class BaseTestTask(
     for {
       spec   <- spec.runSpec(FilteredSpec(spec.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
-      _      <- sendSummary.provide(ZEnvironment.empty + summary)
+      _      <- sendSummary.provide(ZEnvironment(summary))
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _      <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
     } yield ()
@@ -57,10 +57,10 @@ abstract class BaseTestTask(
       zio.ZEnv.live >>> TestEnvironment.live
 
     val serviceBuilder: ServiceBuilder[Error, spec.Environment] =
-      (argsserviceBuilder ++ filledTestserviceBuilder) >>> spec.serviceBuilder.mapError(e => new Error(e.toString))
+      (argsserviceBuilder +!+ filledTestserviceBuilder) >>> spec.serviceBuilder.mapError(e => new Error(e.toString))
 
     val fullServiceBuilder: ServiceBuilder[Error, spec.Environment with ZIOAppArgs with TestEnvironment with zio.ZEnv] =
-      serviceBuilder ++ argsserviceBuilder ++ filledTestserviceBuilder
+      serviceBuilder +!+ argsserviceBuilder +!+ filledTestserviceBuilder
 
     for {
       spec <- spec
