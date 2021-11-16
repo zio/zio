@@ -309,6 +309,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     mapError(Right(_))
 
   /**
+   * Maps the success value of this effect to a service.
+   */
+  @deprecated("use toServiceBuilder", "2.0.0")
+  final def asService[A1 >: A: Tag](implicit trace: ZTraceElement): ZIO[R, E, ZEnvironment[A1]] =
+    map(ZEnvironment[A1](_))
+
+  /**
    * Maps the success value of this effect to an optional value.
    */
   final def asSome(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =

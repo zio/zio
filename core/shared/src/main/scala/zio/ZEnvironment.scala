@@ -25,9 +25,13 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
       case r    => throw new ClassCastException(s"Expected ${Tag[A]}, got ${r.getClass}")
     }
   def ++[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+    union[R1](that)
+  def union[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     new ZEnvironment(map ++ that.prune.map)
-  def +!+[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+  def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     new ZEnvironment(map ++ that.map)
+  def +!+[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+    unionAll[R1](that)
   def +[A: Tag](a: A): ZEnvironment[R with A] =
     new ZEnvironment(map + (Tag[A].tag -> a))
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): Option[V] =
@@ -84,6 +88,7 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
 }
 
 object ZEnvironment {
+
   def apply[A: Tag](a: A): ZEnvironment[A] =
     new ZEnvironment(Map(Tag[A].tag -> a))
   def apply[A: Tag, B: Tag](a: A, b: B): ZEnvironment[A with B] =

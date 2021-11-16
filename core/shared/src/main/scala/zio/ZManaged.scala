@@ -170,6 +170,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     map(_ => b)
 
   /**
+   * Maps the success value of this effect to a service.
+   */
+  @deprecated("use toServiceBuilder", "2.0.0")
+  def asService[A1 >: A: Tag](implicit trace: ZTraceElement): ZManaged[R, E, ZEnvironment[A1]] =
+    map(ZEnvironment[A1](_))
+
+  /**
    * Maps the success value of this effect to an optional value.
    */
   final def asSome(implicit trace: ZTraceElement): ZManaged[R, E, Option[A]] =
