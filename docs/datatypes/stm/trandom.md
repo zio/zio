@@ -23,5 +23,5 @@ val myApp = TRandom.nextInt.commit
 ```
 
 ```scala mdoc:silent:nest
-myApp.provideCustomServices(TRandom.live)
+myApp.injectCustom(TRandom.live)
 ```

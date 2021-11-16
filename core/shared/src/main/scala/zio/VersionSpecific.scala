@@ -63,8 +63,8 @@ private[zio] trait VersionSpecific {
     tagged.tag
 
   /**
-   * This method takes a tag for an intersection and returns a set of tags for
-   * each individual type:
+   * This method takes a tag for an intersection type and returns a set of tags
+   * for each individual type:
    *
    * `Tag[A with B]` should produce `Set(Tag[A], Tag[B])`
    */
