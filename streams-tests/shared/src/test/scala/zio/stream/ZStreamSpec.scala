@@ -48,25 +48,25 @@ object ZStreamSpec extends ZIOBaseSpec {
         ) @@ TestAspect.jvmOnly, // This is horrendously slow on Scala.js for some reason
         test("access") {
           for {
-            result <- ZStream.service[String].provide(ZEnvironment("test")).runHead.some
+            result <- ZStream.access[String](_.get).provide(ZEnvironment("test")).runHead.some
           } yield assert(result)(equalTo("test"))
         },
         suite("accessZIO")(
           test("accessZIO") {
             for {
-              result <- ZStream.serviceWith[String](ZIO.succeed(_)).provide(ZEnvironment("test")).runHead.some
+              result <- ZStream.accessZIO[String](environment => ZIO.succeed(environment.get)).provide(ZEnvironment("test")).runHead.some
             } yield assert(result)(equalTo("test"))
           },
           test("accessZIO fails") {
             for {
-              result <- ZStream.serviceWith[Int](_ => ZIO.fail("fail")).provide(ZEnvironment(0)).runHead.exit
+              result <- ZStream.accessZIO[Int](_ => ZIO.fail("fail")).provide(ZEnvironment(0)).runHead.exit
             } yield assert(result)(fails(equalTo("fail")))
           } @@ zioTag(errors)
         ),
         suite("accessStream")(
           test("accessStream") {
             for {
-              result <- ZStream.serviceWithStream[String](ZStream.succeed(_)).provide(ZEnvironment("test")).runHead.some
+              result <- ZStream.accessStream[String](environment => ZStream.succeed(environment.get)).provide(ZEnvironment("test")).runHead.some
             } yield assert(result)(equalTo("test"))
           },
           test("accessStream fails") {

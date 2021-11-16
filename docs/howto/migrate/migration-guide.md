@@ -716,7 +716,7 @@ type mismatch;
 
 In ZIO 2.x, we can automatically construct dependencies with friendly compile-time hints, using `ZIO#inject` operator:
 
-```scala
+```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
   myApp.inject(
     Console.live,
@@ -730,7 +730,7 @@ val res: ZIO[Any, Nothing, Unit] =
 
 The order of dependencies doesn't matter:
 
-```scala
+```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
   myApp.inject(
     DocRepo.live,
@@ -768,7 +768,7 @@ val app: ZIO[Any, Nothing, Unit] =
 
 We can also directly construct a service builder using `ZServiceBuilder.wire`:
 
-```scala
+```scala mdoc:silent:nest
 val serviceBuilder = ZServiceBuilder.wire[DocRepo with UserRepo](
   Console.live,
   Logging.live,
@@ -781,7 +781,7 @@ val serviceBuilder = ZServiceBuilder.wire[DocRepo with UserRepo](
 
 And also the `ZServiceBuilder.wireSome` helps us to construct a service builder which requires on some service and produces some other services (`URServiceBuilder[Int, Out]`) using `ZServiceBuilder.wireSome[In, Out]`:
 
-```scala
+```scala mdoc:silent:nest
 val serviceBuilder = ZServiceBuilder.wireSome[Console, DocRepo with UserRepo](
   Logging.live,
   DocRepo.live,
@@ -803,7 +803,7 @@ val app: ZIO[Console, Nothing, Unit] =
 
 In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#injectSome[Rest](l1, l2, ...)` operator:
 
-```scala
+```scala mdoc:silent:nest:warn
 val app: ZIO[Console, Nothing, Unit] =
   myApp.injectSome[Console](
     Logging.live,
@@ -826,7 +826,7 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 
 In ZIO 2.x, the `ZIO#injectCustom` does the similar but for the injection:
 
-```scala
+```scala mdoc:silent:nest
 val app: ZIO[zio.ZEnv, Nothing, Unit] =
   myApp.injectCustom(
     Logging.live,
@@ -1538,7 +1538,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _     <- Console.printLine(count)
   } yield count
 
-  def run = app.provideCustomServices(ZState.makeServiceBuilder(MyState(0)))
+  def run = app.app.injectCustom(ZState.makeServiceBuilder(MyState(0)))
 }
 ```
 
