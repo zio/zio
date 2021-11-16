@@ -145,7 +145,7 @@ Let's create a custom runtime that contains these two service implementations in
 
 ```scala mdoc:silent:nest
 val testableRuntime = Runtime(
-  ZEnvironment(LoggingLive()) ++ ZEnvironment(EmailMock()),
+  ZEnvironment[Logging, Email](LoggingLive(), EmailMock()),
   RuntimeConfig.default
 )
 ```
@@ -156,7 +156,7 @@ Also, we can map the default runtime to the new runtime, so we can append new se
 val testableRuntime: Runtime[zio.ZEnv with Logging with Email] =
   Runtime.default
     .map((zenv: ZEnvironment[zio.ZEnv]) =>
-      zenv ++ ZEnvironment(LoggingLive()) ++ ZEnvironment(EmailMock())
+      zenv ++ ZEnvironment[Logging, Email](LoggingLive(), EmailMock())
     )
 ```
 

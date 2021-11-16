@@ -1538,7 +1538,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _     <- Console.printLine(count)
   } yield count
 
-  def run = app.app.injectCustom(ZState.makeServiceBuilder(MyState(0)))
+  def run = app.injectCustom(ZState.makeServiceBuilder(MyState(0)))
 }
 ```
 

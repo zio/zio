@@ -22,7 +22,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.collection.immutable.LongMap
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import zio.ZTraceElement
 
 /**
  * A `Reservation[-R, +E, +A]` encapsulates resource acquisition and disposal
@@ -825,7 +824,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def provideCustomLayer[E1 >: E, R1](
     layer: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
-    ev1: ZEnv with R1 <:< R,
+    ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
@@ -846,7 +845,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def provideCustomServices[E1 >: E, R1](
     serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
-    ev1: ZEnv with R1 <:< R,
+    ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
@@ -1285,6 +1284,12 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     new ZManaged.UpdateService[R, E, A, M](self)
 
   /**
+    * Updates a service at the specified key in the environment of this effect.
+    */
+   final def updateServiceAt[Service]: ZManaged.UpdateServiceAt[R, E, A, Service] =
+     new ZManaged.UpdateServiceAt[R, E, A, Service](self)
+
+  /**
    * Run an effect while acquiring the resource before and releasing it after
    */
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
@@ -1554,7 +1559,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[E1 >: E, R1](
       serviceBuilder: => ZServiceBuilder[R0, E1, R1]
     )(implicit
-      ev1: R0 with R1 <:< R,
+      ev: R0 with R1 <:< R,
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZManaged[R0, E1, A] =
@@ -1573,6 +1578,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
       self.provideSome(_.update(f))
+  }
+
+  final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZManaged[R, E, A]) extends AnyVal {
+     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
+       f: Service => Service
+     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZManaged[R1, E, A] =
+       self.provideSome(_.updateAt(key)(f))
   }
 
   final class WhenManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
@@ -3188,7 +3200,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag](implicit trace: ZTraceElement): ZManaged[A, Nothing, A] =
-    ZManaged.fromZIO(ZIO.service)
+    ZManaged.access(_.get[A])
 
   /**
    * Accesses the service corresponding to the specified key in the environment.

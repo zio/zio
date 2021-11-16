@@ -17,6 +17,7 @@
 package zio.internal
 
 import zio.Fiber.Status
+import zio.ZFiberRef.{currentEnvironment, currentExecutor, forkScopeOverride}
 import zio.ZIO.{FlatMap, TracedCont}
 import zio._
 import zio.internal.FiberContext.FiberRefLocals
@@ -662,12 +663,7 @@ private[zio] final class FiberContext[E, A](
     )
 
     if (runtimeConfig.supervisor ne Supervisor.none) {
-      runtimeConfig.supervisor.unsafeOnStart(
-        unsafeGetRef((ZFiberRef.currentEnvironment)),
-        zio,
-        Some(self),
-        childContext
-      )
+      runtimeConfig.supervisor.unsafeOnStart(unsafeGetRef((currentEnvironment)), zio, Some(self), childContext)
 
       childContext.unsafeOnDone(exit => runtimeConfig.supervisor.unsafeOnEnd(exit.flatten, childContext))
     }
@@ -1224,15 +1220,6 @@ private[zio] object FiberContext {
     new AtomicBoolean(false)
 
   import zio.ZIOMetric
-
-  lazy val forkScopeOverride: FiberRef.Runtime[Option[ZScope[Exit[Any, Any]]]] =
-    FiberRef.unsafeMake(None, _ => None, (a, _) => a)
-
-  lazy val currentExecutor: FiberRef.Runtime[Option[zio.Executor]] =
-    FiberRef.unsafeMake(None, a => a, (a, _) => a)
-
-  // lazy val currentEnvironment: FiberRef.Runtime[ZEnvironment[Any]] =
-  //   FiberRef.unsafeMake(ZEnvironment.empty, a => a, (a, _) => a)
 
   lazy val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failure-causes", "").setCount
 
