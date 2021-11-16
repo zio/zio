@@ -75,7 +75,7 @@ trait ExprGraphCompileVariants { self : ZServiceBuilderExprBuilder.type =>
       }
 
     ZServiceBuilderExprBuilder(
-      Graph(nodes, _ =:= _),
+      Graph(nodes, _ <:< _),
       renderTypeRepr,
       renderExpr,
       compileError,
