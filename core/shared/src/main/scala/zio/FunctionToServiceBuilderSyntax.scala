@@ -32,7 +32,7 @@ trait FunctionToServiceBuilderOps {
      * }}}
      */
     def toServiceBuilder[A1 >: A: Tag](implicit trace: ZTraceElement): URServiceBuilder[Any, A1] =
-      UIO(self()).toServiceBuilder[A1]
+      UIO(self()).toServiceBuilder
 
     /**
      * Converts this function to a Layer.
@@ -46,7 +46,7 @@ trait FunctionToServiceBuilderOps {
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): URServiceBuilder[Any, A1] =
-      toServiceBuilder[A1]
+      toServiceBuilder
   }
 
   implicit final class Function1ToServiceBuilderSyntax[A: Tag, B: Tag](self: A => B) {
@@ -62,7 +62,7 @@ trait FunctionToServiceBuilderOps {
      * }}}
      */
     def toServiceBuilder[B1 >: B: Tag](implicit trace: ZTraceElement): URServiceBuilder[A, B1] =
-      ZIO.service[A].map(self).toServiceBuilder[B1]
+      ZIO.service[A].map(self).toServiceBuilder
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -76,7 +76,7 @@ trait FunctionToServiceBuilderOps {
      */
     @deprecated("use toServiceBuilder", "2.0.0")
     def toLayer[B1 >: B: Tag](implicit trace: ZTraceElement): URServiceBuilder[A, B1] =
-      toServiceBuilder[B1]
+      toServiceBuilder
   }
 
   implicit final class Function2ToServiceBuilderSyntax[A: Tag, B: Tag, C: Tag](self: (A, B) => C) {
@@ -96,7 +96,7 @@ trait FunctionToServiceBuilderOps {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
       } yield self(a, b)
-    }.toServiceBuilder[C1]
+    }.toServiceBuilder
 
     /**
      * Converts this function to a Layer that depends upon its inputs.

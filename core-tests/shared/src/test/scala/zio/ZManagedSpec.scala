@@ -1274,6 +1274,15 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(res)(isNone)
       }
     ),
+    suite("toServiceBuilderMany")(
+      test("converts a managed effect to a service builder") {
+        val managed        = ZEnv.live.build
+        val serviceBuilder = managed.toServiceBuilderMany
+        val zio1           = ZIO.environment[ZEnv]
+        val zio2           = zio1.provideServices(serviceBuilder)
+        assertM(zio2)(anything)
+      }
+    ),
     suite("withEarlyRelease")(
       test("Provides a canceler that can be used to eagerly evaluate the finalizer") {
         for {

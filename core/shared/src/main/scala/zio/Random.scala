@@ -20,7 +20,6 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.UUID
-import zio.ZTraceElement
 
 trait Random extends Serializable {
   def nextBoolean(implicit trace: ZTraceElement): UIO[Boolean]
@@ -100,23 +99,21 @@ object Random extends Serializable {
   }
 
   val any: ZServiceBuilder[Random, Nothing, Random] = {
-    implicit val trace = ZTraceElement.empty
-    ZServiceBuilder.service[Random]
+    ZServiceBuilder.service[Random](Tag[Random], Tracer.newTrace)
   }
 
   val live: ServiceBuilder[Nothing, Random] = {
-    implicit val trace = ZTraceElement.empty
-    ZServiceBuilder.succeed(RandomLive)
+    ZServiceBuilder.succeed[Random](RandomLive)(Tag[Random], Tracer.newTrace)
   }
 
   /**
    * Constructs a `Random` service from a `scala.util.Random`.
    */
   val scalaRandom: ZServiceBuilder[scala.util.Random, Nothing, Random] = {
-    implicit val trace = ZTraceElement.empty
+    implicit val trace = Tracer.newTrace
     (for {
       random <- ZIO.service[scala.util.Random]
-    } yield RandomScala(random)).toServiceBuilder[Random]
+    } yield RandomScala(random)).toServiceBuilder
   }
 
   private[zio] def nextDoubleBetweenWith(minInclusive0: => Double, maxExclusive0: => Double)(

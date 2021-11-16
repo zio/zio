@@ -1284,10 +1284,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     new ZManaged.UpdateService[R, E, A, M](self)
 
   /**
-    * Updates a service at the specified key in the environment of this effect.
-    */
-   final def updateServiceAt[Service]: ZManaged.UpdateServiceAt[R, E, A, Service] =
-     new ZManaged.UpdateServiceAt[R, E, A, Service](self)
+   * Updates a service at the specified key in the environment of this effect.
+   */
+  final def updateServiceAt[Service]: ZManaged.UpdateServiceAt[R, E, A, Service] =
+    new ZManaged.UpdateServiceAt[R, E, A, Service](self)
 
   /**
    * Run an effect while acquiring the resource before and releasing it after
@@ -1581,10 +1581,10 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZManaged[R, E, A]) extends AnyVal {
-     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
-       f: Service => Service
-     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZManaged[R1, E, A] =
-       self.provideSome(_.updateAt(key)(f))
+    def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
+      f: Service => Service
+    )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZManaged[R1, E, A] =
+      self.provideSome(_.updateAt(key)(f))
   }
 
   final class WhenManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {

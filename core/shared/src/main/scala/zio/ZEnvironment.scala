@@ -86,6 +86,10 @@ object ZEnvironment {
     new ZEnvironment(Map(Tag[A].tag -> a))
   def apply[A: Tag, B: Tag](a: A, b: B): ZEnvironment[A with B] =
     new ZEnvironment(Map(Tag[A].tag -> a, Tag[B].tag -> b))
+  def apply[A: Tag, B: Tag, C: Tag](a: A, b: B, c: C): ZEnvironment[A with B with C] =
+    new ZEnvironment(Map(Tag[A].tag -> a, Tag[B].tag -> b, Tag[C].tag -> c))
+  def apply[A: Tag, B: Tag, C: Tag, D: Tag](a: A, b: B, c: C, d: D): ZEnvironment[A with B with C with D] =
+    new ZEnvironment(Map(Tag[A].tag -> a, Tag[B].tag -> b, Tag[C].tag -> c, Tag[D].tag -> d))
   val empty: ZEnvironment[Any] =
     new ZEnvironment(Map.empty)
   lazy val default: ZEnvironment[Clock with Console with Random with System] =

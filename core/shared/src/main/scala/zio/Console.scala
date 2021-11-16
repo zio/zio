@@ -22,7 +22,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.io.{EOFException, IOException, PrintStream}
 import scala.io.StdIn
 import scala.{Console => SConsole}
-import zio.ZTraceElement
 
 trait Console extends Serializable {
   def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]
@@ -53,10 +52,8 @@ trait Console extends Serializable {
 
 object Console extends Serializable {
 
-  val any: ZServiceBuilder[Console, Nothing, Console] = {
-    implicit val trace = ZTraceElement.empty
-    ZServiceBuilder.service[Console]
-  }
+  val any: ZServiceBuilder[Console, Nothing, Console] =
+    ZServiceBuilder.service[Console](Tag[Console], Tracer.newTrace)
 
   val live: ServiceBuilder[Nothing, Console] =
     ZServiceBuilder.succeed[Console](ConsoleLive)(Tag[Console], Tracer.newTrace)
@@ -120,7 +117,7 @@ object Console extends Serializable {
    * null.
    */
   def readLine(implicit trace: ZTraceElement): ZIO[Console, IOException, String] =
-    ZIO.serviceWith(_.readLine)
+    ZIO.accessZIO(_.get.readLine)
 
   /**
    * Prints text to the console.

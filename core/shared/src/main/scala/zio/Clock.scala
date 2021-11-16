@@ -24,9 +24,6 @@ import zio.Schedule.Decision._
 import java.lang.{System => JSystem}
 import java.time.{Instant, LocalDateTime, OffsetDateTime}
 import java.util.concurrent.TimeUnit
-import zio.ZTraceElement
-import zio.ZTraceElement
-import zio.ZTraceElement
 
 trait Clock extends Serializable {
 
@@ -175,25 +172,21 @@ trait Clock extends Serializable {
 
 object Clock extends ClockPlatformSpecific with Serializable {
 
-  val any: ZServiceBuilder[Clock, Nothing, Clock] = {
-    implicit val trace = ZTraceElement.empty
-    ZServiceBuilder.service[Clock]
-  }
+  val any: ZServiceBuilder[Clock, Nothing, Clock] =
+    ZServiceBuilder.service[Clock](Tag[Clock], Tracer.newTrace)
 
   /**
    * Constructs a `Clock` service from a `java.time.Clock`.
    */
   val javaClock: ZServiceBuilder[java.time.Clock, Nothing, Clock] = {
-    implicit val trace = ZTraceElement.empty
+    implicit val trace = Tracer.newTrace
     (for {
       clock <- ZIO.service[java.time.Clock]
-    } yield ClockJava(clock)).toServiceBuilder[Clock]
+    } yield ClockJava(clock)).toServiceBuilder
   }
 
-  val live: ServiceBuilder[Nothing, Clock] = {
-    implicit val trace = ZTraceElement.empty
-    ZServiceBuilder.succeed[Clock](ClockLive)
-  }
+  val live: ServiceBuilder[Nothing, Clock] =
+    ZServiceBuilder.succeed[Clock](ClockLive)(Tag[Clock], Tracer.newTrace)
 
   /**
    * An implementation of the `Clock` service backed by a `java.time.Clock`.
