@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio._
+import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZEnvironment, ZIO, ZServiceBuilder, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -199,7 +199,7 @@ object TestConsole extends Serializable {
       ref      <- Ref.make(data)
       debugRef <- FiberRef.make(debug)
       test      = Test(ref, live, debugRef)
-    } yield ZEnvironment[Console](test) ++ ZEnvironment[TestConsole](test)
+    } yield ZEnvironment[Console, TestConsole](test, test)
   }.toServiceBuilderMany
 
   val any: ZServiceBuilder[TestConsole, Nothing, TestConsole] =
@@ -239,21 +239,21 @@ object TestConsole extends Serializable {
    * specified sequence of strings to the input buffer.
    */
   def feedLines(lines: String*)(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.serviceWith(_.feedLines(lines: _*))
+    ZIO.accessZIO(_.get.feedLines(lines: _*))
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
   def output(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, Vector[String]] =
-    ZIO.serviceWith(_.output)
+    ZIO.accessZIO(_.get.output)
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the error buffer.
    */
   def outputErr(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, Vector[String]] =
-    ZIO.serviceWith(_.outputErr)
+    ZIO.accessZIO(_.get.outputErr)
 
   /**
    * Accesses a `TestConsole` instance in the environment and saves the console
@@ -261,7 +261,7 @@ object TestConsole extends Serializable {
    * saved state.
    */
   def save(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, UIO[Unit]] =
-    ZIO.serviceWith(_.save)
+    ZIO.accessZIO(_.get.save)
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the specified
