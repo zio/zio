@@ -2841,7 +2841,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def provideCustomLayer[E1 >: E, R1](
     layer: ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
-    ev1: ZEnv with R1 <:< R,
+    ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
@@ -2862,7 +2862,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def provideCustomServices[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
-    ev1: ZEnv with R1 <:< R,
+    ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
@@ -5589,7 +5589,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZStream[R with Service, E, A] =
-      ZStream.fromZIO(ZIO.serviceWith[Service](f))
+      ZStream.fromZIO(ZIO.serviceWith(f))
   }
 
   final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
@@ -5689,7 +5689,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[E1 >: E, R1](
       serviceBuilder: ZServiceBuilder[R0, E1, R1]
     )(implicit
-      ev1: R0 with R1 <:< R,
+      ev: R0 with R1 <:< R,
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
