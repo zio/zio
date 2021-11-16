@@ -46,7 +46,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
       def serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, Environment] =
-        self.serviceBuilder ++ that.serviceBuilder
+        self.serviceBuilder.++(that.serviceBuilder)(that.tag)
       override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs, Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =

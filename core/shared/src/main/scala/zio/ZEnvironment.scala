@@ -16,7 +16,7 @@
 
 package zio
 
-class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends Serializable {
+class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends Serializable { self =>
   def get[A >: R: Tag]: A =
     unsafeGet(Tag[A]).fold {
       throw new NoSuchElementException(s"No implementation of service ${Tag[A]} in ZEnvironment($map)")
@@ -24,8 +24,8 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
       case r: A => r
       case r    => throw new ClassCastException(s"Expected ${Tag[A]}, got ${r.getClass}")
     }
-  def ++[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
-    new ZEnvironment(map ++ that.map)
+  def ++[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+    new ZEnvironment(map ++ that.prune.map)
   def +[A: Tag](a: A): ZEnvironment[R with A] =
     new ZEnvironment(map + (Tag[A].tag -> a))
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): Option[V] =
@@ -48,6 +48,34 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
 
   override def toString: String =
     s"ZEnvironment(${map.toString})"
+
+  /**
+   * Prunes the environment to the set of services statically known to be
+   * contained within it.
+   */
+  private def prune[R1 >: R](implicit tagged: Tag[R1]): ZEnvironment[R1] = {
+    val tag = taggedTagType(tagged)
+    val set = taggedGetHasServices(tag)
+
+    val missingServices = set.filterNot(key => map.exists { case (tag, _) => tag <:< key })
+    if (missingServices.nonEmpty) {
+      println(map.keySet)
+      throw new Error(
+        s"Defect in zio.ZEnvironment: ${missingServices} statically known to be contained within the environment are missing"
+      )
+    }
+
+    if (set.isEmpty) self
+    else new ZEnvironment(filterKeys(map)(key => set.exists(tag => key <:< tag))).asInstanceOf[ZEnvironment[R]]
+  }
+
+  /**
+   * Filters a map by retaining only keys satisfying a predicate.
+   */
+  private def filterKeys[K, V](map: Map[K, V])(f: K => Boolean): Map[K, V] =
+    map.foldLeft[Map[K, V]](Map.empty) { case (acc, (key, value)) =>
+      if (f(key)) acc + (key -> value) else acc
+    }
 }
 
 object ZEnvironment {

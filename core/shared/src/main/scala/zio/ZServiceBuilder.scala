@@ -56,7 +56,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
    * Combines this service builder with the specified service builder, producing
    * a new service builder that has the inputs and outputs of = both.
    */
-  final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
+  final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2: Tag](
     that: ZServiceBuilder[RIn2, E1, ROut2]
   ): ZServiceBuilder[RIn with RIn2, E1, ROut1 with ROut2] =
     self.zipWithPar(that)(_.++[ROut2](_))
@@ -96,7 +96,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   /**
    * A named alias for `++`.
    */
-  final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
+  final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2: Tag](
     that: ZServiceBuilder[RIn2, E1, ROut2]
   ): ZServiceBuilder[RIn with RIn2, E1, ROut1 with ROut2] =
     self.++[E1, RIn2, ROut1, ROut2](that)

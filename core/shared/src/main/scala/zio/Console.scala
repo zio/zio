@@ -55,7 +55,7 @@ object Console extends Serializable {
 
   val any: ZServiceBuilder[Console, Nothing, Console] = {
     implicit val trace = ZTraceElement.empty
-    ZServiceBuilder.environment[Console](Tracer.newTrace)
+    ZServiceBuilder.service[Console]
   }
 
   val live: ServiceBuilder[Nothing, Console] =

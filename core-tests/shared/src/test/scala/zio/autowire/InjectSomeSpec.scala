@@ -2,7 +2,6 @@ package zio.autowire
 
 import zio.{test => _, _}
 import zio.test._
-import zio.test.TestAspect._
 
 import java.io.IOException
 
@@ -51,7 +50,7 @@ object InjectSomeSpec extends DefaultRunnableSpec {
           Clock.live,
           TestService.live
         )
-      } @@ ignore,
+      },
       test("double injectSome") {
         testCase("double injectSome")
           .injectSome[Console with Clock](
@@ -61,6 +60,6 @@ object InjectSomeSpec extends DefaultRunnableSpec {
       },
       test("wireSome") {
         testCase("wireSome").provideSomeServices[Console](partialServiceBuilder)
-      } @@ ignore
+      }
     ) @@ TestAspect.silent
 }

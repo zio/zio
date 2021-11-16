@@ -52,7 +52,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    * that executes the logic of both applications.
    */
   final def <>(that: ZIOApp)(implicit trace: ZTraceElement): ZIOApp =
-    ZIOApp(self.run.zipPar(that.run), self.serviceBuilder ++ that.serviceBuilder, self.hook >>> that.hook)
+    ZIOApp(self.run.zipPar(that.run), self.serviceBuilder.++(that.serviceBuilder)(that.tag), self.hook >>> that.hook)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
