@@ -456,10 +456,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideServicesShared(serviceBuilder))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideServicesShared(serviceBuilder))
       case ManagedCase(managed) =>
-        Spec.managed(serviceBuilder.build.flatMap(r => managed.map(_.provide(ev.liftCo(r))).provide(ev.liftCo(r))))
+        Spec.managed(serviceBuilder.build.flatMap(r => managed.map(_.provide(r.widen(ev))).provide(r.widen(ev))))
       case MultipleCase(specs) =>
         Spec.managed(
-          serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provide(ev.liftCo(r)))))
+          serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provide(r.widen(ev)))))
         )
       case TestCase(test, annotations) => Spec.test(test.provideServices(serviceBuilder), annotations)
     }

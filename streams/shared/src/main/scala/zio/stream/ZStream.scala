@@ -2886,7 +2886,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
     new ZStream(ZChannel.managed(serviceBuilder.build) { r =>
-      self.channel.provide(ev.liftCo(r))
+      self.channel.provide(r.widen(ev))
     })
 
   /**

@@ -1518,7 +1518,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    ZIO.suspendSucceed(serviceBuilder.build.map(ev.liftCo).use(r => self.provide(r)))
+    ZIO.suspendSucceed(serviceBuilder.build.map(_.widen(ev)).use(r => self.provide(r)))
 
   /**
    * Provides some of the environment required to run this effect.
@@ -5768,7 +5768,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R, E, A](
+    def apply[R <: Service, E, A](
       f: Service => ZIO[R, E, A]
     )(implicit tag: Tag[Service], trace: ZTraceElement): ZIO[R with Service, E, A] =
       ZIO.environment[Service].flatMap(environment => f(environment.get(tag)))

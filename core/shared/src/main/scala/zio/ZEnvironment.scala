@@ -36,6 +36,8 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
     new ZEnvironment(map.updated(Tag[A].tag, f(get[A])))
   def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
     new ZEnvironment(map.updated(tag.tag, map.get(tag.tag).get.asInstanceOf[Map[K, V]].updated(k, f)))
+  def widen[R1](implicit ev: R <:< R1): ZEnvironment[R1] =
+    new ZEnvironment(map)
 
   override def toString: String =
     s"ZEnvironment(${map.toString})"

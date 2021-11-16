@@ -251,7 +251,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def toRuntime(
     runtimeConfig: RuntimeConfig
   )(implicit ev: Any <:< RIn, trace: ZTraceElement): Managed[E, Runtime[ROut]] =
-    build.provide(ev.liftCo(ZEnvironment.empty)).map(Runtime(_, runtimeConfig))
+    build.provide(ZEnvironment.empty.widen).map(Runtime(_, runtimeConfig))
 
   /**
    * Updates one of the services output by this service builder.

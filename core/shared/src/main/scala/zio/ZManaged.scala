@@ -868,7 +868,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    ZManaged.suspend(serviceBuilder.build.map(ev.liftCo).flatMap(r => self.provide(r)))
+    ZManaged.suspend(serviceBuilder.build.map(_.widen(ev)).flatMap(r => self.provide(r)))
 
   /**
    * Provides some of the environment required to run this effect.
