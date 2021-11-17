@@ -108,13 +108,13 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
  */
 object HigherKindedTagCorrectness extends DefaultRunnableSpec {
 
-  trait Cache[F[+_], K, V] {
+  trait Cache[F[_], K, V] {
     def get(key: K): ZIO[Any, Nothing, F[V]]
     def put(key: K, value: V): ZIO[Any, Nothing, Unit]
   }
 
   object Cache {
-    def live[F[+_], K, V](
+    def live[F[_], K, V](
       f: Option[V] => F[V]
     )(implicit tag: Tag[Cache[F, K, V]]): ZServiceBuilder[Any, Nothing, Cache[F, K, V]] =
       (for {
@@ -127,10 +127,10 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
           cache.update(_.updated(key, value))
       }).toServiceBuilder
 
-    def get[F[+_], K, V](key: K)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, F[V]] =
+    def get[F[_], K, V](key: K)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, F[V]] =
       ZIO.accessZIO(_.get.get(key))
 
-    def put[F[+_], K, V](key: K, value: V)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, Unit] =
+    def put[F[_], K, V](key: K, value: V)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, Unit] =
       ZIO.accessZIO(_.get.put(key, value))
   }
 
@@ -145,10 +145,10 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
           value <- Cache.get[Option, Int, String](1)
           _     <- ZIO.debug(value)
           a      = Tag[Cache[Option, Int, String]]
-          b      = Tag[Cache[({ type Out[+In] = Option[In] })#Out, Int, String]]
-          c      = Tag[Cache[({ type Bar = Double; type Out[+In] = Option[Bar] })#Out, Int, String]]
-          d      = Tag[Cache[({ type Out[+In] = Option[Double] })#Out, Int, String]]
-          e      = Tag[Cache[({ type Id[+A] = A; type Out[+In] = Option[Id[In]] })#Out, Int, String]]
+          b      = Tag[Cache[({ type Out[In] = Option[In] })#Out, Int, String]]
+          c      = Tag[Cache[({ type Bar = Double; type Out[In] = Option[Bar] })#Out, Int, String]]
+          d      = Tag[Cache[({ type Out[In] = Option[Double] })#Out, Int, String]]
+          e      = Tag[Cache[({ type Id[A] = A; type Out[In] = Option[Id[In]] })#Out, Int, String]]
           _     <- ZIO.debug(s"WHAT" + b)
         } yield assertTrue(
           a.tag <:< b.tag,
