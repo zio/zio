@@ -947,21 +947,22 @@ object ZSTM {
   /**
    * Accesses the environment of the transaction.
    */
+  @deprecated("use serviceWith", "2.0.0")
   def access[R]: AccessPartiallyApplied[R] =
     new AccessPartiallyApplied
 
   /**
    * Accesses the environment of the transaction to perform a transaction.
    */
-  @deprecated("use accessSTM", "2.0.0")
-  def accessM[R]: AccessSTMPartiallyApplied[R] =
-    accessSTM
+  @deprecated("use environmentWith", "2.0.0")
+  def accessM[R]: EnvironmentWithPartiallyApplied[R] =
+    environmentWith
 
   /**
    * Accesses the environment of the transaction to perform a transaction.
    */
-  def accessSTM[R]: AccessSTMPartiallyApplied[R] =
-    new AccessSTMPartiallyApplied
+  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+    new EnvironmentWithPartiallyApplied
 
   /**
    * Atomically performs a batch of operations in a single transaction.
@@ -1248,9 +1249,9 @@ object ZSTM {
    * Lifts an effectful function whose effect requires no environment into an
    * effect that requires the input to the function.
    */
-  @deprecated("use accessSTM", "2.0.0")
+  @deprecated("use environmentWith", "2.0.0")
   def fromFunctionM[R, E, A](f: ZEnvironment[R] => STM[E, A]): ZSTM[R, E, A] =
-    accessSTM(f)
+    environmentWith(f)
 
   /**
    * Lifts an `Option` into a `STM`.
@@ -1673,7 +1674,7 @@ object ZSTM {
       ZSTM.environment.map(f)
   }
 
-  final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
       ZSTM.environment.flatMap(f)
   }

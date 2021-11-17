@@ -34,6 +34,7 @@ object URIO {
    * @see
    *   [[zio.ZIO.access]]
    */
+  @deprecated("use serviceWith", "2.0.0")
   def access[R]: ZIO.AccessPartiallyApplied[R] =
     ZIO.access[R]
 
@@ -42,14 +43,14 @@ object URIO {
    *   [[zio.ZIO.accessM]]
    */
   @deprecated("use environmentWith", "2.0.0")
-  def accessM[R]: ZIO.environmentWithPartiallyApplied[R] =
+  def accessM[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
     ZIO.accessM[R]
 
   /**
    * @see
    *   [[zio.ZIO.environmentWith]]
    */
-  def environmentEWith[R]: ZIO.environmentWithPartiallyApplied[R] =
+  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
     ZIO.environmentWith[R]
 
   /**

@@ -176,7 +176,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "foldM" -> "foldSTM",
       "foreach_"               -> "foreachDiscard",
       "fromFunction"              -> "access",
-      "fromFunctionM"             -> "accessSTM",
+      "fromFunctionM"             -> "environmentWith",
       "ifM" -> "ifSTM",
       "loop_"                  -> "loopDiscard",
       "partial" -> "attempt",

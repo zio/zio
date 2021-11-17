@@ -2793,6 +2793,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * val portNumber = effect.access(_.config.portNumber)
    * }}}
    */
+  @deprecated("use serviceWith", "2.0.0")
   def access[R]: ZIO.AccessPartiallyApplied[R] =
     new ZIO.AccessPartiallyApplied[R]
 
@@ -2800,14 +2801,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Effectfully accesses the environment of the effect.
    */
   @deprecated("use environmentWith", "2.0.0")
-  def accessM[R]: ZIO.environmentWithPartiallyApplied[R] =
+  def accessM[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
     environmentWith
 
   /**
    * Effectfully accesses the environment of the effect.
    */
-  def environmentWith[R]: ZIO.environmentWithPartiallyApplied[R] =
-    new ZIO.environmentWithPartiallyApplied[R]
+  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    new ZIO.EnvironmentWithPartiallyApplied[R]
 
   /**
    * When this effect represents acquisition of a resource (for example, opening
@@ -5762,7 +5763,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       ZIO.environment.map(f)
   }
 
-  final class environmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit trace: ZTraceElement): ZIO[R with R1, E, A] =
       ZIO.environment.flatMap(f)
   }

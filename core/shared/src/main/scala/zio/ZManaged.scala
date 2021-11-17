@@ -1504,14 +1504,14 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.environment.map(f)
   }
 
-  final class environmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZManaged[R with R1, E, A] =
       ZManaged.environment.mapZIO(f)
   }
 
-  final class environmentWithManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZManaged[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZManaged[R with R1, E, A] =
@@ -1823,6 +1823,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Create a managed that accesses the environment.
    */
+  @deprecated("use serviceWith", "2.0.0")
   def access[R]: AccessPartiallyApplied[R] =
     new AccessPartiallyApplied
 
@@ -1830,20 +1831,20 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Create a managed that accesses the environment.
    */
   @deprecated("use environmentWith", "2.0.0")
-  def accessM[R]: environmentWithPartiallyApplied[R] =
+  def accessM[R]: EnvironmentWithPartiallyApplied[R] =
     environmentWith
 
   /**
    * Create a managed that accesses the environment.
    */
-  def environmentWith[R]: environmentWithPartiallyApplied[R] =
-    new environmentWithPartiallyApplied
+  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+    new EnvironmentWithPartiallyApplied
 
   /**
    * Create a managed that accesses the environment.
    */
-  def environmentWithManaged[R]: environmentWithManagedPartiallyApplied[R] =
-    new environmentWithManagedPartiallyApplied
+  def environmentWithManaged[R]: EnvironmentWithManagedPartiallyApplied[R] =
+    new EnvironmentWithManagedPartiallyApplied
 
   /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that

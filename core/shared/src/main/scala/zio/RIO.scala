@@ -49,6 +49,7 @@ object RIO {
    * @see
    *   See [[zio.ZIO.access]]
    */
+  @deprecated("use serviceWith", "2.0.0")
   def access[R]: ZIO.AccessPartiallyApplied[R] =
     ZIO.access
 
@@ -56,7 +57,7 @@ object RIO {
    * @see
    *   See [[zio.ZIO.environmentWith]]
    */
-  def environmentEWith[R]: ZIO.environmentWithPartiallyApplied[R] =
+  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
     ZIO.environmentWith
 
   /**

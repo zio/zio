@@ -4375,6 +4375,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the environment of the stream.
    */
+  @deprecated("use serviceWith", "2.0.0")
   def access[R]: AccessPartiallyApplied[R] =
     new AccessPartiallyApplied[R]
 
@@ -4382,20 +4383,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the environment of the stream in the context of an effect.
    */
   @deprecated("use environmentWith", "2.0.0")
-  def accessM[R]: environmentWithPartiallyApplied[R] =
+  def accessM[R]: EnvironmentWithPartiallyApplied[R] =
     environmentWith
 
   /**
    * Accesses the environment of the stream in the context of an effect.
    */
-  def environmentWith[R]: environmentWithPartiallyApplied[R] =
-    new environmentWithPartiallyApplied[R]
+  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+    new EnvironmentWithPartiallyApplied[R]
 
   /**
    * Accesses the environment of the stream in the context of a stream.
    */
-  def environmentWithStream[R]: environmentWithStreamPartiallyApplied[R] =
-    new environmentWithStreamPartiallyApplied[R]
+  def environmentWithStream[R]: EnvironmentWithStreamPartiallyApplied[R] =
+    new EnvironmentWithStreamPartiallyApplied[R]
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -5560,14 +5561,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.environment[R].map(f)
   }
 
-  final class environmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZStream[R with R1, E, A] =
       ZStream.environment[R].mapZIO(f)
   }
 
-  final class environmentWithStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZStream[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZStream[R with R1, E, A] =
