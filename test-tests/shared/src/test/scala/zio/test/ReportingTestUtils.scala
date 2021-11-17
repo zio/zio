@@ -52,7 +52,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideServices[Nothing, TestEnvironment, TestLogger with Clock](
+             .provide[Nothing, TestEnvironment, TestLogger with Clock](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
@@ -62,7 +62,7 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provideServices[Nothing, TestEnvironment, TestLogger with Clock](
+                   .provide[Nothing, TestEnvironment, TestLogger with Clock](
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
@@ -257,7 +257,7 @@ object ReportingTestUtils {
                promise.succeed(())
              }
       f       = ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
-      result <- f.provideServices(failingServiceBuilder ++ mock)
+      result <- f.provide(failingServiceBuilder ++ mock)
     } yield assert(result)(equalTo("mocked"))
   }
 

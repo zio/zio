@@ -65,7 +65,7 @@ object LogStageExample extends zio.App {
     ZServiceBuilder.succeed(LogZIO.withFiberId(IzLogger()))
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideServices(loggerServiceBuilder).exitCode
+    myApp.provide(loggerServiceBuilder).exitCode
 }
 ```
 

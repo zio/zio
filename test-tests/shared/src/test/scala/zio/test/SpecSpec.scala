@@ -19,20 +19,20 @@ object SpecSpec extends ZIOBaseSpec {
         } yield assertCompletes
       }.provideCustom(serviceBuilder)
     ),
-    suite("provideServices")(
+    suite("provide")(
       test("does not have early initialization issues") {
         for {
           _ <- ZIO.service[Unit]
         } yield assertCompletes
-      }.provideServices(serviceBuilder)
+      }.provide(serviceBuilder)
     ),
-    suite("provideServicesShared")(
+    suite("provideShared")(
       test("gracefully handles fiber death") {
         val spec = suite("suite")(
           test("test") {
             assert(true)(isTrue)
           }
-        ).provideServicesShared(ZServiceBuilder.fromZIOAll(ZIO.dieMessage("everybody dies")))
+        ).provideShared(ZServiceBuilder.fromZIOAll(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes
@@ -64,7 +64,7 @@ object SpecSpec extends ZIOBaseSpec {
           test("test3") {
             assertM(ZIO.service[Int])(Assertion.equalTo(42))
           }
-        ).provideServicesShared(ZServiceBuilder.succeed(43))
+        ).provideShared(ZServiceBuilder.succeed(43))
         for {
           executedSpec <- execute(spec)
           successes = executedSpec.fold[Int] { c =>

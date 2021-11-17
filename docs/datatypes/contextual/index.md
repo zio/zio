@@ -24,7 +24,7 @@ val effect: ZIO[Console, Nothing, Unit] = printLine("Hello, World!").orDie
 So finally when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
 
 ```scala mdoc:silent
-val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live)
+val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live)
 ```
 
 Finally, to run our application we can put our `mainApp` inside the `run` method:
@@ -35,7 +35,7 @@ import zio.Console._
 
 object MainApp extends ZIOAppDefault {
   val effect: ZIO[Console, Nothing, Unit] = printLine("Hello, World!").orDie
-  val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live)
+  val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live)
 
   def run = mainApp
 }
@@ -52,7 +52,7 @@ val effect: ZIO[Console with Random, Nothing, Unit] = for {
   _ <- printLine(s"random number: $r").orDie
 } yield ()
 
-val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live ++ Random.live)
+val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live ++ Random.live)
 ```
 
 We don't need to provide live service builders for built-in services (don't worry, we will discuss service builders later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
@@ -261,11 +261,11 @@ object LoggingExample extends ZIOAppDefault {
  
   private val app: RIO[Logging, Unit] = log("Hello, World!") 
 
-  def run = app.provideServices(Logging.live)
+  def run = app.provide(Logging.live)
 }
 ```
 
-During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provideServices`.
+During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provide`.
 
 ### Module Pattern 2.0
 
@@ -340,7 +340,7 @@ Finally, we provide required service builders to our `app` effect:
  val app = Logging.log("Application Started")
 
  zio.Runtime.default.unsafeRun(
-   app.provideServices(LoggingLive.serviceBuilder)
+   app.provide(LoggingLive.serviceBuilder)
  )
 ```
 
@@ -415,11 +415,11 @@ val loggingImpl = new Logging {
 val effect = app.provideAll(ZEnvironment(loggingImpl))
 ```
 
-Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZServiceBuilder` to construct the dependency graph of our application, then we use methods like `ZIO#provideServices` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZServiceBuilder` to construct the dependency graph of our application, then we use methods like `ZIO#provide` to propagate dependencies into the environment of our ZIO effect.
 
-#### Using `provideServices` Method
+#### Using `provide` Method
 
-Unlike the `ZIO#provide` which takes and an `R`, the `ZIO#provideServices` takes a `ZServiceBuilder` to the ZIO effect and translates it to another level. 
+Unlike the `ZIO#provide` which takes and an `R`, the `ZIO#provide` takes a `ZServiceBuilder` to the ZIO effect and translates it to another level. 
 
 Assume we have written this piece of program that requires Clock and Console services:
 
@@ -436,11 +436,11 @@ val myApp: ZIO[Random with Console with Clock, Nothing, Unit] = for {
 } yield ()
 ```
 
-We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provideServices` method:
+We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provide` method:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
-  myApp.provideServices(Random.live ++ Console.live ++ Clock.live)
+  myApp.provide(Random.live ++ Console.live ++ Clock.live)
 ```
 
 As we see, the type of our effect converted from `ZIO[Random with Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.

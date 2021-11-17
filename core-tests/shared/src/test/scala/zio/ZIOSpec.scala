@@ -3600,7 +3600,7 @@ object ZIOSpec extends ZIOBaseSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provide(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(

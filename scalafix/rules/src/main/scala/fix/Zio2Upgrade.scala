@@ -163,7 +163,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val ZIORenames = Renames(
     List("zio.ZIO"),
     Map("run" -> "exit",
-      "provideLayer" -> "provideServices",
+      "provideLayer" -> "provide",
       "provideSomeLayer" -> "provideSome",
       "provideCustomLayer" -> "provideCustom",
     )

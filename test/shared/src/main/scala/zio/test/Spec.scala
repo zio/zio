@@ -417,44 +417,44 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Provides a layer to the spec, translating it up a level.
    */
-  @deprecated("use provideServices", "2.0.0")
+  @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
     layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provideServices(layer)
+    provide(layer)
 
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
-  @deprecated("use provideServicesShared", "2.0.0")
+  @deprecated("use provideShared", "2.0.0")
   final def provideLayerShared[E1 >: E, R0, R1](
     layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provideServicesShared(layer)
+    provideShared(layer)
 
   /**
    * Provides a service builder to the spec, translating it up a level.
    */
-  final def provideServices[E1 >: E, R0, R1](
+  final def provide[E1 >: E, R0, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     transform[R0, E1, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
-      case ManagedCase(managed)        => ManagedCase(managed.provideServices(serviceBuilder))
+      case ManagedCase(managed)        => ManagedCase(managed.provide(serviceBuilder))
       case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.provideServices(serviceBuilder), annotations)
+      case TestCase(test, annotations) => TestCase(test.provide(serviceBuilder), annotations)
     }
 
   /**
    * Provides a service builder to the spec, sharing services between all tests.
    */
-  final def provideServicesShared[E1 >: E, R0, R1](
+  final def provideShared[E1 >: E, R0, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     caseValue match {
-      case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideServicesShared(serviceBuilder))
-      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideServicesShared(serviceBuilder))
+      case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideShared(serviceBuilder))
+      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideShared(serviceBuilder))
       case ManagedCase(managed) =>
         Spec.managed(
           serviceBuilder.build.flatMap(r => managed.map(_.provideAll(r.upcast(ev))).provideAll(r.upcast(ev)))
@@ -463,7 +463,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
         Spec.managed(
           serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provideAll(r.upcast(ev)))))
         )
-      case TestCase(test, annotations) => Spec.test(test.provideServices(serviceBuilder), annotations)
+      case TestCase(test, annotations) => Spec.test(test.provide(serviceBuilder), annotations)
     }
 
   /**
@@ -714,7 +714,7 @@ object Spec extends SpecLowPriority {
     def apply[E1 >: E, R1](
       serviceBuilder: ZServiceBuilder[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
-      self.provideServices[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+      self.provide[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
   }
 
   final class ProvideSomeShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {

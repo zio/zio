@@ -162,7 +162,7 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
           !(a.tag <:< c.tag),
           !(c.tag <:< a.tag),
           !(a.tag <:< d.tag)
-        )).provideServices(myCache)
+        )).provide(myCache)
       }
     )
 

@@ -1512,17 +1512,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
-  @deprecated("use provideServices", "2.0.0")
+  @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
     layer: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    provideServices(layer)
+    provide(layer)
 
   /**
    * Provides a service builder to the ZIO effect, which translates it to
    * another level.
    */
-  final def provideServices[E1 >: E, R0, R1](
+  final def provide[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
     ZIO.suspendSucceed(serviceBuilder.build.map(_.upcast(ev)).use(r => self.provideAll(r)))
@@ -5624,7 +5624,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[E1 >: E, R1](
       serviceBuilder: => ZServiceBuilder[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
-      self.provideServices[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+      self.provide[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {

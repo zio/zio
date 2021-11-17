@@ -692,7 +692,7 @@ val appServiceBuilder: URServiceBuilder[Any, DocRepo with UserRepo] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
     
-val res: ZIO[Any, Nothing, Unit] = myApp.provideServices(appServiceBuilder)
+val res: ZIO[Any, Nothing, Unit] = myApp.provide(appServiceBuilder)
 ```
 
 As the development of our application progress, the number of service builders will grow, and maintaining the dependency graph would be tedious and hard to debug.
@@ -700,7 +700,7 @@ As the development of our application progress, the number of service builders w
 For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
 
 ```scala
-myApp.provideServices(
+myApp.provide(
   ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
     (Database.live >>> UserRepo.live)
 )

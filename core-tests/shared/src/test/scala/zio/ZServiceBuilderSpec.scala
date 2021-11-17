@@ -274,8 +274,8 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
           memoized = makeServiceBuilder1(ref).memoize
           _ <- memoized.use { serviceBuilder =>
                  for {
-                   _ <- ZIO.environment[Module1].provideServices(serviceBuilder)
-                   _ <- ZIO.environment[Module1].provideServices(serviceBuilder)
+                   _ <- ZIO.environment[Module1].provide(serviceBuilder)
+                   _ <- ZIO.environment[Module1].provide(serviceBuilder)
                  } yield ()
                }
           actual <- ref.get

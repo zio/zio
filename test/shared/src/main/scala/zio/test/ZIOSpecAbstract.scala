@@ -109,11 +109,11 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideServices(runner.bootstrap)
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provide(runner.bootstrap)
       _ <- TestLogger
              .logLine(SummaryBuilder.buildSummary(results).summary)
              .when(testArgs.printSummary)
-             .provideServices(runner.bootstrap)
+             .provide(runner.bootstrap)
     } yield results
   }
 }

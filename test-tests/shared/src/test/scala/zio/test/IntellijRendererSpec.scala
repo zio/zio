@@ -259,7 +259,7 @@ object IntelliJRenderUtils {
     for {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
-             .provideServices[Nothing, TestEnvironment, TestLogger with Clock](
+             .provide[Nothing, TestEnvironment, TestLogger with Clock](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output

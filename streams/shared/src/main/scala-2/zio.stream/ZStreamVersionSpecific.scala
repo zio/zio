@@ -49,10 +49,10 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
 private final class ProvideSomeStreamPartiallyApplied[R0, -R, +E, +O](
   val self: ZStream[R, E, O]
 ) extends AnyVal {
-  def provideServices[E1 >: E, R1](
+  def provide[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZStream[R0, E1, O] =
-    self.provideServices(serviceBuilder)
+    self.provide(serviceBuilder)
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZStream[R0, E1, O] =
     macro ServiceBuilderMacros.injectSomeImpl[ZStream, R0, R, E1, O]

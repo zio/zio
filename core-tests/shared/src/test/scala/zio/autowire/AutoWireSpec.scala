@@ -157,7 +157,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
             val serviceBuilder =
               ZServiceBuilder.wire[Int](intServiceBuilder, stringServiceBuilder, doubleServiceBuilder)
-            val provided = ZIO.service[Int].provideServices(serviceBuilder)
+            val provided = ZIO.service[Int].provide(serviceBuilder)
             assertM(provided)(equalTo(128))
           },
           test("correctly decomposes nested, aliased intersection types") {
@@ -189,7 +189,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val serviceBuilder =
               ZServiceBuilder.wireSome[Double with Boolean, Int](intServiceBuilder, stringServiceBuilder)
             val provided =
-              program.provideServices(
+              program.provide(
                 ZServiceBuilder.succeed(true) ++ ZServiceBuilder.succeed(100.1) >>> serviceBuilder
               )
             assertM(provided)(equalTo(128))

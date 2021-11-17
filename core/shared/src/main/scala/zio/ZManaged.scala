@@ -861,17 +861,17 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  @deprecated("use provideServices", "2.0.0")
+  @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
     layer: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    provideServices(layer)
+    provide(layer)
 
   /**
    * Provides a service builder to the `ZManaged`, which translates it to
    * another level.
    */
-  final def provideServices[E1 >: E, R0, R1](
+  final def provide[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
     ZManaged.suspend(serviceBuilder.build.map(_.upcast(ev)).flatMap(r => self.provideAll(r)))
@@ -1570,7 +1570,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZManaged[R0, E1, A] =
-      self.provideServices[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+      self.provide[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {

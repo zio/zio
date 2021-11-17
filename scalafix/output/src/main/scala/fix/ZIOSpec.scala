@@ -3077,7 +3077,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("serviceWith")(
       test("effectfully accesses a service in the environment") {
         val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
-        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo(3))
+        assertM(zio.provide(ZServiceBuilder.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3360,7 +3360,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provide(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(

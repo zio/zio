@@ -65,16 +65,16 @@ private final class ProvideSomeServiceBuilderManagedPartiallyApplied[R0, -R, +E,
   val self: ZManaged[R, E, A]
 ) extends AnyVal {
 
-  def provideServices[E1 >: E, R1](
+  def provide[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    self.provideServices(serviceBuilder)
+    self.provide(serviceBuilder)
 
-  @deprecated("use provideServices", "2.0.0")
+  @deprecated("use provide", "2.0.0")
   def provideLayer[E1 >: E, R1](
     layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    provideServices(layer)
+    provide(layer)
 
   def provideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
     new ZManaged.ProvideSome[R0, R, E, A](self)

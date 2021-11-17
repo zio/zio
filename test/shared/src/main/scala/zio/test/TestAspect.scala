@@ -1077,28 +1077,28 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    * An aspect that provides a service builder to the spec, translating it up a
    * level.
    */
-  final def provideServices[R0, E1, R1](
+  final def provide[R0, E1, R1](
     serviceBuilder: ZServiceBuilder[R0, TestFailure[E1], R1]
   ): TestAspect.WithOut[R1, Any, E1, Any, ({ type OutEnv[Env] = R0 })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
     new TestAspect[R1, Any, E1, Any] {
       type OutEnv[Env] = R0
       type OutErr[Err] = Err
       def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.provideServices(serviceBuilder)
+        spec.provide(serviceBuilder)
     }
 
   /**
    * An aspect that provides a service builder to the spec, translating it up a
    * level.
    */
-  final def provideServicesShared[R0, E1, R1](
+  final def provideShared[R0, E1, R1](
     serviceBuilder: ZServiceBuilder[R0, TestFailure[E1], R1]
   ): TestAspect.WithOut[R1, Any, E1, Any, ({ type OutEnv[Env] = R0 })#OutEnv, ({ type OutErr[Err] = Err })#OutErr] =
     new TestAspect[R1, Any, E1, Any] {
       type OutEnv[Env] = R0
       type OutErr[Err] = Err
       def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.provideServicesShared(serviceBuilder)
+        spec.provideShared(serviceBuilder)
     }
 
   /**
@@ -1813,7 +1813,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def apply[R >: R0 with R1, E >: E1](
           spec: Spec[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
-          spec.provideServices[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+          spec.provide[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
       }
   }
 
@@ -1837,7 +1837,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def apply[R >: R0 with R1, E >: E1](
           spec: Spec[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
-          spec.provideServicesShared[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+          spec.provideShared[TestFailure[E], R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
       }
   }
 }

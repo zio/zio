@@ -1,3 +1,3 @@
 package zio.examples
 
-object RealWorldProvideServicesExample {}
+object RealWorldprovideExample {}
