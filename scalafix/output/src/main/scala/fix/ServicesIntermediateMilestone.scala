@@ -1,12 +1,12 @@
 package fix
 
 import zio.{URIO, ZIO}
-import zio._
 import zio.{ Console, Random, System }
-import zio.Console.{ printLine, readLine }
 import zio.test.{ Annotations, Live, Sized, TestConfig, TestConsole, TestLogger, TestRandom, TestSystem }
 
-object Services {
+object ServicesIntermediateMilestone {
+  val randomManual: URIO[Random, Random] = ZIO.service[Random]
+  
   val random: URIO[Random, Random] = ZIO.service[Random]
   val console: URIO[Console, Console] = ZIO.service[Console]
   val live: ZIO[System, Nothing, Unit] = ZIO.unit
@@ -27,6 +27,4 @@ object Services {
   val testRandomService: URIO[TestRandom, Unit] = ZIO.unit
   val testLive: URIO[Live, Unit] = ZIO.unit
   val testLiveService: URIO[Live, Unit] = ZIO.unit
-
-  val effect = readLine *> printLine("hi")
 }
