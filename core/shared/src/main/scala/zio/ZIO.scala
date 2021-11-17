@@ -1525,7 +1525,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    ZIO.suspendSucceed(serviceBuilder.build.map(_.widen(ev)).use(r => self.provide(r)))
+    ZIO.suspendSucceed(serviceBuilder.build.map(_.upcast(ev)).use(r => self.provide(r)))
 
   /**
    * Provides some of the environment required to run this effect.

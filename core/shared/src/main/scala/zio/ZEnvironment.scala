@@ -23,6 +23,9 @@ final class ZEnvironment[+R] private (
   private var cache: Map[LightTypeTag, Any] = Map.empty
 ) extends Serializable { self =>
 
+  def ++[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+    self.union[R1](that)
+
   /**
    * Adds a service to the environment.
    */
@@ -39,6 +42,13 @@ final class ZEnvironment[+R] private (
    */
   def get[A >: R](implicit tagged: Tag[A]): A =
     unsafeGet(taggedTagType(tagged))
+
+  /**
+   * Retrieves a service from the environment corresponding to the specified
+   * key.
+   */
+  def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: Tag[Map[K, V]]): Option[V] =
+    unsafeGet[Map[K, V]](taggedTagType(tagged)).get(k)
 
   override def hashCode: Int =
     map.hashCode
@@ -74,9 +84,26 @@ final class ZEnvironment[+R] private (
     s"ZEnvironment($map)"
 
   /**
+   * Combines this environment with the specified environment.
+   */
+  def union[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+    self.unionAll[R1](that.prune)
+
+  /**
+   * Combines this environment with the specified environment. In the event of
+   * service collisions, which may not be reflected in statically known types,
+   * the right hand side will be preferred.
+   */
+  def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+    new ZEnvironment(self.map ++ that.map)
+
+  def upcast[R1](implicit ev: R <:< R1): ZEnvironment[R1] =
+    new ZEnvironment(map)
+
+  /**
    * Retrieves a service from the environment.
    */
-  def unsafeGet[A](tag: LightTypeTag): A =
+  private[zio] def unsafeGet[A](tag: LightTypeTag): A =
     self.map
       .getOrElse(
         tag,
@@ -91,28 +118,11 @@ final class ZEnvironment[+R] private (
       )
       .asInstanceOf[A]
 
-  def ++[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
-    union[R1](that)
-  def union[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
-    new ZEnvironment(map ++ that.prune.map)
-  def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
-    new ZEnvironment(map ++ that.map)
-  def +!+[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
-    unionAll[R1](that)
-  def +[A: Tag](a: A): ZEnvironment[R with A] =
-    new ZEnvironment(map + (Tag[A].tag -> a))
-
-  def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): Option[V] =
-    unsafeGet(tag.tag).asInstanceOf[Map[K, V]].get(k)
-
   def update[A >: R: Tag](f: A => A): ZEnvironment[R] =
     new ZEnvironment(map.updated(Tag[A].tag, f(get[A])))
 
   def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
     new ZEnvironment(map.updated(tag.tag, map(tag.tag).asInstanceOf[Map[K, V]].updated(k, f)))
-
-  def widen[R1](implicit ev: R <:< R1): ZEnvironment[R1] =
-    new ZEnvironment(map)
 
   /**
    * Filters a map by retaining only keys satisfying a predicate.
