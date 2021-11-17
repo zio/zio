@@ -119,8 +119,8 @@ for {
   fiber1 <- IO.fail("Uh oh!").fork
   fiber2 <- IO.succeed("Hurray!").fork
   fiber   = fiber1.orElse(fiber2)
-  tuple  <- fiber.join
-} yield tuple
+  message  <- fiber.join
+} yield message
 ```
 
 ## Parallelism
