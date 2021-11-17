@@ -27,7 +27,7 @@ import scala.annotation.tailrec
 sealed trait FiberId extends Serializable { self =>
   import FiberId._
 
-  def combine(that: FiberId): FiberId =
+  final def combine(that: FiberId): FiberId =
     (self, that) match {
       case (None, that)                                 => that
       case (that, None)                                 => that
@@ -37,7 +37,9 @@ sealed trait FiberId extends Serializable { self =>
       case (self @ Runtime(_, _), that @ Runtime(_, _)) => Composite(Set(self, that))
     }
 
-  def ids: Set[Int] =
+  final def getOrElse(that: => FiberId): FiberId = if (isNone) that else self
+
+  final def ids: Set[Int] =
     self match {
       case None                => Set.empty
       case Runtime(id, _)      => Set(id)
