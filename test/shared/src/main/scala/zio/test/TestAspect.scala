@@ -1105,7 +1105,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    * Uses the specified function to provide each test in this spec with part of
    * its required environment.
    */
-  final def provideSome[R0, R1](f: ZEnvironment[R0] => ZEnvironment[R1]): TestAspect.WithOut[
+  final def contramap[R0, R1](f: ZEnvironment[R0] => ZEnvironment[R1]): TestAspect.WithOut[
     R1,
     Any,
     Nothing,
@@ -1117,7 +1117,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
       type OutEnv[Env] = R0
       type OutErr[Err] = Err
       def apply[R >: R1, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.provideSome(f)
+        spec.contramap(f)
     }
 
   /**

@@ -1530,7 +1530,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Provides some of the environment required to run this effect.
    */
-  final def provideSome[R0](
+  final def contramap[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E, A] =
     ZIO.accessZIO(r0 => self.provideAll(f(r0)))
@@ -5631,14 +5631,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): ZIO[R1, E, A] =
-      self.provideSome(_.update(f))
+      self.contramap(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZIO[R1, E, A] =
-      self.provideSome(_.updateAt(key)(f))
+      self.contramap(_.updateAt(key)(f))
   }
 
   @implicitNotFound(

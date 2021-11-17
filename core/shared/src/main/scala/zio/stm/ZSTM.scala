@@ -557,13 +557,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * dependency on `R`.
    */
   def provideAll(r: ZEnvironment[R]): STM[E, A] =
-    provideSome(_ => r)
+    contramap(_ => r)
 
   /**
    * Provides some of the environment required to run this effect, leaving the
    * remainder `R0`.
    */
-  def provideSome[R0](f: ZEnvironment[R0] => ZEnvironment[R]): ZSTM[R0, E, A] = ProvideSome(self, f)
+  def contramap[R0](f: ZEnvironment[R0] => ZEnvironment[R]): ZSTM[R0, E, A] = Contramap(self, f)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -908,14 +908,14 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
           contStack.push(onRetry)
           curr = onRetry.stm
 
-        case Tags.ProvideSome =>
-          val provideSome = curr.asInstanceOf[ProvideSome[Any, Any, Any, Any]]
+        case Tags.Contramap =>
+          val contramap = curr.asInstanceOf[Contramap[Any, Any, Any, Any]]
 
-          envStack.push(provideSome.f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]](envStack.peek()))
+          envStack.push(contramap.f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]](envStack.peek()))
 
           val cleanup = ZSTM.succeed(envStack.pop())
 
-          curr = provideSome.effect.ensuring(cleanup).asInstanceOf[Erased]
+          curr = contramap.effect.ensuring(cleanup).asInstanceOf[Erased]
 
         case Tags.SucceedNow =>
           val a = curr.asInstanceOf[SucceedNow[Any]].a
@@ -1704,14 +1704,14 @@ object ZSTM {
 
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
     def apply[R1 <: R with M](f: M => M)(implicit tag: Tag[M]): ZSTM[R1, E, A] =
-      self.provideSome(_.update(f))
+      self.contramap(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
-      self.provideSome(_.updateAt(key)(f))
+      self.contramap(_.updateAt(key)(f))
   }
 
   final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
@@ -1751,11 +1751,11 @@ object ZSTM {
     def tag: Int = Tags.OnSuccess
   }
 
-  private[stm] final case class ProvideSome[R1, R2, E, A](
+  private[stm] final case class Contramap[R1, R2, E, A](
     effect: ZSTM[R1, E, A],
     f: ZEnvironment[R2] => ZEnvironment[R1]
   ) extends ZSTM[R2, E, A] {
-    def tag: Int = Tags.ProvideSome
+    def tag: Int = Tags.Contramap
   }
 
   private[stm] final case class SucceedNow[A](a: A) extends ZSTM[Any, Nothing, A] {
@@ -1778,7 +1778,7 @@ object ZSTM {
       final val SucceedNow  = 2
       final val Succeed     = 3
       final val OnFailure   = 4
-      final val ProvideSome = 5
+      final val Contramap   = 5
       final val OnRetry     = 6
     }
 

@@ -330,7 +330,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Provides each test in this spec with its required environment
    */
   final def provideAll(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[Any, E, T] =
-    provideSome(_ => r)
+    contramap(_ => r)
 
   /**
    * Provides each test with the part of the environment that is not part of the
@@ -468,15 +468,15 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Uses the specified function to provide each test in this spec with part of
    * its required environment.
    */
-  final def provideSome[R0](
+  final def contramap[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[R0, E, T] =
     transform[R0, E, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
-      case ManagedCase(managed)        => ManagedCase(managed.provideSome(f))
+      case ManagedCase(managed)        => ManagedCase(managed.contramap(f))
       case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.provideSome(f), annotations)
+      case TestCase(test, annotations) => TestCase(test.contramap(f), annotations)
     }
 
   /**
@@ -745,14 +745,14 @@ object Spec extends SpecLowPriority {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): Spec[R1, E, T] =
-      self.provideSome(_.update(f))
+      self.contramap(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +T, Service](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): Spec[R1, E, T] =
-      self.provideSome(_.updateAt(key)(f))
+      self.contramap(_.updateAt(key)(f))
   }
 
   implicit final class ZSpecSyntax[Env, Err](private val self: ZSpec[Env, Err]) extends AnyVal {

@@ -2893,7 +2893,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Provides some of the environment required to run this effect, leaving the
    * remainder `R0`.
    */
-  final def provideSome[R0](
+  final def contramap[R0](
     env: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[R0, E, A] =
     ZStream.environment[R0].flatMap { r0 =>
@@ -5700,14 +5700,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): ZStream[R1, E, A] =
-      self.provideSome(_.update(f))
+      self.contramap(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZStream[R1, E, A] =
-      self.provideSome(_.updateAt(key)(f))
+      self.contramap(_.updateAt(key)(f))
   }
 
   /**

@@ -813,7 +813,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * eliminates its dependency on `R`.
    */
   def provideAll(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Managed[E, A] =
-    provideSome(_ => r)
+    contramap(_ => r)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -879,10 +879,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Provides some of the environment required to run this effect.
    */
-  def provideSome[R0](
+  def contramap[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
-    ZManaged(zio.provideSome(f))
+    ZManaged(zio.contramap(f))
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -1584,14 +1584,14 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
-      self.provideSome(_.update(f))
+      self.contramap(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZManaged[R1, E, A] =
-      self.provideSome(_.updateAt(key)(f))
+      self.contramap(_.updateAt(key)(f))
   }
 
   final class WhenManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
