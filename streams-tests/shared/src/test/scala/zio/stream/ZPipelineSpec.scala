@@ -139,6 +139,18 @@ object ZPipelineSpec extends ZIOBaseSpec {
             ZPipeline.splitOn("<>")(ZStream("abc<", ">abc")).runCollect
           )(equalTo(Chunk("abc", "abc")))
         }
+      ),
+      suite("take")(
+        test("it takes the correct number of elements") {
+          assertM(
+            ZPipeline.take(3)(ZStream(1, 2, 3, 4, 5)).runCollect
+          )(equalTo(Chunk(1, 2, 3)))
+        },
+        test("it takes all elements if n is larger than the ZStream") {
+          assertM(
+            ZPipeline.take(100)(ZStream(1, 2, 3, 4, 5)).runCollect
+          )(equalTo(Chunk(1, 2, 3, 4, 5)))
+        }
       )
     )
 
