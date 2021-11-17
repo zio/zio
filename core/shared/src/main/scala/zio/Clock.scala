@@ -173,7 +173,7 @@ trait Clock extends Serializable {
 object Clock extends ClockPlatformSpecific with Serializable {
 
   val any: ZServiceBuilder[Clock, Nothing, Clock] =
-    ZServiceBuilder.service[Clock](Tag[Clock], Tracer.newTrace)
+    ZServiceBuilder.service[Clock](Tag[Clock], IsNotIntersection[Clock], Tracer.newTrace)
 
   /**
    * Constructs a `Clock` service from a `java.time.Clock`.
@@ -186,7 +186,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   }
 
   val live: ServiceBuilder[Nothing, Clock] =
-    ZServiceBuilder.succeed[Clock](ClockLive)(Tag[Clock], Tracer.newTrace)
+    ZServiceBuilder.succeed[Clock](ClockLive)(Tag[Clock], IsNotIntersection[Clock], Tracer.newTrace)
 
   /**
    * An implementation of the `Clock` service backed by a `java.time.Clock`.

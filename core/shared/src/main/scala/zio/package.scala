@@ -117,5 +117,7 @@ package object zio
 
   trait IsNotIntersection[A]
 
-  object IsNotIntersection extends IsNotIntersectionVersionSpecific {}
+  object IsNotIntersection extends IsNotIntersectionVersionSpecific {
+    def apply[A: IsNotIntersection] = implicitly[IsNotIntersection[A]]
+  }
 }

@@ -49,7 +49,9 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function1ToServiceBuilderSyntax[A: Tag, B: Tag](self: A => B) {
+  implicit final class Function1ToServiceBuilderSyntax[A: Tag: IsNotIntersection, B: Tag](
+    self: A => B
+  ) {
 
     /**
      * Converts this function to a ServiceBuilder that depends upon its inputs.
@@ -79,7 +81,9 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function2ToServiceBuilderSyntax[A: Tag, B: Tag, C: Tag](self: (A, B) => C) {
+  implicit final class Function2ToServiceBuilderSyntax[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag](
+    self: (A, B) => C
+  ) {
 
     /**
      * Converts this function to a ServiceBuilder that depends upon its inputs.
@@ -113,7 +117,12 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function3ToServiceBuilderSyntax[A: Tag, B: Tag, C: Tag, D: Tag](self: (A, B, C) => D) {
+  implicit final class Function3ToServiceBuilderSyntax[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag
+  ](self: (A, B, C) => D) {
 
     /**
      * Converts this function to a ServiceBuilder that depends upon its inputs.
@@ -152,7 +161,13 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function4ToServiceBuilderSyntax[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag](
+  implicit final class Function4ToServiceBuilderSyntax[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag
+  ](
     self: (A, B, C, D) => E
   ) {
 
@@ -194,7 +209,14 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function5ToServiceBuilderSyntax[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag](
+  implicit final class Function5ToServiceBuilderSyntax[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag
+  ](
     self: (A, B, C, D, E) => F
   ) {
 
@@ -237,7 +259,15 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function6ToServiceBuilderSyntax[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag](
+  implicit final class Function6ToServiceBuilderSyntax[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag
+  ](
     self: (A, B, C, D, E, F) => G
   ) {
 
@@ -281,7 +311,16 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function7ToServiceBuilderSyntax[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag](
+  implicit final class Function7ToServiceBuilderSyntax[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag
+  ](
     self: (A, B, C, D, E, F, G) => H
   ) {
 
@@ -327,14 +366,14 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function8ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
     I: Tag
   ](
     self: (A, B, C, D, E, F, G, H) => I
@@ -383,16 +422,16 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function9ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I) => J
   ) {
@@ -441,17 +480,17 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function10ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J) => K
   ) {
@@ -501,18 +540,18 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function11ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K) => L
   ) {
@@ -563,19 +602,19 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function12ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L) => M
   ) {
@@ -626,19 +665,19 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
   implicit final class Function13ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
     N: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N
@@ -692,21 +731,21 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function14ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O
   ) {
@@ -766,22 +805,22 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function15ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P
   ) {
@@ -842,23 +881,23 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function16ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q
   ) {
@@ -920,24 +959,24 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function17ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R
   ) {
@@ -1000,25 +1039,25 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function18ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection,
+    S: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S
   ) {
@@ -1082,25 +1121,25 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function19ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection,
+    S: Tag: IsNotIntersection,
     T: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T
@@ -1166,26 +1205,26 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function20ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
-    T: Tag,
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection,
+    S: Tag: IsNotIntersection,
+    T: Tag: IsNotIntersection,
     U: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U
@@ -1252,28 +1291,28 @@ trait FunctionToServiceBuilderOps {
   }
 
   implicit final class Function21ToServiceBuilderSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
-    T: Tag,
-    U: Tag,
-    V: Tag
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection,
+    S: Tag: IsNotIntersection,
+    T: Tag: IsNotIntersection,
+    U: Tag: IsNotIntersection,
+    V: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V
   ) {

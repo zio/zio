@@ -99,22 +99,18 @@ object Random extends Serializable {
   }
 
   val any: ZServiceBuilder[Random, Nothing, Random] = {
-    ZServiceBuilder.service[Random](Tag[Random], Tracer.newTrace)
+    ZServiceBuilder.service[Random](Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
   }
 
   val live: ServiceBuilder[Nothing, Random] = {
-    ZServiceBuilder.succeed[Random](RandomLive)(Tag[Random], Tracer.newTrace)
+    ZServiceBuilder.succeed[Random](RandomLive)(Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
   }
 
   /**
    * Constructs a `Random` service from a `scala.util.Random`.
    */
-  val scalaRandom: ZServiceBuilder[scala.util.Random, Nothing, Random] = {
-    implicit val trace = Tracer.newTrace
-    (for {
-      random <- ZIO.service[scala.util.Random]
-    } yield RandomScala(random)).toServiceBuilder[Random]
-  }
+  val scalaRandom: ZServiceBuilder[scala.util.Random, Nothing, Random] =
+    ???
 
   private[zio] def nextDoubleBetweenWith(minInclusive0: => Double, maxExclusive0: => Double)(
     nextDouble: UIO[Double]

@@ -133,7 +133,7 @@ lazy val root = project
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))
-  .dependsOn(stacktracer)
+  .dependsOn(internalMacros, stacktracer)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
@@ -214,6 +214,17 @@ lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
 
 lazy val macrosTestsJVM = macrosTests.jvm
 lazy val macrosTestsJS  = macrosTests.js
+
+lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("internal-macros"))
+  .settings(stdSettings("zio-internal-macros"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
+
+lazy val internalMacrosJVM    = internalMacros.jvm.settings(dottySettings)
+lazy val internalMacrosJS     = internalMacros.js.settings(dottySettings)
+lazy val internalMacrosNative = internalMacros.native.settings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))

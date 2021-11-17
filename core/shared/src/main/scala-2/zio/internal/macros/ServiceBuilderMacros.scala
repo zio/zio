@@ -20,16 +20,6 @@ private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends Service
     injectBaseImpl[F, R0, R, E, A](serviceBuilder, "provideServices")
   }
 
-  def materializeIsNotIntersection[A: c.WeakTypeTag]: c.Expr[IsNotIntersection[A]] = {
-    val tpe = c.weakTypeOf[A]
-    tpe.dealias match {
-      case RefinedType(_, _) =>
-        c.abort(c.enclosingPosition, s"You must not use an intersection type, yet have provided: $tpe")
-      case _ =>
-        c.Expr[IsNotIntersection[A]](q"new _root_.zio.IsNotIntersection[$tpe] {}")
-    }
-  }
-
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
     c.Expr[List[String]](q"${getRequirements[R]}")
 
