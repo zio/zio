@@ -57,7 +57,7 @@ object System extends Serializable {
 
   val live: ServiceBuilder[Nothing, System] = {
     implicit val trace = Tracer.newTrace
-    ZServiceBuilder.succeed(SystemLive)
+    ZServiceBuilder.succeed[System](SystemLive)
   }
 
   object SystemLive extends System {

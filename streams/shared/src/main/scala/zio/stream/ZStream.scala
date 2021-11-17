@@ -5589,7 +5589,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZStream[R with Service, E, A] =
-      ZStream.fromZIO(ZIO.serviceWith(f))
+      ZStream.fromZIO(ZIO.serviceWith[Service](f))
   }
 
   final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {

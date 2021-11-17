@@ -590,7 +590,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   final def fromRandomSample[R <: Random, A](f: Random => UIO[Sample[R, A]])(implicit
     trace: ZTraceElement
   ): Gen[R, A] =
-    fromZIOSample(ZIO.serviceWith(f))
+    fromZIOSample(ZIO.serviceWith[Random](f))
 
   /**
    * Constructs a generator from an effect that constructs a value.

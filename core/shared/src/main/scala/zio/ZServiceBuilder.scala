@@ -276,7 +276,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def tapError[RIn1 <: RIn, E1 >: E](f: E => ZIO[RIn1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[RIn1, E1, ROut] =
-    catchAll(e => ZLayer.fromZIO(f(e) *> ZIO.fail(e)))
+    catchAll(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.fail(e)))
 
   /**
    * A named alias for `>>>`.
