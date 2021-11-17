@@ -16,15 +16,12 @@
 
 package zio
 
+import izumi.reflect.macrortti.LightTypeTag
+
 class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends Serializable { self =>
 
   def get[A >: R: Tag]: A =
-    unsafeGet(Tag[A]).fold {
-      throw new NoSuchElementException(s"No implementation of service ${Tag[A]} in ZEnvironment($map)")
-    } {
-      case r: A => r
-      case r    => throw new ClassCastException(s"Expected ${Tag[A]}, got ${r.getClass}")
-    }
+    unsafeGet(Tag[A].tag)
 
   def ++[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     union[R1](that)
@@ -38,7 +35,7 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
     new ZEnvironment(map + (Tag[A].tag -> a))
 
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): Option[V] =
-    unsafeGet(tag).get.asInstanceOf[Map[K, V]].get(k)
+    unsafeGet(tag.tag).asInstanceOf[Map[K, V]].get(k)
 
   def size: Int =
     map.size
@@ -52,14 +49,19 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
   def widen[R1](implicit ev: R <:< R1): ZEnvironment[R1] =
     new ZEnvironment(map)
 
-  private def unsafeGet(tag: Tag[_]): Option[Any] =
-    unsafeGetType(tag) orElse unsafeGetSubtype(tag)
+  def unsafeGet[A](tag: LightTypeTag): A =
+    (unsafeGetType(tag) orElse unsafeGetSubtype(tag)).fold {
+      throw new NoSuchElementException(s"No implementation of service ${tag} in ZEnvironment($map)")
+    } {
+      case r: A => r
+      case r    => throw new ClassCastException(s"Expected ${tag}, got ${r.getClass}")
+    }
 
-  private def unsafeGetType(tag: Tag[_]): Option[Any] =
-    map.get(tag.tag)
+  private def unsafeGetType(tag: LightTypeTag): Option[Any] =
+    map.get(tag)
 
-  private def unsafeGetSubtype(tag: Tag[_]): Option[Any] =
-    map.find { case (key, _) => key <:< tag.tag }.map(_._2)
+  private def unsafeGetSubtype(tag: LightTypeTag): Option[Any] =
+    map.find { case (key, _) => key <:< tag }.map(_._2)
 
   override def toString: String =
     s"ZEnvironment(${map.toString})"

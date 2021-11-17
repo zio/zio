@@ -3717,7 +3717,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the whole environment of the effect.
    */
   def environment[R](implicit trace: ZTraceElement): URIO[R, ZEnvironment[R]] =
-    ZFiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]]
+    ZIO.suspendSucceed(ZFiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
 
   /**
    * Retrieves the executor for this effect.
@@ -5110,7 +5110,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag](implicit trace: ZTraceElement): URIO[A, A] =
-    ZIO.access(_.get[A])
+    serviceWith(ZIO.succeedNow)
 
   /**
    * Accesses the service corresponding to the specified key in the environment.
@@ -5777,8 +5777,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](
       f: Service => ZIO[R, E, A]
-    )(implicit tag: Tag[Service], trace: ZTraceElement): ZIO[R with Service, E, A] =
-      ZIO.environment[Service].flatMap(environment => f(environment.get(tag)))
+    )(implicit tagged: Tag[Service], trace: ZTraceElement): ZIO[R with Service, E, A] = {
+      val tag = tagged.tag
+      ZIO.suspendSucceed {
+        ZFiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
+      }
+    }
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
