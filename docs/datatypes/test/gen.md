@@ -109,40 +109,40 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 
 ### Generating ZIO Values
 
-1. Successful effects
+1. Successful effects (`Gen.successes`):
 
   ```scala mdoc:compile-only
   val gen: Gen[Has[Random], UIO[Int]] = Gen.successes(Gen.int(-10, 10))
   ```
 
-2. Failed effects
+2. Failed effects (`Gen.failures`):
 
   ```scala mdoc:compile-only
   val gen: Gen[Has[Random] with Has[Sized], IO[String, Nothing]] = Gen.failures(Gen.string)
   ```
 
-3. Died effects
+3. Died effects (`Gen.died`):
 
   ```scala mdoc:compile-only
   val gen: Gen[Has[Random], UIO[Nothing]] = Gen.died(Gen.throwable)
   ```
 
-4. Cause values
+4. Cause values (`Gen.causes`):
 
   ```scala mdoc:compile-only
   val causes: Gen[Has[Random] with Has[Sized], Cause[String]] = 
     Gen.causes(Gen.string, Gen.throwable)
   ```
-5. Chained effects: A generator of effects that are the result of chaining the specified effect with itself a random number of times.
+5. Chained effects (`Gen.chined`, `Gen.chainedN`): A generator of effects that are the result of chaining the specified effect with itself a random number of times.
 
-Let's see some example of chained ZIO effects:
+  Let's see some example of chained ZIO effects:
 
   ```scala
   val effect1 = ZIO(2).flatMap(x => ZIO(x * 2))
   val effect2 = ZIO(1) *> ZIO(2)
   ```
 
-By using `Gen.chaned` or `Gen.chanedN` generator, we can create generators of chained effects:
+  By using `Gen.chaned` or `Gen.chanedN` generator, we can create generators of chained effects:
 
   ```scala mdoc:compile-only
   val chained : Gen[Has[Random] with Has[Sized], ZIO[Any, Nothing, Int]] = 
@@ -152,13 +152,23 @@ By using `Gen.chaned` or `Gen.chanedN` generator, we can create generators of ch
     Gen.chainedN(5)(Gen.successes(Gen.int))
   ```
 
-6. Concurrent effects: A generator of effects that are the result of applying concurrency combinators to the specified effect that are guaranteed not to change its value.
+6. Concurrent effects (`Gen.concurrent`): A generator of effects that are the result of applying concurrency combinators to the specified effect that are guaranteed not to change its value.
 
-  ```scala
-  val random  : Gen[Has[Random], UIO[Int]] = Gen.successes(Gen.int).flatMap(Gen.concurrent)
+  ```scala mdoc:compile-only
+  val random : Gen[Has[Random], UIO[Int]] = Gen.successes(Gen.int).flatMap(Gen.concurrent)
   val constant: Gen[Any, UIO[Int]]         = Gen.concurrent(ZIO(3))
   ```
+  
+7. Parallel effects (`Gen.parallel`): A generator of effects that are the result of applying parallelism combinators to the specified effect that are guaranteed not to change its value.
 
+  ```scala mdoc:compile-only
+  val random: Gen[Has[Random] with Has[Sized], UIO[String]] =
+    Gen.successes(Gen.string).flatMap(Gen.parallel)
+    
+  val constant: Gen[Any, UIO[String]] =
+    Gen.parallel(ZIO("Hello"))
+  ```
+  
 ### Generating Compound Types
 
 1. tuples
