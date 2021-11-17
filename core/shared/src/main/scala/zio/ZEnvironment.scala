@@ -112,7 +112,7 @@ final class ZEnvironment[+R] private (
           case None =>
             val services = self.map.collect {
               case (curTag, value) if taggedIsSubtype(curTag, tag) =>
-                self.cache = self.cache + (curTag -> value)
+                self.cache = self.cache + (tag -> value)
                 (curTag, value)
             }
             if (services.isEmpty) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
