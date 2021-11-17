@@ -109,23 +109,55 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 
 ### Generating ZIO Values
 
-1. successful effects
+1. Successful effects
 
-```scala mdoc:compile-only
-val gen: Gen[Has[Random], UIO[Int]] = Gen.successes(Gen.int(-10, 10))
-```
+  ```scala mdoc:compile-only
+  val gen: Gen[Has[Random], UIO[Int]] = Gen.successes(Gen.int(-10, 10))
+  ```
 
-2. failed effects
+2. Failed effects
 
-```scala mdoc:compile-only
-val gen: Gen[Has[Random] with Has[Sized], IO[String, Nothing]] = Gen.failures(Gen.string)
-```
+  ```scala mdoc:compile-only
+  val gen: Gen[Has[Random] with Has[Sized], IO[String, Nothing]] = Gen.failures(Gen.string)
+  ```
 
-3. died effects
+3. Died effects
 
-```scala mdoc:compile-only
-val gen: Gen[Has[Random], UIO[Nothing]] = Gen.died(Gen.throwable)
-```
+  ```scala mdoc:compile-only
+  val gen: Gen[Has[Random], UIO[Nothing]] = Gen.died(Gen.throwable)
+  ```
+
+4. Cause values
+
+  ```scala mdoc:compile-only
+  val causes: Gen[Has[Random] with Has[Sized], Cause[String]] = 
+    Gen.causes(Gen.string, Gen.throwable)
+  ```
+5. Chained effects: A generator of effects that are the result of chaining the specified effect with itself a random number of times.
+
+Let's see some example of chained ZIO effects:
+
+  ```scala
+  val effect1 = ZIO(2).flatMap(x => ZIO(x * 2))
+  val effect2 = ZIO(1) *> ZIO(2)
+  ```
+
+By using `Gen.chaned` or `Gen.chanedN` generator, we can create generators of chained effects:
+
+  ```scala mdoc:compile-only
+  val chained : Gen[Has[Random] with Has[Sized], ZIO[Any, Nothing, Int]] = 
+    Gen.chained(Gen.successes(Gen.int))
+    
+  val chainedN: Gen[Has[Random], ZIO[Any, Nothing, Int]] = 
+    Gen.chainedN(5)(Gen.successes(Gen.int))
+  ```
+
+6. Concurrent effects: A generator of effects that are the result of applying concurrency combinators to the specified effect that are guaranteed not to change its value.
+
+  ```scala
+  val random  : Gen[Has[Random], UIO[Int]] = Gen.successes(Gen.int).flatMap(Gen.concurrent)
+  val constant: Gen[Any, UIO[Int]]         = Gen.concurrent(ZIO(3))
+  ```
 
 ### Generating Compound Types
 
