@@ -651,7 +651,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                                innerReleaseMap
                                  .releaseAll(e, ExecutionStrategy.Sequential)
                                  .exit
-                                 .zipWith(cleanup(exitEA).provide(r1).exit)((l, r) => ZIO.done(l *> r))
+                                 .zipWith(cleanup(exitEA).provideAll(r1).exit)((l, r) => ZIO.done(l *> r))
                                  .flatten
                              }
           a <- ZIO.done(exitEA)
@@ -675,7 +675,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
           exitEA          <- ZManaged.currentReleaseMap.locally(innerReleaseMap)(restore(zio).exit.map(_.map(_._2)))
           releaseMapEntry <- outerReleaseMap.add { e =>
                                cleanup(exitEA)
-                                 .provide(r1)
+                                 .provideAll(r1)
                                  .exit
                                  .zipWith(innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential).exit)((l, r) =>
                                    ZIO.done(l *> r)
@@ -812,7 +812,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Provides the `ZManaged` effect with its required environment, which
    * eliminates its dependency on `R`.
    */
-  def provide(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Managed[E, A] =
+  def provideAll(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Managed[E, A] =
     provideSome(_ => r)
 
   /**
@@ -874,7 +874,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    ZManaged.suspend(serviceBuilder.build.map(_.upcast(ev)).flatMap(r => self.provide(r)))
+    ZManaged.suspend(serviceBuilder.build.map(_.upcast(ev)).flatMap(r => self.provideAll(r)))
 
   /**
    * Provides some of the environment required to run this effect.
@@ -1897,7 +1897,7 @@ object ZManaged extends ZManagedPlatformSpecific {
         r               <- ZIO.environment[R1]
         releaseMap      <- ZManaged.currentReleaseMap.get
         a               <- acquire
-        releaseMapEntry <- releaseMap.add(release(a, _).provide(r))
+        releaseMapEntry <- releaseMap.add(release(a, _).provideAll(r))
       } yield (releaseMapEntry, a)).uninterruptible
     }
 
@@ -2577,7 +2577,7 @@ object ZManaged extends ZManagedPlatformSpecific {
           r          <- ZIO.environment[R]
           releaseMap <- ZManaged.currentReleaseMap.get
           reserved   <- reservation
-          releaseKey <- releaseMap.addIfOpen(reserved.release(_).provide(r))
+          releaseKey <- releaseMap.addIfOpen(reserved.release(_).provideAll(r))
           finalizerAndA <- releaseKey match {
                              case Some(key) =>
                                restore(reserved.acquire)

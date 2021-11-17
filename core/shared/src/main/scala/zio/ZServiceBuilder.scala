@@ -293,7 +293,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def toRuntime(
     runtimeConfig: RuntimeConfig
   )(implicit ev: Any <:< RIn, trace: ZTraceElement): Managed[E, Runtime[ROut]] =
-    build.provide(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
+    build.provideAll(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
 
   /**
    * Updates one of the services output by this service builder.
@@ -345,7 +345,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
           memoMap
             .getOrElseMemoize(self)
             .flatMap(
-              r => memoMap.getOrElseMemoize(that).provide(r)(NeedsEnv.needsEnv, trace)
+              r => memoMap.getOrElseMemoize(that).provideAll(r)(NeedsEnv.needsEnv, trace)
             )
         )
       case ZServiceBuilder.ZipWith(self, that, f) =>

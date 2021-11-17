@@ -1444,7 +1444,7 @@ case class JournalLoggerLive(clock: Clock, journal: Journal) extends Logger {
       current <- clock.currentDateTime
       _ <- journal.append(s"$current--$line")
         .retry(Schedule.exponential(2.seconds))
-        .provide(ZEnvironment(clock))
+        .provideAll(ZEnvironment(clock))
         .orDie
     } yield ()
   }

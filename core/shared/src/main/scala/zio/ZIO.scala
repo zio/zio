@@ -446,7 +446,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       for {
         r     <- ZIO.environment[R with Clock]
         cache <- Ref.Synchronized.make[Option[(Long, Promise[E, A])]](None)
-      } yield (get(cache).provide(r), invalidate(cache))
+      } yield (get(cache).provideAll(r), invalidate(cache))
     }
 
   /**
@@ -1463,7 +1463,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Provides the `ZIO` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
-  final def provide(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): IO[E, A] =
+  final def provideAll(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): IO[E, A] =
     ZFiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
@@ -1525,7 +1525,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    ZIO.suspendSucceed(serviceBuilder.build.map(_.upcast(ev)).use(r => self.provide(r)))
+    ZIO.suspendSucceed(serviceBuilder.build.map(_.upcast(ev)).use(r => self.provideAll(r)))
 
   /**
    * Provides some of the environment required to run this effect.
@@ -1533,7 +1533,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideSome[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E, A] =
-    ZIO.accessZIO(r0 => self.provide(f(r0)))
+    ZIO.accessZIO(r0 => self.provideAll(f(r0)))
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -4934,8 +4934,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * This is similar to dependency injection, and the `provide` function can be
    * thought of as `inject`.
    */
-  def provide[R, E, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): ZIO[R, E, A] => IO[E, A] =
-    _.provide(r)
+  def provideAll[R, E, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): ZIO[R, E, A] => IO[E, A] =
+    _.provideAll(r)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the

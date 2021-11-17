@@ -12,7 +12,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
     implicit val trace: ZTraceElement = ZTraceElement.empty
     runtime.unsafeRun {
       (for {
-        fiber <- invoke(Chunk.fromIterable(args0)).provide(runtime.environment).fork
+        fiber <- invoke(Chunk.fromIterable(args0)).provideAll(runtime.environment).fork
         _ <-
           IO.succeed(Platform.addShutdownHook { () =>
             if (!shuttingDown.getAndSet(true)) {

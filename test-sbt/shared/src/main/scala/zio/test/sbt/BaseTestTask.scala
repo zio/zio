@@ -39,7 +39,7 @@ abstract class BaseTestTask(
     for {
       spec   <- spec.runSpec(FilteredSpec(spec.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
-      _      <- sendSummary.provide(ZEnvironment(summary))
+      _      <- sendSummary.provideAll(ZEnvironment(summary))
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _      <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
     } yield ()

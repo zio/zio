@@ -462,7 +462,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Creates a pipeline that provides the specified environment.
    */
-  def provide[Env](
+  def provideAll[Env](
     env: ZEnvironment[Env]
   ): ZPipeline.WithOut[
     Env,
@@ -482,7 +482,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       def apply[Env1 >: Env, Err, In](stream: ZStream[Env1, Err, In])(implicit
         trace: ZTraceElement
       ): ZStream[Any, Err, In] =
-        stream.provide(env)
+        stream.provideAll(env)
     }
 
   /**

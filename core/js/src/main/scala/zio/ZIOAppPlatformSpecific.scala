@@ -12,7 +12,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
     implicit val trace = Tracer.newTrace
     runtime.unsafeRunAsync {
       invoke(Chunk.fromIterable(args0))
-        .provide(runtime.environment)
+        .provideAll(runtime.environment)
         .tapErrorCause(ZIO.logErrorCause(_))
         .exitCode
         .tap(exit)

@@ -556,7 +556,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Provides the transaction its required environment, which eliminates its
    * dependency on `R`.
    */
-  def provide(r: ZEnvironment[R]): STM[E, A] =
+  def provideAll(r: ZEnvironment[R]): STM[E, A] =
     provideSome(_ => r)
 
   /**

@@ -91,7 +91,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Returns an effect that models execution of this spec.
    */
   final def execute(defExec: ExecutionStrategy)(implicit trace: ZTraceElement): ZManaged[R, Nothing, Spec[Any, E, T]] =
-    ZManaged.accessManaged(provide(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
+    ZManaged.accessManaged(provideAll(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
 
   /**
    * Determines if any node in the spec is satisfied by the given predicate.
@@ -329,7 +329,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Provides each test in this spec with its required environment
    */
-  final def provide(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[Any, E, T] =
+  final def provideAll(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[Any, E, T] =
     provideSome(_ => r)
 
   /**
@@ -456,10 +456,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideServicesShared(serviceBuilder))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideServicesShared(serviceBuilder))
       case ManagedCase(managed) =>
-        Spec.managed(serviceBuilder.build.flatMap(r => managed.map(_.provide(r.upcast(ev))).provide(r.upcast(ev))))
+        Spec.managed(serviceBuilder.build.flatMap(r => managed.map(_.provideAll(r.upcast(ev))).provideAll(r.upcast(ev))))
       case MultipleCase(specs) =>
         Spec.managed(
-          serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provide(r.upcast(ev)))))
+          serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provideAll(r.upcast(ev)))))
         )
       case TestCase(test, annotations) => Spec.test(test.provideServices(serviceBuilder), annotations)
     }

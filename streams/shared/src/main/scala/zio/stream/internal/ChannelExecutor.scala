@@ -205,7 +205,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             currentChannel = effect()
 
           case ZChannel.Effect(zio) =>
-            val pzio = (if (providedEnv == null) zio else zio.provide(providedEnv.asInstanceOf[ZEnvironment[Env]]))
+            val pzio = (if (providedEnv == null) zio else zio.provideAll(providedEnv.asInstanceOf[ZEnvironment[Env]]))
               .asInstanceOf[ZIO[Env, OutErr, OutDone]]
 
             result = ChannelState.Effect(

@@ -1191,8 +1191,8 @@ object URIO {
    * @see
    *   [[zio.ZIO.provide]]
    */
-  def provide[R, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): URIO[R, A] => UIO[A] =
-    ZIO.provide(r)
+  def provideAll[R, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): URIO[R, A] => UIO[A] =
+    ZIO.provideAll(r)
 
   /**
    * @see

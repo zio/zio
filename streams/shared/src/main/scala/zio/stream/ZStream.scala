@@ -2822,8 +2822,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Provides the stream with its required environment, which eliminates its
    * dependency on `R`.
    */
-  final def provide(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[Any, E, A] =
-    new ZStream(channel.provide(r))
+  final def provideAll(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[Any, E, A] =
+    new ZStream(channel.provideAll(r))
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -2886,7 +2886,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
     new ZStream(ZChannel.managed(serviceBuilder.build) { r =>
-      self.channel.provide(r.upcast(ev))
+      self.channel.provideAll(r.upcast(ev))
     })
 
   /**
@@ -2897,7 +2897,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     env: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[R0, E, A] =
     ZStream.environment[R0].flatMap { r0 =>
-      self.provide(env(r0))
+      self.provideAll(env(r0))
     }
 
   /**

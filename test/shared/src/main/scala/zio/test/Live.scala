@@ -42,7 +42,7 @@ object Live {
       .access[ZEnv] { zenv =>
         new Live {
           def provide[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): IO[E, A] =
-            zio.provide(zenv)
+            zio.provideAll(zenv)
         }
       }
       .toServiceBuilder
@@ -62,5 +62,5 @@ object Live {
   def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
   )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
-    ZIO.environment[R].flatMap(r => live(f(zio.provide(r))))
+    ZIO.environment[R].flatMap(r => live(f(zio.provideAll(r))))
 }

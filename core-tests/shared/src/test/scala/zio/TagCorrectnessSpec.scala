@@ -86,13 +86,13 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
               }
             }
 
-          def provide[A: Tag, D <: Container[A]: Tag]: ZIO[ContainerProvider[A, D], Throwable, D] =
+          def provideAll[A: Tag, D <: Container[A]: Tag]: ZIO[ContainerProvider[A, D], Throwable, D] =
             ZIO.accessZIO(_.get.provide)
         }
 
         ZIO
           .accessZIO[ContainerProvider[Int, Container[Int]]] { _ =>
-            ContainerProvider.provide[Int, Container[Int]]
+            ContainerProvider.provideAll[Int, Container[Int]]
           }
           .inject(ContainerProvider.layer[Int, Container[Int]](new Container(10)))
           .either
