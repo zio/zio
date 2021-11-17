@@ -13,8 +13,8 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
     ({ type OutEnv[Env] = Env })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ]] =
-    if (TestPlatform.isJVM) List(TestAspect.timeout(120.seconds))
-    else List(TestAspect.sequential, TestAspect.timeout(120.seconds))
+    if (TestPlatform.isJVM) List(TestAspect.timeout(240.seconds))
+    else List(TestAspect.sequential, TestAspect.timeout(240.seconds))
 
   override def runner: TestRunner[Environment, Any] =
     defaultTestRunner.withRuntimeConfig(self =>
