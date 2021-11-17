@@ -177,7 +177,7 @@ object ZEnvironment {
    * Constructs a new environment holding the specified services. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection, D: Tag, E: Tag](
+  def apply[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection, D: Tag: IsNotIntersection, E: Tag: IsNotIntersection](
     a: A,
     b: B,
     c: C,

@@ -19,7 +19,7 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait FunctionToServiceBuilderOps {
-  implicit final class Function0ToServiceBuilderSyntax[A: Tag](self: () => A) {
+  implicit final class Function0ToServiceBuilderSyntax[A: Tag: IsNotIntersection](self: () => A) {
 
     /**
      * Converts this function to a ServiceBuilder.
@@ -49,7 +49,7 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function1ToServiceBuilderSyntax[A: Tag: IsNotIntersection, B: Tag](
+  implicit final class Function1ToServiceBuilderSyntax[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](
     self: A => B
   ) {
 
@@ -81,7 +81,7 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function2ToServiceBuilderSyntax[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag](
+  implicit final class Function2ToServiceBuilderSyntax[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](
     self: (A, B) => C
   ) {
 
@@ -121,7 +121,7 @@ trait FunctionToServiceBuilderOps {
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
-    D: Tag
+    D: Tag: IsNotIntersection
   ](self: (A, B, C) => D) {
 
     /**
@@ -166,7 +166,7 @@ trait FunctionToServiceBuilderOps {
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
     D: Tag: IsNotIntersection,
-    E: Tag
+    E: Tag: IsNotIntersection
   ](
     self: (A, B, C, D) => E
   ) {
@@ -215,7 +215,7 @@ trait FunctionToServiceBuilderOps {
     C: Tag: IsNotIntersection,
     D: Tag: IsNotIntersection,
     E: Tag: IsNotIntersection,
-    F: Tag
+    F: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E) => F
   ) {
@@ -266,7 +266,7 @@ trait FunctionToServiceBuilderOps {
     D: Tag: IsNotIntersection,
     E: Tag: IsNotIntersection,
     F: Tag: IsNotIntersection,
-    G: Tag
+    G: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F) => G
   ) {
@@ -319,7 +319,7 @@ trait FunctionToServiceBuilderOps {
     E: Tag: IsNotIntersection,
     F: Tag: IsNotIntersection,
     G: Tag: IsNotIntersection,
-    H: Tag
+    H: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G) => H
   ) {
@@ -374,7 +374,7 @@ trait FunctionToServiceBuilderOps {
     F: Tag: IsNotIntersection,
     G: Tag: IsNotIntersection,
     H: Tag: IsNotIntersection,
-    I: Tag
+    I: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H) => I
   ) {
@@ -678,7 +678,7 @@ trait FunctionToServiceBuilderOps {
     K: Tag: IsNotIntersection,
     L: Tag: IsNotIntersection,
     M: Tag: IsNotIntersection,
-    N: Tag
+    N: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N
   ) {
@@ -871,7 +871,7 @@ trait FunctionToServiceBuilderOps {
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[P1 >: P: Tag](implicit
+    def toLayer[P1 >: P: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
@@ -912,7 +912,7 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[Q1 >: Q: Tag](implicit
+    def toServiceBuilder[Q1 >: Q: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
@@ -949,7 +949,7 @@ trait FunctionToServiceBuilderOps {
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[Q1 >: Q: Tag](implicit
+    def toLayer[Q1 >: Q: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
@@ -991,7 +991,7 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[R1 >: R: Tag](implicit
+    def toServiceBuilder[R1 >: R: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
@@ -1029,7 +1029,7 @@ trait FunctionToServiceBuilderOps {
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[R1 >: R: Tag](implicit
+    def toLayer[R1 >: R: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
@@ -1072,7 +1072,7 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[S1 >: S: Tag](implicit
+    def toServiceBuilder[S1 >: S: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
@@ -1111,7 +1111,7 @@ trait FunctionToServiceBuilderOps {
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[S1 >: S: Tag](implicit
+    def toLayer[S1 >: S: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
@@ -1140,7 +1140,7 @@ trait FunctionToServiceBuilderOps {
     Q: Tag: IsNotIntersection,
     R: Tag: IsNotIntersection,
     S: Tag: IsNotIntersection,
-    T: Tag
+    T: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T
   ) {
@@ -1155,7 +1155,7 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[T1 >: T: Tag](implicit
+    def toServiceBuilder[T1 >: T: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
@@ -1225,7 +1225,7 @@ trait FunctionToServiceBuilderOps {
     R: Tag: IsNotIntersection,
     S: Tag: IsNotIntersection,
     T: Tag: IsNotIntersection,
-    U: Tag
+    U: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U
   ) {
@@ -1240,7 +1240,7 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[U1 >: U: Tag](implicit
+    def toServiceBuilder[U1 >: U: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
@@ -1327,7 +1327,7 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[V1 >: V: Tag](implicit
+    def toServiceBuilder[V1 >: V: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
@@ -1369,7 +1369,7 @@ trait FunctionToServiceBuilderOps {
      * }}}
      */
     @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[V1 >: V: Tag](implicit
+    def toLayer[V1 >: V: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
     ): URServiceBuilder[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,

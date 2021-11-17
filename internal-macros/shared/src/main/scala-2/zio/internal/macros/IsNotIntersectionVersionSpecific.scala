@@ -1,10 +1,5 @@
 package zio.internal.macros
 
-// trait IsNotIntersectionVersionSpecific {
-//   implicit def materialize[A]: IsNotIntersection[A] =
-//     macro zio.internal.macros.InternalMacros.materializeIsNotIntersection[A]
-// }
-
 import scala.reflect.macros.blackbox
 
 class InternalMacros(val c: blackbox.Context) {
@@ -14,6 +9,13 @@ class InternalMacros(val c: blackbox.Context) {
     val tpe = c.weakTypeOf[A]
     val badTypes = Set(c.weakTypeOf[AnyRef], c.weakTypeOf[Any])
     tpe.widen.dealias match {
+      case x if x.typeSymbol.isParameter =>
+        try {
+          c.inferImplicitValue(x, silent = false)
+        } catch {
+          case e: Throwable =>
+            c.abort(c.enclosingPosition, s"Cannot find implicit for IsNotIntersection[$x]")
+        }
       case tpe : RefinedType if flattenRefinedType(tpe).filterNot(badTypes).distinct.length > 1 =>
         c.abort(c.enclosingPosition, s"You must not use an intersection type, yet have provided: $tpe")
       case _ =>

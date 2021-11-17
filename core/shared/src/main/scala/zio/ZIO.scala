@@ -312,7 +312,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Maps the success value of this effect to a service.
    */
   @deprecated("use toServiceBuilder", "2.0.0")
-  final def asService[A1 >: A: Tag](implicit trace: ZTraceElement): ZIO[R, E, ZEnvironment[A1]] =
+  final def asService[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZIO[R, E, ZEnvironment[A1]] =
     map(ZEnvironment[A1](_))
 
   /**
@@ -2386,7 +2386,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Constructs a service builder from this effect.
    */
-  final def toServiceBuilder[A1 >: A](implicit ev: Tag[A1], trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
+  final def toServiceBuilder[A1 >: A](implicit ev1: Tag[A1], ev2: IsNotIntersection[A1], trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
     ZServiceBuilder.fromZIO[R, E, A1](self)
 
   /**
@@ -2415,7 +2415,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Constructs a layer from this effect.
    */
   @deprecated("use toServiceBuilder", "2.0.0")
-  final def toLayer[A1 >: A](implicit ev: Tag[A1], trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
+  final def toLayer[A1 >: A](implicit ev1: Tag[A1], ev2: IsNotIntersection[A1], trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
     toServiceBuilder[A1]
 
   /**
