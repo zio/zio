@@ -552,7 +552,9 @@ class ZSink[-R, -InErr, -In, +OutErr, +L, +Z](val channel: ZChannel[R, InErr, Ch
    * Provides the sink with its required environment, which eliminates its
    * dependency on `R`.
    */
-  def provideAll(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZSink[Any, InErr, In, OutErr, L, Z] =
+  def provideAll(
+    r: ZEnvironment[R]
+  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZSink[Any, InErr, In, OutErr, L, Z] =
     new ZSink(channel.provideAll(r))
 }
 

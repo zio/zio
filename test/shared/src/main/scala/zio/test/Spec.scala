@@ -456,7 +456,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideServicesShared(serviceBuilder))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideServicesShared(serviceBuilder))
       case ManagedCase(managed) =>
-        Spec.managed(serviceBuilder.build.flatMap(r => managed.map(_.provideAll(r.upcast(ev))).provideAll(r.upcast(ev))))
+        Spec.managed(
+          serviceBuilder.build.flatMap(r => managed.map(_.provideAll(r.upcast(ev))).provideAll(r.upcast(ev)))
+        )
       case MultipleCase(specs) =>
         Spec.managed(
           serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provideAll(r.upcast(ev)))))
@@ -732,9 +734,7 @@ object Spec extends SpecLowPriority {
           )
         case MultipleCase(specs) =>
           Spec.managed(
-            serviceBuilder.build.map(r =>
-              Spec.multiple(specs.map(_.provideSome[R0](ZServiceBuilder.succeedMany(r))))
-            )
+            serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provideSome[R0](ZServiceBuilder.succeedMany(r)))))
           )
         case TestCase(test, annotations) =>
           Spec.test(test.provideSome(serviceBuilder), annotations)

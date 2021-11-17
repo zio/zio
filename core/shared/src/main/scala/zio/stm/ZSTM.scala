@@ -1773,13 +1773,13 @@ object ZSTM {
     val MaxRetries         = 10
 
     object Tags {
-      final val Effect      = 0
-      final val OnSuccess   = 1
-      final val SucceedNow  = 2
-      final val Succeed     = 3
-      final val OnFailure   = 4
-      final val Contramap   = 5
-      final val OnRetry     = 6
+      final val Effect     = 0
+      final val OnSuccess  = 1
+      final val SucceedNow = 2
+      final val Succeed    = 3
+      final val OnFailure  = 4
+      final val Contramap  = 5
+      final val OnRetry    = 6
     }
 
     class Versioned[A](val value: A) extends Serializable
