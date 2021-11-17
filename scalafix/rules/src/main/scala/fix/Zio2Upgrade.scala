@@ -165,7 +165,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     Map("run" -> "exit",
       "provideLayer" -> "provideServices",
       "provideSomeLayer" -> "provideSome",
-      "provideCustomLayer" -> "provideCustomServices",
+      "provideCustomLayer" -> "provideCustom",
     )
   )
 

@@ -1833,11 +1833,11 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       } @@ zioTag(errors)
     ),
-    suite("provideCustomServices")(
+    suite("provideCustom")(
       test("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]                    = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                                        = zio.provideCustomServices(loggingServiceBuilder)
+        val zio2: URIO[ZEnv, Unit]                                        = zio.provideCustom(loggingServiceBuilder)
         assertM(zio2)(anything)
       }
     ),

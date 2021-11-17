@@ -1640,7 +1640,7 @@ object ZIOSpec extends DefaultRunnableSpec {
       test("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomServices(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustom(loggingLayer)
         assertM(zio2)(anything)
       }
     ),

@@ -1031,10 +1031,10 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomServices(loggingServiceBuilder)
+   * val spec2 = spec.provideCustom(loggingServiceBuilder)
    * }}}
    */
-  def provideCustomServices[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
+  def provideCustom[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
     tagged: Tag[R],
     trace: ZTraceElement
   ): TestAspect.WithOut[
@@ -1057,10 +1057,10 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomServices(loggingServiceBuilder)
+   * val spec2 = spec.provideCustom(loggingServiceBuilder)
    * }}}
    */
-  def provideCustomServicesShared[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
+  def provideCustomShared[E, R](serviceBuilder: ZServiceBuilder[TestEnvironment, TestFailure[E], R])(implicit
     tagged: Tag[R],
     trace: ZTraceElement
   ): TestAspect.WithOut[

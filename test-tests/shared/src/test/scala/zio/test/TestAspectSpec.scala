@@ -234,12 +234,12 @@ object TestAspectSpec extends ZIOBaseSpec {
         time <- Clock.nanoTime
       } yield assert(time)(isGreaterThan(0L))
     } @@ provideServices(Clock.live),
-    test("provideCustomServices provides a test with part of its required environment") {
+    test("provideCustom provides a test with part of its required environment") {
       for {
         time <- Clock.nanoTime
         _    <- Random.nextInt
       } yield assert(time)(isGreaterThan(0L))
-    } @@ provideCustomServices(Clock.live),
+    } @@ provideCustom(Clock.live),
     test("repeats sets the number of times to repeat a test to the specified value") {
       for {
         ref   <- Ref.make(0)

@@ -11,13 +11,13 @@ object SpecSpec extends ZIOBaseSpec {
     ZServiceBuilder.succeed(())
 
   def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
-    suite("provideCustomServices")(
+    suite("provideCustom")(
       test("provides the part of the environment that is not part of the `TestEnvironment`") {
         for {
           _ <- ZIO.environment[TestEnvironment]
           _ <- ZIO.service[Unit]
         } yield assertCompletes
-      }.provideCustomServices(serviceBuilder)
+      }.provideCustom(serviceBuilder)
     ),
     suite("provideServices")(
       test("does not have early initialization issues") {
@@ -32,7 +32,7 @@ object SpecSpec extends ZIOBaseSpec {
           test("test") {
             assert(true)(isTrue)
           }
-        ).provideServicesShared(ZServiceBuilder.fromZIOMany(ZIO.dieMessage("everybody dies")))
+        ).provideServicesShared(ZServiceBuilder.fromZIOAll(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes
@@ -49,7 +49,7 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           ref           <- Ref.make(true)
           serviceBuilder = ZServiceBuilder.fromZIO(ref.set(false).as(ref))
-          _             <- execute(spec.provideCustomServicesShared(serviceBuilder) @@ ifEnvSet("foo"))
+          _             <- execute(spec.provideCustomShared(serviceBuilder) @@ ifEnvSet("foo"))
           result        <- ref.get
         } yield assert(result)(isTrue)
       },
@@ -144,7 +144,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomServicesShared(serviceBuilder),
+                   ).provideCustomShared(serviceBuilder),
                    suite("suite2")(
                      test("test1") {
                        assertM(update)(equalTo(1))
@@ -152,7 +152,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomServicesShared(serviceBuilder)
+                   ).provideCustomShared(serviceBuilder)
                  ) @@ sequential
           succeeded <- succeeded(spec)
           log       <- ref.get.map(_.reverse)
@@ -173,7 +173,7 @@ object SpecSpec extends ZIOBaseSpec {
                 }
               )
             )
-          ).provideCustomServicesShared(ZManaged.acquireReleaseWith(Ref.make(0))(_.set(-1)).toServiceBuilder)
+          ).provideCustomShared(ZManaged.acquireReleaseWith(Ref.make(0))(_.set(-1)).toServiceBuilder)
         assertM(succeeded(spec))(isTrue)
       }
     )

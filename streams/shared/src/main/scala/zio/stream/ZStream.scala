@@ -2837,7 +2837,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideCustomLayer(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomServices", "2.0.0")
+  @deprecated("use provideCustom", "2.0.0")
   def provideCustomLayer[E1 >: E, R1](
     layer: ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
@@ -2856,10 +2856,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideCustomServices(loggingServiceBuilder)
+   * val stream2 = stream.provideCustom(loggingServiceBuilder)
    * }}}
    */
-  def provideCustomServices[E1 >: E, R1](
+  def provideCustom[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,

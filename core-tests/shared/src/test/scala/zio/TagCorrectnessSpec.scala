@@ -66,7 +66,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
           }
 
         val layer = testBaseLayer[Any, String] >>> testSecondLayer[String]
-        ZIO.unit.provideCustomServices(layer).as(assertTrue(true))
+        ZIO.unit.provideCustom(layer).as(assertTrue(true))
       },
       // https://github.com/zio/zio/issues/3816
       test("Issue #3816") {

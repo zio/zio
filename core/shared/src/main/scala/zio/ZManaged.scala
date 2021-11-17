@@ -827,7 +827,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideCustomLayer(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomServices", "2.0.0")
+  @deprecated("use provideCustom", "2.0.0")
   final def provideCustomLayer[E1 >: E, R1](
     layer: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
@@ -835,7 +835,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
-    provideCustomServices(layer)
+    provideCustom(layer)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -846,10 +846,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideCustomServices(loggingServiceBuilder)
+   * val managed2 = managed.provideCustom(loggingServiceBuilder)
    * }}}
    */
-  final def provideCustomServices[E1 >: E, R1](
+  final def provideCustom[E1 >: E, R1](
     serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,

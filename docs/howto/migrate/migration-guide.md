@@ -814,11 +814,11 @@ val app: ZIO[Console, Nothing, Unit] =
   )
 ```
 
-In ZIO 1.x, the `ZIO#provideCustomServices` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
+In ZIO 1.x, the `ZIO#provideCustom` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
 
 ```scala mdoc:silent:nest
 val app: ZIO[zio.ZEnv, Nothing, Unit] = 
-  myApp.provideCustomServices(
+  myApp.provideCustom(
     ((Logging.live ++ Database.live ++ (Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       ((Logging.live ++ Database.live) >>> UserRepo.live)
   )
@@ -845,7 +845,7 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 |--------------------------------------------------------|----------------------------|
 | `ZIO#provide`                                          | `ZIO#inject`               |
 | `ZIO#provideSome`                              | `ZIO#injectSome`           |
-| `ZIO#provideCustomServices`                            | `ZIO#injectCustom`         |
+| `ZIO#provideCustom`                            | `ZIO#injectCustom`         |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wire`     |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wireSome` |
 

@@ -1478,7 +1478,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val zio2 = zio.provideCustomLayer(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomServices", "2.0.0")
+  @deprecated("use provideCustom", "2.0.0")
   final def provideCustomLayer[E1 >: E, R1](
     layer: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
@@ -1486,7 +1486,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZIO[ZEnv, E1, A] =
-    provideCustomServices(layer)
+    provideCustom(layer)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -1497,10 +1497,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
    *
-   * val zio2 = zio.provideCustomServices(loggingServiceBuilder)
+   * val zio2 = zio.provideCustom(loggingServiceBuilder)
    * }}}
    */
-  final def provideCustomServices[E1 >: E, R1](
+  final def provideCustom[E1 >: E, R1](
     serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,

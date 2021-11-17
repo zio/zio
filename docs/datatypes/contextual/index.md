@@ -460,7 +460,7 @@ val mainEffect: ZIO[Random with Clock, Nothing, Unit] =
 >
 > When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
 
-#### Using `provideCustomServices` Method
+#### Using `provideCustom` Method
 
 `ZEnv` is a convenient type alias that provides several built-in ZIO services that are useful in most applications.
 
@@ -468,7 +468,7 @@ Sometimes we have written a program that contains ZIO built-in services and some
 
  As `ZEnv` provides us the implementation of built-in services, we just need to provide service builders for those services that are not part of the `ZEnv`. 
 
-`ZIO#provideCustomServices` helps us to do so and returns an effect that only depends on `ZEnv`.
+`ZIO#provideCustom` helps us to do so and returns an effect that only depends on `ZEnv`.
 
 Let's write an effect that has some built-in services and also has a `Logging` service:
 
@@ -504,8 +504,8 @@ val myApp: ZIO[Logging with Console with Clock, Nothing, Unit] = for {
 
 This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
 
-By using `ZIO#provideCustomServices` we only provide the `Logging` service builder, and it returns a `ZIO` effect which only requires `ZEnv`:
+By using `ZIO#provideCustom` we only provide the `Logging` service builder, and it returns a `ZIO` effect which only requires `ZEnv`:
 
 ```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomServices(LoggingLive.serviceBuilder)
+val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustom(LoggingLive.serviceBuilder)
 ```

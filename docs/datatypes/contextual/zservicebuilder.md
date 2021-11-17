@@ -704,7 +704,7 @@ object ZServiceBuilderApp1 extends scala.App {
 
   val env = (ModuleA.live ++ ModuleB.live ++ ZServiceBuilder.environment[Clock]) >>> ModuleC.live
 
-  val res = ModuleC.foo.provideCustomServices(env)
+  val res = ModuleC.foo.provideCustom(env)
 
   val out = rt.unsafeRun(res)
   println(out)

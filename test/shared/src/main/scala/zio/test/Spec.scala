@@ -345,13 +345,13 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideCustomLayer(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomServices", "2.0.0")
+  @deprecated("use provideCustom", "2.0.0")
   def provideCustomLayer[E1 >: E, R1](layer: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): Spec[TestEnvironment, E1, T] =
-    provideCustomServices(layer)
+    provideCustom(layer)
 
   /**
    * Provides all tests with a shared version of the part of the environment
@@ -366,7 +366,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideCustomLayerShared(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomServicesShared", "2.0.0")
+  @deprecated("use provideCustomShared", "2.0.0")
   def provideCustomLayerShared[E1 >: E, R1](layer: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
@@ -384,10 +384,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomServices(loggingServiceBuilder)
+   * val spec2 = spec.provideCustom(loggingServiceBuilder)
    * }}}
    */
-  def provideCustomServices[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
+  def provideCustom[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
@@ -404,10 +404,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomServicesShared(loggingServiceBuilder)
+   * val spec2 = spec.provideCustomShared(loggingServiceBuilder)
    * }}}
    */
-  def provideCustomServicesShared[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
+  def provideCustomShared[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement

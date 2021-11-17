@@ -50,7 +50,7 @@ object ZIORedisExample extends zio.App {
     Logging.ignore ++ ZServiceBuilder.succeed(RedisConfig.Default) ++ ZServiceBuilder.succeed(StringUtf8Codec) >>> RedisExecutor.live
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideCustomServices(serviceBuilder).exitCode
+    myApp.provideCustom(serviceBuilder).exitCode
 }
 ```
 
