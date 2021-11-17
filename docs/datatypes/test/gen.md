@@ -72,6 +72,41 @@ In the companion object of the `Gen` data type, there are tons of generators for
 * `Gen.functionWith` — Gen[R, B] => (A => Int) => Gen[R, A => B]
 * `Gen.functionWith` — Gen[R, B] => ((A, B) => Int) => Gen[R, (A, B) => C]
 
+Let's write a test for `ZIO.foldLeft` operator. This operator has the following signature:
+
+```scala
+def foldLeft[R, E, S, A](in: => Iterable[A])(zero: => S)(f: (S, A) => ZIO[R, E, S]): ZIO[R, E, S]
+```
+
+We want to test the following property:
+
+```scala
+∀ (in, zero, f) => ZIO.foldLeft(in)(zero)(f) == ZIO(List.foldLeft(in)(zero)(f))
+```
+
+To test this property, we have an input of type `(Int, Int) => Int`. So we need a Function2 generator of integers:
+
+```scala mdoc:silent
+val func2: Gen[Has[Random], (Int, Int) => Int] = Gen.function2(Gen.int)
+```
+
+Now we can test this property:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+test("ZIO.foldLeft should have the same result with List.foldLeft") {
+  check(Gen.listOf(Gen.int), Gen.int, func2) { case (in, zero, f) =>
+    assertM(
+      ZIO.foldLeft(in)(zero)((s, a) => ZIO(f(s, a)))
+    )(Assertion.equalTo(
+      in.foldLeft(zero)((s, a) => f(s, a)))
+    )
+  }
+}
+```
+
 ### Generating ZIO Values
 
 1. successful effects
