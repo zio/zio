@@ -36,7 +36,7 @@ import scala.annotation.implicitNotFound
  *
  *   object FooService extends Accessible[FooService]
  *
- *   val example: ZIO[Has[FooService], Nothing, Unit] =
+ *   val example: ZIO[FooService, Nothing, Unit] =
  *     for {
  *       int  <- FooService(_.magicNumber)
  *       bool <- FooService(_.castSpell("Oogabooga!"))
@@ -46,7 +46,7 @@ import scala.annotation.implicitNotFound
 trait Accessible[R] {
   def apply[R0, E, A](
     f: R => ZIO[R0, E, A]
-  )(implicit tag: Tag[R], isAny: IsAny[R0], trace: ZTraceElement): ZIO[Has[R], E, A] =
+  )(implicit tag: Tag[R], isAny: IsAny[R0], trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.serviceWith[R](f.asInstanceOf[R => ZIO[Any, E, A]])
 }
 

@@ -7,9 +7,9 @@ import zio.test._
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  def spec: Spec[Has[Random] with Has[TestClock] with Has[TestConsole] with Has[TestRandom] with Has[
-    TestSystem
-  ] with Has[Annotations], TestFailure[Any], TestSuccess] = suite("ZChannelSpec")(
+  def spec: Spec[Random with TestClock with TestConsole with TestRandom with TestSystem with Annotations, TestFailure[
+    Any
+  ], TestSuccess] = suite("ZChannelSpec")(
     suite("interpreter")(
       test("ZChannel.succeed") {
         for {
@@ -561,40 +561,40 @@ object ZChannelSpec extends ZIOBaseSpec {
         test("simple provide") {
           assertM(
             ZChannel
-              .fromZIO(ZIO.environment[Int])
-              .provide(100)
+              .fromZIO(ZIO.service[Int])
+              .provide(ZEnvironment(100))
               .run
           )(equalTo(100))
         },
         test("provide <*> provide") {
           assertM(
-            (ZChannel.fromZIO(ZIO.environment[Int]).provide(100) <*>
-              ZChannel.fromZIO(ZIO.environment[Int]).provide(200)).run
+            (ZChannel.fromZIO(ZIO.service[Int]).provide(ZEnvironment(100)) <*>
+              ZChannel.fromZIO(ZIO.service[Int]).provide(ZEnvironment(200))).run
           )(equalTo((100, 200)))
         },
         test("concatMap(provide).provide") {
           assertM(
             (ZChannel
-              .fromZIO(ZIO.environment[Int])
+              .fromZIO(ZIO.service[Int])
               .emitCollect
               .mapOut(_._2)
               .concatMap(n =>
                 ZChannel
-                  .fromZIO(ZIO.environment[Int].map(m => (n, m)))
-                  .provide(200)
+                  .fromZIO(ZIO.service[Int].map(m => (n, m)))
+                  .provide(ZEnvironment(200))
                   .flatMap(ZChannel.write)
               )
-              .provide(100))
+              .provide(ZEnvironment(100)))
               .runCollect
           )(equalTo((Chunk((100, 200)), ())))
         },
         test("provide is modular") {
           assertM(
             (for {
-              v1 <- ZChannel.fromZIO(ZIO.environment[Int])
-              v2 <- ZChannel.fromZIO(ZIO.environment[Int]).provide(2)
-              v3 <- ZChannel.fromZIO(ZIO.environment[Int])
-            } yield (v1, v2, v3)).runDrain.provide(4)
+              v1 <- ZChannel.fromZIO(ZIO.service[Int])
+              v2 <- ZChannel.fromZIO(ZIO.service[Int]).provide(ZEnvironment(2))
+              v3 <- ZChannel.fromZIO(ZIO.service[Int])
+            } yield (v1, v2, v3)).runDrain.provide(ZEnvironment(4))
           )(equalTo((4, 2, 4)))
         }
       )

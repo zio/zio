@@ -31,7 +31,7 @@ trait MockSpecUtils[R] {
     mock: UServiceBuilder[R],
     app: ZIO[R, E, A],
     check: Assertion[Option[A]]
-  ): ZSpec[Has[Live], E] = test(name) {
+  ): ZSpec[Live, E] = test(name) {
     val result =
       Live.live {
         mock.build

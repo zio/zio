@@ -47,7 +47,7 @@ trait Event
 ```scala mdoc:silent
 import zio._
 
-def processEvent(event: Event): URIO[Has[Console], Unit] =
+def processEvent(event: Event): URIO[Console, Unit] =
   Console.printLine(s"Got $event").orDie
 ```
 
@@ -60,7 +60,7 @@ With ZIO, we've regained to ability to reason about the effects called. We know 
 However, the same method could be implemented as:
 
 ```scala mdoc:silent
-def processEvent2(event: Event): URIO[Has[Console], Unit] =
+def processEvent2(event: Event): URIO[Console, Unit] =
   ZIO.unit
 ```
 
@@ -85,7 +85,7 @@ We'll be assuming you've read about modules and service builders in the [context
 import zio.stream.{ ZSink, ZStream }
 import zio.test.mock._
 
-type Example = Has[Example.Service]
+type Example = Example.Service
 
 object Example {
   trait Service {
@@ -124,11 +124,11 @@ object ExampleMock extends Mock[Example] {
   object Sink     extends Sink[Any, String, Int, String, Int, List[Int]]
   object Stream   extends Stream[Any, String, Int]
 
-  val compose: URServiceBuilder[Has[Proxy], Example] = ???
+  val compose: URServiceBuilder[Proxy, Example] = ???
 }
 ```
 
-A _capability tag_ is just a value which extends the `zio.test.mock.Capability[R <: Has[_], I, E, A]` type constructor, where:
+A _capability tag_ is just a value which extends the `zio.test.mock.Capability[R, I, E, A]` type constructor, where:
 - `R` is the type of environment the method belongs to
 - `I` is the type of methods input arguments
 - `E` is the type of error it can fail with
@@ -154,7 +154,7 @@ def withRuntime[R]: URIO[R, Runtime[R]] = ???
 ```scala mdoc:silent
 import ExampleMock._
 
-val compose: URServiceBuilder[Has[Proxy], Example] =
+val compose: URServiceBuilder[Proxy, Example] =
   ZIO.serviceWith[Proxy] { proxy =>
     withRuntime[Any].map { rts =>
       new Example.Service {
@@ -194,7 +194,7 @@ trait AccountEvent
 import zio._
 import zio.test.mock._
 
-type AccountObserver = Has[AccountObserver.Service]
+type AccountObserver = AccountObserver.Service
 
 object AccountObserver {
   trait Service {
@@ -208,7 +208,7 @@ object AccountObserver {
   def runCommand() =
     ZIO.accessZIO[AccountObserver](_.get.runCommand())
 
-  val live: ZServiceBuilder[Has[Console], Nothing, AccountObserver] =
+  val live: ZServiceBuilder[Console, Nothing, AccountObserver] =
     { (console: Console) =>
       new Service {
         def processEvent(event: AccountEvent): UIO[Unit] =
@@ -233,7 +233,7 @@ object AccountObserverMock extends Mock[AccountObserver] {
   object ProcessEvent extends Effect[AccountEvent, Nothing, Unit]
   object RunCommand   extends Effect[Unit, Nothing, Unit]
 
-  val compose: URServiceBuilder[Has[Proxy], AccountObserver] =
+  val compose: URServiceBuilder[Proxy, AccountObserver] =
     ZIO.service[Proxy].map { proxy =>
       new AccountObserver.Service {
         def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
@@ -264,10 +264,10 @@ object Example {
     def singleArg(arg1: Int): UIO[String]
   }
 }
-object ExampleMock extends Mock[Has[Example.Service]] {
+object ExampleMock extends Mock[Example.Service] {
   object ZeroArgs  extends Effect[Unit, Nothing, Int]
   object SingleArg extends Effect[Int, Nothing, String]
-  val compose: URServiceBuilder[Has[Proxy], Has[Example.Service]] =
+  val compose: URServiceBuilder[Proxy, Example.Service] =
     ZIO.service[Proxy].map { proxy =>
       new Example.Service {
         def zeroArgs             = proxy(ZeroArgs)
@@ -329,7 +329,7 @@ import zio.test._
 
 val event = new AccountEvent {}
 val app: URIO[AccountObserver, Unit] = AccountObserver.processEvent(event)
-val mockEnv: UServiceBuilder[Has[Console]] = (
+val mockEnv: UServiceBuilder[Console] = (
   MockConsole.PrintLine(equalTo(s"Got $event"), unit) ++
   MockConsole.ReadLine(value("42")) ++
   MockConsole.PrintLine(equalTo("You entered: 42"), unit)
@@ -385,7 +385,7 @@ In some cases we have more than one collaborating service being called. You can 
 ```scala mdoc:silent
 import zio.test.mock.MockRandom
 
-val combinedEnv: UServiceBuilder[Has[Console] with Has[Random]] = (
+val combinedEnv: UServiceBuilder[Console with Random] = (
   MockConsole.PrintLine(equalTo("What is your name?"), unit) ++
   MockConsole.ReadLine(value("Mike")) ++
   MockRandom.NextInt(value(42)) ++
@@ -410,7 +410,7 @@ Mocking polymorphic methods is also supported, but the interface must require `z
 
 ```scala mdoc:silent
 // main sources
-type PolyExample = Has[PolyExample.Service]
+type PolyExample = PolyExample.Service
 
 object PolyExample {
   trait Service {
@@ -435,7 +435,7 @@ object PolyExampleMock extends Mock[PolyExample] {
   object PolyOutput extends Poly.Effect.Output[Int, Throwable]
   object PolyAll    extends Poly.Effect.InputErrorOutput
 
-  val compose: URServiceBuilder[Has[Proxy], PolyExample] =
+  val compose: URServiceBuilder[Proxy, PolyExample] =
     ZIO.serviceWith[Proxy] { proxy =>
       withRuntime[Any].map { rts =>
         new PolyExample.Service {

@@ -50,7 +50,7 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
    * val managed2 = managed.injectSome[Random](clockServiceBuilder)
    * }}}
    */
-  def injectSome[R0 <: Has[_]]: ProvideSomeServiceBuilderManagedPartiallyApplied[R0, R, E, A] =
+  def injectSome[R0]: ProvideSomeServiceBuilderManagedPartiallyApplied[R0, R, E, A] =
     new ProvideSomeServiceBuilderManagedPartiallyApplied[R0, R, E, A](self)
 
   /**
@@ -61,7 +61,7 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
 
 }
 
-private final class ProvideSomeServiceBuilderManagedPartiallyApplied[R0 <: Has[_], -R, +E, +A](
+private final class ProvideSomeServiceBuilderManagedPartiallyApplied[R0, -R, +E, +A](
   val self: ZManaged[R, E, A]
 ) extends AnyVal {
 
@@ -76,11 +76,11 @@ private final class ProvideSomeServiceBuilderManagedPartiallyApplied[R0 <: Has[_
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
     provideServices(layer)
 
-  def provideSomeServices[R0 <: Has[_]]: ZManaged.ProvideSomeServices[R0, R, E, A] =
+  def provideSomeServices[R0]: ZManaged.ProvideSomeServices[R0, R, E, A] =
     new ZManaged.ProvideSomeServices[R0, R, E, A](self)
 
   @deprecated("use provideSomeServices", "2.0.0")
-  def provideSomeLayer[R0 <: Has[_]]: ZManaged.ProvideSomeServices[R0, R, E, A] =
+  def provideSomeLayer[R0]: ZManaged.ProvideSomeServices[R0, R, E, A] =
     provideSomeServices
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[R0, E1, A] =

@@ -50,7 +50,7 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * val zio2 = zio.injectSome[Random](clockServiceBuilder)
    * }}}
    */
-  def injectSome[R0 <: Has[_]]: ProvideSomeServicesPartiallyApplied[R0, R, E, A] =
+  def injectSome[R0]: ProvideSomeServicesPartiallyApplied[R0, R, E, A] =
     new ProvideSomeServicesPartiallyApplied[R0, R, E, A](self)
 
   /**
@@ -61,8 +61,7 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 }
 
-private final class ProvideSomeServicesPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZIO[R, E, A])
-    extends AnyVal {
+private final class ProvideSomeServicesPartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
 
   def provideServices[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
@@ -75,11 +74,11 @@ private final class ProvideSomeServicesPartiallyApplied[R0 <: Has[_], -R, +E, +A
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
     provideServices(layer)
 
-  def provideSomeServices[R0 <: Has[_]]: ZIO.ProvideSomeServices[R0, R, E, A] =
+  def provideSomeServices[R0]: ZIO.ProvideSomeServices[R0, R, E, A] =
     new ZIO.ProvideSomeServices[R0, R, E, A](self)
 
   @deprecated("use provideSomeServices", "2.0.0")
-  def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeServices[R0, R, E, A] =
+  def provideSomeLayer[R0]: ZIO.ProvideSomeServices[R0, R, E, A] =
     provideSomeServices
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZIO[R0, E1, A] =

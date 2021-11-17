@@ -26,7 +26,7 @@ private[zio] trait ServiceBuilderMacroUtils {
         nodes = nodes,
         // They must be `.toString`-ed as a backup in the case of refinement
         // types. Otherwise, [[examples.DumbExample]] will fail.
-        keyEquals = (t1, t2) => t1 =:= t2 || (t1.toString == t2.toString)
+        keyEquals = (t1, t2) => t1 <:< t2 || (t1.toString == t2.toString)
       ),
       showKey = tpe => tpe.toString,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
@@ -73,9 +73,6 @@ private[zio] trait ServiceBuilderMacroUtils {
 
   def getRequirements[T: c.WeakTypeTag]: List[c.Type] =
     getRequirements(weakTypeOf[T])
-
-  def isValidHasType(tpe: Type): Boolean =
-    tpe.isHas || tpe.isAny
 
   def injectBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     serviceBuilder: Seq[c.Expr[ZServiceBuilder[_, E, _]]],
@@ -157,18 +154,9 @@ private[zio] trait ServiceBuilderMacroUtils {
   def getRequirements(tpe: Type): List[c.Type] = {
     val intersectionTypes = tpe.dealias.map(_.dealias).intersectionTypes
 
-    intersectionTypes.filter(!isValidHasType(_)) match {
-      case Nil => ()
-      case nonHasTypes =>
-        c.abort(
-          c.enclosingPosition,
-          s"\nContains non-Has types:\n- ${nonHasTypes.map(_.toString.yellow).mkString("\n- ")}"
-        )
-    }
-
     intersectionTypes
-      .filter(_.isHas)
-      .map(_.dealias.typeArgs.head.dealias)
+      .map(_.dealias)
+      .filterNot(_.isAny)
       .distinct
   }
 
@@ -182,8 +170,6 @@ private[zio] trait ServiceBuilderMacroUtils {
   }
 
   implicit class TypeOps(self: Type) {
-    def isHas: Boolean = self.dealias.typeSymbol == typeOf[Has[_]].typeSymbol
-
     def isAny: Boolean = self.dealias.typeSymbol == typeOf[Any].typeSymbol
 
     /**
@@ -208,7 +194,7 @@ private[zio] trait ServiceBuilderMacroUtils {
    * Generates a link of the service builder graph for the Mermaid.js graph viz
    * library's live-editor (https://mermaid-js.github.io/mermaid-live-editor)
    */
-  private def generateMermaidJsLink[R <: Has[_]: c.WeakTypeTag, R0: c.WeakTypeTag, E](
+  private def generateMermaidJsLink[R: c.WeakTypeTag, R0: c.WeakTypeTag, E](
     requirements: List[c.Type],
     graph: ZServiceBuilderExprBuilder[c.Type, ServiceBuilderExpr]
   ): String = {

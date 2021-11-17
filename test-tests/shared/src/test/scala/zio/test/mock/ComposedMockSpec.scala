@@ -10,7 +10,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
   import Assertion._
   import Expectation._
 
-  private def testValueComposed[R1 <: Has[_]: Tag, E, A](name: String)(
+  private def testValueComposed[R1: Tag, E, A](name: String)(
     mock: UServiceBuilder[R1],
     app: ZIO[R1, E, A],
     check: Assertion[A]
@@ -32,7 +32,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
             _    <- Console.printLine(time.toString)
           } yield ()
 
-        testValueComposed[Has[Clock] with Has[Console], IOException, Unit]("Has[Console] with Has[Clock]")(
+        testValueComposed[Clock with Console, IOException, Unit]("Console with Clock")(
           composed,
           program,
           isUnit
@@ -53,8 +53,8 @@ object ComposedMockSpec extends ZIOBaseSpec {
             _ <- Console.printLine(v.toString)
           } yield ()
 
-        testValueComposed[Has[Random] with Has[Clock] with Has[System] with Has[Console], Throwable, Unit](
-          "Has[Random] with Has[Clock] with Has[System] with Has[Console]"
+        testValueComposed[Random with Clock with System with Console, Throwable, Unit](
+          "Random with Clock with System with Console"
         )(composed, program, isUnit)
       }
     )

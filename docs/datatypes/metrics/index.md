@@ -25,7 +25,7 @@ import java.lang.Runtime._
 def memoryUsage: UIO[Double] = 
   ZIO.succeed(getRuntime.totalMemory() - getRuntime.freeMemory()).map(_ / (1024.0 * 1024.0))
 
-val myApp: ZIO[Has[Random], Nothing, Unit] = for {
+val myApp: ZIO[Random, Nothing, Unit] = for {
   _ <- (Random.nextIntBounded(10) @@ ZIOMetric.count("request_counts")).repeatUntil(_ == 7)
   _ <- memoryUsage @@ ZIOMetric.setGauge("memory_usage")
 } yield ()

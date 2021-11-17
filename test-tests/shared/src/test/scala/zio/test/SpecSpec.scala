@@ -7,7 +7,7 @@ import zio.test.TestUtils._
 
 object SpecSpec extends ZIOBaseSpec {
 
-  val serviceBuilder: ZServiceBuilder[Any, Nothing, Has[Unit]] =
+  val serviceBuilder: ZServiceBuilder[Any, Nothing, Unit] =
     ZServiceBuilder.succeed(())
 
   def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
@@ -15,14 +15,14 @@ object SpecSpec extends ZIOBaseSpec {
       test("provides the part of the environment that is not part of the `TestEnvironment`") {
         for {
           _ <- ZIO.environment[TestEnvironment]
-          _ <- ZIO.environment[Has[Unit]]
+          _ <- ZIO.service[Unit]
         } yield assertCompletes
       }.provideCustomServices(serviceBuilder)
     ),
     suite("provideServices")(
       test("does not have early initialization issues") {
         for {
-          _ <- ZIO.environment[Has[Unit]]
+          _ <- ZIO.service[Unit]
         } yield assertCompletes
       }.provideServices(serviceBuilder)
     ),

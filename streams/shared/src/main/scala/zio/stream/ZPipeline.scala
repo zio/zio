@@ -463,7 +463,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that provides the specified environment.
    */
   def provide[Env](
-    env: Env
+    env: ZEnvironment[Env]
   ): ZPipeline.WithOut[
     Env,
     Any,

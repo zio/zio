@@ -3,7 +3,7 @@ id: runtime
 title: "Runtime"
 ---
 ```scala mdoc:invisible
-import zio.{Has, Runtime, RuntimeConfig, Task, UIO, URIO, ZIO}
+import zio.{Runtime, RuntimeConfig, Task, UIO, URIO, ZEnvironment, ZIO}
 ```
 
 A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -113,7 +113,7 @@ trait Logging {
 }
 
 object Logging {
-  def log(line: String): URIO[Has[Logging], Unit] =
+  def log(line: String): URIO[Logging, Unit] =
     ZIO.serviceWith[Logging](_.log(line))
 }
 
@@ -122,7 +122,7 @@ trait Email {
 }
 
 object Email {
-  def send(user: String, content: String): ZIO[Has[Email], Throwable, Unit] =
+  def send(user: String, content: String): ZIO[Email, Throwable, Unit] =
     ZIO.serviceWith[Email](_.send(user, content))
 }
 ```
@@ -145,7 +145,7 @@ Let's create a custom runtime that contains these two service implementations in
 
 ```scala mdoc:silent:nest
 val testableRuntime = Runtime(
-  Has.allOf[Logging, Email](LoggingLive(), EmailMock()),
+  ZEnvironment[Logging, Email](LoggingLive(), EmailMock()),
   RuntimeConfig.default
 )
 ```
@@ -153,10 +153,10 @@ val testableRuntime = Runtime(
 Also, we can map the default runtime to the new runtime, so we can append new services to the default ZIO environment:
 
 ```scala mdoc:silent:nest
-val testableRuntime: Runtime[zio.ZEnv with Has[Logging] with Has[Email]] =
+val testableRuntime: Runtime[zio.ZEnv with Logging with Email] =
   Runtime.default
-    .map((zenv: zio.ZEnv) =>
-      zenv ++ Has.allOf[Logging, Email](LoggingLive(), EmailMock())
+    .map((zenv: ZEnvironment[zio.ZEnv]) =>
+      zenv ++ ZEnvironment[Logging, Email](LoggingLive(), EmailMock())
     )
 ```
 
@@ -198,7 +198,7 @@ val program: ZIO[Console, Throwable, Unit] =
     _ <- putStrLn("Thank you for " + a)
   } yield ()
 
-val diagnosticsServiceBuilder: ZServiceBuilder[ZEnv, Throwable, Has[Diagnostics]] =
+val diagnosticsServiceBuilder: ZServiceBuilder[ZEnv, Throwable, Diagnostics] =
   Diagnostics.make("localhost", 1111)
 
 val runtime: Runtime[ZEnv] =

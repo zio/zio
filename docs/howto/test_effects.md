@@ -231,7 +231,7 @@ import zio.Clock
 sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     /* All other method declarations in this trait ignored to avoid clutter */
 
-    def timeout(d: Duration): ZIO[R with Has[Clock], E, Option[A]]
+    def timeout(d: Duration): ZIO[R with Clock, E, Option[A]]
 }
 ```
 
@@ -365,13 +365,13 @@ trait LoggingService {
   def log(msg: String): ZIO[Any, Exception, Unit]
 }
 
-val schedulingServiceBuilder: ZServiceBuilder[Has[Clock] with Has[LoggingService], Nothing, Has[SchedulingService]] =
+val schedulingServiceBuilder: ZServiceBuilder[Clock with LoggingService, Nothing, SchedulingService] =
   ZServiceBuilder.fromFunction { env =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
         (ZIO.sleep(10.seconds) *> promise.succeed(1))
           .tap(b => ZIO.service[LoggingService].flatMap(_.log(b.toString)))
-          .provide(env)
+          .provide(ZEnvironment(env))
     }
 }
 

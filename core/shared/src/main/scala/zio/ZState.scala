@@ -80,6 +80,6 @@ object ZState {
    * Creates a service builder that outputs an initial state with the specified
    * value.
    */
-  def makeServiceBuilder[S: Tag](s: S)(implicit trace: ZTraceElement): ZServiceBuilder[Any, Nothing, Has[ZState[S]]] =
+  def makeServiceBuilder[S: Tag](s: S)(implicit trace: ZTraceElement): ZServiceBuilder[Any, Nothing, ZState[S]] =
     make(s).toServiceBuilder
 }

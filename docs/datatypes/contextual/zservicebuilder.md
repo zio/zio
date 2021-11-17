@@ -54,10 +54,10 @@ Let's review some of the `ZServiceBuilder`'s most useful constructors:
 
 ### From Simple Values
 
-With `ZServiceBuilder.succeed` we can construct a `ZServiceBuilder` from a value. It returns a `UServiceBuilder[Has[A]]` value, which represents a service builder of an application that _has_ a service of type `A`:
+With `ZServiceBuilder.succeed` we can construct a `ZServiceBuilder` from a value. It returns a `UServiceBuilder[A]` value, which represents a service builder of an application that _has_ a service of type `A`:
 
 ```scala
-def succeed[A: Tag](a: A): UServiceBuilder[Has[A]]
+def succeed[A: Tag](a: A): UServiceBuilder[A]
 ```
 
 In the following example, we are going to create a `nameServiceBuilder` that provides us the name of `Adam`.
@@ -67,7 +67,7 @@ import zio._
 ```
 
 ```scala mdoc:silent
-val nameServiceBuilder: UServiceBuilder[Has[String]] = ZServiceBuilder.succeed("Adam")
+val nameServiceBuilder: UServiceBuilder[String] = ZServiceBuilder.succeed("Adam")
 ```
 
 In most cases, we use `ZServiceBuilder.succeed` to create a service builder of type `A`.
@@ -76,7 +76,7 @@ For example, assume we have written the following service:
 
 ```scala mdoc:silent
 object terminal {
-  type Terminal = Has[Terminal.Service]
+  type Terminal = Terminal.Service
 
   object Terminal {
     trait Service {
@@ -118,14 +118,14 @@ import scala.io.BufferedSource
 val managedFile = ZManaged.fromAutoCloseable(
   ZIO.attempt(scala.io.Source.fromFile("file.txt"))
 )
-val fileServiceBuilder: ZServiceBuilder[Any, Throwable, Has[BufferedSource]] = 
+val fileServiceBuilder: ZServiceBuilder[Any, Throwable, BufferedSource] = 
   ZServiceBuilder.fromManaged(managedFile)
 ```
 
 Also, every `ZManaged` can be converted to `ZServiceBuilder` by calling `ZServiceBuilder#toServiceBuilder`:
 
 ```scala mdoc:silent:nest
-val fileServiceBuilder: ZServiceBuilder[Any, Throwable, Has[BufferedSource]] = managedFile.toServiceBuilder
+val fileServiceBuilder: ZServiceBuilder[Any, Throwable, BufferedSource] = managedFile.toServiceBuilder
 ```
 
 Let's see another real-world example of creating a service builder from managed resources. Assume we have written a managed `UserRepository`:
@@ -150,7 +150,7 @@ object UserRepository {
 ```
 
 ```scala mdoc:silent:nest
-def userRepository: ZManaged[Has[Console], Throwable, UserRepository] = for {
+def userRepository: ZManaged[Console, Throwable, UserRepository] = for {
   cfg <- dbConfig.toManaged
   _ <- initializeDb(cfg).toManaged
   xa <- makeTransactor(cfg)
@@ -200,14 +200,14 @@ Every `ZServiceBuilder` describes an application that requires some services as 
 The `ZServiceBuilder.fromService` construct a service builder that purely depends on the specified service:
 
 ```scala
-def fromService[A: Tag, B: Tag](f: A => B): ZServiceBuilder[Has[A], Nothing, Has[B]]
+def fromService[A: Tag, B: Tag](f: A => B): ZServiceBuilder[A, Nothing, B]
 ```
 
 Assume we want to write a `live` version of the following logging service:
 
 ```scala mdoc:silent:nest
 object logging {
-  type Logging = Has[Logging.Service]
+  type Logging = Logging.Service
 
   object Logging {
     trait Service {
@@ -225,7 +225,7 @@ import logging.Logging._
 ```
 
 ```scala mdoc:silent:nest:warn
-val live: ZServiceBuilder[Has[Console], Nothing, Logging] = ZServiceBuilder.fromService(console =>
+val live: ZServiceBuilder[Console, Nothing, Logging] = ZServiceBuilder.fromService(console =>
   new Service {
     override def log(msg: String): UIO[Unit] = console.printLine(msg).orDie
   }
@@ -267,28 +267,28 @@ We can't compose these services together, because their constructors are not val
 Let's assume we have lifted these services into `ZServiceBuilder`s:
 
 ```scala mdoc:silent
-val logging: URServiceBuilder[Has[Console], Has[Logging]] = 
+val logging: URServiceBuilder[Console, Logging] = 
   (LoggerImpl.apply _).toServiceBuilder
-val database: URServiceBuilder[Any, Has[Database]] = 
+val database: URServiceBuilder[Any, Database] = 
   ZServiceBuilder.succeed(DatabaseImp)
-val userRepo: URServiceBuilder[Has[Logging] with Has[Database], Has[UserRepo]] = 
+val userRepo: URServiceBuilder[Logging with Database, UserRepo] = 
   (UserRepoImpl(_, _)).toServiceBuilder
-val blobStorage: URServiceBuilder[Has[Logging], Has[BlobStorage]] = 
+val blobStorage: URServiceBuilder[Logging, BlobStorage] = 
   (BlobStorageImpl(_)).toServiceBuilder
-val docRepo: URServiceBuilder[Has[Logging] with Has[Database] with Has[BlobStorage], Has[DocRepo]] = 
+val docRepo: URServiceBuilder[Logging with Database with BlobStorage, DocRepo] = 
   (DocRepoImpl(_, _, _)).toServiceBuilder
 ```
 
 Now, we can compose logging and database horizontally:
 
 ```scala mdoc:silent
-val newServiceBuilder: ZServiceBuilder[Has[Console], Throwable, Has[Logging] with Has[Database]] = logging ++ database
+val newServiceBuilder: ZServiceBuilder[Console, Throwable, Logging with Database] = logging ++ database
 ```
 
 And then we can compose the `newServiceBuilder` with `userRepo` vertically:
 
 ```scala mdoc:silent
-val myServiceBuilder: ZServiceBuilder[Has[Console], Throwable, Has[UserRepo]] = newServiceBuilder >>> userRepo
+val myServiceBuilder: ZServiceBuilder[Console, Throwable, UserRepo] = newServiceBuilder >>> userRepo
 ```
 
 ## Service Builder Memoization
@@ -312,7 +312,7 @@ case class User(id: UserId, name: String)
 case class UserId(value: Long)
 
 
-type UserRepo = Has[UserRepo.Service]
+type UserRepo = UserRepo.Service
 
 object UserRepo {
   trait Service {
@@ -339,7 +339,7 @@ object UserRepo {
 }
 
 
-type Logging = Has[Logging.Service]
+type Logging = Logging.Service
 
 object Logging {
   trait Service {
@@ -347,10 +347,10 @@ object Logging {
     def error(s: String): UIO[Unit]
   }
 
-  val consoleLogger: ZServiceBuilder[Has[Console], Nothing, Logging] = ZServiceBuilder.fromFunction( console =>
+  val consoleLogger: ZServiceBuilder[Console, Nothing, Logging] = ZServiceBuilder.fromFunction( console =>
     new Service {
-      def info(s: String): UIO[Unit]  = console.get.printLine(s"info - $s").orDie
-      def error(s: String): UIO[Unit] = console.get.printLine(s"error - $s").orDie
+      def info(s: String): UIO[Unit]  = console.printLine(s"info - $s").orDie
+      def error(s: String): UIO[Unit] = console.printLine(s"error - $s").orDie
     }
   )
 
@@ -366,10 +366,10 @@ object Logging {
 
 import java.sql.Connection
 def makeConnection: UIO[Connection] = UIO(???)
-val connectionServiceBuilder: ServiceBuilder[Nothing, Has[Connection]] =
+val connectionServiceBuilder: ServiceBuilder[Nothing, Connection] =
     ZServiceBuilder.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
-val postgresServiceBuilder: ZServiceBuilder[Has[Connection], Nothing, UserRepo] =
-  ZServiceBuilder.fromFunction { hasC: Has[Connection] =>
+val postgresServiceBuilder: ZServiceBuilder[Connection, Nothing, UserRepo] =
+  ZServiceBuilder.fromFunction { hasC: Connection =>
     new UserRepo.Service {
       override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
       override def createUser(user: User): IO[DBError, Unit] = UIO(???)
@@ -389,7 +389,7 @@ val makeUser: ZIO[Logging with UserRepo, DBError, Unit] = for {
 
 
 // compose horizontally
-val horizontal: ZServiceBuilder[Has[Console], Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
+val horizontal: ZServiceBuilder[Console, Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
 
 // fulfill missing services, composing vertically
 val fullServiceBuilder: ServiceBuilder[Nothing, Logging with UserRepo] = Console.live >>> horizontal
@@ -428,8 +428,8 @@ One design decision regarding building dependency graphs is whether to hide or p
 To illustrate this, consider the Postgres-based repository discussed above:
 
 ```scala mdoc:silent:nest
-val connection: ZServiceBuilder[Any, Nothing, Has[Connection]] = connectionServiceBuilder
-val userRepo: ZServiceBuilder[Has[Connection], Nothing, UserRepo] = postgresServiceBuilder
+val connection: ZServiceBuilder[Any, Nothing, Connection] = connectionServiceBuilder
+val userRepo: ZServiceBuilder[Connection, Nothing, UserRepo] = postgresServiceBuilder
 val serviceBuilder: ZServiceBuilder[Any, Nothing, UserRepo] = connection >>> userRepo
 ```
 
@@ -440,10 +440,10 @@ To provide only some inputs, we need to explicitly define what inputs still need
 ```scala mdoc:silent:nest
 trait Configuration
 
-val userRepoWithConfig: ZServiceBuilder[Has[Configuration] with Has[Connection], Nothing, UserRepo] = 
+val userRepoWithConfig: ZServiceBuilder[Configuration with Connection, Nothing, UserRepo] = 
   ZServiceBuilder.succeed(new Configuration{}) ++ postgresServiceBuilder
-val partialServiceBuilder: ZServiceBuilder[Has[Configuration], Nothing, UserRepo] = 
-  (ZServiceBuilder.environment[Has[Configuration]] ++ connection) >>> userRepoWithConfig
+val partialServiceBuilder: ZServiceBuilder[Configuration, Nothing, UserRepo] = 
+  (ZServiceBuilder.environment[Configuration] ++ connection) >>> userRepoWithConfig
 ``` 
 
 In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialServiceBuilder`.
@@ -460,17 +460,17 @@ However, if an upstream dependency is used by many other services, it can be con
 
 
 ```scala mdoc:silent:nest
-val serviceBuilder: ZServiceBuilder[Any, Nothing, Has[Connection] with UserRepo] = connection >+> userRepo
+val serviceBuilder: ZServiceBuilder[Any, Nothing, Connection with UserRepo] = connection >+> userRepo
 ```
 
 Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
 
 ```scala mdoc:invisible
-type Baker = Has[Baker.Service]
-type Ingredients = Has[Ingredients.Service]
-type Oven = Has[Oven.Service]
-type Dough = Has[Dough.Service]
-type Cake = Has[Cake.Service]
+type Baker = Baker.Service
+type Ingredients = Ingredients.Service
+type Oven = Oven.Service
+type Dough = Dough.Service
+type Cake = Cake.Service
 
 object Baker {
   trait Service
@@ -542,14 +542,14 @@ import zio._
 object Example extends ZIOAppDefault {
 
   // Define our simple ZIO program
-  val zio: ZIO[Has[String], Nothing, Unit] = for {
-    name <- ZIO.access[Has[String]](_.get)
+  val zio: ZIO[String, Nothing, Unit] = for {
+    name <- ZIO.access[String](_.get)
     _    <- UIO(println(s"Hello, $name!"))
   } yield ()
 
   // Create a ZServiceBuilder that produces a string and can be used to satisfy a string
   // dependency that the program has
-  val nameServiceBuilder: UServiceBuilder[Has[String]] = ZServiceBuilder.succeed("Adam")
+  val nameServiceBuilder: UServiceBuilder[String] = ZServiceBuilder.succeed("Adam")
 
   // Run the program, providing the `nameServiceBuilder`
   def run = zio.provideSomeServices(nameServiceBuilder)
@@ -573,7 +573,7 @@ import zio.Console._
 import java.io.IOException
 
 object moduleA {
-  type ModuleA = Has[ModuleA.Service]
+  type ModuleA = ModuleA.Service
 
   object ModuleA {
     trait Service {
@@ -583,7 +583,7 @@ object moduleA {
     val any: ZServiceBuilder[ModuleA, Nothing, ModuleA] =
       ZServiceBuilder.requires[ModuleA]
 
-    val live: ServiceBuilder[Nothing, Has[Service]] = ZServiceBuilder.succeed {
+    val live: ServiceBuilder[Nothing, Service] = ZServiceBuilder.succeed {
       new Service {
         def letsGoA(v: Int): UIO[String] = UIO(s"done: v = $v ")
       }
@@ -597,7 +597,7 @@ object moduleA {
 import moduleA._
 
 object moduleB {
-  type ModuleB = Has[ModuleB.Service]
+  type ModuleB = ModuleB.Service
 
   object ModuleB {
     trait Service {
@@ -624,7 +624,7 @@ object ZServiceBuilderApp0 extends zio.App {
   import moduleB._
 
   val env = Console.live ++ Clock.live ++ (ModuleA.live >>> ModuleB.live)
-  val program: ZIO[Has[Console] with Has[Clock] with moduleB.ModuleB, IOException, Unit] =
+  val program: ZIO[Console with Clock with moduleB.ModuleB, IOException, Unit] =
     for {
       _ <- printLine(s"Welcome to ZIO!")
       _ <- sleep(1.second)
@@ -654,7 +654,7 @@ import zio.Clock._
 object ZServiceBuilderApp1 extends scala.App {
   val rt = Runtime.default
 
-  type ModuleA = Has[ModuleA.Service]
+  type ModuleA = ModuleA.Service
 
   object ModuleA {
 
@@ -667,7 +667,7 @@ object ZServiceBuilderApp1 extends scala.App {
       ZServiceBuilder.succeed(new Service {})
   }
 
-  type ModuleB = Has[ModuleB.Service]
+  type ModuleB = ModuleB.Service
 
   object ModuleB {
 
@@ -680,7 +680,7 @@ object ZServiceBuilderApp1 extends scala.App {
       ZServiceBuilder.succeed(new Service {})
   }
 
-  type ModuleC = Has[ModuleC.Service]
+  type ModuleC = ModuleC.Service
 
   object ModuleC {
 
@@ -691,7 +691,7 @@ object ZServiceBuilderApp1 extends scala.App {
     val any: ZServiceBuilder[ModuleC, Nothing, ModuleC] =
       ZServiceBuilder.environment[ModuleC]
 
-    val live: ZServiceBuilder[ModuleA with ModuleB with Has[Clock], Nothing, ModuleC] =
+    val live: ZServiceBuilder[ModuleA with ModuleB with Clock, Nothing, ModuleC] =
       ZServiceBuilder.succeed {
         new Service {
           val foo: UIO[Int] = UIO.succeed(42)
@@ -702,7 +702,7 @@ object ZServiceBuilderApp1 extends scala.App {
       ZIO.accessZIO(_.get.foo)
   }
 
-  val env = (ModuleA.live ++ ModuleB.live ++ ZServiceBuilder.environment[Has[Clock]]) >>> ModuleC.live
+  val env = (ModuleA.live ++ ModuleB.live ++ ZServiceBuilder.environment[Clock]) >>> ModuleC.live
 
   val res = ModuleC.foo.provideCustomServices(env)
 

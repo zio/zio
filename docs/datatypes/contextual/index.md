@@ -11,14 +11,14 @@ The input type is also known as _environment type_. This type-parameter indicate
 
 `R` represents dependencies; whatever services, config, or wiring a part of a ZIO program depends upon to work. We will explore what we can do with `R`, as it plays a crucial role in `ZIO`.
 
-For example, when we have `ZIO[Has[Console], Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
+For example, when we have `ZIO[Console, Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
 ```scala mdoc:invisible
 import zio._
 import zio.Console._
 ```
 
 ```scala mdoc:silent
-val effect: ZIO[Has[Console], Nothing, Unit] = printLine("Hello, World!").orDie
+val effect: ZIO[Console, Nothing, Unit] = printLine("Hello, World!").orDie
 ```
 
 So finally when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
@@ -34,7 +34,7 @@ import zio._
 import zio.Console._
 
 object MainApp extends ZIOAppDefault {
-  val effect: ZIO[Has[Console], Nothing, Unit] = printLine("Hello, World!").orDie
+  val effect: ZIO[Console, Nothing, Unit] = printLine("Hello, World!").orDie
   val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live)
 
   def run = mainApp
@@ -47,7 +47,7 @@ Sometimes an effect needs more than one environmental service, it doesn't matter
 import zio.Console._
 import zio.Random._
 
-val effect: ZIO[Has[Console] with Has[Random], Nothing, Unit] = for {
+val effect: ZIO[Console with Random, Nothing, Unit] = for {
   r <- nextInt
   _ <- printLine(s"random number: $r").orDie
 } yield ()
@@ -65,7 +65,7 @@ import zio.Random._
 object MainApp extends ZIOAppDefault {
   def run = effect
   
-  val effect: ZIO[Has[Console] with Has[Random], Nothing, Unit] = for {
+  val effect: ZIO[Console with Random, Nothing, Unit] = for {
     r <- nextInt
     _ <- printLine(s"random number: $r").orDie
   } yield ()
@@ -82,22 +82,10 @@ ZIO environment facility enables us to:
 
 Defining service in ZIO is not very different from object-oriented style, it has the same principle; coding to an interface, not an implementation. But the way ZIO encourages us to implement this principle by using _Module Pattern_ which doesn't very differ from the object-oriented style. 
 
-ZIO have two data type that plays a key role in writing ZIO services using _Module Pattern_: 
-1. Has
-2. ZServiceBuilder
+ZIO have one data type that plays a key role in writing ZIO services using _Module Pattern_: 
+1. ZServiceBuilder
 
 So, before diving into the _Module Pattern_, We need to learn more about ZIO Contextual Data Types. Let's review each of them:
-
-### Has
-
-`Has[A]` represents a dependency on a service of type `A`, e.g. Has[Logging]. Some components in an application might depend upon more than one service. 
-
-ZIO wrap services with `Has` data type to:
-
-1. **Wire/bind** services into their implementations. This data type has an internal map to maintain this binding. 
-
-2. **Combine** multiple services together. Two or more `Has[_]` elements can be combined _horizontally_ using their `++` operator.
-
 
 ### ZServiceBuilder
 
@@ -189,15 +177,13 @@ Let's start learning this pattern by writing a `Logging` service:
 
 1. **Bundling** — Define an object that gives the name to the module, this can be (not necessarily) a package object. We create a `logging` object, all the definitions and implementations will be included in this object.
 
-2. **Wrapping Service Type Definition with `Has[_]` Data Type** — At the first step, we create a package object of `logging`, and inside that we define the `Logging` module as a type alias for `Has[Logging.Service]`.
+2. **Service Definition** — Then we create the `Logging` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
 
-3. **Service Definition** — Then we create the `Logging` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
+3. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZServiceBuilder` data type by using the `ZServiceBuilder.succeed` constructor.
 
-4. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZServiceBuilder` data type by using the `ZServiceBuilder.succeed` constructor.
+4. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZServiceBuilder.fromService` and `ZServiceBuilder.fromServices`.
 
-5. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZServiceBuilder.fromService` and `ZServiceBuilder.fromServices`.
-
-6. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
+5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
 
 Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `log`, we don't need to pull out the `log` function from the ZIO Environment. The `accessZIO` method helps us to access the environment of effect and reduce the redundant operation, every time.
 
@@ -207,12 +193,12 @@ import zio.Console._
 ```
 
 ```scala mdoc:invisible
-import zio.{Has, UIO, ServiceBuilder, ZServiceBuilder, ZIO, URIO}
+import zio.{UIO, ServiceBuilder, ZServiceBuilder, ZIO, URIO}
 ```
 
 ```scala mdoc:silent:nest
 object logging {
-  type Logging = Has[Logging.Service]
+  type Logging = Logging.Service
 
   // Companion object exists to hold service definition and also the live implementation.
   object Logging {
@@ -238,7 +224,7 @@ We might need `Console` and `Clock` services to implement the `Logging` service.
 
 ```scala mdoc:silent:nest:warn
 object logging {
-  type Logging = Has[Logging.Service]
+  type Logging = Logging.Service
 
   // Companion object exists to hold service definition and also the live implementation.
   object Logging {
@@ -246,7 +232,7 @@ object logging {
       def log(line: String): UIO[Unit]
     }
 
-    val live: URServiceBuilder[Has[Clock] with Has[Console], Logging] =
+    val live: URServiceBuilder[Clock with Console, Logging] =
       ZServiceBuilder.fromServices[Clock, Console, Logging.Service] {
         (clock: Clock, console: Console) =>
           new Logging.Service {
@@ -332,8 +318,8 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 
 ```scala mdoc:silent
 object LoggingLive {
-  val serviceBuilder: URServiceBuilder[Has[Console] with Has[Clock], Has[Logging]] =
-    (LoggingLive(_, _)).toServiceBuilder
+  val serviceBuilder: URServiceBuilder[Console with Clock, Logging] =
+    (LoggingLive(_, _)).toServiceBuilder[Logging]
 }
 ```
 
@@ -341,17 +327,11 @@ object LoggingLive {
 
 ```scala mdoc:silent
 object Logging {
-  def log(line: String): URIO[Has[Logging], Unit] = ZIO.serviceWith[Logging](_.log(line))
+  def log(line: String): URIO[Logging, Unit] = ZIO.serviceWith[Logging](_.log(line))
 }
 ```
 
 That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge. 
-
-> **Note:**
->
-> In _Module Pattern 2.0_ we don't use type aliases for Has wrappers, like `type Logging = Has[Logging.Service]`. So unlike the previous pattern, we encourage using explicitly the `Has` wrappers whenever we want to specify the dependency on a service.
->
-> So instead of writing `ZServiceBuilder[Console with Clock, Nothing, Logging]`, we write `ZServiceBuilder[Has[Console] with Has[Clock], Nothing, Has[Logging]]`.
 
 Finally, we provide required service builders to our `app` effect:
 
@@ -421,18 +401,18 @@ object Logging {
 Let's write a simple program using `Logging` service:
 
 ```scala mdoc:silent:nest
-val app: ZIO[Has[Logging], Nothing, Unit] = Logging.log("Application Started!")
+val app: ZIO[Logging, Nothing, Unit] = Logging.log("Application Started!")
 ```
 
 We can `provide` implementation of `Logging` service into the `app` effect:
 
 ```scala mdoc:silent:nest
-val loggingImpl = Has(new Logging {
+val loggingImpl = new Logging {
   override def log(line: String): UIO[Unit] =
     UIO.succeed(println(line))
-})
+}
 
-val effect = app.provide(loggingImpl)
+val effect = app.provide(ZEnvironment(loggingImpl))
 ```
 
 Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZServiceBuilder` to construct the dependency graph of our application, then we use methods like `ZIO#provideServices` to propagate dependencies into the environment of our ZIO effect.
@@ -448,7 +428,7 @@ import zio.Clock._
 import zio.Console._
 import zio.Random._
 
-val myApp: ZIO[Has[Random] with Has[Console] with Has[Clock], Nothing, Unit] = for {
+val myApp: ZIO[Random with Console with Clock, Nothing, Unit] = for {
   random  <- nextInt 
   _       <- printLine(s"A random number: $random").orDie
   current <- currentDateTime
@@ -472,13 +452,13 @@ Sometimes we have written a program, and we don't want to provide all its requir
 In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeServices`:
 
 ```scala mdoc:silent:nest
-val mainEffect: ZIO[Has[Random] with Has[Clock], Nothing, Unit] = 
-  myApp.provideSomeServices[Has[Random] with Has[Clock]](Console.live)
+val mainEffect: ZIO[Random with Clock, Nothing, Unit] = 
+  myApp.provideSomeServices[Random with Clock](Console.live)
 ```
 
 > **Note:**
 >
-> When using `ZIO#provideSomeServices[R0 <: Has[_]]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
+> When using `ZIO#provideSomeServices[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
 
 #### Using `provideCustomServices` Method
 
@@ -508,14 +488,14 @@ object Logging {
 }
 
 object LoggingLive {
-  val serviceBuilder: UServiceBuilder[Has[Logging]] = ZServiceBuilder.succeed {
+  val serviceBuilder: UServiceBuilder[Logging] = ZServiceBuilder.succeed {
     new Logging {
       override def log(str: String): UIO[Unit] = ???
     }
   }
 }
 
-val myApp: ZIO[Has[Logging] with Has[Console] with Has[Clock], Nothing, Unit] = for {
+val myApp: ZIO[Logging with Console with Clock, Nothing, Unit] = for {
   _       <- Logging.log("Application Started!")
   current <- currentDateTime
   _       <- printLine(s"Current Data Time: $current").orDie

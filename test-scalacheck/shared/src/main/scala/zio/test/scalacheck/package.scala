@@ -28,7 +28,7 @@ package object scalacheck {
     /**
      * Converts a legacy ScalaCheck `Gen` to a ZIO Test `Gen`.
      */
-    def toGenZIO: Gen[Has[Random] with Has[Sized], A] =
+    def toGenZIO: Gen[Random with Sized, A] =
       Gen.fromZIO {
         for {
           long <- Random.nextLong

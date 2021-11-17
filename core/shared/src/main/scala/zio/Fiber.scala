@@ -882,7 +882,7 @@ object Fiber extends FiberPlatformSpecific {
    */
   def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*)(implicit
     trace: ZTraceElement
-  ): ZIO[Has[Console], IOException, Unit] =
+  ): ZIO[Console, IOException, Unit] =
     dumpStr(fibers: _*).flatMap(str => Console.printLine(s"$label: $str"))
 
   /**

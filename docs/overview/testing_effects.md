@@ -34,8 +34,8 @@ final case class Config(server: String, port: Int)
 
 val configString: URIO[Config, String] = 
   for {
-    server <- ZIO.access[Config](_.server)
-    port   <- ZIO.access[Config](_.port)
+    server <- ZIO.service[Config].map(_.server)
+    port   <- ZIO.service[Config].map(_.port)
   } yield s"Server: $server, port: $port"
 ```
 
@@ -49,8 +49,8 @@ trait DatabaseOps {
 
 val tablesAndColumns: ZIO[DatabaseOps, Throwable, (List[String], List[String])] = 
   for {
-    tables  <- ZIO.accessZIO[DatabaseOps](_.getTableNames)
-    columns <- ZIO.accessZIO[DatabaseOps](_.getColumnNames("user_table"))
+    tables  <- ZIO.serviceWith[DatabaseOps](_.getTableNames)
+    columns <- ZIO.serviceWith[DatabaseOps](_.getColumnNames("user_table"))
   } yield (tables, columns)
 ```
 
@@ -67,10 +67,10 @@ The simplest way to provide an effect the environment that it requires is to use
 ```scala mdoc:silent
 val square: URIO[Int, Int] = 
   for {
-    env <- ZIO.environment[Int]
+    env <- ZIO.service[Int]
   } yield env * env
 
-val result: UIO[Int] = square.provide(42)
+val result: UIO[Int] = square.provide(ZEnvironment(42))
 ```
 
 Once you provide an effect with the environment it requires, then you get back an effect whose environment type is `Any`, indicating its requirements have been fully satisfied.
@@ -116,10 +116,10 @@ In order to make it easier to access the database service as an environmental ef
 ```scala mdoc:silent
 object db {
   def lookup(id: UserID): RIO[Database, UserProfile] =
-    ZIO.accessZIO(_.database.lookup(id))
+    ZIO.serviceWith(_.database.lookup(id))
 
   def update(id: UserID, profile: UserProfile): RIO[Database, Unit] =
-    ZIO.accessZIO(_.database.update(id, profile))
+    ZIO.serviceWith(_.database.update(id, profile))
 }
 ```
 
@@ -167,7 +167,7 @@ We can now provide the live database module to our application, using `ZIO.provi
 def main: RIO[Database, Unit] = ???
 
 def main2: Task[Unit] = 
-  main.provide(DatabaseLive)
+  main.provide(ZEnvironment(DatabaseLive))
 ```
 
 The resulting effect has no requirements, so it can now be executed with a ZIO runtime.
@@ -210,7 +210,7 @@ To test code that requires the database, we need only provide it with our test d
 def code: RIO[Database, Unit] = ???
 
 def code2: Task[Unit] = 
-  code.provide(TestDatabase)
+  code.provide(ZEnvironment(TestDatabase))
 ```
 
 Our application code can work with either our production database module, or the test database module.

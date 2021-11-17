@@ -38,7 +38,7 @@ trait BufferPools extends JvmMetrics {
     }
 
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock], Throwable, BufferPools] =
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, BufferPools] =
     for {
       bufferPoolMXBeans <- Task(
                              ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList

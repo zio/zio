@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{ZIO, Has, ZServiceBuilder}
+import zio.{ZIO, ZServiceBuilder}
 
 trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
 

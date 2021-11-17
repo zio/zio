@@ -101,10 +101,10 @@ val nats: ZStream[Any, Nothing, Int] =
 val range: ZStream[Any, Nothing, Int] = ZStream.range(1, 5) // 1, 2, 3, 4
 ```
 
-**ZStream.environment[R]** — Create a stream that extract the request service from the environment:
+**ZStream.service[R]** — Create a stream that extract the request service from the environment:
 
 ```scala mdoc:silent:nest
-val clockStream: ZStream[Has[Clock], Nothing, Has[Clock]] = ZStream.environment[Has[Clock]]
+val clockStream: ZStream[Clock, Nothing, Clock] = ZStream.service[Clock]
 ```
 
 **ZStream.managed** — Creates a single-valued stream from a managed resource:
@@ -148,14 +148,14 @@ val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
 **ZStream.fromZIO** — We can create a stream from an effect by using `ZStream.fromZIO` constructor. For example, the following stream is a stream that reads a line from a user:
 
 ```scala mdoc:silent:nest
-val readline: ZStream[Has[Console], IOException, String] = 
+val readline: ZStream[Console, IOException, String] = 
   ZStream.fromZIO(Console.readLine)
 ```
 
 A stream that produces one random number:
 
 ```scala mdoc:silent:nest
-val randomInt: ZStream[Has[Random], Nothing, Int] = 
+val randomInt: ZStream[Random, Nothing, Int] = 
   ZStream.fromZIO(Random.nextInt)
 ```
 
@@ -170,7 +170,7 @@ object ZStream {
 Let's see an example of using this constructor. In this example, we read a string from user input, and then decide to emit that or not; If the user enters an `EOF` string, we emit an empty stream, otherwise we emit the user input:  
 
 ```scala mdoc:silent:nest
-val userInput: ZStream[Has[Console], IOException, String] = 
+val userInput: ZStream[Console, IOException, String] = 
   ZStream.fromZIOOption(
     Console.readLine.mapError(Option(_)).flatMap {
       case "EOF" => ZIO.fail[Option[IOException]](None)
@@ -272,7 +272,7 @@ trait Database {
 }
 
 object Database {
-  def getUsers: ZIO[Has[Database], Throwable, List[User]] = 
+  def getUsers: ZIO[Database, Throwable, List[User]] = 
     ZIO.serviceWith[Database](_.getUsers)
 }
 ```
@@ -280,7 +280,7 @@ object Database {
 As this operation is effectful, we can use `ZStream.fromIterableZIO` to convert the result to the `ZStream`:
 
 ```scala mdoc:silent:nest
-val users: ZStream[Has[Database], Throwable, User] = 
+val users: ZStream[Database, Throwable, User] = 
   ZStream.fromIterableZIO(Database.getUsers)
 ```
 
@@ -300,7 +300,7 @@ import zio.Clock._
 import zio.Duration._
 import zio.Random._
 import zio.Schedule
-val repeatZeroEverySecond: ZStream[Has[Clock], Nothing, Int] = 
+val repeatZeroEverySecond: ZStream[Clock, Nothing, Int] = 
   ZStream.repeatWithSchedule(0, Schedule.spaced(1.seconds))
 ```
 
@@ -309,7 +309,7 @@ val repeatZeroEverySecond: ZStream[Has[Clock], Nothing, Int] =
 Let's see an example of creating a stream of random numbers:
 
 ```scala mdoc:silent:nest
-val randomInts: ZStream[Has[Random], Nothing, Int] =
+val randomInts: ZStream[Random, Nothing, Int] =
   ZStream.repeatZIO(Random.nextInt)
 ```
 
@@ -318,7 +318,7 @@ val randomInts: ZStream[Has[Random], Nothing, Int] =
 Let's create a stream repeatedly from user inputs until user enter "EOF" string:
 
 ```scala mdoc:silent:nest
-val userInputs: ZStream[Has[Console], IOException, String] = 
+val userInputs: ZStream[Console, IOException, String] = 
   ZStream.repeatZIOOption(
     Console.readLine.mapError(Option(_)).flatMap {
       case "EOF" => ZIO.fail[Option[IOException]](None)
@@ -342,7 +342,7 @@ def drainIterator[A](it: Iterator[A]): ZStream[Any, Throwable, A] =
 **ZStream.tick** —  A stream that emits Unit values spaced by the specified duration:
 
 ```scala mdoc:silent:nest
-val stream: ZStream[Has[Clock], Nothing, Unit] = 
+val stream: ZStream[Clock, Nothing, Unit] = 
   ZStream.tick(1.seconds)
 ```
 
@@ -391,7 +391,7 @@ Running this function with an input value of 3 returns a `ZStream` which contain
 Let's write a stream of lines of input from a user until the user enters the `exit` command:
 
 ```scala mdoc:silent
-val inputs: ZStream[Has[Console], IOException, String] = ZStream.unfoldZIO(()) { _ =>
+val inputs: ZStream[Console, IOException, String] = ZStream.unfoldZIO(()) { _ =>
   Console.readLine.map {
     case "exit"  => None
     case i => Some((i, ()))
@@ -426,13 +426,13 @@ case class RowData()
 ```scala mdoc:silent:nest
 case class PageResult(results: Chunk[RowData], isLast: Boolean)
 
-def listPaginated(pageNumber: Int): ZIO[Has[Console], Throwable, PageResult] = ZIO.fail(???)
+def listPaginated(pageNumber: Int): ZIO[Console, Throwable, PageResult] = ZIO.fail(???)
 ```
 
 We want to convert this API to a stream of `RowData` events. For the first attempt, we might think we can do it by using `unfold` operation as below:
 
 ```scala mdoc:silent:nest
-val firstAttempt: ZStream[Has[Console], Throwable, RowData] = 
+val firstAttempt: ZStream[Console, Throwable, RowData] = 
   ZStream.unfoldChunkZIO(0) { pageNumber =>
     for {
       page <- listPaginated(pageNumber)
@@ -445,7 +445,7 @@ val firstAttempt: ZStream[Has[Console], Throwable, RowData] =
 But it doesn't work properly; it doesn't include the last page result. So let's do a trick and to perform another API call to include the last page results:
 
 ```scala mdoc:silent:nest
-val secondAttempt: ZStream[Has[Console], Throwable, RowData] = 
+val secondAttempt: ZStream[Console, Throwable, RowData] = 
   ZStream.unfoldChunkZIO(Option[Int](0)) {
     case None => ZIO.none // We already hit the last page
     case Some(pageNumber) => // We did not hit the last page yet
@@ -460,7 +460,7 @@ This works and contains all the results of returned pages. It works but as we sa
 We need to do some hacks and extra works to include results from the last page. This is where `ZStream.paginate` operation comes to play, it helps us to convert a paginated API to ZIO stream in a more ergonomic way. Let's rewrite this solution by using `paginate`:
 
 ```scala mdoc:silent:nest
-val finalAttempt: ZStream[Has[Console], Throwable, RowData] = 
+val finalAttempt: ZStream[Console, Throwable, RowData] = 
   ZStream.paginateChunkZIO(0) { pageNumber =>
     for {
       page <- listPaginated(pageNumber)
@@ -602,7 +602,7 @@ for {
 We can create a stream from a `Schedule` that does not require any further input. The stream will emit an element for each value output from the schedule, continuing for as long as the schedule continues:
 
 ```scala mdoc:silent:nest
-val stream: ZStream[Has[Clock], Nothing, Long] =
+val stream: ZStream[Clock, Nothing, Long] =
   ZStream.fromSchedule(Schedule.spaced(1.second) >>> Schedule.recurs(10))
 ```
 
@@ -630,7 +630,7 @@ Let's see an example of using an acquire release when reading a file. In this ex
 ```scala mdoc:silent:nest
 import zio.Console._
 
-val lines: ZStream[Has[Console], Throwable, String] =
+val lines: ZStream[Console, Throwable, String] =
   ZStream
     .acquireReleaseWith(
       ZIO.attempt(Source.fromFile("file.txt")) <* printLine("The file was opened.")
@@ -657,10 +657,10 @@ It is useful when need to add a finalizer to an existing stream. Assume we need 
 ```scala mdoc:silent:nest
 import zio.Console._
 
-def application: ZStream[Has[Console], IOException, Unit] = ZStream.fromZIO(printLine("Application Logic."))
-def deleteDir(dir: Path): ZIO[Has[Console], IOException, Unit] = printLine("Deleting file.")
+def application: ZStream[Console, IOException, Unit] = ZStream.fromZIO(printLine("Application Logic."))
+def deleteDir(dir: Path): ZIO[Console, IOException, Unit] = printLine("Deleting file.")
 
-val myApp: ZStream[Has[Console], IOException, Any] =
+val myApp: ZStream[Console, IOException, Any] =
   application ++ ZStream.finalizer(
     (deleteDir(Paths.get("tmp")) *>
       printLine("Temporary directory was deleted.")).orDie
@@ -692,7 +692,7 @@ Tapping is an operation of running an effect on each emission of the ZIO Stream.
 For example, we can print each element of a stream by using the `tap` operation:
 
 ```scala mdoc:silent:nest
-val stream: ZStream[Has[Console], IOException, Int] =
+val stream: ZStream[Console, IOException, Int] =
   ZStream(1, 2, 3)
     .tap(x => printLine(s"before mapping: $x"))
     .map(_ * 2)
@@ -845,7 +845,7 @@ Assume we have an effectful stream, which contains a sequence of effects; someti
 val s1: ZStream[Any, Nothing, Nothing] = ZStream(1, 2, 3, 4, 5).drain
 // Emitted Elements: <empty stream, it doesn't emit any element>
 
-val s2: ZStream[Has[Console] with Has[Random], IOException, Int] =
+val s2: ZStream[Console with Random, IOException, Int] =
   ZStream
     .repeatZIO {
       for {
@@ -861,7 +861,7 @@ val s2: ZStream[Has[Console] with Has[Random], IOException, Int] =
 // random number: 4
 // random number: 7
 
-val s3: ZStream[Has[Console] with Has[Random], IOException, Nothing] = s2.drain
+val s3: ZStream[Console with Random, IOException, Nothing] = s2.drain
 // Emitted Elements: <empty stream, it doesn't emit any element>
 // Result of Stream Effect on the Console:
 // random number: 4
@@ -1173,7 +1173,7 @@ val counted: UStream[(Char, Long)] =
 Let's change the above example a bit into an example of classifying students. The teacher assigns the student to a specific class based on the student's talent. Note that the partitioning operation is an effectful:
 
 ```scala mdoc:silent:nest
-val classifyStudents: ZStream[Has[Console], IOException, (String, Seq[String])] =
+val classifyStudents: ZStream[Console, IOException, (String, Seq[String])] =
   ZStream.fromZIO(
     printLine("Please assign each student to one of the A, B, or C classrooms.")
   ) *> ZStream("Mary", "James", "Robert", "Patricia", "John", "Jennifer", "Rebecca", "Peter")
@@ -1226,7 +1226,7 @@ import zio._
 import zio.Duration._
 import zio.stream._
 
-val groupedWithinResult: ZStream[Has[Clock], Nothing, Chunk[Int]] =
+val groupedWithinResult: ZStream[Clock, Nothing, Chunk[Int]] =
   Stream.fromIterable(0 to 10)
     .repeat(Schedule.spaced(1.seconds))
     .groupedWithin(30, 10.seconds)
@@ -1443,7 +1443,7 @@ We can broadcast a stream by using `ZStream#broadcast`, it returns a managed lis
 In the following example, we are broadcasting stream of random numbers to the two downstream streams. One of them is responsible to compute the maximum number, and the other one does some logging job with additional delay. The upstream stream decreases its speed by the logging stream:
 
 ```scala mdoc:silent:nest
-val stream: ZIO[Has[Console] with Has[Random] with Has[Clock], IOException, Unit] =
+val stream: ZIO[Console with Random with Clock, IOException, Unit] =
   ZStream
     .fromIterable(1 to 20)
     .mapZIO(_ => Random.nextInt)
@@ -1483,7 +1483,7 @@ abstract class ZStream[-R, +E, +O] {
 In the example below, we are partitioning incoming elements into three streams using `ZStream#distributedWith` operator:
 
 ```scala mdoc:silent:nest
-val partitioned: ZManaged[Has[Clock], Nothing, (UStream[Int], UStream[Int], UStream[Int])] =
+val partitioned: ZManaged[Clock, Nothing, (UStream[Int], UStream[Int], UStream[Int])] =
   ZStream
     .iterate(1)(_ + 1)
     .fixed(1.seconds)
@@ -1643,7 +1643,7 @@ abstract class ZStream[-R, +E, +O] {
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], Any]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Has[Clock], E2, B] = ???
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E2, B] = ???
 }
 ```
 
@@ -1666,7 +1666,7 @@ So it will collect elements into a chunk up to 2000 elements and if we have got 
 Instead, thanks to `Schedule` we can create a much smarter **adaptive batching algorithm** that can balance between **throughput** and **latency*. So what we are doing here is that we are creating a schedule that operates on chunks of records. What the `Schedule` does is that it starts off with 30-second timeouts for as long as its input has a size that is lower than 1000, now once we see an input that has a size look higher than 1000, we will switch to a second schedule with some jittery, and we will remain with this schedule for as long as the batch size is over 1000:
 
 ```scala mdoc:silent:nest
-val schedule: Schedule[Has[Clock] with Has[Random], Option[Chunk[Record]], Long] =
+val schedule: Schedule[Clock with Random, Option[Chunk[Record]], Long] =
 // Start off with 30-second timeouts as long as the batch size is < 1000
   Schedule.fixed(30.seconds).whileInput[Option[Chunk[Record]]](_.getOrElse(Chunk.empty).length < 100) andThen
     // and then, switch to a shorter jittered schedule for as long as batches remain over 1000
@@ -1693,7 +1693,7 @@ import zio._
 import zio.Console._
 import zio.stream._
 
-val result: RIO[Has[Console], Unit] = Stream.fromIterable(0 to 100).foreach(printLine(_))
+val result: RIO[Console, Unit] = Stream.fromIterable(0 to 100).foreach(printLine(_))
 ```
 
 ### Using a Sink
@@ -1838,7 +1838,7 @@ The type of this stream before absolving is `ZStream[Any, Throwable, Either[Thro
 We can do the opposite by exposing an error of type `ZStream[R, E, A]` as a part of the `Either` by using `ZStream#either`:
 
 ```scala mdoc:silent:nest
-val inputs: ZStream[Has[Console], Nothing, Either[IOException, String]] = 
+val inputs: ZStream[Console, Nothing, Either[IOException, String]] = 
   ZStream.fromZIO(Console.readLine).either
 ```
 

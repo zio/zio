@@ -116,7 +116,11 @@ object ZSinkSpec extends ZIOBaseSpec {
           test("accessSink") {
             assertM(
               ZStream("ignore this")
-                .run(ZSink.accessSink[String](ZSink.succeed(_)).provide("use this"))
+                .run(
+                  ZSink
+                    .accessSink[String](environment => ZSink.succeed(environment.get))
+                    .provide(ZEnvironment("use this"))
+                )
             )(equalTo("use this"))
           }
         ),

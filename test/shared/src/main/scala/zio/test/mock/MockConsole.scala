@@ -16,13 +16,13 @@
 
 package zio.test.mock
 
-import zio.{Console, Has, IO, URServiceBuilder, ZIO, ZTraceElement}
+import zio.{Console, IO, URServiceBuilder, ZIO, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 
-object MockConsole extends Mock[Has[Console]] {
+object MockConsole extends Mock[Console] {
 
   object Print          extends Effect[Any, IOException, Unit]
   object PrintError     extends Effect[Any, IOException, Unit]
@@ -30,7 +30,7 @@ object MockConsole extends Mock[Has[Console]] {
   object PrintLineError extends Effect[Any, IOException, Unit]
   object ReadLine       extends Effect[Unit, IOException, String]
 
-  val compose: URServiceBuilder[Has[Proxy], Has[Console]] = {
+  val compose: URServiceBuilder[Proxy, Console] = {
     implicit val trace = Tracer.newTrace
     ZIO
       .service[Proxy]
