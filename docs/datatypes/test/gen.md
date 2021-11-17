@@ -46,24 +46,24 @@ In the companion object of the `Gen` data type, there are tons of generators for
 
 ### Generating Date/Time Types
 
-| Generator            | Date/Time Types            |
-|----------------------+----------------------------|
-| `Gen.dayOfWeek`      | `java.time.DayOfWeek`      |
-| `Gen.month`          | `java.time.Month`          |
-| `Gen.year`           | `java.time.Year`           |
-| `Gen.instant`        | `java.time.Instant`        |
-| `Gen.monthDay`       | `java.time.MonthDay`       |
-| `Gen.yearMonth`      | `java.time.YearMonth`      |
-| `Gen.zoneId`         | `java.time.ZoneId`         |
-| `Gen.zoneOffset`     | `java.time.ZoneOffset`     |
-| `Gen.zonedDateTime`  | `java.time.ZonedDateTime`  |
-| `Gen.offsetTime`     | `java.time.OffsetTime`     |
-| `Gen.offsetDateTime` | `java.time.OffsetDateTime` |
-| `Gen.period`         | `java.time.Period`         |
-| `Gen.localDate`      | `java.time.LocalDate`      |
-| `Gen.localDateTime`  | `java.time.LocalDateTime`  |
-| `Gen.localTime`      | `java.time.LocalTime`      |
-| `Gen.finiteDuration` | `zio.duration.Duration`    |
+| Date/Time Types            | Generators           |
+|----------------------------|----------------------|
+| `java.time.DayOfWeek`      | `Gen.dayOfWeek`      |
+| `java.time.Month`          | `Gen.month`          |
+| `java.time.Year`           | `Gen.year`           |
+| `java.time.Instant`        | `Gen.instant`        |
+| `java.time.MonthDay`       | `Gen.monthDay`       |
+| `java.time.YearMonth`      | `Gen.yearMonth`      |
+| `java.time.ZoneId`         | `Gen.zoneId`         |
+| `java.time.ZoneOffset`     | `Gen.zoneOffset`     |
+| `java.time.ZonedDateTime`  | `Gen.zonedDateTime`  |
+| `java.time.OffsetTime`     | `Gen.offsetTime`     |
+| `java.time.OffsetDateTime` | `Gen.offsetDateTime` |
+| `java.time.Period`         | `Gen.period`         |
+| `java.time.LocalDate`      | `Gen.localDate`      |
+| `java.time.LocalDateTime`  | `Gen.localDateTime`  |
+| `java.time.LocalTime`      | `Gen.localTime`      |
+| `zio.duration.Duration`    | `Gen.finiteDuration` |
 
 ### Generating Functions
 
