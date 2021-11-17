@@ -494,8 +494,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * }}}
    */
   @deprecated("use provideSome", "2.0.0")
-  final def provideSomeLayer[R0]: Spec.provideSome[R0, R, E, T] =
-    new Spec.provideSome[R0, R, E, T](self)
+  final def provideSomeLayer[R0]: Spec.ProvideSome[R0, R, E, T] =
+    new Spec.ProvideSome[R0, R, E, T](self)
 
   /**
    * Splits the environment into two parts, providing all tests with a shared
@@ -511,8 +511,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * }}}
    */
   @deprecated("use provideSomeShared", "2.0.0")
-  final def provideSomeLayerShared[R0]: Spec.provideSomeShared[R0, R, E, T] =
-    new Spec.provideSomeShared[R0, R, E, T](self)
+  final def provideSomeLayerShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
+    new Spec.ProvideSomeShared[R0, R, E, T](self)
 
   /**
    * Splits the environment into two parts, providing each test with one part
@@ -526,8 +526,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideSome[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSome[R0]: Spec.provideSome[R0, R, E, T] =
-    new Spec.provideSome[R0, R, E, T](self)
+  final def provideSome[R0]: Spec.ProvideSome[R0, R, E, T] =
+    new Spec.ProvideSome[R0, R, E, T](self)
 
   /**
    * Splits the environment into two parts, providing all tests with a shared
@@ -542,8 +542,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideSomeShared[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeShared[R0]: Spec.provideSomeShared[R0, R, E, T] =
-    new Spec.provideSomeShared[R0, R, E, T](self)
+  final def provideSomeShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
+    new Spec.ProvideSomeShared[R0, R, E, T](self)
 
   /**
    * Computes the size of the spec, i.e. the number of tests in the spec.
@@ -710,14 +710,14 @@ object Spec extends SpecLowPriority {
   val empty: Spec[Any, Nothing, Nothing] =
     Spec.multiple(Chunk.empty)
 
-  final class provideSome[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+  final class ProvideSome[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: ZServiceBuilder[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
       self.provideServices[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
   }
 
-  final class provideSomeShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
+  final class ProvideSomeShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: ZServiceBuilder[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =

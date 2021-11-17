@@ -2913,7 +2913,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * }}}
    */
   @deprecated("use provideSome", "2.0.0")
-  final def provideSomeLayer[R0]: ZStream.provideSome[R0, R, E, A] =
+  final def provideSomeLayer[R0]: ZStream.ProvideSome[R0, R, E, A] =
     provideSome
 
   /**
@@ -2928,8 +2928,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideSome[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSome[R0]: ZStream.provideSome[R0, R, E, A] =
-    new ZStream.provideSome[R0, R, E, A](self)
+  final def provideSome[R0]: ZStream.ProvideSome[R0, R, E, A] =
+    new ZStream.ProvideSome[R0, R, E, A](self)
 
   /**
    * Re-chunks the elements of the stream into chunks of `n` elements each. The
@@ -5685,7 +5685,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
-  final class provideSome[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
+  final class ProvideSome[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: ZServiceBuilder[R0, E1, R1]
     )(implicit

@@ -897,7 +897,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * }}}
    */
   @deprecated("use provideSome", "2.0.0")
-  final def provideSomeLayer[R0]: ZManaged.provideSome[R0, R, E, A] =
+  final def provideSomeLayer[R0]: ZManaged.ProvideSome[R0, R, E, A] =
     provideSome
 
   /**
@@ -912,8 +912,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideSome[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSome[R0]: ZManaged.provideSome[R0, R, E, A] =
-    new ZManaged.provideSome[R0, R, E, A](self)
+  final def provideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
+    new ZManaged.ProvideSome[R0, R, E, A](self)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -1562,7 +1562,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.suspend(b().flatMap(b => if (b) onTrue else onFalse))
   }
 
-  final class provideSome[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
+  final class ProvideSome[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: => ZServiceBuilder[R0, E1, R1]
     )(implicit

@@ -76,11 +76,11 @@ private final class ProvideSomeServiceBuilderManagedPartiallyApplied[R0, -R, +E,
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
     provideServices(layer)
 
-  def provideSome[R0]: ZManaged.provideSome[R0, R, E, A] =
-    new ZManaged.provideSome[R0, R, E, A](self)
+  def provideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
+    new ZManaged.ProvideSome[R0, R, E, A](self)
 
   @deprecated("use provideSome", "2.0.0")
-  def provideSomeLayer[R0]: ZManaged.provideSome[R0, R, E, A] =
+  def provideSomeLayer[R0]: ZManaged.ProvideSome[R0, R, E, A] =
     provideSome
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[R0, E1, A] =
