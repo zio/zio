@@ -1,7 +1,7 @@
 package zio
 
-import zio.test.TestAspect.ignore
 import zio.test._
+import zio.test.TestAspect._
 
 object ZEnvironmentIssuesSpec extends DefaultRunnableSpec {
 
@@ -27,6 +27,6 @@ object ZEnvironmentIssuesSpec extends DefaultRunnableSpec {
         tag
       }
       assertTrue(tagForThing(Clock.ClockLive).tag <:< Tag[Clock].tag)
-    }
+    } @@ exceptDotty
   )
 }
