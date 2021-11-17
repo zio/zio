@@ -72,7 +72,7 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
    */
   private def prune[R1 >: R](implicit tagged: Tag[R1]): ZEnvironment[R1] = {
     val tag = taggedTagType(tagged)
-    val set = taggedGetHasServices(tag)
+    val set = taggedGetServices(tag)
 
     val missingServices = set.filterNot(key => map.exists { case (tag, _) => tag <:< key })
     if (missingServices.nonEmpty) {
