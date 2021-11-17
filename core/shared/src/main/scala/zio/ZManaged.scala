@@ -1205,7 +1205,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Constructs a service builder from this managed resource.
    */
-  def toServiceBuilder[A1 >: A: Tag](implicit trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
+  def toServiceBuilder[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
     ZServiceBuilder.fromManaged[R, E, A1](self)
 
   /**
@@ -1222,7 +1222,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Constructs a layer from this managed resource.
    */
   @deprecated("use toServiceBuilder", "2.0.0")
-  def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
+  def toLayer[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
     toServiceBuilder[A1]
 
   /**
