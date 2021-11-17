@@ -91,7 +91,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Returns an effect that models execution of this spec.
    */
   final def execute(defExec: ExecutionStrategy)(implicit trace: ZTraceElement): ZManaged[R, Nothing, Spec[Any, E, T]] =
-    ZManaged.accessManaged(provideAll(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
+    ZManaged.environmentWithManaged(provideAll(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
 
   /**
    * Determines if any node in the spec is satisfied by the given predicate.

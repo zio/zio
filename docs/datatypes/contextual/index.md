@@ -185,7 +185,7 @@ Let's start learning this pattern by writing a `Logging` service:
 
 5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
 
-Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `log`, we don't need to pull out the `log` function from the ZIO Environment. The `accessZIO` method helps us to access the environment of effect and reduce the redundant operation, every time.
+Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `log`, we don't need to pull out the `log` function from the ZIO Environment. The `environmentWith` method helps us to access the environment of effect and reduce the redundant operation, every time.
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -216,7 +216,7 @@ object logging {
 
   // Accessor Methods
   def log(line: => String): URIO[Logging, Unit] =
-    ZIO.accessZIO(_.get.log(line))
+    ZIO.environmentWith(_.get.log(line))
 }
 ```
 
@@ -247,7 +247,7 @@ object logging {
 
   // Accessor Methods
   def log(line: => String): URIO[Logging, Unit] =
-    ZIO.accessZIO(_.get.log(line))
+    ZIO.environmentWith(_.get.log(line))
 }
 ```
 
@@ -323,7 +323,7 @@ object LoggingLive {
 }
 ```
 
-5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. Just like what we did in Module Pattern 1.0, but with a slight change, in this case, instead of using `ZIO.accessZIO` we use `ZIO.serviceWith` method to define accessors inside the service companion object:
+5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. Just like what we did in Module Pattern 1.0, but with a slight change, in this case, instead of using `ZIO.environmentWith` we use `ZIO.serviceWith` method to define accessors inside the service companion object:
 
 ```scala mdoc:silent
 object Logging {

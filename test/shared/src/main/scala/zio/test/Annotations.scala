@@ -28,14 +28,14 @@ object Annotations {
    * specified annotation to the annotation map.
    */
   def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): URIO[Annotations, Unit] =
-    ZIO.accessZIO(_.get.annotate(key, value))
+    ZIO.environmentWith(_.get.annotate(key, value))
 
   /**
    * Accesses an `Annotations` instance in the environment and retrieves the
    * annotation of the specified type, or its default value if there is none.
    */
   def get[V](key: TestAnnotation[V])(implicit trace: ZTraceElement): URIO[Annotations, V] =
-    ZIO.accessZIO(_.get.get(key))
+    ZIO.environmentWith(_.get.get(key))
 
   /**
    * Returns a set of all fibers in this test.
@@ -43,7 +43,7 @@ object Annotations {
   def supervisedFibers(implicit
     trace: ZTraceElement
   ): ZIO[Annotations, Nothing, SortedSet[Fiber.Runtime[Any, Any]]] =
-    ZIO.accessZIO(_.get.supervisedFibers)
+    ZIO.environmentWith(_.get.supervisedFibers)
 
   /**
    * Constructs a new `Annotations` service.

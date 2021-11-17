@@ -87,11 +87,11 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
             }
 
           def provideAll[A: Tag, D <: Container[A]: Tag]: ZIO[ContainerProvider[A, D], Throwable, D] =
-            ZIO.accessZIO(_.get.provide)
+            ZIO.environmentWith(_.get.provide)
         }
 
         ZIO
-          .accessZIO[ContainerProvider[Int, Container[Int]]] { _ =>
+          .environmentWith[ContainerProvider[Int, Container[Int]]] { _ =>
             ContainerProvider.provideAll[Int, Container[Int]]
           }
           .inject(ContainerProvider.layer[Int, Container[Int]](new Container(10)))
@@ -130,10 +130,10 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
       }
 
     def get[F[_], K, V](key: K)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, F[V]] =
-      ZIO.accessZIO(_.get.get(key))
+      ZIO.environmentWith(_.get.get(key))
 
     def put[F[_], K, V](key: K, value: V)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, Unit] =
-      ZIO.accessZIO(_.get.put(key, value))
+      ZIO.environmentWith(_.get.put(key, value))
   }
 
   val myCache: ZServiceBuilder[Any, Nothing, Cache[Option, Int, String]] =

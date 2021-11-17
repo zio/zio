@@ -39,7 +39,7 @@ val configString: URIO[Config, String] =
   } yield s"Server: $server, port: $port"
 ```
 
-Even effects themselves can be stored in the environment! In this case, to access and execute an effect, the `ZIO.accessZIO` method can be used.
+Even effects themselves can be stored in the environment! In this case, to access and execute an effect, the `ZIO.environmentWith` method can be used.
 
 ```scala mdoc:silent
 trait DatabaseOps {
@@ -75,7 +75,7 @@ val result: UIO[Int] = square.provideAll(ZEnvironment(42))
 
 Once you provide an effect with the environment it requires, then you get back an effect whose environment type is `Any`, indicating its requirements have been fully satisfied.
 
-The combination of `ZIO.accessZIO` and `ZIO#provide` are all that is necessary to fully use environmental effects for easy testability.
+The combination of `ZIO.environmentWith` and `ZIO#provide` are all that is necessary to fully use environmental effects for easy testability.
 
 ## Environmental Effects
 
@@ -111,7 +111,7 @@ In this example,  `Database` is the _module_, which contains the `Database.Servi
 
 ### Provide Helpers
 
-In order to make it easier to access the database service as an environmental effect, we will define helper functions that use `ZIO.accessZIO`.
+In order to make it easier to access the database service as an environmental effect, we will define helper functions that use `ZIO.environmentWith`.
 
 ```scala mdoc:silent
 object db {
@@ -123,7 +123,7 @@ object db {
 }
 ```
 
-While these helpers are not required, because we can access the database module directly through `ZIO.accessZIO`, the helpers are easy to write and make use-site code simpler.
+While these helpers are not required, because we can access the database module directly through `ZIO.environmentWith`, the helpers are easy to write and make use-site code simpler.
 
 ### Use the Service
 

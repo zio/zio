@@ -132,8 +132,8 @@ Here are some of the most important changes:
 | `ZIO#to`                       | `ZIO#intoPromise`                 |
 | `ZIO#asService`                | `ZIO#toServiceBuilder`            |
 |                                |                                   |
-| `ZIO.accessM`                  | `ZIO.accessZIO`                   |
-| `ZIO.fromFunctionM`            | `ZIO.accessZIO`                   |
+| `ZIO.accessM`                  | `ZIO.environmentWith`                   |
+| `ZIO.fromFunctionM`            | `ZIO.environmentWith`                   |
 | `ZIO.fromFunction`             | `ZIO.access`                      |
 | `ZIO.services`                 | `ZIO.service`                     |
 |                                |                                   |
@@ -1109,7 +1109,7 @@ Here is list of other deprecated methods:
 | `ZManaged#whenM`                     | `ZManaged#whenManaged`                     |
 |                                      |                                            |
 | `ZManaged.fromFunction`              | `ZManaged.access`                          |
-| `ZManaged.fromFunctionM`             | `ZManaged.accessManaged`                   |
+| `ZManaged.fromFunctionM`             | `ZManaged.environmentWithManaged`                   |
 | `ZManaged.fromEffect`                | `ZManaged.fromZIO`                         |
 | `ZManaged.fromEffectUninterruptible` | `ZManaged.fromZIOUninterruptible`          |
 | `ZManaged.effect`                    | `ZManaged.attempt`                         |
@@ -1122,7 +1122,7 @@ Here is list of other deprecated methods:
 |                                      |                                            |
 | `ZManaged#use_`                      | `ZManaged#useDiscard`                      |
 | `ZManaged.require`                   | `ZManaged.someOrFail`                      |
-| `ZManaged.accessM`                   | `ZManaged.accessZIO`                       |
+| `ZManaged.accessM`                   | `ZManaged.environmentWith`                       |
 | `ZManaged#rejectM`                   | `ZManaged#rejectManaged`                   |
 | `ZManaged#tapM`                      | `ZManaged#tapZIO`                          |
 | `ZManaged#on`                        | `ZManaged#onExecutionContext`              |

@@ -1175,7 +1175,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
       def perTest[R <: R0, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.accessZIO { r =>
+        ZIO.environmentWith { r =>
           val repeatSchedule: Schedule[Any, TestSuccess, TestSuccess] =
             schedule
               .zipRight(Schedule.identity[TestSuccess])
@@ -1227,7 +1227,9 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     ({ type OutEnv[Env] = Env })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ] =
-    aroundWith(ZIO.accessZIO[R0](r => service(r).save(ZTraceElement.empty))(ZTraceElement.empty))(restore => restore)
+    aroundWith(ZIO.environmentWith[R0](r => service(r).save(ZTraceElement.empty))(ZTraceElement.empty))(restore =>
+      restore
+    )
 
   /**
    * An aspect that restores the [[zio.test.TestClock TestClock]]'s state to its
@@ -1359,7 +1361,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def perTest[R <: R0, E <: E0](
           test: ZIO[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-          ZIO.accessZIO[R] { r =>
+          ZIO.environmentWith[R] { r =>
             val retrySchedule: Schedule[Any, TestFailure[E0], Any] =
               schedule
                 .tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1))

@@ -74,15 +74,15 @@ object ZStreamSpec extends DefaultRunnableSpec {
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        suite("accessStream")(
-          testM("accessStream") {
+        suite("environmentWithStream")(
+          testM("environmentWithStream") {
             for {
-              result <- ZStream.accessStream[String](ZStream.succeed(_)).provideAll("test").runHead.get
+              result <- ZStream.environmentWithStream[String](ZStream.succeed(_)).provideAll("test").runHead.get
             } yield assert(result)(equalTo("test"))
           },
-          testM("accessStream fails") {
+          testM("environmentWithStream fails") {
             for {
-              result <- ZStream.accessStream[Int](_ => ZStream.fail("fail")).provideAll(0).runHead.run
+              result <- ZStream.environmentWithStream[Int](_ => ZStream.fail("fail")).provideAll(0).runHead.run
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
@@ -3607,20 +3607,20 @@ object ZStreamSpec extends DefaultRunnableSpec {
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        suite("accessStream")(
-          testM("accessStream") {
+        suite("environmentWithStream")(
+          testM("environmentWithStream") {
             for {
               result <- ZStream
-                          .accessStream[String](ZStream.succeed(_))
+                          .environmentWithStream[String](ZStream.succeed(_))
                           .provideAll("test")
                           .runCollect
                           .map(_.head)
             } yield assert(result)(equalTo("test"))
           },
-          testM("accessStream fails") {
+          testM("environmentWithStream fails") {
             for {
               result <- ZStream
-                          .accessStream[Int](_ => ZStream.fail("fail"))
+                          .environmentWithStream[Int](_ => ZStream.fail("fail"))
                           .provideAll(0)
                           .runCollect
                           .run

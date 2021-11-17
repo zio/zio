@@ -9,7 +9,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val renames =
     Map(
-      "accessM"                -> "accessZIO",
+      "accessM"                -> "environmentWith",
       "asEC"                   -> "asExecutionContext",
       "bimap"                  -> "mapBoth",
       "bracket"                -> "acquireReleaseWith",
@@ -220,7 +220,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "foldM"                     -> "foldManaged",
       "fromEffectUninterruptible" -> "fromZIOUninterruptible",
       "fromFunction"              -> "access",
-      "fromFunctionM"             -> "accessManaged",
+      "fromFunctionM"             -> "environmentWithManaged",
       "ifM"                       -> "ifManaged",
       "make"                      -> "acquireReleaseWith",
       "makeEffect"                -> "acquireReleaseAttemptWith",

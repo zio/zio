@@ -1504,14 +1504,14 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.environment.map(f)
   }
 
-  final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class environmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZManaged[R with R1, E, A] =
       ZManaged.environment.mapZIO(f)
   }
 
-  final class AccessManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class environmentWithManagedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZManaged[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZManaged[R with R1, E, A] =
@@ -1541,7 +1541,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[R with Service, E, A] =
-      ZManaged.accessManaged(environment => f(environment.get(tag)))
+      ZManaged.environmentWithManaged(environment => f(environment.get(tag)))
   }
 
   /**
@@ -1829,21 +1829,21 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Create a managed that accesses the environment.
    */
-  @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: AccessZIOPartiallyApplied[R] =
-    accessZIO
+  @deprecated("use environmentWith", "2.0.0")
+  def accessM[R]: environmentWithPartiallyApplied[R] =
+    environmentWith
 
   /**
    * Create a managed that accesses the environment.
    */
-  def accessZIO[R]: AccessZIOPartiallyApplied[R] =
-    new AccessZIOPartiallyApplied
+  def environmentWith[R]: environmentWithPartiallyApplied[R] =
+    new environmentWithPartiallyApplied
 
   /**
    * Create a managed that accesses the environment.
    */
-  def accessManaged[R]: AccessManagedPartiallyApplied[R] =
-    new AccessManagedPartiallyApplied
+  def environmentWithManaged[R]: environmentWithManagedPartiallyApplied[R] =
+    new environmentWithManagedPartiallyApplied
 
   /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that
@@ -2538,11 +2538,11 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Lifts an effectful function whose effect requires no environment into an
    * effect that requires the input to the function.
    */
-  @deprecated("use accessManaged", "2.0.0")
+  @deprecated("use environmentWithManaged", "2.0.0")
   def fromFunctionM[R, E, A](f: ZEnvironment[R] => ZManaged[Any, E, A])(implicit
     trace: ZTraceElement
   ): ZManaged[R, E, A] =
-    accessManaged(f)
+    environmentWithManaged(f)
 
   /**
    * Lifts an `Option` into a `ZManaged` but preserves the error as an option in

@@ -64,24 +64,24 @@ object ZStreamSpec extends DefaultRunnableSpec {
         suite("accessM")(
           test("accessM") {
             for {
-              result <- ZStream.accessZIO[String](ZIO.succeed(_)).provideAll("test").runHead.get
+              result <- ZStream.environmentWith[String](ZIO.succeed(_)).provideAll("test").runHead.get
             } yield assert(result)(equalTo("test"))
           },
           test("accessM fails") {
             for {
-              result <- ZStream.accessZIO[Int](_ => ZIO.fail("fail")).provideAll(0).runHead.exit
+              result <- ZStream.environmentWith[Int](_ => ZIO.fail("fail")).provideAll(0).runHead.exit
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        suite("accessStream")(
-          test("accessStream") {
+        suite("environmentWithStream")(
+          test("environmentWithStream") {
             for {
-              result <- ZStream.accessStream[String](ZStream.succeed(_)).provideAll("test").runHead.get
+              result <- ZStream.environmentWithStream[String](ZStream.succeed(_)).provideAll("test").runHead.get
             } yield assert(result)(equalTo("test"))
           },
-          test("accessStream fails") {
+          test("environmentWithStream fails") {
             for {
-              result <- ZStream.accessStream[Int](_ => ZStream.fail("fail")).provideAll(0).runHead.exit
+              result <- ZStream.environmentWithStream[Int](_ => ZStream.fail("fail")).provideAll(0).runHead.exit
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
@@ -3594,7 +3594,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
           test("accessM") {
             for {
               result <- ZStream
-                          .accessZIO[String](ZIO.succeedNow)
+                          .environmentWith[String](ZIO.succeedNow)
                           .provideAll("test")
                           .runCollect
                           .map(_.head)
@@ -3602,24 +3602,24 @@ object ZStreamSpec extends DefaultRunnableSpec {
           },
           test("accessM fails") {
             for {
-              result <- ZStream.accessZIO[Int](_ => ZIO.fail("fail")).provideAll(0).runCollect.exit
+              result <- ZStream.environmentWith[Int](_ => ZIO.fail("fail")).provideAll(0).runCollect.exit
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        suite("accessStream")(
-          test("accessStream") {
+        suite("environmentWithStream")(
+          test("environmentWithStream") {
             for {
               result <- ZStream
-                          .accessStream[String](ZStream.succeed(_))
+                          .environmentWithStream[String](ZStream.succeed(_))
                           .provideAll("test")
                           .runCollect
                           .map(_.head)
             } yield assert(result)(equalTo("test"))
           },
-          test("accessStream fails") {
+          test("environmentWithStream fails") {
             for {
               result <- ZStream
-                          .accessStream[Int](_ => ZStream.fail("fail"))
+                          .environmentWithStream[Int](_ => ZStream.fail("fail"))
                           .provideAll(0)
                           .runCollect
                           .exit

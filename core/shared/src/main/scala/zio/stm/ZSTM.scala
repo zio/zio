@@ -967,7 +967,7 @@ object ZSTM {
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.accessZIO[R] { r =>
+    ZIO.environmentWith[R] { r =>
       ZIO.suspendSucceedWith { (runtimeConfig, fiberId) =>
         tryCommitSync(runtimeConfig, fiberId, stm, r) match {
           case TryCommit.Done(exit) => throw new ZIO.ZioError(exit)

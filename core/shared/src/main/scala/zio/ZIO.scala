@@ -1533,7 +1533,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def contramap[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E, A] =
-    ZIO.accessZIO(r0 => self.provideAll(f(r0)))
+    ZIO.environmentWith(r0 => self.provideAll(f(r0)))
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -2799,15 +2799,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Effectfully accesses the environment of the effect.
    */
-  @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: ZIO.AccessZIOPartiallyApplied[R] =
-    accessZIO
+  @deprecated("use environmentWith", "2.0.0")
+  def accessM[R]: ZIO.environmentWithPartiallyApplied[R] =
+    environmentWith
 
   /**
    * Effectfully accesses the environment of the effect.
    */
-  def accessZIO[R]: ZIO.AccessZIOPartiallyApplied[R] =
-    new ZIO.AccessZIOPartiallyApplied[R]
+  def environmentWith[R]: ZIO.environmentWithPartiallyApplied[R] =
+    new ZIO.environmentWithPartiallyApplied[R]
 
   /**
    * When this effect represents acquisition of a resource (for example, opening
@@ -4244,9 +4244,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Lifts an effectful function whose effect requires no environment into an
    * effect that requires the input to the function.
    */
-  @deprecated("use accessZIO", "2.0.0")
+  @deprecated("use environmentWith", "2.0.0")
   def fromFunctionM[R, E, A](f: ZEnvironment[R] => IO[E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    accessZIO(f)
+    environmentWith(f)
 
   /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an
@@ -5762,7 +5762,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       ZIO.environment.map(f)
   }
 
-  final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class environmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit trace: ZTraceElement): ZIO[R with R1, E, A] =
       ZIO.environment.flatMap(f)
   }

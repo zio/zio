@@ -41,16 +41,16 @@ object URIO {
    * @see
    *   [[zio.ZIO.accessM]]
    */
-  @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: ZIO.AccessZIOPartiallyApplied[R] =
+  @deprecated("use environmentWith", "2.0.0")
+  def accessM[R]: ZIO.environmentWithPartiallyApplied[R] =
     ZIO.accessM[R]
 
   /**
    * @see
-   *   [[zio.ZIO.accessZIO]]
+   *   [[zio.ZIO.environmentWith]]
    */
-  def accessZIO[R]: ZIO.AccessZIOPartiallyApplied[R] =
-    ZIO.accessZIO[R]
+  def environmentEWith[R]: ZIO.environmentWithPartiallyApplied[R] =
+    ZIO.environmentWith[R]
 
   /**
    * @see
@@ -946,7 +946,7 @@ object URIO {
    * @see
    *   [[zio.ZIO.fromFunctionM]]
    */
-  @deprecated("use accessZIO", "2.0.0")
+  @deprecated("use environmentWith", "2.0.0")
   def fromFunctionM[R, A](f: ZEnvironment[R] => UIO[A])(implicit trace: ZTraceElement): URIO[R, A] =
     ZIO.fromFunctionM(f)
 

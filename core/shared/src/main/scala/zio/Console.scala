@@ -117,7 +117,7 @@ object Console extends Serializable {
    * null.
    */
   def readLine(implicit trace: ZTraceElement): ZIO[Console, IOException, String] =
-    ZIO.accessZIO(_.get.readLine)
+    ZIO.environmentWith(_.get.readLine)
 
   /**
    * Prints text to the console.

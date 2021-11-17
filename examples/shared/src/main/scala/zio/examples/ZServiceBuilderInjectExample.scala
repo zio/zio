@@ -27,7 +27,7 @@
 //   }
 
 //   object OldLady {
-//     def contentsOfStomach: ZIO[OldLady, Nothing, List[String]] = ZIO.accessZIO(_.get.contentsOfStomach)
+//     def contentsOfStomach: ZIO[OldLady, Nothing, List[String]] = ZIO.environmentWith(_.get.contentsOfStomach)
 
 //     def live: URServiceBuilder[Spider with Bear, OldLady] =
 //       ZServiceBuilder {
@@ -44,7 +44,7 @@
 //   }
 
 //   object Spider {
-//     def contentsOfStomach: ZIO[Spider, Nothing, List[String]] = ZIO.accessZIO(_.get.contentsOfStomach)
+//     def contentsOfStomach: ZIO[Spider, Nothing, List[String]] = ZIO.environmentWith(_.get.contentsOfStomach)
 
 //     def live: URServiceBuilder[Fly, Spider] =
 //       ZServiceBuilder {

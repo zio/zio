@@ -4381,21 +4381,21 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the environment of the stream in the context of an effect.
    */
-  @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: AccessZIOPartiallyApplied[R] =
-    accessZIO
+  @deprecated("use environmentWith", "2.0.0")
+  def accessM[R]: environmentWithPartiallyApplied[R] =
+    environmentWith
 
   /**
    * Accesses the environment of the stream in the context of an effect.
    */
-  def accessZIO[R]: AccessZIOPartiallyApplied[R] =
-    new AccessZIOPartiallyApplied[R]
+  def environmentWith[R]: environmentWithPartiallyApplied[R] =
+    new environmentWithPartiallyApplied[R]
 
   /**
    * Accesses the environment of the stream in the context of a stream.
    */
-  def accessStream[R]: AccessStreamPartiallyApplied[R] =
-    new AccessStreamPartiallyApplied[R]
+  def environmentWithStream[R]: environmentWithStreamPartiallyApplied[R] =
+    new environmentWithStreamPartiallyApplied[R]
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -5560,14 +5560,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.environment[R].map(f)
   }
 
-  final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class environmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZStream[R with R1, E, A] =
       ZStream.environment[R].mapZIO(f)
   }
 
-  final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class environmentWithStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZStream[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZStream[R with R1, E, A] =
