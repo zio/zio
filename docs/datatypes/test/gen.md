@@ -13,9 +13,125 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) {
 }
 ```
 
+```scala mdoc:invisible
+import zio._
+import zio.test._
+```
+
 ## Creating a Generator
 
-In the companion object of the `Gen` data type, there are tons of generators for various data types such as `Gen.int`, `Gen.double`, `Gen.boolean`, and so forth.
+In the companion object of the `Gen` data type, there are tons of generators for various data types.
+
+### Generating Primitive Types
+
+* `Gen.int` — e.g:  -1, 2, 59, 123, 0, -11323, 4, -425084233, ...
+* `Gen.string` — e.g: "3r%~9", "", "d", "3A34", ...
+* `Gen.boolean` — true, false, false, true, true, true, ...
+* `Gen.float` 
+* `Gen.double`
+* `Gen.bigInt`
+* `Gen.byte`
+* `Gen.bigdecimal`
+* `Gen.long`
+
+### Specialized Types
+
+* `Gen.iso_8859_1`
+* `Gen.unicodeChar`
+* `Gen.asciiString`
+* `Gen.asciiChar`
+* `Gen.alphaNumericChar`
+* `Gen.alphaNumericString`
+* `Gen.alphaNumericStringBounded`
+
+### Generating Date/Time Types
+
+| Generator            | Date/Time Types            |
+|----------------------+----------------------------|
+| `Gen.dayOfWeek`      | `java.time.DayOfWeek`      |
+| `Gen.month`          | `java.time.Month`          |
+| `Gen.year`           | `java.time.Year`           |
+| `Gen.instant`        | `java.time.Instant`        |
+| `Gen.monthDay`       | `java.time.MonthDay`       |
+| `Gen.yearMonth`      | `java.time.YearMonth`      |
+| `Gen.zoneId`         | `java.time.ZoneId`         |
+| `Gen.zoneOffset`     | `java.time.ZoneOffset`     |
+| `Gen.zonedDateTime`  | `java.time.ZonedDateTime`  |
+| `Gen.offsetTime`     | `java.time.OffsetTime`     |
+| `Gen.offsetDateTime` | `java.time.OffsetDateTime` |
+| `Gen.period`         | `java.time.Period`         |
+| `Gen.localDate`      | `java.time.LocalDate`      |
+| `Gen.localDateTime`  | `java.time.LocalDateTime`  |
+| `Gen.localTime`      | `java.time.LocalTime`      |
+| `Gen.finiteDuration` | `zio.duration.Duration`    |
+
+### Generating Functions
+
+* `Gen.function` — Gen[R, B] => Gen[R, A => B]
+* `Gen.function2` — Gen[R, C] => Gen[R, (A, B) => C]
+* `Gen.functionWith` — Gen[R, B] => (A => Int) => Gen[R, A => B]
+* `Gen.functionWith` — Gen[R, B] => ((A, B) => Int) => Gen[R, (A, B) => C]
+
+### Generating ZIO Values
+
+1. successful effects
+
+```scala mdoc:compile-only
+val gen: Gen[Has[Random], UIO[Int]] = Gen.successes(Gen.int(-10, 10))
+```
+
+2. failed effects
+
+```scala mdoc:compile-only
+val gen: Gen[Has[Random] with Has[Sized], IO[String, Nothing]] = Gen.failures(Gen.string)
+```
+
+3. died effects
+
+```scala mdoc:compile-only
+val gen: Gen[Has[Random], UIO[Nothing]] = Gen.died(Gen.throwable)
+```
+
+### Generating Compound Types
+
+1. tuples
+
+```scala mdoc:compile-only
+val tuples: Gen[Has[Random], (Int, Int)] =
+  for {
+    a <- Gen.int
+    b <- Gen.int
+  } yield (a, b)
+```
+
+2. options
+
+```scala mdoc:compile-only
+val intOptions: Gen[Has[Random], Option[Int]] =
+  Gen.option(Gen.int)
+```
+
+3. either
+
+```scala mdoc:compile-only
+val char: Gen[Has[Random], Either[Char, Char]] =
+  Gen.either(Gen.numericChar, Gen.alphaChar)
+```
+
+5. lists
+
+```scala mdoc:compile-only
+val listOfInts: Gen[Has[Random] with Has[Sized], List[Int]] =
+  Gen.listOf(Gen.int)
+```
+
+4. Gen.chunkOf
+
+### Sized Generators
+
+1. `Gen.small`
+2. `Gen.medium`
+3. `Gen.large`
 
 Let's create an `Int` generator:
 
