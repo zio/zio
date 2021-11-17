@@ -97,32 +97,43 @@ final class ZEnvironment[+R] private (
   def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     new ZEnvironment(self.map ++ that.map)
 
+  def unsafeGet[A](tag: LightTypeTag): A = {
+    val services = unsafeGetAll[A](tag)
+    if (services.size == 1) services.head
+    Chunk.fromIterable(services).sortBy(_._1.repr).head._2
+  }
+
+  def unsafeGetAll[A](tag: LightTypeTag): Map[LightTypeTag, A] =
+    self.map.get(tag) match {
+      case Some(a) => Map(tag -> a.asInstanceOf[A])
+      case None =>
+        self.cache.get(tag) match {
+          case Some(a) => Map(tag -> a.asInstanceOf[A])
+          case None =>
+            val services = self.map.collect {
+              case (curTag, value) if taggedIsSubtype(curTag, tag) =>
+                self.cache = self.cache + (curTag -> value)
+                (curTag, value)
+            }
+            if (services.isEmpty) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
+            else services.asInstanceOf[Map[LightTypeTag, A]]
+        }
+    }
+
   def upcast[R1](implicit ev: R <:< R1): ZEnvironment[R1] =
     new ZEnvironment(map)
 
   /**
-   * Retrieves a service from the environment.
+   * Updates a service in the environment.
    */
-  private[zio] def unsafeGet[A](tag: LightTypeTag): A =
-    self.map
-      .getOrElse(
-        tag,
-        self.cache.getOrElse(
-          tag,
-          self.map.collectFirst {
-            case (curTag, value) if taggedIsSubtype(curTag, tag) =>
-              self.cache = self.cache + (curTag -> value)
-              value
-          }.getOrElse(throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
-        )
-      )
-      .asInstanceOf[A]
-
   def update[A >: R: Tag](f: A => A): ZEnvironment[R] =
-    new ZEnvironment(map.updated(Tag[A].tag, f(get[A])))
+    self.add[A](f(get[A]))
 
+  /**
+   * Updates a service in the environment correponding to the specified key.
+   */
   def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
-    new ZEnvironment(map.updated(tag.tag, map(tag.tag).asInstanceOf[Map[K, V]].updated(k, f)))
+    self.add[Map[K, V]](unsafeGet[Map[K, V]](taggedTagType(tag)).updated(k, f(getAt(k).get)))
 
   /**
    * Filters a map by retaining only keys satisfying a predicate.
@@ -135,19 +146,63 @@ final class ZEnvironment[+R] private (
 
 object ZEnvironment {
 
+  /**
+   * Constructs a new environment holding the single service.
+   */
   def apply[A: Tag](a: A): ZEnvironment[A] =
-    new ZEnvironment(Map(Tag[A].tag -> a))
+    empty.add[A](a)
+
+  /**
+   * Constructs a new environment holding the specified services. The service
+   * must be monomorphic. Parameterized services are not supported.
+   */
   def apply[A: Tag, B: Tag](a: A, b: B): ZEnvironment[A with B] =
-    new ZEnvironment(Map(Tag[A].tag -> a, Tag[B].tag -> b))
+    ZEnvironment(a).add[B](b)
+
+  /**
+   * Constructs a new environment holding the specified services. The service
+   * must be monomorphic. Parameterized services are not supported.
+   */
   def apply[A: Tag, B: Tag, C: Tag](a: A, b: B, c: C): ZEnvironment[A with B with C] =
-    new ZEnvironment(Map(Tag[A].tag -> a, Tag[B].tag -> b, Tag[C].tag -> c))
+    ZEnvironment(a).add(b).add[C](c)
+
+  /**
+   * Constructs a new environment holding the specified services. The service
+   * must be monomorphic. Parameterized services are not supported.
+   */
   def apply[A: Tag, B: Tag, C: Tag, D: Tag](a: A, b: B, c: C, d: D): ZEnvironment[A with B with C with D] =
-    new ZEnvironment(Map(Tag[A].tag -> a, Tag[B].tag -> b, Tag[C].tag -> c, Tag[D].tag -> d))
+    ZEnvironment(a).add(b).add(c).add[D](d)
+
+  /**
+   * Constructs a new environment holding the specified services. The service
+   * must be monomorphic. Parameterized services are not supported.
+   */
+  def apply[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag](
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E
+  ): ZEnvironment[A with B with C with D with E] =
+    ZEnvironment(a).add(b).add(c).add(d).add[E](e)
+
+  /**
+   * An empty environment containing no services.
+   */
   val empty: ZEnvironment[Any] =
-    new ZEnvironment(Map.empty)
+    new ZEnvironment[AnyRef](Map.empty, Map(taggedTagType(TaggedAnyRef) -> (())))
+
+  /**
+   * The default ZIO environment.
+   */
   lazy val default: ZEnvironment[Clock with Console with Random with System] =
-    ZEnvironment[Clock](Clock.ClockLive) ++
-      ZEnvironment[Console](Console.ConsoleLive) ++
-      ZEnvironment[System](System.SystemLive) ++
-      ZEnvironment[Random](Random.RandomLive)
+    ZEnvironment[Clock, Console, Random, System](
+      Clock.ClockLive,
+      Console.ConsoleLive,
+      Random.RandomLive,
+      System.SystemLive
+    )
+
+  private val TaggedAnyRef: Tag[AnyRef] =
+    implicitly[Tag[AnyRef]]
 }
