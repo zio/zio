@@ -187,9 +187,9 @@ object ZEnvironment {
     ZEnvironment(a).add(b).add(c).add(d).add[E](e)
 
   /**
-   * An empty environment containing no services.
+   * The empty environment containing no services.
    */
-  val empty: ZEnvironment[Any] =
+  lazy val empty: ZEnvironment[Any] =
     new ZEnvironment[AnyRef](Map.empty, Map(taggedTagType(TaggedAnyRef) -> (())))
 
   /**
