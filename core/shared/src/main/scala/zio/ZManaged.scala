@@ -856,7 +856,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
-    provideSomeServices[ZEnv](serviceBuilder)
+    provideSome[ZEnv](serviceBuilder)
 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
@@ -896,9 +896,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  @deprecated("use provideSomeServices", "2.0.0")
-  final def provideSomeLayer[R0]: ZManaged.ProvideSomeServices[R0, R, E, A] =
-    provideSomeServices
+  @deprecated("use provideSome", "2.0.0")
+  final def provideSomeLayer[R0]: ZManaged.provideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -909,11 +909,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideSomeServices[Random](clockServiceBuilder)
+   * val managed2 = managed.provideSome[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeServices[R0]: ZManaged.ProvideSomeServices[R0, R, E, A] =
-    new ZManaged.ProvideSomeServices[R0, R, E, A](self)
+  final def provideSome[R0]: ZManaged.provideSome[R0, R, E, A] =
+    new ZManaged.provideSome[R0, R, E, A](self)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -1562,7 +1562,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.suspend(b().flatMap(b => if (b) onTrue else onFalse))
   }
 
-  final class ProvideSomeServices[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
+  final class provideSome[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: => ZServiceBuilder[R0, E1, R1]
     )(implicit

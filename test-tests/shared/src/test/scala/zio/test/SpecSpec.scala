@@ -84,7 +84,7 @@ object SpecSpec extends ZIOBaseSpec {
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),
-    suite("provideSomeServicesShared")(
+    suite("provideSomeShared")(
       test("leaves the remainder of the environment") {
         for {
           ref <- Ref.make[Set[Int]](Set.empty)
@@ -107,7 +107,7 @@ object SpecSpec extends ZIOBaseSpec {
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    }
-                 ).provideSomeServicesShared[TestEnvironment](serviceBuilder) @@ nondeterministic
+                 ).provideSomeShared[TestEnvironment](serviceBuilder) @@ nondeterministic
           _      <- execute(spec)
           result <- ref.get
         } yield assert(result)(hasSize(isGreaterThan(1)))
@@ -126,7 +126,7 @@ object SpecSpec extends ZIOBaseSpec {
               output <- TestConsole.output
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           }
-        ).provideSomeServicesShared[TestEnvironment](serviceBuilder) @@ silent
+        ).provideSomeShared[TestEnvironment](serviceBuilder) @@ silent
         assertM(succeeded(spec))(isTrue)
       },
       test("releases resources as soon as possible") {

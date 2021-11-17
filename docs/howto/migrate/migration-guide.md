@@ -791,11 +791,11 @@ val serviceBuilder = ZServiceBuilder.wireSome[Console, DocRepo with UserRepo](
 )
 ```
 
-In ZIO 1.x, the `ZIO#provideSomeServices` provides environment partially:
+In ZIO 1.x, the `ZIO#provideSome` provides environment partially:
 
 ```scala mdoc:silent:nest
 val app: ZIO[Console, Nothing, Unit] =
-  myApp.provideSomeServices[Console](
+  myApp.provideSome[Console](
     ((Logging.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
   )
@@ -844,7 +844,7 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 | ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
 |--------------------------------------------------------|----------------------------|
 | `ZIO#provide`                                          | `ZIO#inject`               |
-| `ZIO#provideSomeServices`                              | `ZIO#injectSome`           |
+| `ZIO#provideSome`                              | `ZIO#injectSome`           |
 | `ZIO#provideCustomServices`                            | `ZIO#injectCustom`         |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wire`     |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wireSome` |

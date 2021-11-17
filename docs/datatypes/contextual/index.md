@@ -445,20 +445,20 @@ val mainEffect: ZIO[Any, Nothing, Unit] =
 
 As we see, the type of our effect converted from `ZIO[Random with Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
 
-#### Using `provideSomeServices` Method
+#### Using `provideSome` Method
 
-Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSomeServices` to partially apply some service builders to the `ZIO` effect.
+Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSome` to partially apply some service builders to the `ZIO` effect.
 
-In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeServices`:
+In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSome`:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Random with Clock, Nothing, Unit] = 
-  myApp.provideSomeServices[Random with Clock](Console.live)
+  myApp.provideSome[Random with Clock](Console.live)
 ```
 
 > **Note:**
 >
-> When using `ZIO#provideSomeServices[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
+> When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
 
 #### Using `provideCustomServices` Method
 

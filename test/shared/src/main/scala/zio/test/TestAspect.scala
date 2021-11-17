@@ -1045,7 +1045,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     ({ type OutEnv[Env] = TestEnvironment })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ] =
-    provideSomeServices[TestEnvironment][E, R](serviceBuilder)
+    provideSome[TestEnvironment][E, R](serviceBuilder)
 
   /**
    * Provides each test with the part of the environment that is not part of the
@@ -1071,7 +1071,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     ({ type OutEnv[Env] = TestEnvironment })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ] =
-    provideSomeServicesShared[TestEnvironment][E, R](serviceBuilder)
+    provideSomeShared[TestEnvironment][E, R](serviceBuilder)
 
   /**
    * An aspect that provides a service builder to the spec, translating it up a
@@ -1129,10 +1129,10 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    *
    * val spec: ZSpec[Clock with Random, Nothing] = ???
    *
-   * val spec2 = spec @@ provideSomeServices[Random](clockServiceBuilder)
+   * val spec2 = spec @@ provideSome[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeServices[R0]: TestAspect.ProvideSomeServiceBuilder[R0] =
+  final def provideSome[R0]: TestAspect.ProvideSomeServiceBuilder[R0] =
     new TestAspect.ProvideSomeServiceBuilder[R0]
 
   /**
@@ -1145,10 +1145,10 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    *
    * val spec: ZSpec[Clock with Random, Nothing] = ???
    *
-   * val spec2 = spec.provideSomeServicesShared[Random](clockServiceBuilder)
+   * val spec2 = spec.provideSomeShared[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeServicesShared[R0]: TestAspect.ProvideSomeServiceBuilderShared[R0] =
+  final def provideSomeShared[R0]: TestAspect.ProvideSomeServiceBuilderShared[R0] =
     new TestAspect.ProvideSomeServiceBuilderShared[R0]
 
   /**

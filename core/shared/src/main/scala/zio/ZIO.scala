@@ -1507,7 +1507,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZIO[ZEnv, E1, A] =
-    provideSomeServices[ZEnv](serviceBuilder)
+    provideSome[ZEnv](serviceBuilder)
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
@@ -1547,9 +1547,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val zio2 = zio.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  @deprecated("use provideSomeServices", "2.0.0")
-  final def provideSomeLayer[R0]: ZIO.ProvideSomeServices[R0, R, E, A] =
-    provideSomeServices
+  @deprecated("use provideSome", "2.0.0")
+  final def provideSomeLayer[R0]: ZIO.provideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -1560,11 +1560,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
    *
-   * val zio2 = zio.provideSomeServices[Random](clockServiceBuilder)
+   * val zio2 = zio.provideSome[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeServices[R0]: ZIO.ProvideSomeServices[R0, R, E, A] =
-    new ZIO.ProvideSomeServices[R0, R, E, A](self)
+  final def provideSome[R0]: ZIO.provideSome[R0, R, E, A] =
+    new ZIO.provideSome[R0, R, E, A](self)
 
   /**
    * Returns a new effect that will utilize the default scope (fiber scope) to
@@ -5620,7 +5620,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       self.refineOrDie { case e: E1 => e }
   }
 
-  final class ProvideSomeServices[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
+  final class provideSome[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: => ZServiceBuilder[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =

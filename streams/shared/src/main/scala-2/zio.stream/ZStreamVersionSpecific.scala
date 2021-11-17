@@ -35,8 +35,8 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
    * val managed2 = managed.injectSome[Random](clockServiceBuilder)
    * }}}
    */
-  def injectSome[R0]: ProvideSomeServicesStreamPartiallyApplied[R0, R, E, O] =
-    new ProvideSomeServicesStreamPartiallyApplied[R0, R, E, O](self)
+  def injectSome[R0]: provideSomeStreamPartiallyApplied[R0, R, E, O] =
+    new provideSomeStreamPartiallyApplied[R0, R, E, O](self)
 
   /**
    * Automatically assembles a service builder for the ZStream effect.
@@ -46,7 +46,7 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
 
 }
 
-private final class ProvideSomeServicesStreamPartiallyApplied[R0, -R, +E, +O](
+private final class provideSomeStreamPartiallyApplied[R0, -R, +E, +O](
   val self: ZStream[R, E, O]
 ) extends AnyVal {
   def provideServices[E1 >: E, R1](

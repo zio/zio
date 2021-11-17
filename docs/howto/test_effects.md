@@ -390,13 +390,13 @@ test("One can control time for failing effects too") {
       readRef <- promise.await
       result  <- result.join
     } yield assert(1)(equalTo(readRef)) && assert(result)(fails(isSubtype[Exception](anything)))
-  testCase.provideSomeServices[TestEnvironment](partialServiceBuilder)
+  testCase.provideSome[TestEnvironment](partialServiceBuilder)
 }
 ```
 
 In this case, we want to test an effect with dependencies that can potentially fail with an error. To do this we need to run the effect and use assertions that expect an `Exit` value.
 
-Because we are providing dependencies to the test we need to provide everything expected by our test case and leave the test environment behind using `.provideSomeServices[TestEnvironment]`.
+Because we are providing dependencies to the test we need to provide everything expected by our test case and leave the test environment behind using `.provideSome[TestEnvironment]`.
 
 Keep in mind we do not provide any implementation of the `Clock` because doing will make force `SchedulingService` to use it, while the clock we need here is the `TestClock` provided by the test environment.
 

@@ -2866,7 +2866,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
-    provideSomeServices[ZEnv](serviceBuilder)
+    provideSome[ZEnv](serviceBuilder)
 
   /**
    * Provides a service builder to the stream, which translates it to another
@@ -2912,9 +2912,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  @deprecated("use provideSomeServices", "2.0.0")
-  final def provideSomeLayer[R0]: ZStream.ProvideSomeServices[R0, R, E, A] =
-    provideSomeServices
+  @deprecated("use provideSome", "2.0.0")
+  final def provideSomeLayer[R0]: ZStream.provideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -2925,11 +2925,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSomeServices[Random](clockServiceBuilder)
+   * val stream2 = stream.provideSome[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeServices[R0]: ZStream.ProvideSomeServices[R0, R, E, A] =
-    new ZStream.ProvideSomeServices[R0, R, E, A](self)
+  final def provideSome[R0]: ZStream.provideSome[R0, R, E, A] =
+    new ZStream.provideSome[R0, R, E, A](self)
 
   /**
    * Re-chunks the elements of the stream into chunks of `n` elements each. The
@@ -5685,7 +5685,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
-  final class ProvideSomeServices[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
+  final class provideSome[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: ZServiceBuilder[R0, E1, R1]
     )(implicit

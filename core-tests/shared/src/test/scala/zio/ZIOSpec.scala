@@ -1841,11 +1841,11 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSomeServices")(
+    suite("provideSome")(
       test("can split environment into two parts") {
         val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit]                = ZIO.unit
-        val zio2: URIO[Random, Unit]                                  = zio.provideSomeServices[Random](clockServiceBuilder)
+        val zio2: URIO[Random, Unit]                                  = zio.provideSome[Random](clockServiceBuilder)
         assertM(zio2)(anything)
       }
     ),

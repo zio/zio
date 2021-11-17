@@ -1648,7 +1648,7 @@ object ZIOSpec extends DefaultRunnableSpec {
       test("can split environment into two parts") {
         val clockLayer: ZServiceBuilder[Any, Nothing, Has[Clock]]    = Clock.live
         val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Has[Random], Unit]                   = zio.provideSomeServices[Has[Random]](clockLayer)
+        val zio2: URIO[Has[Random], Unit]                   = zio.provideSome[Has[Random]](clockLayer)
         assertM(zio2)(anything)
       }
     ),
