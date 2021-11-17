@@ -30,9 +30,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
 
   def makeServiceBuilder1(ref: Ref[Vector[String]]): ZServiceBuilder[Any, Nothing, Module1] =
     ZServiceBuilder {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(ZEnvironment(new Module1.Service {})))(_ =>
-        ref.update(_ :+ release1)
-      )
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(new Module1.Service {}))(_ => ref.update(_ :+ release1))
     }
 
   type Module2 = Module2.Service
@@ -43,9 +41,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
 
   def makeServiceBuilder2(ref: Ref[Vector[String]]): ZServiceBuilder[Any, Nothing, Module2] =
     ZServiceBuilder {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(ZEnvironment(new Module2.Service {})))(_ =>
-        ref.update(_ :+ release2)
-      )
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(new Module2.Service {}))(_ => ref.update(_ :+ release2))
     }
 
   type Module3 = Module3.Service
@@ -56,9 +52,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
 
   def makeServiceBuilder3(ref: Ref[Vector[String]]): ZServiceBuilder[Any, Nothing, Module3] =
     ZServiceBuilder {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(ZEnvironment(new Module3.Service {})))(_ =>
-        ref.update(_ :+ release3)
-      )
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(new Module3.Service {}))(_ => ref.update(_ :+ release3))
     }
 
   def makeRef: UIO[Ref[Vector[String]]] =
@@ -359,7 +353,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
                                ref <-
                                  Ref.make[Vector[String]](Vector()).toManagedWith(ref => ref.get.flatMap(testRef.set))
                                _ <- ZManaged.unit
-                             } yield ZEnvironment(ref)
+                             } yield ref
                            }
           _      <- serviceBuilder.build.use(_.get.update(_ :+ "test"))
           result <- testRef.get
@@ -369,7 +363,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         for {
           ref           <- Ref.make(0)
           effect         = ref.update(_ + 1) *> ZIO.fail("fail")
-          serviceBuilder = ZServiceBuilder.fromZIOMany(effect).retry(Schedule.recurs(3))
+          serviceBuilder = ZServiceBuilder.fromZIOAll(effect).retry(Schedule.recurs(3))
           _             <- serviceBuilder.build.useNow.ignore
           result        <- ref.get
         } yield assert(result)(equalTo(4))

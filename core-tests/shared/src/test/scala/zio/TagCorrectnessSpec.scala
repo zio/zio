@@ -117,15 +117,17 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
     def live[F[_], K, V](
       f: Option[V] => F[V]
     )(implicit tag: Tag[Cache[F, K, V]]): ZServiceBuilder[Any, Nothing, Cache[F, K, V]] =
-      (for {
-        cache <- Ref.make(Map.empty[K, V])
-      } yield new Cache[F, K, V] {
-        def get(key: K): ZIO[Any, Nothing, F[V]] =
-          cache.get.map(_.get(key)).map(f)
+      ZServiceBuilder {
+        for {
+          cache <- Ref.make(Map.empty[K, V])
+        } yield new Cache[F, K, V] {
+          def get(key: K): ZIO[Any, Nothing, F[V]] =
+            cache.get.map(_.get(key)).map(f)
 
-        def put(key: K, value: V): ZIO[Any, Nothing, Unit] =
-          cache.update(_.updated(key, value))
-      }).toServiceBuilder
+          def put(key: K, value: V): ZIO[Any, Nothing, Unit] =
+            cache.update(_.updated(key, value))
+        }
+      }
 
     def get[F[_], K, V](key: K)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, F[V]] =
       ZIO.accessZIO(_.get.get(key))

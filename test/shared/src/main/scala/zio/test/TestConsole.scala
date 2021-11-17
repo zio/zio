@@ -193,14 +193,15 @@ object TestConsole extends Serializable {
    */
   def make(data: Data, debug: Boolean = true)(implicit
     trace: ZTraceElement
-  ): ZServiceBuilder[Live, Nothing, TestConsole] = {
-    for {
-      live     <- ZIO.service[Live]
-      ref      <- Ref.make(data)
-      debugRef <- FiberRef.make(debug)
-      test      = Test(ref, live, debugRef)
-    } yield test
-  }.toServiceBuilder
+  ): ZServiceBuilder[Live, Nothing, TestConsole] =
+    ZServiceBuilder {
+      for {
+        live     <- ZIO.service[Live]
+        ref      <- Ref.make(data)
+        debugRef <- FiberRef.make(debug)
+        test      = Test(ref, live, debugRef)
+      } yield test
+    }
 
   val any: ZServiceBuilder[TestConsole, Nothing, TestConsole] =
     ZServiceBuilder.environment[TestConsole](Tracer.newTrace)

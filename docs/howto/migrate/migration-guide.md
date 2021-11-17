@@ -996,16 +996,18 @@ As we see, we have the following changes:
     > ```scala mdoc:silent:nest
     > object LoggingLive {
     >   val serviceBuilder: ZServiceBuilder[Clock with Console, Nothing, Logging] =
-    >     (for {
-    >       console <- ZIO.service[Console]
-    >       clock   <- ZIO.service[Clock]
-    >     } yield new Logging {
-    >       override def log(line: String): UIO[Unit] =
-    >         for {
-    >           time <- clock.currentDateTime
-    >           _    <- console.printLine(s"$time--$line").orDie
-    >         } yield ()
-    >     }).toServiceBuilder
+    >     ZServiceBuilder {
+    >       for {
+    >         console <- ZIO.service[Console]
+    >         clock   <- ZIO.service[Clock]
+    >       } yield new Logging {
+    >         override def log(line: String): UIO[Unit] =
+    >           for {
+    >             time <- clock.currentDateTime
+    >             _    <- console.printLine(s"$time--$line").orDie
+    >           } yield ()
+    >       }
+    >     }
     > }
     > ```
 

@@ -19,10 +19,12 @@ object AutoWireSpec extends ZIOBaseSpec {
             val doubleServiceBuilder: UServiceBuilder[Double] = ZServiceBuilder.succeed(100.1)
             val stringServiceBuilder                          = ZServiceBuilder.succeed("this string is 28 chars long")
             val intServiceBuilder =
-              (for {
-                str    <- ZIO.service[String]
-                double <- ZIO.service[Double]
-              } yield str.length + double.toInt).toServiceBuilder
+              ZServiceBuilder {
+                for {
+                  str    <- ZIO.service[String]
+                  double <- ZIO.service[Double]
+                } yield str.length + double.toInt
+              }
 
             val program: URIO[Int, Int] = ZIO.service[Int]
             val injected: ZIO[Any, Nothing, Int] =
@@ -200,10 +202,12 @@ object AutoWireSpec extends ZIOBaseSpec {
             val doubleServiceBuilder = ZServiceBuilder.succeed(100.1)
             val stringServiceBuilder = ZServiceBuilder.succeed("this string is 28 chars long")
             val intServiceBuilder =
-              (for {
-                str    <- ZManaged.service[String]
-                double <- ZManaged.service[Double]
-              } yield str.length + double.toInt).toServiceBuilder
+              ZServiceBuilder {
+                for {
+                  str    <- ZManaged.service[String]
+                  double <- ZManaged.service[Double]
+                } yield str.length + double.toInt
+              }
 
             val program  = ZManaged.service[Int]
             val provided = program.inject(intServiceBuilder, stringServiceBuilder, doubleServiceBuilder)

@@ -719,11 +719,13 @@ object TestRandom extends Serializable {
    */
   def make(data: Data): ServiceBuilder[Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
-    (for {
-      data   <- Ref.make(data)
-      buffer <- Ref.make(Buffer())
-      test    = Test(data, buffer)
-    } yield test).toServiceBuilder
+    ZServiceBuilder {
+      for {
+        data   <- Ref.make(data)
+        buffer <- Ref.make(Buffer())
+        test    = Test(data, buffer)
+      } yield test
+    }
   }
 
   val any: ZServiceBuilder[TestRandom, Nothing, TestRandom] =
@@ -734,14 +736,14 @@ object TestRandom extends Serializable {
 
   val random: ZServiceBuilder[Clock, Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
-    (ZServiceBuilder.service[Clock] ++ deterministic) >>> {
+    (ZServiceBuilder.service[Clock] ++ deterministic) >>> ZServiceBuilder {
       for {
         random     <- ZIO.service[Random]
         testRandom <- ZIO.service[TestRandom]
         time       <- Clock.nanoTime
         _          <- TestRandom.setSeed(time)
       } yield testRandom
-    }.toServiceBuilder
+    }
   }
 
   /**

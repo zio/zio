@@ -180,9 +180,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
    */
   val javaClock: ZServiceBuilder[java.time.Clock, Nothing, Clock] = {
     implicit val trace = Tracer.newTrace
-    (for {
-      clock <- ZIO.service[java.time.Clock]
-    } yield ClockJava(clock)).toServiceBuilder
+    ClockJava.toServiceBuilder[Clock]
   }
 
   val live: ServiceBuilder[Nothing, Clock] =
