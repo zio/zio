@@ -18,10 +18,78 @@ package zio
 
 import izumi.reflect.macrortti.LightTypeTag
 
-class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends Serializable { self =>
+final class ZEnvironment[+R] private (
+  private val map: Map[LightTypeTag, Any],
+  private var cache: Map[LightTypeTag, Any] = Map.empty
+) extends Serializable { self =>
 
-  def get[A >: R: Tag]: A =
-    unsafeGet(Tag[A].tag)
+  /**
+   * Adds a service to the environment.
+   */
+  def add[A](a: A)(implicit tagged: Tag[A]): ZEnvironment[R with A] =
+    new ZEnvironment(self.map + (taggedTagType(tagged) -> a))
+
+  override def equals(that: Any): Boolean = that match {
+    case that: ZEnvironment[_] => map == that.map
+    case _                     => false
+  }
+
+  /**
+   * Retrieves a service from the environment.
+   */
+  def get[A >: R](implicit tagged: Tag[A]): A =
+    unsafeGet(taggedTagType(tagged))
+
+  override def hashCode: Int =
+    map.hashCode
+
+  /**
+   * Prunes the environment to the set of services statically known to be
+   * contained within it.
+   */
+  def prune[R1 >: R](implicit tagged: Tag[R1]): ZEnvironment[R1] = {
+    val tag = taggedTagType(tagged)
+    val set = taggedGetServices(tag)
+
+    val missingServices = set.filterNot(tag => map.keys.exists(taggedIsSubtype(_, tag)))
+    if (missingServices.nonEmpty) {
+      throw new Error(
+        s"Defect in zio.ZEnvironment: ${missingServices} statically known to be contained within the environment are missing"
+      )
+    }
+
+    if (set.isEmpty) self
+    else
+      new ZEnvironment(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(tag, _)))).asInstanceOf[ZEnvironment[R]]
+  }
+
+  /**
+   * The size of the environment, which is the number of services contained in
+   * the environment. This is intended primarily for testing purposes.
+   */
+  def size: Int =
+    map.size
+
+  override def toString: String =
+    s"ZEnvironment($map)"
+
+  /**
+   * Retrieves a service from the environment.
+   */
+  def unsafeGet[A](tag: LightTypeTag): A =
+    self.map
+      .getOrElse(
+        tag,
+        self.cache.getOrElse(
+          tag,
+          self.map.collectFirst {
+            case (curTag, value) if taggedIsSubtype(curTag, tag) =>
+              self.cache = self.cache + (curTag -> value)
+              value
+          }.getOrElse(throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}"))
+        )
+      )
+      .asInstanceOf[A]
 
   def ++[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     union[R1](that)
@@ -37,9 +105,6 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): Option[V] =
     unsafeGet(tag.tag).asInstanceOf[Map[K, V]].get(k)
 
-  def size: Int =
-    map.size
-
   def update[A >: R: Tag](f: A => A): ZEnvironment[R] =
     new ZEnvironment(map.updated(Tag[A].tag, f(get[A])))
 
@@ -48,44 +113,6 @@ class ZEnvironment[+R] private (private val map: Map[LightTypeTag, Any]) extends
 
   def widen[R1](implicit ev: R <:< R1): ZEnvironment[R1] =
     new ZEnvironment(map)
-
-  def unsafeGet[A](tag: LightTypeTag): A =
-    (unsafeGetType(tag) orElse unsafeGetSubtype(tag)).fold {
-      throw new NoSuchElementException(s"No implementation of service ${tag} in ZEnvironment($map)")
-    } {
-      case r: A => r
-      case r    => throw new ClassCastException(s"Expected ${tag}, got ${r.getClass}")
-    }
-
-  private def unsafeGetType(tag: LightTypeTag): Option[Any] =
-    map.get(tag)
-
-  private def unsafeGetSubtype(tag: LightTypeTag): Option[Any] =
-    map.find { case (key, _) => key <:< tag }.map(_._2)
-
-  override def toString: String =
-    s"ZEnvironment(${map.toString})"
-
-  /**
-   * Prunes the environment to the set of services statically known to be
-   * contained within it.
-   */
-  private def prune[R1 >: R](implicit tagged: Tag[R1]): ZEnvironment[R1] = {
-    val tag = taggedTagType(tagged)
-    val set = taggedGetServices(tag)
-
-    val missingServices = set.filterNot(key => map.exists { case (tag, _) => tag <:< key })
-    if (missingServices.nonEmpty) {
-      println(set)
-      println(map.keySet)
-      throw new Error(
-        s"Defect in zio.ZEnvironment: ${missingServices} statically known to be contained within the environment are missing"
-      )
-    }
-
-    if (set.isEmpty) self
-    else new ZEnvironment(filterKeys(map)(key => set.exists(tag => key <:< tag))).asInstanceOf[ZEnvironment[R]]
-  }
 
   /**
    * Filters a map by retaining only keys satisfying a predicate.
