@@ -492,7 +492,7 @@ object ZTransducer extends ZTransducerPlatformSpecificConstructors {
         state: FoldWeightedState,
         dirty: Boolean
       ): (Chunk[O], FoldWeightedState, Boolean) =
-        in.foldLeft[(Chunk[O], FoldWeightedState, Boolean)]((os0, state, dirty)) { case ((os0, state, _), i) =>
+        in.foldLeft[(Chunk[O], FoldWeightedState, Boolean)]((os0, state, dirty)) { case ((os0, state, dirty), i) =>
           val total = state.cost + costFn(state.result, i)
 
           if (total > max) {

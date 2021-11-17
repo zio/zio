@@ -235,14 +235,29 @@ object ZTransducerSpec extends ZIOBaseSpec {
         }
       ),
       suite("foldWeighted/foldUntil")(
-        testM("foldWeighted")(
-          assertM(
-            ZStream[Long](1, 5, 2, 3)
-              .aggregate(
-                ZTransducer.foldWeighted(List[Long]())((_, x: Long) => x * 2, 12)((acc, el) => el :: acc).map(_.reverse)
-              )
-              .runCollect
-          )(equalTo(Chunk(List(1L, 5L), List(2L, 3L))))
+        suite("foldWeighted")(
+          testM("foldWeighted")(
+            assertM(
+              ZStream[Long](1, 5, 2, 3)
+                .aggregate(
+                  ZTransducer
+                    .foldWeighted(List[Long]())((_, x: Long) => x * 2, 12)((acc, el) => el :: acc)
+                    .map(_.reverse)
+                )
+                .runCollect
+            )(equalTo(Chunk(List(1L, 5L), List(2L, 3L))))
+          ),
+          testM("empty pushes")(
+            assertM(ZTransducer.foldWeighted[Long, Long](0L)((_, v) => v, 1)(_ + _).push.use { push =>
+              Chunk(
+                None,
+                Some(Chunk(1L, 1L)),
+                None
+              ).foldM(Chunk[Long]()) { (acc, i) =>
+                push(i).map(acc ++ _)
+              }
+            })(forall(isLessThanEqualTo(1L)))
+          )
         ),
         suite("foldWeightedDecompose")(
           testM("foldWeightedDecompose")(
