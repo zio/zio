@@ -119,7 +119,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                 .run(
                   ZSink
                     .environmentWithSink[String](environment => ZSink.succeed(environment.get))
-                    .provideAll(ZEnvironment("use this"))
+                    .provideEnvironment(ZEnvironment("use this"))
                 )
             )(equalTo("use this"))
           }

@@ -376,7 +376,7 @@ The `ZIO#provide` takes an `R` environment and provides it to the `ZIO` effect w
 
 ```scala
 trait ZIO[-R, +E, +A] {
-  def provideAll(r: R)(implicit ev: NeedsEnv[R]): IO[E, A]
+  def provideEnvironment(r: R)(implicit ev: NeedsEnv[R]): IO[E, A]
 }
 ```
 
@@ -412,14 +412,14 @@ val loggingImpl = new Logging {
     UIO.succeed(println(line))
 }
 
-val effect = app.provideAll(ZEnvironment(loggingImpl))
+val effect = app.provideEnvironment(ZEnvironment(loggingImpl))
 ```
 
 Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZServiceBuilder` to construct the dependency graph of our application, then we use methods like `ZIO#provide` to propagate dependencies into the environment of our ZIO effect.
 
 #### Using `provide` Method
 
-Unlike the `ZIO#provideAll` which takes a `ZEnvironment[R]`, the `ZIO#provide` takes a `ZServiceBuilder` to the ZIO effect and translates it to another level. 
+Unlike the `ZIO#provideEnvironment` which takes a `ZEnvironment[R]`, the `ZIO#provide` takes a `ZServiceBuilder` to the ZIO effect and translates it to another level. 
 
 Assume we have written this piece of program that requires Clock and Console services:
 

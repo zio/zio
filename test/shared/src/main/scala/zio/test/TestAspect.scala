@@ -273,25 +273,6 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     aroundAll(effect, ZIO.unit)
 
   /**
-   * Transforms the environment being provided to this spec with the specified
-   * function.
-   */
-  final def contramapEnvironment[R0, R1](f: ZEnvironment[R0] => ZEnvironment[R1]): TestAspect.WithOut[
-    R1,
-    Any,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = R0 })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ] =
-    new TestAspect[R1, Any, Nothing, Any] {
-      type OutEnv[Env] = R0
-      type OutErr[Err] = Err
-      def apply[R >: R1, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.contramapEnvironment(f)
-    }
-
-  /**
    * An aspect that runs each test on a separate fiber and prints a fiber dump
    * if the test fails or has not terminated within the specified duration.
    */
@@ -1036,25 +1017,6 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     }
 
   /**
-   * An aspect that provides each test in the spec with its required
-   * environment.
-   */
-  final def provideAll[R0](r: ZEnvironment[R0]): TestAspect.WithOut[
-    R0,
-    Any,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Any })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ] =
-    new TestAspect[R0, Any, Nothing, Any] {
-      type OutEnv[Env] = Any
-      type OutErr[Err] = Err
-      def apply[R >: R0, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[Any, E] =
-        spec.provideAll(r)
-    }
-
-  /**
    * Provides each test with the part of the environment that is not part of the
    * `TestEnvironment`, leaving a spec that only depends on the
    * `TestEnvironment`.
@@ -1161,6 +1123,25 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     provideSomeShared[TestEnvironment][E, R](serviceBuilder)
 
   /**
+   * An aspect that provides each test in the spec with its required
+   * environment.
+   */
+  final def provideEnvironment[R0](r: ZEnvironment[R0]): TestAspect.WithOut[
+    R0,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Any })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[R0, Any, Nothing, Any] {
+      type OutEnv[Env] = Any
+      type OutErr[Err] = Err
+      def apply[R >: R0, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[Any, E] =
+        spec.provideEnvironment(r)
+    }
+
+  /**
    * Splits the environment into two parts, providing each test with one part
    * using the specified service builder and leaving the remainder `R0`.
    *
@@ -1214,6 +1195,25 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
    */
   final def provideSome[R0]: TestAspect.ProvideSomeServices[R0] =
     new TestAspect.ProvideSomeServices[R0]
+
+  /**
+   * Transforms the environment being provided to this spec with the specified
+   * function.
+   */
+  final def provideSomeEnvironment[R0, R1](f: ZEnvironment[R0] => ZEnvironment[R1]): TestAspect.WithOut[
+    R1,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = R0 })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[R1, Any, Nothing, Any] {
+      type OutEnv[Env] = R0
+      type OutErr[Err] = Err
+      def apply[R >: R1, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
+        spec.provideSomeEnvironment(f)
+    }
 
   /**
    * Splits the environment into two parts, providing all tests with a shared
@@ -1277,8 +1277,8 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
             schedule
               .zipRight(Schedule.identity[TestSuccess])
               .tapOutput(_ => Annotations.annotate(TestAnnotation.repeated, 1))
-              .provideAll(r)
-          Live.live(test.provideAll(r).repeat(repeatSchedule))
+              .provideEnvironment(r)
+          Live.live(test.provideEnvironment(r).repeat(repeatSchedule))
         }
     }
     val restore = restoreTestEnvironment >>> repeat
@@ -1462,8 +1462,8 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
             val retrySchedule: Schedule[Any, TestFailure[E0], Any] =
               schedule
                 .tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1))
-                .provideAll(r)
-            Live.live(test.provideAll(r).retry(retrySchedule))
+                .provideEnvironment(r)
+            Live.live(test.provideEnvironment(r).retry(retrySchedule))
           }
       }
     val restore = restoreTestEnvironment >>> retry

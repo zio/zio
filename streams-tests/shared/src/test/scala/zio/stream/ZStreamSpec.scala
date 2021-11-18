@@ -1166,7 +1166,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         test("environmentWith") {
           for {
-            result <- ZStream.service[String].provideAll(ZEnvironment("test")).runHead.some
+            result <- ZStream.service[String].provideEnvironment(ZEnvironment("test")).runHead.some
           } yield assert(result)(equalTo("test"))
         },
         suite("environmentWithZIO")(
@@ -1174,14 +1174,15 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               result <- ZStream
                           .environmentWithZIO[String](environment => ZIO.succeed(environment.get))
-                          .provideAll(ZEnvironment("test"))
+                          .provideEnvironment(ZEnvironment("test"))
                           .runHead
                           .some
             } yield assert(result)(equalTo("test"))
           },
           test("environmentWithZIO fails") {
             for {
-              result <- ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provideAll(ZEnvironment(0)).runHead.exit
+              result <-
+                ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provideEnvironment(ZEnvironment(0)).runHead.exit
             } yield assert(result)(fails(equalTo("fail")))
           } @@ zioTag(errors)
         ),
@@ -1190,7 +1191,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               result <- ZStream
                           .environmentWithStream[String](environment => ZStream.succeed(environment.get))
-                          .provideAll(ZEnvironment("test"))
+                          .provideEnvironment(ZEnvironment("test"))
                           .runHead
                           .some
             } yield assert(result)(equalTo("test"))
@@ -1200,7 +1201,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <-
                 ZStream
                   .environmentWithStream[Int](_ => ZStream.fail("fail"))
-                  .provideAll(ZEnvironment(0))
+                  .provideEnvironment(ZEnvironment(0))
                   .runHead
                   .exit
             } yield assert(result)(fails(equalTo("fail")))
@@ -4056,7 +4057,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val b: ZIO[R, E, A]                            = ZIO.succeed(new A {})
             val pf: PartialFunction[A, ZStream[R1, E1, O]] = { case _ => ZStream(o) }
             val s: ZStream[R1, E1, O]                      = ZStream.whenCaseZIO(b)(pf)
-            assertM(s.runDrain.provideAll(ZEnvironment(new R1 {})))(isUnit)
+            assertM(s.runDrain.provideEnvironment(ZEnvironment(new R1 {})))(isUnit)
           }
         ),
         suite("whenZIO")(
@@ -4095,7 +4096,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val stream: ZStream[R1, E1, O] = ZStream(o)
             val s1: ZStream[R1, E1, O]     = ZStream.whenZIO(b)(stream)
             val s2: ZStream[R1, E1, O]     = stream.whenZIO(b)
-            assertM((s1 ++ s2).runDrain.provideAll(ZEnvironment(new R1 {})))(isUnit)
+            assertM((s1 ++ s2).runDrain.provideEnvironment(ZEnvironment(new R1 {})))(isUnit)
           }
         )
       ),
@@ -4123,12 +4124,12 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         test("environment") {
           for {
-            result <- ZStream.service[String].provideAll(ZEnvironment("test")).runCollect.map(_.head)
+            result <- ZStream.service[String].provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
           } yield assert(result)(equalTo("test"))
         },
         test("environmentWithZIO") {
           for {
-            result <- ZStream.service[String].provideAll(ZEnvironment("test")).runCollect.map(_.head)
+            result <- ZStream.service[String].provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
           } yield assert(result)(equalTo("test"))
         },
         suite("environmentWithZIO")(
@@ -4136,7 +4137,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               result <- ZStream
                           .serviceWith[String](ZIO.succeedNow)
-                          .provideAll(ZEnvironment("test"))
+                          .provideEnvironment(ZEnvironment("test"))
                           .runCollect
                           .map(_.head)
             } yield assert(result)(equalTo("test"))
@@ -4144,7 +4145,11 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("environmentWithZIO fails") {
             for {
               result <-
-                ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provideAll(ZEnvironment(0)).runCollect.exit
+                ZStream
+                  .environmentWithZIO[Int](_ => ZIO.fail("fail"))
+                  .provideEnvironment(ZEnvironment(0))
+                  .runCollect
+                  .exit
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
@@ -4153,7 +4158,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               result <- ZStream
                           .serviceWithStream[String](ZStream.succeed(_))
-                          .provideAll(ZEnvironment("test"))
+                          .provideEnvironment(ZEnvironment("test"))
                           .runCollect
                           .map(_.head)
             } yield assert(result)(equalTo("test"))
@@ -4162,7 +4167,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               result <- ZStream
                           .serviceWithStream[Int](_ => ZStream.fail("fail"))
-                          .provideAll(ZEnvironment(0))
+                          .provideEnvironment(ZEnvironment(0))
                           .runCollect
                           .exit
             } yield assert(result)(fails(equalTo("fail")))

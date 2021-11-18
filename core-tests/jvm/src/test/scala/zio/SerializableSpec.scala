@@ -71,7 +71,7 @@ object SerializableSpec extends ZIOBaseSpec {
       val v = ZIO.service[Int].map(_ + 1)
       for {
         returnZIO <- serializeAndBack(v)
-        computeV  <- returnZIO.provideAll(ZEnvironment(9))
+        computeV  <- returnZIO.provideEnvironment(ZEnvironment(9))
       } yield assert(computeV)(equalTo(10))
     } @@ exceptScala212,
     test("FiberStatus is serializable") {

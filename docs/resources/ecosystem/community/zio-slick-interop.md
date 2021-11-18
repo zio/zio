@@ -74,12 +74,12 @@ object SlickItemRepository {
           def add(name: String): IO[Throwable, Long] =
             ZIO
               .fromDBIO((items returning items.map(_.id)) += Item(0L, name))
-              .provideAll(ZEnvironment(db))
+              .provideEnvironment(ZEnvironment(db))
 
           def getById(id: Long): IO[Throwable, Option[Item]] = {
             val query = items.filter(_.id === id).result
 
-            ZIO.fromDBIO(query).map(_.headOption).provideAll(ZEnvironment(db))
+            ZIO.fromDBIO(query).map(_.headOption).provideEnvironment(ZEnvironment(db))
           }
 
           def upsert(name: String): IO[Throwable, Long] =
@@ -92,10 +92,10 @@ object SlickItemRepository {
                   )(item => (items.map(_.name) update name).map(_ => item.id))
                 } yield id).transactionally
               }
-              .provideAll(Environment(db))
+              .provideEnvironment(Environment(db))
         }
 
-        initialize.as(repository).provideAll(Environment(db))
+        initialize.as(repository).provideEnvironment(Environment(db))
       }
     }
 }

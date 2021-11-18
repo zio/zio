@@ -263,15 +263,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZManaged[R1, E1, B]](v, _ => ZManaged.fail(e)))
 
   /**
-   * Transforms the environment being provided to this effect with the specified
-   * function.
-   */
-  def contramapEnvironment[R0](
-    f: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
-    ZManaged(zio.contramapEnvironment(f))
-
-  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail
    */
@@ -660,7 +651,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                                innerReleaseMap
                                  .releaseAll(e, ExecutionStrategy.Sequential)
                                  .exit
-                                 .zipWith(cleanup(exitEA).provideAll(r1).exit)((l, r) => ZIO.done(l *> r))
+                                 .zipWith(cleanup(exitEA).provideEnvironment(r1).exit)((l, r) => ZIO.done(l *> r))
                                  .flatten
                              }
           a <- ZIO.done(exitEA)
@@ -684,7 +675,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
           exitEA          <- ZManaged.currentReleaseMap.locally(innerReleaseMap)(restore(zio).exit.map(_.map(_._2)))
           releaseMapEntry <- outerReleaseMap.add { e =>
                                cleanup(exitEA)
-                                 .provideAll(r1)
+                                 .provideEnvironment(r1)
                                  .exit
                                  .zipWith(innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential).exit)((l, r) =>
                                    ZIO.done(l *> r)
@@ -824,14 +815,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def provide[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    ZManaged.suspend(serviceBuilder.build.map(_.upcast(ev)).flatMap(r => self.provideAll(r)))
-
-  /**
-   * Provides the `ZManaged` effect with its required environment, which
-   * eliminates its dependency on `R`.
-   */
-  def provideAll(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Managed[E, A] =
-    contramapEnvironment(_ => r)
+    ZManaged.suspend(serviceBuilder.build.map(_.upcast(ev)).flatMap(r => self.provideEnvironment(r)))
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -898,6 +882,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     provideCustom(serviceBuilder)
 
   /**
+   * Provides the `ZManaged` effect with its required environment, which
+   * eliminates its dependency on `R`.
+   */
+  def provideEnvironment(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Managed[E, A] =
+    provideSomeEnvironment(_ => r)
+
+  /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
   @deprecated("use provide", "2.0.0")
@@ -929,6 +920,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   final def provideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
     new ZManaged.ProvideSome[R0, R, E, A](self)
+
+  /**
+   * Transforms the environment being provided to this effect with the specified
+   * function.
+   */
+  def provideSomeEnvironment[R0](
+    f: ZEnvironment[R0] => ZEnvironment[R]
+  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
+    ZManaged(zio.provideSomeEnvironment(f))
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -1258,7 +1258,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Constructs a service builder from this managed resource, which must return
    * one or more services.
    */
-  final def toServiceBuilderAll[B](implicit
+  final def toServiceBuilderEnvironment[B](implicit
     ev: A <:< ZEnvironment[B],
     trace: ZTraceElement
   ): ZServiceBuilder[R, E, B] =
@@ -1266,14 +1266,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
 
   /**
    * Constructs a service builder from this managed resource, which must return
-   * one or more services.
+   * one or more setoServiceBuilderEnvironment
    */
-  @deprecated("use toServiceBuilderAll", "2.0.0")
+  @deprecated("use toServiceBuilderEnvironment", "2.0.0")
   final def toServiceBuilderMany[B](implicit
     ev: A <:< ZEnvironment[B],
     trace: ZTraceElement
   ): ZServiceBuilder[R, E, B] =
-    toServiceBuilderAll
+    toServiceBuilderEnvironment
 
   /**
    * Constructs a layer from this managed resource.
@@ -1649,14 +1649,14 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
-      self.contramapEnvironment(_.update(f))
+      self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZManaged[R1, E, A] =
-      self.contramapEnvironment(_.updateAt(key)(f))
+      self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 
   final class WhenManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
@@ -1965,7 +1965,7 @@ object ZManaged extends ZManagedPlatformSpecific {
         r               <- ZIO.environment[R1]
         releaseMap      <- ZManaged.currentReleaseMap.get
         a               <- acquire
-        releaseMapEntry <- releaseMap.add(release(a, _).provideAll(r))
+        releaseMapEntry <- releaseMap.add(release(a, _).provideEnvironment(r))
       } yield (releaseMapEntry, a)).uninterruptible
     }
 
@@ -2664,7 +2664,7 @@ object ZManaged extends ZManagedPlatformSpecific {
           r          <- ZIO.environment[R]
           releaseMap <- ZManaged.currentReleaseMap.get
           reserved   <- reservation
-          releaseKey <- releaseMap.addIfOpen(reserved.release(_).provideAll(r))
+          releaseKey <- releaseMap.addIfOpen(reserved.release(_).provideEnvironment(r))
           finalizerAndA <- releaseKey match {
                              case Some(key) =>
                                restore(reserved.acquire)

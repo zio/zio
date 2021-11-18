@@ -394,7 +394,7 @@ object Expectation {
   implicit def toServiceBuilder[R: Tag](
     trunk: Expectation[R]
   )(implicit trace: ZTraceElement): UServiceBuilder[R] =
-    ZServiceBuilder.fromManagedAll(
+    ZServiceBuilder.fromManagedEnvironment(
       for {
         state <- Managed.acquireReleaseWith(MockState.make(trunk))(MockState.checkUnmetExpectations)
         env   <- (ProxyFactory.mockProxy(state) >>> trunk.mock.compose).build

@@ -32,7 +32,7 @@ object SpecSpec extends ZIOBaseSpec {
           test("test") {
             assert(true)(isTrue)
           }
-        ).provideShared(ZServiceBuilder.fromZIOAll(ZIO.dieMessage("everybody dies")))
+        ).provideShared(ZServiceBuilder.fromZIOEnvironment(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes

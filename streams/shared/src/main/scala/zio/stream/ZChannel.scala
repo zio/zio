@@ -785,7 +785,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * Provides the channel with its required environment, which eliminates its
    * dependency on `Env`.
    */
-  final def provideAll(env: ZEnvironment[Env])(implicit
+  final def provideEnvironment(env: ZEnvironment[Env])(implicit
     ev: NeedsEnv[Env],
     trace: ZTraceElement
   ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =

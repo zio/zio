@@ -78,15 +78,15 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Transforms the environment being provided to each test in this spec with
    * the specified function.
    */
-  final def contramapEnvironment[R0](
+  final def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[R0, E, T] =
     transform[R0, E, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
-      case ManagedCase(managed)        => ManagedCase(managed.contramapEnvironment(f))
+      case ManagedCase(managed)        => ManagedCase(managed.provideSomeEnvironment(f))
       case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.contramapEnvironment(f), annotations)
+      case TestCase(test, annotations) => TestCase(test.provideSomeEnvironment(f), annotations)
     }
 
   /**
@@ -106,7 +106,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Returns an effect that models execution of this spec.
    */
   final def execute(defExec: ExecutionStrategy)(implicit trace: ZTraceElement): ZManaged[R, Nothing, Spec[Any, E, T]] =
-    ZManaged.environmentWithManaged(provideAll(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
+    ZManaged.environmentWithManaged(provideEnvironment(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
 
   /**
    * Determines if any node in the spec is satisfied by the given predicate.
@@ -356,12 +356,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     }
 
   /**
-   * Provides each test in this spec with its required environment
-   */
-  final def provideAll(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[Any, E, T] =
-    contramapEnvironment(_ => r)
-
-  /**
    * Provides each test with the part of the environment that is not part of the
    * `TestEnvironment`, leaving a spec that only depends on the
    * `TestEnvironment`.
@@ -486,6 +480,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     provideSomeShared[TestEnvironment](serviceBuilder)
 
   /**
+   * Provides each test in this spec with its required environment
+   */
+  final def provideEnvironment(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[Any, E, T] =
+    provideSomeEnvironment(_ => r)
+
+  /**
    * Provides a layer to the spec, translating it up a level.
    */
   @deprecated("use provide", "2.0.0")
@@ -532,11 +532,13 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideShared(serviceBuilder))
       case ManagedCase(managed) =>
         Spec.managed(
-          serviceBuilder.build.flatMap(r => managed.map(_.provideAll(r.upcast(ev))).provideAll(r.upcast(ev)))
+          serviceBuilder.build.flatMap(r =>
+            managed.map(_.provideEnvironment(r.upcast(ev))).provideEnvironment(r.upcast(ev))
+          )
         )
       case MultipleCase(specs) =>
         Spec.managed(
-          serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provideAll(r.upcast(ev)))))
+          serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r.upcast(ev)))))
         )
       case TestCase(test, annotations) => Spec.test(test.provide(serviceBuilder), annotations)
     }
@@ -838,14 +840,14 @@ object Spec extends SpecLowPriority {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): Spec[R1, E, T] =
-      self.contramapEnvironment(_.update(f))
+      self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +T, Service](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): Spec[R1, E, T] =
-      self.contramapEnvironment(_.updateAt(key)(f))
+      self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 
   implicit final class ZSpecSyntax[Env, Err](private val self: ZSpec[Env, Err]) extends AnyVal {

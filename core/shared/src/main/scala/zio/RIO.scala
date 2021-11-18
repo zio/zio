@@ -1370,8 +1370,8 @@ object RIO {
    * @see
    *   See [[zio.ZIO.provide]]
    */
-  def provideAll[R, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): RIO[R, A] => Task[A] =
-    ZIO.provideAll(r)
+  def provideEnvironment[R, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): RIO[R, A] => Task[A] =
+    ZIO.provideEnvironment(r)
 
   /**
    * @see

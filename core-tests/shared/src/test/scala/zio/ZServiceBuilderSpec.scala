@@ -363,7 +363,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         for {
           ref           <- Ref.make(0)
           effect         = ref.update(_ + 1) *> ZIO.fail("fail")
-          serviceBuilder = ZServiceBuilder.fromZIOAll(effect).retry(Schedule.recurs(3))
+          serviceBuilder = ZServiceBuilder.fromZIOEnvironment(effect).retry(Schedule.recurs(3))
           _             <- serviceBuilder.build.useNow.ignore
           result        <- ref.get
         } yield assert(result)(equalTo(4))

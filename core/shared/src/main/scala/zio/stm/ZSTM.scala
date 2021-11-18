@@ -218,13 +218,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     either.commit.absolve
 
   /**
-   * Transforms the environment being provided to this effect with the specified
-   * function.
-   */
-  def contramapEnvironment[R0](f: ZEnvironment[R0] => ZEnvironment[R]): ZSTM[R0, E, A] =
-    Provide(self, f)
-
-  /**
    * Repeats this `STM` effect until its result satisfies the specified
    * predicate. '''WARNING''': `repeatUntil` uses a busy loop to repeat the
    * effect and will consume a thread until it completes (it cannot yield). This
@@ -563,8 +556,15 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Provides the transaction its required environment, which eliminates its
    * dependency on `R`.
    */
-  def provideAll(r: ZEnvironment[R]): STM[E, A] =
-    contramapEnvironment(_ => r)
+  def provideEnvironment(r: ZEnvironment[R]): STM[E, A] =
+    provideSomeEnvironment(_ => r)
+
+  /**
+   * Transforms the environment being provided to this effect with the specified
+   * function.
+   */
+  def provideSomeEnvironment[R0](f: ZEnvironment[R0] => ZEnvironment[R]): ZSTM[R0, E, A] =
+    Provide(self, f)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -1733,14 +1733,14 @@ object ZSTM {
 
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
     def apply[R1 <: R with M](f: M => M)(implicit tag: Tag[M]): ZSTM[R1, E, A] =
-      self.contramapEnvironment(_.update(f))
+      self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
-      self.contramapEnvironment(_.updateAt(key)(f))
+      self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 
   final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {

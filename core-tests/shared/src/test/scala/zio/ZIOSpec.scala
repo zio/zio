@@ -3267,15 +3267,15 @@ object ZIOSpec extends ZIOBaseSpec {
         val zio =
           for {
             v1 <- ZIO.service[Int]
-            v2 <- ZIO.service[Int].provideAll(ZEnvironment(2))
+            v2 <- ZIO.service[Int].provideEnvironment(ZEnvironment(2))
             v3 <- ZIO.service[Int]
           } yield (v1, v2, v3)
 
-        assertM(zio.provideAll(ZEnvironment(4)))(equalTo((4, 2, 4)))
+        assertM(zio.provideEnvironment(ZEnvironment(4)))(equalTo((4, 2, 4)))
       },
       test("async can use environment") {
         val zio = ZIO.async[Int, Nothing, Int](cb => cb(ZIO.service[Int]))
-        assertM(zio.provideAll(ZEnvironment(10)))(equalTo(10))
+        assertM(zio.provideEnvironment(ZEnvironment(10)))(equalTo(10))
       }
     ),
     suite("RTS forking inheritability")(

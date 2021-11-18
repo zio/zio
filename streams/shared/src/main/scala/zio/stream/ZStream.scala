@@ -651,17 +651,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   /**
-   * Transforms the environment being provided to the stream with the specified
-   * function.
-   */
-  final def contramapEnvironment[R0](
-    env: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[R0, E, A] =
-    ZStream.environment[R0].flatMap { r0 =>
-      self.provideAll(env(r0))
-    }
-
-  /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
    */
   final def groupAdjacentBy[K](
@@ -2837,15 +2826,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
     new ZStream(ZChannel.managed(serviceBuilder.build) { r =>
-      self.channel.provideAll(r.upcast(ev))
+      self.channel.provideEnvironment(r.upcast(ev))
     })
-
-  /**
-   * Provides the stream with its required environment, which eliminates its
-   * dependency on `R`.
-   */
-  final def provideAll(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[Any, E, A] =
-    new ZStream(channel.provideAll(r))
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -2913,6 +2895,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     provideCustom(serviceBuilder)
 
   /**
+   * Provides the stream with its required environment, which eliminates its
+   * dependency on `R`.
+   */
+  final def provideEnvironment(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[Any, E, A] =
+    new ZStream(channel.provideEnvironment(r))
+
+  /**
    * Provides a service builder to the stream, which translates it to another
    * level.
    */
@@ -2946,6 +2935,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def provideSome[R0]: ZStream.ProvideSome[R0, R, E, A] =
     new ZStream.ProvideSome[R0, R, E, A](self)
+
+  /**
+   * Transforms the environment being provided to the stream with the specified
+   * function.
+   */
+  final def provideSomeEnvironment[R0](
+    env: ZEnvironment[R0] => ZEnvironment[R]
+  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[R0, E, A] =
+    ZStream.environment[R0].flatMap { r0 =>
+      self.provideEnvironment(env(r0))
+    }
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -5774,14 +5774,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): ZStream[R1, E, A] =
-      self.contramapEnvironment(_.update(f))
+      self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZStream[R1, E, A] =
-      self.contramapEnvironment(_.updateAt(key)(f))
+      self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 
   /**

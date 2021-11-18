@@ -358,22 +358,6 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     self.contramapZIO(in => ZIO.succeed(f(in)))
 
   /**
-   * Transforms the environment being provided to this schedule with the
-   * specified function.
-   */
-  def contramapEnvironment[Env2](
-    f: ZEnvironment[Env2] => ZEnvironment[Env]
-  ): Schedule.WithState[self.State, Env2, In, Out] =
-    new Schedule[Env2, In, Out] {
-      type State = self.State
-      val initial = self.initial
-      def step(now: OffsetDateTime, in: In, state: State)(implicit
-        trace: ZTraceElement
-      ): ZIO[Env2, Nothing, (State, Out, Decision)] =
-        self.step(now, in, state).contramapEnvironment(f)
-    }
-
-  /**
    * Returns a new schedule that deals with a narrower class of inputs than this
    * schedule.
    */
@@ -764,14 +748,30 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule with its environment provided to it, so the
    * resulting schedule does not require any environment.
    */
-  def provideAll(env: ZEnvironment[Env]): Schedule.WithState[self.State, Any, In, Out] =
+  def provideEnvironment(env: ZEnvironment[Env]): Schedule.WithState[self.State, Any, In, Out] =
     new Schedule[Any, In, Out] {
       type State = self.State
       val initial = self.initial
       def step(now: OffsetDateTime, in: In, state: State)(implicit
         trace: ZTraceElement
       ): ZIO[Any, Nothing, (State, Out, Decision)] =
-        self.step(now, in, state).provideAll(env)
+        self.step(now, in, state).provideEnvironment(env)
+    }
+
+  /**
+   * Transforms the environment being provided to this schedule with the
+   * specified function.
+   */
+  def provideSomeEnvironment[Env2](
+    f: ZEnvironment[Env2] => ZEnvironment[Env]
+  ): Schedule.WithState[self.State, Env2, In, Out] =
+    new Schedule[Env2, In, Out] {
+      type State = self.State
+      val initial = self.initial
+      def step(now: OffsetDateTime, in: In, state: State)(implicit
+        trace: ZTraceElement
+      ): ZIO[Env2, Nothing, (State, Out, Decision)] =
+        self.step(now, in, state).provideSomeEnvironment(f)
     }
 
   /**

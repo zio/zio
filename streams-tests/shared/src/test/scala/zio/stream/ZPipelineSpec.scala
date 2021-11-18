@@ -62,7 +62,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           } yield assertTrue(result == Chunk(1, 2, 3))
         },
         test("pipelines can provide the environment") {
-          val pipeline = ZPipeline.provideAll(ZEnvironment(42))
+          val pipeline = ZPipeline.provideEnvironment(ZEnvironment(42))
           val stream   = ZStream.service[Int]
           for {
             result <- pipeline(stream).runCollect

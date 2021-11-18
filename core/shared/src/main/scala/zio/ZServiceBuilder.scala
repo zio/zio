@@ -192,7 +192,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
    * computed result of this service builder.
    */
   final def memoize(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZServiceBuilder[RIn, E, ROut]] =
-    build.memoize.map(ZServiceBuilder.fromManagedAll)
+    build.memoize.map(ZServiceBuilder.fromManagedEnvironment)
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -248,7 +248,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def tap[RIn1 <: RIn, E1 >: E](f: ZEnvironment[ROut] => ZIO[RIn1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[RIn1, E1, ROut] =
-    flatMap(environment => ZServiceBuilder.fromZIOAll(f(environment).as(environment)))
+    flatMap(environment => ZServiceBuilder.fromZIOEnvironment(f(environment).as(environment)))
 
   /**
    * Performs the specified effect if this service builder fails.
@@ -273,7 +273,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def toRuntime(
     runtimeConfig: RuntimeConfig
   )(implicit ev: Any <:< RIn, trace: ZTraceElement): Managed[E, Runtime[ROut]] =
-    build.provideAll(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
+    build.provideEnvironment(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
 
   /**
    * Updates one of the services output by this service builder.
@@ -326,7 +326,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
         ZManaged.succeed(memoMap =>
           memoMap
             .getOrElseMemoize(self)
-            .flatMap(r => memoMap.getOrElseMemoize(that).provideAll(r)(NeedsEnv.needsEnv, trace))
+            .flatMap(r => memoMap.getOrElseMemoize(that).provideEnvironment(r)(NeedsEnv.needsEnv, trace))
         )
       case ZServiceBuilder.ZipWith(self, that, f) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))
@@ -514,8 +514,10 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * return one or more services. The acquire and release actions will be
    * performed uninterruptibly.
    */
-  def fromAcquireReleaseAll[R, E, A](acquire: ZIO[R, E, ZEnvironment[A]])(release: ZEnvironment[A] => URIO[R, Any])(
-    implicit trace: ZTraceElement
+  def fromAcquireReleaseEnvironment[R, E, A](
+    acquire: ZIO[R, E, ZEnvironment[A]]
+  )(release: ZEnvironment[A] => URIO[R, Any])(implicit
+    trace: ZTraceElement
   ): ZServiceBuilder[R, E, A] =
     fromManagedMany(ZManaged.acquireReleaseWith(acquire)(release))
 
@@ -524,11 +526,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * return one or more services. The acquire and release actions will be
    * performed uninterruptibly.
    */
-  @deprecated("use fromAcquireReleaseAll", "2.0.0")
+  @deprecated("use fromAcquireReleaseEnvironment", "2.0.0")
   def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, ZEnvironment[A]])(release: ZEnvironment[A] => URIO[R, Any])(
     implicit trace: ZTraceElement
   ): ZServiceBuilder[R, E, A] =
-    fromAcquireReleaseAll(acquire)(release)
+    fromAcquireReleaseEnvironment(acquire)(release)
 
   /**
    * Constructs a service builder from the specified effect.
@@ -558,28 +560,28 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * function, which must return one or more services.
    */
-  def fromFunctionAll[A: Tag, B](f: A => ZEnvironment[B])(implicit
+  def fromFunctionEnvironment[A: Tag, B](f: A => ZEnvironment[B])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, Nothing, B] =
-    fromFunctionAllZIO(a => ZIO.succeedNow(f(a)))
+    fromFunctionEnvironmentZIO(a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful resourceful function, which must return one or more services.
    */
-  def fromFunctionAllManaged[A: Tag, E, B](f: A => ZManaged[Any, E, ZEnvironment[B]])(implicit
+  def fromFunctionEnvironmentManaged[A: Tag, E, B](f: A => ZManaged[Any, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
-    ZServiceBuilder.fromManagedAll(ZManaged.serviceWithManaged(f))
+    ZServiceBuilder.fromManagedEnvironment(ZManaged.serviceWithManaged(f))
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful function, which must return one or more services.
    */
-  def fromFunctionAllZIO[A: Tag, E, B](f: A => IO[E, ZEnvironment[B]])(implicit
+  def fromFunctionEnvironmentZIO[A: Tag, E, B](f: A => IO[E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
-    fromFunctionAllManaged(a => f(a).toManaged)
+    fromFunctionEnvironmentManaged(a => f(a).toManaged)
 
   /**
    * Constructs a service builder from the environment using the specified
@@ -602,11 +604,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * function, which must return one or more services.
    */
-  @deprecated("use fromFunctionAll", "2.0.0")
+  @deprecated("use fromFunctionEnvironment", "2.0.0")
   def fromFunctionMany[A: Tag, B](f: A => ZEnvironment[B])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, Nothing, B] =
-    fromFunctionAll(f)
+    fromFunctionEnvironment(f)
 
   /**
    * Constructs a service builder from the environment using the specified
@@ -622,21 +624,21 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * effectful resourceful function, which must return one or more services.
    */
-  @deprecated("use fromFunctionAllManaged", "2.0.0")
+  @deprecated("use fromFunctionEnvironmentManaged", "2.0.0")
   def fromFunctionManyManaged[A: Tag, E, B](f: A => ZManaged[Any, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
-    fromFunctionAllManaged(f)
+    fromFunctionEnvironmentManaged(f)
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful function, which must return one or more services.
    */
-  @deprecated("use fromFunctionAllZIO", "2.0.0")
+  @deprecated("use fromFunctionEnvironmentZIO", "2.0.0")
   def fromFunctionManyZIO[A: Tag, E, B](f: A => IO[E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
-    fromFunctionAllZIO(f)
+    fromFunctionEnvironmentZIO(f)
 
   /**
    * Constructs a service builder from the environment using the specified
@@ -4719,7 +4721,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from a managed resource, which must return one
    * or more services.
    */
-  def fromManagedAll[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
+  def fromManagedEnvironment[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R, E, A] =
     Managed(m)
@@ -4728,11 +4730,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from a managed resource, which must return one
    * or more services.
    */
-  @deprecated("use fromManagedAll", "2.0.0")
+  @deprecated("use fromManagedEnvironment", "2.0.0")
   def fromManagedMany[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R, E, A] =
-    fromManagedAll(m)
+    fromManagedEnvironment(m)
 
   /**
    * Constructs a service builder from the specified effect.
@@ -4744,16 +4746,18 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the specified effect, which must return
    * one or more services.
    */
-  def fromZIOAll[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit trace: ZTraceElement): ZServiceBuilder[R, E, A] =
+  def fromZIOEnvironment[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R, E, A] =
     ZServiceBuilder.fromManagedMany(ZManaged.fromZIO(zio))
 
   /**
    * Constructs a service builder from the specified effect, which must return
    * one or more services.
    */
-  @deprecated("use fromZIOAll", "2.0.0")
+  @deprecated("use fromZIOEnvironment", "2.0.0")
   def fromZIOMany[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit trace: ZTraceElement): ZServiceBuilder[R, E, A] =
-    fromZIOAll(zio)
+    fromZIOEnvironment(zio)
 
   /**
    * An identity service builder that passes along its inputs. Note that this
@@ -4797,16 +4801,16 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the specified value, which must return
    * one or more services.
    */
-  def succeedAll[A](a: ZEnvironment[A])(implicit trace: ZTraceElement): UServiceBuilder[A] =
+  def succeedEnvironment[A](a: ZEnvironment[A])(implicit trace: ZTraceElement): UServiceBuilder[A] =
     ZServiceBuilder.fromManagedMany(ZManaged.succeedNow(a))
 
   /**
    * Constructs a service builder from the specified value, which must return
    * one or more services.
    */
-  @deprecated("use succeedAll", "2.0.0")
+  @deprecated("use succeedEnvironment", "2.0.0")
   def succeedMany[A](a: ZEnvironment[A])(implicit trace: ZTraceElement): UServiceBuilder[A] =
-    succeedAll(a)
+    succeedEnvironment(a)
 
   /**
    * Lazily constructs a service builder. This is useful to avoid infinite

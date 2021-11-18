@@ -70,7 +70,7 @@ val square: URIO[Int, Int] =
     env <- ZIO.service[Int]
   } yield env * env
 
-val result: UIO[Int] = square.provideAll(ZEnvironment(42))
+val result: UIO[Int] = square.provideEnvironment(ZEnvironment(42))
 ```
 
 Once you provide an effect with the environment it requires, then you get back an effect whose environment type is `Any`, indicating its requirements have been fully satisfied.
@@ -167,7 +167,7 @@ We can now provide the live database module to our application, using `ZIO.provi
 def main: RIO[Database, Unit] = ???
 
 def main2: Task[Unit] = 
-  main.provideAll(ZEnvironment(DatabaseLive))
+  main.provideEnvironment(ZEnvironment(DatabaseLive))
 ```
 
 The resulting effect has no requirements, so it can now be executed with a ZIO runtime.
@@ -210,7 +210,7 @@ To test code that requires the database, we need only provide it with our test d
 def code: RIO[Database, Unit] = ???
 
 def code2: Task[Unit] = 
-  code.provideAll(ZEnvironment(TestDatabase))
+  code.provideEnvironment(ZEnvironment(TestDatabase))
 ```
 
 Our application code can work with either our production database module, or the test database module.

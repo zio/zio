@@ -1131,19 +1131,19 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(tx.commit)(equalTo(10000))
       } @@ zioTag(errors),
       test("long provide chains") {
-        assertM(chain(10000)(_.provideAll(ZEnvironment(0))))(equalTo(0))
+        assertM(chain(10000)(_.provideEnvironment(ZEnvironment(0))))(equalTo(0))
       }
     ),
     suite("STM environment")(
       test("access environment and provide it outside transaction") {
         STMEnv.make(0).flatMap { env =>
-          ZSTM.serviceWithSTM[STMEnv](_.ref.update(_ + 1)).commit.provideAll(ZEnvironment(env)) *>
+          ZSTM.serviceWithSTM[STMEnv](_.ref.update(_ + 1)).commit.provideEnvironment(ZEnvironment(env)) *>
             assertM(env.ref.get.commit)(equalTo(1))
         }
       },
       test("access environment and provide it inside transaction") {
         STMEnv.make(0).flatMap { env =>
-          ZSTM.serviceWithSTM[STMEnv](_.ref.update(_ + 1)).provideAll(ZEnvironment(env)).commit *>
+          ZSTM.serviceWithSTM[STMEnv](_.ref.update(_ + 1)).provideEnvironment(ZEnvironment(env)).commit *>
             assertM(env.ref.get.commit)(equalTo(1))
         }
       }
