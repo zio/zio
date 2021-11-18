@@ -99,7 +99,9 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toServiceBuilder
      * }}}
      */
-    def toServiceBuilder[C1 >: C: Tag: IsNotIntersection](implicit trace: ZTraceElement): URServiceBuilder[A with B, C1] = {
+    def toServiceBuilder[C1 >: C: Tag: IsNotIntersection](implicit
+      trace: ZTraceElement
+    ): URServiceBuilder[A with B, C1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
