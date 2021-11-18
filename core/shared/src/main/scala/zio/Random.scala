@@ -111,7 +111,7 @@ object Random extends Serializable {
    */
   val scalaRandom: ZServiceBuilder[scala.util.Random, Nothing, Random] = {
     implicit val trace = Tracer.newTrace
-    ZServiceBuilder[Any, Nothing, Random] {
+    ZServiceBuilder[scala.util.Random, Nothing, Random] {
       for {
         random <- ZIO.service[scala.util.Random]
       } yield RandomScala(random): Random
