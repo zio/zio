@@ -543,7 +543,7 @@ object Example extends ZIOAppDefault {
 
   // Define our simple ZIO program
   val zio: ZIO[String, Nothing, Unit] = for {
-    name <- ZIO.access[String](_.get)
+    name <- ZIO.service[String]
     _    <- UIO(println(s"Hello, $name!"))
   } yield ()
 

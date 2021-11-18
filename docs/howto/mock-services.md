@@ -155,7 +155,7 @@ def withRuntime[R]: URIO[R, Runtime[R]] = ???
 import ExampleMock._
 
 val compose: URServiceBuilder[Proxy, Example] =
-  ZIO.serviceWith[Proxy] { proxy =>
+  ZIO.serviceWithZIO[Proxy] { proxy =>
     withRuntime[Any].map { rts =>
       new Example.Service {
         val static                                 = proxy(Static)
@@ -436,7 +436,7 @@ object PolyExampleMock extends Mock[PolyExample] {
   object PolyAll    extends Poly.Effect.InputErrorOutput
 
   val compose: URServiceBuilder[Proxy, PolyExample] =
-    ZIO.serviceWith[Proxy] { proxy =>
+    ZIO.serviceWithZIO[Proxy] { proxy =>
       withRuntime[Any].map { rts =>
         new PolyExample.Service {
           def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)

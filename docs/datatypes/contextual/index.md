@@ -394,7 +394,7 @@ trait Logging {
 }
 
 object Logging {
-  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
+  def log(line: String) = ZIO.serviceWithZIO[Logging](_.log(line))
 }
 ```
 
@@ -484,7 +484,7 @@ trait Logging {
 }
 
 object Logging {
-  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
+  def log(line: String) = ZIO.serviceWithZIO[Logging](_.log(line))
 }
 
 object LoggingLive {
