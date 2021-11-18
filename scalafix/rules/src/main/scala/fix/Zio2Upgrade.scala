@@ -9,7 +9,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val renames =
     Map(
-      "accessM"                -> "environmentWithZIO",
+      "accessM"                -> "accessZIO",
       "asEC"                   -> "asExecutionContext",
       "bimap"                  -> "mapBoth",
       "bracket"                -> "acquireReleaseWith",
@@ -163,9 +163,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val ZIORenames = Renames(
     List("zio.ZIO"),
     Map("run" -> "exit",
-      "provideLayer" -> "provide",
-      "provideSomeLayer" -> "provideSome",
-      "provideCustomLayer" -> "provideCustom",
+      "provideLayer" -> "provideServices",
+      "provideSomeLayer" -> "provideSomeServices",
+      "provideCustomLayer" -> "provideCustomServices",
     )
   )
 
@@ -176,7 +176,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "foldM" -> "foldSTM",
       "foreach_"               -> "foreachDiscard",
       "fromFunction"              -> "access",
-      "fromFunctionM"             -> "environmentWithZIO",
+      "fromFunctionM"             -> "accessSTM",
       "ifM" -> "ifSTM",
       "loop_"                  -> "loopDiscard",
       "partial" -> "attempt",
@@ -220,7 +220,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "foldM"                     -> "foldManaged",
       "fromEffectUninterruptible" -> "fromZIOUninterruptible",
       "fromFunction"              -> "access",
-      "fromFunctionM"             -> "environmentWithZIOManaged",
+      "fromFunctionM"             -> "accessManaged",
       "ifM"                       -> "ifManaged",
       "make"                      -> "acquireReleaseWith",
       "makeEffect"                -> "acquireReleaseAttemptWith",

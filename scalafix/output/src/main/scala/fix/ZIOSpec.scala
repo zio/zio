@@ -1640,7 +1640,7 @@ object ZIOSpec extends DefaultRunnableSpec {
       test("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustom(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomServices(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -1648,7 +1648,7 @@ object ZIOSpec extends DefaultRunnableSpec {
       test("can split environment into two parts") {
         val clockLayer: ZServiceBuilder[Any, Nothing, Has[Clock]]    = Clock.live
         val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Has[Random], Unit]                   = zio.provideSome[Has[Random]](clockLayer)
+        val zio2: URIO[Has[Random], Unit]                   = zio.provideSomeServices[Has[Random]](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -3042,15 +3042,15 @@ object ZIOSpec extends DefaultRunnableSpec {
         val zio =
           for {
             v1 <- ZIO.environment[Int]
-            v2 <- ZIO.environment[Int].provideAll(2)
+            v2 <- ZIO.environment[Int].provide(2)
             v3 <- ZIO.environment[Int]
           } yield (v1, v2, v3)
 
-        assertM(zio.provideAll(4))(equalTo((4, 2, 4)))
+        assertM(zio.provide(4))(equalTo((4, 2, 4)))
       },
       test("effectAsync can use environment") {
         val zio = ZIO.async[Int, Nothing, Int](cb => cb(ZIO.environment[Int]))
-        assertM(zio.provideAll(10))(equalTo(10))
+        assertM(zio.provide(10))(equalTo(10))
       }
     ),
     suite("RTS forking inheritability")(
@@ -3077,7 +3077,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("serviceWith")(
       test("effectfully accesses a service in the environment") {
         val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
-        assertM(zio.provide(ZServiceBuilder.succeed(0)))(equalTo(3))
+        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3360,7 +3360,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provide(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(
