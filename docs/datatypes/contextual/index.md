@@ -24,7 +24,7 @@ val effect: ZIO[Console, Nothing, Unit] = printLine("Hello, World!").orDie
 So finally when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
 
 ```scala mdoc:silent
-val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live)
+val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live)
 ```
 
 Finally, to run our application we can put our `mainApp` inside the `run` method:
@@ -35,7 +35,7 @@ import zio.Console._
 
 object MainApp extends ZIOAppDefault {
   val effect: ZIO[Console, Nothing, Unit] = printLine("Hello, World!").orDie
-  val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live)
+  val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live)
 
   def run = mainApp
 }
@@ -52,7 +52,7 @@ val effect: ZIO[Console with Random, Nothing, Unit] = for {
   _ <- printLine(s"random number: $r").orDie
 } yield ()
 
-val mainApp: ZIO[Any, Nothing, Unit] = effect.provideServices(Console.live ++ Random.live)
+val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live ++ Random.live)
 ```
 
 We don't need to provide live service builders for built-in services (don't worry, we will discuss service builders later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
@@ -261,11 +261,11 @@ object LoggingExample extends ZIOAppDefault {
  
   private val app: RIO[Logging, Unit] = log("Hello, World!") 
 
-  def run = app.provideServices(Logging.live)
+  def run = app.provide(Logging.live)
 }
 ```
 
-During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provideServices`.
+During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provide`.
 
 ### Module Pattern 2.0
 
@@ -323,11 +323,11 @@ object LoggingLive {
 }
 ```
 
-5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. Just like what we did in Module Pattern 1.0, but with a slight change, in this case, instead of using `ZIO.accessZIO` we use `ZIO.serviceWith` method to define accessors inside the service companion object:
+5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. Just like what we did in Module Pattern 1.0, but with a slight change, in this case, instead of using `ZIO.accessZIO` we use `ZIO.serviceWithZIO` method to define accessors inside the service companion object:
 
 ```scala mdoc:silent
 object Logging {
-  def log(line: String): URIO[Logging, Unit] = ZIO.serviceWith[Logging](_.log(line))
+  def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO[Logging](_.log(line))
 }
 ```
 
@@ -340,7 +340,7 @@ Finally, we provide required service builders to our `app` effect:
  val app = Logging.log("Application Started")
 
  zio.Runtime.default.unsafeRun(
-   app.provideServices(LoggingLive.serviceBuilder)
+   app.provide(LoggingLive.serviceBuilder)
  )
 ```
 
@@ -376,7 +376,7 @@ The `ZIO#provide` takes an `R` environment and provides it to the `ZIO` effect w
 
 ```scala
 trait ZIO[-R, +E, +A] {
-  def provide(r: R)(implicit ev: NeedsEnv[R]): IO[E, A]
+  def provideEnvironment(r: R)(implicit ev: NeedsEnv[R]): IO[E, A]
 }
 ```
 
@@ -394,7 +394,7 @@ trait Logging {
 }
 
 object Logging {
-  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
+  def log(line: String) = ZIO.serviceWithZIO[Logging](_.log(line))
 }
 ```
 
@@ -412,14 +412,14 @@ val loggingImpl = new Logging {
     UIO.succeed(println(line))
 }
 
-val effect = app.provide(ZEnvironment(loggingImpl))
+val effect = app.provideEnvironment(ZEnvironment(loggingImpl))
 ```
 
-Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZServiceBuilder` to construct the dependency graph of our application, then we use methods like `ZIO#provideServices` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZServiceBuilder` to construct the dependency graph of our application, then we use methods like `ZIO#provide` to propagate dependencies into the environment of our ZIO effect.
 
-#### Using `provideServices` Method
+#### Using `provide` Method
 
-Unlike the `ZIO#provide` which takes and an `R`, the `ZIO#provideServices` takes a `ZServiceBuilder` to the ZIO effect and translates it to another level. 
+Unlike the `ZIO#provideEnvironment` which takes a `ZEnvironment[R]`, the `ZIO#provide` takes a `ZServiceBuilder` to the ZIO effect and translates it to another level. 
 
 Assume we have written this piece of program that requires Clock and Console services:
 
@@ -436,31 +436,31 @@ val myApp: ZIO[Random with Console with Clock, Nothing, Unit] = for {
 } yield ()
 ```
 
-We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provideServices` method:
+We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provide` method:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
-  myApp.provideServices(Random.live ++ Console.live ++ Clock.live)
+  myApp.provide(Random.live ++ Console.live ++ Clock.live)
 ```
 
 As we see, the type of our effect converted from `ZIO[Random with Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
 
-#### Using `provideSomeServices` Method
+#### Using `provideSome` Method
 
-Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSomeServices` to partially apply some service builders to the `ZIO` effect.
+Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSome` to partially apply some service builders to the `ZIO` effect.
 
-In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSomeServices`:
+In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSome`:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Random with Clock, Nothing, Unit] = 
-  myApp.provideSomeServices[Random with Clock](Console.live)
+  myApp.provideSome[Random with Clock](Console.live)
 ```
 
 > **Note:**
 >
-> When using `ZIO#provideSomeServices[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
+> When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
 
-#### Using `provideCustomServices` Method
+#### Using `provideCustom` Method
 
 `ZEnv` is a convenient type alias that provides several built-in ZIO services that are useful in most applications.
 
@@ -468,7 +468,7 @@ Sometimes we have written a program that contains ZIO built-in services and some
 
  As `ZEnv` provides us the implementation of built-in services, we just need to provide service builders for those services that are not part of the `ZEnv`. 
 
-`ZIO#provideCustomServices` helps us to do so and returns an effect that only depends on `ZEnv`.
+`ZIO#provideCustom` helps us to do so and returns an effect that only depends on `ZEnv`.
 
 Let's write an effect that has some built-in services and also has a `Logging` service:
 
@@ -484,7 +484,7 @@ trait Logging {
 }
 
 object Logging {
-  def log(line: String) = ZIO.serviceWith[Logging](_.log(line))
+  def log(line: String) = ZIO.serviceWithZIO[Logging](_.log(line))
 }
 
 object LoggingLive {
@@ -504,8 +504,8 @@ val myApp: ZIO[Logging with Console with Clock, Nothing, Unit] = for {
 
 This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
 
-By using `ZIO#provideCustomServices` we only provide the `Logging` service builder, and it returns a `ZIO` effect which only requires `ZEnv`:
+By using `ZIO#provideCustom` we only provide the `Logging` service builder, and it returns a `ZIO` effect which only requires `ZEnv`:
 
 ```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustomServices(LoggingLive.serviceBuilder)
+val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustom(LoggingLive.serviceBuilder)
 ```

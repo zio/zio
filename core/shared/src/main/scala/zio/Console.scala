@@ -90,26 +90,26 @@ object Console extends Serializable {
    * Prints text to the console.
    */
   def print(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
-    ZIO.serviceWith(_.print(line))
+    ZIO.serviceWithZIO(_.print(line))
 
   /**
    * Prints text to the standard error console.
    */
   def printError(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
-    ZIO.serviceWith(_.printError(line))
+    ZIO.serviceWithZIO(_.printError(line))
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
   def printLine(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
-    ZIO.serviceWith(_.printLine(line))
+    ZIO.serviceWithZIO(_.printLine(line))
 
   /**
    * Prints a line of text to the standard error console, including a newline
    * character.
    */
   def printLineError(line: => Any)(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
-    ZIO.serviceWith(_.printLineError(line))
+    ZIO.serviceWithZIO(_.printLineError(line))
 
   /**
    * Retrieves a line of input from the console. Fails with an
@@ -117,7 +117,7 @@ object Console extends Serializable {
    * null.
    */
   def readLine(implicit trace: ZTraceElement): ZIO[Console, IOException, String] =
-    ZIO.accessZIO(_.get.readLine)
+    ZIO.serviceWithZIO(_.readLine)
 
   /**
    * Prints text to the console.

@@ -1833,19 +1833,19 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       } @@ zioTag(errors)
     ),
-    suite("provideCustomServices")(
+    suite("provideCustom")(
       test("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]                    = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                                        = zio.provideCustomServices(loggingServiceBuilder)
+        val zio2: URIO[ZEnv, Unit]                                        = zio.provideCustom(loggingServiceBuilder)
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSomeServices")(
+    suite("provideSome")(
       test("can split environment into two parts") {
         val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit]                = ZIO.unit
-        val zio2: URIO[Random, Unit]                                  = zio.provideSomeServices[Random](clockServiceBuilder)
+        val zio2: URIO[Random, Unit]                                  = zio.provideSome[Random](clockServiceBuilder)
         assertM(zio2)(anything)
       }
     ),
@@ -3267,15 +3267,15 @@ object ZIOSpec extends ZIOBaseSpec {
         val zio =
           for {
             v1 <- ZIO.service[Int]
-            v2 <- ZIO.service[Int].provide(ZEnvironment(2))
+            v2 <- ZIO.service[Int].provideEnvironment(ZEnvironment(2))
             v3 <- ZIO.service[Int]
           } yield (v1, v2, v3)
 
-        assertM(zio.provide(ZEnvironment(4)))(equalTo((4, 2, 4)))
+        assertM(zio.provideEnvironment(ZEnvironment(4)))(equalTo((4, 2, 4)))
       },
       test("async can use environment") {
         val zio = ZIO.async[Int, Nothing, Int](cb => cb(ZIO.service[Int]))
-        assertM(zio.provide(ZEnvironment(10)))(equalTo(10))
+        assertM(zio.provideEnvironment(ZEnvironment(10)))(equalTo(10))
       }
     ),
     suite("RTS forking inheritability")(
@@ -3301,7 +3301,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("serviceWith")(
       test("effectfully accesses a service in the environment") {
-        val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
+        val zio = ZIO.serviceWithZIO[Int](int => UIO(int + 3))
         assertM(zio.inject(ZServiceBuilder.succeed(0)))(equalTo(3))
       }
     ),
@@ -3600,7 +3600,7 @@ object ZIOSpec extends ZIOBaseSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provide(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(

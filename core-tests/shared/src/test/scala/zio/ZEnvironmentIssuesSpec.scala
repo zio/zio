@@ -17,7 +17,7 @@ object ZEnvironmentIssuesSpec extends DefaultRunnableSpec {
       val dog: Dog                         = new Dog {}
       val dogService: UServiceBuilder[Dog] = ZServiceBuilder.succeed(dog)
 
-      zio.provideServices(dogService).map { result =>
+      zio.provide(dogService).map { result =>
         assertTrue(result == dog)
       }
     } @@ ignore,

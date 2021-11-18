@@ -57,7 +57,7 @@ object ZManagedMacros {
   Expr[ZManaged[R0, E, A]] = {
     val serviceBuilderExpr = ServiceBuilderMacros.fromAutoImpl[R0, R, E](serviceBuilder)
     '{
-      $schedule.provideServices($serviceBuilderExpr.asInstanceOf[ZServiceBuilder[R0, E, R]])
+      $schedule.provide($serviceBuilderExpr.asInstanceOf[ZServiceBuilder[R0, E, R]])
     }
   }
 }

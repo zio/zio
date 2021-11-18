@@ -332,10 +332,10 @@ object UserRepo {
 
   //accessor methods
   def getUser(userId: UserId): ZIO[UserRepo, DBError, Option[User]] =
-    ZIO.accessZIO(_.get.getUser(userId))
+    ZIO.serviceWithZIO(_.getUser(userId))
 
   def createUser(user: User): ZIO[UserRepo, DBError, Unit] =
-    ZIO.accessZIO(_.get.createUser(user))
+    ZIO.serviceWithZIO(_.createUser(user))
 }
 
 
@@ -356,10 +356,10 @@ object Logging {
 
   //accessor methods
   def info(s: String): URIO[Logging, Unit] =
-    ZIO.accessZIO(_.get.info(s))
+    ZIO.serviceWithZIO(_.info(s))
 
   def error(s: String): URIO[Logging, Unit] =
-    ZIO.accessZIO(_.get.error(s))
+    ZIO.serviceWithZIO(_.error(s))
 }
 
 
@@ -395,7 +395,7 @@ val horizontal: ZServiceBuilder[Console, Nothing, Logging with UserRepo] = Loggi
 val fullServiceBuilder: ServiceBuilder[Nothing, Logging with UserRepo] = Console.live >>> horizontal
 
 // provide the services to the program
-makeUser.provideSomeServices(fullServiceBuilder)
+makeUser.provideSome(fullServiceBuilder)
 ```
 
 Given a service builder, it is possible to update one or more components it provides. We update a dependency in two ways:
@@ -543,7 +543,7 @@ object Example extends ZIOAppDefault {
 
   // Define our simple ZIO program
   val zio: ZIO[String, Nothing, Unit] = for {
-    name <- ZIO.access[String](_.get)
+    name <- ZIO.service[String]
     _    <- UIO(println(s"Hello, $name!"))
   } yield ()
 
@@ -552,7 +552,7 @@ object Example extends ZIOAppDefault {
   val nameServiceBuilder: UServiceBuilder[String] = ZServiceBuilder.succeed("Adam")
 
   // Run the program, providing the `nameServiceBuilder`
-  def run = zio.provideSomeServices(nameServiceBuilder)
+  def run = zio.provideSome(nameServiceBuilder)
 }
 
 ```
@@ -591,7 +591,7 @@ object moduleA {
   }
 
   def letsGoA(v: Int): URIO[ModuleA, String] =
-    ZIO.accessZIO(_.get.letsGoA(v))
+    ZIO.serviceWithZIO(_.letsGoA(v))
 }
 
 import moduleA._
@@ -616,7 +616,7 @@ object moduleB {
   }
 
   def letsGoB(v: Int): URIO[ModuleB, String] =
-    ZIO.accessZIO(_.get.letsGoB(v))
+    ZIO.serviceWithZIO(_.letsGoB(v))
 }
 
 object ZServiceBuilderApp0 extends zio.App {
@@ -633,7 +633,7 @@ object ZServiceBuilderApp0 extends zio.App {
     } yield ()
 
   def run(args: List[String]) =
-    program.provideSomeServices(env).exitCode
+    program.provideSome(env).exitCode
 
 }
 
@@ -699,12 +699,12 @@ object ZServiceBuilderApp1 extends scala.App {
       }
 
     val foo: URIO[ModuleC, Int] =
-      ZIO.accessZIO(_.get.foo)
+      ZIO.serviceWithZIO(_.foo)
   }
 
   val env = (ModuleA.live ++ ModuleB.live ++ ZServiceBuilder.environment[Clock]) >>> ModuleC.live
 
-  val res = ModuleC.foo.provideCustomServices(env)
+  val res = ModuleC.foo.provideCustom(env)
 
   val out = rt.unsafeRun(res)
   println(out)

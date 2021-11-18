@@ -9,7 +9,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
       // https://github.com/zio/zio/issues/4802
       test("Issue #4802") {
         ZIO
-          .serviceWith[Ref[Int]](_.get)
+          .serviceWithZIO[Ref[Int]](_.get)
           .inject(Ref.make(10).toServiceBuilder)
           .map { int =>
             assertTrue(int == 10)
@@ -49,7 +49,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
         }
 
         def foo[T: Tag](t: T): URIO[Service[T], T] =
-          ZIO.serviceWith(_.foo(t))
+          ZIO.serviceWithZIO(_.foo(t))
 
         foo(12).inject(Service.live).map { result =>
           assertTrue(result == 12)
@@ -59,14 +59,14 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
       test("Issue #4564") {
         trait Svc[A]
         def testBaseLayer[R, A: Tag]: ZServiceBuilder[R, Nothing, Svc[A]] =
-          ZIO.access[R](_ => new Svc[A] {}).toServiceBuilder[Svc[A]]
+          ZIO.environmentWith[R](_ => new Svc[A] {}).toServiceBuilder[Svc[A]]
         def testSecondLayer[A: Tag]: ZServiceBuilder[Svc[A], Nothing, Svc[A]] =
           ZServiceBuilder.fromFunction[Svc[A], Svc[A]] { environment =>
             environment.get
           }
 
         val layer = testBaseLayer[Any, String] >>> testSecondLayer[String]
-        ZIO.unit.provideCustomServices(layer).as(assertTrue(true))
+        ZIO.unit.provideCustom(layer).as(assertTrue(true))
       },
       // https://github.com/zio/zio/issues/3816
       test("Issue #3816") {
@@ -87,11 +87,11 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
             }
 
           def provide[A: Tag, D <: Container[A]: Tag]: ZIO[ContainerProvider[A, D], Throwable, D] =
-            ZIO.accessZIO(_.get.provide)
+            ZIO.serviceWithZIO(_.provide)
         }
 
         ZIO
-          .accessZIO[ContainerProvider[Int, Container[Int]]] { _ =>
+          .environmentWithZIO[ContainerProvider[Int, Container[Int]]] { _ =>
             ContainerProvider.provide[Int, Container[Int]]
           }
           .inject(ContainerProvider.layer[Int, Container[Int]](new Container(10)))
@@ -117,21 +117,23 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
     def live[F[_], K, V](
       f: Option[V] => F[V]
     )(implicit tag: Tag[Cache[F, K, V]]): ZServiceBuilder[Any, Nothing, Cache[F, K, V]] =
-      (for {
-        cache <- Ref.make(Map.empty[K, V])
-      } yield new Cache[F, K, V] {
-        def get(key: K): ZIO[Any, Nothing, F[V]] =
-          cache.get.map(_.get(key)).map(f)
+      ZServiceBuilder {
+        for {
+          cache <- Ref.make(Map.empty[K, V])
+        } yield new Cache[F, K, V] {
+          def get(key: K): ZIO[Any, Nothing, F[V]] =
+            cache.get.map(_.get(key)).map(f)
 
-        def put(key: K, value: V): ZIO[Any, Nothing, Unit] =
-          cache.update(_.updated(key, value))
-      }).toServiceBuilder
+          def put(key: K, value: V): ZIO[Any, Nothing, Unit] =
+            cache.update(_.updated(key, value))
+        }
+      }
 
     def get[F[_], K, V](key: K)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, F[V]] =
-      ZIO.accessZIO(_.get.get(key))
+      ZIO.serviceWithZIO(_.get(key))
 
     def put[F[_], K, V](key: K, value: V)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, Unit] =
-      ZIO.accessZIO(_.get.put(key, value))
+      ZIO.serviceWithZIO(_.put(key, value))
   }
 
   val myCache: ZServiceBuilder[Any, Nothing, Cache[Option, Int, String]] =
@@ -160,7 +162,7 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
           !(a.tag <:< c.tag),
           !(c.tag <:< a.tag),
           !(a.tag <:< d.tag)
-        )).provideServices(myCache)
+        )).provide(myCache)
       }
     )
 

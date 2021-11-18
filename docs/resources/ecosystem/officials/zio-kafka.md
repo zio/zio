@@ -90,7 +90,7 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
     producer
       .merge(consumer)
       .runDrain
-      .provideCustomServices(appServiceBuilder)
+      .provideCustom(appServiceBuilder)
       .exitCode
 
   def producerServiceBuilder = ZServiceBuilder.fromManaged(

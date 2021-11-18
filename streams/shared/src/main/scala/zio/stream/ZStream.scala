@@ -2819,11 +2819,36 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(self.channel >>> channel)
 
   /**
-   * Provides the stream with its required environment, which eliminates its
-   * dependency on `R`.
+   * Provides a service builder to the stream, which translates it to another
+   * level.
    */
-  final def provide(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[Any, E, A] =
-    new ZStream(channel.provide(r))
+  final def provide[E1 >: E, R0, R1](
+    serviceBuilder: ZServiceBuilder[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
+    new ZStream(ZChannel.managed(serviceBuilder.build) { r =>
+      self.channel.provideEnvironment(r.upcast(ev))
+    })
+
+  /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a stream that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   *
+   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideCustom(loggingServiceBuilder)
+   * }}}
+   */
+  def provideCustom[E1 >: E, R1](
+    serviceBuilder: ZServiceBuilder[ZEnv, E1, R1]
+  )(implicit
+    ev: ZEnv with R1 <:< R,
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZStream[ZEnv, E1, A] =
+    provideSome[ZEnv](serviceBuilder)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -2837,7 +2862,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideCustomLayer(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomServices", "2.0.0")
+  @deprecated("use provideCustom", "2.0.0")
   def provideCustomLayer[E1 >: E, R1](
     layer: ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
@@ -2856,9 +2881,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideCustomServices(loggingServiceBuilder)
+   * val stream2 = stream.provideCustom(loggingServiceBuilder)
    * }}}
    */
+  @deprecated("use provideCustom", "2.0.0")
   def provideCustomServices[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
@@ -2866,38 +2892,59 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
-    provideSomeServices[ZEnv](serviceBuilder)
+    provideCustom(serviceBuilder)
+
+  /**
+   * Provides the stream with its required environment, which eliminates its
+   * dependency on `R`.
+   */
+  final def provideEnvironment(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[Any, E, A] =
+    new ZStream(channel.provideEnvironment(r))
 
   /**
    * Provides a service builder to the stream, which translates it to another
    * level.
    */
-  @deprecated("use provideServices", "2.0.0")
+  @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
-    provideServices(layer)
+    provide(layer)
 
   /**
    * Provides a service builder to the stream, which translates it to another
    * level.
    */
+  @deprecated("use provide", "2.0.0")
   final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
-    new ZStream(ZChannel.managed(serviceBuilder.build) { r =>
-      self.channel.provide(r.upcast(ev))
-    })
+    provide(serviceBuilder)
 
   /**
-   * Provides some of the environment required to run this effect, leaving the
-   * remainder `R0`.
+   * Splits the environment into two parts, providing one part using the
+   * specified service builder and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   *
+   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideSome[Random](clockServiceBuilder)
+   * }}}
    */
-  final def provideSome[R0](
+  final def provideSome[R0]: ZStream.ProvideSome[R0, R, E, A] =
+    new ZStream.ProvideSome[R0, R, E, A](self)
+
+  /**
+   * Transforms the environment being provided to the stream with the specified
+   * function.
+   */
+  final def provideSomeEnvironment[R0](
     env: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[R0, E, A] =
     ZStream.environment[R0].flatMap { r0 =>
-      self.provide(env(r0))
+      self.provideEnvironment(env(r0))
     }
 
   /**
@@ -2912,9 +2959,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  @deprecated("use provideSomeServices", "2.0.0")
-  final def provideSomeLayer[R0]: ZStream.ProvideSomeServices[R0, R, E, A] =
-    provideSomeServices
+  @deprecated("use provideSome", "2.0.0")
+  final def provideSomeLayer[R0]: ZStream.ProvideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -2925,11 +2972,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSomeServices[Random](clockServiceBuilder)
+   * val stream2 = stream.provideSome[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeServices[R0]: ZStream.ProvideSomeServices[R0, R, E, A] =
-    new ZStream.ProvideSomeServices[R0, R, E, A](self)
+  @deprecated("use provideSome", "2.0.0")
+  final def provideSomeServices[R0]: ZStream.ProvideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Re-chunks the elements of the stream into chunks of `n` elements each. The
@@ -4373,29 +4421,32 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     xs.mapZIO(ZIO.fromEither(_))
 
   /**
-   * Accesses the environment of the stream.
+   * Accesses the environment of the stream in the context of an effect.
    */
-  def access[R]: AccessPartiallyApplied[R] =
-    new AccessPartiallyApplied[R]
+  @deprecated("use environmentWith", "2.0.0")
+  def access[R]: EnvironmentWithPartiallyApplied[R] =
+    environmentWith
 
   /**
    * Accesses the environment of the stream in the context of an effect.
    */
-  @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: AccessZIOPartiallyApplied[R] =
-    accessZIO
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessM[R]: EnvironmentWithZIOPartiallyApplied[R] =
+    environmentWithZIO
 
   /**
    * Accesses the environment of the stream in the context of an effect.
    */
-  def accessZIO[R]: AccessZIOPartiallyApplied[R] =
-    new AccessZIOPartiallyApplied[R]
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessZIO[R]: EnvironmentWithZIOPartiallyApplied[R] =
+    environmentWithZIO
 
   /**
    * Accesses the environment of the stream in the context of a stream.
    */
-  def accessStream[R]: AccessStreamPartiallyApplied[R] =
-    new AccessStreamPartiallyApplied[R]
+  @deprecated("use environmentWithStream", "2.0.0")
+  def accessStream[R]: EnvironmentWithStreamPartiallyApplied[R] =
+    environmentWithStream
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -4543,6 +4594,24 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def environment[R](implicit trace: ZTraceElement): ZStream[R, Nothing, ZEnvironment[R]] =
     fromZIO(ZIO.environment[R])
+
+  /**
+   * Accesses the environment of the stream.
+   */
+  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+    new EnvironmentWithPartiallyApplied[R]
+
+  /**
+   * Accesses the environment of the stream in the context of an effect.
+   */
+  def environmentWithZIO[R]: EnvironmentWithZIOPartiallyApplied[R] =
+    new EnvironmentWithZIOPartiallyApplied[R]
+
+  /**
+   * Accesses the environment of the stream in the context of a stream.
+   */
+  def environmentWithStream[R]: EnvironmentWithStreamPartiallyApplied[R] =
+    new EnvironmentWithStreamPartiallyApplied[R]
 
   /**
    * Creates a stream that executes the specified effect but emits no elements.
@@ -5341,7 +5410,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZStream[A, Nothing, A] =
-    ZStream.access(_.get[A])
+    ZStream.serviceWith(identity)
 
   /**
    * Accesses the service corresponding to the specified key in the environment.
@@ -5356,7 +5425,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit
     trace: ZTraceElement
   ): ZStream[A with B, Nothing, (A, B)] =
-    ZStream.access(r => (r.get[A], r.get[B]))
+    ZStream.environmentWith(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
@@ -5365,7 +5434,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](implicit
     trace: ZTraceElement
   ): ZStream[A with B with C, Nothing, (A, B, C)] =
-    ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
+    ZStream.environmentWith(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
@@ -5379,14 +5448,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   ](implicit
     trace: ZTraceElement
   ): ZStream[A with B with C with D, Nothing, (A, B, C, D)] =
-    ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
+    ZStream.environment.map(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
+
+  /**
+   * Accesses the specified service in the environment of the stream.
+   */
+  def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
 
   /**
    * Accesses the specified service in the environment of the stream in the
    * context of an effect.
    */
-  def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
-    new ServiceWithPartiallyApplied[Service]
+  def serviceWithZIO[Service]: ServiceWithZIOPartiallyApplied[Service] =
+    new ServiceWithZIOPartiallyApplied[Service]
 
   /**
    * Accesses the specified service in the environment of the stream in the
@@ -5567,19 +5642,19 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   )(f: (A, B, C, D) => F)(implicit trace: ZTraceElement): ZStream[R, E, F] =
     (zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map(f.tupled)
 
-  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): ZStream[R, Nothing, A] =
       ZStream.environment[R].map(f)
   }
 
-  final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZStream[R with R1, E, A] =
       ZStream.environment[R].mapZIO(f)
   }
 
-  final class AccessStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZStream[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZStream[R with R1, E, A] =
@@ -5593,15 +5668,23 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tag: Tag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZStream[Map[Key, Service], Nothing, Option[Service]] =
-      ZStream.access(_.getAt(key))
+      ZStream.environment.map(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](f: Service => A)(implicit
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZStream[Service, Nothing, A] =
+      ZStream.fromZIO(ZIO.serviceWith[Service](f))
+  }
+
+  final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZIO[R, E, A])(implicit
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZStream[R with Service, E, A] =
-      ZStream.fromZIO(ZIO.serviceWith[Service](f))
+      ZStream.fromZIO(ZIO.serviceWithZIO[Service](f))
   }
 
   final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
@@ -5698,7 +5781,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
-  final class ProvideSomeServices[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
+  final class ProvideSome[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: ZServiceBuilder[R0, E1, R1]
     )(implicit
@@ -5706,21 +5789,21 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
-      self.provideServices[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+      self.provide[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit ev: IsNotIntersection[M], tag: Tag[M], trace: ZTraceElement): ZStream[R1, E, A] =
-      self.provideSome(_.update(f))
+      self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZStream[R1, E, A] =
-      self.provideSome(_.updateAt(key)(f))
+      self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 
   /**

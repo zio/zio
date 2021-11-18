@@ -68,48 +68,49 @@ object PureModule {
     ): IO[String, String]
   }
 
-  val static: ZIO[PureModule.Service, String, String]     = ZIO.serviceWith[PureModule.Service](_.static)
-  def zeroParams: ZIO[PureModule.Service, String, String] = ZIO.serviceWith[PureModule.Service](_.zeroParams)
+  val static: ZIO[PureModule.Service, String, String]     = ZIO.serviceWithZIO[PureModule.Service](_.static)
+  def zeroParams: ZIO[PureModule.Service, String, String] = ZIO.serviceWithZIO[PureModule.Service](_.zeroParams)
   def zeroParamsWithParens(): ZIO[PureModule.Service, String, String] =
-    ZIO.serviceWith[PureModule.Service](_.zeroParamsWithParens())
+    ZIO.serviceWithZIO[PureModule.Service](_.zeroParamsWithParens())
   def singleParam(a: Int): ZIO[PureModule.Service, String, String] =
-    ZIO.serviceWith[PureModule.Service](_.singleParam(a))
+    ZIO.serviceWithZIO[PureModule.Service](_.singleParam(a))
   def manyParams(a: Int, b: String, c: Long): ZIO[PureModule.Service, String, String] =
-    ZIO.serviceWith[PureModule.Service](_.manyParams(a, b, c))
+    ZIO.serviceWithZIO[PureModule.Service](_.manyParams(a, b, c))
   def manyParamLists(a: Int)(b: String)(c: Long): ZIO[PureModule.Service, String, String] =
-    ZIO.serviceWith[PureModule.Service](_.manyParamLists(a)(b)(c))
-  def command: ZIO[PureModule.Service, Unit, Unit] = ZIO.serviceWith[PureModule.Service](_.command)
+    ZIO.serviceWithZIO[PureModule.Service](_.manyParamLists(a)(b)(c))
+  def command: ZIO[PureModule.Service, Unit, Unit] = ZIO.serviceWithZIO[PureModule.Service](_.command)
   def parameterizedCommand(a: Int): ZIO[PureModule.Service, Unit, Unit] =
-    ZIO.serviceWith[PureModule.Service](_.parameterizedCommand(a))
-  def looped(a: Int): URIO[PureModule.Service, Nothing]           = ZIO.serviceWith[PureModule.Service](_.looped(a))
-  def overloaded(n: Int): ZIO[PureModule.Service, String, String] = ZIO.serviceWith[PureModule.Service](_.overloaded(n))
+    ZIO.serviceWithZIO[PureModule.Service](_.parameterizedCommand(a))
+  def looped(a: Int): URIO[PureModule.Service, Nothing] = ZIO.serviceWithZIO[PureModule.Service](_.looped(a))
+  def overloaded(n: Int): ZIO[PureModule.Service, String, String] =
+    ZIO.serviceWithZIO[PureModule.Service](_.overloaded(n))
   def overloaded(n: Long): ZIO[PureModule.Service, String, String] =
-    ZIO.serviceWith[PureModule.Service](_.overloaded(n))
+    ZIO.serviceWithZIO[PureModule.Service](_.overloaded(n))
   def polyInput[I: NotAnyKind: Tag](v: I): ZIO[PureModule.Service, String, String] =
-    ZIO.serviceWith[PureModule.Service](_.polyInput[I](v))
+    ZIO.serviceWithZIO[PureModule.Service](_.polyInput[I](v))
   def polyError[E: NotAnyKind: Tag](v: String): ZIO[PureModule.Service, E, String] =
-    ZIO.serviceWith[PureModule.Service](_.polyError[E](v))
+    ZIO.serviceWithZIO[PureModule.Service](_.polyError[E](v))
   def polyOutput[A: NotAnyKind: Tag](v: String): ZIO[PureModule.Service, String, A] =
-    ZIO.serviceWith[PureModule.Service](_.polyOutput[A](v))
+    ZIO.serviceWithZIO[PureModule.Service](_.polyOutput[A](v))
   def polyInputError[I: NotAnyKind: Tag, E: NotAnyKind: Tag](v: I): ZIO[PureModule.Service, E, String] =
-    ZIO.serviceWith[PureModule.Service](_.polyInputError[I, E](v))
+    ZIO.serviceWithZIO[PureModule.Service](_.polyInputError[I, E](v))
   def polyInputOutput[I: NotAnyKind: Tag, A: NotAnyKind: Tag](v: I): ZIO[PureModule.Service, String, A] =
-    ZIO.serviceWith[PureModule.Service](_.polyInputOutput[I, A](v))
+    ZIO.serviceWithZIO[PureModule.Service](_.polyInputOutput[I, A](v))
   def polyErrorOutput[E: NotAnyKind: Tag, A: NotAnyKind: Tag](v: String): ZIO[PureModule.Service, E, A] =
-    ZIO.serviceWith[PureModule.Service](_.polyErrorOutput[E, A](v))
+    ZIO.serviceWithZIO[PureModule.Service](_.polyErrorOutput[E, A](v))
   def polyInputErrorOutput[I: NotAnyKind: Tag, E: NotAnyKind: Tag, A: NotAnyKind: Tag](
     v: I
   ): ZIO[PureModule.Service, E, A] =
-    ZIO.serviceWith[PureModule.Service](_.polyInputErrorOutput[I, E, A](v))
+    ZIO.serviceWithZIO[PureModule.Service](_.polyInputErrorOutput[I, E, A](v))
   def polyMixed[A: NotAnyKind: Tag]: ZIO[PureModule.Service, String, (A, String)] =
-    ZIO.serviceWith[PureModule.Service](_.polyMixed[A])
+    ZIO.serviceWithZIO[PureModule.Service](_.polyMixed[A])
   def polyBounded[A <: AnyVal: NotAnyKind: Tag]: ZIO[PureModule.Service, String, A] =
-    ZIO.serviceWith[PureModule.Service](_.polyBounded[A])
+    ZIO.serviceWithZIO[PureModule.Service](_.polyBounded[A])
   def varargs(a: Int, b: String*): ZIO[PureModule.Service, String, String] =
-    ZIO.serviceWith[PureModule.Service](_.varargs(a, b: _*))
+    ZIO.serviceWithZIO[PureModule.Service](_.varargs(a, b: _*))
   def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): ZIO[PureModule.Service, String, String] =
-    ZIO.serviceWith[PureModule.Service](_.curriedVarargs(a, b: _*)(c, d: _*))
-  def byName(a: => Int): ZIO[PureModule.Service, String, String] = ZIO.serviceWith[PureModule.Service](_.byName(a))
+    ZIO.serviceWithZIO[PureModule.Service](_.curriedVarargs(a, b: _*)(c, d: _*))
+  def byName(a: => Int): ZIO[PureModule.Service, String, String] = ZIO.serviceWithZIO[PureModule.Service](_.byName(a))
   def maxParams(
     a: Int,
     b: Int,
@@ -134,5 +135,7 @@ object PureModule {
     u: Int,
     v: Int
   ): ZIO[PureModule.Service, String, String] =
-    ZIO.serviceWith[PureModule.Service](_.maxParams(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v))
+    ZIO.serviceWithZIO[PureModule.Service](
+      _.maxParams(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v)
+    )
 }

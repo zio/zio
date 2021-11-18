@@ -273,7 +273,7 @@ trait Database {
 
 object Database {
   def getUsers: ZIO[Database, Throwable, List[User]] = 
-    ZIO.serviceWith[Database](_.getUsers)
+    ZIO.serviceWithZIO[Database](_.getUsers)
 }
 ```
 

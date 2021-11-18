@@ -16,10 +16,12 @@ object AutoWireSpec extends ZIOBaseSpec {
           val doubleServiceBuilder = ZServiceBuilder.succeed(100.1)
           val stringServiceBuilder = ZServiceBuilder.succeed("this string is 28 chars long")
           val intServiceBuilder =
-            (for {
-              str    <- ZIO.service[String]
-              double <- ZIO.service[Double]
-            } yield str.length + double.toInt).toServiceBuilder
+            ZServiceBuilder {
+              for {
+                str    <- ZIO.service[String]
+                double <- ZIO.service[Double]
+              } yield str.length + double.toInt
+            }
           test("automatically constructs a service builder") {
             val program = ZIO.environment[ZEnv] *> ZIO.service[Int]
             assertM(program)(equalTo(128))

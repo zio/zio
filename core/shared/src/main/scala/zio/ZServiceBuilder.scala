@@ -193,7 +193,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
    * computed result of this service builder.
    */
   final def memoize(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZServiceBuilder[RIn, E, ROut]] =
-    build.memoize.map(ZServiceBuilder(_))
+    build.memoize.map(ZServiceBuilder.fromManagedEnvironment)
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -249,7 +249,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def tap[RIn1 <: RIn, E1 >: E](f: ZEnvironment[ROut] => ZIO[RIn1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[RIn1, E1, ROut] =
-    flatMap(environment => ZServiceBuilder(f(environment).as(environment)))
+    flatMap(environment => ZServiceBuilder.fromZIOEnvironment(f(environment).as(environment)))
 
   /**
    * Performs the specified effect if this service builder fails.
@@ -274,7 +274,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
   final def toRuntime(
     runtimeConfig: RuntimeConfig
   )(implicit ev: Any <:< RIn, trace: ZTraceElement): Managed[E, Runtime[ROut]] =
-    build.provide(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
+    build.provideEnvironment(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
 
   /**
    * Updates one of the services output by this service builder.
@@ -327,7 +327,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
         ZManaged.succeed(memoMap =>
           memoMap
             .getOrElseMemoize(self)
-            .flatMap(r => memoMap.getOrElseMemoize(that).provide(r)(NeedsEnv.needsEnv, trace))
+            .flatMap(r => memoMap.getOrElseMemoize(that).provideEnvironment(r)(NeedsEnv.needsEnv, trace))
         )
       case ZServiceBuilder.ZipWith(self, that, f) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))
@@ -367,18 +367,18 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   /**
    * Constructs a service builderfrom a managed resource.
    */
-  def apply[RIn, E, ROut](managed: ZManaged[RIn, E, ZEnvironment[ROut]])(implicit
+  def apply[RIn, E, ROut: Tag: IsNotIntersection](managed: ZManaged[RIn, E, ROut])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[RIn, E, ROut] =
-    Managed(managed)
+    ZServiceBuilder.fromManaged(managed)
 
   /**
    * Constructs a service builder from an effectual resource.
    */
-  def apply[RIn, E, ROut](zio: ZIO[RIn, E, ZEnvironment[ROut]])(implicit
+  def apply[RIn, E, ROut: Tag: IsNotIntersection](zio: ZIO[RIn, E, ROut])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[RIn, E, ROut] =
-    ZServiceBuilder(zio.toManaged)
+    ZServiceBuilder.fromZIO(zio)
 
   sealed trait Debug
 
@@ -519,10 +519,23 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * return one or more services. The acquire and release actions will be
    * performed uninterruptibly.
    */
+  def fromAcquireReleaseEnvironment[R, E, A](
+    acquire: ZIO[R, E, ZEnvironment[A]]
+  )(release: ZEnvironment[A] => URIO[R, Any])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R, E, A] =
+    fromManagedMany(ZManaged.acquireReleaseWith(acquire)(release))
+
+  /**
+   * Constructs a service builder from acquire and release actions, which must
+   * return one or more services. The acquire and release actions will be
+   * performed uninterruptibly.
+   */
+  @deprecated("use fromAcquireReleaseEnvironment", "2.0.0")
   def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, ZEnvironment[A]])(release: ZEnvironment[A] => URIO[R, Any])(
     implicit trace: ZTraceElement
   ): ZServiceBuilder[R, E, A] =
-    fromManagedMany(ZManaged.acquireReleaseWith(acquire)(release))
+    fromAcquireReleaseEnvironment(acquire)(release)
 
   /**
    * Constructs a service builder from the specified effect.
@@ -547,17 +560,44 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * function.
    */
-  def fromFunction[A: Tag, B: Tag: IsNotIntersection](f: ZEnvironment[A] => B)(implicit
+  def fromFunction[A, B: Tag: IsNotIntersection](f: ZEnvironment[A] => B)(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, Nothing, B] =
     fromFunctionZIO(a => ZIO.succeedNow(f(a)))
 
   /**
    * Constructs a service builder from the environment using the specified
+   * function, which must return one or more services.
+   */
+  def fromFunctionEnvironment[A, B](f: ZEnvironment[A] => ZEnvironment[B])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A, Nothing, B] =
+    fromFunctionEnvironmentZIO(a => ZIO.succeedNow(f(a)))
+
+  /**
+   * Constructs a service builder from the environment using the specified
+   * effectful resourceful function, which must return one or more services.
+   */
+  def fromFunctionEnvironmentManaged[A, E, B](f: ZEnvironment[A] => ZManaged[Any, E, ZEnvironment[B]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A, E, B] =
+    ZServiceBuilder.fromManagedEnvironment(ZManaged.environmentWithManaged(f))
+
+  /**
+   * Constructs a service builder from the environment using the specified
+   * effectful function, which must return one or more services.
+   */
+  def fromFunctionEnvironmentZIO[A, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A, E, B] =
+    fromFunctionEnvironmentManaged(a => f(a).toManaged)
+
+  /**
+   * Constructs a service builder from the environment using the specified
    * effectful function.
    */
   @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[A: Tag, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => IO[E, B])(implicit
+  def fromFunctionM[A, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => IO[E, B])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
     fromFunctionZIO(f)
@@ -566,7 +606,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * effectful resourceful function.
    */
-  def fromFunctionManaged[A: Tag, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => ZManaged[Any, E, B])(implicit
+  def fromFunctionManaged[A, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => ZManaged[Any, E, B])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
     fromManaged(ZManaged.accessManaged(f))
@@ -575,17 +615,19 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * function, which must return one or more services.
    */
-  def fromFunctionMany[A: Tag, B](f: ZEnvironment[A] => ZEnvironment[B])(implicit
+
+  @deprecated("use fromFunctionEnvironment", "2.0.0")
+  def fromFunctionMany[A, B](f: ZEnvironment[A] => ZEnvironment[B])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, Nothing, B] =
-    fromFunctionManyZIO(a => ZIO.succeedNow(f(a)))
+    fromFunctionEnvironment(f)
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful function, which must return one or more services.
    */
   @deprecated("use fromFunctionManyZIO", "2.0.0")
-  def fromFunctionManyM[A: Tag, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
+  def fromFunctionManyM[A, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
     fromFunctionManyZIO(f)
@@ -594,25 +636,27 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * effectful resourceful function, which must return one or more services.
    */
-  def fromFunctionManyManaged[A: Tag, E, B](f: ZEnvironment[A] => ZManaged[Any, E, ZEnvironment[B]])(implicit
+  @deprecated("use fromFunctionEnvironmentManaged", "2.0.0")
+  def fromFunctionManyManaged[A, E, B](f: ZEnvironment[A] => ZManaged[Any, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
-    ZServiceBuilder(ZManaged.accessManaged(f))
+    fromFunctionEnvironmentManaged(f)
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful function, which must return one or more services.
    */
-  def fromFunctionManyZIO[A: Tag, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
+  @deprecated("use fromFunctionEnvironmentZIO", "2.0.0")
+  def fromFunctionManyZIO[A, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
-    fromFunctionManyManaged(a => f(a).toManaged)
+    fromFunctionEnvironmentZIO(f)
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful function.
    */
-  def fromFunctionZIO[A: Tag, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => IO[E, B])(implicit
+  def fromFunctionZIO[A, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => IO[E, B])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
     fromFunctionManaged(a => f(a).toManaged)
@@ -4014,7 +4058,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   def fromServiceManyManaged[A: Tag: IsNotIntersection, R, E, B](f: A => ZManaged[R, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R with A, E, B] =
-    ZServiceBuilder(ZManaged.serviceWithManaged(f))
+    ZServiceBuilder.fromManagedMany(ZManaged.serviceWithManaged[A](f))
 
   /**
    * Constructs a service builder that resourcefully and effectfully depends on
@@ -4025,7 +4069,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   def fromServicesManyManaged[A0: Tag: IsNotIntersection, A1: Tag: IsNotIntersection, R, E, B](
     f: (A0, A1) => ZManaged[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
         a1 <- ZManaged.service[A1]
@@ -4049,7 +4093,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   ](
     f: (A0, A1, A2) => ZManaged[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
         a1 <- ZManaged.service[A1]
@@ -4075,7 +4119,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   ](
     f: (A0, A1, A2, A3) => ZManaged[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
         a1 <- ZManaged.service[A1]
@@ -4105,7 +4149,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   )(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
         a1 <- ZManaged.service[A1]
@@ -4137,7 +4181,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   )(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
         a1 <- ZManaged.service[A1]
@@ -4169,7 +4213,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
         a1 <- ZManaged.service[A1]
@@ -4205,7 +4249,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   )(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
         a1 <- ZManaged.service[A1]
@@ -4243,7 +4287,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   )(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
         a1 <- ZManaged.service[A1]
@@ -4283,7 +4327,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   )(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
         a1 <- ZManaged.service[A1]
@@ -4325,7 +4369,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   )(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10, E, B] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4371,7 +4415,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4419,7 +4463,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4469,7 +4513,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4521,7 +4565,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4575,7 +4619,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4631,7 +4675,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4708,7 +4752,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4788,7 +4832,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4871,7 +4915,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -4957,7 +5001,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -5046,7 +5090,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ] =
-    ZServiceBuilder {
+    ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
         a1  <- ZManaged.service[A1]
@@ -5080,16 +5124,26 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   def fromManaged[R, E, A: Tag: IsNotIntersection](m: ZManaged[R, E, A])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R, E, A] =
-    ZServiceBuilder(m.map(ZEnvironment(_)))
+    ZServiceBuilder.fromManagedMany(m.map(ZEnvironment(_)))
 
   /**
    * Constructs a service builder from a managed resource, which must return one
    * or more services.
    */
+  def fromManagedEnvironment[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R, E, A] =
+    Managed(m)
+
+  /**
+   * Constructs a service builder from a managed resource, which must return one
+   * or more services.
+   */
+  @deprecated("use fromManagedEnvironment", "2.0.0")
   def fromManagedMany[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R, E, A] =
-    ZServiceBuilder(m)
+    fromManagedEnvironment(m)
 
   /**
    * Constructs a service builder from the specified effect.
@@ -5103,8 +5157,18 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the specified effect, which must return
    * one or more services.
    */
+  def fromZIOEnvironment[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R, E, A] =
+    ZServiceBuilder.fromManagedMany(ZManaged.fromZIO(zio))
+
+  /**
+   * Constructs a service builder from the specified effect, which must return
+   * one or more services.
+   */
+  @deprecated("use fromZIOEnvironment", "2.0.0")
   def fromZIOMany[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit trace: ZTraceElement): ZServiceBuilder[R, E, A] =
-    ZServiceBuilder(ZManaged.fromZIO(zio)).map(a => a)
+    fromZIOEnvironment(zio)
 
   /**
    * An identity service builder that passes along its inputs. Note that this
@@ -5129,7 +5193,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * an output.
    */
   def environment[A](implicit trace: ZTraceElement): ZServiceBuilder[A, Nothing, A] =
-    ZServiceBuilder(ZManaged.environment[A])
+    ZServiceBuilder.fromManagedMany(ZManaged.environment[A])
 
   /**
    * Constructs a service builder that accesses and returns the specified
@@ -5142,14 +5206,22 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the specified value.
    */
   def succeed[A: Tag: IsNotIntersection](a: A)(implicit trace: ZTraceElement): UServiceBuilder[A] =
-    ZServiceBuilder(ZManaged.succeedNow(ZEnvironment(a)))
+    ZServiceBuilder.fromManagedMany(ZManaged.succeedNow(ZEnvironment(a)))
 
   /**
    * Constructs a service builder from the specified value, which must return
    * one or more services.
    */
+  def succeedEnvironment[A](a: ZEnvironment[A])(implicit trace: ZTraceElement): UServiceBuilder[A] =
+    ZServiceBuilder.fromManagedMany(ZManaged.succeedNow(a))
+
+  /**
+   * Constructs a service builder from the specified value, which must return
+   * one or more services.
+   */
+  @deprecated("use succeedEnvironment", "2.0.0")
   def succeedMany[A](a: ZEnvironment[A])(implicit trace: ZTraceElement): UServiceBuilder[A] =
-    ZServiceBuilder(ZManaged.succeedNow(a))
+    succeedEnvironment(a)
 
   /**
    * Lazily constructs a service builder. This is useful to avoid infinite
