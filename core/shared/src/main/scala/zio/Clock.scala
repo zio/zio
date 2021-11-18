@@ -180,9 +180,11 @@ object Clock extends ClockPlatformSpecific with Serializable {
    */
   val javaClock: ZServiceBuilder[java.time.Clock, Nothing, Clock] = {
     implicit val trace = Tracer.newTrace
-    (for {
-      clock <- ZIO.service[java.time.Clock]
-    } yield ClockJava(clock)).toServiceBuilder
+    ZServiceBuilder[java.time.Clock, Nothing, Clock] {
+      for {
+        clock <- ZIO.service[java.time.Clock]
+      } yield ClockJava(clock)
+    }
   }
 
   val live: ServiceBuilder[Nothing, Clock] =
@@ -269,30 +271,30 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * Returns the current time, relative to the Unix epoch.
    */
   def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): URIO[Clock, Long] =
-    ZIO.serviceWith(_.currentTime(unit))
+    ZIO.serviceWithZIO(_.currentTime(unit))
 
   /**
    * Get the current time, represented in the current timezone.
    */
   def currentDateTime(implicit trace: ZTraceElement): URIO[Clock, OffsetDateTime] =
-    ZIO.serviceWith(_.currentDateTime)
+    ZIO.serviceWithZIO(_.currentDateTime)
 
   def driver[Env, In, Out](
     schedule: Schedule[Env, In, Out]
   )(implicit trace: ZTraceElement): URIO[Clock, Schedule.Driver[schedule.State, Env, In, Out]] =
-    ZIO.serviceWith(_.driver(schedule))
+    ZIO.serviceWithZIO(_.driver(schedule))
 
   def instant(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.Instant] =
-    ZIO.serviceWith(_.instant)
+    ZIO.serviceWithZIO(_.instant)
 
   def localDateTime(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.LocalDateTime] =
-    ZIO.serviceWith(_.localDateTime)
+    ZIO.serviceWithZIO(_.localDateTime)
 
   /**
    * Returns the system nano time, which is not relative to any date.
    */
   def nanoTime(implicit trace: ZTraceElement): URIO[Clock, Long] =
-    ZIO.serviceWith(_.nanoTime)
+    ZIO.serviceWithZIO(_.nanoTime)
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -304,7 +306,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   def repeat[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, A, B]
   )(implicit trace: ZTraceElement): ZIO[R1 with Clock, E, B] =
-    ZIO.serviceWith[Clock](_.repeat(zio)(schedule))
+    ZIO.serviceWithZIO[Clock](_.repeat(zio)(schedule))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -320,7 +322,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   )(schedule: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Clock, E2, B] =
-    ZIO.serviceWith[Clock](_.repeatOrElse(zio)(schedule, orElse))
+    ZIO.serviceWithZIO[Clock](_.repeatOrElse(zio)(schedule, orElse))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
@@ -337,7 +339,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     schedule: => Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
   )(implicit trace: ZTraceElement): ZIO[R1 with Clock, E2, Either[C, B]] =
-    ZIO.serviceWith[Clock](_.repeatOrElseEither(zio)(schedule, orElse))
+    ZIO.serviceWithZIO[Clock](_.repeatOrElseEither(zio)(schedule, orElse))
 
   /**
    * Retries with the specified retry policy. Retries are done following the
@@ -349,7 +351,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     ev: CanFail[E],
     trace: ZTraceElement
   ): ZIO[R1 with Clock, E, A] =
-    ZIO.serviceWith[Clock](_.retry(zio)(policy))
+    ZIO.serviceWithZIO[Clock](_.retry(zio)(policy))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -360,7 +362,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     policy: => Schedule[R1, E, S],
     orElse: (E, S) => ZIO[R1, E1, A1]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1 with Clock, E1, A1] =
-    ZIO.serviceWith[Clock](_.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
+    ZIO.serviceWithZIO[Clock](_.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
 
   /**
    * Returns an effect that retries this effect with the specified schedule when
@@ -372,7 +374,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     schedule: => Schedule[R1, E, Out],
     orElse: (E, Out) => ZIO[R1, E1, B]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1 with Clock, E1, Either[B, A]] =
-    ZIO.serviceWith[Clock](_.retryOrElseEither(zio)(schedule, orElse))
+    ZIO.serviceWithZIO[Clock](_.retryOrElseEither(zio)(schedule, orElse))
 
   /**
    * Runs this effect according to the specified schedule.
@@ -383,7 +385,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def schedule[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, Any, B]
   )(implicit trace: ZTraceElement): ZIO[R1 with Clock, E, B] =
-    ZIO.serviceWith[Clock](_.schedule(zio)(schedule))
+    ZIO.serviceWithZIO[Clock](_.schedule(zio)(schedule))
 
   /**
    * Runs this effect according to the specified schedule starting from the
@@ -392,18 +394,18 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def scheduleFrom[R, R1 <: R, E, A, A1 >: A, B](
     zio: => ZIO[R, E, A]
   )(a: => A1)(schedule: => Schedule[R1, A1, B])(implicit trace: ZTraceElement): ZIO[R1 with Clock, E, B] =
-    ZIO.serviceWith[Clock](_.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
+    ZIO.serviceWithZIO[Clock](_.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
 
   /**
    * Returns the scheduler used for scheduling effects.
    */
   def scheduler(implicit trace: ZTraceElement): URIO[Clock, Scheduler] =
-    ZIO.serviceWith(_.scheduler)
+    ZIO.serviceWithZIO(_.scheduler)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
   def sleep(duration: => Duration)(implicit trace: ZTraceElement): URIO[Clock, Unit] =
-    ZIO.serviceWith(_.sleep(duration))
+    ZIO.serviceWithZIO(_.sleep(duration))
 
 }

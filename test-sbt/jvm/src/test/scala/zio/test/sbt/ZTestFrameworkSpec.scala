@@ -184,7 +184,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          zTestTask.sendSummary.provide(ZEnvironment(Summary(1, 0, 0, "foo"))),
+          zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(1, 0, 0, "foo"))),
           TestArgs.empty,
           zTestTask.spec
         )
@@ -206,7 +206,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          zTestTask.sendSummary.provide(ZEnvironment(Summary(0, 0, 0, "foo"))),
+          zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(0, 0, 0, "foo"))),
           TestArgs.empty,
           zTestTask.spec
         )

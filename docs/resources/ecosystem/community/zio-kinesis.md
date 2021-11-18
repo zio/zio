@@ -46,7 +46,7 @@ object ZIOKinesisConsumerExample extends zio.App {
         checkpointBatchSize = 1000L,
         checkpointDuration = 5.minutes
       )(record => putStrLn(s"Processing record $record"))
-      .provideCustomServices(Consumer.defaultEnvironment ++ loggingServiceBuilder)
+      .provideCustom(Consumer.defaultEnvironment ++ loggingServiceBuilder)
       .exitCode
 }
 ```

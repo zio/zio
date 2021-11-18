@@ -446,7 +446,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       for {
         r     <- ZIO.environment[R with Clock]
         cache <- Ref.Synchronized.make[Option[(Long, Promise[E, A])]](None)
-      } yield (get(cache).provide(r), invalidate(cache))
+      } yield (get(cache).provideEnvironment(r), invalidate(cache))
     }
 
   /**
@@ -1460,11 +1460,34 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
-   * Provides the `ZIO` effect with its required environment, which eliminates
-   * its dependency on `R`.
+   * Provides a service builder to the ZIO effect, which translates it to
+   * another level.
    */
-  final def provide(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): IO[E, A] =
-    ZFiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
+  final def provide[E1 >: E, R0, R1](
+    serviceBuilder: => ZServiceBuilder[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
+    ZIO.suspendSucceed(serviceBuilder.build.map(_.upcast(ev)).use(r => self.provideEnvironment(r)))
+
+  /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving an effect that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val zio: ZIO[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   *
+   * val zio2 = zio.provideCustom(loggingServiceBuilder)
+   * }}}
+   */
+  final def provideCustom[E1 >: E, R1](
+    serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
+  )(implicit
+    ev: ZEnv with R1 <:< R,
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZIO[ZEnv, E1, A] =
+    provideSome[ZEnv](serviceBuilder)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -1478,7 +1501,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val zio2 = zio.provideCustomLayer(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomServices", "2.0.0")
+  @deprecated("use provideCustom", "2.0.0")
   final def provideCustomLayer[E1 >: E, R1](
     layer: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
@@ -1486,7 +1509,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZIO[ZEnv, E1, A] =
-    provideCustomServices(layer)
+    provideCustom(layer)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -1500,6 +1523,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val zio2 = zio.provideCustomServices(loggingServiceBuilder)
    * }}}
    */
+  @deprecated("use provideCustom", "2.0.0")
   final def provideCustomServices[E1 >: E, R1](
     serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
@@ -1507,33 +1531,57 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZIO[ZEnv, E1, A] =
-    provideSomeServices[ZEnv](serviceBuilder)
+    provideCustom(serviceBuilder)
+
+  /**
+   * Provides the `ZIO` effect with its required environment, which eliminates
+   * its dependency on `R`.
+   */
+  final def provideEnvironment(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): IO[E, A] =
+    ZFiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
-  @deprecated("use provideServices", "2.0.0")
+  @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
     layer: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    provideServices(layer)
+    provide(layer)
 
   /**
    * Provides a service builder to the ZIO effect, which translates it to
    * another level.
    */
+  @deprecated("use provide", "2.0.0")
   final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    ZIO.suspendSucceed(serviceBuilder.build.map(_.upcast(ev)).use(r => self.provide(r)))
+    provide(serviceBuilder)
 
   /**
-   * Provides some of the environment required to run this effect.
+   * Splits the environment into two parts, providing one part using the
+   * specified service builder and leaving the remainder `R0`.
+   *
+   * {{{
+   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
+   *
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   *
+   * val zio2 = zio.provideSome[Random](clockServiceBuilder)
+   * }}}
    */
-  final def provideSome[R0](
+  final def provideSome[R0]: ZIO.ProvideSome[R0, R, E, A] =
+    new ZIO.ProvideSome[R0, R, E, A](self)
+
+  /**
+   * Transforms the environment being provided to this effect with the specified
+   * function.
+   */
+  final def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E, A] =
-    ZIO.accessZIO(r0 => self.provide(f(r0)))
+    ZIO.environmentWithZIO(r0 => self.provideEnvironment(f(r0)))
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -1547,9 +1595,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val zio2 = zio.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  @deprecated("use provideSomeServices", "2.0.0")
-  final def provideSomeLayer[R0]: ZIO.ProvideSomeServices[R0, R, E, A] =
-    provideSomeServices
+  @deprecated("use provideSome", "2.0.0")
+  final def provideSomeLayer[R0]: ZIO.ProvideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -1563,8 +1611,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * val zio2 = zio.provideSomeServices[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSomeServices[R0]: ZIO.ProvideSomeServices[R0, R, E, A] =
-    new ZIO.ProvideSomeServices[R0, R, E, A](self)
+  @deprecated("use provideSome", "2.0.0")
+  final def provideSomeServices[R0]: ZIO.ProvideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Returns a new effect that will utilize the default scope (fiber scope) to
@@ -2393,11 +2442,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Constructs a service builder from this effect, which must return one or
    * more services.
    */
-  final def toServiceBuilderMany[B](implicit
+  final def toServiceBuilderEnvironment[B](implicit
     ev: A <:< ZEnvironment[B],
     trace: ZTraceElement
   ): ZServiceBuilder[R, E, B] =
     ZServiceBuilder.fromZIOMany(self.map(ev))
+
+  /**
+   * Constructs a service builder from this effect, which must return one or
+   * more services.
+   */
+  @deprecated("use toServiceBuilderEnvironment", "2.0.0")
+  final def toServiceBuilderMany[B](implicit
+    ev: A <:< ZEnvironment[B],
+    trace: ZTraceElement
+  ): ZServiceBuilder[R, E, B] =
+    toServiceBuilderEnvironment
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
@@ -2793,21 +2853,23 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * val portNumber = effect.access(_.config.portNumber)
    * }}}
    */
-  def access[R]: ZIO.AccessPartiallyApplied[R] =
-    new ZIO.AccessPartiallyApplied[R]
+  @deprecated("use environmentWith", "2.0.0")
+  def access[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    environmentWith
 
   /**
    * Effectfully accesses the environment of the effect.
    */
-  @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: ZIO.AccessZIOPartiallyApplied[R] =
-    accessZIO
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessM[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
+    environmentWithZIO
 
   /**
    * Effectfully accesses the environment of the effect.
    */
-  def accessZIO[R]: ZIO.AccessZIOPartiallyApplied[R] =
-    new ZIO.AccessZIOPartiallyApplied[R]
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
+    environmentWithZIO
 
   /**
    * When this effect represents acquisition of a resource (for example, opening
@@ -3720,6 +3782,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(ZFiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
 
   /**
+   * Accesses the environment of the effect.
+   */
+  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    new ZIO.EnvironmentWithPartiallyApplied[R]
+
+  /**
+   * Effectually accesses the environment of the effect.
+   */
+  def environmentWithZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
+    new ZIO.EnvironmentWithZIOPartiallyApplied[R]
+
+  /**
    * Retrieves the executor for this effect.
    */
   def executor(implicit trace: ZTraceElement): UIO[Executor] =
@@ -4238,15 +4312,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   @deprecated("use access", "2.0.0")
   def fromFunction[R, A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): URIO[R, A] =
-    access(f)
+    environmentWith(f)
 
   /**
    * Lifts an effectful function whose effect requires no environment into an
    * effect that requires the input to the function.
    */
-  @deprecated("use accessZIO", "2.0.0")
+  @deprecated("use environmentWithZIO", "2.0.0")
   def fromFunctionM[R, E, A](f: ZEnvironment[R] => IO[E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    accessZIO(f)
+    environmentWithZIO(f)
 
   /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an
@@ -4395,7 +4469,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Gets a state from the environment.
    */
   def getState[S: Tag](implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, S] =
-    ZIO.serviceWith(_.get)
+    ZIO.serviceWithZIO(_.get)
 
   /**
    * Gets a state from the environment and uses it to run the specified
@@ -4934,8 +5008,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * This is similar to dependency injection, and the `provide` function can be
    * thought of as `inject`.
    */
-  def provide[R, E, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): ZIO[R, E, A] => IO[E, A] =
-    _.provide(r)
+  def provideEnvironment[R, E, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): ZIO[R, E, A] => IO[E, A] =
+    _.provideEnvironment(r)
+
+  def provide[RIn, E, ROut, RIn2, ROut2](builder: ZServiceBuilder[RIn, E, ROut])(
+    zio: ZIO[ROut with RIn2, E, ROut2]
+  )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
+    zio.provideSomeServices[RIn with RIn2](ZServiceBuilder.environment[RIn2] ++ builder)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -5110,7 +5189,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag](implicit trace: ZTraceElement): URIO[A, A] =
-    serviceWith(ZIO.succeedNow)
+    serviceWith(identity)
 
   /**
    * Accesses the service corresponding to the specified key in the environment.
@@ -5123,14 +5202,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag](implicit trace: ZTraceElement): URIO[A with B, (A, B)] =
-    ZIO.access(r => (r.get[A], r.get[B]))
+    ZIO.environmentWith(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag](implicit trace: ZTraceElement): URIO[A with B with C, (A, B, C)] =
-    ZIO.access(r => (r.get[A], r.get[B], r.get[C]))
+    ZIO.environmentWith(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
@@ -5139,11 +5218,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def services[A: Tag, B: Tag, C: Tag, D: Tag](implicit
     trace: ZTraceElement
   ): URIO[A with B with C with D, (A, B, C, D)] =
-    ZIO.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
+    ZIO.environmentWith(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
-   * Effectfully accesses the specified service in the environment of the
-   * effect.
+   * Accesses the specified service in the environment of the effect.
    *
    * Especially useful for creating "accessor" methods on Services' companion
    * objects.
@@ -5154,6 +5232,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
     new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Effectfully accesses the specified service in the environment of the
+   * effect.
+   *
+   * Especially useful for creating "accessor" methods on Services' companion
+   * objects.
+   *
+   * {{{
+   * def foo(int: Int) = ZIO.serviceWithZIO[Foo](_.foo(int))
+   * }}}
+   */
+  def serviceWithZIO[Service]: ServiceWithZIOPartiallyApplied[Service] =
+    new ServiceWithZIOPartiallyApplied[Service]
 
   /**
    * Returns an effect that shifts execution to the specified executor. This is
@@ -5326,7 +5418,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Updates a state in the environment with the specified function.
    */
   def updateState[S: Tag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
-    ZIO.serviceWith(_.update(f))
+    ZIO.serviceWithZIO(_.update(f))
 
   /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error
@@ -5620,25 +5712,25 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       self.refineOrDie { case e: E1 => e }
   }
 
-  final class ProvideSomeServices[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
+  final class ProvideSome[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       serviceBuilder: => ZServiceBuilder[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
-      self.provideServices[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+      self.provide[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): ZIO[R1, E, A] =
-      self.provideSome(_.update(f))
+      self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZIO[R1, E, A] =
-      self.provideSome(_.updateAt(key)(f))
+      self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 
   @implicitNotFound(
@@ -5757,12 +5849,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       ZIO.acquireReleaseExitWith(acquire(), release, use)
   }
 
-  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): URIO[R, A] =
       ZIO.environment.map(f)
   }
 
-  final class AccessZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit trace: ZTraceElement): ZIO[R with R1, E, A] =
       ZIO.environment.flatMap(f)
   }
@@ -5771,10 +5863,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[Key](
       key: => Key
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): URIO[Map[Key, Service], Option[Service]] =
-      ZIO.access(_.getAt(key))
+      ZIO.environmentWith(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](
+      f: Service => A
+    )(implicit tagged: Tag[Service], trace: ZTraceElement): ZIO[Service, Nothing, A] =
+      ZIO.serviceWithZIO(service => ZIO.succeedNow(f(service)))
+  }
+
+  final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](
       f: Service => ZIO[R, E, A]
     )(implicit tagged: Tag[Service], trace: ZTraceElement): ZIO[R with Service, E, A] = {
@@ -5787,7 +5886,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: S => A)(implicit tag: Tag[S], trace: ZTraceElement): ZIO[ZState[S], Nothing, A] =
-      ZIO.serviceWith(_.get.map(f))
+      ZIO.serviceWithZIO(_.get.map(f))
   }
 
   final class LogSpan(val label: () => String) extends AnyVal {

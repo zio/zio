@@ -104,7 +104,7 @@ object ZPool {
       items   <- Queue.bounded[Attempted[E, A]](range.end).toManaged
       inv     <- Ref.make(Set.empty[A]).toManaged
       initial <- strategy.initial.toManaged
-      pool     = DefaultPool(get.provide(env), range, down, state, items, inv, strategy.track(initial))
+      pool     = DefaultPool(get.provideEnvironment(env), range, down, state, items, inv, strategy.track(initial))
       fiber   <- pool.initialize.forkDaemon.toManaged
       shrink  <- strategy.run(initial, pool.excess, pool.shrink).forkDaemon.toManaged
       _       <- ZManaged.finalizer(fiber.interrupt *> shrink.interrupt *> pool.shutdown)

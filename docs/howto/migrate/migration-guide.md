@@ -132,8 +132,8 @@ Here are some of the most important changes:
 | `ZIO#to`                       | `ZIO#intoPromise`                 |
 | `ZIO#asService`                | `ZIO#toServiceBuilder`            |
 |                                |                                   |
-| `ZIO.accessM`                  | `ZIO.accessZIO`                   |
-| `ZIO.fromFunctionM`            | `ZIO.accessZIO`                   |
+| `ZIO.accessM`                  | `ZIO.environmentWithZIO`          |
+| `ZIO.fromFunctionM`            | `ZIO.environmentWithZIO`          |
 | `ZIO.fromFunction`             | `ZIO.access`                      |
 | `ZIO.services`                 | `ZIO.service`                     |
 |                                |                                   |
@@ -692,7 +692,7 @@ val appServiceBuilder: URServiceBuilder[Any, DocRepo with UserRepo] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
     
-val res: ZIO[Any, Nothing, Unit] = myApp.provideServices(appServiceBuilder)
+val res: ZIO[Any, Nothing, Unit] = myApp.provide(appServiceBuilder)
 ```
 
 As the development of our application progress, the number of service builders will grow, and maintaining the dependency graph would be tedious and hard to debug.
@@ -700,7 +700,7 @@ As the development of our application progress, the number of service builders w
 For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
 
 ```scala
-myApp.provideServices(
+myApp.provide(
   ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
     (Database.live >>> UserRepo.live)
 )
@@ -791,11 +791,11 @@ val serviceBuilder = ZServiceBuilder.wireSome[Console, DocRepo with UserRepo](
 )
 ```
 
-In ZIO 1.x, the `ZIO#provideSomeServices` provides environment partially:
+In ZIO 1.x, the `ZIO#provideSome` provides environment partially:
 
 ```scala mdoc:silent:nest
 val app: ZIO[Console, Nothing, Unit] =
-  myApp.provideSomeServices[Console](
+  myApp.provideSome[Console](
     ((Logging.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
   )
@@ -814,11 +814,11 @@ val app: ZIO[Console, Nothing, Unit] =
   )
 ```
 
-In ZIO 1.x, the `ZIO#provideCustomServices` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
+In ZIO 1.x, the `ZIO#provideCustom` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
 
 ```scala mdoc:silent:nest
 val app: ZIO[zio.ZEnv, Nothing, Unit] = 
-  myApp.provideCustomServices(
+  myApp.provideCustom(
     ((Logging.live ++ Database.live ++ (Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       ((Logging.live ++ Database.live) >>> UserRepo.live)
   )
@@ -844,8 +844,8 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 | ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
 |--------------------------------------------------------|----------------------------|
 | `ZIO#provide`                                          | `ZIO#inject`               |
-| `ZIO#provideSomeServices`                              | `ZIO#injectSome`           |
-| `ZIO#provideCustomServices`                            | `ZIO#injectCustom`         |
+| `ZIO#provideSome`                                      | `ZIO#injectSome`           |
+| `ZIO#provideCustom`                                    | `ZIO#injectCustom`         |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wire`     |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wireSome` |
 
@@ -996,16 +996,18 @@ As we see, we have the following changes:
     > ```scala mdoc:silent:nest
     > object LoggingLive {
     >   val serviceBuilder: ZServiceBuilder[Clock with Console, Nothing, Logging] =
-    >     (for {
-    >       console <- ZIO.service[Console]
-    >       clock   <- ZIO.service[Clock]
-    >     } yield new Logging {
-    >       override def log(line: String): UIO[Unit] =
-    >         for {
-    >           time <- clock.currentDateTime
-    >           _    <- console.printLine(s"$time--$line").orDie
-    >         } yield ()
-    >     }).toServiceBuilder
+    >     ZServiceBuilder {
+    >       for {
+    >         console <- ZIO.service[Console]
+    >         clock   <- ZIO.service[Clock]
+    >       } yield new Logging {
+    >         override def log(line: String): UIO[Unit] =
+    >           for {
+    >             time <- clock.currentDateTime
+    >             _    <- console.printLine(s"$time--$line").orDie
+    >           } yield ()
+    >       }
+    >     }
     > }
     > ```
 
@@ -1107,7 +1109,7 @@ Here is list of other deprecated methods:
 | `ZManaged#whenM`                     | `ZManaged#whenManaged`                     |
 |                                      |                                            |
 | `ZManaged.fromFunction`              | `ZManaged.access`                          |
-| `ZManaged.fromFunctionM`             | `ZManaged.accessManaged`                   |
+| `ZManaged.fromFunctionM`             | `ZManaged.environmentWithZIOManaged`             |
 | `ZManaged.fromEffect`                | `ZManaged.fromZIO`                         |
 | `ZManaged.fromEffectUninterruptible` | `ZManaged.fromZIOUninterruptible`          |
 | `ZManaged.effect`                    | `ZManaged.attempt`                         |
@@ -1120,7 +1122,7 @@ Here is list of other deprecated methods:
 |                                      |                                            |
 | `ZManaged#use_`                      | `ZManaged#useDiscard`                      |
 | `ZManaged.require`                   | `ZManaged.someOrFail`                      |
-| `ZManaged.accessM`                   | `ZManaged.accessZIO`                       |
+| `ZManaged.accessM`                   | `ZManaged.environmentWithZIO`                    |
 | `ZManaged#rejectM`                   | `ZManaged#rejectManaged`                   |
 | `ZManaged#tapM`                      | `ZManaged#tapZIO`                          |
 | `ZManaged#on`                        | `ZManaged#onExecutionContext`              |
@@ -1442,7 +1444,7 @@ case class JournalLoggerLive(clock: Clock, journal: Journal) extends Logger {
       current <- clock.currentDateTime
       _ <- journal.append(s"$current--$line")
         .retry(Schedule.exponential(2.seconds))
-        .provide(ZEnvironment(clock))
+        .provideEnvironment(ZEnvironment(clock))
         .orDie
     } yield ()
   }

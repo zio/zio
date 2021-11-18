@@ -748,28 +748,30 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule with its environment provided to it, so the
    * resulting schedule does not require any environment.
    */
-  def provide(env: ZEnvironment[Env]): Schedule.WithState[self.State, Any, In, Out] =
+  def provideEnvironment(env: ZEnvironment[Env]): Schedule.WithState[self.State, Any, In, Out] =
     new Schedule[Any, In, Out] {
       type State = self.State
       val initial = self.initial
       def step(now: OffsetDateTime, in: In, state: State)(implicit
         trace: ZTraceElement
       ): ZIO[Any, Nothing, (State, Out, Decision)] =
-        self.step(now, in, state).provide(env)
+        self.step(now, in, state).provideEnvironment(env)
     }
 
   /**
-   * Returns a new schedule with part of its environment provided to it, so the
-   * resulting schedule does not require any environment.
+   * Transforms the environment being provided to this schedule with the
+   * specified function.
    */
-  def provideSome[Env2](f: ZEnvironment[Env2] => ZEnvironment[Env]): Schedule.WithState[self.State, Env2, In, Out] =
+  def provideSomeEnvironment[Env2](
+    f: ZEnvironment[Env2] => ZEnvironment[Env]
+  ): Schedule.WithState[self.State, Env2, In, Out] =
     new Schedule[Env2, In, Out] {
       type State = self.State
       val initial = self.initial
       def step(now: OffsetDateTime, in: In, state: State)(implicit
         trace: ZTraceElement
       ): ZIO[Env2, Nothing, (State, Out, Decision)] =
-        self.step(now, in, state).provideSome(f)
+        self.step(now, in, state).provideSomeEnvironment(f)
     }
 
   /**

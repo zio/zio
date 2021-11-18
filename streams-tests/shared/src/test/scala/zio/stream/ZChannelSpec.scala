@@ -562,14 +562,14 @@ object ZChannelSpec extends ZIOBaseSpec {
           assertM(
             ZChannel
               .fromZIO(ZIO.service[Int])
-              .provide(ZEnvironment(100))
+              .provideEnvironment(ZEnvironment(100))
               .run
           )(equalTo(100))
         },
         test("provide <*> provide") {
           assertM(
-            (ZChannel.fromZIO(ZIO.service[Int]).provide(ZEnvironment(100)) <*>
-              ZChannel.fromZIO(ZIO.service[Int]).provide(ZEnvironment(200))).run
+            (ZChannel.fromZIO(ZIO.service[Int]).provideEnvironment(ZEnvironment(100)) <*>
+              ZChannel.fromZIO(ZIO.service[Int]).provideEnvironment(ZEnvironment(200))).run
           )(equalTo((100, 200)))
         },
         test("concatMap(provide).provide") {
@@ -581,10 +581,10 @@ object ZChannelSpec extends ZIOBaseSpec {
               .concatMap(n =>
                 ZChannel
                   .fromZIO(ZIO.service[Int].map(m => (n, m)))
-                  .provide(ZEnvironment(200))
+                  .provideEnvironment(ZEnvironment(200))
                   .flatMap(ZChannel.write)
               )
-              .provide(ZEnvironment(100)))
+              .provideEnvironment(ZEnvironment(100)))
               .runCollect
           )(equalTo((Chunk((100, 200)), ())))
         },
@@ -592,9 +592,9 @@ object ZChannelSpec extends ZIOBaseSpec {
           assertM(
             (for {
               v1 <- ZChannel.fromZIO(ZIO.service[Int])
-              v2 <- ZChannel.fromZIO(ZIO.service[Int]).provide(ZEnvironment(2))
+              v2 <- ZChannel.fromZIO(ZIO.service[Int]).provideEnvironment(ZEnvironment(2))
               v3 <- ZChannel.fromZIO(ZIO.service[Int])
-            } yield (v1, v2, v3)).runDrain.provide(ZEnvironment(4))
+            } yield (v1, v2, v3)).runDrain.provideEnvironment(ZEnvironment(4))
           )(equalTo((4, 2, 4)))
         }
       )

@@ -11,13 +11,13 @@ private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends Service
   def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[F[Any, E, A]] =
-    injectBaseImpl[F, Any, R, E, A](serviceBuilder, "provideServices")
+    injectBaseImpl[F, Any, R, E, A](serviceBuilder, "provide")
 
   def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
   ): c.Expr[F[R0, E, A]] = {
     assertEnvIsNotNothing[R0]()
-    injectBaseImpl[F, R0, R, E, A](serviceBuilder, "provideServices")
+    injectBaseImpl[F, R0, R, E, A](serviceBuilder, "provide")
   }
 
   def materializeIsNotIntersection[A: c.WeakTypeTag]: c.Expr[IsNotIntersection[A]] = {

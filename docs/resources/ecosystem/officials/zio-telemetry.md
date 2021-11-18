@@ -157,7 +157,7 @@ object BackendServer extends CatsApp {
                   carrier = new TextMapAdapter(request.headers.toList.map(h => h.name.value -> h.value).toMap.asJava),
                   operation = "GET /"
                 )
-                .provideServices(makeJaegerTracer(host = "0.0.0.0:9411", serviceName = "backend-service")) *> Ok("Ok!")
+                .provide(makeJaegerTracer(host = "0.0.0.0:9411", serviceName = "backend-service")) *> Ok("Ok!")
             }
           ).orNotFound
         )
@@ -226,7 +226,7 @@ object ProxyServer extends CatsApp {
                     }
               } yield res)
                 .root(operation = "GET /")
-                .provideServices(
+                .provide(
                   makeJaegerTracer(host = "0.0.0.0:9411", serviceName = "proxy-server")
                 )
             }
