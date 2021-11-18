@@ -1277,7 +1277,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("toServiceBuilderMany")(
       test("converts a managed effect to a service builder") {
         val managed        = ZEnv.live.build
-        val serviceBuilder = managed.toServiceBuilderMany
+        val serviceBuilder = managed.toServiceBuilderAll
         val zio1           = ZIO.environment[ZEnv]
         val zio2           = zio1.provide(serviceBuilder)
         assertM(zio2)(anything)
