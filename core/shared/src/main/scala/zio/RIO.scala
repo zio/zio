@@ -47,6 +47,14 @@ object RIO {
 
   /**
    * @see
+   *   See [[zio.ZIO.access]]
+   */
+  @deprecated("use environmentWith", "2.0.0")
+  def access[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    ZIO.access
+
+  /**
+   * @see
    *   See [[zio.ZIO.accessM]]
    */
   @deprecated("use environmentWithZIO", "2.0.0")
@@ -639,6 +647,13 @@ object RIO {
    */
   def environment[R](implicit trace: ZTraceElement): URIO[R, ZEnvironment[R]] =
     ZIO.environment
+
+  /**
+   * @see
+   *   See [[zio.ZIO.environmentWith]]
+   */
+  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    ZIO.environmentWith
 
   /**
    * @see

@@ -618,7 +618,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e)))
 
   /**
-   * Provides some of the environment required to run this effect.
+   * Transforms the environment being provided to this effect with the
+   * specified function.
    */
   final def contramapEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
@@ -1569,6 +1570,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Splits the environment into two parts, providing one part using the
+   * specified service builder and leaving the remainder `R0`.
+   *
+   * {{{
+   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
+   *
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   *
+   * val zio2 = zio.provideSome[Random](clockServiceBuilder)
+   * }}}
+   */
+  final def provideSome[R0]: ZIO.ProvideSome[R0, R, E, A] =
+    new ZIO.ProvideSome[R0, R, E, A](self)
+
+  /**
+   * Splits the environment into two parts, providing one part using the
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
@@ -1592,11 +1608,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
    *
-   * val zio2 = zio.provideSome[Random](clockServiceBuilder)
+   * val zio2 = zio.provideSomeServices[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSome[R0]: ZIO.ProvideSome[R0, R, E, A] =
-    new ZIO.ProvideSome[R0, R, E, A](self)
+  @deprecated("use provideSome", "2.0.0")
+  final def provideSomeServices[R0]: ZIO.ProvideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Returns a new effect that will utilize the default scope (fiber scope) to
@@ -2820,6 +2837,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceed(v).flatMap(fromEither(_))
 
   /**
+   * Accesses the environment of the effect.
+   * {{{
+   * val portNumber = effect.access(_.config.portNumber)
+   * }}}
+   */
+  @deprecated("use environmentWith", "2.0.0")
+  def access[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    environmentWith
+
+  /**
    * Effectfully accesses the environment of the effect.
    */
   @deprecated("use environmentWithZIO", "2.0.0")
@@ -3744,7 +3771,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(ZFiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
 
   /**
-   * Access accesses the environment of the effect.
+   * Accesses the environment of the effect.
    */
   def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
     new ZIO.EnvironmentWithPartiallyApplied[R]
@@ -4274,7 +4301,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   @deprecated("use access", "2.0.0")
   def fromFunction[R, A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): URIO[R, A] =
-    environment.map(f)
+    environmentWith(f)
 
   /**
    * Lifts an effectful function whose effect requires no environment into an
@@ -5159,14 +5186,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag](implicit trace: ZTraceElement): URIO[A with B, (A, B)] =
-    ZIO.environment.map(r => (r.get[A], r.get[B]))
+    ZIO.environmentWith(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag, C: Tag](implicit trace: ZTraceElement): URIO[A with B with C, (A, B, C)] =
-    ZIO.environment.map(r => (r.get[A], r.get[B], r.get[C]))
+    ZIO.environmentWith(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
@@ -5175,7 +5202,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def services[A: Tag, B: Tag, C: Tag, D: Tag](implicit
     trace: ZTraceElement
   ): URIO[A with B with C with D, (A, B, C, D)] =
-    ZIO.environment.map(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
+    ZIO.environmentWith(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -5806,13 +5833,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       ZIO.acquireReleaseExitWith(acquire(), release, use)
   }
 
-  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): URIO[R, A] =
-      ZIO.environment.map(f)
-  }
-
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): ZIO[R, Nothing, A] =
+    def apply[A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): URIO[R, A] =
       ZIO.environment.map(f)
   }
 
@@ -5825,7 +5847,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[Key](
       key: => Key
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): URIO[Map[Key, Service], Option[Service]] =
-      ZIO.environment.map(_.getAt(key))
+      ZIO.environmentWith(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {

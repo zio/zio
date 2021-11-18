@@ -358,8 +358,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     self.contramapZIO(in => ZIO.succeed(f(in)))
 
   /**
-   * Returns a new schedule with part of its environment provided to it, so the
-   * resulting schedule does not require any environment.
+   * Transforms the environment being provided to this schedule with the
+   * specified function.
    */
   def contramapEnvironment[Env2](
     f: ZEnvironment[Env2] => ZEnvironment[Env]
