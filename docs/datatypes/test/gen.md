@@ -81,10 +81,11 @@ Gen.stringN(5)(Gen.alphaChar)
 
 Here are some other string generators:
 
-* `Gen.iso_8859_1`
-* `Gen.asciiString`
-* `Gen.alphaNumericString`
-* `Gen.alphaNumericStringBounded`
+* `Gen.string1` — A generator of strings of at least one character.
+* `Gen.iso_8859_1` — A generator of strings that can be encoded in the ISO-8859-1 character set.
+* `Gen.asciiString` — A generator of US-ASCII characters.
+* `Gen.alphaNumericString` — A generator of alphanumeric characters.
+* `Gen.alphaNumericStringBounded` — A generator of alphanumeric strings whose size falls within the specified bounds.
 
 ### Collection Types
 
