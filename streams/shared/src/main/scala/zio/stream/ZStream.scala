@@ -5189,6 +5189,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def paginateM[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])])(implicit trace: ZTraceElement): ZStream[R, E, A] =
     paginateZIO(s)(f)
 
+  def provide[RIn, E, ROut, RIn2, ROut2](builder: ZServiceBuilder[RIn, E, ROut])(
+    stream: ZStream[ROut with RIn2, E, ROut2]
+  )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZStream[RIn with RIn2, E, ROut2] =
+    stream.provideSomeServices[RIn with RIn2](ZServiceBuilder.environment[RIn2] ++ builder)
+
   /**
    * Like [[unfoldZIO]], but allows the emission of values to end one step
    * further than the unfolding of the state. This is useful for embedding
