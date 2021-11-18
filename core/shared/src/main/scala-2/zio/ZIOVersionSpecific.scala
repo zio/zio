@@ -76,9 +76,9 @@ private final class ProvideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R,
 
   @deprecated("use provide", "2.0.0")
   def provideServices[E1 >: E, R1](
-    layer: ZServiceBuilder[R0, E1, R1]
+    serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
-    provide(layer)
+    provide(serviceBuilder)
 
   def provideSome[R0]: ZIO.ProvideSome[R0, R, E, A] =
     new ZIO.ProvideSome[R0, R, E, A](self)

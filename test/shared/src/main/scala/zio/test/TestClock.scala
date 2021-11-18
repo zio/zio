@@ -395,7 +395,7 @@ object TestClock extends Serializable {
    * the new time in order.
    */
   def adjust(duration: => Duration)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
-    ZIO.environmentWith(_.get.adjust(duration))
+    ZIO.environmentWithZIO(_.get.adjust(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock
@@ -403,7 +403,7 @@ object TestClock extends Serializable {
    * saved state.
    */
   def save(implicit trace: ZTraceElement): ZIO[TestClock, Nothing, UIO[Unit]] =
-    ZIO.environmentWith(_.get.save)
+    ZIO.environmentWithZIO(_.get.save)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
@@ -411,7 +411,7 @@ object TestClock extends Serializable {
    * before the new time in order.
    */
   def setDateTime(dateTime: => OffsetDateTime)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
-    ZIO.environmentWith(_.get.setDateTime(dateTime))
+    ZIO.environmentWithZIO(_.get.setDateTime(dateTime))
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
@@ -419,7 +419,7 @@ object TestClock extends Serializable {
    * actions scheduled for on or before the new time in order.
    */
   def setTime(duration: => Duration)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
-    ZIO.environmentWith(_.get.setTime(duration))
+    ZIO.environmentWithZIO(_.get.setTime(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment, setting the time zone
@@ -428,21 +428,21 @@ object TestClock extends Serializable {
    * result of this effect.
    */
   def setTimeZone(zone: => ZoneId)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
-    ZIO.environmentWith(_.get.setTimeZone(zone))
+    ZIO.environmentWithZIO(_.get.setTimeZone(zone))
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list of
    * times that effects are scheduled to run.
    */
   def sleeps(implicit trace: ZTraceElement): ZIO[TestClock, Nothing, List[Duration]] =
-    ZIO.environmentWith(_.get.sleeps)
+    ZIO.environmentWithZIO(_.get.sleeps)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
   def timeZone(implicit trace: ZTraceElement): URIO[TestClock, ZoneId] =
-    ZIO.environmentWith(_.get.timeZone)
+    ZIO.environmentWithZIO(_.get.timeZone)
 
   /**
    * `Data` represents the state of the `TestClock`, including the clock time

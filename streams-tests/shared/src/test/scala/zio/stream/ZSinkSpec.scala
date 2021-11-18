@@ -112,13 +112,13 @@ object ZSinkSpec extends ZIOBaseSpec {
             }(equalTo(Chunk(Right(3), Left("Aie"))))
           )
         ),
-        suite("environmentWithSink")(
-          test("environmentWithSink") {
+        suite("environmentWithZIOSink")(
+          test("environmentWithZIOSink") {
             assertM(
               ZStream("ignore this")
                 .run(
                   ZSink
-                    .environmentWithSink[String](environment => ZSink.succeed(environment.get))
+                    .environmentWithZIOSink[String](environment => ZSink.succeed(environment.get))
                     .provideAll(ZEnvironment("use this"))
                 )
             )(equalTo("use this"))

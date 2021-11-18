@@ -203,10 +203,10 @@ object AccountObserver {
   }
 
   def processEvent(event: AccountEvent) =
-    ZIO.environmentWith[AccountObserver](_.get.processEvent(event))
+    ZIO.environmentWithZIO[AccountObserver](_.get.processEvent(event))
 
   def runCommand() =
-    ZIO.environmentWith[AccountObserver](_.get.runCommand())
+    ZIO.environmentWithZIO[AccountObserver](_.get.runCommand())
 
   val live: ZServiceBuilder[Console, Nothing, AccountObserver] =
     { (console: Console) =>

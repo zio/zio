@@ -623,7 +623,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def contramapEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E, A] =
-    ZIO.environmentWith(r0 => self.provideAll(f(r0)))
+    ZIO.environmentWithZIO(r0 => self.provideAll(f(r0)))
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value
@@ -2822,16 +2822,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Effectfully accesses the environment of the effect.
    */
-  @deprecated("use environmentWith", "2.0.0")
-  def accessM[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
-    environmentWith
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessM[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
+    environmentWithZIO
 
   /**
    * Effectfully accesses the environment of the effect.
    */
-  @deprecated("use environmentWith", "2.0.0")
-  def accessZIO[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
-    environmentWith
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
+    environmentWithZIO
 
   /**
    * When this effect represents acquisition of a resource (for example, opening
@@ -3744,10 +3744,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(ZFiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
 
   /**
-   * Effectfully accesses the environment of the effect.
+   * Access accesses the environment of the effect.
    */
   def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
     new ZIO.EnvironmentWithPartiallyApplied[R]
+
+  /**
+   * Effectually accesses the environment of the effect.
+   */
+  def environmentWithZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
+    new ZIO.EnvironmentWithZIOPartiallyApplied[R]
 
   /**
    * Retrieves the executor for this effect.
@@ -4274,9 +4280,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Lifts an effectful function whose effect requires no environment into an
    * effect that requires the input to the function.
    */
-  @deprecated("use environmentWith", "2.0.0")
+  @deprecated("use environmentWithZIO", "2.0.0")
   def fromFunctionM[R, E, A](f: ZEnvironment[R] => IO[E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    environmentWith(f)
+    environmentWithZIO(f)
 
   /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an
@@ -5806,6 +5812,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): ZIO[R, Nothing, A] =
+      ZIO.environment.map(f)
+  }
+
+  final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit trace: ZTraceElement): ZIO[R with R1, E, A] =
       ZIO.environment.flatMap(f)
   }

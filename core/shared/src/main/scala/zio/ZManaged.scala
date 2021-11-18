@@ -1541,7 +1541,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[R with Service, E, A] =
-      ZManaged.environmentWithManaged(environment => f(environment.get(tag)))
+      ZManaged.environmentWithZIOManaged(environment => f(environment.get(tag)))
   }
 
   /**
@@ -1830,20 +1830,20 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Create a managed that accesses the environment.
    */
-  @deprecated("use environmentWith", "2.0.0")
+  @deprecated("use environmentWithZIO", "2.0.0")
   def accessM[R]: EnvironmentWithPartiallyApplied[R] =
-    environmentWith
+    environmentWithZIO
 
   /**
    * Create a managed that accesses the environment.
    */
-  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+  def environmentWithZIO[R]: EnvironmentWithPartiallyApplied[R] =
     new EnvironmentWithPartiallyApplied
 
   /**
    * Create a managed that accesses the environment.
    */
-  def environmentWithManaged[R]: EnvironmentWithManagedPartiallyApplied[R] =
+  def environmentWithZIOManaged[R]: EnvironmentWithManagedPartiallyApplied[R] =
     new EnvironmentWithManagedPartiallyApplied
 
   /**
@@ -2539,11 +2539,11 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Lifts an effectful function whose effect requires no environment into an
    * effect that requires the input to the function.
    */
-  @deprecated("use environmentWithManaged", "2.0.0")
+  @deprecated("use environmentWithZIOManaged", "2.0.0")
   def fromFunctionM[R, E, A](f: ZEnvironment[R] => ZManaged[Any, E, A])(implicit
     trace: ZTraceElement
   ): ZManaged[R, E, A] =
-    environmentWithManaged(f)
+    environmentWithZIOManaged(f)
 
   /**
    * Lifts an `Option` into a `ZManaged` but preserves the error as an option in

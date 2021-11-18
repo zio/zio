@@ -177,14 +177,14 @@ object TestSystem extends Serializable {
    * name and value to the mapping of environment variables.
    */
   def putEnv(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.environmentWith(_.get.putEnv(name, value))
+    ZIO.environmentWithZIO(_.get.putEnv(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of system properties.
    */
   def putProperty(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.environmentWith(_.get.putProperty(name, value))
+    ZIO.environmentWithZIO(_.get.putProperty(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and saves the system
@@ -192,28 +192,28 @@ object TestSystem extends Serializable {
    * saved state
    */
   def save(implicit trace: ZTraceElement): ZIO[TestSystem, Nothing, UIO[Unit]] =
-    ZIO.environmentWith(_.get.save)
+    ZIO.environmentWithZIO(_.get.save)
 
   /**
    * Accesses a `TestSystem` instance in the environment and sets the line
    * separator to the specified value.
    */
   def setLineSeparator(lineSep: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.environmentWith(_.get.setLineSeparator(lineSep))
+    ZIO.environmentWithZIO(_.get.setLineSeparator(lineSep))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of environment variables.
    */
   def clearEnv(variable: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.environmentWith(_.get.clearEnv(variable))
+    ZIO.environmentWithZIO(_.get.clearEnv(variable))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of system properties.
    */
   def clearProperty(prop: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.environmentWith(_.get.clearProperty(prop))
+    ZIO.environmentWithZIO(_.get.clearProperty(prop))
 
   /**
    * The state of the `TestSystem`.

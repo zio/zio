@@ -74,15 +74,15 @@ object ZStreamSpec extends DefaultRunnableSpec {
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        suite("environmentWithStream")(
-          testM("environmentWithStream") {
+        suite("environmentWithZIOStream")(
+          testM("environmentWithZIOStream") {
             for {
-              result <- ZStream.environmentWithStream[String](ZStream.succeed(_)).provideAll("test").runHead.get
+              result <- ZStream.environmentWithZIOStream[String](ZStream.succeed(_)).provideAll("test").runHead.get
             } yield assert(result)(equalTo("test"))
           },
-          testM("environmentWithStream fails") {
+          testM("environmentWithZIOStream fails") {
             for {
-              result <- ZStream.environmentWithStream[Int](_ => ZStream.fail("fail")).provideAll(0).runHead.run
+              result <- ZStream.environmentWithZIOStream[Int](_ => ZStream.fail("fail")).provideAll(0).runHead.run
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
@@ -3607,20 +3607,20 @@ object ZStreamSpec extends DefaultRunnableSpec {
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        suite("environmentWithStream")(
-          testM("environmentWithStream") {
+        suite("environmentWithZIOStream")(
+          testM("environmentWithZIOStream") {
             for {
               result <- ZStream
-                          .environmentWithStream[String](ZStream.succeed(_))
+                          .environmentWithZIOStream[String](ZStream.succeed(_))
                           .provideAll("test")
                           .runCollect
                           .map(_.head)
             } yield assert(result)(equalTo("test"))
           },
-          testM("environmentWithStream fails") {
+          testM("environmentWithZIOStream fails") {
             for {
               result <- ZStream
-                          .environmentWithStream[Int](_ => ZStream.fail("fail"))
+                          .environmentWithZIOStream[Int](_ => ZStream.fail("fail"))
                           .provideAll(0)
                           .runCollect
                           .run

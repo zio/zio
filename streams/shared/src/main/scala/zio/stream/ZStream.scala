@@ -4375,20 +4375,20 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the environment of the stream in the context of an effect.
    */
-  @deprecated("use environmentWith", "2.0.0")
+  @deprecated("use environmentWithZIO", "2.0.0")
   def accessM[R]: EnvironmentWithPartiallyApplied[R] =
-    environmentWith
+    environmentWithZIO
 
   /**
    * Accesses the environment of the stream in the context of an effect.
    */
-  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+  def environmentWithZIO[R]: EnvironmentWithPartiallyApplied[R] =
     new EnvironmentWithPartiallyApplied[R]
 
   /**
    * Accesses the environment of the stream in the context of a stream.
    */
-  def environmentWithStream[R]: EnvironmentWithStreamPartiallyApplied[R] =
+  def environmentWithZIOStream[R]: EnvironmentWithStreamPartiallyApplied[R] =
     new EnvironmentWithStreamPartiallyApplied[R]
 
   /**

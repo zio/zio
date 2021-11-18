@@ -6,7 +6,7 @@ object ZSTMRenames {
   ZSTM.collectAllDiscard _
   ZSTM.foreachDiscard _
   ZSTM.access _
-  ZSTM.environmentWith _
+  ZSTM.environmentWithZIO _
   ZSTM.ifSTM _
   ZSTM.loopDiscard _
   ZSTM.attempt _

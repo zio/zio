@@ -36,5 +36,5 @@ object TestLogger {
       .toServiceBuilder
 
   def logLine(line: String)(implicit trace: ZTraceElement): URIO[TestLogger, Unit] =
-    ZIO.environmentWith(_.get.logLine(line))
+    ZIO.environmentWithZIO(_.get.logLine(line))
 }

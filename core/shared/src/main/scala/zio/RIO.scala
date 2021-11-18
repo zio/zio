@@ -49,16 +49,16 @@ object RIO {
    * @see
    *   See [[zio.ZIO.accessM]]
    */
-  @deprecated("use environmentWith", "2.0.0")
-  def accessM[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessM[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
     ZIO.accessM
 
   /**
    * @see
    *   See [[zio.ZIO.accessZIO]]
    */
-  @deprecated("use environmentWith", "2.0.0")
-  def accessZIO[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
     ZIO.accessZIO
 
   /**
@@ -642,10 +642,10 @@ object RIO {
 
   /**
    * @see
-   *   See [[zio.ZIO.environmentWith]]
+   *   See [[zio.ZIO.environmentWithZIO]]
    */
-  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
-    ZIO.environmentWith
+  def environmentWithZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
+    ZIO.environmentWithZIO
 
   /**
    * @see
@@ -1040,7 +1040,7 @@ object RIO {
    * @see
    *   See [[zio.ZIO.fromFunctionM]]
    */
-  @deprecated("use environmentWith", "2.0.0")
+  @deprecated("use environmentWithZIO", "2.0.0")
   def fromFunctionM[R, A](f: ZEnvironment[R] => Task[A])(implicit trace: ZTraceElement): RIO[R, A] =
     ZIO.fromFunctionM(f)
 

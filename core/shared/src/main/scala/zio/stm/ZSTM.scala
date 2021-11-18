@@ -954,21 +954,21 @@ object ZSTM {
   /**
    * Accesses the environment of the transaction to perform a transaction.
    */
-  @deprecated("use environmentWith", "2.0.0")
+  @deprecated("use environmentWithZIO", "2.0.0")
   def accessM[R]: EnvironmentWithPartiallyApplied[R] =
-    environmentWith
+    environmentWithZIO
 
   /**
    * Accesses the environment of the transaction to perform a transaction.
    */
-  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+  def environmentWithZIO[R]: EnvironmentWithPartiallyApplied[R] =
     new EnvironmentWithPartiallyApplied
 
   /**
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.environmentWith[R] { r =>
+    ZIO.environmentWithZIO[R] { r =>
       ZIO.suspendSucceedWith { (runtimeConfig, fiberId) =>
         tryCommitSync(runtimeConfig, fiberId, stm, r) match {
           case TryCommit.Done(exit) => throw new ZIO.ZioError(exit)
@@ -1249,9 +1249,9 @@ object ZSTM {
    * Lifts an effectful function whose effect requires no environment into an
    * effect that requires the input to the function.
    */
-  @deprecated("use environmentWith", "2.0.0")
+  @deprecated("use environmentWithZIO", "2.0.0")
   def fromFunctionM[R, E, A](f: ZEnvironment[R] => STM[E, A]): ZSTM[R, E, A] =
-    environmentWith(f)
+    environmentWithZIO(f)
 
   /**
    * Lifts an `Option` into a `STM`.

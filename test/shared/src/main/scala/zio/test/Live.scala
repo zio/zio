@@ -52,7 +52,7 @@ object Live {
    * Provides an effect with the "live" environment.
    */
   def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Live, E, A] =
-    ZIO.environmentWith(_.get.provide(zio))
+    ZIO.environmentWithZIO(_.get.provide(zio))
 
   /**
    * Provides a transformation function with access to the live environment
