@@ -54,7 +54,7 @@ class RegionBenchmark {
   }
 
   @Benchmark
-  def zioprovideAll(): Unit = {
+  def zioProvideAll(): Unit = {
     def nest(n: Int, uio: UIO[Unit]): UIO[Unit] =
       if (n <= 1) uio
       else (ZIO.suspendSucceed(nest(n - 1, uio)): ZIO[Unit, Nothing, Unit]).provideAll(ZEnvironment(()))
