@@ -61,8 +61,8 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
         def testBaseLayer[R, A: Tag]: ZServiceBuilder[R, Nothing, Svc[A]] =
           ZIO.access[R](_ => new Svc[A] {}).toServiceBuilder[Svc[A]]
         def testSecondLayer[A: Tag]: ZServiceBuilder[Svc[A], Nothing, Svc[A]] =
-          ZServiceBuilder.fromFunction[Svc[A], Svc[A]] { s =>
-            s
+          ZServiceBuilder.fromFunction[Svc[A], Svc[A]] { environment =>
+            environment.get
           }
 
         val layer = testBaseLayer[Any, String] >>> testSecondLayer[String]

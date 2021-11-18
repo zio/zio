@@ -347,10 +347,10 @@ object Logging {
     def error(s: String): UIO[Unit]
   }
 
-  val consoleLogger: ZServiceBuilder[Console, Nothing, Logging] = ZServiceBuilder.fromFunction( console =>
+  val consoleLogger: ZServiceBuilder[Console, Nothing, Logging] = ZServiceBuilder.fromFunction( environment =>
     new Service {
-      def info(s: String): UIO[Unit]  = console.printLine(s"info - $s").orDie
-      def error(s: String): UIO[Unit] = console.printLine(s"error - $s").orDie
+      def info(s: String): UIO[Unit]  = environment.get.printLine(s"info - $s").orDie
+      def error(s: String): UIO[Unit] = environment.get.printLine(s"error - $s").orDie
     }
   )
 
@@ -369,7 +369,7 @@ def makeConnection: UIO[Connection] = UIO(???)
 val connectionServiceBuilder: ServiceBuilder[Nothing, Connection] =
     ZServiceBuilder.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
 val postgresServiceBuilder: ZServiceBuilder[Connection, Nothing, UserRepo] =
-  ZServiceBuilder.fromFunction { hasC: Connection =>
+  ZServiceBuilder.fromFunction { environment: ZEnvironment[Connection] =>
     new UserRepo.Service {
       override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
       override def createUser(user: User): IO[DBError, Unit] = UIO(???)

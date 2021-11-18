@@ -560,7 +560,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * function.
    */
-  def fromFunction[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](f: A => B)(implicit trace: ZTraceElement): ZServiceBuilder[A, Nothing, B] =
+  def fromFunction[A: Tag, B: Tag: IsNotIntersection](f: ZEnvironment[A] => B)(implicit trace: ZTraceElement): ZServiceBuilder[A, Nothing, B] =
     fromFunctionZIO(a => ZIO.succeedNow(f(a)))
 
   /**
@@ -568,23 +568,23 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * effectful function.
    */
   @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[A: Tag: IsNotIntersection, E, B: Tag: IsNotIntersection](f: A => IO[E, B])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
+  def fromFunctionM[A: Tag, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => IO[E, B])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
     fromFunctionZIO(f)
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful resourceful function.
    */
-  def fromFunctionManaged[A: Tag: IsNotIntersection, E, B: Tag: IsNotIntersection](f: A => ZManaged[Any, E, B])(implicit
+  def fromFunctionManaged[A: Tag, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => ZManaged[Any, E, B])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
-    fromManaged(ZManaged.serviceWithManaged(f))
+    fromManaged(ZManaged.accessManaged(f))
 
   /**
    * Constructs a service builder from the environment using the specified
    * function, which must return one or more services.
    */
-  def fromFunctionMany[A: Tag: IsNotIntersection, B](f: A => ZEnvironment[B])(implicit trace: ZTraceElement): ZServiceBuilder[A, Nothing, B] =
+  def fromFunctionMany[A: Tag, B](f: ZEnvironment[A] => ZEnvironment[B])(implicit trace: ZTraceElement): ZServiceBuilder[A, Nothing, B] =
     fromFunctionManyZIO(a => ZIO.succeedNow(f(a)))
 
   /**
@@ -592,30 +592,30 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * effectful function, which must return one or more services.
    */
   @deprecated("use fromFunctionManyZIO", "2.0.0")
-  def fromFunctionManyM[A: Tag: IsNotIntersection, E, B](f: A => IO[E, ZEnvironment[B]])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
+  def fromFunctionManyM[A: Tag, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
     fromFunctionManyZIO(f)
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful resourceful function, which must return one or more services.
    */
-  def fromFunctionManyManaged[A: Tag: IsNotIntersection, E, B](f: A => ZManaged[Any, E, ZEnvironment[B]])(implicit
+  def fromFunctionManyManaged[A: Tag, E, B](f: ZEnvironment[A] => ZManaged[Any, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[A, E, B] =
-    ZServiceBuilder(ZManaged.serviceWithManaged(f))
+    ZServiceBuilder(ZManaged.accessManaged(f))
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful function, which must return one or more services.
    */
-  def fromFunctionManyZIO[A: Tag: IsNotIntersection, E, B](f: A => IO[E, ZEnvironment[B]])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
+  def fromFunctionManyZIO[A: Tag, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
     fromFunctionManyManaged(a => f(a).toManaged)
 
   /**
    * Constructs a service builder from the environment using the specified
    * effectful function.
    */
-  def fromFunctionZIO[A: Tag: IsNotIntersection, E, B: Tag: IsNotIntersection](f: A => IO[E, B])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
+  def fromFunctionZIO[A: Tag, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => IO[E, B])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
     fromFunctionManaged(a => f(a).toManaged)
 
   /**
