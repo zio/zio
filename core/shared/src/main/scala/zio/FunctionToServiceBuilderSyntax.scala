@@ -64,7 +64,7 @@ trait FunctionToServiceBuilderOps {
      * }}}
      */
     def toServiceBuilder[B1 >: B: Tag: IsNotIntersection](implicit trace: ZTraceElement): URServiceBuilder[A, B1] =
-      ZIO.service[A].map(self).toServiceBuilder
+      ZIO.serviceWith[A](self).toServiceBuilder
 
     /**
      * Converts this function to a Layer that depends upon its inputs.

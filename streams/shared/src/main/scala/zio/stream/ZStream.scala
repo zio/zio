@@ -2943,7 +2943,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def provideSomeEnvironment[R0](
     env: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[R0, E, A] =
-    ZStream.environment[R0].flatMap { r0 =>
+    ZStream.environmentWithStream[R0] { r0 =>
       self.provideEnvironment(env(r0))
     }
 
@@ -5448,7 +5448,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   ](implicit
     trace: ZTraceElement
   ): ZStream[A with B with C with D, Nothing, (A, B, C, D)] =
-    ZStream.environment.map(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
+    ZStream.environmentWith(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Accesses the specified service in the environment of the stream.
@@ -5668,7 +5668,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tag: Tag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZStream[Map[Key, Service], Nothing, Option[Service]] =
-      ZStream.environment.map(_.getAt(key))
+      ZStream.environmentWith(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
