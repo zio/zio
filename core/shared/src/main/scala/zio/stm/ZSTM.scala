@@ -218,8 +218,8 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     either.commit.absolve
 
   /**
-   * Transforms the environment being provided to this effect with the
-   * specified function.
+   * Transforms the environment being provided to this effect with the specified
+   * function.
    */
   def contramapEnvironment[R0](f: ZEnvironment[R0] => ZEnvironment[R]): ZSTM[R0, E, A] =
     Provide(self, f)
@@ -1807,7 +1807,7 @@ object ZSTM {
       final val SucceedNow = 2
       final val Succeed    = 3
       final val OnFailure  = 4
-      final val Provide  = 5
+      final val Provide    = 5
       final val OnRetry    = 6
     }
 

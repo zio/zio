@@ -273,8 +273,8 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     aroundAll(effect, ZIO.unit)
 
   /**
-   * Transforms the environment being provided to this spec with the
-   * specified function.
+   * Transforms the environment being provided to this spec with the specified
+   * function.
    */
   final def contramapEnvironment[R0, R1](f: ZEnvironment[R0] => ZEnvironment[R1]): TestAspect.WithOut[
     R1,
@@ -1080,7 +1080,6 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
   ] =
     provideSome[TestEnvironment][E, R](serviceBuilder)
 
-
   /**
    * Provides each test with the part of the environment that is not part of the
    * `TestEnvironment`, leaving a spec that only depends on the
@@ -1134,7 +1133,6 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
     ({ type OutErr[Err] = Err })#OutErr
   ] =
     provideCustomShared[E, R](serviceBuilder)
-
 
   /**
    * Provides each test with the part of the environment that is not part of the

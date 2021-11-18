@@ -263,8 +263,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZManaged[R1, E1, B]](v, _ => ZManaged.fail(e)))
 
   /**
-   * Transforms the environment being provided to this effect with the
-   * specified function.
+   * Transforms the environment being provided to this effect with the specified
+   * function.
    */
   def contramapEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
@@ -3328,8 +3328,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
-   * Accesses the specified service in the environment of the
-   * effect.
+   * Accesses the specified service in the environment of the effect.
    *
    * {{{
    * def foo(int: Int) = ZManaged.serviceWith[Foo](_.foo(int))

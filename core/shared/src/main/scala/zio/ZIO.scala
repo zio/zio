@@ -618,8 +618,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e)))
 
   /**
-   * Transforms the environment being provided to this effect with the
-   * specified function.
+   * Transforms the environment being provided to this effect with the specified
+   * function.
    */
   final def contramapEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
