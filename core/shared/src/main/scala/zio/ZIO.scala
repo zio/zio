@@ -5172,8 +5172,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.environment.map(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
-   * Accesses the specified service in the environment of the
-   * effect.
+   * Accesses the specified service in the environment of the effect.
    *
    * Especially useful for creating "accessor" methods on Services' companion
    * objects.
