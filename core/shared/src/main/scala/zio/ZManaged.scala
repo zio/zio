@@ -1533,7 +1533,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[R with Service, E, A] =
-      ZManaged.fromZIO(ZIO.serviceWith[Service](f))
+      ZManaged.fromZIO(ZIO.serviceWithZIO[Service](f))
   }
 
   final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {

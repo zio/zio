@@ -1345,6 +1345,13 @@ object URIO {
 
   /**
    * @see
+   *   See [[zio.ZIO.serviceWithZIO]]
+   */
+  def serviceWithZIO[Service]: ZIO.ServiceWithZIOPartiallyApplied[Service] =
+    new ZIO.ServiceWithZIOPartiallyApplied[Service]
+
+  /**
+   * @see
    *   [[zio.ZIO.sleep]]
    */
   def sleep(duration: => Duration)(implicit trace: ZTraceElement): URIO[Clock, Unit] =

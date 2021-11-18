@@ -4425,7 +4425,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Gets a state from the environment.
    */
   def getState[S: Tag](implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, S] =
-    ZIO.serviceWith(_.get)
+    ZIO.serviceWithZIO(_.get)
 
   /**
    * Gets a state from the environment and uses it to run the specified
@@ -5140,7 +5140,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag](implicit trace: ZTraceElement): URIO[A, A] =
-    serviceWith(ZIO.succeedNow)
+    serviceWith(identity)
 
   /**
    * Accesses the service corresponding to the specified key in the environment.
@@ -5172,7 +5172,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.environment.map(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
-   * Effectfully accesses the specified service in the environment of the
+   * Accesses the specified service in the environment of the
    * effect.
    *
    * Especially useful for creating "accessor" methods on Services' companion
@@ -5184,6 +5184,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
     new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Effectfully accesses the specified service in the environment of the
+   * effect.
+   *
+   * Especially useful for creating "accessor" methods on Services' companion
+   * objects.
+   *
+   * {{{
+   * def foo(int: Int) = ZIO.serviceWithZIO[Foo](_.foo(int))
+   * }}}
+   */
+  def serviceWithZIO[Service]: ServiceWithZIOPartiallyApplied[Service] =
+    new ServiceWithZIOPartiallyApplied[Service]
 
   /**
    * Returns an effect that shifts execution to the specified executor. This is
@@ -5805,6 +5819,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](
+      f: Service => A
+    )(implicit tagged: Tag[Service], trace: ZTraceElement): ZIO[Service, Nothing, A] =
+      ZIO.serviceWithZIO(service => ZIO.succeedNow(f(service)))
+  }
+
+  final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](
       f: Service => ZIO[R, E, A]
     )(implicit tagged: Tag[Service], trace: ZTraceElement): ZIO[R with Service, E, A] = {
@@ -5817,7 +5838,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: S => A)(implicit tag: Tag[S], trace: ZTraceElement): ZIO[ZState[S], Nothing, A] =
-      ZIO.serviceWith(_.get.map(f))
+      ZIO.serviceWithZIO(_.get.map(f))
   }
 
   final class LogSpan(val label: () => String) extends AnyVal {

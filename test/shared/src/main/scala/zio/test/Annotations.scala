@@ -85,5 +85,5 @@ object Annotations {
   def withAnnotation[R <: Annotations, E, A](zio: ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZIO[R, Annotated[E], Annotated[A]] =
-    ZIO.serviceWith[Annotations](_.withAnnotation(zio))
+    ZIO.serviceWithZIO[Annotations](_.withAnnotation(zio))
 }

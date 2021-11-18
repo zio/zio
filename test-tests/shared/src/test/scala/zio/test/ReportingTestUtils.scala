@@ -256,7 +256,7 @@ object ReportingTestUtils {
       mock = PureModuleMock.ZeroParams(value("mocked")).toServiceBuilder.tap { _ =>
                promise.succeed(())
              }
-      f       = ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
+      f       = ZIO.serviceWithZIO[PureModule.Service](_.zeroParams) <* ZIO.service[String]
       result <- f.provide(failingServiceBuilder ++ mock)
     } yield assert(result)(equalTo("mocked"))
   }

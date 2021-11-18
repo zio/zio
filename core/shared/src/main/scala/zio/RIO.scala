@@ -1516,6 +1516,13 @@ object RIO {
 
   /**
    * @see
+   *   See [[zio.ZIO.serviceWithZIO]]
+   */
+  def serviceWithZIO[Service]: ZIO.ServiceWithZIOPartiallyApplied[Service] =
+    new ZIO.ServiceWithZIOPartiallyApplied[Service]
+
+  /**
+   * @see
    *   See [[zio.ZIO.sleep]]
    */
   def sleep(duration: => Duration)(implicit trace: ZTraceElement): RIO[Clock, Unit] =

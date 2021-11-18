@@ -24,7 +24,7 @@ object ManagedSpec extends ZIOBaseSpec {
         .toServiceBuilder
 
     val incrementAndGet: URIO[Counter, Int] =
-      ZIO.serviceWith(_.incrementAndGet)
+      ZIO.serviceWithZIO(_.incrementAndGet)
   }
 
   def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("ManagedSpec")(

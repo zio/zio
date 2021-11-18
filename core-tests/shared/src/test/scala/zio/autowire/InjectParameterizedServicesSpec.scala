@@ -32,7 +32,7 @@ object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
 
   object ParameterizedService {
     def something[A: Tag]: ZIO[ParameterizedService[A], Nothing, Unit] =
-      ZIO.serviceWith[ParameterizedService[A]](_.something)
+      ZIO.serviceWithZIO[ParameterizedService[A]](_.something)
   }
 
   object ParameterizedServiceWithTypeAlias {

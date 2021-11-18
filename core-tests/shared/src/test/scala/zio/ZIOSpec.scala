@@ -3301,7 +3301,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("serviceWith")(
       test("effectfully accesses a service in the environment") {
-        val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
+        val zio = ZIO.serviceWithZIO[Int](int => UIO(int + 3))
         assertM(zio.inject(ZServiceBuilder.succeed(0)))(equalTo(3))
       }
     ),

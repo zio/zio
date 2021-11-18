@@ -10,10 +10,10 @@ package object sbt {
 
   object SendSummary {
     def fromSend(send: Summary => Unit): SendSummary =
-      URIO.serviceWith(summary => URIO.succeed(send(summary)))
+      URIO.serviceWithZIO(summary => URIO.succeed(send(summary)))
 
     def fromSendM(send: Summary => UIO[Unit]): SendSummary =
-      URIO.serviceWith(send)
+      URIO.serviceWithZIO(send)
 
     def noop: SendSummary =
       UIO.unit

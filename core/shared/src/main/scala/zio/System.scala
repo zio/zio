@@ -122,7 +122,7 @@ object System extends Serializable {
    * Retrieves the value of an environment variable.
    */
   def env(variable: => String)(implicit trace: ZTraceElement): ZIO[System, SecurityException, Option[String]] =
-    ZIO.serviceWith(_.env(variable))
+    ZIO.serviceWithZIO(_.env(variable))
 
   /**
    * Retrieves the value of an environment variable or else returns the
@@ -131,7 +131,7 @@ object System extends Serializable {
   def envOrElse(variable: => String, alt: => String)(implicit
     trace: ZTraceElement
   ): ZIO[System, SecurityException, String] =
-    ZIO.serviceWith(_.envOrElse(variable, alt))
+    ZIO.serviceWithZIO(_.envOrElse(variable, alt))
 
   /**
    * Retrieves the value of an environment variable or else returns the
@@ -140,32 +140,32 @@ object System extends Serializable {
   def envOrOption(variable: => String, alt: => Option[String])(implicit
     trace: ZTraceElement
   ): ZIO[System, SecurityException, Option[String]] =
-    ZIO.serviceWith(_.envOrOption(variable, alt))
+    ZIO.serviceWithZIO(_.envOrOption(variable, alt))
 
   /**
    * Retrieves the values of all environment variables.
    */
   def envs(implicit trace: ZTraceElement): ZIO[System, SecurityException, Map[String, String]] =
-    ZIO.serviceWith(_.envs)
+    ZIO.serviceWithZIO(_.envs)
 
   /**
    * Retrieves the values of all system properties.
    */
   def properties(implicit trace: ZTraceElement): ZIO[System, Throwable, Map[String, String]] =
-    ZIO.serviceWith(_.properties)
+    ZIO.serviceWithZIO(_.properties)
 
   /**
    * Retrieves the value of a system property.
    */
   def property(prop: => String)(implicit trace: ZTraceElement): ZIO[System, Throwable, Option[String]] =
-    ZIO.serviceWith(_.property(prop))
+    ZIO.serviceWithZIO(_.property(prop))
 
   /**
    * Retrieves the value of a system property or else return the specified
    * fallback value.
    */
   def propertyOrElse(prop: => String, alt: => String)(implicit trace: ZTraceElement): RIO[System, String] =
-    ZIO.serviceWith(_.propertyOrElse(prop, alt))
+    ZIO.serviceWithZIO(_.propertyOrElse(prop, alt))
 
   /**
    * Retrieves the value of a system property or else return the specified
@@ -174,13 +174,13 @@ object System extends Serializable {
   def propertyOrOption(prop: => String, alt: => Option[String])(implicit
     trace: ZTraceElement
   ): ZIO[System, Throwable, Option[String]] =
-    ZIO.serviceWith(_.propertyOrOption(prop, alt))
+    ZIO.serviceWithZIO(_.propertyOrOption(prop, alt))
 
   /**
    * Retrieves the value of the system-specific line separator.
    */
   def lineSeparator(implicit trace: ZTraceElement): URIO[System, String] =
-    ZIO.serviceWith(_.lineSeparator)
+    ZIO.serviceWithZIO(_.lineSeparator)
 
   private val osName =
     Option(scala.util.Try(java.lang.System.getProperty("os.name")).getOrElse("")).map(_.toLowerCase()).getOrElse("")

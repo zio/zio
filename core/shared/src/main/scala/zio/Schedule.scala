@@ -361,7 +361,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule with part of its environment provided to it, so the
    * resulting schedule does not require any environment.
    */
-  def contramapEnvironment[Env2](f: ZEnvironment[Env2] => ZEnvironment[Env]): Schedule.WithState[self.State, Env2, In, Out] =
+  def contramapEnvironment[Env2](
+    f: ZEnvironment[Env2] => ZEnvironment[Env]
+  ): Schedule.WithState[self.State, Env2, In, Out] =
     new Schedule[Env2, In, Out] {
       type State = self.State
       val initial = self.initial

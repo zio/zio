@@ -233,7 +233,7 @@ object TestConsole extends Serializable {
    * buffer.
    */
   def debug[R <: TestConsole, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.serviceWith[TestConsole](_.debug(zio))
+    ZIO.serviceWithZIO[TestConsole](_.debug(zio))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the
@@ -270,7 +270,7 @@ object TestConsole extends Serializable {
    * only written to the output buffer and not rendered to standard output.
    */
   def silent[R <: TestConsole, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.serviceWith[TestConsole](_.silent(zio))
+    ZIO.serviceWithZIO[TestConsole](_.silent(zio))
 
   /**
    * The state of the `TestConsole`.
