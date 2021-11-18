@@ -81,7 +81,11 @@ trait FunctionToServiceBuilderOps {
       toServiceBuilder
   }
 
-  implicit final class Function2ToServiceBuilderSyntax[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](
+  implicit final class Function2ToServiceBuilderSyntax[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection
+  ](
     self: (A, B) => C
   ) {
 

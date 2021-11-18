@@ -115,22 +115,6 @@ package object zio
     }
   }
 
-  trait ServiceTag[A] extends Serializable {
-    def tag: LightTypeTag
-  }
-
-  object ServiceTag extends ServiceTagVersionSpecific {
-    def apply[A: ServiceTag]: ServiceTag[A] = implicitly[ServiceTag[A]]
-  }
-
-  trait EnvironmentTag[A] extends Serializable {
-    def tag: LightTypeTag
-  }
-
-  object EnvironmentTag extends EnvironmentTagVersionSpecific {
-    def apply[A: EnvironmentTag]: EnvironmentTag[A] = implicitly[EnvironmentTag[A]]
-  }
-
   trait IsNotIntersection[A] extends Serializable
 
   object IsNotIntersection extends IsNotIntersectionVersionSpecific {

@@ -5348,7 +5348,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZStream[A with B, Nothing, (A, B)] =
+  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit
+    trace: ZTraceElement
+  ): ZStream[A with B, Nothing, (A, B)] =
     ZStream.access(r => (r.get[A], r.get[B]))
 
   /**
@@ -5364,7 +5366,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection, D: Tag: IsNotIntersection](implicit
+  def services[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection
+  ](implicit
     trace: ZTraceElement
   ): ZStream[A with B with C with D, Nothing, (A, B, C, D)] =
     ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
