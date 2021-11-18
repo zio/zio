@@ -3094,6 +3094,11 @@ object ZManaged extends ZManagedPlatformSpecific {
       }
     }
 
+  def provide[RIn, E, ROut, RIn2, ROut2](builder: ZServiceBuilder[RIn, E, ROut])(
+    managed: ZManaged[ROut with RIn2, E, ROut2]
+  )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with RIn2, E, ROut2] =
+    managed.provideSomeServices[RIn with RIn2](ZServiceBuilder.environment[RIn2] ++ builder)
+
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
    */

@@ -4945,6 +4945,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def provide[R, E, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): ZIO[R, E, A] => IO[E, A] =
     _.provide(r)
 
+  def provide[RIn, E, ROut, RIn2, ROut2](builder: ZServiceBuilder[RIn, E, ROut])(
+    zio: ZIO[ROut with RIn2, E, ROut2]
+  )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
+    zio.provideSomeServices[RIn with RIn2](ZServiceBuilder.environment[RIn2] ++ builder)
+
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
    * first success or the last failure.
