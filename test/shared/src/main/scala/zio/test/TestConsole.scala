@@ -217,14 +217,14 @@ object TestConsole extends Serializable {
    * buffer.
    */
   def clearInput(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.environmentWithZIO(_.get.clearInput)
+    ZIO.serviceWithZIO(_.clearInput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the output
    * buffer.
    */
   def clearOutput(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.environmentWithZIO(_.get.clearOutput)
+    ZIO.serviceWithZIO(_.clearOutput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the specified
@@ -240,21 +240,21 @@ object TestConsole extends Serializable {
    * specified sequence of strings to the input buffer.
    */
   def feedLines(lines: String*)(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.environmentWithZIO(_.get.feedLines(lines: _*))
+    ZIO.serviceWithZIO(_.feedLines(lines: _*))
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
   def output(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, Vector[String]] =
-    ZIO.environmentWithZIO(_.get.output)
+    ZIO.serviceWithZIO(_.output)
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the error buffer.
    */
   def outputErr(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, Vector[String]] =
-    ZIO.environmentWithZIO(_.get.outputErr)
+    ZIO.serviceWithZIO(_.outputErr)
 
   /**
    * Accesses a `TestConsole` instance in the environment and saves the console
@@ -262,7 +262,7 @@ object TestConsole extends Serializable {
    * saved state.
    */
   def save(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, UIO[Unit]] =
-    ZIO.environmentWithZIO(_.get.save)
+    ZIO.serviceWithZIO(_.save)
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the specified

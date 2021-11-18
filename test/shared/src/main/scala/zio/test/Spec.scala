@@ -75,6 +75,21 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     }
 
   /**
+   * Transforms the environment being provided to each test in this spec with
+   * the specified function.
+   */
+  final def contramapEnvironment[R0](
+    f: ZEnvironment[R0] => ZEnvironment[R]
+  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[R0, E, T] =
+    transform[R0, E, T] {
+      case ExecCase(exec, spec)        => ExecCase(exec, spec)
+      case LabeledCase(label, spec)    => LabeledCase(label, spec)
+      case ManagedCase(managed)        => ManagedCase(managed.contramapEnvironment(f))
+      case MultipleCase(specs)         => MultipleCase(specs)
+      case TestCase(test, annotations) => TestCase(test.contramapEnvironment(f), annotations)
+    }
+
+  /**
    * Returns the number of tests in the spec that satisfy the specified
    * predicate.
    */
@@ -330,7 +345,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Provides each test in this spec with its required environment
    */
   final def provideAll(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[Any, E, T] =
-    contramap(_ => r)
+    contramapEnvironment(_ => r)
 
   /**
    * Provides each test with the part of the environment that is not part of the
@@ -464,21 +479,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
           serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provideAll(r.upcast(ev)))))
         )
       case TestCase(test, annotations) => Spec.test(test.provide(serviceBuilder), annotations)
-    }
-
-  /**
-   * Uses the specified function to provide each test in this spec with part of
-   * its required environment.
-   */
-  final def contramap[R0](
-    f: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[R0, E, T] =
-    transform[R0, E, T] {
-      case ExecCase(exec, spec)        => ExecCase(exec, spec)
-      case LabeledCase(label, spec)    => LabeledCase(label, spec)
-      case ManagedCase(managed)        => ManagedCase(managed.contramapEnvironment(f))
-      case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.contramapEnvironment(f), annotations)
     }
 
   /**
@@ -745,14 +745,14 @@ object Spec extends SpecLowPriority {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): Spec[R1, E, T] =
-      self.contramap(_.update(f))
+      self.contramapEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +T, Service](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): Spec[R1, E, T] =
-      self.contramap(_.updateAt(key)(f))
+      self.contramapEnvironment(_.updateAt(key)(f))
   }
 
   implicit final class ZSpecSyntax[Env, Err](private val self: ZSpec[Env, Err]) extends AnyVal {

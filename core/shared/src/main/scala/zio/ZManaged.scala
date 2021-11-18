@@ -1258,11 +1258,22 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Constructs a service builder from this managed resource, which must return
    * one or more services.
    */
-  final def toServiceBuilderMany[B](implicit
+  final def toServiceBuilderAll[B](implicit
     ev: A <:< ZEnvironment[B],
     trace: ZTraceElement
   ): ZServiceBuilder[R, E, B] =
     ZServiceBuilder.fromManagedMany(self.map(ev))
+
+  /**
+   * Constructs a service builder from this managed resource, which must return
+   * one or more services.
+   */
+  @deprecated("use toServiceBuilderAll", "2.0.0")
+  final def toServiceBuilderMany[B](implicit
+    ev: A <:< ZEnvironment[B],
+    trace: ZTraceElement
+  ): ZServiceBuilder[R, E, B] =
+    toServiceBuilderAll
 
   /**
    * Constructs a layer from this managed resource.

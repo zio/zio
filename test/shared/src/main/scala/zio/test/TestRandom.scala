@@ -585,132 +585,132 @@ object TestRandom extends Serializable {
    * of booleans.
    */
   def clearBooleans(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.clearBooleans)
+    ZIO.serviceWithZIO(_.clearBooleans)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of bytes.
    */
   def clearBytes(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.clearBytes)
+    ZIO.serviceWithZIO(_.clearBytes)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of characters.
    */
   def clearChars(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.clearChars)
+    ZIO.serviceWithZIO(_.clearChars)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of doubles.
    */
   def clearDoubles(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.clearDoubles)
+    ZIO.serviceWithZIO(_.clearDoubles)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of floats.
    */
   def clearFloats(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.clearFloats)
+    ZIO.serviceWithZIO(_.clearFloats)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of integers.
    */
   def clearInts(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.clearInts)
+    ZIO.serviceWithZIO(_.clearInts)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of longs.
    */
   def clearLongs(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.clearLongs)
+    ZIO.serviceWithZIO(_.clearLongs)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of strings.
    */
   def clearStrings(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.clearStrings)
+    ZIO.serviceWithZIO(_.clearStrings)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of UUIDs.
    */
   def clearUUIDs(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.clearUUIDs)
+    ZIO.serviceWithZIO(_.clearUUIDs)
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of booleans.
    */
   def feedBooleans(booleans: Boolean*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.feedBooleans(booleans: _*))
+    ZIO.serviceWithZIO(_.feedBooleans(booleans: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of chunks of bytes.
    */
   def feedBytes(bytes: Chunk[Byte]*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.feedBytes(bytes: _*))
+    ZIO.serviceWithZIO(_.feedBytes(bytes: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of characters.
    */
   def feedChars(chars: Char*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.feedChars(chars: _*))
+    ZIO.serviceWithZIO(_.feedChars(chars: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of doubles.
    */
   def feedDoubles(doubles: Double*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.feedDoubles(doubles: _*))
+    ZIO.serviceWithZIO(_.feedDoubles(doubles: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of floats.
    */
   def feedFloats(floats: Float*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.feedFloats(floats: _*))
+    ZIO.serviceWithZIO(_.feedFloats(floats: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of integers.
    */
   def feedInts(ints: Int*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.feedInts(ints: _*))
+    ZIO.serviceWithZIO(_.feedInts(ints: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of longs.
    */
   def feedLongs(longs: Long*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.feedLongs(longs: _*))
+    ZIO.serviceWithZIO(_.feedLongs(longs: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of strings.
    */
   def feedStrings(strings: String*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.feedStrings(strings: _*))
+    ZIO.serviceWithZIO(_.feedStrings(strings: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of UUIDs.
    */
   def feedUUIDs(uuids: UUID*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.feedUUIDs(uuids: _*))
+    ZIO.serviceWithZIO(_.feedUUIDs(uuids: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and gets the seed.
    */
   def getSeed(implicit trace: ZTraceElement): URIO[TestRandom, Long] =
-    ZIO.environmentWithZIO(_.get.getSeed)
+    ZIO.serviceWithZIO(_.getSeed)
 
   /**
    * Constructs a new `TestRandom` with the specified initial state. This can be
@@ -762,14 +762,14 @@ object TestRandom extends Serializable {
    * saved state.
    */
   def save(implicit trace: ZTraceElement): ZIO[TestRandom, Nothing, UIO[Unit]] =
-    ZIO.environmentWithZIO(_.get.save)
+    ZIO.serviceWithZIO(_.save)
 
   /**
    * Accesses a `TestRandom` instance in the environment and sets the seed to
    * the specified value.
    */
   def setSeed(seed: => Long)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.environmentWithZIO(_.get.setSeed(seed))
+    ZIO.serviceWithZIO(_.setSeed(seed))
 
   /**
    * The buffer of the `TestRandom`.
