@@ -4373,13 +4373,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     xs.mapZIO(ZIO.fromEither(_))
 
   /**
-   * Accesses the environment of the stream.
-   */
-  @deprecated("use serviceWith", "2.0.0")
-  def access[R]: AccessPartiallyApplied[R] =
-    new AccessPartiallyApplied[R]
-
-  /**
    * Accesses the environment of the stream in the context of an effect.
    */
   @deprecated("use environmentWith", "2.0.0")
@@ -5337,7 +5330,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag](implicit trace: ZTraceElement): ZStream[A, Nothing, A] =
-    ZStream.access(_.get[A])
+    ZStream.environment.map(_.get[A])
 
   /**
    * Accesses the service corresponding to the specified key in the environment.
@@ -5350,7 +5343,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   @deprecated("use service", "2.0.0")
   def services[A: Tag, B: Tag](implicit trace: ZTraceElement): ZStream[A with B, Nothing, (A, B)] =
-    ZStream.access(r => (r.get[A], r.get[B]))
+    ZStream.environment.map(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
@@ -5359,7 +5352,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def services[A: Tag, B: Tag, C: Tag](implicit
     trace: ZTraceElement
   ): ZStream[A with B with C, Nothing, (A, B, C)] =
-    ZStream.access(r => (r.get[A], r.get[B], r.get[C]))
+    ZStream.environment.map(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
@@ -5368,7 +5361,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def services[A: Tag, B: Tag, C: Tag, D: Tag](implicit
     trace: ZTraceElement
   ): ZStream[A with B with C with D, Nothing, (A, B, C, D)] =
-    ZStream.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
+    ZStream.environment.map(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Accesses the specified service in the environment of the stream in the
@@ -5582,7 +5575,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tag: Tag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZStream[Map[Key, Service], Nothing, Option[Service]] =
-      ZStream.access(_.getAt(key))
+      ZStream.environment.map(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {

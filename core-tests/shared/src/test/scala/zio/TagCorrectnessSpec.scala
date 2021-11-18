@@ -59,7 +59,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
       test("Issue #4564") {
         trait Svc[A]
         def testBaseLayer[R, A: Tag]: ZServiceBuilder[R, Nothing, Svc[A]] =
-          ZIO.access[R](_ => new Svc[A] {}).toServiceBuilder[Svc[A]]
+          ZIO.environment[R].map(_ => new Svc[A] {}).toServiceBuilder[Svc[A]]
         def testSecondLayer[A: Tag]: ZServiceBuilder[Svc[A], Nothing, Svc[A]] =
           ZServiceBuilder.fromFunction[Svc[A], Svc[A]] { s =>
             s

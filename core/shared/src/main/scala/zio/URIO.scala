@@ -32,14 +32,6 @@ object URIO {
 
   /**
    * @see
-   *   [[zio.ZIO.access]]
-   */
-  @deprecated("use serviceWith", "2.0.0")
-  def access[R]: ZIO.AccessPartiallyApplied[R] =
-    ZIO.access[R]
-
-  /**
-   * @see
    *   [[zio.ZIO.accessM]]
    */
   @deprecated("use environmentWith", "2.0.0")
@@ -48,10 +40,11 @@ object URIO {
 
   /**
    * @see
-   *   [[zio.ZIO.environmentWith]]
+   *   [[zio.ZIO.accessZIO]]
    */
-  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
-    ZIO.environmentWith[R]
+  @deprecated("use environmentWith", "2.0.0")
+  def accessZIO[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    ZIO.accessZIO[R]
 
   /**
    * @see
@@ -553,6 +546,13 @@ object URIO {
    */
   def environment[R](implicit trace: ZTraceElement): URIO[R, ZEnvironment[R]] =
     ZIO.environment
+
+  /**
+   * @see
+   *   [[zio.ZIO.environmentWith]]
+   */
+  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    ZIO.environmentWith[R]
 
   /**
    * @see

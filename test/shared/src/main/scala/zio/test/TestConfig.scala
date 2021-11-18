@@ -77,23 +77,23 @@ object TestConfig {
    * The number of times to repeat tests to ensure they are stable.
    */
   def repeats(implicit trace: ZTraceElement): URIO[TestConfig, Int] =
-    ZIO.access(_.get.repeats)
+    ZIO.service[TestConfig].map(_.repeats)
 
   /**
    * The number of times to retry flaky tests.
    */
   def retries(implicit trace: ZTraceElement): URIO[TestConfig, Int] =
-    ZIO.access(_.get.retries)
+    ZIO.service[TestConfig].map(_.retries)
 
   /**
    * The number of sufficient samples to check for a random variable.
    */
   def samples(implicit trace: ZTraceElement): URIO[TestConfig, Int] =
-    ZIO.access(_.get.samples)
+    ZIO.service[TestConfig].map(_.samples)
 
   /**
    * The maximum number of shrinkings to minimize large failures
    */
   def shrinks(implicit trace: ZTraceElement): URIO[TestConfig, Int] =
-    ZIO.access(_.get.shrinks)
+    ZIO.service[TestConfig].map(_.shrinks)
 }

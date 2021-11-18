@@ -265,7 +265,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         val l1: ServiceBuilder[Nothing, A]          = ZServiceBuilder.succeed(A("name", 1))
         val l2: ZServiceBuilder[String, Nothing, B] = (B.apply _).toServiceBuilder
         val live: ServiceBuilder[Nothing, B]        = l1.map(a => ZEnvironment(a.get[A].name)) >>> l2
-        assertM(ZIO.access[B](_.get).inject(live))(equalTo(B("name")))
+        assertM(ZIO.service[B].inject(live))(equalTo(B("name")))
       },
       test("memoization") {
         val expected = Vector(acquire1, release1)

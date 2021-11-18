@@ -1454,6 +1454,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     def apply[R1 <: R, InErr, In, OutErr, L, Z](
       f: ZEnvironment[R] => ZSink[R1, InErr, In, OutErr, L, Z]
     )(implicit trace: ZTraceElement): ZSink[R with R1, InErr, In, OutErr, L, Z] =
-      new ZSink(ZChannel.unwrap(ZIO.access[R](f(_).channel)))
+      new ZSink(ZChannel.unwrap(ZIO.environment[R].map(f(_).channel)))
   }
 }

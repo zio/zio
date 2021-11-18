@@ -478,7 +478,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
       case ManagedCase(managed)        => ManagedCase(managed.contramap(f))
       case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.contramap(f), annotations)
+      case TestCase(test, annotations) => TestCase(test.contramapEnvironment(f), annotations)
     }
 
   /**

@@ -1203,7 +1203,7 @@ object ZChannel {
   def endWith[R, Z](f: ZEnvironment[R] => Z)(implicit
     trace: ZTraceElement
   ): ZChannel[R, Any, Any, Any, Nothing, Nothing, Z] =
-    ZChannel.fromZIO(ZIO.access[R](f))
+    ZChannel.fromZIO(ZIO.environment[R].map(f))
 
   def write[Out](out: Out)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
     Emit(out)

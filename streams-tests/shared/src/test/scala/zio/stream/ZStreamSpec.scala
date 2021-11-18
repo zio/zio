@@ -48,7 +48,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ) @@ TestAspect.jvmOnly, // This is horrendously slow on Scala.js for some reason
         test("access") {
           for {
-            result <- ZStream.access[String](_.get).provideAll(ZEnvironment("test")).runHead.some
+            result <- ZStream.service[String].provideAll(ZEnvironment("test")).runHead.some
           } yield assert(result)(equalTo("test"))
         },
         suite("environmentWith")(

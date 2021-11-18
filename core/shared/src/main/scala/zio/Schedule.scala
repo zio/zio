@@ -358,6 +358,20 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     self.contramapZIO(in => ZIO.succeed(f(in)))
 
   /**
+   * Returns a new schedule with part of its environment provided to it, so the
+   * resulting schedule does not require any environment.
+   */
+  def contramapEnvironment[Env2](f: ZEnvironment[Env2] => ZEnvironment[Env]): Schedule.WithState[self.State, Env2, In, Out] =
+    new Schedule[Env2, In, Out] {
+      type State = self.State
+      val initial = self.initial
+      def step(now: OffsetDateTime, in: In, state: State)(implicit
+        trace: ZTraceElement
+      ): ZIO[Env2, Nothing, (State, Out, Decision)] =
+        self.step(now, in, state).contramapEnvironment(f)
+    }
+
+  /**
    * Returns a new schedule that deals with a narrower class of inputs than this
    * schedule.
    */
@@ -756,20 +770,6 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         trace: ZTraceElement
       ): ZIO[Any, Nothing, (State, Out, Decision)] =
         self.step(now, in, state).provideAll(env)
-    }
-
-  /**
-   * Returns a new schedule with part of its environment provided to it, so the
-   * resulting schedule does not require any environment.
-   */
-  def contramap[Env2](f: ZEnvironment[Env2] => ZEnvironment[Env]): Schedule.WithState[self.State, Env2, In, Out] =
-    new Schedule[Env2, In, Out] {
-      type State = self.State
-      val initial = self.initial
-      def step(now: OffsetDateTime, in: In, state: State)(implicit
-        trace: ZTraceElement
-      ): ZIO[Env2, Nothing, (State, Out, Decision)] =
-        self.step(now, in, state).contramap(f)
     }
 
   /**

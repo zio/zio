@@ -882,7 +882,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def contramap[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
-    ZManaged(zio.contramap(f))
+    ZManaged(zio.contramapEnvironment(f))
 
   /**
    * Splits the environment into two parts, providing one part using the
