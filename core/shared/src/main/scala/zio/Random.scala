@@ -116,7 +116,6 @@ object Random extends Serializable {
     } yield RandomScala(random)).toServiceBuilder[Random]
   }
 
-
   private[zio] def nextDoubleBetweenWith(minInclusive0: => Double, maxExclusive0: => Double)(
     nextDouble: UIO[Double]
   )(implicit trace: ZTraceElement): UIO[Double] =
