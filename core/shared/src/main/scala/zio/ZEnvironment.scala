@@ -19,7 +19,8 @@ package zio
 import izumi.reflect.macrortti.LightTypeTag
 
 final class ZEnvironment[+R] private (
-  private val map: Map[LightTypeTag, Any],
+  private val map: Map[LightTypeTag, (Any, Int)],
+  private val index: Int,
   private var cache: Map[LightTypeTag, Any] = Map.empty
 ) extends Serializable { self =>
 
@@ -30,7 +31,7 @@ final class ZEnvironment[+R] private (
    * Adds a service to the environment.
    */
   def add[A](a: A)(implicit tagged: Tag[A]): ZEnvironment[R with A] =
-    new ZEnvironment(self.map + (taggedTagType(tagged) -> a))
+    new ZEnvironment(self.map + (taggedTagType(tagged) -> (a -> index)), index + 1)
 
   override def equals(that: Any): Boolean = that match {
     case that: ZEnvironment[_] => map == that.map
@@ -70,7 +71,8 @@ final class ZEnvironment[+R] private (
 
     if (set.isEmpty) self
     else
-      new ZEnvironment(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(tag, _)))).asInstanceOf[ZEnvironment[R]]
+      new ZEnvironment(filterKeys(self.map)(tag => set.exists(taggedIsSubtype(tag, _))), index)
+        .asInstanceOf[ZEnvironment[R]]
   }
 
   /**
@@ -95,33 +97,34 @@ final class ZEnvironment[+R] private (
    * the right hand side will be preferred.
    */
   def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
-    new ZEnvironment(self.map ++ that.map)
+    new ZEnvironment(
+      self.map ++ that.map.map { case (tag, (service, index)) => (tag, (service, self.index + index)) },
+      self.index + that.index
+    )
 
-  def unsafeGet[A](tag: LightTypeTag): A = {
-    val services = unsafeGetAll[A](tag)
-    if (services.size == 1) services.head
-    Chunk.fromIterable(services).sortBy(_._1.repr).head._2
-  }
-
-  def unsafeGetAll[A](tag: LightTypeTag): Map[LightTypeTag, A] =
-    self.map.get(tag) match {
-      case Some(a) => Map(tag -> a.asInstanceOf[A])
+  def unsafeGet[A](tag: LightTypeTag): A =
+    self.cache.get(tag) match {
+      case Some(a) => a.asInstanceOf[A]
       case None =>
-        self.cache.get(tag) match {
-          case Some(a) => Map(tag -> a.asInstanceOf[A])
-          case None =>
-            val services = self.map.collect {
-              case (curTag, value) if taggedIsSubtype(curTag, tag) =>
-                self.cache = self.cache + (tag -> value)
-                (curTag, value)
-            }
-            if (services.isEmpty) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
-            else services.asInstanceOf[Map[LightTypeTag, A]]
+        var index      = -1
+        val iterator   = self.map.iterator
+        var service: A = null.asInstanceOf[A]
+        while (iterator.hasNext) {
+          val (curTag, (curService, curIndex)) = iterator.next()
+          if (taggedIsSubtype(curTag, tag) && curIndex > index) {
+            index = curIndex
+            service = curService.asInstanceOf[A]
+          }
+        }
+        if (service == null) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
+        else {
+          self.cache = self.cache + (tag -> service)
+          service
         }
     }
 
   def upcast[R1](implicit ev: R <:< R1): ZEnvironment[R1] =
-    new ZEnvironment(map)
+    new ZEnvironment(map, index)
 
   /**
    * Updates a service in the environment.
@@ -190,7 +193,7 @@ object ZEnvironment {
    * The empty environment containing no services.
    */
   lazy val empty: ZEnvironment[Any] =
-    new ZEnvironment[AnyRef](Map.empty, Map(taggedTagType(TaggedAnyRef) -> (())))
+    new ZEnvironment[AnyRef](Map.empty, 0, Map(taggedTagType(TaggedAnyRef) -> (())))
 
   /**
    * The default ZIO environment.
