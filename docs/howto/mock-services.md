@@ -155,7 +155,7 @@ def withRuntime[R]: URIO[R, Runtime[R]] = ???
 import ExampleMock._
 
 val compose: URServiceBuilder[Proxy, Example] =
-  ZIO.serviceWith[Proxy] { proxy =>
+  ZIO.serviceWithZIO[Proxy] { proxy =>
     withRuntime[Any].map { rts =>
       new Example.Service {
         val static                                 = proxy(Static)
@@ -203,10 +203,10 @@ object AccountObserver {
   }
 
   def processEvent(event: AccountEvent) =
-    ZIO.accessZIO[AccountObserver](_.get.processEvent(event))
+    ZIO.serviceWithZIO[AccountObserver](_.processEvent(event))
 
   def runCommand() =
-    ZIO.accessZIO[AccountObserver](_.get.runCommand())
+    ZIO.serviceWithZIO[AccountObserver](_.runCommand())
 
   val live: ZServiceBuilder[Console, Nothing, AccountObserver] =
     { (console: Console) =>
@@ -352,7 +352,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     test("calls printLine > readLine > printLine and returns unit") {
-      val result = app.provideSomeServices(mockEnv >>> AccountObserver.live)
+      val result = app.provideSome(mockEnv >>> AccountObserver.live)
       assertM(result)(isUnit)
     }
   )
@@ -370,8 +370,8 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
       def maybeConsole(invokeConsole: Boolean) =
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
-      val maybeTest1 = maybeConsole(false).unit.provideSomeServices(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).unit.provideSomeServices(MockConsole.PrintLine(equalTo("foo"), unit))
+      val maybeTest1 = maybeConsole(false).unit.provideSome(MockConsole.empty)
+      val maybeTest2 = maybeConsole(true).unit.provideSome(MockConsole.PrintLine(equalTo("foo"), unit))
       assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
     }
   )
@@ -400,7 +400,7 @@ val combinedApp =
     _    <- Console.printLine(s"$name, your lucky number today is $num!")
   } yield ()
 
-val result = combinedApp.provideSomeServices(combinedEnv)
+val result = combinedApp.provideSome(combinedEnv)
 assertM(result)(isUnit)
 ```
 
@@ -436,7 +436,7 @@ object PolyExampleMock extends Mock[PolyExample] {
   object PolyAll    extends Poly.Effect.InputErrorOutput
 
   val compose: URServiceBuilder[Proxy, PolyExample] =
-    ZIO.serviceWith[Proxy] { proxy =>
+    ZIO.serviceWithZIO[Proxy] { proxy =>
       withRuntime[Any].map { rts =>
         new PolyExample.Service {
           def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)

@@ -331,7 +331,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
           def test(): Unit = throw new Exception("ups")
         }
         def serviceBuilder = ZServiceBuilder.succeed(new Module {})
-        assertM(Module.test().flip.provideServices(serviceBuilder))(hasField("message", _.getMessage, equalTo("ups")))
+        assertM(Module.test().flip.provide(serviceBuilder))(hasField("message", _.getMessage, equalTo("ups")))
       }
     )
   )

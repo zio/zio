@@ -19,10 +19,12 @@ object AutoWireSpec extends ZIOBaseSpec {
             val doubleServiceBuilder: UServiceBuilder[Double] = ZServiceBuilder.succeed(100.1)
             val stringServiceBuilder                          = ZServiceBuilder.succeed("this string is 28 chars long")
             val intServiceBuilder =
-              (for {
-                str    <- ZIO.service[String]
-                double <- ZIO.service[Double]
-              } yield str.length + double.toInt).toServiceBuilder
+              ZServiceBuilder {
+                for {
+                  str    <- ZIO.service[String]
+                  double <- ZIO.service[Double]
+                } yield str.length + double.toInt
+              }
 
             val program: URIO[Int, Int] = ZIO.service[Int]
             val injected: ZIO[Any, Nothing, Int] =
@@ -155,7 +157,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
             val serviceBuilder =
               ZServiceBuilder.wire[Int](intServiceBuilder, stringServiceBuilder, doubleServiceBuilder)
-            val provided = ZIO.service[Int].provideServices(serviceBuilder)
+            val provided = ZIO.service[Int].provide(serviceBuilder)
             assertM(provided)(equalTo(128))
           },
           test("correctly decomposes nested, aliased intersection types") {
@@ -187,7 +189,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val serviceBuilder =
               ZServiceBuilder.wireSome[Double with Boolean, Int](intServiceBuilder, stringServiceBuilder)
             val provided =
-              program.provideServices(
+              program.provide(
                 ZServiceBuilder.succeed(true) ++ ZServiceBuilder.succeed(100.1) >>> serviceBuilder
               )
             assertM(provided)(equalTo(128))
@@ -200,10 +202,12 @@ object AutoWireSpec extends ZIOBaseSpec {
             val doubleServiceBuilder = ZServiceBuilder.succeed(100.1)
             val stringServiceBuilder = ZServiceBuilder.succeed("this string is 28 chars long")
             val intServiceBuilder =
-              (for {
-                str    <- ZManaged.service[String]
-                double <- ZManaged.service[Double]
-              } yield str.length + double.toInt).toServiceBuilder
+              ZServiceBuilder {
+                for {
+                  str    <- ZManaged.service[String]
+                  double <- ZManaged.service[Double]
+                } yield str.length + double.toInt
+              }
 
             val program  = ZManaged.service[Int]
             val provided = program.inject(intServiceBuilder, stringServiceBuilder, doubleServiceBuilder)

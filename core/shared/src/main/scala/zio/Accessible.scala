@@ -47,7 +47,7 @@ trait Accessible[R] {
   def apply[R0, E, A](
     f: R => ZIO[R0, E, A]
   )(implicit tag: Tag[R], isAny: IsAny[R0], trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.serviceWith[R](f.asInstanceOf[R => ZIO[Any, E, A]])
+    ZIO.serviceWithZIO[R](f.asInstanceOf[R => ZIO[Any, E, A]])
 }
 
 object Accessible {

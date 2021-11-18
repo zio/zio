@@ -94,16 +94,16 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
 
 private final class InjectSomePartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
 
-  def provideServices[E1 >: E, R1](
+  def provide[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    self.provideServices(serviceBuilder)
+    self.provide(serviceBuilder)
 
-  @deprecated("use provideServices", "2.0.0")
+  @deprecated("use provide", "2.0.0")
   def provideLayer[E1 >: E, R1](
     layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    provideServices(layer)
+    provide(layer)
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[R0, E1, T] =
     macro ServiceBuilderMacros.injectSomeImpl[Spec, R0, R, E1, T]
@@ -111,16 +111,16 @@ private final class InjectSomePartiallyApplied[R0, -R, +E, +T](val self: Spec[R,
 
 private final class InjectSomeSharedPartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
 
-  def provideServicesShared[E1 >: E, R1](
+  def provideShared[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    self.provideServicesShared(serviceBuilder)
+    self.provideShared(serviceBuilder)
 
-  @deprecated("use provideServicesShared", "2.0.0")
+  @deprecated("use provideShared", "2.0.0")
   def provideLayerShared[E1 >: E, R1](
     layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    provideServicesShared(layer)
+    provideShared(layer)
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[R0, E1, T] =
     macro SpecServiceBuilderMacros.injectSomeSharedImpl[R0, R, E1, T]

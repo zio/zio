@@ -34,22 +34,24 @@ object URIO {
    * @see
    *   [[zio.ZIO.access]]
    */
-  def access[R]: ZIO.AccessPartiallyApplied[R] =
+  @deprecated("use environmentWith", "2.0.0")
+  def access[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
     ZIO.access[R]
 
   /**
    * @see
    *   [[zio.ZIO.accessM]]
    */
-  @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: ZIO.AccessZIOPartiallyApplied[R] =
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessM[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
     ZIO.accessM[R]
 
   /**
    * @see
    *   [[zio.ZIO.accessZIO]]
    */
-  def accessZIO[R]: ZIO.AccessZIOPartiallyApplied[R] =
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
     ZIO.accessZIO[R]
 
   /**
@@ -555,6 +557,20 @@ object URIO {
 
   /**
    * @see
+   *   [[zio.ZIO.environmentWithZIO]]
+   */
+  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    ZIO.environmentWith[R]
+
+  /**
+   * @see
+   *   [[zio.ZIO.environmentWithZIO]]
+   */
+  def environmentWithZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
+    ZIO.environmentWithZIO[R]
+
+  /**
+   * @see
    *   See [[zio.ZIO.executor]]
    */
   def executor(implicit trace: ZTraceElement): UIO[Executor] =
@@ -946,7 +962,7 @@ object URIO {
    * @see
    *   [[zio.ZIO.fromFunctionM]]
    */
-  @deprecated("use accessZIO", "2.0.0")
+  @deprecated("use environmentWithZIO", "2.0.0")
   def fromFunctionM[R, A](f: ZEnvironment[R] => UIO[A])(implicit trace: ZTraceElement): URIO[R, A] =
     ZIO.fromFunctionM(f)
 
@@ -1191,8 +1207,8 @@ object URIO {
    * @see
    *   [[zio.ZIO.provide]]
    */
-  def provide[R, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): URIO[R, A] => UIO[A] =
-    ZIO.provide(r)
+  def provideEnvironment[R, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): URIO[R, A] => UIO[A] =
+    ZIO.provideEnvironment(r)
 
   /**
    * @see
@@ -1341,6 +1357,13 @@ object URIO {
    */
   def serviceWith[Service]: ZIO.ServiceWithPartiallyApplied[Service] =
     new ZIO.ServiceWithPartiallyApplied[Service]
+
+  /**
+   * @see
+   *   See [[zio.ZIO.serviceWithZIO]]
+   */
+  def serviceWithZIO[Service]: ZIO.ServiceWithZIOPartiallyApplied[Service] =
+    new ZIO.ServiceWithZIOPartiallyApplied[Service]
 
   /**
    * @see

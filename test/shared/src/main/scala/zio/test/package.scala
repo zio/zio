@@ -173,7 +173,7 @@ package object test extends CompileVariants {
               fiber <- ZIO
                          .logWarning(warning)
                          .delay(10.seconds)
-                         .provide(ZEnvironment(Clock.ClockLive))
+                         .provideEnvironment(ZEnvironment(Clock.ClockLive))
                          .interruptible
                          .forkDaemon
               _ <- (child.interrupt *> fiber.interrupt).forkDaemon

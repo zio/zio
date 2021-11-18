@@ -33,7 +33,7 @@ import java.io.IOException
 
 ```scala mdoc:silent
 val readLine: ZIO[Console, IOException, String] =
-  ZIO.serviceWith(_.readLine)
+  ZIO.serviceWithZIO(_.readLine)
 ```
 
 `ZIO` values are immutable, and all `ZIO` functions produce new `ZIO` values, enabling `ZIO` to be reasoned about and used like any ordinary Scala immutable data structure.

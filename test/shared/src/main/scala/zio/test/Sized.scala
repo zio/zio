@@ -34,10 +34,10 @@ object Sized {
     })
 
   def size(implicit trace: ZTraceElement): URIO[Sized, Int] =
-    ZIO.serviceWith(_.size)
+    ZIO.serviceWithZIO(_.size)
 
   def withSize[R <: Sized, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.serviceWith[Sized](_.withSize(size)(zio))
+    ZIO.serviceWithZIO[Sized](_.withSize(size)(zio))
 
   def withSizeGen[R <: Sized, A](size: Int)(gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
     Gen.fromZIO(ZIO.service[Sized]).flatMap(_.withSizeGen(size)(gen))

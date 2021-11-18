@@ -27,14 +27,16 @@
 //   }
 
 //   object OldLady {
-//     def contentsOfStomach: ZIO[OldLady, Nothing, List[String]] = ZIO.accessZIO(_.get.contentsOfStomach)
+//     def contentsOfStomach: ZIO[OldLady, Nothing, List[String]] = ZIO.serviceWithZIO(_.contentsOfStomach)
 
 //     def live: URServiceBuilder[Spider with Bear, OldLady] =
-//       (for {
-//         spiderGuts <- Spider.contentsOfStomach
-//       } yield new OldLady {
-//         def contentsOfStomach: UIO[List[String]] = UIO("a Spdder" :: spiderGuts)
-//       }).toServiceBuilder
+//       ZServiceBuilder {
+//         for {
+//           spiderGuts <- Spider.contentsOfStomach
+//         } yield new OldLady {
+//           def contentsOfStomach: UIO[List[String]] = UIO("a Spdder" :: spiderGuts)
+//         }
+//       }
 //   }
 
 //   trait Spider {
@@ -42,14 +44,16 @@
 //   }
 
 //   object Spider {
-//     def contentsOfStomach: ZIO[Spider, Nothing, List[String]] = ZIO.accessZIO(_.get.contentsOfStomach)
+//     def contentsOfStomach: ZIO[Spider, Nothing, List[String]] = ZIO.serviceWithZIO(_.contentsOfStomach)
 
 //     def live: URServiceBuilder[Fly, Spider] =
-//       (for {
-//         _ <- ZIO.service[Fly]
-//       } yield new Spider {
-//         def contentsOfStomach: UIO[List[String]] = UIO(List("a Fly"))
-//       }).toServiceBuilder
+//       ZServiceBuilder {
+//         for {
+//           _ <- ZIO.service[Fly]
+//         } yield new Spider {
+//           def contentsOfStomach: UIO[List[String]] = UIO(List("a Fly"))
+//         }
+//       }
 //   }
 
 //   trait Bear {}
