@@ -22,20 +22,9 @@ import zio.test._
 
 In the companion object of the `Gen` data type, there are tons of generators for various data types.
 
-### Generating Primitive Types
+### Primitive Types Generators
 
-* `Gen.int` — e.g:  -1, 2, 59, 123, 0, -11323, 4, -425084233, ...
-* `Gen.string` — e.g: "3r%~9", "", "d", "3A34", ...
-* `Gen.string1`
-* `Gen.boolean` — true, false, false, true, true, true, ...
-* `Gen.float` 
-* `Gen.double`
-* `Gen.bigInt`
-* `Gen.byte`
-* `Gen.bigdecimal`
-* `Gen.long`
-* `Gen.char`
-* `Gen.short`
+ZIO Test provides generators for primitive types such as `Gen.int`, `Gen.string`, `Gen.boolean`, `Gen.float`, `Gen.double`, `Gen.bigInt`, `Gen.byte`, `Gen.bigdecimal`, `Gen.long`, `Gen.char`, and `Gen.short`.
 
 Let's create an `Int` generator:
 
