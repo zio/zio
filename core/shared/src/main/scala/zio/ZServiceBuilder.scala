@@ -53,9 +53,9 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
     self.orDie
 
   final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
-     that: ZServiceBuilder[RIn2, E1, ROut2]
-   ): ZServiceBuilder[RIn with RIn2, E1, ROut1 with ROut2] =
-     self.zipWithPar(that)(_.unionAll[ROut2](_))
+    that: ZServiceBuilder[RIn2, E1, ROut2]
+  ): ZServiceBuilder[RIn with RIn2, E1, ROut1 with ROut2] =
+    self.zipWithPar(that)(_.unionAll[ROut2](_))
 
   /**
    * Combines this service builder with the specified service builder, producing
@@ -73,30 +73,6 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
     that: ZServiceBuilder[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZServiceBuilder[RIn1, E1, ROut1] =
     self.orElse(that)
-
-  /**
-   * Feeds the output services of this service builder into the input of the
-   * specified service builder, resulting in a new service builder with the
-   * inputs of this service builder, and the outputs of both service builders.
-   */
-  final def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
-    that: ZServiceBuilder[RIn2, E1, ROut2]
-  )(implicit
-    tagged: Tag[ROut2],
-    trace: ZTraceElement
-  ): ZServiceBuilder[RIn, E1, ROut1 with ROut2] =
-    self.zipWithPar(self >>> that)(_.union[ROut2](_))
-
-  /**
-   * Feeds the output services of this service builder into the input of the
-   * specified service builder, resulting in a new service builder with the
-   * inputs of this service builder, and the outputs of the specified service
-   * builder.
-   */
-  final def >>>[E1 >: E, ROut2](that: ZServiceBuilder[ROut, E1, ROut2])(implicit
-    trace: ZTraceElement
-  ): ZServiceBuilder[RIn, E1, ROut2] =
-    ZLayer.To(self, that)
 
   /**
    * A named alias for `++`.
@@ -153,8 +129,9 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
 
   /**
    * Feeds the error or output services of this service builder into the input
-   * of either the specified `failure` or `success` service builders,
-   * resulting in a new service builder with the inputs of this service builder, and the error or outputs of the specified service builder.
+   * of either the specified `failure` or `success` service builders, resulting
+   * in a new service builder with the inputs of this service builder, and the
+   * error or outputs of the specified service builder.
    */
   final def foldServices[E1, RIn1 <: RIn, ROut2](
     failure: E => ZServiceBuilder[RIn1, E1, ROut2],
@@ -164,8 +141,9 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
 
   /**
    * Feeds the error or output services of this service builder into the input
-   * of either the specified `failure` or `success` service builders,
-   * resulting in a new service builder with the inputs of this service builder, and the error or outputs of the specified service builder.
+   * of either the specified `failure` or `success` service builders, resulting
+   * in a new service builder with the inputs of this service builder, and the
+   * error or outputs of the specified service builder.
    */
   final def foldCauseServices[E1, RIn1 <: RIn, ROut2](
     failure: Cause[E] => ZServiceBuilder[RIn1, E1, ROut2],
@@ -197,7 +175,9 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
    * Returns a new service builder whose output is mapped by the specified
    * function.
    */
-  final def map[ROut1](f: ZEnvironment[ROut] => ZEnvironment[ROut1])(implicit trace: ZTraceElement): ZServiceBuilder[RIn, E, ROut1] =
+  final def map[ROut1](f: ZEnvironment[ROut] => ZEnvironment[ROut1])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[RIn, E, ROut1] =
     flatMap(environment => ZServiceBuilder.succeedMany(f(environment)))
 
   /**
@@ -329,10 +309,12 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
     self match {
       case ZServiceBuilder.Fold(self, failure, success) =>
         ZManaged.succeed { memoMap =>
-          memoMap.getOrElseMemoize(self).foldCauseManaged(
-            e => memoMap.getOrElseMemoize(failure(e)),
-            r => memoMap.getOrElseMemoize(success(r))
-          )
+          memoMap
+            .getOrElseMemoize(self)
+            .foldCauseManaged(
+              e => memoMap.getOrElseMemoize(failure(e)),
+              r => memoMap.getOrElseMemoize(success(r))
+            )
         }
       case ZServiceBuilder.Fresh(self) =>
         Managed.succeed(_ => self.build)
@@ -344,9 +326,7 @@ sealed abstract class ZServiceBuilder[-RIn, +E, +ROut] { self =>
         ZManaged.succeed(memoMap =>
           memoMap
             .getOrElseMemoize(self)
-            .flatMap(
-              r => memoMap.getOrElseMemoize(that).provideAll(r)(NeedsEnv.needsEnv, trace)
-            )
+            .flatMap(r => memoMap.getOrElseMemoize(that).provideAll(r)(NeedsEnv.needsEnv, trace))
         )
       case ZServiceBuilder.ZipWith(self, that, f) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))
@@ -364,7 +344,8 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   ) extends ZServiceBuilder[RIn, E2, ROut2]
   private final case class Fresh[RIn, E, ROut](self: ZServiceBuilder[RIn, E, ROut])
       extends ZServiceBuilder[RIn, E, ROut]
-  private final case class Managed[-RIn, +E, +ROut](self: ZManaged[RIn, E, ZEnvironment[ROut]]) extends ZServiceBuilder[RIn, E, ROut]
+  private final case class Managed[-RIn, +E, +ROut](self: ZManaged[RIn, E, ZEnvironment[ROut]])
+      extends ZServiceBuilder[RIn, E, ROut]
   private final case class Suspend[-RIn, +E, +ROut](self: () => ZServiceBuilder[RIn, E, ROut])
       extends ZServiceBuilder[RIn, E, ROut]
   private final case class To[RIn, E, ROut, ROut1](
@@ -405,9 +386,10 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     private[zio] case object Mermaid extends Debug
 
     /**
-     * Including this service builder in a call to a compile-time ZServiceBuilder
-     * constructor, such as [[ZIO.inject]] or [[ZServiceBuilder.wire]], will
-     * display a tree visualization of the constructed service builder graph.
+     * Including this service builder in a call to a compile-time
+     * ZServiceBuilder constructor, such as [[ZIO.inject]] or
+     * [[ZServiceBuilder.wire]], will display a tree visualization of the
+     * constructed service builder graph.
      *
      * {{{
      *   val serviceBuilder =
@@ -436,10 +418,10 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       ZServiceBuilder.succeed[Debug](Debug.Tree)(Tag[Debug], Tracer.newTrace)
 
     /**
-     * Including this service builder in a call to a compile-time ZServiceBuilder
-     * constructor, such as [[ZIO.inject]] or [[ZServiceBuilder.wire]], will
-     * display a tree visualization of the constructed service builder graph as
-     * well as a link to Mermaid chart.
+     * Including this service builder in a call to a compile-time
+     * ZServiceBuilder constructor, such as [[ZIO.inject]] or
+     * [[ZServiceBuilder.wire]], will display a tree visualization of the
+     * constructed service builder graph as well as a link to Mermaid chart.
      *
      * {{{
      *   val serviceBuilder =
@@ -514,9 +496,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     bf: BuildFrom[Collection[A], B, Collection[B]],
     trace: ZTraceElement
   ): ZServiceBuilder[R, E, Collection[B]] =
-    in.foldLeft[ZServiceBuilder[R, E, Builder[B, Collection[B]]]](ZServiceBuilder.succeed(bf.newBuilder(in)))(
-       (io, a) => io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
-     ).map(environment => ZEnvironment(environment.get.result()))
+    in.foldLeft[ZServiceBuilder[R, E, Builder[B, Collection[B]]]](ZServiceBuilder.succeed(bf.newBuilder(in)))((io, a) =>
+      io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
+    ).map(environment => ZEnvironment(environment.get.result()))
 
   /**
    * Constructs a service builder from acquire and release actions. The acquire
@@ -532,8 +514,8 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * return one or more services. The acquire and release actions will be
    * performed uninterruptibly.
    */
-  def fromAcquireReleaseAll[R, E, A](acquire: ZIO[R, E, ZEnvironment[A]])(release: ZEnvironment[A] => URIO[R, Any])(implicit
-    trace: ZTraceElement
+  def fromAcquireReleaseAll[R, E, A](acquire: ZIO[R, E, ZEnvironment[A]])(release: ZEnvironment[A] => URIO[R, Any])(
+    implicit trace: ZTraceElement
   ): ZServiceBuilder[R, E, A] =
     fromManagedMany(ZManaged.acquireReleaseWith(acquire)(release))
 
@@ -543,8 +525,8 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * performed uninterruptibly.
    */
   @deprecated("use fromAcquireReleaseAll", "2.0.0")
-  def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, ZEnvironment[A]])(release: ZEnvironment[A] => URIO[R, Any])(implicit
-    trace: ZTraceElement
+  def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, ZEnvironment[A]])(release: ZEnvironment[A] => URIO[R, Any])(
+    implicit trace: ZTraceElement
   ): ZServiceBuilder[R, E, A] =
     fromAcquireReleaseAll(acquire)(release)
 
@@ -560,7 +542,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * one or more services.
    */
   @deprecated("use fromZIOMany", "2.0.0")
-  def fromEffectMany[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit trace: ZTraceElement): ZServiceBuilder[R, E, A] =
+  def fromEffectMany[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R, E, A] =
     fromZIOMany(zio)
 
   /**
@@ -574,7 +558,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * function, which must return one or more services.
    */
-  def fromFunctionAll[A: Tag, B](f: A => ZEnvironment[B])(implicit trace: ZTraceElement): ZServiceBuilder[A, Nothing, B] =
+  def fromFunctionAll[A: Tag, B](f: A => ZEnvironment[B])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A, Nothing, B] =
     fromFunctionAllZIO(a => ZIO.succeedNow(f(a)))
 
   /**
@@ -590,7 +576,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from the environment using the specified
    * effectful function, which must return one or more services.
    */
-  def fromFunctionAllZIO[A: Tag, E, B](f: A => IO[E, ZEnvironment[B]])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
+  def fromFunctionAllZIO[A: Tag, E, B](f: A => IO[E, ZEnvironment[B]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A, E, B] =
     fromFunctionAllManaged(a => f(a).toManaged)
 
   /**
@@ -615,7 +603,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * function, which must return one or more services.
    */
   @deprecated("use fromFunctionAll", "2.0.0")
-  def fromFunctionMany[A: Tag, B](f: A => ZEnvironment[B])(implicit trace: ZTraceElement): ZServiceBuilder[A, Nothing, B] =
+  def fromFunctionMany[A: Tag, B](f: A => ZEnvironment[B])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A, Nothing, B] =
     fromFunctionAll(f)
 
   /**
@@ -623,7 +613,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * effectful function, which must return one or more services.
    */
   @deprecated("use fromFunctionManyZIO", "2.0.0")
-  def fromFunctionManyM[A: Tag, E, B](f: A => IO[E, ZEnvironment[B]])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
+  def fromFunctionManyM[A: Tag, E, B](f: A => IO[E, ZEnvironment[B]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A, E, B] =
     fromFunctionManyZIO(f)
 
   /**
@@ -641,7 +633,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * effectful function, which must return one or more services.
    */
   @deprecated("use fromFunctionAllZIO", "2.0.0")
-  def fromFunctionManyZIO[A: Tag, E, B](f: A => IO[E, ZEnvironment[B]])(implicit trace: ZTraceElement): ZServiceBuilder[A, E, B] =
+  def fromFunctionManyZIO[A: Tag, E, B](f: A => IO[E, ZEnvironment[B]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A, E, B] =
     fromFunctionAllZIO(f)
 
   /**
@@ -747,7 +741,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, Nothing, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, Nothing, B] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -758,7 +754,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServices[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, Nothing, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, Nothing, B] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -782,7 +780,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -807,7 +809,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -833,7 +839,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -860,7 +870,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -888,7 +902,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -917,7 +935,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -947,7 +969,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -978,7 +1004,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -1010,7 +1040,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -1043,7 +1077,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -1077,7 +1115,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -1112,7 +1154,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
     serviceBuilder
   }
@@ -1212,7 +1258,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1224,7 +1272,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1250,7 +1300,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1277,7 +1329,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1305,7 +1361,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1334,7 +1394,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1364,7 +1428,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1395,7 +1463,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1427,7 +1499,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1460,7 +1536,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1494,7 +1574,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1529,7 +1613,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1565,7 +1653,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1602,7 +1694,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1663,7 +1759,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       A20,
       A21
     ) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -1763,7 +1863,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServicesManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B: Tag](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -1788,7 +1890,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -1814,7 +1918,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -1841,7 +1947,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -1869,7 +1979,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -1898,7 +2012,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -1928,7 +2046,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -1959,7 +2081,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -1991,7 +2117,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -2024,7 +2154,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -2058,7 +2192,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -2093,7 +2231,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -2129,7 +2271,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -2188,7 +2334,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       A19,
       A20
     ) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20, E, B] =
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
+    E,
+    B
+  ] =
     fromServicesManyManaged[
       A0,
       A1,
@@ -2274,7 +2424,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       A20,
       A21
     ) => ZManaged[R, E, B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.asService))
     serviceBuilder
   }
@@ -2285,7 +2439,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * returns a single service see `fromService`.
    */
   @deprecated("use toServiceBuilder", "2.0.0")
-  def fromServiceMany[A: Tag, B](f: A => ZEnvironment[B])(implicit trace: ZTraceElement): ZServiceBuilder[A, Nothing, B] =
+  def fromServiceMany[A: Tag, B](f: A => ZEnvironment[B])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A, Nothing, B] =
     fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
 
   /**
@@ -2393,7 +2549,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, Nothing, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, Nothing, B] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2406,7 +2564,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, A9: Tag, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, Nothing, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, Nothing, B] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2432,7 +2592,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2459,7 +2623,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2487,7 +2655,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2516,7 +2688,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2546,7 +2722,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2577,7 +2757,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2609,7 +2793,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2642,7 +2830,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2676,7 +2868,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2711,7 +2907,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19, Nothing, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2746,8 +2946,14 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     A20: Tag,
     B
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20, Nothing, B] = {
+    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZEnvironment[
+      B
+    ]
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2783,8 +2989,35 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     A21: Tag,
     B
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21, Nothing, B] = {
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19,
+      A20,
+      A21
+    ) => ZEnvironment[B]
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
+    Nothing,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyM(andThen(f)(ZIO.succeedNow))
     serviceBuilder
   }
@@ -2890,7 +3123,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -2903,7 +3138,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -2930,7 +3167,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] = {
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -2958,7 +3197,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -2987,7 +3230,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3017,7 +3264,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3048,7 +3299,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3080,7 +3335,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3113,7 +3372,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3147,7 +3410,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3182,7 +3449,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3217,8 +3488,32 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18, E, B] = {
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18
+    ) => ZIO[R, E, ZEnvironment[B]]
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3254,8 +3549,33 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19, E, B] = {
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19
+    ) => ZIO[R, E, ZEnvironment[B]]
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3292,8 +3612,34 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20, E, B] = {
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19,
+      A20
+    ) => ZIO[R, E, ZEnvironment[B]]
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3355,7 +3701,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       A20,
       A21
     ) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21, E, B] = {
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
+    E,
+    B
+  ] = {
     val serviceBuilder = fromServicesManyManaged(andThen(f)(_.toManaged))
     serviceBuilder
   }
@@ -3500,7 +3850,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] =
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
@@ -3523,7 +3875,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   @deprecated("use toServiceBuilder", "2.0.0")
   def fromServicesManyManaged[A0: Tag, A1: Tag, A2: Tag, A3: Tag, A4: Tag, A5: Tag, A6: Tag, A7: Tag, A8: Tag, R, E, B](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] =
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
@@ -3561,7 +3915,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] =
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0 <- ZManaged.service[A0]
@@ -3601,7 +3957,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10, E, B] =
+  )(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10, E, B] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -3643,7 +4001,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11, E, B] =
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -3687,7 +4049,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12, E, B] =
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -3733,7 +4099,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13, E, B] =
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -3781,7 +4151,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14, E, B] =
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -3831,7 +4205,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15, E, B] =
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -3883,7 +4261,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16, E, B] =
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -3936,8 +4318,31 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17, E, B] =
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17
+    ) => ZManaged[R, E, ZEnvironment[B]]
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -3992,8 +4397,32 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18, E, B] =
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18
+    ) => ZManaged[R, E, ZEnvironment[B]]
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -4050,8 +4479,33 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
     E,
     B
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19, E, B] =
+    f: (
+      A0,
+      A1,
+      A2,
+      A3,
+      A4,
+      A5,
+      A6,
+      A7,
+      A8,
+      A9,
+      A10,
+      A11,
+      A12,
+      A13,
+      A14,
+      A15,
+      A16,
+      A17,
+      A18,
+      A19
+    ) => ZManaged[R, E, ZEnvironment[B]]
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -4133,7 +4587,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       A19,
       A20
     ) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20, E, B] =
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -4218,7 +4676,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       A20,
       A21
     ) => ZManaged[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZServiceBuilder[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21, E, B] =
+  )(implicit trace: ZTraceElement): ZServiceBuilder[
+    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
+    E,
+    B
+  ] =
     ZServiceBuilder.fromManagedMany {
       for {
         a0  <- ZManaged.service[A0]
@@ -4257,7 +4719,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Constructs a service builder from a managed resource, which must return one
    * or more services.
    */
-  def fromManagedAll[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit trace: ZTraceElement): ZServiceBuilder[R, E, A] =
+  def fromManagedAll[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R, E, A] =
     Managed(m)
 
   /**
@@ -4265,7 +4729,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * or more services.
    */
   @deprecated("use fromManagedAll", "2.0.0")
-  def fromManagedMany[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit trace: ZTraceElement): ZServiceBuilder[R, E, A] =
+  def fromManagedMany[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
+    trace: ZTraceElement
+  ): ZServiceBuilder[R, E, A] =
     fromManagedAll(m)
 
   /**
@@ -4355,7 +4821,8 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       extends AnyVal {
 
     /**
-     * Returns a new service builder that produces the outputs of this service builder but also passes through the inputs.
+     * Returns a new service builder that produces the outputs of this service
+     * builder but also passes through the inputs.
      */
     def passthrough(implicit
       in: Tag[RIn],
@@ -4365,11 +4832,11 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
       ZServiceBuilder.environment[RIn] ++ self
   }
 
-  implicit final class ZServiceBuilderProjectOps[R, E, A](private val self: ZServiceBuilder[R, E, A])
-      extends AnyVal {
+  implicit final class ZServiceBuilderProjectOps[R, E, A](private val self: ZServiceBuilder[R, E, A]) extends AnyVal {
 
     /**
-     * Projects out part of one of the services output by this service builder using the specified function.
+     * Projects out part of one of the services output by this service builder
+     * using the specified function.
      */
     def project[B: Tag](f: A => B)(implicit tag: Tag[A], trace: ZTraceElement): ZServiceBuilder[R, E, B] =
       self.map(environment => ZEnvironment(f(environment.get(tag))))
@@ -4381,9 +4848,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   private abstract class MemoMap { self =>
 
     /**
-     * Checks the memo map to see if a service builder exists. If it is, immediately
-     * returns it. Otherwise, obtains the service builder, stores it in the memo map,
-     * and adds a finalizer to the outer `Managed`.
+     * Checks the memo map to see if a service builder exists. If it is,
+     * immediately returns it. Otherwise, obtains the service builder, stores it
+     * in the memo map, and adds a finalizer to the outer `Managed`.
      */
     def getOrElseMemoize[E, A, B](serviceBuilder: ZServiceBuilder[A, E, B]): ZManaged[A, E, ZEnvironment[B]]
   }
@@ -4398,7 +4865,9 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
         .make[Map[ZServiceBuilder[Nothing, Any, Any], (IO[Any, Any], ZManaged.Finalizer)]](Map.empty)
         .map { ref =>
           new MemoMap { self =>
-            final def getOrElseMemoize[E, A, B](serviceBuilder: ZServiceBuilder[A, E, B]): ZManaged[A, E, ZEnvironment[B]] =
+            final def getOrElseMemoize[E, A, B](
+              serviceBuilder: ZServiceBuilder[A, E, B]
+            ): ZManaged[A, E, ZEnvironment[B]] =
               ZManaged {
                 ref.modifyZIO { map =>
                   map.get(serviceBuilder) match {
@@ -4424,12 +4893,14 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
 
                         resource = ZIO.uninterruptibleMask { restore =>
                                      for {
-                                       a                 <- ZIO.environment[A]
-                                       outerReleaseMap   <- ZManaged.currentReleaseMap.get
-                                       innerReleaseMap     <- ZManaged.ReleaseMap.make
+                                       a               <- ZIO.environment[A]
+                                       outerReleaseMap <- ZManaged.currentReleaseMap.get
+                                       innerReleaseMap <- ZManaged.ReleaseMap.make
                                        tp <-
                                          restore(
-                                           ZManaged.currentReleaseMap.locally(innerReleaseMap)(serviceBuilder.scope.flatMap(_.apply(self)).zio)
+                                           ZManaged.currentReleaseMap.locally(innerReleaseMap)(
+                                             serviceBuilder.scope.flatMap(_.apply(self)).zio
+                                           )
                                          ).exit.flatMap {
                                            case e @ Exit.Failure(cause) =>
                                              promise.failCause(cause) *> innerReleaseMap.releaseAll(
@@ -4625,4 +5096,56 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   ): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21) =>
       g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
+
+  implicit final class ZServiceBuilderProvideSomeOps[RIn, E, ROut](private val self: ZServiceBuilder[RIn, E, ROut])
+      extends AnyVal {
+
+    /**
+     * Feeds the output services of this builder into the input of the specified
+     * builder, resulting in a new builder with the inputs of this builder as
+     * well as any leftover inputs, and the outputs of the specified builder.
+     */
+    def >>>[RIn2, E1 >: E, ROut2](
+      that: ZServiceBuilder[ROut with RIn2, E1, ROut2]
+    )(implicit tag: Tag[ROut], trace: ZTraceElement): ZServiceBuilder[RIn with RIn2, E1, ROut2] =
+      ZServiceBuilder.To(ZServiceBuilder.environment[RIn2] ++ self, that)
+
+    /**
+     * Feeds the output services of this builder into the input of the specified
+     * builder, resulting in a new builder with the inputs of this builder as
+     * well as any leftover inputs, and the outputs of the specified builder.
+     */
+    def >>>[E1 >: E, ROut2](that: ZServiceBuilder[ROut, E1, ROut2])(implicit
+      trace: ZTraceElement
+    ): ZServiceBuilder[RIn, E1, ROut2] =
+      ZServiceBuilder.To(self, that)
+
+    /**
+     * Feeds the output services of this service builder into the input of the
+     * specified service builder, resulting in a new service builder with the
+     * inputs of this service builder, and the outputs of both service builders.
+     */
+    def >+>[RIn2, E1 >: E, ROut2](
+      that: ZServiceBuilder[ROut with RIn2, E1, ROut2]
+    )(implicit
+      tagged: Tag[ROut],
+      tagged2: Tag[ROut2],
+      trace: ZTraceElement
+    ): ZServiceBuilder[RIn with RIn2, E1, ROut with ROut2] =
+      self ++ self.>>>[RIn2, E1, ROut2](that)
+
+    /**
+     * Feeds the output services of this service builder into the input of the
+     * specified service builder, resulting in a new service builder with the
+     * inputs of this service builder, and the outputs of both service builders.
+     */
+    def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
+      that: ZServiceBuilder[RIn2, E1, ROut2]
+    )(implicit
+      tagged: Tag[ROut2],
+      trace: ZTraceElement
+    ): ZServiceBuilder[RIn, E1, ROut1 with ROut2] =
+      self.zipWithPar(self >>> that)(_.union[ROut2](_))
+  }
+
 }
