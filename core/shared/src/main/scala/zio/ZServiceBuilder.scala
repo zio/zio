@@ -3369,7 +3369,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
   def fromServiceManyManaged[A: Tag, R, E, B](f: A => ZManaged[R, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZServiceBuilder[R with A, E, B] =
-    ZServiceBuilder.fromManagedMany(ZManaged.serviceWithManaged(f))
+    ZServiceBuilder.fromManagedMany(ZManaged.serviceWithManaged[A](f))
 
   /**
    * Constructs a service builder that resourcefully and effectfully depends on
