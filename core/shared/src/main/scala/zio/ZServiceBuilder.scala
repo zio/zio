@@ -433,7 +433,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
      * }}}
      */
     val tree: UServiceBuilder[Debug] =
-      ZServiceBuilder.succeed[Debug](Debug.Tree)(Tag[Debug], ???, Tracer.newTrace)
+      ZServiceBuilder.succeed[Debug](Debug.Tree)(Tag[Debug], IsNotIntersection[Debug], Tracer.newTrace)
 
     /**
      * Including this service builder in a call to a compile-time ZServiceBuilder
@@ -468,7 +468,7 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
      * }}}
      */
     val mermaid: UServiceBuilder[Debug] =
-      ZServiceBuilder.succeed[Debug](Debug.Mermaid)(Tag[Debug], ???, Tracer.newTrace)
+      ZServiceBuilder.succeed[Debug](Debug.Mermaid)(Tag[Debug], IsNotIntersection[Debug], Tracer.newTrace)
   }
 
   /**
@@ -476,14 +476,16 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * them into a single ZServiceBuilder containing an equivalent collection of
    * results.
    */
-  def collectAll[R, E, A: Tag, Collection[+Element] <: Iterable[Element]](
+  def collectAll[R, E, A: Tag: IsNotIntersection, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZServiceBuilder[R, E, A]]
   )(implicit
+    ev: IsNotIntersection[Collection[A]],
     tag: Tag[Collection[A]],
     bf: BuildFrom[Collection[ZServiceBuilder[R, E, A]], A, Collection[A]],
     trace: ZTraceElement
-  ): ZServiceBuilder[R, E, Collection[A]] =
+  ): ZServiceBuilder[R, E, Collection[A]] = {
     foreach(in)(i => i)
+  }
 
   /**
    * Constructs a service builder that dies with the specified throwable.
@@ -507,17 +509,18 @@ object ZServiceBuilder extends ZServiceBuilderCompanionVersionSpecific {
    * Applies the function `f` to each element of the `Collection[A]` and returns
    * the results in a new `Collection[B]`.
    */
-  def foreach[R, E, A, B: Tag, Collection[+Element] <: Iterable[Element]](
+  def foreach[R, E, A, B: Tag: IsNotIntersection, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZServiceBuilder[R, E, B])(implicit
+    ev: IsNotIntersection[Collection[B]],
     tag: Tag[Collection[B]],
     bf: BuildFrom[Collection[A], B, Collection[B]],
     trace: ZTraceElement
-  ): ZServiceBuilder[R, E, Collection[B]] =
-    ???
-    // in.foldLeft[ZServiceBuilder[R, E, Builder[B, Collection[B]]]](ZServiceBuilder.succeed(bf.newBuilder(in)))(
-    //    (io, a) => io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
-    //  ).map(environment => ZEnvironment(environment.get.result()))
+  ): ZServiceBuilder[R, E, Collection[B]] = {
+    in.foldLeft[ZServiceBuilder[R, E, Builder[B, Collection[B]]]](ZServiceBuilder.succeed(bf.newBuilder(in)))(
+       (io, a) => io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
+     ).map(environment => ZEnvironment(environment.get.result()))
+  }
 
   /**
    * Constructs a service builder from acquire and release actions. The acquire

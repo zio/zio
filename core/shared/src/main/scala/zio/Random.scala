@@ -109,8 +109,13 @@ object Random extends Serializable {
   /**
    * Constructs a `Random` service from a `scala.util.Random`.
    */
-  val scalaRandom: ZServiceBuilder[scala.util.Random, Nothing, Random] =
-    ???
+  val scalaRandom: ZServiceBuilder[scala.util.Random, Nothing, Random] = {
+    implicit val trace = Tracer.newTrace
+    (for {
+      random <- ZIO.service[scala.util.Random]
+    } yield RandomScala(random)).toServiceBuilder[Random]
+  }
+
 
   private[zio] def nextDoubleBetweenWith(minInclusive0: => Double, maxExclusive0: => Double)(
     nextDouble: UIO[Double]
