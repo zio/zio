@@ -46,25 +46,45 @@ import zio.test._
 val intGen: Gen[Has[Random], Int] = Gen.int
 ```
 
-### Character/String Types
+### Character Generators
 
-* `Gen.alphaChar`
-* `Gen.alphaNumericChar`
+* `Gen.alphaChar` — e.g. `Z, z, A, t, o, e, K, E, y, N`
+* `Gen.alphaNumericChar` — e.g. `b, O, X, B, 4, M, k, 9, a, p`
+* `Gen.asciiChar` — e.g. `, >, , , , 2, k, , , `
+* `Gen.unicodeChar` — e.g. `了, , 옷, 嗀, , 뮲, ﹓, 癮, , ᜣ)`
+* `Gen.numericChar` — e.g. `1, 0, 1, 5, 6, 9, 4, 4, 5, 2`
+* `Gen.printableChar` — e.g. `H, J, (, Q, n, g, 4, G, 9, l`
+* `Gen.whitespaceChars` — e.g. `, ,  , , ,  ,  ,  ,  , `
+* `Gen.hexChar` — e.g. `3, F, b, 5, 9, e, 2, 8, b, e`
+* `Gen.hexCharLower` — e.g. `f, c, 4, 4, c, 2, 5, 4, f, 3`
+* `Gen.hexCharUpper` — e.g. `4, 8, 9, 8, C, 9, F, A, E, C`
+
+### String Generators
+
+1. `Gen.stringBounded` — A generator of strings whose size falls within the specified bounds:
+
+```scala mdoc:compile-only
+Gen.stringBounded(1, 5)(Gen.alphaChar)
+  .runCollectN(10)
+  .debug
+// Sample Ouput: List(b, YJXzY, Aro, y, WMPbj, Abxt, kJep, LKN, kUtr, xJ)
+```
+
+2. `Gen.stringN` — A generator of strings of fixed size:
+
+```scala mdoc:compile-only
+Gen.stringN(5)(Gen.alphaChar)
+  .runCollectN(10)
+  .debug
+// Sample Output: List(BuywQ, tXCEy, twZli, ffLwI, BPEbz, OKYTi, xeDJW, iDUVn, cuMCr, keQAA)
+```
+
+Here are some other string generators:
+
+* `Gen.iso_8859_1`
+* `Gen.asciiString`
 * `Gen.alphaNumericString`
 * `Gen.alphaNumericStringBounded`
-* `Gen.asciiChar`
-* `Gen.unicodeChar`
-* `Gen.numericChar`
-* `Gen.printableChar`
-* `Gen.whitespaceChars`
-* `Gen.hexChar`
-* `Gen.hexCharLower`
-* `Gen.hexCharUpper`
-* `Gen.asciiString`
-* `Gen.iso_8859_1`
-* `Gen.unicodeChar`
-* `Gen.stringBounded`
-* `Gen.stringN`
 
 ### Collection Types
 
