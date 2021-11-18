@@ -4388,7 +4388,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the environment of the stream in the context of a stream.
    */
-  def environmentWithZIOStream[R]: EnvironmentWithStreamPartiallyApplied[R] =
+  def environmentWithStream[R]: EnvironmentWithStreamPartiallyApplied[R] =
     new EnvironmentWithStreamPartiallyApplied[R]
 
   /**

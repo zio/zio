@@ -31,7 +31,7 @@ import slick.jdbc.H2Profile.api._
 import slick.jdbc.JdbcProfile
 import zio.console.Console
 import zio.interop.console.cats.putStrLn
-import zio.{ExitCode, Has, IO, URIO, ZIO, ZServiceBuilder}
+import zio.{ExitCode, IO, URIO, ZEnvironment, ZIO, ZServiceBuilder}
 
 import scala.jdk.CollectionConverters._
 
@@ -61,7 +61,7 @@ object ItemsTable {
 }
 
 object SlickItemRepository {
-  val live: ZServiceBuilder[Has[DatabaseProvider], Throwable, Has[ItemRepository]] =
+  val live: ZServiceBuilder[DatabaseProvider, Throwable, ItemRepository] =
     ZServiceBuilder.fromServiceM { db =>
       db.profile.flatMap { profile =>
         import profile.api._
@@ -74,12 +74,12 @@ object SlickItemRepository {
           def add(name: String): IO[Throwable, Long] =
             ZIO
               .fromDBIO((items returning items.map(_.id)) += Item(0L, name))
-              .provideAll(Has(db))
+              .provideAll(ZEnvironment(db))
 
           def getById(id: Long): IO[Throwable, Option[Item]] = {
             val query = items.filter(_.id === id).result
 
-            ZIO.fromDBIO(query).map(_.headOption).provideAll(Has(db))
+            ZIO.fromDBIO(query).map(_.headOption).provideAll(ZEnvironment(db))
           }
 
           def upsert(name: String): IO[Throwable, Long] =
@@ -92,10 +92,10 @@ object SlickItemRepository {
                   )(item => (items.map(_.name) update name).map(_ => item.id))
                 } yield id).transactionally
               }
-              .provideAll(Has(db))
+              .provideAll(Environment(db))
         }
 
-        initialize.as(repository).provideAll(Has(db))
+        initialize.as(repository).provideAll(Environment(db))
       }
     }
 }
@@ -111,7 +111,7 @@ object Main extends zio.App {
     ).asJava
   )
 
-  private val env: ZServiceBuilder[Any, Throwable, Has[ItemRepository]] =
+  private val env: ZServiceBuilder[Any, Throwable, ItemRepository] =
     (ZServiceBuilder.succeed(config) ++ ZServiceBuilder.succeed[JdbcProfile](
       slick.jdbc.H2Profile
     )) >>> DatabaseProvider.live >>> SlickItemRepository.live

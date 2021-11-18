@@ -39,7 +39,7 @@ val configString: URIO[Config, String] =
   } yield s"Server: $server, port: $port"
 ```
 
-Even effects themselves can be stored in the environment! In this case, to access and execute an effect, the `ZIO.environmentWithZIO` method can be used.
+Even effects themselves can be stored in the environment! In this case, to access and execute an effect, the `ZIO.serviceWithZIO` method can be used.
 
 ```scala mdoc:silent
 trait DatabaseOps {
@@ -49,8 +49,8 @@ trait DatabaseOps {
 
 val tablesAndColumns: ZIO[DatabaseOps, Throwable, (List[String], List[String])] = 
   for {
-    tables  <- ZIO.serviceWith[DatabaseOps](_.getTableNames)
-    columns <- ZIO.serviceWith[DatabaseOps](_.getColumnNames("user_table"))
+    tables  <- ZIO.serviceWithZIO[DatabaseOps](_.getTableNames)
+    columns <- ZIO.serviceWithZIO[DatabaseOps](_.getColumnNames("user_table"))
   } yield (tables, columns)
 ```
 
@@ -111,19 +111,19 @@ In this example,  `Database` is the _module_, which contains the `Database.Servi
 
 ### Provide Helpers
 
-In order to make it easier to access the database service as an environmental effect, we will define helper functions that use `ZIO.environmentWithZIO`.
+In order to make it easier to access the database service as an environmental effect, we will define helper functions that use `ZIO.serviceWithZIO`.
 
 ```scala mdoc:silent
 object db {
   def lookup(id: UserID): RIO[Database, UserProfile] =
-    ZIO.serviceWith(_.database.lookup(id))
+    ZIO.serviceWithZIO(_.database.lookup(id))
 
   def update(id: UserID, profile: UserProfile): RIO[Database, Unit] =
-    ZIO.serviceWith(_.database.update(id, profile))
+    ZIO.serviceWithZIO(_.database.update(id, profile))
 }
 ```
 
-While these helpers are not required, because we can access the database module directly through `ZIO.environmentWithZIO`, the helpers are easy to write and make use-site code simpler.
+While these helpers are not required, because we can access the database module directly through `ZIO.serviceWithZIO`, the helpers are easy to write and make use-site code simpler.
 
 ### Use the Service
 

@@ -332,10 +332,10 @@ object UserRepo {
 
   //accessor methods
   def getUser(userId: UserId): ZIO[UserRepo, DBError, Option[User]] =
-    ZIO.environmentWithZIO(_.get.getUser(userId))
+    ZIO.serviceWithZIO(_.getUser(userId))
 
   def createUser(user: User): ZIO[UserRepo, DBError, Unit] =
-    ZIO.environmentWithZIO(_.get.createUser(user))
+    ZIO.serviceWithZIO(_.createUser(user))
 }
 
 
@@ -356,10 +356,10 @@ object Logging {
 
   //accessor methods
   def info(s: String): URIO[Logging, Unit] =
-    ZIO.environmentWithZIO(_.get.info(s))
+    ZIO.serviceWithZIO(_.info(s))
 
   def error(s: String): URIO[Logging, Unit] =
-    ZIO.environmentWithZIO(_.get.error(s))
+    ZIO.serviceWithZIO(_.error(s))
 }
 
 
@@ -591,7 +591,7 @@ object moduleA {
   }
 
   def letsGoA(v: Int): URIO[ModuleA, String] =
-    ZIO.environmentWithZIO(_.get.letsGoA(v))
+    ZIO.serviceWithZIO(_.letsGoA(v))
 }
 
 import moduleA._
@@ -616,7 +616,7 @@ object moduleB {
   }
 
   def letsGoB(v: Int): URIO[ModuleB, String] =
-    ZIO.environmentWithZIO(_.get.letsGoB(v))
+    ZIO.serviceWithZIO(_.letsGoB(v))
 }
 
 object ZServiceBuilderApp0 extends zio.App {
@@ -699,7 +699,7 @@ object ZServiceBuilderApp1 extends scala.App {
       }
 
     val foo: URIO[ModuleC, Int] =
-      ZIO.environmentWithZIO(_.get.foo)
+      ZIO.serviceWithZIO(_.foo)
   }
 
   val env = (ModuleA.live ++ ModuleB.live ++ ZServiceBuilder.environment[Clock]) >>> ModuleC.live

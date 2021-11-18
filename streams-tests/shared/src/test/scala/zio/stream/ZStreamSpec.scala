@@ -46,48 +46,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(res1)(fails(equalTo(s))) && assert(res2)(fails(equalTo(s)))
           })
         ) @@ TestAspect.jvmOnly, // This is horrendously slow on Scala.js for some reason
-        test("access") {
-          for {
-            result <- ZStream.service[String].provideAll(ZEnvironment("test")).runHead.some
-          } yield assert(result)(equalTo("test"))
-        },
-        suite("environmentWithZIO")(
-          test("environmentWithZIO") {
-            for {
-              result <- ZStream
-                          .environmentWithZIO[String](environment => ZIO.succeed(environment.get))
-                          .provideAll(ZEnvironment("test"))
-                          .runHead
-                          .some
-            } yield assert(result)(equalTo("test"))
-          },
-          test("environmentWithZIO fails") {
-            for {
-              result <- ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provideAll(ZEnvironment(0)).runHead.exit
-            } yield assert(result)(fails(equalTo("fail")))
-          } @@ zioTag(errors)
-        ),
-        suite("environmentWithZIOStream")(
-          test("environmentWithZIOStream") {
-            for {
-              result <- ZStream
-                          .environmentWithZIOStream[String](environment => ZStream.succeed(environment.get))
-                          .provideAll(ZEnvironment("test"))
-                          .runHead
-                          .some
-            } yield assert(result)(equalTo("test"))
-          },
-          test("environmentWithZIOStream fails") {
-            for {
-              result <-
-                ZStream
-                  .environmentWithZIOStream[Int](_ => ZStream.fail("fail"))
-                  .provideAll(ZEnvironment(0))
-                  .runHead
-                  .exit
-            } yield assert(result)(fails(equalTo("fail")))
-          } @@ zioTag(errors)
-        ),
         suite("aggregateAsync")(
           test("simple example") {
             ZStream(1, 1, 1, 1)
@@ -1206,6 +1164,48 @@ object ZStreamSpec extends ZIOBaseSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Ensuring", "Release", "Use", "Acquire")))
         },
+        test("environmentWith") {
+          for {
+            result <- ZStream.service[String].provideAll(ZEnvironment("test")).runHead.some
+          } yield assert(result)(equalTo("test"))
+        },
+        suite("environmentWithZIO")(
+          test("environmentWithZIO") {
+            for {
+              result <- ZStream
+                          .environmentWithZIO[String](environment => ZIO.succeed(environment.get))
+                          .provideAll(ZEnvironment("test"))
+                          .runHead
+                          .some
+            } yield assert(result)(equalTo("test"))
+          },
+          test("environmentWithZIO fails") {
+            for {
+              result <- ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provideAll(ZEnvironment(0)).runHead.exit
+            } yield assert(result)(fails(equalTo("fail")))
+          } @@ zioTag(errors)
+        ),
+        suite("environmentWithStream")(
+          test("environmentWithStream") {
+            for {
+              result <- ZStream
+                          .environmentWithStream[String](environment => ZStream.succeed(environment.get))
+                          .provideAll(ZEnvironment("test"))
+                          .runHead
+                          .some
+            } yield assert(result)(equalTo("test"))
+          },
+          test("environmentWithStream fails") {
+            for {
+              result <-
+                ZStream
+                  .environmentWithStream[Int](_ => ZStream.fail("fail"))
+                  .provideAll(ZEnvironment(0))
+                  .runHead
+                  .exit
+            } yield assert(result)(fails(equalTo("fail")))
+          } @@ zioTag(errors)
+        ),
         test("filter")(check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
@@ -4100,7 +4100,33 @@ object ZStreamSpec extends ZIOBaseSpec {
         )
       ),
       suite("Constructors")(
-        test("access") {
+        test("rechunk") {
+          check(tinyChunkOf(Gen.chunkOf(Gen.int)) <*> (Gen.int(1, 100))) { case (chunk, n) =>
+            val expected = Chunk.fromIterable(chunk.flatten.grouped(n).toList)
+            assertM(
+              ZStream
+                .fromChunks(chunk: _*)
+                .rechunk(n)
+                .mapChunks(ch => Chunk(ch))
+                .runCollect
+            )(equalTo(expected))
+          }
+        },
+        test("concatAll") {
+          check(tinyListOf(Gen.chunkOf(Gen.int))) { chunks =>
+            assertM(
+              ZStream.concatAll(Chunk.fromIterable(chunks.map(ZStream.fromChunk(_)))).runCollect
+            )(
+              equalTo(Chunk.fromIterable(chunks).flatten)
+            )
+          }
+        },
+        test("environment") {
+          for {
+            result <- ZStream.service[String].provideAll(ZEnvironment("test")).runCollect.map(_.head)
+          } yield assert(result)(equalTo("test"))
+        },
+        test("environmentWithZIO") {
           for {
             result <- ZStream.service[String].provideAll(ZEnvironment("test")).runCollect.map(_.head)
           } yield assert(result)(equalTo("test"))
@@ -4142,32 +4168,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        test("rechunk") {
-          check(tinyChunkOf(Gen.chunkOf(Gen.int)) <*> (Gen.int(1, 100))) { case (chunk, n) =>
-            val expected = Chunk.fromIterable(chunk.flatten.grouped(n).toList)
-            assertM(
-              ZStream
-                .fromChunks(chunk: _*)
-                .rechunk(n)
-                .mapChunks(ch => Chunk(ch))
-                .runCollect
-            )(equalTo(expected))
-          }
-        },
-        test("concatAll") {
-          check(tinyListOf(Gen.chunkOf(Gen.int))) { chunks =>
-            assertM(
-              ZStream.concatAll(Chunk.fromIterable(chunks.map(ZStream.fromChunk(_)))).runCollect
-            )(
-              equalTo(Chunk.fromIterable(chunks).flatten)
-            )
-          }
-        },
-        test("environment") {
-          for {
-            result <- ZStream.service[String].provideAll(ZEnvironment("test")).runCollect.map(_.head)
-          } yield assert(result)(equalTo("test"))
-        },
         suite("finalizer")(
           test("happy path") {
             for {

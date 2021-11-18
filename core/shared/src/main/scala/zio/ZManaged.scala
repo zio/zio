@@ -263,6 +263,15 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZManaged[R1, E1, B]](v, _ => ZManaged.fail(e)))
 
   /**
+   * Transforms the environment being provided to this effect with the
+   * specified function.
+   */
+  def contramapEnvironment[R0](
+    f: ZEnvironment[R0] => ZEnvironment[R]
+  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
+    ZManaged(zio.contramapEnvironment(f))
+
+  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail
    */
@@ -809,11 +818,41 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     }
 
   /**
+   * Provides a service builder to the `ZManaged`, which translates it to
+   * another level.
+   */
+  final def provide[E1 >: E, R0, R1](
+    serviceBuilder: => ZServiceBuilder[R0, E1, R1]
+  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
+    ZManaged.suspend(serviceBuilder.build.map(_.upcast(ev)).flatMap(r => self.provideAll(r)))
+
+  /**
    * Provides the `ZManaged` effect with its required environment, which
    * eliminates its dependency on `R`.
    */
   def provideAll(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Managed[E, A] =
-    contramap(_ => r)
+    contramapEnvironment(_ => r)
+
+  /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a managed effect that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   *
+   * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideCustom(loggingServiceBuilder)
+   * }}}
+   */
+  final def provideCustom[E1 >: E, R1](
+    serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
+  )(implicit
+    ev: ZEnv with R1 <:< R,
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZManaged[ZEnv, E1, A] =
+    provideSome[ZEnv](serviceBuilder)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -846,17 +885,17 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideCustom(loggingServiceBuilder)
+   * val managed2 = managed.provideCustomServices(loggingServiceBuilder)
    * }}}
    */
-  final def provideCustom[E1 >: E, R1](
+  final def provideCustomServices[E1 >: E, R1](
     serviceBuilder: => ZServiceBuilder[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
-    provideSome[ZEnv](serviceBuilder)
+    provideCustom(serviceBuilder)
 
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
@@ -871,18 +910,25 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Provides a service builder to the `ZManaged`, which translates it to
    * another level.
    */
-  final def provide[E1 >: E, R0, R1](
+  final def provideServices[E1 >: E, R0, R1](
     serviceBuilder: => ZServiceBuilder[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    ZManaged.suspend(serviceBuilder.build.map(_.upcast(ev)).flatMap(r => self.provideAll(r)))
+    provide(serviceBuilder)
 
   /**
-   * Provides some of the environment required to run this effect.
+   * Splits the environment into two parts, providing one part using the
+   * specified service builder and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   *
+   * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideSome[Random](clockServiceBuilder)
+   * }}}
    */
-  def contramap[R0](
-    f: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
-    ZManaged(zio.contramapEnvironment(f))
+  final def provideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
+    new ZManaged.ProvideSome[R0, R, E, A](self)
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -909,11 +955,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    *
    * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideSome[Random](clockServiceBuilder)
+   * val managed2 = managed.provideSomeServices[Random](clockServiceBuilder)
    * }}}
    */
-  final def provideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
-    new ZManaged.ProvideSome[R0, R, E, A](self)
+  final def provideSomeServices[R0]: ZManaged.ProvideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -1499,12 +1545,12 @@ object ZManaged extends ZManagedPlatformSpecific {
   private final case class Running(nextKey: Long, finalizers: LongMap[Finalizer], update: Finalizer => Finalizer)
       extends State
 
-  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): ZManaged[R, Nothing, A] =
       ZManaged.environment.map(f)
   }
 
-  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit
       trace: ZTraceElement
     ): ZManaged[R with R1, E, A] =
@@ -1529,6 +1575,14 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](f: Service => A)(implicit
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZManaged[Service, Nothing, A] =
+      ZManaged.fromZIO(ZIO.serviceWith[Service](f))
+  }
+
+  final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZIO[R, E, A])(implicit
       tag: Tag[Service],
       trace: ZTraceElement
@@ -1541,7 +1595,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[R with Service, E, A] =
-      ZManaged.environmentWithZIOManaged(environment => f(environment.get(tag)))
+      ZManaged.environmentWithManaged(environment => f(environment.get(tag)))
   }
 
   /**
@@ -1584,14 +1638,14 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
-      self.contramap(_.update(f))
+      self.contramapEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZManaged[R1, E, A] =
-      self.contramap(_.updateAt(key)(f))
+      self.contramapEnvironment(_.updateAt(key)(f))
   }
 
   final class WhenManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
@@ -1823,28 +1877,30 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Create a managed that accesses the environment.
    */
-  @deprecated("use serviceWith", "2.0.0")
-  def access[R]: AccessPartiallyApplied[R] =
-    new AccessPartiallyApplied
+  @deprecated("use environmentWith", "2.0.0")
+  def access[R]: EnvironmentWithPartiallyApplied[R] =
+    environmentWith
 
   /**
    * Create a managed that accesses the environment.
    */
   @deprecated("use environmentWithZIO", "2.0.0")
-  def accessM[R]: EnvironmentWithPartiallyApplied[R] =
+  def accessM[R]: EnvironmentWithZIOPartiallyApplied[R] =
     environmentWithZIO
 
   /**
    * Create a managed that accesses the environment.
    */
-  def environmentWithZIO[R]: EnvironmentWithPartiallyApplied[R] =
-    new EnvironmentWithPartiallyApplied
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessZIO[R]: EnvironmentWithZIOPartiallyApplied[R] =
+    environmentWithZIO
 
   /**
    * Create a managed that accesses the environment.
    */
-  def environmentWithZIOManaged[R]: EnvironmentWithManagedPartiallyApplied[R] =
-    new EnvironmentWithManagedPartiallyApplied
+  @deprecated("use environmentWithManaged", "2.0.0")
+  def accessManaged[R]: EnvironmentWithManagedPartiallyApplied[R] =
+    environmentWithManaged
 
   /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that
@@ -2168,6 +2224,25 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def environment[R](implicit trace: ZTraceElement): ZManaged[R, Nothing, ZEnvironment[R]] =
     ZManaged.fromZIO(ZIO.environment)
+
+  /**
+   * Create a managed that accesses the environment.
+   */
+  @deprecated("use serviceWith", "2.0.0")
+  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+    new EnvironmentWithPartiallyApplied
+
+  /**
+   * Create a managed that accesses the environment.
+   */
+  def environmentWithManaged[R]: EnvironmentWithManagedPartiallyApplied[R] =
+    new EnvironmentWithManagedPartiallyApplied
+
+  /**
+   * Create a managed that accesses the environment.
+   */
+  def environmentWithZIO[R]: EnvironmentWithZIOPartiallyApplied[R] =
+    new EnvironmentWithZIOPartiallyApplied
 
   /**
    * Determines whether any element of the `Iterable[A]` satisfies the effectual
@@ -2543,7 +2618,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def fromFunctionM[R, E, A](f: ZEnvironment[R] => ZManaged[Any, E, A])(implicit
     trace: ZTraceElement
   ): ZManaged[R, E, A] =
-    environmentWithZIOManaged(f)
+    environmentWithManaged(f)
 
   /**
    * Lifts an `Option` into a `ZManaged` but preserves the error as an option in
@@ -3242,7 +3317,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
-   * Effectfully accesses the specified service in the environment of the
+   * Accesses the specified service in the environment of the
    * effect.
    *
    * {{{
@@ -3251,6 +3326,17 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
     new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Effectfully accesses the specified service in the environment of the
+   * effect.
+   *
+   * {{{
+   * def foo(int: Int) = ZManaged.serviceWith[Foo](_.foo(int))
+   * }}}
+   */
+  def serviceWithZIO[Service]: ServiceWithZIOPartiallyApplied[Service] =
+    new ServiceWithZIOPartiallyApplied[Service]
 
   /**
    * Effectfully accesses the specified managed service in the environment of

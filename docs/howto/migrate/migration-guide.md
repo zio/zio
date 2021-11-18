@@ -132,8 +132,8 @@ Here are some of the most important changes:
 | `ZIO#to`                       | `ZIO#intoPromise`                 |
 | `ZIO#asService`                | `ZIO#toServiceBuilder`            |
 |                                |                                   |
-| `ZIO.accessM`                  | `ZIO.environmentWithZIO`                   |
-| `ZIO.fromFunctionM`            | `ZIO.environmentWithZIO`                   |
+| `ZIO.accessM`                  | `ZIO.environmentWithZIO`          |
+| `ZIO.fromFunctionM`            | `ZIO.environmentWithZIO`          |
 | `ZIO.fromFunction`             | `ZIO.access`                      |
 | `ZIO.services`                 | `ZIO.service`                     |
 |                                |                                   |
@@ -844,8 +844,8 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 | ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
 |--------------------------------------------------------|----------------------------|
 | `ZIO#provide`                                          | `ZIO#inject`               |
-| `ZIO#provideSome`                              | `ZIO#injectSome`           |
-| `ZIO#provideCustom`                            | `ZIO#injectCustom`         |
+| `ZIO#provideSome`                                      | `ZIO#injectSome`           |
+| `ZIO#provideCustom`                                    | `ZIO#injectCustom`         |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wire`     |
 | Composing manually using `ZServiceBuilder` combinators | `ZServiceBuilder#wireSome` |
 
@@ -1109,7 +1109,7 @@ Here is list of other deprecated methods:
 | `ZManaged#whenM`                     | `ZManaged#whenManaged`                     |
 |                                      |                                            |
 | `ZManaged.fromFunction`              | `ZManaged.access`                          |
-| `ZManaged.fromFunctionM`             | `ZManaged.environmentWithZIOManaged`                   |
+| `ZManaged.fromFunctionM`             | `ZManaged.environmentWithZIOManaged`             |
 | `ZManaged.fromEffect`                | `ZManaged.fromZIO`                         |
 | `ZManaged.fromEffectUninterruptible` | `ZManaged.fromZIOUninterruptible`          |
 | `ZManaged.effect`                    | `ZManaged.attempt`                         |
@@ -1122,7 +1122,7 @@ Here is list of other deprecated methods:
 |                                      |                                            |
 | `ZManaged#use_`                      | `ZManaged#useDiscard`                      |
 | `ZManaged.require`                   | `ZManaged.someOrFail`                      |
-| `ZManaged.accessM`                   | `ZManaged.environmentWithZIO`                       |
+| `ZManaged.accessM`                   | `ZManaged.environmentWithZIO`                    |
 | `ZManaged#rejectM`                   | `ZManaged#rejectManaged`                   |
 | `ZManaged#tapM`                      | `ZManaged#tapZIO`                          |
 | `ZManaged#on`                        | `ZManaged#onExecutionContext`              |

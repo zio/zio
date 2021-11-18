@@ -563,7 +563,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Accesses the environment of the sink in the context of a sink.
    */
-  def environmentWithZIOSink[R]: EnvironmentWithSinkPartiallyApplied[R] =
+  def environmentWithSink[R]: EnvironmentWithSinkPartiallyApplied[R] =
     new EnvironmentWithSinkPartiallyApplied[R]
 
   def collectAll[Err, In](implicit trace: ZTraceElement): ZSink[Any, Err, In, Err, Nothing, Chunk[In]] = {
@@ -1454,6 +1454,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     def apply[R1 <: R, InErr, In, OutErr, L, Z](
       f: ZEnvironment[R] => ZSink[R1, InErr, In, OutErr, L, Z]
     )(implicit trace: ZTraceElement): ZSink[R with R1, InErr, In, OutErr, L, Z] =
-      new ZSink(ZChannel.unwrap(ZIO.environment[R].map(f(_).channel)))
+      new ZSink(ZChannel.unwrap(ZIO.environmentWith[R](f(_).channel)))
   }
 }

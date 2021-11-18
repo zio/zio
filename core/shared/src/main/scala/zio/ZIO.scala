@@ -5402,7 +5402,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Updates a state in the environment with the specified function.
    */
   def updateState[S: Tag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
-    ZIO.serviceWith(_.update(f))
+    ZIO.serviceWithZIO(_.update(f))
 
   /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error

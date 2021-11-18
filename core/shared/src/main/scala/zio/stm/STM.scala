@@ -249,7 +249,7 @@ object STM {
    * @see
    *   See [[zio.stm.ZSTM.fromFunctionM]]
    */
-  @deprecated("use environmentWithZIO", "2.0.0")
+  @deprecated("use environmentWithZSTM", "2.0.0")
   def fromFunctionM[E, A](f: Any => STM[E, A]): STM[E, A] =
     ZSTM.fromFunctionM(f)
 
