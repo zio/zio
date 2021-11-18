@@ -26,6 +26,7 @@ In the companion object of the `Gen` data type, there are tons of generators for
 
 * `Gen.int` — e.g:  -1, 2, 59, 123, 0, -11323, 4, -425084233, ...
 * `Gen.string` — e.g: "3r%~9", "", "d", "3A34", ...
+* `Gen.string1`
 * `Gen.boolean` — true, false, false, true, true, true, ...
 * `Gen.float` 
 * `Gen.double`
@@ -33,16 +34,157 @@ In the companion object of the `Gen` data type, there are tons of generators for
 * `Gen.byte`
 * `Gen.bigdecimal`
 * `Gen.long`
+* `Gen.char`
+* `Gen.short`
 
-### Specialized Types
+Let's create an `Int` generator:
 
-* `Gen.iso_8859_1`
-* `Gen.unicodeChar`
-* `Gen.asciiString`
-* `Gen.asciiChar`
+```scala mdoc:silent:nest
+import zio._
+import zio.test._
+
+val intGen: Gen[Has[Random], Int] = Gen.int
+```
+
+### Character/String Types
+
+* `Gen.alphaChar`
 * `Gen.alphaNumericChar`
 * `Gen.alphaNumericString`
 * `Gen.alphaNumericStringBounded`
+* `Gen.asciiChar`
+* `Gen.unicodeChar`
+* `Gen.numericChar`
+* `Gen.printableChar`
+* `Gen.whitespaceChars`
+* `Gen.hexChar`
+* `Gen.hexCharLower`
+* `Gen.hexCharUpper`
+* `Gen.asciiString`
+* `Gen.iso_8859_1`
+* `Gen.unicodeChar`
+* `Gen.stringBounded`
+* `Gen.stringN`
+
+### Collection Types
+
+* `Gen.setOf`
+* `Gen.setOf1`
+* `Gen.setOfBounded`
+* `Gen.setOfN`
+* `Gen.vectorOf`
+* `Gen.vectorOf1`
+* `Gen.vectorOfBounded`
+* `Gen.vectorOfN`
+* `Gen.mapOf`
+* `Gen.mapOf1`
+* `Gen.mapOfN`
+* `Gen.mapOfBounded`
+
+### PartialFunction Types
+
+* `Gen.partialFunction`
+* `Gen.partialFunctionWith`
+
+### Deterministic Generators
+
+* `Gen.empty`
+* `Gen.elements`
+* `Gen.fromIterable`
+
+### Suspended Generator
+
+* `Gen.suspend` — Lazily constructs a generator. This is useful to avoid infinite recursion when creating generators that refer to themselves.
+
+### Unfold Generator
+
+* `Gen.unfoldGen`
+* `Gen.unfoldGenN`
+
+### From Constant Values
+
+1. `Gen.constSample`
+
+  ```scala mdoc:compile-only
+  val gen: Gen[Any, Int] = Gen.constSample(Sample.noShrink(5))
+  ```
+  
+2. `Gen.fromZIOSample`
+
+   ```scala mdoc:compile-only
+   val gen: Gen[Has[Random], Int] =
+     Gen.fromZIOSample(
+       Random.nextInt.map(Sample.shrinkIntegral(0))
+     )
+   ```
+   
+3. `Gen.fromRandomSample`
+
+  ```scala mdoc:compile-only
+  val gen: Gen[Has[Random], Int] =
+    Gen.fromRandomSample(
+      _.nextIntBounded(20).map(Sample.shrinkIntegral(0))
+    )
+  ```
+
+4. `Gen.fromRandom`
+
+  ```scala mdoc:compile-only
+  val gen: Gen[Has[Random], Int] = Gen.fromRandom(_.nextInt) 
+  ```
+  
+5. `Gen.fromZIO`
+
+   ```scala mdoc:compile-only
+   val gen: Gen[Has[Random], Int] = Gen.fromZIO(Random.nextInt) 
+   ```
+
+### Uniform and Non-uniform Generators
+
+1. `Gen.uniform` — A generator of uniformly distributed doubles between [0, 1].
+
+2. `Gen.weighted` — A generator which chooses one of the given generators according to their weights. For example, the following generator will generate 90% true and 10% false values:
+
+```scala mdoc:compile-only
+val trueFalse = Gen.weighted((Gen.const(true), 9), (Gen.const(false), 1))
+trueFalse.runCollectN(10).debug
+// Sample Output: List(false, false, false, false, false, false, false, false, true, false)
+```
+
+3. `Gen.exponential` — A generator of exponentially distributed doubles with mean `1`:
+
+```scala mdoc:compile-only
+Gen.exponential.map(x => math.round(x * 100) / 100.0)
+  .runCollectN(10)
+  .debug
+// Sample Output: List(0.22, 3.02, 1.96, 1.13, 0.81, 0.92, 1.7, 1.47, 1.55, 0.46)
+```
+
+### Specialized Types
+
+* `Gen.oneOf`
+* `Gen.throwable`
+* `Gen.uniform`
+* `Gen.unit`
+* `Gen.uuid`
+* `Gen.option`
+* `Gen.some`
+* `Gen.none`
+
+### Others
+
+* `Gen.bounded`
+* `Gen.chunkOf`
+* `Gen.chunkOf1`
+* `Gen.chunkOfBounded`
+* `Gen.chunkOfN`
+* `Gen.collectAll`
+* `Gen.concatAll`
+* `Gen.const`
+* `Gen.listOf`
+* `Gen.listOf1`
+* `Gen.listOfBounded`
+* `Gen.listOfN` 
 
 ### Generating Date/Time Types
 
@@ -206,17 +348,54 @@ val listOfInts: Gen[Has[Random] with Has[Sized], List[Int]] =
 
 ### Sized Generators
 
-1. `Gen.small`
-2. `Gen.medium`
-3. `Gen.large`
+1. `Gen.sized`
 
-Let's create an `Int` generator:
+```scala mdoc:compile-only
+Gen.sized(Gen.int(0, _))
+  .runCollectN(10)
+  .provideCustomLayer(Sized.live(5))
+  .debug
+// Output: List(5, 4, 1, 2, 0, 4, 2, 0, 1, 2)
+```
 
-```scala mdoc:silent:nest
-import zio._
-import zio.test._
+2. `Gen.size`
 
-val intGen: Gen[Has[Random], Int] = Gen.int
+```scala mdoc:compile-only
+Gen.size.flatMap(Gen.int(0, _))
+  .runCollectN(10)
+  .provideCustomLayer(Sized.live(5))
+  .debug
+// Output: List(3, 1, 4, 0, 4, 3, 1, 1, 5, 5)
+```
+
+3. `Gen.small`
+
+```scala mdoc:compile-only
+Gen.small(Gen.const(_))
+        .runCollectN(10)
+        .provideCustomLayer(Sized.live(1000))
+        .debug
+// Output: List(6, 39, 73, 3, 57, 51, 40, 12, 110, 46)
+```
+
+4. `Gen.medium`
+
+```scala mdoc:compile-only
+Gen.medium(Gen.const(_))
+        .runCollectN(10)
+        .provideCustomLayer(Sized.live(1000))
+        .debug
+// Output: List(93, 42, 58, 228, 42, 5, 12, 214, 106, 79)
+```
+
+5. `Gen.large`
+
+```scala mdoc:compile-only
+Gen.large(Gen.const(_))
+  .runCollectN(10)
+  .provideCustomLayer(Sized.live(1000))
+  .debug
+// Ouput: List(797, 218, 596, 278, 301, 779, 165, 486, 695, 788)
 ```
 
 ## Running a Generator
