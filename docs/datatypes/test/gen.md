@@ -96,11 +96,35 @@ Here are some other string generators:
 * `Gen.partialFunction`
 * `Gen.partialFunctionWith`
 
-### Deterministic Generators
+### Generating from Fixed Values
 
 * `Gen.empty`
-* `Gen.elements`
-* `Gen.fromIterable`
+
+1. `Gen.elements` — Constructs a non-deterministic generator that only generates randomly from the fixed values:
+
+```scala mdoc:compile-only
+import java.time._
+
+Gen.elements(
+  DayOfWeek.MONDAY,
+  DayOfWeek.TUESDAY,
+  DayOfWeek.WEDNESDAY,
+  DayOfWeek.THURSDAY,
+  DayOfWeek.FRIDAY,
+  DayOfWeek.SATURDAY,
+  DayOfWeek.SUNDAY
+).runCollectN(3).debug
+// Sample Output: List(WEDNESDAY, THURSDAY, SUNDAY)
+```
+
+2. `Gen.fromIterable` — Constructs a deterministic generator that only generates the specified fixed values:
+
+```scala mdoc:compile-only
+Gen.fromIterable(List("red", "green", "blue"))
+  .runCollectN(10)
+  .debug
+// Output: List(red, green, blue, red, green, blue, red, green, blue, red)
+```
 
 ### Suspended Generator
 
