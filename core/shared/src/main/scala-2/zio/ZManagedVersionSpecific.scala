@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.ServiceBuilderMacros
+import zio.internal.macros.LayerMacros
 
 private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
 
@@ -28,57 +28,51 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
    *
    * {{{
    * val managed: ZManaged[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyServiceBuilder: ZServiceBuilder[Fly, Nothing, OldLady] = ???
-   * val flyServiceBuilder: ZServiceBuilder[Blocking, Nothing, Fly] = ???
+   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
+   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyServiceBuilder and Console to managed
-   * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.injectCustom(oldLadyServiceBuilder, flyServiceBuilder)
+   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to managed
+   * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.injectCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def injectCustom[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[ZEnv, E1, A] =
-    macro ServiceBuilderMacros.injectSomeImpl[ZManaged, ZEnv, R, E1, A]
+  def injectCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[ZEnv, E1, A] =
+    macro LayerMacros.injectSomeImpl[ZManaged, ZEnv, R, E1, A]
 
   /**
    * Splits the environment into two parts, assembling one part using the
-   * specified service builder and leaving the remainder `R0`.
+   * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
    * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
    *
-   * val managed2 = managed.injectSome[Random](clockServiceBuilder)
+   * val managed2 = managed.injectSome[Random](clockLayer)
    * }}}
    */
-  def injectSome[R0]: ProvideSomeServiceBuilderManagedPartiallyApplied[R0, R, E, A] =
-    new ProvideSomeServiceBuilderManagedPartiallyApplied[R0, R, E, A](self)
+  def injectSome[R0]: ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A] =
+    new ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A](self)
 
   /**
-   * Automatically assembles a service builder for the ZManaged effect.
+   * Automatically assembles a layer for the ZManaged effect.
    */
-  def inject[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[Any, E1, A] =
-    macro ServiceBuilderMacros.injectImpl[ZManaged, R, E1, A]
+  def inject[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[Any, E1, A] =
+    macro LayerMacros.injectImpl[ZManaged, R, E1, A]
 
 }
 
-private final class ProvideSomeServiceBuilderManagedPartiallyApplied[R0, -R, +E, +A](
+private final class ProvideSomeLayerManagedPartiallyApplied[R0, -R, +E, +A](
   val self: ZManaged[R, E, A]
 ) extends AnyVal {
 
   def provide[E1 >: E, R1](
-    serviceBuilder: ZServiceBuilder[R0, E1, R1]
+    layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    self.provide(serviceBuilder)
+    self.provide(layer)
 
   @deprecated("use provide", "2.0.0")
   def provideLayer[E1 >: E, R1](
-    layer: ZServiceBuilder[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    provide(layer)
-
-  @deprecated("use provide", "2.0.0")
-  def provideServices[E1 >: E, R1](
-    layer: ZServiceBuilder[R0, E1, R1]
+    layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
     provide(layer)
 
@@ -89,10 +83,6 @@ private final class ProvideSomeServiceBuilderManagedPartiallyApplied[R0, -R, +E,
   def provideSomeLayer[R0]: ZManaged.ProvideSome[R0, R, E, A] =
     provideSome
 
-  @deprecated("use provideSome", "2.0.0")
-  def provideSomeServices[R0]: ZManaged.ProvideSome[R0, R, E, A] =
-    provideSome
-
-  def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[R0, E1, A] =
-    macro ServiceBuilderMacros.injectSomeImpl[ZManaged, R0, R, E1, A]
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
+    macro LayerMacros.injectSomeImpl[ZManaged, R0, R, E1, A]
 }

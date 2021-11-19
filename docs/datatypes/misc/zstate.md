@@ -21,7 +21,7 @@ val myApp: ZIO[Console, IOException, Unit] =
   } yield ()
 ```
 
-The idiomatic way to work with `ZState` is as part of the environment using operators defined on `ZIO`. So instead of creating `ZState` directly using `ZState.make` constructor, we can access the `ZState` from the environment, and finally, provide proper service builder using `ZState.makeServiceBuilder` constructor:
+The idiomatic way to work with `ZState` is as part of the environment using operators defined on `ZIO`. So instead of creating `ZState` directly using `ZState.make` constructor, we can access the `ZState` from the environment, and finally, provide proper layer using `ZState.makeLayer` constructor:
 
 ```scala mdoc:compile-only
 import zio._
@@ -37,7 +37,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _ <- Console.printLine(s"current state: $state")
   } yield ()
 
-  def run = myApp.injectCustom(ZState.makeServiceBuilder(0))
+  def run = myApp.injectCustom(ZState.makeLayer(0))
 }
 ```
 
@@ -60,7 +60,7 @@ object ZStateExample extends zio.ZIOAppDefault {
       _ <- Console.printLine(s"Current state: $state")
     } yield ()
 
-  def run = myApp.injectCustom(ZState.makeServiceBuilder(MyState(0)))
+  def run = myApp.injectCustom(ZState.makeLayer(MyState(0)))
 }
 ```
 
@@ -106,7 +106,7 @@ object ZStateExample extends ZIOAppDefault {
 
   def run =
     myApp.injectCustom(
-      ZState.makeServiceBuilder(MyState(0))
+      ZState.makeLayer(MyState(0))
     )
 }
 ```

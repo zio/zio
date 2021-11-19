@@ -20,7 +20,7 @@ Since the ZIO Redis is in the experimental phase, it is not released yet.
 
 ## Example
 
-To execute our ZIO Redis effect, we should provide the `RedisExecutor` service builder to that effect. To create this service builder we should also provide the following service builders:
+To execute our ZIO Redis effect, we should provide the `RedisExecutor` layer to that effect. To create this layer we should also provide the following layers:
 
 - **Logging** — For simplicity, we ignored the logging functionality.
 - **RedisConfig** — Using default one, will connect to the `localhost:6379` Redis instance.
@@ -33,7 +33,7 @@ import zio.logging.Logging
 import zio.redis._
 import zio.redis.codec.StringUtf8Codec
 import zio.schema.codec.Codec
-import zio.{ExitCode, URIO, ZIO, ZServiceBuilder}
+import zio.{ExitCode, URIO, ZIO, ZLayer}
 
 object ZIORedisExample extends zio.App {
 
@@ -46,11 +46,11 @@ object ZIORedisExample extends zio.App {
     _ <- sAdd("mySet", "a", "b", "a", "c")
   } yield ()
 
-  val serviceBuilder: ZServiceBuilder[Any, RedisError.IOError, RedisExecutor] =
-    Logging.ignore ++ ZServiceBuilder.succeed(RedisConfig.Default) ++ ZServiceBuilder.succeed(StringUtf8Codec) >>> RedisExecutor.live
+  val layer: ZLayer[Any, RedisError.IOError, RedisExecutor] =
+    Logging.ignore ++ ZLayer.succeed(RedisConfig.Default) ++ ZLayer.succeed(StringUtf8Codec) >>> RedisExecutor.live
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideCustom(serviceBuilder).exitCode
+    myApp.provideCustom(layer).exitCode
 }
 ```
 

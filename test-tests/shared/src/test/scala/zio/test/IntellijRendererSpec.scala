@@ -4,7 +4,7 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Clock, ServiceBuilder, ZIO, ZTraceElement}
+import zio.{Clock, Layer, ZIO, ZTraceElement}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -266,7 +266,7 @@ object IntelliJRenderUtils {
     } yield output.mkString
 
   private[this] def IntelliJTestRunner(
-    testEnvironment: ServiceBuilder[Nothing, TestEnvironment]
+    testEnvironment: Layer[Nothing, TestEnvironment]
   )(implicit trace: ZTraceElement) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](testEnvironment),

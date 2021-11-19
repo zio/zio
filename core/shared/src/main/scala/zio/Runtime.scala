@@ -408,22 +408,22 @@ object Runtime {
   lazy val global: Runtime[ZEnv] = Runtime(ZEnvironment.default, RuntimeConfig.global)
 
   /**
-   * Unsafely creates a `Runtime` from a `ZServiceBuilder` whose resources will
-   * be allocated immediately, and not released until the `Runtime` is shut down
-   * or the end of the application.
+   * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
+   * allocated immediately, and not released until the `Runtime` is shut down or
+   * the end of the application.
    *
    * This method is useful for small applications and integrating ZIO with
    * legacy code, but other applications should investigate using
    * [[ZIO.provide]] directly in their application entry points.
    */
-  def unsafeFromServiceBuilder[R](
-    serviceBuilder: ServiceBuilder[Any, R],
+  def unsafeFromLayer[R](
+    layer: Layer[Any, R],
     runtimeConfig: RuntimeConfig = RuntimeConfig.default
   )(implicit trace: ZTraceElement): Runtime.Managed[R] = {
     val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
     val (environment, shutdown) = runtime.unsafeRun {
       ZManaged.ReleaseMap.make.flatMap { releaseMap =>
-        ZManaged.currentReleaseMap.locally(releaseMap)(serviceBuilder.build.zio).flatMap { case (_, acquire) =>
+        ZManaged.currentReleaseMap.locally(releaseMap)(layer.build.zio).flatMap { case (_, acquire) =>
           val finalizer = () =>
             runtime.unsafeRun {
               releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
@@ -436,20 +436,4 @@ object Runtime {
 
     Runtime.Managed(environment, runtimeConfig, shutdown)
   }
-
-  /**
-   * Unsafely creates a `Runtime` from a `ZServiceBuilder` whose resources will
-   * be allocated immediately, and not released until the `Runtime` is shut down
-   * or the end of the application.
-   *
-   * This method is useful for small applications and integrating ZIO with
-   * legacy code, but other applications should investigate using
-   * [[ZIO.provideLayer]] directly in their application entry points.
-   */
-  @deprecated("Use unsafeFromServiceBuilder", "2.0.0")
-  def unsafeFromLayer[R](
-    layer: Layer[Any, R],
-    runtimeConfig: RuntimeConfig = RuntimeConfig.default
-  )(implicit trace: ZTraceElement): Runtime.Managed[R] =
-    unsafeFromServiceBuilder(layer, runtimeConfig)
 }

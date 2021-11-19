@@ -1,3 +1,5 @@
+//format: off
+
 package zio
 
 import zio.Cause.Interrupt
@@ -1225,16 +1227,16 @@ object ZManagedSpec extends DefaultRunnableSpec {
     ),
     suite("toLayer")(
       test("converts a managed effect to a layer") {
-        ZEnv.live.build.toServiceBuilder
+        ZEnv.live.build.toLayer
         ???
       }
     ),
     suite("toLayerMany")(
       test("converts a managed effect to a layer") {
         val managed = ZEnv.live.build
-        val layer   = managed.toServiceBuilderMany
+        val layer   = managed.toLayerMany
         val zio1    = ZIO.environment[ZEnv]
-        val zio2    = zio1.provideServices(layer)
+        val zio2    = zio1.provideLayer(layer)
         assertM(zio2)(anything)
       }
     ),
