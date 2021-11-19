@@ -1,6 +1,7 @@
 package zio.stream
 
 import zio._
+import zio.Clock
 
 import zio.internal.Executor
 import zio.stm.TQueue
@@ -9,14 +10,12 @@ import zio.stream.ZStreamGen._
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, timeout}
 import zio.test._
-import zio.test.environment.TestClock
 
 import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
-import zio.{ Clock, Clock, Has }
-import zio.test.Gen
-import zio.test.environment.TestClock
+import zio.Clock
+import zio.test.{ Gen, TestClock }
 
 object ZStreamSpec extends DefaultRunnableSpec {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
@@ -4048,8 +4047,8 @@ object ZStreamSpec extends DefaultRunnableSpec {
   def assertWithChunkCoordination[A](
     chunks: List[Chunk[A]]
   )(
-    assertion: ChunkCoordination[A] => ZIO[Has[Clock] with Has[TestClock], Nothing, TestResult]
-  ): ZIO[Has[Clock] with Has[TestClock], Nothing, TestResult] =
+    assertion: ChunkCoordination[A] => ZIO[Clock with TestClock, Nothing, TestResult]
+  ): ZIO[Clock with TestClock, Nothing, TestResult] =
     for {
       q  <- Queue.unbounded[Exit[Option[Nothing], Chunk[A]]]
       ps <- Queue.unbounded[Unit]
