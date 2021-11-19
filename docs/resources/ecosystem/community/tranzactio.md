@@ -36,7 +36,7 @@ import org.h2.jdbcx.JdbcDataSource
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.{Console, putStrLn}
-import zio.{ExitCode, Has, URIO, ZIO, ZServiceBuilder, blocking}
+import zio.{ExitCode, Has, URIO, ZIO, ZLayer, blocking}
 
 import javax.sql.DataSource
 
@@ -81,8 +81,8 @@ object PersonQuery {
 }
 
 object services {
-  val datasource: ZServiceBuilder[Blocking, Throwable, Has[DataSource]] =
-    ZServiceBuilder.fromEffect(
+  val datasource: ZLayer[Blocking, Throwable, Has[DataSource]] =
+    ZLayer.fromEffect(
       blocking.effectBlocking {
         val ds = new JdbcDataSource
         ds.setURL(s"jdbc:h2:mem:mydb;DB_CLOSE_DELAY=10")
@@ -92,7 +92,7 @@ object services {
       }
     )
 
-  val database: ZServiceBuilder[Any, Throwable, doobie.Database.Database] =
+  val database: ZLayer[Any, Throwable, doobie.Database.Database] =
     (Blocking.live >>> datasource ++ Blocking.live ++ Clock.live) >>> Database.fromDatasource
 }
 ```

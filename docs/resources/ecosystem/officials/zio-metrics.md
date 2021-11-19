@@ -50,7 +50,7 @@ object ZIOMetricsExample extends scala.App {
     } yield s
 
   Runtime
-    .unsafeFromServiceBuilder(
+    .unsafeFromLayer(
       Registry.live ++ Exporters.live ++ Console.live
     )
     .unsafeRun(myApp)

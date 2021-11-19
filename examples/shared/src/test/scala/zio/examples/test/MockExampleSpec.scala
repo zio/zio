@@ -26,11 +26,11 @@ object MockExampleSpec extends DefaultRunnableSpec {
           case false => Clock.nanoTime
         }
 
-      val clockServiceBuilder = MockClock.NanoTime(value(42L)).toServiceBuilder
-      val noCallToConsole     = branchingProgram(false).inject(MockConsole.empty ++ clockServiceBuilder)
+      val clockLayer      = MockClock.NanoTime(value(42L)).toLayer
+      val noCallToConsole = branchingProgram(false).inject(MockConsole.empty ++ clockLayer)
 
-      val consoleServiceBuilder = MockConsole.ReadLine(value("foo")).toServiceBuilder
-      val noCallToClock         = branchingProgram(true).inject(MockClock.empty ++ consoleServiceBuilder)
+      val consoleLayer  = MockConsole.ReadLine(value("foo")).toLayer
+      val noCallToClock = branchingProgram(true).inject(MockClock.empty ++ consoleLayer)
       assertM(noCallToConsole)(equalTo(42L)) *> assertM(noCallToClock)(equalTo("foo"))
     },
     test("expect no call on multiple skipped branches") {
@@ -43,14 +43,14 @@ object MockExampleSpec extends DefaultRunnableSpec {
       def composedBranchingProgram(p1: Boolean, p2: Boolean) =
         branchingProgram(p1) <*> branchingProgram(p2)
 
-      val clockServiceBuilder = (MockClock.NanoTime(value(42L)) andThen MockClock.NanoTime(value(42L))).toServiceBuilder
+      val clockLayer = (MockClock.NanoTime(value(42L)) andThen MockClock.NanoTime(value(42L))).toLayer
       val noCallToConsole = composedBranchingProgram(false, false)
-        .inject(MockConsole.empty ++ clockServiceBuilder)
+        .inject(MockConsole.empty ++ clockLayer)
 
-      val consoleServiceBuilder =
-        (MockConsole.ReadLine(value("foo")) andThen MockConsole.ReadLine(value("foo"))).toServiceBuilder
+      val consoleLayer =
+        (MockConsole.ReadLine(value("foo")) andThen MockConsole.ReadLine(value("foo"))).toLayer
       val noCallToClock = composedBranchingProgram(true, true)
-        .inject(MockClock.empty ++ consoleServiceBuilder)
+        .inject(MockClock.empty ++ consoleLayer)
 
       assertM(noCallToConsole)(equalTo((42L, 42L))) *> assertM(noCallToClock)(equalTo(("foo", "foo")))
     },

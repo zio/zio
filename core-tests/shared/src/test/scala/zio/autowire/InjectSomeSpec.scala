@@ -18,15 +18,15 @@ object InjectSomeSpec extends DefaultRunnableSpec {
   }
 
   object TestService {
-    val live: ZServiceBuilder[Clock with Console, Nothing, TestService] =
-      (TestService.apply _).toServiceBuilder
+    val live: ZLayer[Clock with Console, Nothing, TestService] =
+      (TestService.apply _).toLayer
   }
 
-  val partial: ZServiceBuilder[Console, Nothing, Clock with Console with TestService] =
-    (Clock.live ++ ZServiceBuilder.service[Console]) >+> TestService.live
+  val partial: ZLayer[Console, Nothing, Clock with Console with TestService] =
+    (Clock.live ++ ZLayer.service[Console]) >+> TestService.live
 
-  val partialServiceBuilder: ZServiceBuilder[Console, Nothing, TestService with Clock] =
-    ZServiceBuilder.wireSome[Console, TestService with Clock](
+  val partialLayer: ZLayer[Console, Nothing, TestService with Clock] =
+    ZLayer.wireSome[Console, TestService with Clock](
       Clock.live,
       TestService.live
     )
@@ -59,7 +59,7 @@ object InjectSomeSpec extends DefaultRunnableSpec {
           .injectSome[Console](Clock.live)
       },
       test("wireSome") {
-        testCase("wireSome").provideSome[Console](partialServiceBuilder)
+        testCase("wireSome").provideSome[Console](partialLayer)
       }
     ) @@ TestAspect.silent
 }

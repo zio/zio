@@ -1,24 +1,24 @@
 package zio.internal.macros
 
 import zio.internal.ansi.AnsiStringOps
-import zio.ZServiceBuilder
+import zio.ZLayer
 
 import scala.reflect.macros.blackbox
 
-final class WireMacros(val c: blackbox.Context) extends ServiceBuilderMacroUtils {
+final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
 
   def wireImpl[
     E,
     R0: c.WeakTypeTag,
     R: c.WeakTypeTag
-  ](serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*)(
+  ](layer: c.Expr[ZLayer[_, E, _]]*)(
     dummyKRemainder: c.Expr[DummyK[R0]],
     dummyK: c.Expr[DummyK[R]]
-  ): c.Expr[ZServiceBuilder[R0, E, R]] = {
+  ): c.Expr[ZLayer[R0, E, R]] = {
     val _ = (dummyK, dummyKRemainder)
     assertEnvIsNotNothing[R]()
-    constructServiceBuilder[R0, R, E](serviceBuilder)
+    constructLayer[R0, R, E](layer)
   }
 
   /**
@@ -31,9 +31,9 @@ final class WireMacros(val c: blackbox.Context) extends ServiceBuilderMacroUtils
     if (outType == nothingType) {
       val errorMessage =
         s"""
-${"  ZServiceBuilder Wiring Error  ".red.bold.inverted}
+${"  ZLayer Wiring Error  ".red.bold.inverted}
         
-You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZServiceBuilder.wire".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
+You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
 
 """
       c.abort(c.enclosingPosition, errorMessage)

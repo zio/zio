@@ -10,7 +10,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
       test("Issue #4802") {
         ZIO
           .serviceWithZIO[Ref[Int]](_.get)
-          .inject(Ref.make(10).toServiceBuilder)
+          .inject(Ref.make(10).toLayer)
           .map { int =>
             assertTrue(int == 10)
           }
@@ -39,8 +39,8 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
         }
 
         object Service {
-          val live: UServiceBuilder[Service[Int]] =
-            ZServiceBuilder.succeed {
+          val live: ULayer[Service[Int]] =
+            ZLayer.succeed {
               new Service[Int] {
                 def foo(t: Int) =
                   ZIO.succeed(t)
@@ -58,10 +58,10 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
       // https://github.com/zio/zio/issues/4564
       test("Issue #4564") {
         trait Svc[A]
-        def testBaseLayer[R, A: Tag]: ZServiceBuilder[R, Nothing, Svc[A]] =
-          ZIO.environmentWith[R](_ => new Svc[A] {}).toServiceBuilder[Svc[A]]
-        def testSecondLayer[A: Tag]: ZServiceBuilder[Svc[A], Nothing, Svc[A]] =
-          ZServiceBuilder.fromFunction[Svc[A], Svc[A]] { environment =>
+        def testBaseLayer[R, A: Tag]: ZLayer[R, Nothing, Svc[A]] =
+          ZIO.environmentWith[R](_ => new Svc[A] {}).toLayer[Svc[A]]
+        def testSecondLayer[A: Tag]: ZLayer[Svc[A], Nothing, Svc[A]] =
+          ZLayer.fromFunction[Svc[A], Svc[A]] { environment =>
             environment.get
           }
 
@@ -79,8 +79,8 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
             def provide: IO[Throwable, D]
           }
 
-          def layer[A: Tag, D <: Container[A]: Tag](container: D): UServiceBuilder[ContainerProvider[A, D]] =
-            ZServiceBuilder.succeed {
+          def layer[A: Tag, D <: Container[A]: Tag](container: D): ULayer[ContainerProvider[A, D]] =
+            ZLayer.succeed {
               new Service[A, D] {
                 def provide: IO[Throwable, D] = IO.succeed(container)
               }
@@ -116,8 +116,8 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
   object Cache {
     def live[F[_], K, V](
       f: Option[V] => F[V]
-    )(implicit tag: Tag[Cache[F, K, V]]): ZServiceBuilder[Any, Nothing, Cache[F, K, V]] =
-      ZServiceBuilder {
+    )(implicit tag: Tag[Cache[F, K, V]]): ZLayer[Any, Nothing, Cache[F, K, V]] =
+      ZLayer {
         for {
           cache <- Ref.make(Map.empty[K, V])
         } yield new Cache[F, K, V] {
@@ -136,7 +136,7 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
       ZIO.serviceWithZIO(_.put(key, value))
   }
 
-  val myCache: ZServiceBuilder[Any, Nothing, Cache[Option, Int, String]] =
+  val myCache: ZLayer[Any, Nothing, Cache[Option, Int, String]] =
     Cache.live[Option, Int, String](identity)
 
   def spec =

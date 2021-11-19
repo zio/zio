@@ -342,17 +342,17 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     }
 
   /**
-   * Provides a service builder to the spec, translating it up a level.
+   * Provides a layer to the spec, translating it up a level.
    */
   final def provide[E1 >: E, R0, R1](
-    serviceBuilder: ZServiceBuilder[R0, E1, R1]
+    layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     transform[R0, E1, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
-      case ManagedCase(managed)        => ManagedCase(managed.provide(serviceBuilder))
+      case ManagedCase(managed)        => ManagedCase(managed.provide(layer))
       case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.provide(serviceBuilder), annotations)
+      case TestCase(test, annotations) => TestCase(test.provide(layer), annotations)
     }
 
   /**
@@ -361,19 +361,19 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * `TestEnvironment`.
    *
    * {{{
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustom(loggingServiceBuilder)
+   * val spec2 = spec.provideCustom(loggingLayer)
    * }}}
    */
-  def provideCustom[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
+  def provideCustom[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): Spec[TestEnvironment, E1, T] =
-    provideSome[TestEnvironment](serviceBuilder)
+    provideSome[TestEnvironment](layer)
 
   /**
    * Provides each test with the part of the environment that is not part of the
@@ -381,7 +381,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * `TestEnvironment`.
    *
    * {{{
-   * val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = ???
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
@@ -389,7 +389,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * }}}
    */
   @deprecated("use provideCustom", "2.0.0")
-  def provideCustomLayer[E1 >: E, R1](layer: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
+  def provideCustomLayer[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
@@ -402,7 +402,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * on the `TestEnvironment`.
    *
    * {{{
-   * val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = ???
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
@@ -410,7 +410,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * }}}
    */
   @deprecated("use provideCustomShared", "2.0.0")
-  def provideCustomLayerShared[E1 >: E, R1](layer: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
+  def provideCustomLayerShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
@@ -418,66 +418,24 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     provideSomeShared(layer)
 
   /**
-   * Provides each test with the part of the environment that is not part of the
-   * `TestEnvironment`, leaving a spec that only depends on the
-   * `TestEnvironment`.
-   *
-   * {{{
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
-   *
-   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
-   *
-   * val spec2 = spec.provideCustomServices(loggingServiceBuilder)
-   * }}}
-   */
-  @deprecated("use provideCustom", "2.0.0")
-  def provideCustomServices[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
-    ev: TestEnvironment with R1 <:< R,
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): Spec[TestEnvironment, E1, T] =
-    provideCustom(serviceBuilder)
-
-  /**
    * Provides all tests with a shared version of the part of the environment
    * that is not part of the `TestEnvironment`, leaving a spec that only depends
    * on the `TestEnvironment`.
    *
    * {{{
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
    * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
    *
-   * val spec2 = spec.provideCustomServicesShared(loggingServiceBuilder)
+   * val spec2 = spec.provideCustomShared(loggingLayer)
    * }}}
    */
-  @deprecated("use provideCustomShared", "2.0.0")
-  def provideCustomServicesShared[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
+  def provideCustomShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): Spec[TestEnvironment, E1, T] =
-    provideSomeServicesShared(serviceBuilder)
-
-  /**
-   * Provides all tests with a shared version of the part of the environment
-   * that is not part of the `TestEnvironment`, leaving a spec that only depends
-   * on the `TestEnvironment`.
-   *
-   * {{{
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
-   *
-   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
-   *
-   * val spec2 = spec.provideCustomShared(loggingServiceBuilder)
-   * }}}
-   */
-  def provideCustomShared[E1 >: E, R1](serviceBuilder: ZServiceBuilder[TestEnvironment, E1, R1])(implicit
-    ev: TestEnvironment with R1 <:< R,
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): Spec[TestEnvironment, E1, T] =
-    provideSomeShared[TestEnvironment](serviceBuilder)
+    provideSomeShared[TestEnvironment](layer)
 
   /**
    * Provides each test in this spec with its required environment
@@ -490,7 +448,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
-    layer: ZServiceBuilder[R0, E1, R1]
+    layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     provide(layer)
 
@@ -499,60 +457,40 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   @deprecated("use provideShared", "2.0.0")
   final def provideLayerShared[E1 >: E, R0, R1](
-    layer: ZServiceBuilder[R0, E1, R1]
+    layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     provideShared(layer)
 
   /**
-   * Provides a service builder to the spec, translating it up a level.
-   */
-  @deprecated("use provide", "2.0.0")
-  final def provideServices[E1 >: E, R0, R1](
-    serviceBuilder: ZServiceBuilder[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provide(serviceBuilder)
-
-  /**
-   * Provides a service builder to the spec, sharing services between all tests.
-   */
-  @deprecated("use provideShared", "2.0.0")
-  final def provideServicesShared[E1 >: E, R0, R1](
-    serviceBuilder: ZServiceBuilder[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provideShared(serviceBuilder)
-
-  /**
-   * Provides a service builder to the spec, sharing services between all tests.
+   * Provides a layer to the spec, sharing services between all tests.
    */
   final def provideShared[E1 >: E, R0, R1](
-    serviceBuilder: ZServiceBuilder[R0, E1, R1]
+    layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     caseValue match {
-      case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideShared(serviceBuilder))
-      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideShared(serviceBuilder))
+      case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideShared(layer))
+      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideShared(layer))
       case ManagedCase(managed) =>
         Spec.managed(
-          serviceBuilder.build.flatMap(r =>
-            managed.map(_.provideEnvironment(r.upcast(ev))).provideEnvironment(r.upcast(ev))
-          )
+          layer.build.flatMap(r => managed.map(_.provideEnvironment(r.upcast(ev))).provideEnvironment(r.upcast(ev)))
         )
       case MultipleCase(specs) =>
         Spec.managed(
-          serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r.upcast(ev)))))
+          layer.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r.upcast(ev)))))
         )
-      case TestCase(test, annotations) => Spec.test(test.provide(serviceBuilder), annotations)
+      case TestCase(test, annotations) => Spec.test(test.provide(layer), annotations)
     }
 
   /**
    * Splits the environment into two parts, providing each test with one part
-   * using the specified service builder and leaving the remainder `R0`.
+   * using the specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
    * val spec: ZSpec[Clock with Random, Nothing] = ???
    *
-   * val spec2 = spec.provideSome[Random](clockServiceBuilder)
+   * val spec2 = spec.provideSome[Random](clockLayer)
    * }}}
    */
   final def provideSome[R0]: Spec.ProvideSome[R0, R, E, T] =
@@ -563,7 +501,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * using the specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZServiceBuilder[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
    * val spec: ZSpec[Clock with Random, Nothing] = ???
    *
@@ -580,7 +518,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * `R0`.
    *
    * {{{
-   * val clockLayer: ZServiceBuilder[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
    * val spec: ZSpec[Clock with Random, Nothing] = ???
    *
@@ -592,49 +530,16 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     new Spec.ProvideSomeShared[R0, R, E, T](self)
 
   /**
-   * Splits the environment into two parts, providing each test with one part
-   * using the specified service builder and leaving the remainder `R0`.
-   *
-   * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
-   *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
-   *
-   * val spec2 = spec.provideSomeServices[Random](clockServiceBuilder)
-   * }}}
-   */
-  @deprecated("use provideSome", "2.0.0")
-  final def provideSomeServices[R0]: Spec.ProvideSome[R0, R, E, T] =
-    provideSome
-
-  /**
    * Splits the environment into two parts, providing all tests with a shared
-   * version of one part using the specified service builder and leaving the
-   * remainder `R0`.
+   * version of one part using the specified layer and leaving the remainder
+   * `R0`.
    *
    * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
    * val spec: ZSpec[Clock with Random, Nothing] = ???
    *
-   * val spec2 = spec.provideSomeServicesShared[Random](clockServiceBuilder)
-   * }}}
-   */
-  @deprecated("use provideSomeShared", "2.0.0")
-  final def provideSomeServicesShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
-    provideSomeShared
-
-  /**
-   * Splits the environment into two parts, providing all tests with a shared
-   * version of one part using the specified service builder and leaving the
-   * remainder `R0`.
-   *
-   * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
-   *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
-   *
-   * val spec2 = spec.provideSomeShared[Random](clockServiceBuilder)
+   * val spec2 = spec.provideSomeShared[Random](clockLayer)
    * }}}
    */
   final def provideSomeShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
@@ -807,32 +712,32 @@ object Spec extends SpecLowPriority {
 
   final class ProvideSome[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1](
-      serviceBuilder: ZServiceBuilder[R0, E1, R1]
+      layer: ZLayer[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
-      self.provide[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+      self.provide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class ProvideSomeShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1](
-      serviceBuilder: ZServiceBuilder[R0, E1, R1]
+      layer: ZLayer[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
       self.caseValue match {
-        case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeShared(serviceBuilder))
-        case LabeledCase(label, spec) => Spec.labeled(label, spec.provideSomeShared(serviceBuilder))
+        case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeShared(layer))
+        case LabeledCase(label, spec) => Spec.labeled(label, spec.provideSomeShared(layer))
         case ManagedCase(managed) =>
           Spec.managed(
-            serviceBuilder.build.flatMap { r =>
+            layer.build.flatMap { r =>
               managed
-                .map(_.provideSome[R0](ZServiceBuilder.succeedMany(r)))
-                .provideSome[R0](ZServiceBuilder.succeedMany(r))
+                .map(_.provideSome[R0](ZLayer.succeedMany(r)))
+                .provideSome[R0](ZLayer.succeedMany(r))
             }
           )
         case MultipleCase(specs) =>
           Spec.managed(
-            serviceBuilder.build.map(r => Spec.multiple(specs.map(_.provideSome[R0](ZServiceBuilder.succeedMany(r)))))
+            layer.build.map(r => Spec.multiple(specs.map(_.provideSome[R0](ZLayer.succeedMany(r)))))
           )
         case TestCase(test, annotations) =>
-          Spec.test(test.provideSome(serviceBuilder), annotations)
+          Spec.test(test.provideSome(layer), annotations)
       }
   }
 

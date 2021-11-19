@@ -10,7 +10,7 @@ trait MockSpecUtils[R] {
     (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
 
   private[mock] def testValue[E, A](name: String)(
-    mock: UServiceBuilder[R],
+    mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[A]
   ): ZSpec[Any, E] = test(name) {
@@ -19,7 +19,7 @@ trait MockSpecUtils[R] {
   }
 
   private[mock] def testError[E, A](name: String)(
-    mock: UServiceBuilder[R],
+    mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[E]
   ): ZSpec[Any, A] = test(name) {
@@ -28,7 +28,7 @@ trait MockSpecUtils[R] {
   }
 
   private[mock] def testValueTimeboxed[E, A](name: String)(duration: Duration)(
-    mock: UServiceBuilder[R],
+    mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[Option[A]]
   ): ZSpec[Live, E] = test(name) {
@@ -43,7 +43,7 @@ trait MockSpecUtils[R] {
   }
 
   private[mock] def testDied[E, A](name: String)(
-    mock: UServiceBuilder[R],
+    mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[Throwable]
   ): ZSpec[Any, Any] = test(name) {

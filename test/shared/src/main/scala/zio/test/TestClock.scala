@@ -367,8 +367,8 @@ object TestClock extends Serializable {
     data: Data
   )(implicit
     trace: ZTraceElement
-  ): ZServiceBuilder[Annotations with Live, Nothing, TestClock] =
-    ZServiceBuilder {
+  ): ZLayer[Annotations with Live, Nothing, TestClock] =
+    ZLayer {
       for {
         live                  <- ZManaged.service[Live]
         annotations           <- ZManaged.service[Annotations]
@@ -383,10 +383,10 @@ object TestClock extends Serializable {
       } yield test
     }
 
-  val any: ZServiceBuilder[TestClock, Nothing, TestClock] =
-    ZServiceBuilder.environment[TestClock](Tracer.newTrace)
+  val any: ZLayer[TestClock, Nothing, TestClock] =
+    ZLayer.environment[TestClock](Tracer.newTrace)
 
-  val default: ZServiceBuilder[Live with Annotations, Nothing, TestClock] =
+  val default: ZLayer[Live with Annotations, Nothing, TestClock] =
     live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))(Tracer.newTrace)
 
   /**

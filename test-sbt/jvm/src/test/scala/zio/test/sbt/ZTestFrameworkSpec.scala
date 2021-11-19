@@ -4,7 +4,7 @@ import sbt.testing._
 import zio.test.Assertion.equalTo
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
-import zio.{ZEnvironment, ZIO, ZServiceBuilder, ZTraceElement, durationInt}
+import zio.{ZEnvironment, ZIO, ZLayer, ZTraceElement, durationInt}
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
@@ -24,7 +24,7 @@ object ZTestFrameworkSpec {
     test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
     test("should return summary when done")(testSummary()),
-    test("should use a shared service builder without re-initializing it")(testSharedServiceBuilder()),
+    test("should use a shared layer without re-initializing it")(testSharedLayer()),
     test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
@@ -120,8 +120,8 @@ object ZTestFrameworkSpec {
 
   private val counter = new AtomicInteger(0)
 
-  lazy val sharedServiceBuilder: ZServiceBuilder[Any, Nothing, Int] = {
-    ZServiceBuilder.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
+  lazy val sharedLayer: ZLayer[Any, Nothing, Int] = {
+    ZLayer.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
   }
 
   val randomFailure =
@@ -133,9 +133,9 @@ object ZTestFrameworkSpec {
 //      randomFailure
     }
 
-  lazy val spec1UsingSharedServiceBuilder = Spec1UsingSharedServiceBuilder.getClass.getName
-  object Spec1UsingSharedServiceBuilder extends zio.test.ZIOSpec[Int] {
-    override def serviceBuilder = sharedServiceBuilder
+  lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
+  object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Int] {
+    override def layer = sharedLayer
 
     /*
       TODO
@@ -155,21 +155,21 @@ object ZTestFrameworkSpec {
       ) @@ TestAspect.parallel
   }
 
-  lazy val spec2UsingSharedServiceBuilder = Spec2UsingSharedServiceBuilder.getClass.getName
-  object Spec2UsingSharedServiceBuilder extends zio.test.ZIOSpec[Int] {
-    override def serviceBuilder = sharedServiceBuilder
+  lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
+  object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Int] {
+    override def layer = sharedLayer
 
     def spec =
-      zio.test.test("test completes with shared service builder 2") {
+      zio.test.test("test completes with shared layer 2") {
         assertCompletes
       }
   }
 
-  def testSharedServiceBuilder(): Unit = {
+  def testSharedLayer(): Unit = {
     val reported = ArrayBuffer[Event]()
 
-//    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedServiceBuilder), reported.append(_))
-    loadAndExecuteAll(Seq.fill(2)(spec1UsingSharedServiceBuilder), reported.append(_))
+//    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedLayer), reported.append(_))
+    loadAndExecuteAll(Seq.fill(2)(spec1UsingSharedLayer), reported.append(_))
 
     assert(counter.get() == 1)
   }
