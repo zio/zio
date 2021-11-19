@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel}
 import java.util.concurrent.{CompletableFuture, CompletionStage, Future}
 
-object JavaSpec extends ZIOBaseSpec {
+object JavaSpec extends ZIOBaseNewSpec {
 
   import ZIOTag._
 

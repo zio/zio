@@ -7,7 +7,7 @@ import zio.test._
 
 import scala.collection.immutable.Range
 
-object ZQueueSpec extends ZIOBaseSpec {
+object ZQueueSpec extends ZIOBaseNewSpec {
   import ZIOTag._
 
   def spec = suite("ZQueueSpec")(

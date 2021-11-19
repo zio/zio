@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.exceptDotty
 import zio.test._
 
-object TaggedSpec extends ZIOBaseSpec {
+object TaggedSpec extends ZIOBaseNewSpec {
 
   def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("TaggedSpec")(
     test("tags can be derived for polymorphic services") {

@@ -2,11 +2,11 @@ package zio.internal
 
 import zio.test.Assertion.equalTo
 import zio.test._
-import zio.{Random, ZIOBaseSpec}
+import zio.{Random, ZIOBaseNewSpec}
 
 import scala.util.Random.nextInt
 
-object StackBoolSpec extends ZIOBaseSpec {
+object StackBoolSpec extends ZIOBaseNewSpec {
 
   def spec = suite("StackBoolSpec")(
     test("Size tracking") {

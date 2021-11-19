@@ -3,9 +3,9 @@ package zio.internal
 import zio.test.Assertion._
 import zio.test._
 import zio.{Hub => _}
-import zio.{Chunk, Random, UIO, ZIO, ZIOBaseSpec, Hub => _}
+import zio.{Chunk, Random, UIO, ZIO, ZIOBaseNewSpec, Hub => _}
 
-object HubSpec extends ZIOBaseSpec {
+object HubSpec extends ZIOBaseNewSpec {
 
   def spec =
     suite("HubSpec")(

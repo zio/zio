@@ -7,7 +7,7 @@ import zio.test.{test => testSync, _}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
-object SerializableSpec extends ZIOBaseSpec {
+object SerializableSpec extends ZIOBaseNewSpec {
 
   def spec = suite("SerializableSpec")(
     test("Semaphore is serializable") {

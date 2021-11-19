@@ -7,7 +7,7 @@ import java.io.{File, IOException}
 import java.nio.file.Files
 import java.{util => ju}
 
-object ZManagedPlatformSpecificSpec extends ZIOBaseSpec {
+object ZManagedPlatformSpecificSpec extends ZIOBaseNewSpec {
 
   def spec = suite("ZManagedPlatformSpecificSpec")(
     test("writeFile & readFile & OutputStream.write & InputStream.readAll") {

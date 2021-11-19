@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object RuntimeConfigSpec extends ZIOBaseSpec {
+object RuntimeConfigSpec extends ZIOBaseNewSpec {
 
   def spec = suite("RuntimeConfigSpec")(
     suite("RuntimeConfigLive fatal:")(

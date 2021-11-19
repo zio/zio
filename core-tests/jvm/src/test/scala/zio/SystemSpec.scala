@@ -5,7 +5,7 @@ import zio.test._
 
 import java.io.File
 
-object SystemSpec extends ZIOBaseSpec {
+object SystemSpec extends ZIOBaseNewSpec {
 
   def spec: Spec[Live with Annotations, TestFailure[Any], TestSuccess] = suite("SystemSpec")(
     suite("Fetch an environment variable and check that")(

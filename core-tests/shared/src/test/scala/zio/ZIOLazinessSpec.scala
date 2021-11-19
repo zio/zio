@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object ZIOLazinessSpec extends ZIOBaseSpec {
+object ZIOLazinessSpec extends ZIOBaseNewSpec {
 
   def assertLazy(f: (=> Nothing) => Any): UIO[TestResult] =
     UIO.succeed {

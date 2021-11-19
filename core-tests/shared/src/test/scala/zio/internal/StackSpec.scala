@@ -3,9 +3,9 @@ package zio.internal
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.TestAspect._
-import zio.{Random, ZIOBaseSpec}
+import zio.{Random, ZIOBaseNewSpec}
 
-object StackSpec extends ZIOBaseSpec {
+object StackSpec extends ZIOBaseNewSpec {
 
   def spec = suite("StackSpec")(
     test("Size tracking") {
