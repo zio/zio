@@ -297,7 +297,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       suite("fromSocketServer")(
         test("read data") {
           for {
-            messages <- Gen.string1(Gen.unicodeChar).runCollectN(200)
+            messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
             readMessages <- ZStream
                               .fromSocketServer(8896)
                               .zip(ZStream.managed(socketClient(8896)))
@@ -307,21 +307,21 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                                   .mapZIO(m =>
                                     ZIO
                                       .fromFutureJava(
-                                        clientChannel.write(ByteBuffer.wrap(m.getBytes("UTF-8")))
+                                        clientChannel.write(ByteBuffer.wrap(m))
                                       ) *> serverChannel.read
                                       .take(m.size.toLong)
-                                      .via(ZPipeline.utf8Decode)
-                                      .mkString
+                                      .runCollect
                                   )
 
                               }
                               .take(messages.size.toLong)
                               .runCollect
-          } yield assert(readMessages)(hasSameElementsDistinct(readMessages))
+            expectedOutput = messages.map(Chunk.fromArray)
+          } yield assert(readMessages)(hasSameElementsDistinct(expectedOutput))
         },
         test("write data") {
           for {
-            messages <- Gen.string1(Gen.unicodeChar).runCollectN(200)
+            messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
             writtenMessages <- ZStream
                                  .fromSocketServer(8897)
                                  .zip(ZStream.managed(socketClient(8897)))
@@ -329,22 +329,23 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                                    ZStream
                                      .fromIterable(messages)
                                      .mapZIO(m =>
-                                       ZStream.fromIterable(m.getBytes("UTF-8")).run(serverChannel.write) *> {
-                                         val buffer = ByteBuffer.allocate(m.getBytes("UTF-8").length)
+                                       ZStream.fromIterable(m).run(serverChannel.write) *> {
+                                         val buffer = ByteBuffer.allocate(m.length)
 
                                          ZIO
                                            .fromFutureJava(clientChannel.read(buffer))
                                            .repeatUntil(_ < 1)
                                            .map { _ =>
                                              (buffer: Buffer).flip()
-                                             new String(buffer.array)
+                                             Chunk.fromArray(buffer.array)
                                            }
                                        }
                                      )
                                  }
                                  .take(messages.size.toLong)
                                  .runCollect
-          } yield assert(writtenMessages)(hasSameElementsDistinct(messages))
+            expectedOutput = messages.map(Chunk.fromArray)
+          } yield assert(writtenMessages)(hasSameElementsDistinct(expectedOutput))
 
         }
       ) @@ flaky(20), // socket connections can be flaky some times
