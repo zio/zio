@@ -206,7 +206,7 @@ object RandomSpec extends ZIOBaseSpec {
     import num._
     check(gen.map(num.abs(_))) { upper =>
       for {
-        testRandom <- ZIO.environment[Random].map(_.get[Random])
+        testRandom <- ZIO.service[Random]
         nextRandom <- next(testRandom, upper)
       } yield assert(nextRandom)(isWithin(zero, upper))
     }
@@ -223,7 +223,7 @@ object RandomSpec extends ZIOBaseSpec {
     } yield if (value2 > value1) (value1, value2) else (value2, value1)
     check(genMinMax) { case (min, max) =>
       for {
-        testRandom <- ZIO.environment[Random].map(_.get[Random])
+        testRandom <- ZIO.service[Random]
         nextRandom <- between(testRandom, min, max)
       } yield assert(nextRandom)(isGreaterThanEqualTo(min)) &&
         assert(nextRandom)(isLessThan(max))

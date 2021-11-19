@@ -20,7 +20,7 @@ trait JvmMetrics { self =>
    */
   lazy val live: ZServiceBuilder[Clock with System, Throwable, Feature] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    collectMetrics.toServiceBuilder(featureTag, trace)
+    collectMetrics.toServiceBuilder(featureTag, IsNotIntersection[Feature], trace)
   }
 
   /** A ZIO application that periodically updates the JVM metrics */

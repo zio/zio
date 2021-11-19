@@ -99,11 +99,11 @@ object Random extends Serializable {
   }
 
   val any: ZServiceBuilder[Random, Nothing, Random] = {
-    ZServiceBuilder.service[Random](Tag[Random], Tracer.newTrace)
+    ZServiceBuilder.service[Random](Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
   }
 
   val live: ServiceBuilder[Nothing, Random] = {
-    ZServiceBuilder.succeed[Random](RandomLive)(Tag[Random], Tracer.newTrace)
+    ZServiceBuilder.succeed[Random](RandomLive)(Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
   }
 
   /**

@@ -371,7 +371,7 @@ val schedulingServiceBuilder: ZServiceBuilder[Clock with LoggingService, Nothing
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
         (ZIO.sleep(10.seconds) *> promise.succeed(1))
           .tap(b => ZIO.service[LoggingService].flatMap(_.log(b.toString)))
-          .provideEnvironment(ZEnvironment(env))
+          .provideEnvironment(env)
     }
 }
 

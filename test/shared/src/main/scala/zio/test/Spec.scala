@@ -839,7 +839,7 @@ object Spec extends SpecLowPriority {
   final class UpdateService[-R, +E, +T, M](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
-    )(implicit tag: Tag[M], trace: ZTraceElement): Spec[R1, E, T] =
+    )(implicit ev: IsNotIntersection[M], tag: Tag[M], trace: ZTraceElement): Spec[R1, E, T] =
       self.provideSomeEnvironment(_.update(f))
   }
 
