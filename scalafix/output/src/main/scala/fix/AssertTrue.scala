@@ -18,7 +18,7 @@ object AssertionSpec extends DefaultRunnableSpec {
 //      assert(sampleUser)(nameStartsWithA && ageGreaterThan20)
 //    } @@ failing,
     test("anything must always succeeds") {
-      assert(42)(anything)
+      assertTrue(42.is(_.anything))
     },
 //    test("approximatelyEquals must succeed when number is within range") {
 //      assert(5.5)(approximatelyEquals(5.0, 3.0))
@@ -27,16 +27,16 @@ object AssertionSpec extends DefaultRunnableSpec {
 //      assert(50.0)(approximatelyEquals(5.0, 3.0))
 //    } @@ failing,
     test("contains must succeed when iterable contains specified element") {
-      assert(Seq("zio", "scala"))(contains("zio"))
+      assertTrue(Seq("zio", "scala").contains("zio"))
     },
     test("contains must fail when iterable does not contain specified element") {
-      assert(Seq("zio", "scala"))(contains("java"))
+      assertTrue(Seq("zio", "scala").contains("java"))
     } @@ failing,
     test("containsString must succeed when string is found") {
-      assert("this is a value")(containsString("is a"))
+      assertTrue("this is a value".contains("is a"))
     },
     test("containsString must return false when the string is not contained") {
-      assert("this is a value")(containsString("_NOTHING_"))
+      assertTrue("this is a value".contains("_NOTHING_"))
     } @@ failing,
     test("dies must succeed when exception satisfy specified assertion") {
       assert(Exit.die(someException))(dies(equalTo(someException)))
@@ -551,50 +551,30 @@ object AssertionSpec extends DefaultRunnableSpec {
       assert(Exit.succeed("Some Error"))(succeeds(equalTo("Some Error")))
     },
     test("succeeds must fail when supplied value is Exit.fail") {
-      assert(Exit.fail("Some Error"))(succeeds(equalTo("Some Error")))
+      assert((Exit.fail("Some Error")).is(_.success) == "Some Error")
     } @@ failing,
-    test("test must return true when given element satisfy assertion") {
-      assert(nameStartsWithU.test(sampleUser))(isTrue)
-    },
-    test("test must return false when given element does not satisfy assertion") {
-      assert(nameStartsWithA.test(sampleUser))(isFalse)
-    },
-    test("throws must succeed when given assertion is correct") {
-      assert(throw sampleException)(throws(equalTo(sampleException)))
-    },
-    test("should implement equals without exception") {
-      assert(nameStartsWithU.equals(new Object))(isFalse)
-    },
-    test("should never be equal to AssertionM") {
-      val assertion  = Assertion.assertionDirect[Unit]("sameName")()(_ => ???)
-      val assertionM = AssertionM.assertionDirect[Unit]("sameName")()(_ => ???)
-      assert(assertion.equals(assertionM))(isFalse ?? "assertion != assertionM") &&
-        assert(assertionM.equals(assertion))(isFalse ?? "assertionM != assertion")
-    },
+//    test("throws must succeed when given assertion is correct") {
+//      assertTrue((throw sampleException).is(_.throwing) == sampleException)
+//    },
     test("hasThrowableCause must succeed when supplied value has matching cause") {
       val cause = new Exception("cause")
       val t     = new Exception("result", cause)
-      assert(t)(hasThrowableCause(hasMessage(equalTo("cause"))))
+      assertTrue(t.is(_.cause.message) == "cause")
     },
     test("hasThrowableCause must fail when supplied value has non-matching cause") {
       val cause = new Exception("something different")
       val t     = new Exception("result", cause)
-      assert(t)(hasThrowableCause(hasMessage(equalTo("cause"))))
+      assertTrue(t.is(_.cause.message) == "cause")
     } @@ failing,
     test("hasThrowableCause must fail when supplied value does not have a cause") {
       val t = new Exception("result")
-      assert(t)(hasThrowableCause(hasMessage(equalTo("cause"))))
+      assertTrue(t.is(_.cause.message) == "cause")
     } @@ failing
   )
 
   case class SampleUser(name: String, age: Int)
   val sampleUser: SampleUser = SampleUser("User", 42)
   val sampleException        = new Exception
-
-  val nameStartsWithA: Assertion[SampleUser]  = hasField("name", _.name.startsWith("A"), isTrue)
-  val nameStartsWithU: Assertion[SampleUser]  = hasField("name", _.name.startsWith("U"), isTrue)
-  val ageLessThan20: Assertion[SampleUser]    = hasField("age", _.age, isLessThan(20))
-  val ageGreaterThan20: Assertion[SampleUser] = hasField("age", _.age, isGreaterThan(20))
 
   val someException = new RuntimeException("Boom!")
 

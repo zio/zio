@@ -556,23 +556,8 @@ object AssertionSpec extends DefaultRunnableSpec {
     test("succeeds must fail when supplied value is Exit.fail") {
       assert(Exit.fail("Some Error"))(succeeds(equalTo("Some Error")))
     } @@ failing,
-    test("test must return true when given element satisfy assertion") {
-      assert(hasField("name", (_: SampleUser).name.startsWith("U"), isTrue).test(sampleUser))(isTrue)
-    },
-    test("test must return false when given element does not satisfy assertion") {
-      assert(hasField("name", (_: SampleUser).name.startsWith("A"), isTrue).test(sampleUser))(isFalse)
-    },
     test("throws must succeed when given assertion is correct") {
       assert(throw sampleException)(throws(equalTo(sampleException)))
-    },
-    test("should implement equals without exception") {
-      assert(hasField("name", (_: SampleUser).name.startsWith("U"), isTrue).equals(new Object))(isFalse)
-    },
-    test("should never be equal to AssertionM") {
-      val assertion  = Assertion.assertionDirect[Unit]("sameName")()(_ => ???)
-      val assertionM = AssertionM.assertionDirect[Unit]("sameName")()(_ => ???)
-      assert(assertion.equals(assertionM))(isFalse ?? "assertion != assertionM") &&
-        assert(assertionM.equals(assertion))(isFalse ?? "assertionM != assertion")
     },
     test("hasThrowableCause must succeed when supplied value has matching cause") {
       val cause = new Exception("cause")

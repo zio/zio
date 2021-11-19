@@ -13,14 +13,12 @@ class AssertToAssertTrue extends SemanticRule("AssertToAssertTrue") {
 
   override def fix(implicit doc: SemanticDocument): Patch =
     doc.tree.collect {
-      case t @ assert(Term.Apply(Term.Apply(_, List(value)), List(assertion))) =>
-        println("---")
-        println(t.syntax)
-        val assertionValue = getAssertion(assertion)
-        val string         = assertionValue.collectLenses.render
-        println(assertionValue.collectLenses)
-        println(string)
-        Patch.replaceTree(t, s"assertTrue($value$string)")
+      case t @ assert(Term.Apply(Term.Apply(_, List(value)), List(Assertion(assertion)))) =>
+//        println("---")
+//        println(t.syntax)
+        val string = assertion.render
+//        println(string)
+        Patch.replaceTree(t, s"assertTrue(($value)$string)")
       case _ =>
         Patch.empty
 
@@ -47,9 +45,9 @@ class AssertToAssertTrue extends SemanticRule("AssertToAssertTrue") {
     case q"isSubtype[$tpe]($assertion)" =>
       LensAssertion("isSubtype", s"subtype[$tpe]").recursive(getAssertion(assertion))
 
-    // TODO: IGNORE
-    case q"isCase[..$tpes](..$args)" =>
-      MethodAssertion("Oops")
+//    // TODO: IGNORE
+//    case q"isCase[..$tpes](..$args)" =>
+//      MethodAssertion("Oops")
 //      MethodAssertion
 //      MethodAssertion(method.syntax).recursive(getAssertion(assertion))
 
@@ -74,9 +72,9 @@ class AssertToAssertTrue extends SemanticRule("AssertToAssertTrue") {
       LensAssertion("cause", "cause")
         .recursive(getAssertion(assertion))
 
-    case q"$_ ?? $label" =>
-      // TODO: IGNORE
-      MethodAssertion("LABEL")
+//    case q"$_ ?? $label" =>
+//      // TODO: IGNORE
+//      MethodAssertion("LABEL")
 
     case q"anything" =>
       LensAssertion("anything", "anything")
@@ -109,7 +107,7 @@ class AssertToAssertTrue extends SemanticRule("AssertToAssertTrue") {
       Assertion.finalMethodMap(name.syntax)
 
     case _ =>
-      println(tree.structure)
+//      println(tree.structure)
       throw new Error(s"Unsupported\n\n $tree\n${tree.structure}")
   }
 
@@ -165,6 +163,10 @@ class AssertToAssertTrue extends SemanticRule("AssertToAssertTrue") {
   }
 
   object Assertion {
+
+    def unapply(tree: Tree)(implicit doc: SemanticDocument): Option[Assertion] =
+      scala.util.Try(getAssertion(tree)).toOption.map(_.collectLenses)
+
 //    case class IsRight(assertion: Assertion) extends Assertion
 //    case class IsSome(assertion: Assertion)  extends Assertion
 //    case object IsNone                       extends Assertion
