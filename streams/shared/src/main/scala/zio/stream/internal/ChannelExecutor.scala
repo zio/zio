@@ -3,7 +3,9 @@ package zio.stream.internal
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel
+import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullStrategy}
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.immutable.Queue
 
 class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
@@ -12,6 +14,10 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   executeCloseLastSubstream: URIO[Env, Any] => URIO[Env, Any]
 ) {
   import ChannelExecutor._
+
+  private val id = debugId.getAndIncrement()
+
+  def debug(s: String): Unit = println(s"[$id] $s")
 
   private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env])(implicit trace: ZTraceElement) = {
     val currInput = input
@@ -71,15 +77,20 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     }
 
     val closeSubexecutors =
-      if (subexecutorStack eq null) null
+      if (activeSubexecutor eq null) null
       else
-        subexecutorStack match {
-          case exec: SubexecutorStack.Inner[Env] =>
+        activeSubexecutor match {
+          case exec: Subexecutor.PullFromUpstream[Env] =>
             exec.close(ex)
 
-          case SubexecutorStack.FromKAnd(fromK, rest) =>
-            val fin1 = fromK.close(ex)
-            val fin2 = rest.close(ex)
+          case Subexecutor.PullFromChild(childExecutor, parentSubexecutor, _, _) =>
+            val fin1 = childExecutor.close(ex)
+            val fin2 =
+              parentSubexecutor match {
+                case pfu: Subexecutor.PullFromUpstream[_] =>
+                  pfu.close(ex)
+                case _ => null
+              }
 
             if ((fin1 eq null) && (fin2 eq null)) null
             else if ((fin1 ne null) && (fin2 ne null)) fin1.exit.zipWith(fin2.exit)(_ *> _)
@@ -117,8 +128,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     while (result eq null) {
       if (cancelled ne null) {
         result = processCancellation()
-      } else if (subexecutorStack ne null) {
-        result = drainSubexecutor()
+      } else if (activeSubexecutor ne null) {
+        result = runSubexecutor()
       } else {
         currentChannel match {
           case null =>
@@ -232,7 +243,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           case ensuring @ ZChannel.Ensuring(_, _) =>
             runEnsuring(ensuring.asInstanceOf[ZChannel.Ensuring[Env, Any, Any, Any, Any, Any, Any]])
 
-          case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, value, k) =>
+          case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, onPull, onEmit, value, k) =>
             val innerExecuteLastClose =
               (f: URIO[Env, Any]) =>
                 UIO {
@@ -243,12 +254,15 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             val exec: ErasedExecutor[Env] = new ChannelExecutor(() => value, providedEnv, innerExecuteLastClose)
             exec.input = input
 
-            subexecutorStack = SubexecutorStack.Inner(
+            activeSubexecutor = Subexecutor.PullFromUpstream(
               exec,
               k.asInstanceOf[Any => Channel[Env]],
               lastDone = null,
+              activeChildExecutors = Queue.empty,
               combineSubK.asInstanceOf[(Any, Any) => Any],
-              combineSubKAndInner.asInstanceOf[(Any, Any) => Any]
+              combineSubKAndInner.asInstanceOf[(Any, Any) => Any],
+              onPull.asInstanceOf[Any => UpstreamPullStrategy],
+              onEmit.asInstanceOf[Any => ChildExecutorDecision]
             )
             closeLastSubstream = null
             currentChannel = null
@@ -291,7 +305,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   @volatile
   var input: ErasedExecutor[Env] = _
 
-  private[this] var subexecutorStack: SubexecutorStack[Env] = _
+  private[this] var activeSubexecutor: Subexecutor[Env] = _
 
   private[this] var cancelled: Exit[OutErr, OutDone] = _
 
@@ -455,18 +469,27 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         .foreach(finalizers)(_.apply(ex).exit)
         .map(results => Exit.collectAll(results) getOrElse Exit.unit)
 
-  private[this] def drainSubexecutor()(implicit trace: ZTraceElement): ChannelState[Env, Any] =
-    subexecutorStack match {
-      case inner @ SubexecutorStack.Inner(_, _, _, _, _) =>
-        drainInnerSubexecutor(inner.asInstanceOf[SubexecutorStack.Inner[Env]])
+  private[this] def runSubexecutor()(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+    activeSubexecutor match {
+      case subexec @ Subexecutor.PullFromUpstream(_, _, _, _, _, _, _, _) =>
+        pullFromUpstream(subexec.asInstanceOf[Subexecutor.PullFromUpstream[Env]])
 
-      case SubexecutorStack.FromKAnd(exec, rest) =>
-        drainFromKAndSubexecutor(exec.asInstanceOf[ErasedExecutor[Env]], rest.asInstanceOf[SubexecutorStack.Inner[Env]])
+      case subexec @ Subexecutor.DrainChildExecutors(_, _, _, _, _) =>
+        drainChildExecutors(subexec.asInstanceOf[Subexecutor.DrainChildExecutors[Env]])
+
+      case subexec @ Subexecutor.PullFromChild(childExecutor, parentSubexecutor, onEmit, debugId) =>
+        pullFromChild(
+          childExecutor.asInstanceOf[ErasedExecutor[Env]],
+          parentSubexecutor,
+          onEmit,
+          subexec.asInstanceOf[Subexecutor.PullFromChild[Env]],
+          debugId
+        )
     }
 
-  private def replaceSubexecutor(nextSubExec: SubexecutorStack.Inner[Env]): Unit = {
+  private def replaceSubexecutor(nextSubExec: Subexecutor[Env]): Unit = {
     currentChannel = null
-    subexecutorStack = nextSubExec
+    activeSubexecutor = nextSubExec
   }
 
   private def finishSubexecutorWithCloseEffect(
@@ -486,60 +509,33 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     }
 
     val state = subexecDone.fold(doneHalt, doneSucceed)
-    subexecutorStack = null
+    activeSubexecutor = null
     state
   }
 
   def finishWithExit(exit: Exit[Any, Any])(implicit trace: ZTraceElement): ZIO[Env, Any, Any] = {
     val state = exit.fold(doneHalt, doneSucceed)
-    subexecutorStack = null
+    activeSubexecutor = null
 
     if (state eq null) UIO.unit
     else state.effect
   }
 
-  private def drainFromKAndSubexecutor(
-    exec: ErasedExecutor[Env],
-    rest: SubexecutorStack.Inner[Env]
-  )(implicit trace: ZTraceElement): ChannelState[Env, Any] = {
-    def handleSubexecFailure(cause: Cause[Any]): ChannelState[Env, Any] =
-      finishSubexecutorWithCloseEffect(
-        Exit.failCause(cause),
-        rest.exec.close,
-        exec.close
-      )
-
-    exec.run() match {
-      case ChannelState.Emit =>
-        emitted = exec.getEmit
-        ChannelState.Emit
-
-      case ChannelState.Effect(zio) =>
-        ChannelState.Effect(
-          zio.catchAllCause(cause => handleSubexecFailure(cause).effect)
-        )
-
-      case ChannelState.Done =>
-        exec.getDone match {
-          case Exit.Failure(cause) => handleSubexecFailure(cause)
-          case e @ Exit.Success(doneValue) =>
-            val modifiedRest =
-              rest.copy(
-                lastDone =
-                  if (rest.lastDone != null) rest.combineSubK(rest.lastDone, doneValue)
-                  else doneValue
-              )
-            closeLastSubstream = exec.close(e)
-            replaceSubexecutor(modifiedRest)
-            null
-        }
+  private final def applyUpstreamPullStrategy(
+    queue: Queue[Subexecutor.PullFromChild[Env]],
+    strategy: UpstreamPullStrategy
+  ): Queue[Subexecutor.PullFromChild[Env]] =
+    strategy match {
+      case UpstreamPullStrategy.PullAfterNext =>
+        queue.prepended(null)
+      case UpstreamPullStrategy.PullAfterAllEnqueued =>
+        queue.enqueue(null.asInstanceOf[Subexecutor.PullFromChild[Env]])
     }
-  }
 
-  private final def drainInnerSubexecutor(
-    inner: SubexecutorStack.Inner[Env]
+  private final def performPullFromUpstream(
+    self: Subexecutor.PullFromUpstream[Env]
   )(implicit trace: ZTraceElement): ChannelState[Env, Any] =
-    inner.exec.run() match {
+    self.upstreamExecutor.run() match {
       case ChannelState.Emit =>
         if (this.closeLastSubstream ne null) {
           val closeLast = this.closeLastSubstream
@@ -547,41 +543,78 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
           ChannelState.Effect {
             executeCloseLastSubstream(closeLast).map { _ =>
+              val pulled = self.upstreamExecutor.getEmit
               val fromK: ErasedExecutor[Env] =
-                new ChannelExecutor(() => inner.subK(inner.exec.getEmit), providedEnv, executeCloseLastSubstream)
+                new ChannelExecutor(
+                  () => self.createChild(pulled),
+                  providedEnv,
+                  executeCloseLastSubstream
+                )
               fromK.input = input
 
-              subexecutorStack = SubexecutorStack.FromKAnd[Env](fromK, inner)
+              activeSubexecutor = Subexecutor.PullFromChild[Env](
+                fromK,
+                self.copy(
+                  activeChildExecutors = applyUpstreamPullStrategy(self.activeChildExecutors, self.onPull(pulled))
+                ),
+                self.onEmit,
+                pulled.toString
+              )
             }
           }
         } else {
+          val pulled = self.upstreamExecutor.getEmit
           val fromK: ErasedExecutor[Env] =
-            new ChannelExecutor(() => inner.subK(inner.exec.getEmit), providedEnv, executeCloseLastSubstream)
+            new ChannelExecutor(
+              () => self.createChild(pulled),
+              providedEnv,
+              executeCloseLastSubstream
+            )
           fromK.input = input
 
-          subexecutorStack = SubexecutorStack.FromKAnd[Env](fromK, inner)
+          activeSubexecutor = Subexecutor.PullFromChild[Env](
+            fromK,
+            self.copy(
+              activeChildExecutors = applyUpstreamPullStrategy(self.activeChildExecutors, self.onPull(pulled))
+            ),
+            self.onEmit,
+            pulled.toString
+          )
           null
         }
 
       case ChannelState.Done =>
-        val lastClose = this.closeLastSubstream
-        inner.exec.getDone match {
-          case e @ Exit.Failure(_) =>
-            finishSubexecutorWithCloseEffect(
-              e,
-              _ => lastClose,
-              inner.exec.close
-            )
+        debug(s"pullFromUpstream is done with ${self.activeChildExecutors.count(_ != null)} active executors")
+        if (self.activeChildExecutors.exists(_ != null)) {
+          val drain = Subexecutor.DrainChildExecutors(
+            self.lastDone,
+            self.activeChildExecutors.prepended(null),
+            self.upstreamExecutor.getDone,
+            self.combineChildResults,
+            self.combineWithChildResult
+          )
+          replaceSubexecutor(drain)
+          null
+        } else {
+          val lastClose = this.closeLastSubstream
+          self.upstreamExecutor.getDone match {
+            case e @ Exit.Failure(_) =>
+              finishSubexecutorWithCloseEffect(
+                e,
+                _ => lastClose,
+                self.upstreamExecutor.close
+              )
 
-          case Exit.Success(innerDoneValue) =>
-            val doneValue =
-              Exit.succeed(inner.combineSubKAndInner(inner.lastDone, innerDoneValue))
+            case Exit.Success(innerDoneValue) =>
+              val doneValue =
+                Exit.succeed(self.combineWithChildResult(self.lastDone, innerDoneValue))
 
-            finishSubexecutorWithCloseEffect(
-              doneValue,
-              _ => lastClose,
-              inner.exec.close
-            )
+              finishSubexecutorWithCloseEffect(
+                doneValue,
+                _ => lastClose,
+                self.upstreamExecutor.close
+              )
+          }
         }
 
       case ChannelState.Effect(zio) =>
@@ -592,11 +625,200 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           executeCloseLastSubstream(closeLast) *> zio.catchAllCause(cause =>
             finishSubexecutorWithCloseEffect(
               Exit.failCause(cause),
-              inner.exec.close
+              self.upstreamExecutor.close
             ).effect
           )
         )
     }
+
+  private final def pullFromUpstream(
+    self: Subexecutor.PullFromUpstream[Env]
+  )(implicit trace: ZTraceElement): ChannelState[Env, Any] = {
+    debug(
+      s"activeChildExecutors: ${self.activeChildExecutors.map(x => if (x == null) "<>" else x.toString).mkString(", ")}"
+    )
+    self.activeChildExecutors.dequeueOption match {
+      case Some((null, rest)) =>
+        debug(s"pullFromUpstream: dequeued <null>, pulling upstream")
+        performPullFromUpstream(self.copy(activeChildExecutors = rest))
+
+      case Some((activeChild, rest)) =>
+        debug(s"pullFromUpstream: switching to $activeChild, ${rest.size} executors remain in queue")
+        replaceSubexecutor(
+          activeChild.copy(
+            parentSubexecutor = self.copy(activeChildExecutors = rest)
+          )
+        )
+        null
+      case None =>
+        performPullFromUpstream(self)
+    }
+  }
+
+  private def drainChildExecutors(
+    self: Subexecutor.DrainChildExecutors[Env]
+  )(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+    self.activeChildExecutors.dequeueOption match {
+      case Some((null, rest)) =>
+        //drainChildExecutors(self.copy(activeChildExecutors = rest))
+        if (rest.exists(_ != null)) {
+          // TODO
+          replaceSubexecutor(
+            self.copy(activeChildExecutors = rest.enqueue(null: Subexecutor.PullFromChild[Env]))
+          )
+          emitted = Chunk(Left(false))
+          ChannelState.Emit
+        } else drainChildExecutors(self.copy(activeChildExecutors = rest))
+      case Some((activeChild, rest)) =>
+        debug(s"drainChildExecutors: using first active child ${activeChild}, ${rest.size} executors remain in queue")
+        replaceSubexecutor(
+          activeChild.copy(
+            parentSubexecutor = self.copy(activeChildExecutors = rest)
+          )
+        )
+        null
+      case None =>
+        debug(s"drainChildExecutors: No more active executors")
+        val lastClose = closeLastSubstream
+        if (lastClose != null) {
+          addFinalizer(_ => UIO(lastClose))
+        }
+        val state = self.upstreamDone.fold(doneHalt, doneSucceed)
+        activeSubexecutor = null
+        state
+    }
+
+  private def pullFromChild(
+    childExecutor: ErasedExecutor[Env],
+    parentSubexecutor: Subexecutor[Env],
+    onEmitted: Any => ChildExecutorDecision,
+    self: Subexecutor.PullFromChild[Env],
+    debugId: String
+  )(implicit trace: ZTraceElement): ChannelState[Env, Any] = {
+    def handleSubexecFailure(cause: Cause[Any]): ChannelState[Env, Any] = {
+      val closeEffects: Seq[Exit[Any, Any] => URIO[Env, Any]] =
+        parentSubexecutor match {
+          case Subexecutor.PullFromUpstream(
+                upstreamExecutor,
+                createChild,
+                lastDone,
+                activeChildExecutors,
+                combineChildResults,
+                combineWithChildResult,
+                onPull,
+                onEmit
+              ) =>
+            Seq(upstreamExecutor.close, childExecutor.close)
+          case Subexecutor.PullFromChild(childExecutor, parentSubexecutor, onEmit, debugId) =>
+            Seq(childExecutor.close)
+          case Subexecutor.DrainChildExecutors(
+                lastDone,
+                activeChildExecutors,
+                upstreamDone,
+                combineChildResults,
+                combineWithChildResult
+              ) =>
+            Seq(childExecutor.close)
+        }
+      finishSubexecutorWithCloseEffect(
+        Exit.failCause(cause),
+        closeEffects: _*
+      )
+    }
+
+    def finishWithDoneValue(doneValue: Any): ChannelState[Env, Any] =
+      parentSubexecutor match {
+        case Subexecutor.PullFromUpstream(
+              upstreamExecutor,
+              createChild,
+              lastDone,
+              activeChildExecutors,
+              combineChildResults,
+              combineWithChildResult,
+              onPull,
+              onEmit
+            ) =>
+          val modifiedParent = Subexecutor.PullFromUpstream(
+            upstreamExecutor,
+            createChild,
+            if (lastDone != null)
+              combineChildResults(lastDone, doneValue)
+            else doneValue,
+            activeChildExecutors,
+            combineChildResults,
+            combineWithChildResult,
+            onPull,
+            onEmit
+          )
+          closeLastSubstream = childExecutor.close(Exit.succeed(doneValue))
+          replaceSubexecutor(modifiedParent)
+          null
+        case Subexecutor.DrainChildExecutors(
+              lastDone,
+              activeChildExecutors,
+              upstreamDone,
+              combineChildResults,
+              combineWithChildResult
+            ) =>
+          val modifiedParent = Subexecutor.DrainChildExecutors(
+            if (lastDone != null)
+              combineChildResults(lastDone, doneValue)
+            else doneValue,
+            activeChildExecutors,
+            upstreamDone,
+            combineChildResults,
+            combineWithChildResult
+          )
+          closeLastSubstream = null
+          replaceSubexecutor(modifiedParent)
+          null
+        case _ => ??? // TODO better encoding to avoid this
+      }
+
+    childExecutor.run() match {
+      case ChannelState.Emit =>
+        emitted = childExecutor.getEmit
+
+        onEmitted(emitted) match {
+          case ChildExecutorDecision.Yield =>
+            debug(s"pullFromChild[$debugId] onEmit($emitted) => Yield")
+            val modifiedParent = {
+              parentSubexecutor match {
+                case pfu: Subexecutor.PullFromUpstream[Env] =>
+                  pfu.copy(
+                    activeChildExecutors = pfu.activeChildExecutors.enqueue(self)
+                  )
+                case dce: Subexecutor.DrainChildExecutors[Env] =>
+                  dce.copy(
+                    activeChildExecutors = dce.activeChildExecutors.enqueue(self)
+                  )
+                case _ =>
+                  ??? // TODO: avoid this case
+              }
+            }
+            replaceSubexecutor(modifiedParent)
+          case ChildExecutorDecision.Close(doneValue) =>
+            finishWithDoneValue(doneValue)
+          case ChildExecutorDecision.Continue =>
+            debug(s"pullFromChild[$debugId] onEmit($emitted) => Continue")
+        }
+
+        ChannelState.Emit
+
+      case ChannelState.Effect(zio) =>
+        ChannelState.Effect(
+          zio.catchAllCause(cause => handleSubexecFailure(cause).effect)
+        )
+
+      case ChannelState.Done =>
+        childExecutor.getDone match {
+          case Exit.Failure(cause) =>
+            handleSubexecFailure(cause)
+          case e @ Exit.Success(doneValue) =>
+            finishWithDoneValue(doneValue)
+        }
+    }
+  }
 }
 
 object ChannelExecutor {
@@ -636,27 +858,61 @@ object ChannelExecutor {
     else if (l ne null) l.exit
     else r.exit
 
-  sealed abstract class SubexecutorStack[-R]
-  object SubexecutorStack {
-    case class FromKAnd[R](fromK: ErasedExecutor[R], rest: Inner[R]) extends SubexecutorStack[R]
-    final case class Inner[R](
-      exec: ErasedExecutor[R],
-      subK: Any => Channel[R],
+  sealed abstract class Subexecutor[-R]
+  object Subexecutor {
+
+    /**
+     * Execute upstreamExecutor and for each emitted element, spawn a child
+     * channel and continue with processing it by PullFromChild
+     */
+    final case class PullFromUpstream[R](
+      upstreamExecutor: ErasedExecutor[R],
+      createChild: Any => Channel[R],
       lastDone: Any,
-      combineSubK: (Any, Any) => Any,
-      combineSubKAndInner: (Any, Any) => Any
-    ) extends SubexecutorStack[R] { self =>
+      activeChildExecutors: Queue[Subexecutor.PullFromChild[R]],
+      combineChildResults: (Any, Any) => Any,
+      combineWithChildResult: (Any, Any) => Any,
+      onPull: Any => UpstreamPullStrategy,
+      onEmit: Any => ChildExecutorDecision
+    ) extends Subexecutor[R] { self =>
       def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] = {
-        val fin = exec.close(ex)
+        val fin = upstreamExecutor.close(ex)
 
         if (fin ne null) fin.exit
         else null
       }
     }
+
+    /**
+     * Execute the childExecutor and on each emitted value, decide what to do by
+     * onEmit
+     */
+    final case class PullFromChild[R](
+      childExecutor: ErasedExecutor[R],
+      parentSubexecutor: Subexecutor[R],
+      onEmit: Any => ChildExecutorDecision,
+      debugId: String
+    ) extends Subexecutor[R] {
+      override def toString: String = debugId
+    }
+
+    /**
+     * Transformed from PullFromUpstream when upstream has finished but there
+     * are still active child executors
+     */
+    final case class DrainChildExecutors[R](
+      lastDone: Any,
+      activeChildExecutors: Queue[Subexecutor.PullFromChild[R]],
+      upstreamDone: Exit[Any, Any],
+      combineChildResults: (Any, Any) => Any,
+      combineWithChildResult: (Any, Any) => Any
+    ) extends Subexecutor[R]
   }
 
-  private def erase[R](conduit: ZChannel[R, _, _, _, _, _, _]): Channel[R] =
-    conduit.asInstanceOf[Channel[R]]
+  private def erase[R](channel: ZChannel[R, _, _, _, _, _, _]): Channel[R] =
+    channel.asInstanceOf[Channel[R]]
+
+  private val debugId = new AtomicInteger(0)
 }
 
 /**
