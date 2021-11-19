@@ -5,13 +5,16 @@ import scala.quoted._
 import scala.compiletime._
 import zio.internal.macros.StringUtils.StringOps
 import zio.internal.ansi.AnsiStringOps
+import scala.util.Try
 
 private [zio] object ServiceBuilderMacroUtils {
   type ServiceBuilderExpr = Expr[ZServiceBuilder[_,_,_]]
 
   def renderExpr[A](expr: Expr[A])(using Quotes): String = {
     import quotes.reflect._
-    expr.asTerm.pos.sourceCode.getOrElse(expr.show)
+    Try(expr.asTerm.pos.sourceCode)
+      .getOrElse(expr.show)
+      .getOrElse(expr.show)
   }
 
   def buildMemoizedServiceBuilder(ctx: Quotes)(exprGraph: ZServiceBuilderExprBuilder[ctx.reflect.TypeRepr, ServiceBuilderExpr], requirements: List[ctx.reflect.TypeRepr]) : ServiceBuilderExpr = {
