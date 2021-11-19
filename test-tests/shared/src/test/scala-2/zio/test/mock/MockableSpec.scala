@@ -1,6 +1,5 @@
 package zio.test.mock
 
-import zio.Has
 import zio.test.Assertion._
 import zio.test._
 import zio.test.mock.modules._
@@ -30,7 +29,7 @@ object MockableSpec extends DefaultRunnableSpec {
         assert({
           @mockable[SinglePureValModule.Service]
           object ModuleMock {
-            val someFooHelper: Expectation[Has[SinglePureValModule.Service]] = Foo().atLeast(1)
+            val someFooHelper: Expectation[SinglePureValModule.Service] = Foo().atLeast(1)
           }
 
           object Check {
@@ -38,7 +37,7 @@ object MockableSpec extends DefaultRunnableSpec {
 
             val Foo: ModuleMock.Effect[Unit, Nothing, Unit] = ModuleMock.Foo
 
-            val someFoo: Expectation[Has[SinglePureValModule.Service]] = ModuleMock.someFooHelper
+            val someFoo: Expectation[SinglePureValModule.Service] = ModuleMock.someFooHelper
           }
 
           Check

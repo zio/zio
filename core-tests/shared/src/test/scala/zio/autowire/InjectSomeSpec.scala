@@ -18,20 +18,20 @@ object InjectSomeSpec extends DefaultRunnableSpec {
   }
 
   object TestService {
-    val live: ZServiceBuilder[Has[Clock] with Has[Console], Nothing, Has[TestService]] =
+    val live: ZServiceBuilder[Clock with Console, Nothing, TestService] =
       (TestService.apply _).toServiceBuilder
   }
 
-  val partial: ZServiceBuilder[Has[Console], Nothing, Has[Clock] with Has[Console] with Has[TestService]] =
+  val partial: ZServiceBuilder[Console, Nothing, Clock with Console with TestService] =
     (Clock.live ++ ZServiceBuilder.service[Console]) >+> TestService.live
 
-  val partialServiceBuilder: ZServiceBuilder[Has[Console], Nothing, Has[TestService] with Has[Clock]] =
-    ZServiceBuilder.wireSome[Has[Console], Has[TestService] with Has[Clock]](
+  val partialServiceBuilder: ZServiceBuilder[Console, Nothing, TestService with Clock] =
+    ZServiceBuilder.wireSome[Console, TestService with Clock](
       Clock.live,
       TestService.live
     )
 
-  def testCase(annotate: String): ZIO[Has[TestService] with Has[Clock] with Has[Console], IOException, TestResult] =
+  def testCase(annotate: String): ZIO[TestService with Clock with Console, IOException, TestResult] =
     for {
       service <- ZIO.service[TestService]
       _       <- service.somethingMagical(annotate)
@@ -40,26 +40,26 @@ object InjectSomeSpec extends DefaultRunnableSpec {
 
     } yield assertCompletes
 
-  def spec: ZSpec[Has[Console] with Has[TestConsole], Any] =
+  def spec: ZSpec[Console with TestConsole with Annotations, Any] =
     suite("InjectSomeSpec")(
       test("basic") {
-        testCase("basic").provideSomeServices[Has[Console]](partial)
+        testCase("basic").provideSome[Console](partial)
       },
       test("injectSome") {
-        testCase("injectSome").injectSome[Has[Console]](
+        testCase("injectSome").injectSome[Console](
           Clock.live,
           TestService.live
         )
       },
       test("double injectSome") {
         testCase("double injectSome")
-          .injectSome[Has[Console] with Has[Clock]](
+          .injectSome[Console with Clock](
             TestService.live
           )
-          .injectSome[Has[Console]](Clock.live)
+          .injectSome[Console](Clock.live)
       },
       test("wireSome") {
-        testCase("wireSome").provideSomeServices[Has[Console]](partialServiceBuilder)
+        testCase("wireSome").provideSome[Console](partialServiceBuilder)
       }
     ) @@ TestAspect.silent
 }

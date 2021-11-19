@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Console, Has, UIO, URIO, ZIO, ZServiceBuilder, ZTraceElement}
+import zio.{Console, UIO, URIO, ZIO, ZServiceBuilder, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait TestLogger extends Serializable {
@@ -25,7 +25,7 @@ trait TestLogger extends Serializable {
 
 object TestLogger {
 
-  def fromConsole(implicit trace: ZTraceElement): ZServiceBuilder[Has[Console], Nothing, Has[TestLogger]] =
+  def fromConsole(implicit trace: ZTraceElement): ZServiceBuilder[Console, Nothing, TestLogger] =
     ZIO
       .service[Console]
       .map { console =>
@@ -35,6 +35,6 @@ object TestLogger {
       }
       .toServiceBuilder
 
-  def logLine(line: String)(implicit trace: ZTraceElement): URIO[Has[TestLogger], Unit] =
-    ZIO.accessZIO(_.get.logLine(line))
+  def logLine(line: String)(implicit trace: ZTraceElement): URIO[TestLogger, Unit] =
+    ZIO.serviceWithZIO(_.logLine(line))
 }

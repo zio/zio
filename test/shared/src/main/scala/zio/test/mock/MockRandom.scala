@@ -16,13 +16,13 @@
 
 package zio.test.mock
 
-import zio.{Chunk, Has, Random, UIO, URServiceBuilder, ZIO, ZTraceElement}
+import zio.{Chunk, Random, UIO, URServiceBuilder, ZIO, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.UUID
 
-object MockRandom extends Mock[Has[Random]] {
+object MockRandom extends Mock[Random] {
 
   object NextBoolean       extends Effect[Unit, Nothing, Boolean]
   object NextBytes         extends Effect[Int, Nothing, Chunk[Byte]]
@@ -43,7 +43,7 @@ object MockRandom extends Mock[Has[Random]] {
   object SetSeed           extends Effect[Long, Nothing, Unit]
   object Shuffle           extends Effect[Iterable[Any], Nothing, Iterable[Any]]
 
-  val compose: URServiceBuilder[Has[Proxy], Has[Random]] = {
+  val compose: URServiceBuilder[Proxy, Random] = {
     implicit val trace = Tracer.newTrace
     ZIO
       .service[Proxy]

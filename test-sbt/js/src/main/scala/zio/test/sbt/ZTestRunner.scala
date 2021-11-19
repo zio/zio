@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpecAbstract, sbt}
-import zio.{Chunk, Exit, Runtime, UIO, ZServiceBuilder, ZIO, ZIOAppArgs}
+import zio.{Chunk, Exit, Runtime, UIO, ZEnvironment, ZServiceBuilder, ZIO, ZIOAppArgs}
 
 import scala.collection.mutable
 
@@ -88,9 +88,9 @@ sealed class ZTestTask(
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     spec match {
       case NewSpecWrapper(zioSpec) =>
-        Runtime((), zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
+        Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
           zioSpec.run
-            .provideServices(ZServiceBuilder.succeed(ZIOAppArgs(Chunk.empty)) ++ zio.ZEnv.live)
+            .provide(ZServiceBuilder.succeed(ZIOAppArgs(Chunk.empty)) ++ zio.ZEnv.live)
             .onError(e => UIO(println(e.prettyPrint)))
         } { exit =>
           exit match {
@@ -100,9 +100,9 @@ sealed class ZTestTask(
           continuation(Array())
         }
       case LegacySpecWrapper(abstractRunnableSpec) =>
-        Runtime((), abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
+        Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
           run(eventHandler, abstractRunnableSpec).toManaged
-            .provideServices(sbtTestServiceBuilder(loggers))
+            .provide(sbtTestServiceBuilder(loggers))
             .useDiscard(ZIO.unit)
         } { exit =>
           exit match {

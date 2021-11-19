@@ -462,8 +462,8 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Creates a pipeline that provides the specified environment.
    */
-  def provide[Env](
-    env: Env
+  def provideEnvironment[Env](
+    env: ZEnvironment[Env]
   ): ZPipeline.WithOut[
     Env,
     Any,
@@ -482,7 +482,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       def apply[Env1 >: Env, Err, In](stream: ZStream[Env1, Err, In])(implicit
         trace: ZTraceElement
       ): ZStream[Any, Err, In] =
-        stream.provide(env)
+        stream.provideEnvironment(env)
     }
 
   /**
@@ -699,6 +699,30 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
 
         new ZStream[Env, Err, String](stream.channel >>> next(None, wasSplitCRLF = false))
       }
+    }
+
+  /**
+   * Creates a pipeline that takes n elements.
+   */
+  def take(n: Long): ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Elem })#OutElem
+  ] =
+    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Any] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = Err
+      type OutElem[Elem] = Elem
+      def apply[Env, Err, Elem](stream: ZStream[Env, Err, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env, Err, Elem] =
+        stream.take(n)
     }
 
   /**

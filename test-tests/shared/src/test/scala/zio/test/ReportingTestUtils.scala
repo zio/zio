@@ -6,7 +6,7 @@ import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.render.TestRenderer
-import zio.{Cause, Clock, ServiceBuilder, Has, Promise, ZIO, ZTraceElement}
+import zio.{Cause, Clock, ServiceBuilder, Promise, ZIO, ZTraceElement}
 
 import scala.{Console => SConsole}
 
@@ -52,7 +52,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideServices[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
+             .provide[Nothing, TestEnvironment, TestLogger with Clock](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
@@ -62,7 +62,7 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provideServices[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
+                   .provide[Nothing, TestEnvironment, TestLogger with Clock](
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
@@ -256,8 +256,8 @@ object ReportingTestUtils {
       mock = PureModuleMock.ZeroParams(value("mocked")).toServiceBuilder.tap { _ =>
                promise.succeed(())
              }
-      f       = ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
-      result <- f.provideServices(failingServiceBuilder ++ mock)
+      f       = ZIO.serviceWithZIO[PureModule.Service](_.zeroParams) <* ZIO.service[String]
+      result <- f.provide(failingServiceBuilder ++ mock)
     } yield assert(result)(equalTo("mocked"))
   }
 

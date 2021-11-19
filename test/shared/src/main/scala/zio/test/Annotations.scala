@@ -27,28 +27,28 @@ object Annotations {
    * Accesses an `Annotations` instance in the environment and appends the
    * specified annotation to the annotation map.
    */
-  def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): URIO[Has[Annotations], Unit] =
-    ZIO.accessZIO(_.get.annotate(key, value))
+  def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): URIO[Annotations, Unit] =
+    ZIO.serviceWithZIO(_.annotate(key, value))
 
   /**
    * Accesses an `Annotations` instance in the environment and retrieves the
    * annotation of the specified type, or its default value if there is none.
    */
-  def get[V](key: TestAnnotation[V])(implicit trace: ZTraceElement): URIO[Has[Annotations], V] =
-    ZIO.accessZIO(_.get.get(key))
+  def get[V](key: TestAnnotation[V])(implicit trace: ZTraceElement): URIO[Annotations, V] =
+    ZIO.serviceWithZIO(_.get(key))
 
   /**
    * Returns a set of all fibers in this test.
    */
   def supervisedFibers(implicit
     trace: ZTraceElement
-  ): ZIO[Has[Annotations], Nothing, SortedSet[Fiber.Runtime[Any, Any]]] =
-    ZIO.accessZIO(_.get.supervisedFibers)
+  ): ZIO[Annotations, Nothing, SortedSet[Fiber.Runtime[Any, Any]]] =
+    ZIO.serviceWithZIO(_.supervisedFibers)
 
   /**
    * Constructs a new `Annotations` service.
    */
-  val live: UServiceBuilder[Has[Annotations]] = {
+  val live: UServiceBuilder[Annotations] = {
     implicit val trace = Tracer.newTrace
     ZServiceBuilder.fromZIO(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
       new Annotations {
@@ -82,8 +82,8 @@ object Annotations {
    * specified effect with an empty annotation map, returning the annotation map
    * along with the result of execution.
    */
-  def withAnnotation[R <: Has[Annotations], E, A](zio: ZIO[R, E, A])(implicit
+  def withAnnotation[R <: Annotations, E, A](zio: ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZIO[R, Annotated[E], Annotated[A]] =
-    ZIO.accessZIO(_.get.withAnnotation(zio))
+    ZIO.serviceWithZIO[Annotations](_.withAnnotation(zio))
 }

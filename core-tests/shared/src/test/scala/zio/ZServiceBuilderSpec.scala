@@ -12,7 +12,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
   trait Dog extends Animal
   trait Cat extends Animal
 
-  def testSize[R <: Has[_]](serviceBuilder: ServiceBuilder[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
+  def testSize[R](serviceBuilder: ServiceBuilder[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
     serviceBuilder.build.use(env => ZIO.succeed(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
 
   val acquire1 = "Acquiring Module 1"
@@ -22,7 +22,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
   val release2 = "Releasing Module 2"
   val release3 = "Releasing Module 3"
 
-  type Module1 = Has[Module1.Service]
+  type Module1 = Module1.Service
 
   object Module1 {
     trait Service
@@ -30,12 +30,10 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
 
   def makeServiceBuilder1(ref: Ref[Vector[String]]): ZServiceBuilder[Any, Nothing, Module1] =
     ZServiceBuilder {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(Has(new Module1.Service {})))(_ =>
-        ref.update(_ :+ release1)
-      )
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(new Module1.Service {}))(_ => ref.update(_ :+ release1))
     }
 
-  type Module2 = Has[Module2.Service]
+  type Module2 = Module2.Service
 
   object Module2 {
     trait Service
@@ -43,12 +41,10 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
 
   def makeServiceBuilder2(ref: Ref[Vector[String]]): ZServiceBuilder[Any, Nothing, Module2] =
     ZServiceBuilder {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(Has(new Module2.Service {})))(_ =>
-        ref.update(_ :+ release2)
-      )
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(new Module2.Service {}))(_ => ref.update(_ :+ release2))
     }
 
-  type Module3 = Has[Module3.Service]
+  type Module3 = Module3.Service
 
   object Module3 {
     trait Service
@@ -56,9 +52,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
 
   def makeServiceBuilder3(ref: Ref[Vector[String]]): ZServiceBuilder[Any, Nothing, Module3] =
     ZServiceBuilder {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(Has(new Module3.Service {})))(_ =>
-        ref.update(_ :+ release3)
-      )
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(new Module3.Service {}))(_ => ref.update(_ :+ release3))
     }
 
   def makeRef: UIO[Ref[Vector[String]]] =
@@ -81,11 +75,11 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
       test("Size of Test service builders") {
         for {
           r1 <- testSize(Annotations.live, 1, "Annotations.live")
-          r2 <- testSize(ZEnv.live >>> Live.default >>> TestConsole.debug, 2, "TestConsole.default")
+          r2 <- testSize(ZEnv.live >>> Live.default >>> TestConsole.debug, 1, "TestConsole.default")
           r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
-          r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 2, "TestRandom.live")
+          r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 1, "TestRandom.live")
           r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
-          r6 <- testSize(TestSystem.default, 2, "TestSystem.default")
+          r6 <- testSize(TestSystem.default, 1, "TestSystem.default")
         } yield r1 && r2 && r3 && r4 && r5 && r6
       },
       test("Size of >>> (9)") {
@@ -94,7 +88,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
             Live.default ++ TestRandom.deterministic ++ Sized.live(100)
             ++ TestSystem.default)
 
-        testSize(serviceBuilder, 9)
+        testSize(serviceBuilder, 6)
       },
       test("sharing with ++") {
         val expected = Vector(acquire1, release1)
@@ -258,19 +252,20 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         for {
           promise        <- Promise.make[Nothing, Unit]
           serviceBuilder1 = ZServiceBuilder(ZManaged.never)
-          serviceBuilder2 = ZServiceBuilder(Managed.acquireReleaseWith(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
-          env             = (serviceBuilder1 ++ serviceBuilder2).build
-          _              <- env.useDiscard(ZIO.unit).forkDaemon
-          _              <- promise.await
+          serviceBuilder2 =
+            ZServiceBuilder(Managed.acquireReleaseWith(promise.succeed(()).map(ZEnvironment(_)))(_ => ZIO.unit))
+          env = (serviceBuilder1 ++ serviceBuilder2).build
+          _  <- env.useDiscard(ZIO.unit).forkDaemon
+          _  <- promise.await
         } yield assertCompletes
       },
       test("map can map a service builder to an unrelated type") {
         case class A(name: String, value: Int)
         case class B(name: String)
-        val l1: ServiceBuilder[Nothing, Has[A]]               = ZServiceBuilder.succeed(A("name", 1))
-        val l2: ZServiceBuilder[Has[String], Nothing, Has[B]] = (B.apply _).toServiceBuilder
-        val live: ServiceBuilder[Nothing, Has[B]]             = l1.map(a => Has(a.get[A].name)) >>> l2
-        assertM(ZIO.access[Has[B]](_.get).inject(live))(equalTo(B("name")))
+        val l1: ServiceBuilder[Nothing, A]          = ZServiceBuilder.succeed(A("name", 1))
+        val l2: ZServiceBuilder[String, Nothing, B] = (B.apply _).toServiceBuilder
+        val live: ServiceBuilder[Nothing, B]        = l1.map(a => ZEnvironment(a.get[A].name)) >>> l2
+        assertM(ZIO.service[B].inject(live))(equalTo(B("name")))
       },
       test("memoization") {
         val expected = Vector(acquire1, release1)
@@ -279,8 +274,8 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
           memoized = makeServiceBuilder1(ref).memoize
           _ <- memoized.use { serviceBuilder =>
                  for {
-                   _ <- ZIO.environment[Module1].provideServices(serviceBuilder)
-                   _ <- ZIO.environment[Module1].provideServices(serviceBuilder)
+                   _ <- ZIO.environment[Module1].provide(serviceBuilder)
+                   _ <- ZIO.environment[Module1].provide(serviceBuilder)
                  } yield ()
                }
           actual <- ref.get
@@ -299,13 +294,13 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
       } @@ nonFlaky,
       test("passthrough") {
-        val serviceBuilder: ZServiceBuilder[Has[Int], Nothing, Has[String]] =
+        val serviceBuilder: ZServiceBuilder[Int, Nothing, String] =
           ((_: Int).toString).toServiceBuilder
-        val live: ZServiceBuilder[Any, Nothing, Has[Int] with Has[String]] =
+        val live: ZServiceBuilder[Any, Nothing, Int with String] =
           ZServiceBuilder.succeed(1) >>> serviceBuilder.passthrough
         val zio = for {
-          i <- ZIO.environment[Has[Int]].map(_.get[Int])
-          s <- ZIO.environment[Has[String]].map(_.get[String])
+          i <- ZIO.service[Int]
+          s <- ZIO.service[String]
         } yield (i, s)
         assertM(zio.inject(live))(equalTo((1, "1")))
       },
@@ -360,7 +355,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
                                _ <- ZManaged.unit
                              } yield ref
                            }
-          _      <- serviceBuilder.build.use(ref => ref.update(_ :+ "test"))
+          _      <- serviceBuilder.build.use(_.get.update(_ :+ "test"))
           result <- testRef.get
         } yield assert(result)(equalTo(Vector("test")))
       },
@@ -368,7 +363,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         for {
           ref           <- Ref.make(0)
           effect         = ref.update(_ + 1) *> ZIO.fail("fail")
-          serviceBuilder = ZServiceBuilder.fromZIOMany(effect).retry(Schedule.recurs(3))
+          serviceBuilder = ZServiceBuilder.fromZIOEnvironment(effect).retry(Schedule.recurs(3))
           _             <- serviceBuilder.build.useNow.ignore
           result        <- ref.get
         } yield assert(result)(equalTo(4))
@@ -380,7 +375,7 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         val serviceBuilder3 = ZServiceBuilder.succeed("baz")
         val serviceBuilder4 = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toServiceBuilder
         val env             = serviceBuilder1 ++ ((serviceBuilder2 ++ serviceBuilder3) >+> serviceBuilder4)
-        assertM(ZIO.unit.provideCustomServices(env).exit)(fails(equalTo("foo")))
+        assertM(ZIO.unit.provideCustom(env).exit)(fails(equalTo("foo")))
       },
       test("project") {
         final case class Person(name: String, age: Int)
@@ -395,6 +390,61 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
           _             <- serviceBuilder.build.useNow
           value         <- ref.get
         } yield assert(value)(equalTo("bar"))
+      },
+      test("provides a partial environment to an effect") {
+        val needsIntAndString = ZIO.environment[Int & String]
+        val providesInt       = ZServiceBuilder.succeed(10)
+        val needsString       = ZIO.provide(providesInt)(needsIntAndString)
+        needsString
+          .inject(ZServiceBuilder.succeed("hi"))
+          .map { result =>
+            assertTrue(
+              result.get[Int] == 10,
+              result.get[String] == "hi"
+            )
+          }
+      },
+      test(">>> provides a partial environment to another service builder") {
+        final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
+          def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
+        }
+        val fooBuilder    = (FooService.apply _).toServiceBuilder
+        val provideRefInt = Ref.make(10).toServiceBuilder
+
+        val needsStringAndBoolean = provideRefInt >>> fooBuilder
+
+        ZIO
+          .serviceWithZIO[FooService](_.get)
+          .inject(needsStringAndBoolean, ZServiceBuilder.succeed("hi"), ZServiceBuilder.succeed(true))
+          .map { case (int, string, boolean) =>
+            assertTrue(
+              int == 10,
+              string == "hi",
+              boolean == true
+            )
+          }
+      },
+      test(">+> provides a partial environment to another service builder") {
+        final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
+          def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
+        }
+        val fooBuilder    = (FooService.apply _).toServiceBuilder
+        val provideRefInt = Ref.make(10).toServiceBuilder
+
+        val needsStringAndBoolean = provideRefInt >+> fooBuilder
+
+        ZIO
+          .serviceWithZIO[FooService](_.get)
+          .zip(ZIO.serviceWithZIO[Ref[Int]](_.get))
+          .inject(needsStringAndBoolean, ZServiceBuilder.succeed("hi"), ZServiceBuilder.succeed(true))
+          .map { case (int, string, boolean, int2) =>
+            assertTrue(
+              int == 10,
+              int2 == 10,
+              string == "hi",
+              boolean == true
+            )
+          }
       }
     )
 }

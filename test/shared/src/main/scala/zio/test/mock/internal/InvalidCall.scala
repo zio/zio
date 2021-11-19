@@ -16,7 +16,6 @@
 
 package zio.test.mock.internal
 
-import zio.Has
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
 import zio.test.mock.Capability
@@ -28,19 +27,19 @@ sealed abstract class InvalidCall
 
 object InvalidCall {
 
-  final case class InvalidArguments[R <: Has[_], I, E, A](
+  final case class InvalidArguments[R, I, E, A](
     invoked: Capability[R, I, E, A],
     args: Any,
     assertion: Assertion[Any]
   ) extends InvalidCall
 
-  final case class InvalidCapability[R0 <: Has[_], R1 <: Has[_], In0, In1, E0, E1, A0, A1](
+  final case class InvalidCapability[R0, R1, In0, In1, E0, E1, A0, A1](
     invoked: Capability[R0, In0, E0, A0],
     expected: Capability[R1, In1, E1, A1],
     assertion: Assertion[In1]
   ) extends InvalidCall
 
-  final case class InvalidPolyType[R0 <: Has[_], R1 <: Has[_], In0, In1, E0, E1, A0, A1](
+  final case class InvalidPolyType[R0, R1, In0, In1, E0, E1, A0, A1](
     invoked: Capability[R0, In0, E0, A0],
     args: Any,
     expected: Capability[R1, In1, E1, A1],

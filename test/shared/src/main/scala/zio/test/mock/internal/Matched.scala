@@ -18,13 +18,13 @@ package zio.test.mock.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.mock.Expectation
-import zio.{Has, IO}
+import zio.IO
 
 /**
  * A `Matched[R, E, A]` represents a succesful result of depth first search on
  * `Expectation[R]` tree for a matching mock to given invocation.
  */
-private[mock] final case class Matched[R <: Has[_], E, A](
+private[mock] final case class Matched[R, E, A](
   expectation: Expectation[R],
   result: IO[E, A]
 )

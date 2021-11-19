@@ -62,8 +62,8 @@ object ZPipelineSpec extends ZIOBaseSpec {
           } yield assertTrue(result == Chunk(1, 2, 3))
         },
         test("pipelines can provide the environment") {
-          val pipeline = ZPipeline.provide(42)
-          val stream   = ZStream.environment[Int]
+          val pipeline = ZPipeline.provideEnvironment(ZEnvironment(42))
+          val stream   = ZStream.service[Int]
           for {
             result <- pipeline(stream).runCollect
           } yield assertTrue(result == Chunk(42))
@@ -139,10 +139,22 @@ object ZPipelineSpec extends ZIOBaseSpec {
             ZPipeline.splitOn("<>")(ZStream("abc<", ">abc")).runCollect
           )(equalTo(Chunk("abc", "abc")))
         }
+      ),
+      suite("take")(
+        test("it takes the correct number of elements") {
+          assertM(
+            ZPipeline.take(3)(ZStream(1, 2, 3, 4, 5)).runCollect
+          )(equalTo(Chunk(1, 2, 3)))
+        },
+        test("it takes all elements if n is larger than the ZStream") {
+          assertM(
+            ZPipeline.take(100)(ZStream(1, 2, 3, 4, 5)).runCollect
+          )(equalTo(Chunk(1, 2, 3, 4, 5)))
+        }
       )
     )
 
-  val weirdStringGenForSplitLines: Gen[Has[Random] with Has[Sized], Chunk[String]] = Gen
+  val weirdStringGenForSplitLines: Gen[Random with Sized, Chunk[String]] = Gen
     .chunkOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
     .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
 

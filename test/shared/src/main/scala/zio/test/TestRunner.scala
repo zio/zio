@@ -31,16 +31,16 @@ final case class TestRunner[R, E](
   runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] =
     DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
-  bootstrap: ServiceBuilder[Nothing, Has[TestLogger] with Has[Clock]] =
+  bootstrap: ServiceBuilder[Nothing, TestLogger with Clock] =
     (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(ZTraceElement.empty)) ++ Clock.live
 ) { self =>
 
-  lazy val runtime: Runtime[Unit] = Runtime((), runtimeConfig)
+  lazy val runtime: Runtime[Any] = Runtime(ZEnvironment.empty, runtimeConfig)
 
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(spec: ZSpec[R, E])(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[E]] =
+  def run(spec: ZSpec[R, E])(implicit trace: ZTraceElement): URIO[TestLogger with Clock, ExecutedSpec[E]] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, results) =>
       reporter(duration, results).as(results)
     }
@@ -51,7 +51,7 @@ final case class TestRunner[R, E](
   def unsafeRun(
     spec: ZSpec[R, E]
   )(implicit trace: ZTraceElement): ExecutedSpec[E] =
-    runtime.unsafeRun(run(spec).provideServices(bootstrap))
+    runtime.unsafeRun(run(spec).provide(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
@@ -61,7 +61,7 @@ final case class TestRunner[R, E](
   )(
     k: ExecutedSpec[E] => Unit
   )(implicit trace: ZTraceElement): Unit =
-    runtime.unsafeRunAsyncWith(run(spec).provideServices(bootstrap)) {
+    runtime.unsafeRunAsyncWith(run(spec).provide(bootstrap)) {
       case Exit.Success(v) => k(v)
       case Exit.Failure(c) => throw FiberFailure(c)
     }
@@ -72,7 +72,7 @@ final case class TestRunner[R, E](
   def unsafeRunSync(
     spec: ZSpec[R, E]
   )(implicit trace: ZTraceElement): Exit[Nothing, ExecutedSpec[E]] =
-    runtime.unsafeRunSync(run(spec).provideServices(bootstrap))
+    runtime.unsafeRunSync(run(spec).provide(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the platform
@@ -95,6 +95,6 @@ final case class TestRunner[R, E](
 
   private[test] def buildRuntime(implicit
     trace: ZTraceElement
-  ): Managed[Nothing, Runtime[Has[TestLogger] with Has[Clock]]] =
+  ): Managed[Nothing, Runtime[TestLogger with Clock]] =
     bootstrap.toRuntime(runtimeConfig)
 }

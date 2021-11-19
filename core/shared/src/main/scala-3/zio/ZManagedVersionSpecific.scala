@@ -33,7 +33,7 @@ trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
    * val managed2 = managed.injectSome[Random](clockServiceBuilder)
    * }}}
    */
-  def injectSome[R0 <: Has[_]] =
+  def injectSome[R0] =
     new InjectSomeZManagedPartiallyApplied[R0, R, E, A](self)
 
   /**
@@ -44,7 +44,7 @@ trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
     ${ZManagedMacros.injectImpl[Any, R, E1, A]('self, 'serviceBuilder)}
 }
 
-private final class InjectSomeZManagedPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZManaged[R, E, A]) extends AnyVal {
+private final class InjectSomeZManagedPartiallyApplied[R0, -R, +E, +A](val self: ZManaged[R, E, A]) extends AnyVal {
   inline def apply[E1 >: E](inline serviceBuilder: ZServiceBuilder[_, E1, _]*): ZManaged[R0, E1, A] =
     ${ZManagedMacros.injectImpl[R0, R, E1, A]('self, 'serviceBuilder)}
 }
@@ -57,7 +57,7 @@ object ZManagedMacros {
   Expr[ZManaged[R0, E, A]] = {
     val serviceBuilderExpr = ServiceBuilderMacros.fromAutoImpl[R0, R, E](serviceBuilder)
     '{
-      $schedule.provideServices($serviceBuilderExpr.asInstanceOf[ZServiceBuilder[R0, E, R]])
+      $schedule.provide($serviceBuilderExpr.asInstanceOf[ZServiceBuilder[R0, E, R]])
     }
   }
 }

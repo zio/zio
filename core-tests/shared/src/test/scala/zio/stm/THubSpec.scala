@@ -6,7 +6,7 @@ import zio.test.{assert, Gen, Sized, check}
 
 object THubSpec extends ZIOBaseNewSpec {
 
-  val smallInt: Gen[Has[Random] with Has[Sized], Int] =
+  val smallInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_), 1)
 
   def spec =

@@ -2,7 +2,7 @@ package zio.test.mock.module
 
 import com.github.ghik.silencer.silent
 import zio.test.mock.{Mock, Proxy}
-import zio.{Has, IO, Tag, UIO, URServiceBuilder, ZIO}
+import zio.{IO, Tag, UIO, URServiceBuilder, ZIO}
 
 /**
  * Example pure module used for testing ZIO Mock framework.
@@ -39,11 +39,11 @@ object PureModuleMock extends Mock[PureModule] {
   object MaxParams extends Effect[T22[Int], String, String]
 
   @silent("is never used")
-  val compose: URServiceBuilder[Has[Proxy], PureModule] =
+  val compose: URServiceBuilder[Proxy, PureModule] =
     ZIO
       .service[Proxy]
       .flatMap { proxy =>
-        withRuntime[Has[Proxy]].map { rts =>
+        withRuntime[Proxy].map { rts =>
           new PureModule.Service {
             val static: IO[String, String]                                     = proxy(Static)
             def zeroParams: IO[String, String]                                 = proxy(ZeroParams)

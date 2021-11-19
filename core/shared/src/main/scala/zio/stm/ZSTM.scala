@@ -556,14 +556,15 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    * Provides the transaction its required environment, which eliminates its
    * dependency on `R`.
    */
-  def provide(r: R): STM[E, A] =
-    provideSome(_ => r)
+  def provideEnvironment(r: ZEnvironment[R]): STM[E, A] =
+    provideSomeEnvironment(_ => r)
 
   /**
-   * Provides some of the environment required to run this effect, leaving the
-   * remainder `R0`.
+   * Transforms the environment being provided to this effect with the specified
+   * function.
    */
-  def provideSome[R0](f: R0 => R): ZSTM[R0, E, A] = ProvideSome(self, f)
+  def provideSomeEnvironment[R0](f: ZEnvironment[R0] => ZEnvironment[R]): ZSTM[R0, E, A] =
+    Provide(self, f)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -842,12 +843,12 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def zipWith[R1 <: R, E1 >: E, B, C](that: => ZSTM[R1, E1, B])(f: (A, B) => C): ZSTM[R1, E1, C] =
     self flatMap (a => that map (b => f(a, b)))
 
-  private def run(journal: Journal, fiberId: FiberId, r0: R): TExit[E, A] = {
+  private def run(journal: Journal, fiberId: FiberId, r0: ZEnvironment[R]): TExit[E, A] = {
     type Erased = ZSTM[Any, Any, Any]
     type Cont   = Any => Erased
 
     val contStack = Stack[Cont]()
-    val envStack  = Stack[AnyRef](r0.asInstanceOf[AnyRef])
+    val envStack  = Stack[ZEnvironment[Any]](r0)
     var exit      = null.asInstanceOf[TExit[Any, Any]]
     var curr      = self.asInstanceOf[Erased]
 
@@ -908,14 +909,14 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
           contStack.push(onRetry)
           curr = onRetry.stm
 
-        case Tags.ProvideSome =>
-          val provideSome = curr.asInstanceOf[ProvideSome[Any, Any, Any, Any]]
+        case Tags.Provide =>
+          val provide = curr.asInstanceOf[Provide[Any, Any, Any, Any]]
 
-          envStack.push(provideSome.f.asInstanceOf[AnyRef => AnyRef](envStack.peek()))
+          envStack.push(provide.f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]](envStack.peek()))
 
           val cleanup = ZSTM.succeed(envStack.pop())
 
-          curr = provideSome.effect.ensuring(cleanup).asInstanceOf[Erased]
+          curr = provide.effect.ensuring(cleanup).asInstanceOf[Erased]
 
         case Tags.SucceedNow =>
           val a = curr.asInstanceOf[SucceedNow[Any]].a
@@ -947,27 +948,29 @@ object ZSTM {
   /**
    * Accesses the environment of the transaction.
    */
-  def access[R]: AccessPartiallyApplied[R] =
-    new AccessPartiallyApplied
+  @deprecated("use environmentWith", "2.0.0")
+  def access[R]: EnvironmentWithPartiallyApplied[R] =
+    environmentWith
 
   /**
    * Accesses the environment of the transaction to perform a transaction.
    */
-  @deprecated("use accessSTM", "2.0.0")
-  def accessM[R]: AccessSTMPartiallyApplied[R] =
-    accessSTM
+  @deprecated("use environmentWithSTM", "2.0.0")
+  def accessM[R]: EnvironmentWithSTMPartiallyApplied[R] =
+    environmentWithSTM
 
   /**
    * Accesses the environment of the transaction to perform a transaction.
    */
-  def accessSTM[R]: AccessSTMPartiallyApplied[R] =
-    new AccessSTMPartiallyApplied
+  @deprecated("use environmentWithSTM", "2.0.0")
+  def accessSTM[R]: EnvironmentWithSTMPartiallyApplied[R] =
+    environmentWithSTM
 
   /**
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.accessZIO[R] { r =>
+    ZIO.environmentWithZIO[R] { r =>
       ZIO.suspendSucceedWith { (runtimeConfig, fiberId) =>
         tryCommitSync(runtimeConfig, fiberId, stm, r) match {
           case TryCommit.Done(exit) => throw new ZIO.ZioError(exit)
@@ -1088,7 +1091,19 @@ object ZSTM {
   /**
    * Retrieves the environment inside an stm.
    */
-  def environment[R]: URSTM[R, R] = Effect((_, _, r) => r)
+  def environment[R]: URSTM[R, ZEnvironment[R]] = Effect((_, _, r) => r)
+
+  /**
+   * Accesses the environment of the transaction to perform a transaction.
+   */
+  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+    new EnvironmentWithPartiallyApplied
+
+  /**
+   * Accesses the environment of the transaction to perform a transaction.
+   */
+  def environmentWithSTM[R]: EnvironmentWithSTMPartiallyApplied[R] =
+    new EnvironmentWithSTMPartiallyApplied
 
   /**
    * Determines whether any element of the `Iterable[A]` satisfies the effectual
@@ -1241,16 +1256,16 @@ object ZSTM {
    * Lifts a function `R => A` into a `URSTM[R, A]`.
    */
   @deprecated("use access", "2.0.0")
-  def fromFunction[R, A](f: R => A): URSTM[R, A] =
+  def fromFunction[R, A](f: ZEnvironment[R] => A): URSTM[R, A] =
     access(f)
 
   /**
    * Lifts an effectful function whose effect requires no environment into an
    * effect that requires the input to the function.
    */
-  @deprecated("use accessSTM", "2.0.0")
-  def fromFunctionM[R, E, A](f: R => STM[E, A]): ZSTM[R, E, A] =
-    accessSTM(f)
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def fromFunctionM[R, E, A](f: ZEnvironment[R] => STM[E, A]): ZSTM[R, E, A] =
+    environmentWithSTM(f)
 
   /**
    * Lifts an `Option` into a `STM`.
@@ -1510,7 +1525,7 @@ object ZSTM {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: Tag]: ZSTM[Has[A], Nothing, A] =
+  def service[A: Tag: IsNotIntersection]: ZSTM[A, Nothing, A] =
     ZSTM.access(_.get[A])
 
   /**
@@ -1523,22 +1538,27 @@ object ZSTM {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag]: ZSTM[Has[A] with Has[B], Nothing, (A, B)] =
+  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection]: ZSTM[A with B, Nothing, (A, B)] =
     ZSTM.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag]: ZSTM[Has[A] with Has[B] with Has[C], Nothing, (A, B, C)] =
+  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection]
+    : ZSTM[A with B with C, Nothing, (A, B, C)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag, D: Tag]
-    : ZSTM[Has[A] with Has[B] with Has[C] with Has[D], Nothing, (A, B, C, D)] =
+  def services[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection
+  ]: ZSTM[A with B with C with D, Nothing, (A, B, C, D)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
@@ -1547,6 +1567,13 @@ object ZSTM {
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
     new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Effectfully accesses the specified service in the environment of the
+   * effect.
+   */
+  def serviceWithSTM[Service]: ServiceWithSTMPartiallyApplied[Service] =
+    new ServiceWithSTMPartiallyApplied[Service]
 
   /**
    * Returns an effect with the optional value.
@@ -1669,27 +1696,36 @@ object ZSTM {
   def whenSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenSTM[R, E] =
     new ZSTM.WhenSTM(b)
 
-  final class AccessPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: R => A): ZSTM[R, Nothing, A] =
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[A](f: ZEnvironment[R] => A): ZSTM[R, Nothing, A] =
       ZSTM.environment.map(f)
   }
 
-  final class AccessSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R1 <: R, E, A](f: R => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
+  final class EnvironmentWithSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
       ZSTM.environment.flatMap(f)
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
-    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[HasMany[Key, Service], Nothing, Option[Service]] =
+    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[Map[Key, Service], Nothing, Option[Service]] =
       ZSTM.access(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
-    def apply[R <: Has[Service], E, A](f: Service => ZSTM[R, E, A])(implicit
+    def apply[A](f: Service => A)(implicit
+      ev: IsNotIntersection[Service],
       tag: Tag[Service]
-    ): ZSTM[R with Has[Service], E, A] =
+    ): ZSTM[Service, Nothing, A] =
+      ZSTM.service[Service].map(f)
+  }
+
+  final class ServiceWithSTMPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R <: Service, E, A](f: Service => ZSTM[R, E, A])(implicit
+      ev: IsNotIntersection[Service],
+      tag: Tag[Service]
+    ): ZSTM[R with Service, E, A] =
       ZSTM.service[Service].flatMap(f)
   }
 
@@ -1704,15 +1740,15 @@ object ZSTM {
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
-    def apply[R1 <: R with Has[M]](f: M => M)(implicit ev: Has.IsHas[R1], tag: Tag[M]): ZSTM[R1, E, A] =
-      self.provideSome(ev.update(_, f))
+    def apply[R1 <: R with M](f: M => M)(implicit ev: IsNotIntersection[M], tag: Tag[M]): ZSTM[R1, E, A] =
+      self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
-    def apply[R1 <: R with HasMany[Key, Service], Key](key: => Key)(
+    def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit ev: Has.IsHas[R1], tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
-      self.provideSome(ev.updateAt(_, key, f))
+    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
+      self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 
   final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
@@ -1728,7 +1764,7 @@ object ZSTM {
 
   private[stm] case object RetryException extends Throwable(null, null, false, false)
 
-  private[stm] final case class Effect[R, E, A](f: (Journal, FiberId, R) => A) extends ZSTM[R, E, A] {
+  private[stm] final case class Effect[R, E, A](f: (Journal, FiberId, ZEnvironment[R]) => A) extends ZSTM[R, E, A] {
     def tag: Int = Tags.Effect
   }
 
@@ -1752,8 +1788,11 @@ object ZSTM {
     def tag: Int = Tags.OnSuccess
   }
 
-  private[stm] final case class ProvideSome[R1, R2, E, A](effect: ZSTM[R1, E, A], f: R2 => R1) extends ZSTM[R2, E, A] {
-    def tag: Int = Tags.ProvideSome
+  private[stm] final case class Provide[R1, R2, E, A](
+    effect: ZSTM[R1, E, A],
+    f: ZEnvironment[R2] => ZEnvironment[R1]
+  ) extends ZSTM[R2, E, A] {
+    def tag: Int = Tags.Provide
   }
 
   private[stm] final case class SucceedNow[A](a: A) extends ZSTM[Any, Nothing, A] {
@@ -1771,13 +1810,13 @@ object ZSTM {
     val MaxRetries         = 10
 
     object Tags {
-      final val Effect      = 0
-      final val OnSuccess   = 1
-      final val SucceedNow  = 2
-      final val Succeed     = 3
-      final val OnFailure   = 4
-      final val ProvideSome = 5
-      final val OnRetry     = 6
+      final val Effect     = 0
+      final val OnSuccess  = 1
+      final val SucceedNow = 2
+      final val Succeed    = 3
+      final val OnFailure  = 4
+      final val Provide    = 5
+      final val OnRetry    = 6
     }
 
     class Versioned[A](val value: A) extends Serializable
@@ -1969,7 +2008,7 @@ object ZSTM {
       runtimeConfig: RuntimeConfig,
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
-      r: R
+      r: ZEnvironment[R]
     ): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[ZTRef.Atomic[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
@@ -2042,7 +2081,7 @@ object ZSTM {
       stm: ZSTM[R, E, A],
       txnId: TxnId,
       state: AtomicReference[State[E, A]],
-      r: R
+      r: ZEnvironment[R]
     )(
       k: ZIO[R, E, A] => Any
     )(implicit trace: ZTraceElement): Unit = {
@@ -2082,7 +2121,7 @@ object ZSTM {
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
-      r: R
+      r: ZEnvironment[R]
     ): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[ZTRef.Atomic[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]

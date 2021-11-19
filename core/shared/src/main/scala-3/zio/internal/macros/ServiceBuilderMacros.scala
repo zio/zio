@@ -11,7 +11,7 @@ import ServiceBuilderMacroUtils._
 object ServiceBuilderMacros {
   def injectImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], serviceBuilder: Expr[Seq[ZServiceBuilder[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
     val serviceBuilderExpr = fromAutoImpl[R0, R, E](serviceBuilder)
-    '{$zio.provideServices($serviceBuilderExpr.asInstanceOf[ZServiceBuilder[R0,E,R]])}
+    '{$zio.provide($serviceBuilderExpr.asInstanceOf[ZServiceBuilder[R0,E,R]])}
   }
 
   def fromAutoImpl[R0: Type, R: Type, E: Type](serviceBuilder0: Expr[Seq[ZServiceBuilder[_,E,_]]])(using ctx: Quotes): Expr[ZServiceBuilder[R0,E,R]] = {
@@ -61,9 +61,7 @@ trait ExprGraphCompileVariants { self : ZServiceBuilderExprBuilder.type =>
         case '{$lhs: ZServiceBuilder[i, e, o]} => 
           rhs match {
             case '{$rhs: ZServiceBuilder[i2, e2, o2]} => 
-              val has = Expr.summon[Has.Union[o, o2]].get
-              val tag = Expr.summon[Tag[o2]].get
-              '{$lhs.++($rhs)($has, $tag)}
+              '{$lhs.++($rhs)}
           }
       }
 
@@ -77,7 +75,7 @@ trait ExprGraphCompileVariants { self : ZServiceBuilderExprBuilder.type =>
       }
 
     ZServiceBuilderExprBuilder(
-      Graph(nodes, _ =:= _),
+      Graph(nodes, _ <:< _),
       renderTypeRepr,
       renderExpr,
       compileError,

@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 object ClockSpecJVM extends ZIOBaseSpec {
 
-  def spec: Spec[Has[Annotations] with Has[TestConfig] with ZTestEnv with Has[Live] with Has[Annotations], TestFailure[
+  def spec: Spec[Annotations with TestConfig with ZTestEnv with Live with Annotations, TestFailure[
     Any
   ], TestSuccess] =
     suite("ClockSpec")(
@@ -19,7 +19,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
           _ <- ZIO.foreach(1 to 1000)(_ => UIO.unit) // just pass some time
           b <- Clock.currentTime(unit)
         } yield assert((b - a) % 1000)(not(equalTo(0L)))
-      }.provideServices(Clock.live)
+      }.provide(Clock.live)
       // We might actually have measured exactly one millisecond. In that case we can simply retry.
         @@ TestAspect.flaky
         // This test should only run on JRE >= 9, which is when microsecond precision was introduced.
@@ -32,7 +32,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
           time   <- Clock.currentTime(unit).map(TimeUnit.MILLISECONDS.convert(_, unit))
           finish <- ZIO.succeed(Instant.now).map(_.toEpochMilli)
         } yield assert(time)(isGreaterThanEqualTo(start) && isLessThanEqualTo(finish))
-      }.provideServices(Clock.live)
+      }.provide(Clock.live)
         @@ TestAspect.nonFlaky
     )
 }

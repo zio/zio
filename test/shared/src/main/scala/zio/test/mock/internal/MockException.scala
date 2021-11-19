@@ -16,7 +16,6 @@
 
 package zio.test.mock.internal
 
-import zio.Has
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.mock.{Capability, Expectation}
 
@@ -28,11 +27,11 @@ sealed abstract class MockException extends Throwable
 
 object MockException {
 
-  final case class UnsatisfiedExpectationsException[R <: Has[_]](
+  final case class UnsatisfiedExpectationsException[R](
     expectation: Expectation[R]
   ) extends MockException
 
-  final case class UnexpectedCallException[R <: Has[_], I >: Nothing, E >: Nothing, A >: Nothing](
+  final case class UnexpectedCallException[R, I >: Nothing, E >: Nothing, A >: Nothing](
     capability: Capability[R, I, E, A],
     args: Any
   ) extends MockException

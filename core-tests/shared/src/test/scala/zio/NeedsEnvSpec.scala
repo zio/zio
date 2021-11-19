@@ -11,7 +11,7 @@ object NeedsEnvSpec extends ZIOBaseNewSpec {
         """
             import zio._
             val sayHello = Console.printLine("Hello, World!")
-            sayHello.provideServices(Console.live)
+            sayHello.provide(Console.live)
             """
       }
       assertM(result)(isRight(isUnit))
@@ -21,7 +21,7 @@ object NeedsEnvSpec extends ZIOBaseNewSpec {
         """
             import zio._
             val uio = UIO.succeed("Hello, World!")
-            uio.provideServices(Console.Service.live)
+            uio.provide(Console.Service.live)
             """
       }
       assertM(result)(isLeft(anything))

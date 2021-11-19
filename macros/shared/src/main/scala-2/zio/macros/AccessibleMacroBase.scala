@@ -159,22 +159,22 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
 
       val returnType = info.capability match {
         case Capability.Effect(r, e, a) =>
-          if (r != any) tq"_root_.zio.ZIO[_root_.zio.Has[$serviceName[..$serviceTypeArgs]] with $r, $e, $a]"
-          else tq"_root_.zio.ZIO[_root_.zio.Has[$serviceName[..$serviceTypeArgs]], $e, $a]"
+          if (r != any) tq"_root_.zio.ZIO[$serviceName[..$serviceTypeArgs] with $r, $e, $a]"
+          else tq"_root_.zio.ZIO[$serviceName[..$serviceTypeArgs], $e, $a]"
         case Capability.Managed(r, e, a) =>
-          if (r != any) tq"_root_.zio.ZManaged[_root_.zio.Has[$serviceName[..$serviceTypeArgs]] with $r, $e, $a]"
-          else tq"_root_.zio.ZManaged[_root_.zio.Has[$serviceName[..$serviceTypeArgs]], $e, $a]"
+          if (r != any) tq"_root_.zio.ZManaged[$serviceName[..$serviceTypeArgs] with $r, $e, $a]"
+          else tq"_root_.zio.ZManaged[$serviceName[..$serviceTypeArgs], $e, $a]"
         case Capability.Stream(r, e, a) =>
-          if (r != any) tq"_root_.zio.stream.ZStream[_root_.zio.Has[$serviceName[..$serviceTypeArgs]] with $r, $e, $a]"
-          else tq"_root_.zio.stream.ZStream[_root_.zio.Has[$serviceName[..$serviceTypeArgs]], $e, $a]"
+          if (r != any) tq"_root_.zio.stream.ZStream[$serviceName[..$serviceTypeArgs] with $r, $e, $a]"
+          else tq"_root_.zio.stream.ZStream[$serviceName[..$serviceTypeArgs], $e, $a]"
         case Capability.Sink(r, ine, a, oute, l, b) =>
           if (r != any)
-            tq"_root_.zio.stream.ZSink[_root_.zio.Has[$serviceName[..$serviceTypeArgs]] with $r, $ine, $a, $oute, $l, $b]"
-          else tq"_root_.zio.stream.ZSink[_root_.zio.Has[$serviceName[..$serviceTypeArgs]], $ine, $a, $oute, $l, $b]"
+            tq"_root_.zio.stream.ZSink[$serviceName[..$serviceTypeArgs] with $r, $ine, $a, $oute, $l, $b]"
+          else tq"_root_.zio.stream.ZSink[$serviceName[..$serviceTypeArgs], $ine, $a, $oute, $l, $b]"
         case Capability.Method(a) =>
-          tq"_root_.zio.ZIO[_root_.zio.Has[$serviceName[..$serviceTypeArgs]], $nothing, $a]"
+          tq"_root_.zio.ZIO[$serviceName[..$serviceTypeArgs], $nothing, $a]"
         case Capability.ThrowingMethod(a) =>
-          tq"_root_.zio.ZIO[_root_.zio.Has[$serviceName[..$serviceTypeArgs]], $throwable, $a]"
+          tq"_root_.zio.ZIO[$serviceName[..$serviceTypeArgs], $throwable, $a]"
       }
 
       val typeArgs = typeParams.map(_.name)
@@ -191,31 +191,31 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
 
       val returnValue = (info.capability, paramLists) match {
         case (_: Capability.Effect, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
-          q"_root_.zio.ZIO.accessZIO(_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.ZIO.serviceWithZIO[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs](...$argNames))"
         case (_: Capability.Effect, _) =>
-          q"_root_.zio.ZIO.accessZIO(_.get[$serviceName[..$serviceTypeArgs]].$name)"
+          q"_root_.zio.ZIO.serviceWithZIO[$serviceName[..$serviceTypeArgs]](_.$name)"
         case (_: Capability.Managed, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
-          q"_root_.zio.ZManaged.accessManaged(_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.ZManaged.serviceWithManaged[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs](...$argNames))"
         case (_: Capability.Managed, _) =>
-          q"_root_.zio.ZManaged.accessManaged(_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs])"
+          q"_root_.zio.ZManaged.serviceWithManaged[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs])"
         case (_: Capability.Stream, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
-          q"_root_.zio.stream.ZStream.accessStream(_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.stream.ZStream.serviceWithStream[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs](...$argNames))"
         case (_: Capability.Stream, _) =>
-          q"_root_.zio.stream.ZStream.accessStream(_.get[$serviceName[..$serviceTypeArgs]].$name)"
+          q"_root_.zio.stream.ZStream.serviceWithStream[$serviceName[..$serviceTypeArgs]](_.$name)"
         case (Capability.Sink(r, ine, a, oute, l, b), argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
-          q"_root_.zio.stream.ZSink.accessSink[_root_.zio.Has[$serviceName[..$serviceTypeArgs]]][_root_.zio.Has[$serviceName[..$serviceTypeArgs]] with $r, $ine, $a, $oute, $l, $b](_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.stream.ZSink.environmentWithSink[$serviceName[..$serviceTypeArgs]][$serviceName[..$serviceTypeArgs] with $r, $ine, $a, $oute, $l, $b](_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
         case (Capability.Sink(r, ine, a, oute, l, b), _) =>
-          q"_root_.zio.stream.ZSink.accessSink[_root_.zio.Has[$serviceName[..$serviceTypeArgs]]][_root_.zio.Has[$serviceName[..$serviceTypeArgs]] with $r, $ine, $a, $oute, $l, $b](_.get[$serviceName[..$serviceTypeArgs]].$name)"
+          q"_root_.zio.stream.ZSink.environmentWithSink[$serviceName[..$serviceTypeArgs]][$serviceName[..$serviceTypeArgs] with $r, $ine, $a, $oute, $l, $b](_.get[$serviceName[..$serviceTypeArgs]].$name)"
         case (_: Capability.ThrowingMethod, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           val argNames = argLists.map(_.map(_.name))
-          q"_root_.zio.ZIO.accessZIO(s => ZIO(s.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames)))"
+          q"_root_.zio.ZIO.serviceWithZIO[$serviceName[..$serviceTypeArgs]](s => ZIO(s.$name[..$typeArgs](...$argNames)))"
         case (_: Capability.ThrowingMethod, _) =>
-          q"_root_.zio.ZIO.accessZIO(s => ZIO(s.get[$serviceName[..$serviceTypeArgs]].$name))"
+          q"_root_.zio.ZIO.serviceWithZIO[$serviceName[..$serviceTypeArgs]](s => ZIO(s.$name))"
         case (_, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           val argNames = argLists.map(_.map(_.name))
-          q"_root_.zio.ZIO.access(_.get[$serviceName[..$serviceTypeArgs]].$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.ZIO.serviceWith[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs](...$argNames))"
         case (_, _) =>
-          q"_root_.zio.ZIO.access(_.get[$serviceName[..$serviceTypeArgs]].$name)"
+          q"_root_.zio.ZIO.serviceWith[$serviceName[..$serviceTypeArgs]](_.$name)"
       }
 
       val accessorTypeParams = typeParamsForAccessors(serviceTypeParams)

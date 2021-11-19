@@ -10,24 +10,24 @@ object ChunkSpec extends ZIOBaseNewSpec {
 
   import ZIOTag._
 
-  val intGen: Gen[Has[Random], Int] = Gen.int(-10, 10)
+  val intGen: Gen[Random, Int] = Gen.int(-10, 10)
 
-  def toBoolFn[R <: Has[Random], A]: Gen[R, A => Boolean] =
+  def toBoolFn[R <: Random, A]: Gen[R, A => Boolean] =
     Gen.function(Gen.boolean)
 
-  def tinyChunks[R <: Has[Random], A](a: Gen[R, A]): Gen[R, Chunk[A]] =
+  def tinyChunks[R <: Random, A](a: Gen[R, A]): Gen[R, Chunk[A]] =
     Gen.chunkOfBounded(0, 3)(a)
 
-  def smallChunks[R <: Has[Random], A](a: Gen[R, A]): Gen[R with Has[Sized], Chunk[A]] =
+  def smallChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
     Gen.small(Gen.chunkOfN(_)(a))
 
-  def mediumChunks[R <: Has[Random], A](a: Gen[R, A]): Gen[R with Has[Sized], Chunk[A]] =
+  def mediumChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
     Gen.medium(Gen.chunkOfN(_)(a))
 
-  def largeChunks[R <: Has[Random], A](a: Gen[R, A]): Gen[R with Has[Sized], Chunk[A]] =
+  def largeChunks[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, Chunk[A]] =
     Gen.large(Gen.chunkOfN(_)(a))
 
-  def chunkWithIndex[R <: Has[Random], A](a: Gen[R, A]): Gen[R with Has[Sized], (Chunk[A], Int)] =
+  def chunkWithIndex[R <: Random, A](a: Gen[R, A]): Gen[R with Sized, (Chunk[A], Int)] =
     for {
       chunk <- Gen.chunkOfBounded(1, 100)(a)
       idx   <- Gen.int(0, chunk.length - 1)
@@ -58,7 +58,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
     ),
     suite("append")(
       test("apply") {
-        val chunksWithIndex: Gen[Has[Random] with Has[Sized], (Chunk[Int], Chunk[Int], Int)] =
+        val chunksWithIndex: Gen[Random with Sized, (Chunk[Int], Chunk[Int], Int)] =
           for {
             p  <- Gen.boolean
             as <- Gen.chunkOf(Gen.int)
@@ -114,7 +114,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
     ),
     suite("prepend")(
       test("apply") {
-        val chunksWithIndex: Gen[Has[Random] with Has[Sized], (Chunk[Int], Chunk[Int], Int)] =
+        val chunksWithIndex: Gen[Random with Sized, (Chunk[Int], Chunk[Int], Int)] =
           for {
             p  <- Gen.boolean
             as <- Gen.chunkOf(Gen.int)
@@ -218,7 +218,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
     test("corresponds") {
       val genChunk = smallChunks(intGen)
       val genFunction =
-        Gen.function[Has[Random] with Has[Sized], (Int, Int), Boolean](Gen.boolean).map(Function.untupled(_))
+        Gen.function[Random with Sized, (Int, Int), Boolean](Gen.boolean).map(Function.untupled(_))
       check(genChunk, genChunk, genFunction) { (as, bs, f) =>
         val actual   = as.corresponds(bs)(f)
         val expected = as.toList.corresponds(bs.toList)(f)
@@ -281,7 +281,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
       } @@ zioTag(errors)
     ),
     test("map") {
-      val fn = Gen.function[Has[Random] with Has[Sized], Int, Int](intGen)
+      val fn = Gen.function[Random with Sized, Int, Int](intGen)
       check(smallChunks(intGen), fn)((c, f) => assert(c.map(f).toList)(equalTo(c.toList.map(f))))
     },
     suite("mapZIO")(
@@ -293,7 +293,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
       } @@ zioTag(errors)
     ),
     test("flatMap") {
-      val fn = Gen.function[Has[Random] with Has[Sized], Int, Chunk[Int]](smallChunks(intGen))
+      val fn = Gen.function[Random with Sized, Int, Chunk[Int]](smallChunks(intGen))
       check(smallChunks(intGen), fn) { (c, f) =>
         assert(c.flatMap(f).toList)(equalTo(c.toList.flatMap(f.andThen(_.toList))))
       }
@@ -309,7 +309,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
       check(mediumChunks(intGen))(c => assert(c.lastOption)(equalTo(c.toList.lastOption)))
     },
     test("indexWhere") {
-      val fn = Gen.function[Has[Random] with Has[Sized], Int, Boolean](Gen.boolean)
+      val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
       check(smallChunks(intGen), smallChunks(intGen), fn, intGen) { (left, right, p, from) =>
         val actual   = (left ++ right).indexWhere(p, from)
         val expected = (left.toVector ++ right.toVector).indexWhere(p, from)
@@ -317,15 +317,15 @@ object ChunkSpec extends ZIOBaseNewSpec {
       }
     } @@ exceptScala211,
     test("exists") {
-      val fn = Gen.function[Has[Random] with Has[Sized], Int, Boolean](Gen.boolean)
+      val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.exists(p))(equalTo(chunk.toList.exists(p))))
     },
     test("forall") {
-      val fn = Gen.function[Has[Random] with Has[Sized], Int, Boolean](Gen.boolean)
+      val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.forall(p))(equalTo(chunk.toList.forall(p))))
     },
     test("find") {
-      val fn = Gen.function[Has[Random] with Has[Sized], Int, Boolean](Gen.boolean)
+      val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.find(p))(equalTo(chunk.toList.find(p))))
     },
     suite("findZIO")(
@@ -337,7 +337,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
       } @@ zioTag(errors)
     ),
     test("filter") {
-      val fn = Gen.function[Has[Random] with Has[Sized], Int, Boolean](Gen.boolean)
+      val fn = Gen.function[Random with Sized, Int, Boolean](Gen.boolean)
       check(mediumChunks(intGen), fn)((chunk, p) => assert(chunk.filter(p).toList)(equalTo(chunk.toList.filter(p))))
     },
     suite("filterZIO")(
@@ -357,7 +357,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
       }
     },
     test("dropWhile chunk") {
-      check(mediumChunks(intGen), toBoolFn[Has[Random], Int]) { (c, p) =>
+      check(mediumChunks(intGen), toBoolFn[Random, Int]) { (c, p) =>
         assert(c.dropWhile(p).toList)(equalTo(c.toList.dropWhile(p)))
       }
     },
@@ -370,7 +370,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
       } @@ zioTag(errors)
     ),
     test("takeWhile chunk") {
-      check(mediumChunks(intGen), toBoolFn[Has[Random], Int]) { (c, p) =>
+      check(mediumChunks(intGen), toBoolFn[Random, Int]) { (c, p) =>
         assert(c.takeWhile(p).toList)(equalTo(c.toList.takeWhile(p)))
       }
     },
@@ -414,7 +414,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
         assert(Chunk.empty.collect { case _ => 1 })(isEmpty)
       },
       test("collect chunk") {
-        val pfGen = Gen.partialFunction[Has[Random] with Has[Sized], Int, Int](intGen)
+        val pfGen = Gen.partialFunction[Random with Sized, Int, Int](intGen)
         check(mediumChunks(intGen), pfGen)((c, pf) => assert(c.collect(pf).toList)(equalTo(c.toList.collect(pf))))
       }
     ),
@@ -423,7 +423,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
         assertM(Chunk.empty.collectZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
       test("collectZIO chunk") {
-        val pfGen = Gen.partialFunction[Has[Random] with Has[Sized], Int, UIO[Int]](Gen.successes(intGen))
+        val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[Int]](Gen.successes(intGen))
         check(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
             result   <- c.collectZIO(pf).map(_.toList)
@@ -440,7 +440,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
         assert(Chunk.empty.collectWhile { case _ => 1 })(isEmpty)
       },
       test("collectWhile chunk") {
-        val pfGen = Gen.partialFunction[Has[Random] with Has[Sized], Int, Int](intGen)
+        val pfGen = Gen.partialFunction[Random with Sized, Int, Int](intGen)
         check(mediumChunks(intGen), pfGen) { (c, pf) =>
           assert(c.collectWhile(pf).toList)(equalTo(c.toList.takeWhile(pf.isDefinedAt).map(pf.apply)))
         }
@@ -451,7 +451,7 @@ object ChunkSpec extends ZIOBaseNewSpec {
         assertM(Chunk.empty.collectWhileZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
       test("collectWhileZIO chunk") {
-        val pfGen = Gen.partialFunction[Has[Random] with Has[Sized], Int, UIO[Int]](Gen.successes(intGen))
+        val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[Int]](Gen.successes(intGen))
         check(mediumChunks(intGen), pfGen) { (c, pf) =>
           for {
             result   <- c.collectWhileZIO(pf).map(_.toList)

@@ -46,35 +46,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(res1)(fails(equalTo(s))) && assert(res2)(fails(equalTo(s)))
           })
         ) @@ TestAspect.jvmOnly, // This is horrendously slow on Scala.js for some reason
-        test("access") {
-          for {
-            result <- ZStream.access[String](identity).provide("test").runHead.some
-          } yield assert(result)(equalTo("test"))
-        },
-        suite("accessZIO")(
-          test("accessZIO") {
-            for {
-              result <- ZStream.accessZIO[String](ZIO.succeed(_)).provide("test").runHead.some
-            } yield assert(result)(equalTo("test"))
-          },
-          test("accessZIO fails") {
-            for {
-              result <- ZStream.accessZIO[Int](_ => ZIO.fail("fail")).provide(0).runHead.exit
-            } yield assert(result)(fails(equalTo("fail")))
-          } @@ zioTag(errors)
-        ),
-        suite("accessStream")(
-          test("accessStream") {
-            for {
-              result <- ZStream.accessStream[String](ZStream.succeed(_)).provide("test").runHead.some
-            } yield assert(result)(equalTo("test"))
-          },
-          test("accessStream fails") {
-            for {
-              result <- ZStream.accessStream[Int](_ => ZStream.fail("fail")).provide(0).runHead.exit
-            } yield assert(result)(fails(equalTo("fail")))
-          } @@ zioTag(errors)
-        ),
         suite("aggregateAsync")(
           test("simple example") {
             ZStream(1, 1, 1, 1)
@@ -1193,6 +1164,49 @@ object ZStreamSpec extends ZIOBaseSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Ensuring", "Release", "Use", "Acquire")))
         },
+        test("environmentWith") {
+          for {
+            result <- ZStream.service[String].provideEnvironment(ZEnvironment("test")).runHead.some
+          } yield assert(result)(equalTo("test"))
+        },
+        suite("environmentWithZIO")(
+          test("environmentWithZIO") {
+            for {
+              result <- ZStream
+                          .environmentWithZIO[String](environment => ZIO.succeed(environment.get))
+                          .provideEnvironment(ZEnvironment("test"))
+                          .runHead
+                          .some
+            } yield assert(result)(equalTo("test"))
+          },
+          test("environmentWithZIO fails") {
+            for {
+              result <-
+                ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provideEnvironment(ZEnvironment(0)).runHead.exit
+            } yield assert(result)(fails(equalTo("fail")))
+          } @@ zioTag(errors)
+        ),
+        suite("environmentWithStream")(
+          test("environmentWithStream") {
+            for {
+              result <- ZStream
+                          .environmentWithStream[String](environment => ZStream.succeed(environment.get))
+                          .provideEnvironment(ZEnvironment("test"))
+                          .runHead
+                          .some
+            } yield assert(result)(equalTo("test"))
+          },
+          test("environmentWithStream fails") {
+            for {
+              result <-
+                ZStream
+                  .environmentWithStream[Int](_ => ZStream.fail("fail"))
+                  .provideEnvironment(ZEnvironment(0))
+                  .runHead
+                  .exit
+            } yield assert(result)(fails(equalTo("fail")))
+          } @@ zioTag(errors)
+        ),
         test("filter")(check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
@@ -2946,8 +2960,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             val ref: Chunk[Int] = Chunk(10)
 
             ZStream
-              .serviceWith[A](_.live)
-              .provideCustomServices(ZServiceBuilder.succeed(new A {
+              .serviceWithZIO[A](_.live)
+              .provideCustom(ZServiceBuilder.succeed(new A {
                 override def live: UIO[Int] = UIO(10)
               }))
               .runCollect
@@ -2962,7 +2976,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             ZStream
               .serviceWithStream[A](_.live)
-              .provideCustomServices(ZServiceBuilder.succeed(new A {
+              .provideCustom(ZServiceBuilder.succeed(new A {
                 override def live: ZStream[Any, Nothing, Int] =
                   ZStream.fromIterable(numbers)
               }))
@@ -4043,7 +4057,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val b: ZIO[R, E, A]                            = ZIO.succeed(new A {})
             val pf: PartialFunction[A, ZStream[R1, E1, O]] = { case _ => ZStream(o) }
             val s: ZStream[R1, E1, O]                      = ZStream.whenCaseZIO(b)(pf)
-            assertM(s.runDrain.provide(new R1 {}))(isUnit)
+            assertM(s.runDrain.provideEnvironment(ZEnvironment(new R1 {})))(isUnit)
           }
         ),
         suite("whenZIO")(
@@ -4082,52 +4096,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             val stream: ZStream[R1, E1, O] = ZStream(o)
             val s1: ZStream[R1, E1, O]     = ZStream.whenZIO(b)(stream)
             val s2: ZStream[R1, E1, O]     = stream.whenZIO(b)
-            assertM((s1 ++ s2).runDrain.provide(new R1 {}))(isUnit)
+            assertM((s1 ++ s2).runDrain.provideEnvironment(ZEnvironment(new R1 {})))(isUnit)
           }
         )
       ),
       suite("Constructors")(
-        test("access") {
-          for {
-            result <- ZStream.access[String](identity).provide("test").runCollect.map(_.head)
-          } yield assert(result)(equalTo("test"))
-        },
-        suite("accessZIO")(
-          test("accessZIO") {
-            for {
-              result <- ZStream
-                          .accessZIO[String](ZIO.succeedNow)
-                          .provide("test")
-                          .runCollect
-                          .map(_.head)
-            } yield assert(result)(equalTo("test"))
-          },
-          test("accessZIO fails") {
-            for {
-              result <- ZStream.accessZIO[Int](_ => ZIO.fail("fail")).provide(0).runCollect.exit
-            } yield assert(result)(fails(equalTo("fail")))
-          }
-        ),
-        suite("accessStream")(
-          test("accessStream") {
-            for {
-              result <- ZStream
-                          .accessStream[String](ZStream.succeed(_))
-                          .provide("test")
-                          .runCollect
-                          .map(_.head)
-            } yield assert(result)(equalTo("test"))
-          },
-          test("accessStream fails") {
-            for {
-              result <- ZStream
-                          .accessStream[Int](_ => ZStream.fail("fail"))
-                          .provide(0)
-                          .runCollect
-                          .exit
-            } yield assert(result)(fails(equalTo("fail")))
-          }
-        ),
         test("rechunk") {
           check(tinyChunkOf(Gen.chunkOf(Gen.int)) <*> (Gen.int(1, 100))) { case (chunk, n) =>
             val expected = Chunk.fromIterable(chunk.flatten.grouped(n).toList)
@@ -4151,9 +4124,57 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         test("environment") {
           for {
-            result <- ZStream.environment[String].provide("test").runCollect.map(_.head)
+            result <-
+              ZStream.environment[String].map(_.get).provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
           } yield assert(result)(equalTo("test"))
         },
+        test("environmentWith") {
+          for {
+            result <-
+              ZStream.environmentWith[String](_.get).provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
+          } yield assert(result)(equalTo("test"))
+        },
+        suite("environmentWithZIO")(
+          test("environmentWithZIO") {
+            for {
+              result <- ZStream
+                          .environmentWithZIO[String](environment => ZIO.succeed(environment.get))
+                          .provideEnvironment(ZEnvironment("test"))
+                          .runCollect
+                          .map(_.head)
+            } yield assert(result)(equalTo("test"))
+          },
+          test("environmentWithZIO fails") {
+            for {
+              result <-
+                ZStream
+                  .environmentWithZIO[Int](_ => ZIO.fail("fail"))
+                  .provideEnvironment(ZEnvironment(0))
+                  .runCollect
+                  .exit
+            } yield assert(result)(fails(equalTo("fail")))
+          }
+        ),
+        suite("environmentWithStream")(
+          test("environmentWithStream") {
+            for {
+              result <- ZStream
+                          .environmentWithStream[String](environment => ZStream.succeed(environment.get))
+                          .provideEnvironment(ZEnvironment("test"))
+                          .runCollect
+                          .map(_.head)
+            } yield assert(result)(equalTo("test"))
+          },
+          test("environmentWithStream fails") {
+            for {
+              result <- ZStream
+                          .environmentWithStream[Int](_ => ZStream.fail("fail"))
+                          .provideEnvironment(ZEnvironment(0))
+                          .runCollect
+                          .exit
+            } yield assert(result)(fails(equalTo("fail")))
+          }
+        ),
         suite("finalizer")(
           test("happy path") {
             for {
@@ -4323,10 +4344,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("Schedule") {
             trait R
             trait A
-            lazy val schedule: Schedule[R, Any, A]                    = ???
-            lazy val actual                                           = ZStream.from(schedule)
-            lazy val expected: ZStream[R with Has[Clock], Nothing, A] = actual
-            lazy val _                                                = expected
+            lazy val schedule: Schedule[R, Any, A]               = ???
+            lazy val actual                                      = ZStream.from(schedule)
+            lazy val expected: ZStream[R with Clock, Nothing, A] = actual
+            lazy val _                                           = expected
             assertCompletes
           },
           test("TQueue") {
@@ -4736,8 +4757,8 @@ object ZStreamSpec extends ZIOBaseSpec {
   def assertWithChunkCoordination[A](
     chunks: List[Chunk[A]]
   )(
-    assertion: ChunkCoordination[A] => ZIO[Has[Clock] with Has[TestClock], Nothing, TestResult]
-  ): ZIO[Has[Clock] with Has[TestClock], Nothing, TestResult] =
+    assertion: ChunkCoordination[A] => ZIO[Clock with TestClock, Nothing, TestResult]
+  ): ZIO[Clock with TestClock, Nothing, TestResult] =
     for {
       q  <- Queue.unbounded[Exit[Option[Nothing], Chunk[A]]]
       ps <- Queue.unbounded[Unit]

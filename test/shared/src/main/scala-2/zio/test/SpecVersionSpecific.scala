@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{Has, NeedsEnv, ZServiceBuilder}
+import zio.{NeedsEnv, ZServiceBuilder}
 import zio.internal.macros.ServiceBuilderMacros
 
 private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
@@ -20,9 +20,9 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * later.
    *
    * {{{
-   * val spec: ZIO[Has[UserRepo] with Has[Console], Nothing, Unit] = ???
-   * val userRepoServiceBuilder: ZServiceBuilder[Has[Database], Nothing, Has[UserRepo] = ???
-   * val databaseServiceBuilder: ZServiceBuilder[Has[Clock], Nothing, Has[Database]] = ???
+   * val spec: ZIO[UserRepo with Console, Nothing, Unit] = ???
+   * val userRepoServiceBuilder: ZServiceBuilder[Database, Nothing, UserRepo = ???
+   * val databaseServiceBuilder: ZServiceBuilder[Clock, Nothing, Database] = ???
    *
    * // The TestEnvironment you use later will provide Clock to
    * // `databaseServiceBuilder` and Console to `spec`
@@ -38,13 +38,13 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * using the specified service builder and leaving the remainder `R0`.
    *
    * {{{
-   * val spec: ZSpec[Has[Clock] with Has[Random], Nothing] = ???
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Clock]] = ???
+   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
    *
-   * val spec2: ZSpec[Has[Random], Nothing] = spec.injectSome[Has[Random]](clockServiceBuilder)
+   * val spec2: ZSpec[Random, Nothing] = spec.injectSome[Random](clockServiceBuilder)
    * }}}
    */
-  def injectSome[R0 <: Has[_]]: InjectSomePartiallyApplied[R0, R, E, T] =
+  def injectSome[R0]: InjectSomePartiallyApplied[R0, R, E, T] =
     new InjectSomePartiallyApplied[R0, R, E, T](self)
 
   /**
@@ -63,9 +63,9 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * `TestEnvironment.any`, allowing them to be provided later.
    *
    * {{{
-   * val spec: ZIO[Has[UserRepo] with Has[Console], Nothing, Unit] = ???
-   * val userRepoServiceBuilder: ZServiceBuilder[Has[Database], Nothing, Has[UserRepo] = ???
-   * val databaseServiceBuilder: ZServiceBuilder[Has[Clock], Nothing, Has[Database]] = ???
+   * val spec: ZIO[UserRepo with Console, Nothing, Unit] = ???
+   * val userRepoServiceBuilder: ZServiceBuilder[Database, Nothing, UserRepo = ???
+   * val databaseServiceBuilder: ZServiceBuilder[Clock, Nothing, Database] = ???
    *
    * // The TestEnvironment you use later will provide Clock to
    * // `databaseServiceBuilder` and Console to `spec`
@@ -82,45 +82,45 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * remainder `R0`.
    *
    * {{{
-   * val spec: ZSpec[Has[Int] with Has[Random], Nothing] = ???
-   * val intServiceBuilder: ZServiceBuilder[Any, Nothing, Has[Int]] = ???
+   * val spec: ZSpec[Int with Random, Nothing] = ???
+   * val intServiceBuilder: ZServiceBuilder[Any, Nothing, Int] = ???
    *
-   * val spec2 = spec.injectSomeShared[Has[Random]](intServiceBuilder)
+   * val spec2 = spec.injectSomeShared[Random](intServiceBuilder)
    * }}}
    */
-  final def injectSomeShared[R0 <: Has[_]]: InjectSomeSharedPartiallyApplied[R0, R, E, T] =
+  final def injectSomeShared[R0]: InjectSomeSharedPartiallyApplied[R0, R, E, T] =
     new InjectSomeSharedPartiallyApplied[R0, R, E, T](self)
 }
 
-private final class InjectSomePartiallyApplied[R0 <: Has[_], -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
+private final class InjectSomePartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
 
-  def provideServices[E1 >: E, R1](
+  def provide[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    self.provideServices(serviceBuilder)
+    self.provide(serviceBuilder)
 
-  @deprecated("use provideServices", "2.0.0")
+  @deprecated("use provide", "2.0.0")
   def provideLayer[E1 >: E, R1](
     layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    provideServices(layer)
+    provide(layer)
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[R0, E1, T] =
     macro ServiceBuilderMacros.injectSomeImpl[Spec, R0, R, E1, T]
 }
 
-private final class InjectSomeSharedPartiallyApplied[R0 <: Has[_], -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
+private final class InjectSomeSharedPartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
 
-  def provideServicesShared[E1 >: E, R1](
+  def provideShared[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    self.provideServicesShared(serviceBuilder)
+    self.provideShared(serviceBuilder)
 
-  @deprecated("use provideServicesShared", "2.0.0")
+  @deprecated("use provideShared", "2.0.0")
   def provideLayerShared[E1 >: E, R1](
     layer: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
-    provideServicesShared(layer)
+    provideShared(layer)
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): Spec[R0, E1, T] =
     macro SpecServiceBuilderMacros.injectSomeSharedImpl[R0, R, E1, T]

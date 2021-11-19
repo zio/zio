@@ -88,6 +88,6 @@ object QuillZIOExample extends zio.App {
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
     myApp
-      .provideCustomServices(DataSourceServiceBuilder.fromPrefix("myH2DB"))
+      .provideCustom(DataSourceServiceBuilder.fromPrefix("myH2DB"))
       .exitCode
 }

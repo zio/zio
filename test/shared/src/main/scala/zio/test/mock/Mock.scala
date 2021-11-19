@@ -19,14 +19,14 @@ package zio.test.mock
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZSink, ZStream}
 import zio.test.TestPlatform
-import zio.{Executor, Has, Runtime, Tag, UServiceBuilder, URIO, URServiceBuilder, ZIO, ZTraceElement}
+import zio.{Executor, Runtime, Tag, UServiceBuilder, URIO, URServiceBuilder, ZIO, ZTraceElement}
 
 /**
  * A `Mock[R]` represents a mockable environment `R`.
  */
-abstract class Mock[R <: Has[_]: Tag] { self =>
+abstract class Mock[R: Tag] { self =>
 
-  protected[test] val compose: URServiceBuilder[Has[Proxy], R]
+  protected[test] val compose: URServiceBuilder[Proxy, R]
 
   def empty(implicit trace: ZTraceElement): UServiceBuilder[R] = Expectation.NoCalls(self)
 
@@ -75,5 +75,5 @@ abstract class Mock[R <: Has[_]: Tag] { self =>
 
 object Mock {
 
-  private[mock] case class Composed[R <: Has[_]: Tag](compose: URServiceBuilder[Has[Proxy], R]) extends Mock[R]
+  private[mock] case class Composed[R: Tag](compose: URServiceBuilder[Proxy, R]) extends Mock[R]
 }

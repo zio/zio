@@ -129,7 +129,7 @@ object HelloWorldClient extends zio.App {
     )
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideCustomServices(clientServiceBuilder).exitCode
+    myApp.provideCustom(clientServiceBuilder).exitCode
 }
 ```
 

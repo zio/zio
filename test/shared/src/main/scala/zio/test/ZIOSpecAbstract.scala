@@ -25,11 +25,11 @@ import zio.test.render._
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
-  def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any]
+  def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any]
 
   def aspects: Chunk[TestAspect.WithOut[
     Nothing,
-    Environment with TestEnvironment with Has[ZIOAppArgs],
+    Environment with TestEnvironment with ZIOAppArgs,
     Nothing,
     Any,
     ({ type OutEnv[Env] = Env })#OutEnv,
@@ -37,19 +37,19 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   ]] =
     Chunk.empty
 
-  final def run: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] = {
+  final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {
     implicit val trace = Tracer.newTrace
-    runSpec.provideSomeServices[ZEnv with Has[ZIOAppArgs]](TestEnvironment.live ++ serviceBuilder)
+    runSpec.provideSome[ZEnv with ZIOAppArgs](TestEnvironment.live ++ serviceBuilder)
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      def serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, Environment] =
+      def serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, Environment] =
         self.serviceBuilder +!+ that.serviceBuilder
-      override def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] =
+      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs, Any, Any] =
         self.runSpec.zipPar(that.runSpec)
-      def spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any] =
+      def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =
         self.spec + that.spec
       def tag: Tag[Environment] = {
         implicit val selfTag: Tag[self.Environment] = self.tag
@@ -59,7 +59,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       }
     }
 
-  protected def runSpec: ZIO[Environment with TestEnvironment with Has[ZIOAppArgs], Any, Any] = {
+  protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs, Any, Any] = {
     implicit val trace = Tracer.newTrace
     for {
       args         <- ZIO.service[ZIOAppArgs]
@@ -98,26 +98,26 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     }
 
   private[zio] def runSpec(
-    spec: ZSpec[Environment with TestEnvironment with Has[ZIOAppArgs], Any],
+    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any],
     testArgs: TestArgs
-  )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with Has[ZIOAppArgs], ExecutedSpec[Any]] = {
+  )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with ZIOAppArgs, ExecutedSpec[Any]] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
-      env <- ZIO.environment[Environment with TestEnvironment with Has[ZIOAppArgs]]
+      env <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs]
       runner =
         TestRunner(
-          TestExecutor.default[Environment with TestEnvironment with Has[ZIOAppArgs], Any](
+          TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs, Any](
             ZServiceBuilder.succeedMany(env)
           )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideServices(runner.bootstrap)
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provide(runner.bootstrap)
       _ <- TestLogger
              .logLine(SummaryBuilder.buildSummary(results).summary)
              .when(testArgs.printSummary)
-             .provideServices(runner.bootstrap)
+             .provide(runner.bootstrap)
     } yield results
   }
 }

@@ -34,12 +34,12 @@ final case class Config(server: String, port: Int)
 
 val configString: URIO[Config, String] = 
   for {
-    server <- ZIO.access[Config](_.server)
-    port   <- ZIO.access[Config](_.port)
+    server <- ZIO.service[Config].map(_.server)
+    port   <- ZIO.service[Config].map(_.port)
   } yield s"Server: $server, port: $port"
 ```
 
-Even effects themselves can be stored in the environment! In this case, to access and execute an effect, the `ZIO.accessZIO` method can be used.
+Even effects themselves can be stored in the environment! In this case, to access and execute an effect, the `ZIO.serviceWithZIO` method can be used.
 
 ```scala mdoc:silent
 trait DatabaseOps {
@@ -49,8 +49,8 @@ trait DatabaseOps {
 
 val tablesAndColumns: ZIO[DatabaseOps, Throwable, (List[String], List[String])] = 
   for {
-    tables  <- ZIO.accessZIO[DatabaseOps](_.getTableNames)
-    columns <- ZIO.accessZIO[DatabaseOps](_.getColumnNames("user_table"))
+    tables  <- ZIO.serviceWithZIO[DatabaseOps](_.getTableNames)
+    columns <- ZIO.serviceWithZIO[DatabaseOps](_.getColumnNames("user_table"))
   } yield (tables, columns)
 ```
 
@@ -67,15 +67,15 @@ The simplest way to provide an effect the environment that it requires is to use
 ```scala mdoc:silent
 val square: URIO[Int, Int] = 
   for {
-    env <- ZIO.environment[Int]
+    env <- ZIO.service[Int]
   } yield env * env
 
-val result: UIO[Int] = square.provide(42)
+val result: UIO[Int] = square.provideEnvironment(ZEnvironment(42))
 ```
 
 Once you provide an effect with the environment it requires, then you get back an effect whose environment type is `Any`, indicating its requirements have been fully satisfied.
 
-The combination of `ZIO.accessZIO` and `ZIO#provide` are all that is necessary to fully use environmental effects for easy testability.
+The combination of `ZIO.environmentWithZIO` and `ZIO#provide` are all that is necessary to fully use environmental effects for easy testability.
 
 ## Environmental Effects
 
@@ -111,19 +111,19 @@ In this example,  `Database` is the _module_, which contains the `Database.Servi
 
 ### Provide Helpers
 
-In order to make it easier to access the database service as an environmental effect, we will define helper functions that use `ZIO.accessZIO`.
+In order to make it easier to access the database service as an environmental effect, we will define helper functions that use `ZIO.serviceWithZIO`.
 
 ```scala mdoc:silent
 object db {
   def lookup(id: UserID): RIO[Database, UserProfile] =
-    ZIO.accessZIO(_.database.lookup(id))
+    ZIO.serviceWithZIO(_.database.lookup(id))
 
   def update(id: UserID, profile: UserProfile): RIO[Database, Unit] =
-    ZIO.accessZIO(_.database.update(id, profile))
+    ZIO.serviceWithZIO(_.database.update(id, profile))
 }
 ```
 
-While these helpers are not required, because we can access the database module directly through `ZIO.accessZIO`, the helpers are easy to write and make use-site code simpler.
+While these helpers are not required, because we can access the database module directly through `ZIO.serviceWithZIO`, the helpers are easy to write and make use-site code simpler.
 
 ### Use the Service
 
@@ -167,7 +167,7 @@ We can now provide the live database module to our application, using `ZIO.provi
 def main: RIO[Database, Unit] = ???
 
 def main2: Task[Unit] = 
-  main.provide(DatabaseLive)
+  main.provideEnvironment(ZEnvironment(DatabaseLive))
 ```
 
 The resulting effect has no requirements, so it can now be executed with a ZIO runtime.
@@ -210,7 +210,7 @@ To test code that requires the database, we need only provide it with our test d
 def code: RIO[Database, Unit] = ???
 
 def code2: Task[Unit] = 
-  code.provide(TestDatabase)
+  code.provideEnvironment(ZEnvironment(TestDatabase))
 ```
 
 Our application code can work with either our production database module, or the test database module.

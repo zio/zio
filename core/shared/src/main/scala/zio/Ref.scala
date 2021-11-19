@@ -42,6 +42,6 @@ object Ref extends Serializable {
    * @see
    *   [[zio.ZRef.unsafeMake]]
    */
-  private[zio] def unsafeMake[A](a: A)(implicit trace: ZTraceElement): Ref.Atomic[A] =
+  private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
     ZRef.unsafeMake(a)
 }

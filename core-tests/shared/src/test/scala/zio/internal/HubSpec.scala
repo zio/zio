@@ -3,7 +3,7 @@ package zio.internal
 import zio.test.Assertion._
 import zio.test._
 import zio.{Hub => _}
-import zio.{Chunk, Has, Random, UIO, ZIO, ZIOBaseSpec, Hub => _}
+import zio.{Chunk, Random, UIO, ZIO, ZIOBaseSpec, Hub => _}
 
 object HubSpec extends ZIOBaseSpec {
 
@@ -62,7 +62,7 @@ object HubSpec extends ZIOBaseSpec {
       )
     )
 
-  val smallInt: Gen[Has[Random], Int] =
+  val smallInt: Gen[Random, Int] =
     Gen.int(1, 10)
 
   def offerAll[A](hub: Hub[A], values: List[A]): UIO[Unit] =

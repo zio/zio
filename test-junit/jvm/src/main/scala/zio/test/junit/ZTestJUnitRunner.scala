@@ -76,16 +76,16 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 
     unsafeRun(
       traverse(filteredSpec, description)
-        .provideServices(spec.runner.executor.environment)
+        .provide(spec.runner.executor.environment)
         .useNow
     )
     description
   }
 
   override def run(notifier: RunNotifier): Unit =
-    zio.Runtime((), spec.runner.runtimeConfig).unsafeRun {
+    zio.Runtime(ZEnvironment.empty, spec.runner.runtimeConfig).unsafeRun {
       val instrumented = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
-      spec.runner.run(instrumented).unit.provideServices(spec.runner.bootstrap)
+      spec.runner.run(instrumented).unit.provide(spec.runner.bootstrap)
     }
 
   private def reportRuntimeFailure[E](

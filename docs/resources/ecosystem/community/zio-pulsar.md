@@ -80,7 +80,7 @@ object StreamingExample extends zio.App {
 
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     myApp
-      .provideCustomServices(
+      .provideCustom(
         (Console.live ++ Clock.live) >+>
           PulsarClient.live("localhost", 6650)
       ).useNow.exitCode

@@ -8,7 +8,7 @@ import scala.collection.immutable.Queue
 
 class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
-  @volatile private var providedEnv: Any,
+  @volatile private var providedEnv: ZEnvironment[Any],
   executeCloseLastSubstream: URIO[Env, Any] => URIO[Env, Any]
 ) {
   import ChannelExecutor._
@@ -205,8 +205,9 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             currentChannel = effect()
 
           case ZChannel.Effect(zio) =>
-            val pzio = (if (providedEnv == null) zio else zio.provide(providedEnv.asInstanceOf[Env]))
-              .asInstanceOf[ZIO[Env, OutErr, OutDone]]
+            val pzio =
+              (if (providedEnv == null) zio else zio.provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]]))
+                .asInstanceOf[ZIO[Env, OutErr, OutDone]]
 
             result = ChannelState.Effect(
               pzio

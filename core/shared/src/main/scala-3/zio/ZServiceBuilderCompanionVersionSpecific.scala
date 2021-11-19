@@ -2,12 +2,12 @@ package zio
 
 import zio.internal.macros.ServiceBuilderMacros
 
-final class WirePartiallyApplied[R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
+final class WirePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
   inline def apply[E](inline serviceBuilder: ZServiceBuilder[_, E, _]*): ZServiceBuilder[Any, E, R] =
     ${ServiceBuilderMacros.fromAutoImpl[Any, R, E]('serviceBuilder)}
 }
 
-final class WireSomePartiallyApplied[R0 <: Has[_], R <: Has[_]](val dummy: Boolean = true) extends AnyVal {
+final class WireSomePartiallyApplied[R0, R](val dummy: Boolean = true) extends AnyVal {
   inline def apply[E](inline serviceBuilder: ZServiceBuilder[_, E, _]*): ZServiceBuilder[R0, E, R] =
     ${ServiceBuilderMacros.fromAutoImpl[R0, R, E]('serviceBuilder)}
 }
@@ -21,7 +21,7 @@ trait ZServiceBuilderCompanionVersionSpecific {
    * val serviceBuilder = ZServiceBuilder.wire[Car](carServiceBuilder, wheelsServiceBuilder, engineServiceBuilder)
    * }}}
    */
-  inline def wire[R <: Has[_]]: WirePartiallyApplied[R] =
+  inline def wire[R]: WirePartiallyApplied[R] =
     new WirePartiallyApplied[R]()
 
     /**
@@ -35,6 +35,6 @@ trait ZServiceBuilderCompanionVersionSpecific {
    * val serviceBuilder = ZServiceBuilder.wireSome[Engine, Car](carServiceBuilder, wheelsServiceBuilder)
    * }}}
    */
-  def wireSome[R0 <: Has[_], R <: Has[_]] =
+  def wireSome[R0, R] =
     new WireSomePartiallyApplied[R0, R]
 }

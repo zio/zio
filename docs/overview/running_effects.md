@@ -62,7 +62,7 @@ A custom `Runtime[R]` can be created with two values:
 For example, the following creates a `Runtime` that can provide an `Int` to effects, using the default `RuntimeConfig` provided by ZIO:
 
 ```scala mdoc:silent
-val myRuntime: Runtime[Int] = Runtime(42, RuntimeConfig.default)
+val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), RuntimeConfig.default)
 ```
 
 ## Error Reporting

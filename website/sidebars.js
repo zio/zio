@@ -38,8 +38,6 @@ module.exports = {
     ],
     "Contextual Types": [
         "datatypes/contextual/index",
-        "datatypes/contextual/has",
-        "datatypes/contextual/hasmany",
         {
             type: "category",
             label: "ZIO Dependencies",
@@ -180,7 +178,8 @@ module.exports = {
                   "datatypes/metrics/setcount"
               ]
           },
-          "datatypes/metrics/metriclabel"
+          "datatypes/metrics/metriclabel",
+          "datatypes/metrics/jvm",
       ],
     "Miscellaneous": [
       "datatypes/misc/chunk",

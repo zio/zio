@@ -45,11 +45,11 @@ private[mock] object MockableMacro {
     val serviceBaseTypeParameters         = service.baseType(service.typeSymbol).typeConstructor.typeParams.map(_.asType)
     val serviceTypeParameterSubstitutions = serviceBaseTypeParameters.zip(service.typeArgs).toMap
 
-    val env: Type        = c.typecheck(tq"_root_.zio.Has[$service]", c.TYPEmode).tpe
+    val env: Type        = c.typecheck(tq"$service", c.TYPEmode).tpe
     val any: Type        = definitions.AnyTpe
     val throwable: Type  = c.typecheck(q"(??? : _root_.java.lang.Throwable)").tpe
     val unit: Type       = definitions.UnitTpe
-    val composeAsc: Tree = tq"_root_.zio.URServiceBuilder[_root_.zio.Has[_root_.zio.test.mock.Proxy], $env]"
+    val composeAsc: Tree = tq"_root_.zio.URServiceBuilder[_root_.zio.test.mock.Proxy, $env]"
     val taggedFcqns      = List("izumi.reflect.Tag")
 
     def bound(tpe: Type): Tree =
@@ -311,7 +311,7 @@ private[mock] object MockableMacro {
 
           val compose: $composeAsc =
             _root_.zio.ZIO.service[_root_.zio.test.mock.Proxy].flatMap { proxy =>
-              withRuntime[_root_.zio.Has[_root_.zio.test.mock.Proxy]].map { rts =>
+              withRuntime[_root_.zio.test.mock.Proxy].map { rts =>
                 class $serviceClassName extends $service {
                   ..$mocks
                 }

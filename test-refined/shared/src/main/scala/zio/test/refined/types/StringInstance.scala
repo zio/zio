@@ -8,13 +8,13 @@ import shapeless.Nat._1
 import shapeless.Witness
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
-import zio.{Has, Random}
+import zio.Random
 
 object string extends StringInstance
 
 trait StringInstance {
   class FiniteStringPartiallyApplied[N <: Int, P](min: Int) {
-    def apply[R](charGen: Gen[R, Char])(implicit ws: Witness.Aux[N]): Gen[R with Has[Random], Refined[String, P]] =
+    def apply[R](charGen: Gen[R, Char])(implicit ws: Witness.Aux[N]): Gen[R with Random, Refined[String, P]] =
       for {
         i   <- Gen.int(min, ws.value)
         str <- Gen.stringN(i)(charGen)
@@ -23,13 +23,13 @@ trait StringInstance {
 
   def finiteStringGen[N <: Int]: FiniteStringPartiallyApplied[N, MaxSize[N]] =
     new FiniteStringPartiallyApplied[N, MaxSize[N]](0)
-  def nonEmptyStringGen[R](charGen: Gen[R, Char]): Gen[R with Has[Random] with Has[Sized], NonEmptyString] =
+  def nonEmptyStringGen[R](charGen: Gen[R, Char]): Gen[R with Random with Sized, NonEmptyString] =
     Gen.string(charGen).map(Refined.unsafeApply)
   def nonEmptyFiniteStringGen[N <: Int]: FiniteStringPartiallyApplied[N, Size[Interval.Closed[_1, N]]] =
     new FiniteStringPartiallyApplied[N, Size[Interval.Closed[_1, N]]](1)
-  def trimmedStringGen[R](charGen: Gen[R, Char]): Gen[R with Has[Random] with Has[Sized], TrimmedString] =
+  def trimmedStringGen[R](charGen: Gen[R, Char]): Gen[R with Random with Sized, TrimmedString] =
     Gen.string(charGen).map(s => Refined.unsafeApply(s.trim))
-  def hexStringGen: Gen[Has[Random] with Has[Sized], HexString] =
+  def hexStringGen: Gen[Random with Sized, HexString] =
     Gen.oneOf(Gen.string(Gen.hexCharLower), Gen.string(Gen.hexCharUpper)).map(Refined.unsafeApply)
 
   implicit def finiteStringDeriveGen[N <: Int](implicit

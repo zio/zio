@@ -24,7 +24,7 @@ import zio._
 import zio.Console._
 
 object MyHelloApp extends ZIOAppDefault {
-  val program: ZIO[Has[Console], IOException, Unit] = for {
+  val program: ZIO[Console, IOException, Unit] = for {
     _ <- printLine("Hello, what is you name?")
     name <- readLine
     _ <- printLine(s"Hello $name, welcome to ZIO!")
@@ -34,4 +34,4 @@ object MyHelloApp extends ZIOAppDefault {
 }
 ```
 
-Note again, every line of our `program` are descriptions, not statements. As we can see the type of our `program` is `ZIO[Has[Console], IOException, Unit]`, it means to run `program` we need the `Console` service as an environment, it may fail due to failure of `readLine` and it will produce `Unit` value.
+Note again, every line of our `program` are descriptions, not statements. As we can see the type of our `program` is `ZIO[Console, IOException, Unit]`, it means to run `program` we need the `Console` service as an environment, it may fail due to failure of `readLine` and it will produce `Unit` value.

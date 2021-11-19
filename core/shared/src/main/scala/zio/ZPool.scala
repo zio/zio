@@ -86,7 +86,7 @@ object ZPool {
    */
   def make[R, E, A](get: ZManaged[R, E, A], range: Range, timeToLive: Duration)(implicit
     trace: ZTraceElement
-  ): ZManaged[R with Has[Clock], Nothing, ZPool[E, A]] =
+  ): ZManaged[R with Clock, Nothing, ZPool[E, A]] =
     makeWith(get, range)(Strategy.TimeToLive(timeToLive))
 
   /**
@@ -104,7 +104,7 @@ object ZPool {
       items   <- Queue.bounded[Attempted[E, A]](range.end).toManaged
       inv     <- Ref.make(Set.empty[A]).toManaged
       initial <- strategy.initial.toManaged
-      pool     = DefaultPool(get.provide(env), range, down, state, items, inv, strategy.track(initial))
+      pool     = DefaultPool(get.provideEnvironment(env), range, down, state, items, inv, strategy.track(initial))
       fiber   <- pool.initialize.forkDaemon.toManaged
       shrink  <- strategy.run(initial, pool.excess, pool.shrink).forkDaemon.toManaged
       _       <- ZManaged.finalizer(fiber.interrupt *> shrink.interrupt *> pool.shutdown)
@@ -333,9 +333,9 @@ object ZPool {
      * A strategy that shrinks the pool down to its minimum size if items in the
      * pool have not been used for the specified duration.
      */
-    final case class TimeToLive(timeToLive: Duration) extends Strategy[Has[Clock], Any, Any] {
+    final case class TimeToLive(timeToLive: Duration) extends Strategy[Clock, Any, Any] {
       type State = (Clock, Ref[java.time.Instant])
-      def initial(implicit trace: ZTraceElement): URIO[Has[Clock], State] =
+      def initial(implicit trace: ZTraceElement): URIO[Clock, State] =
         for {
           clock <- ZIO.service[Clock]
           now   <- Clock.instant

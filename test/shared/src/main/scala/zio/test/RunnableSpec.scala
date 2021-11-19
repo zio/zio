@@ -28,7 +28,7 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
 
   private def run(spec: ZSpec[Environment, Failure], testArgs: TestArgs)(implicit
     trace: ZTraceElement
-  ): URIO[Has[TestLogger] with Has[Clock], Int] = {
+  ): URIO[TestLogger with Clock, Int] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
     val testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
     for {
@@ -50,10 +50,10 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
     val testArgs = TestArgs.parse(args)
     val runtime  = runner.runtime
     if (TestPlatform.isJVM) {
-      val exitCode = runtime.unsafeRun(run(spec, testArgs).provideServices(runner.bootstrap))
+      val exitCode = runtime.unsafeRun(run(spec, testArgs).provide(runner.bootstrap))
       doExit(exitCode)
     } else if (TestPlatform.isJS) {
-      runtime.unsafeRunAsyncWith[Nothing, Int](run(spec, testArgs).provideServices(runner.bootstrap)) { exit =>
+      runtime.unsafeRunAsyncWith[Nothing, Int](run(spec, testArgs).provide(runner.bootstrap)) { exit =>
         val exitCode = exit.getOrElse(_ => 1)
         doExit(exitCode)
       }

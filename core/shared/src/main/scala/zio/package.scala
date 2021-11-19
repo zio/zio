@@ -25,7 +25,7 @@ package object zio
     with VersionSpecific
     with DurationModule {
 
-  type ZEnv = Has[Clock] with Has[Console] with Has[System] with Has[Random]
+  type ZEnv = Clock with Console with System with Random
 
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
@@ -102,8 +102,6 @@ package object zio
 
   type Semaphore = stm.TSemaphore
 
-  type HasMany[K, A] = Has[Map[K, A]]
-
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
   object ZTraceElement {
     val empty: ZTraceElement      = Tracer.instance.empty
@@ -115,5 +113,11 @@ package object zio
       def unapply(trace: ZTraceElement): Option[(String, String, Int, Int)] =
         Tracer.instance.unapply(trace)
     }
+  }
+
+  trait IsNotIntersection[A] extends Serializable
+
+  object IsNotIntersection extends IsNotIntersectionVersionSpecific {
+    def apply[A: IsNotIntersection]: IsNotIntersection[A] = implicitly[IsNotIntersection[A]]
   }
 }

@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.internal.macros.ServiceBuilderMacros
-import zio.{Has, NeedsEnv, ZEnv, ZServiceBuilder}
+import zio.{NeedsEnv, ZEnv, ZServiceBuilder}
 
 private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
 
@@ -35,8 +35,8 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
    * val managed2 = managed.injectSome[Random](clockServiceBuilder)
    * }}}
    */
-  def injectSome[R0 <: Has[_]]: ProvideSomeServicesStreamPartiallyApplied[R0, R, E, O] =
-    new ProvideSomeServicesStreamPartiallyApplied[R0, R, E, O](self)
+  def injectSome[R0]: ProvideSomeStreamPartiallyApplied[R0, R, E, O] =
+    new ProvideSomeStreamPartiallyApplied[R0, R, E, O](self)
 
   /**
    * Automatically assembles a service builder for the ZStream effect.
@@ -46,13 +46,13 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
 
 }
 
-private final class ProvideSomeServicesStreamPartiallyApplied[R0 <: Has[_], -R, +E, +O](
+private final class ProvideSomeStreamPartiallyApplied[R0, -R, +E, +O](
   val self: ZStream[R, E, O]
 ) extends AnyVal {
-  def provideServices[E1 >: E, R1](
+  def provide[E1 >: E, R1](
     serviceBuilder: ZServiceBuilder[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZStream[R0, E1, O] =
-    self.provideServices(serviceBuilder)
+    self.provide(serviceBuilder)
 
   def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZStream[R0, E1, O] =
     macro ServiceBuilderMacros.injectSomeImpl[ZStream, R0, R, E1, O]

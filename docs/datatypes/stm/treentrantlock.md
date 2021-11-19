@@ -111,7 +111,7 @@ import zio._
 import zio.Console._
 import zio.stm._
 
-val writeLockDemoProgram: URIO[Has[Console] with Has[Clock], Unit] = for {
+val writeLockDemoProgram: URIO[Console with Clock, Unit] = for {
   l  <- TReentrantLock.make.commit
   _  <- printLine("Beginning test").orDie
   f1 <- (l.acquireRead.commit *> ZIO.sleep(5.seconds) *> l.releaseRead.commit).fork
@@ -137,7 +137,7 @@ import zio._
 import zio.Console._
 import zio.stm._
 
-val saferProgram: URIO[Has[Console] with Has[Clock], Unit] = for {
+val saferProgram: URIO[Console with Clock, Unit] = for {
   lock <- TReentrantLock.make.commit
   f1   <- lock.readLock.useDiscard(ZIO.sleep(5.seconds) *> printLine("Powering down").orDie).fork
   f2   <- lock.readLock.useDiscard(lock.writeLock.useDiscard(printLine("Huzzah, writes are mine").orDie)).fork
