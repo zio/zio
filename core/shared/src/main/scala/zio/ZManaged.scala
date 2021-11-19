@@ -173,7 +173,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Maps the success value of this effect to a service.
    */
   @deprecated("use toServiceBuilder", "2.0.0")
-  def asService[A1 >: A: Tag](implicit trace: ZTraceElement): ZManaged[R, E, ZEnvironment[A1]] =
+  def asService[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZManaged[R, E, ZEnvironment[A1]] =
     map(ZEnvironment[A1](_))
 
   /**
@@ -1251,7 +1251,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Constructs a service builder from this managed resource.
    */
-  def toServiceBuilder[A1 >: A: Tag](implicit trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
+  def toServiceBuilder[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
     ZServiceBuilder.fromManaged[R, E, A1](self)
 
   /**
@@ -1279,7 +1279,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Constructs a layer from this managed resource.
    */
   @deprecated("use toServiceBuilder", "2.0.0")
-  def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
+  def toLayer[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZServiceBuilder[R, E, A1] =
     toServiceBuilder[A1]
 
   /**
@@ -1603,10 +1603,11 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZManaged[R, E, A])(implicit
+      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[R with Service, E, A] =
-      ZManaged.environmentWithManaged(environment => f(environment.get(tag)))
+      ZManaged.environmentWithManaged(environment => f(environment.get[Service]))
   }
 
   /**
@@ -1648,7 +1649,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   final class UpdateService[-R, +E, +A, M](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
-    )(implicit tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
+    )(implicit ev: IsNotIntersection[M], tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 
@@ -3298,7 +3299,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: Tag](implicit trace: ZTraceElement): ZManaged[A, Nothing, A] =
+  def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZManaged[A, Nothing, A] =
     ZManaged.access(_.get[A])
 
   /**
@@ -3311,14 +3312,16 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag](implicit trace: ZTraceElement): ZManaged[A with B, Nothing, (A, B)] =
+  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit
+    trace: ZTraceElement
+  ): ZManaged[A with B, Nothing, (A, B)] =
     ZManaged.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag](implicit
+  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](implicit
     trace: ZTraceElement
   ): ZManaged[A with B with C, Nothing, (A, B, C)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
@@ -3327,7 +3330,12 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag, D: Tag](implicit
+  def services[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection
+  ](implicit
     trace: ZTraceElement
   ): ZManaged[A with B with C with D, Nothing, (A, B, C, D)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))

@@ -115,7 +115,9 @@ package object zio
     }
   }
 
-  trait IsNotIntersection[A]
+  trait IsNotIntersection[A] extends Serializable
 
-  object IsNotIntersection extends IsNotIntersectionVersionSpecific {}
+  object IsNotIntersection extends IsNotIntersectionVersionSpecific {
+    def apply[A: IsNotIntersection]: IsNotIntersection[A] = implicitly[IsNotIntersection[A]]
+  }
 }

@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Tag, ZServiceBuilder}
+import zio.{Tag, IsNotIntersection, ZServiceBuilder}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -39,6 +39,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 @deprecated("use DefaultRunnableSpec", "2.0.0")
 class DefaultMutableRunnableSpec
     extends MutableRunnableSpec[Any](
-      ZServiceBuilder.succeed[Any](())(Tag[Any], Tracer.newTrace),
+      ZServiceBuilder.succeed[Any](())(Tag[Any], IsNotIntersection[Any], Tracer.newTrace),
       TestAspect.identity
     )

@@ -29,7 +29,7 @@ final class ZEnvironment[+R] private (
   /**
    * Adds a service to the environment.
    */
-  def add[A](a: A)(implicit tagged: Tag[A]): ZEnvironment[R with A] =
+  def add[A](a: A)(implicit ev: IsNotIntersection[A], tagged: Tag[A]): ZEnvironment[R with A] =
     new ZEnvironment(self.map + (taggedTagType(tagged) -> a))
 
   override def equals(that: Any): Boolean = that match {
@@ -40,7 +40,7 @@ final class ZEnvironment[+R] private (
   /**
    * Retrieves a service from the environment.
    */
-  def get[A >: R](implicit tagged: Tag[A]): A =
+  def get[A >: R](implicit ev: IsNotIntersection[A], tagged: Tag[A]): A =
     unsafeGet(taggedTagType(tagged))
 
   /**
@@ -126,7 +126,7 @@ final class ZEnvironment[+R] private (
   /**
    * Updates a service in the environment.
    */
-  def update[A >: R: Tag](f: A => A): ZEnvironment[R] =
+  def update[A >: R: Tag: IsNotIntersection](f: A => A): ZEnvironment[R] =
     self.add[A](f(get[A]))
 
   /**
@@ -149,35 +149,50 @@ object ZEnvironment {
   /**
    * Constructs a new environment holding the single service.
    */
-  def apply[A: Tag](a: A): ZEnvironment[A] =
+  def apply[A: Tag: IsNotIntersection](a: A): ZEnvironment[A] =
     empty.add[A](a)
 
   /**
    * Constructs a new environment holding the specified services. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tag, B: Tag](a: A, b: B): ZEnvironment[A with B] =
+  def apply[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](a: A, b: B): ZEnvironment[A with B] =
     ZEnvironment(a).add[B](b)
 
   /**
    * Constructs a new environment holding the specified services. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tag, B: Tag, C: Tag](a: A, b: B, c: C): ZEnvironment[A with B with C] =
+  def apply[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](
+    a: A,
+    b: B,
+    c: C
+  ): ZEnvironment[A with B with C] =
     ZEnvironment(a).add(b).add[C](c)
 
   /**
    * Constructs a new environment holding the specified services. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tag, B: Tag, C: Tag, D: Tag](a: A, b: B, c: C, d: D): ZEnvironment[A with B with C with D] =
+  def apply[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection, D: Tag: IsNotIntersection](
+    a: A,
+    b: B,
+    c: C,
+    d: D
+  ): ZEnvironment[A with B with C with D] =
     ZEnvironment(a).add(b).add(c).add[D](d)
 
   /**
    * Constructs a new environment holding the specified services. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag](
+  def apply[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection
+  ](
     a: A,
     b: B,
     c: C,

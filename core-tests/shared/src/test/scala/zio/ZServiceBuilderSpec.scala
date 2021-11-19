@@ -299,8 +299,8 @@ object ZServiceBuilderSpec extends ZIOBaseSpec {
         val live: ZServiceBuilder[Any, Nothing, Int with String] =
           ZServiceBuilder.succeed(1) >>> serviceBuilder.passthrough
         val zio = for {
-          i <- ZIO.environment[Int].map(_.get[Int])
-          s <- ZIO.environment[String].map(_.get[String])
+          i <- ZIO.service[Int]
+          s <- ZIO.service[String]
         } yield (i, s)
         assertM(zio.inject(live))(equalTo((1, "1")))
       },

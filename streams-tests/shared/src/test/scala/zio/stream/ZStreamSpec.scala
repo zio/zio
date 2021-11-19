@@ -2960,7 +2960,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val ref: Chunk[Int] = Chunk(10)
 
             ZStream
-              .serviceWith[A](_.live)
+              .serviceWithZIO[A](_.live)
               .provideCustom(ZServiceBuilder.succeed(new A {
                 override def live: UIO[Int] = UIO(10)
               }))
@@ -4124,19 +4124,21 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         test("environment") {
           for {
-            result <- ZStream.service[String].provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
+            result <-
+              ZStream.environment[String].map(_.get).provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
           } yield assert(result)(equalTo("test"))
         },
-        test("environmentWithZIO") {
+        test("environmentWith") {
           for {
-            result <- ZStream.service[String].provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
+            result <-
+              ZStream.environmentWith[String](_.get).provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
           } yield assert(result)(equalTo("test"))
         },
         suite("environmentWithZIO")(
           test("environmentWithZIO") {
             for {
               result <- ZStream
-                          .serviceWith[String](ZIO.succeedNow)
+                          .environmentWithZIO[String](environment => ZIO.succeed(environment.get))
                           .provideEnvironment(ZEnvironment("test"))
                           .runCollect
                           .map(_.head)
@@ -4153,20 +4155,20 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
-        suite("environmentWithZIOStream")(
-          test("environmentWithZIOStream") {
+        suite("environmentWithStream")(
+          test("environmentWithStream") {
             for {
               result <- ZStream
-                          .serviceWithStream[String](ZStream.succeed(_))
+                          .environmentWithStream[String](environment => ZStream.succeed(environment.get))
                           .provideEnvironment(ZEnvironment("test"))
                           .runCollect
                           .map(_.head)
             } yield assert(result)(equalTo("test"))
           },
-          test("environmentWithZIOStream fails") {
+          test("environmentWithStream fails") {
             for {
               result <- ZStream
-                          .serviceWithStream[Int](_ => ZStream.fail("fail"))
+                          .environmentWithStream[Int](_ => ZStream.fail("fail"))
                           .provideEnvironment(ZEnvironment(0))
                           .runCollect
                           .exit
