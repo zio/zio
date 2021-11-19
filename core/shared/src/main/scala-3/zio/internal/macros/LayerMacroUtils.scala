@@ -11,7 +11,7 @@ private [zio] object LayerMacroUtils {
 
   def renderExpr[A](expr: Expr[A])(using Quotes): String = {
     import quotes.reflect._
-    expr.asTerm.pos.sourceCode.getOrElse(expr.show)
+    scala.util.Try(expr.asTerm.pos.sourceCode).toOption.flatten.getOrElse(expr.show)
   }
 
   def buildMemoizedLayer(ctx: Quotes)(exprGraph: ZLayerExprBuilder[ctx.reflect.TypeRepr, LayerExpr], requirements: List[ctx.reflect.TypeRepr]) : LayerExpr = {
