@@ -7,7 +7,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 abstract class ZIOSpecDefault extends ZIOSpec[TestEnvironment] {
 
-  override val serviceBuilder: ZServiceBuilder[Has[ZIOAppArgs], Any, TestEnvironment] = {
+  override val serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, TestEnvironment] = {
     implicit val trace: zio.ZTraceElement = Tracer.newTrace
     zio.ZEnv.live >>> TestEnvironment.live
   }
