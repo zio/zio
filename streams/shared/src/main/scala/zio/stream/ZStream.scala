@@ -2872,28 +2872,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     provideSomeLayer[ZEnv](layer)
 
   /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving a stream that only depends on the `ZEnv`.
-   *
-   * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-   *
-   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
-   *
-   * val stream2 = stream.provideCustom(loggingLayer)
-   * }}}
-   */
-  @deprecated("use provideCustom", "2.0.0")
-  def provideCustomServices[E1 >: E, R1](
-    layer: ZLayer[ZEnv, E1, R1]
-  )(implicit
-    ev: ZEnv with R1 <:< R,
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): ZStream[ZEnv, E1, A] =
-    provideCustom(layer)
-
-  /**
    * Provides the stream with its required environment, which eliminates its
    * dependency on `R`.
    */
@@ -2905,15 +2883,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
-    provide(layer)
-
-  /**
-   * Provides a layer to the stream, which translates it to another level.
-   */
-  @deprecated("use provide", "2.0.0")
-  final def provideServices[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
     provide(layer)
@@ -2958,22 +2927,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   @deprecated("use provideSome", "2.0.0")
   final def provideSomeLayer[R0]: ZStream.ProvideSome[R0, R, E, A] =
-    provideSome
-
-  /**
-   * Splits the environment into two parts, providing one part using the
-   * specified layer and leaving the remainder `R0`.
-   *
-   * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
-   *
-   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
-   *
-   * val stream2 = stream.provideSome[Random](clockLayer)
-   * }}}
-   */
-  @deprecated("use provideSome", "2.0.0")
-  final def provideSomeServices[R0]: ZStream.ProvideSome[R0, R, E, A] =
     provideSome
 
   /**
@@ -5258,7 +5211,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def provide[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
     stream: ZStream[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZStream[RIn with RIn2, E, ROut2] =
-    stream.provideSomeServices[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
+    stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
 
   /**
    * Like [[unfoldZIO]], but allows the emission of values to end one step

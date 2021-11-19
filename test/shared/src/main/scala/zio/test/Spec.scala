@@ -418,48 +418,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     provideSomeShared(layer)
 
   /**
-   * Provides each test with the part of the environment that is not part of the
-   * `TestEnvironment`, leaving a spec that only depends on the
-   * `TestEnvironment`.
-   *
-   * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-   *
-   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
-   *
-   * val spec2 = spec.provideCustomServices(loggingLayer)
-   * }}}
-   */
-  @deprecated("use provideCustom", "2.0.0")
-  def provideCustomServices[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
-    ev: TestEnvironment with R1 <:< R,
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): Spec[TestEnvironment, E1, T] =
-    provideCustom(layer)
-
-  /**
-   * Provides all tests with a shared version of the part of the environment
-   * that is not part of the `TestEnvironment`, leaving a spec that only depends
-   * on the `TestEnvironment`.
-   *
-   * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-   *
-   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
-   *
-   * val spec2 = spec.provideCustomServicesShared(loggingLayer)
-   * }}}
-   */
-  @deprecated("use provideCustomShared", "2.0.0")
-  def provideCustomServicesShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
-    ev: TestEnvironment with R1 <:< R,
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): Spec[TestEnvironment, E1, T] =
-    provideSomeServicesShared(layer)
-
-  /**
    * Provides all tests with a shared version of the part of the environment
    * that is not part of the `TestEnvironment`, leaving a spec that only depends
    * on the `TestEnvironment`.
@@ -499,24 +457,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   @deprecated("use provideShared", "2.0.0")
   final def provideLayerShared[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provideShared(layer)
-
-  /**
-   * Provides a layer to the spec, translating it up a level.
-   */
-  @deprecated("use provide", "2.0.0")
-  final def provideServices[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provide(layer)
-
-  /**
-   * Provides a layer to the spec, sharing services between all tests.
-   */
-  @deprecated("use provideShared", "2.0.0")
-  final def provideServicesShared[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     provideShared(layer)
@@ -588,39 +528,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   @deprecated("use provideSomeShared", "2.0.0")
   final def provideSomeLayerShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
     new Spec.ProvideSomeShared[R0, R, E, T](self)
-
-  /**
-   * Splits the environment into two parts, providing each test with one part
-   * using the specified layer and leaving the remainder `R0`.
-   *
-   * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
-   *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
-   *
-   * val spec2 = spec.provideSomeServices[Random](clockLayer)
-   * }}}
-   */
-  @deprecated("use provideSome", "2.0.0")
-  final def provideSomeServices[R0]: Spec.ProvideSome[R0, R, E, T] =
-    provideSome
-
-  /**
-   * Splits the environment into two parts, providing all tests with a shared
-   * version of one part using the specified layer and leaving the remainder
-   * `R0`.
-   *
-   * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
-   *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
-   *
-   * val spec2 = spec.provideSomeServicesShared[Random](clockLayer)
-   * }}}
-   */
-  @deprecated("use provideSomeShared", "2.0.0")
-  final def provideSomeServicesShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
-    provideSomeShared
 
   /**
    * Splits the environment into two parts, providing all tests with a shared

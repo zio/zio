@@ -1511,28 +1511,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     provideCustom(layer)
 
   /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving an effect that only depends on the `ZEnv`.
-   *
-   * {{{
-   * val zio: ZIO[ZEnv with Logging, Nothing, Unit] = ???
-   *
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-   *
-   * val zio2 = zio.provideCustomServices(loggingLayer)
-   * }}}
-   */
-  @deprecated("use provideCustom", "2.0.0")
-  final def provideCustomServices[E1 >: E, R1](
-    layer: => ZLayer[ZEnv, E1, R1]
-  )(implicit
-    ev: ZEnv with R1 <:< R,
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): ZIO[ZEnv, E1, A] =
-    provideCustom(layer)
-
-  /**
    * Provides the `ZIO` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
@@ -1544,15 +1522,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
-    layer: => ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    provide(layer)
-
-  /**
-   * Provides a layer to the ZIO effect, which translates it to another level.
-   */
-  @deprecated("use provide", "2.0.0")
-  final def provideServices[E1 >: E, R0, R1](
     layer: => ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
     provide(layer)
@@ -1595,22 +1564,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   @deprecated("use provideSome", "2.0.0")
   final def provideSomeLayer[R0]: ZIO.ProvideSome[R0, R, E, A] =
-    provideSome
-
-  /**
-   * Splits the environment into two parts, providing one part using the
-   * specified layer and leaving the remainder `R0`.
-   *
-   * {{{
-   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
-   *
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
-   *
-   * val zio2 = zio.provideSomeServices[Random](clockLayer)
-   * }}}
-   */
-  @deprecated("use provideSome", "2.0.0")
-  final def provideSomeServices[R0]: ZIO.ProvideSome[R0, R, E, A] =
     provideSome
 
   /**
@@ -5001,7 +4954,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def provide[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
     zio: ZIO[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
-    zio.provideSomeServices[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
+    zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
