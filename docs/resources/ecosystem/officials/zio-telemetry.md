@@ -81,21 +81,21 @@ lazy val openTracingExample = Seq(
 )
 ```
 
-Let's create a `ZServiceBuilder` for `OpenTracing` which provides us Jaeger tracer. Each microservice uses this dependency to send its tracing data to the _Jaeger Backend_:
+Let's create a `ZLayer` for `OpenTracing` which provides us Jaeger tracer. Each microservice uses this dependency to send its tracing data to the _Jaeger Backend_:
 
 ```scala
 import io.jaegertracing.Configuration
 import io.jaegertracing.internal.samplers.ConstSampler
 import io.jaegertracing.zipkin.ZipkinV2Reporter
 import org.apache.http.client.utils.URIBuilder
-import zio.ZServiceBuilder
+import zio.ZLayer
 import zio.clock.Clock
 import zio.telemetry.opentracing.OpenTracing
 import zipkin2.reporter.AsyncReporter
 import zipkin2.reporter.okhttp3.OkHttpSender
 
 object JaegerTracer {
-  def makeJaegerTracer(host: String, serviceName: String): ZServiceBuilder[Clock, Throwable, Clock with OpenTracing] =
+  def makeJaegerTracer(host: String, serviceName: String): ZLayer[Clock, Throwable, Clock with OpenTracing] =
     OpenTracing.live(new Configuration(serviceName)
       .getTracerBuilder
       .withSampler(new ConstSampler(true))

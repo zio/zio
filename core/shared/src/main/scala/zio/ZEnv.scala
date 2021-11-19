@@ -31,9 +31,9 @@ object ZEnv {
       )
   }
 
-  val any: ZServiceBuilder[ZEnv, Nothing, ZEnv] =
-    ZServiceBuilder.environment[ZEnv](Tracer.newTrace)
+  val any: ZLayer[ZEnv, Nothing, ZEnv] =
+    ZLayer.environment[ZEnv](Tracer.newTrace)
 
-  val live: ServiceBuilder[Nothing, ZEnv] =
+  val live: Layer[Nothing, ZEnv] =
     Clock.live ++ Console.live ++ System.live ++ Random.live
 }
