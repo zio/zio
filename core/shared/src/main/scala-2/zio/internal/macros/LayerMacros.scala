@@ -5,19 +5,19 @@ import zio.internal.ansi.AnsiStringOps
 
 import scala.reflect.macros.blackbox
 
-private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends ServiceBuilderMacroUtils {
+private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
 
   def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
-    serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
+    layer: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[Any, E, A]] =
-    injectBaseImpl[F, Any, R, E, A](serviceBuilder, "provide")
+    injectBaseImpl[F, Any, R, E, A](layer, "provide")
 
   def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
-    serviceBuilder: c.Expr[ZServiceBuilder[_, E, _]]*
+    layer: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[R0, E, A]] = {
     assertEnvIsNotNothing[R0]()
-    injectBaseImpl[F, R0, R, E, A](serviceBuilder, "provide")
+    injectBaseImpl[F, R0, R, E, A](layer, "provide")
   }
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
@@ -38,7 +38,7 @@ private[zio] class ServiceBuilderMacros(val c: blackbox.Context) extends Service
     if (outType =:= nothingType) {
       val errorMessage =
         s"""
-${"  ZServiceBuilder Wiring Error  ".red.bold.inverted}
+${"  ZLayer Wiring Error  ".red.bold.inverted}
         
 You must provide a type to ${"injectSome".cyan.bold} (e.g. ${"foo.injectSome".cyan.bold}${"[UserService with Config".red.bold.underlined}${"(AnotherService.live)".cyan.bold})
 
@@ -52,7 +52,7 @@ This type represents the services you are ${"not".underlined} currently injectin
 }
 
 private[zio] object MacroUnitTestUtils {
-  def getRequirements[R]: List[String] = macro ServiceBuilderMacros.debugGetRequirements[R]
+  def getRequirements[R]: List[String] = macro LayerMacros.debugGetRequirements[R]
 
-  def showTree(any: Any): String = macro ServiceBuilderMacros.debugShowTree
+  def showTree(any: Any): String = macro LayerMacros.debugShowTree
 }

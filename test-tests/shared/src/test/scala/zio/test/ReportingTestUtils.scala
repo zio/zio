@@ -6,7 +6,7 @@ import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.render.TestRenderer
-import zio.{Cause, Clock, ServiceBuilder, Promise, ZIO, ZTraceElement}
+import zio.{Cause, Clock, Layer, Promise, ZIO, ZTraceElement}
 
 import scala.{Console => SConsole}
 
@@ -68,7 +68,7 @@ object ReportingTestUtils {
       actualSummary = SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
-  private[this] def TestTestRunner(testEnvironment: ServiceBuilder[Nothing, TestEnvironment])(implicit
+  private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment])(implicit
     trace: ZTraceElement
   ) =
     TestRunner[TestEnvironment, String](
@@ -249,20 +249,20 @@ object ReportingTestUtils {
     withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}\n""")
   )
 
-  val mock5: ZSpec[Any, String] = test("Failing service builder") {
+  val mock5: ZSpec[Any, String] = test("Failing layer") {
     for {
-      promise              <- Promise.make[Nothing, Unit]
-      failingServiceBuilder = (promise.await *> ZIO.fail("failed!")).toServiceBuilder[String]
-      mock = PureModuleMock.ZeroParams(value("mocked")).toServiceBuilder.tap { _ =>
+      promise     <- Promise.make[Nothing, Unit]
+      failingLayer = (promise.await *> ZIO.fail("failed!")).toLayer[String]
+      mock = PureModuleMock.ZeroParams(value("mocked")).toLayer.tap { _ =>
                promise.succeed(())
              }
       f       = ZIO.serviceWithZIO[PureModule.Service](_.zeroParams) <* ZIO.service[String]
-      result <- f.provide(failingServiceBuilder ++ mock)
+      result <- f.provide(failingLayer ++ mock)
     } yield assert(result)(equalTo("mocked"))
   }
 
   val mock5Expected: Vector[String] = Vector(
-    """.*Failing service builder.*""",
+    """.*Failing layer.*""",
     """.*- unsatisfied expectations.*""",
     """\s*zio\.test\.mock\.module\.PureModuleMock\.ZeroParams with arguments.*""",
     """\s*Fiber failed\.""",

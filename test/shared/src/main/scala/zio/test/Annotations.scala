@@ -48,9 +48,9 @@ object Annotations {
   /**
    * Constructs a new `Annotations` service.
    */
-  val live: UServiceBuilder[Annotations] = {
+  val live: ULayer[Annotations] = {
     implicit val trace = Tracer.newTrace
-    ZServiceBuilder.fromZIO(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
+    ZLayer.fromZIO(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
       new Annotations {
         def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): UIO[Unit] =
           fiberRef.update(_.annotate(key, value))

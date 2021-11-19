@@ -31,8 +31,8 @@ import scala.jdk.CollectionConverters._
 object ZIOAWSS3Example extends zio.App {
   val BUCKET = "<bucket name>"
 
-  val awsEnv: ZServiceBuilder[S3AsyncClient, Throwable, AwsLink] =
-    AwsApp.ExtServiceBuilder.live >>> AwsApp.AwsLink.live
+  val awsEnv: ZLayer[S3AsyncClient, Throwable, AwsLink] =
+    AwsApp.ExtLayer.live >>> AwsApp.AwsLink.live
 
   val app: ZIO[Any, Throwable, Unit] = for {
     s3 <- AwsAgent.createClient(Region.US_WEST_2, "<endpoint>")

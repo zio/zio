@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.ServiceBuilderMacros
+import zio.internal.macros.LayerMacros
 
 private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
@@ -28,57 +28,57 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    *
    * {{{
    * val zio: ZIO[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyServiceBuilder: ZServiceBuilder[Fly, Nothing, OldLady] = ???
-   * val flyServiceBuilder: ZServiceBuilder[Blocking, Nothing, Fly] = ???
+   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
+   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
-   * // The ZEnv you use later will provide both Blocking to flyServiceBuilder and Console to zio
-   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.injectCustom(oldLadyServiceBuilder, flyServiceBuilder)
+   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
+   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.injectCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def injectCustom[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZIO[ZEnv, E1, A] =
-    macro ServiceBuilderMacros.injectSomeImpl[ZIO, ZEnv, R, E1, A]
+  def injectCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
+    macro LayerMacros.injectSomeImpl[ZIO, ZEnv, R, E1, A]
 
   /**
    * Splits the environment into two parts, assembling one part using the
-   * specified service builder and leaving the remainder `R0`.
+   * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
    * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
    *
-   * val zio2 = zio.injectSome[Random](clockServiceBuilder)
+   * val zio2 = zio.injectSome[Random](clockLayer)
    * }}}
    */
   def injectSome[R0]: ProvideSomePartiallyApplied[R0, R, E, A] =
     new ProvideSomePartiallyApplied[R0, R, E, A](self)
 
   /**
-   * Automatically assembles a service builder for the ZIO effect.
+   * Automatically assembles a layer for the ZIO effect.
    */
-  def inject[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZIO[Any, E1, A] =
-    macro ServiceBuilderMacros.injectImpl[ZIO, R, E1, A]
+  def inject[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
+    macro LayerMacros.injectImpl[ZIO, R, E1, A]
 
 }
 
 private final class ProvideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
 
   def provide[E1 >: E, R1](
-    serviceBuilder: ZServiceBuilder[R0, E1, R1]
+    layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
-    self.provide(serviceBuilder)
+    self.provide(layer)
 
   @deprecated("use provide", "2.0.0")
   def provideLayer[E1 >: E, R1](
-    layer: ZServiceBuilder[R0, E1, R1]
+    layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
     provide(layer)
 
   @deprecated("use provide", "2.0.0")
   def provideServices[E1 >: E, R1](
-    serviceBuilder: ZServiceBuilder[R0, E1, R1]
+    layer: ZLayer[R0, E1, R1]
   )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
-    provide(serviceBuilder)
+    provide(layer)
 
   def provideSome[R0]: ZIO.ProvideSome[R0, R, E, A] =
     new ZIO.ProvideSome[R0, R, E, A](self)
@@ -91,6 +91,6 @@ private final class ProvideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R,
   def provideSomeServices[R0]: ZIO.ProvideSome[R0, R, E, A] =
     provideSome
 
-  def apply[E1 >: E](serviceBuilder: ZServiceBuilder[_, E1, _]*): ZIO[R0, E1, A] =
-    macro ServiceBuilderMacros.injectSomeImpl[ZIO, R0, R, E1, A]
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
+    macro LayerMacros.injectSomeImpl[ZIO, R0, R, E1, A]
 }

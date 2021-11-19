@@ -1,20 +1,20 @@
 package zio.test
 
-import zio.internal.macros.ServiceBuilderMacroUtils._
+import zio.internal.macros.LayerMacroUtils._
 import scala.quoted._
 import zio.internal.macros._
 import zio._
 
-object SpecServiceBuilderMacros {
+object SpecLayerMacros {
   def injectImpl[R0: Type, R: Type, E: Type, T: Type]
-  (spec: Expr[Spec[R, E, T]], serviceBuilder: Expr[Seq[ZServiceBuilder[_,E,_]]])(using Quotes): Expr[Spec[R0, E, T]] = {
-    val expr = ServiceBuilderMacros.fromAutoImpl[R0, R, E](serviceBuilder).asInstanceOf[Expr[ZServiceBuilder[R0, E, R]]]
+  (spec: Expr[Spec[R, E, T]], layer: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[Spec[R0, E, T]] = {
+    val expr = LayerMacros.fromAutoImpl[R0, R, E](layer).asInstanceOf[Expr[ZLayer[R0, E, R]]]
     '{$spec.provide($expr)}
   }
 
   def injectSharedImpl[R0: Type, R: Type, E: Type, T: Type]
-  (spec: Expr[Spec[R,E,T]], serviceBuilder: Expr[Seq[ZServiceBuilder[_,E,_]]])(using Quotes): Expr[Spec[R0,E,T]] = {
-    val expr = ServiceBuilderMacros.fromAutoImpl[R0, R, E](serviceBuilder)
+  (spec: Expr[Spec[R,E,T]], layer: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[Spec[R0,E,T]] = {
+    val expr = LayerMacros.fromAutoImpl[R0, R, E](layer)
     '{$spec.provideShared($expr)}
   }
 }
