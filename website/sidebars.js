@@ -42,12 +42,12 @@ module.exports = {
             type: "category",
             label: "ZIO Dependencies",
             items: [
-                "datatypes/contextual/zservicebuilder",
-                "datatypes/contextual/rservicebuilder",
-                "datatypes/contextual/uservicebuilder",
-                "datatypes/contextual/servicebuilder",
-                "datatypes/contextual/urservicebuilder",
-                "datatypes/contextual/taskservicebuilder"
+                "datatypes/contextual/zprovider",
+                "datatypes/contextual/rprovider",
+                "datatypes/contextual/uprovider",
+                "datatypes/contextual/provider",
+                "datatypes/contextual/urprovider",
+                "datatypes/contextual/taskprovider"
             ]
         },
         {

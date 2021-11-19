@@ -18,21 +18,21 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-trait FunctionToServiceBuilderOps {
-  implicit final class Function0ToServiceBuilderSyntax[A: Tag: IsNotIntersection](self: () => A) {
+trait FunctionToProviderSyntax {
+  implicit final class Function0ToProviderOps[A: Tag: IsNotIntersection](self: () => A) {
 
     /**
-     * Converts this function to a ServiceBuilder.
+     * Converts this function to a Provider.
      *
      * {{{
      * case class FooLive() extends Foo
      *
-     * val live: UServiceBuilder[Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: UProvider[Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URServiceBuilder[Any, A1] =
-      UIO(self()).toServiceBuilder
+    def toProvider[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URProvider[Any, A1] =
+      UIO(self()).toProvider
 
     /**
      * Converts this function to a Layer.
@@ -44,27 +44,27 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URServiceBuilder[Any, A1] =
-      toServiceBuilder
+    @deprecated("use toProvider", "2.0.0")
+    def toLayer[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URProvider[Any, A1] =
+      toProvider
   }
 
-  implicit final class Function1ToServiceBuilderSyntax[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](
+  implicit final class Function1ToProviderOps[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](
     self: A => B
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config) extends Foo
      *
-     * val live: URServiceBuilder[Config, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[B1 >: B: Tag: IsNotIntersection](implicit trace: ZTraceElement): URServiceBuilder[A, B1] =
-      ZIO.serviceWith[A](self).toServiceBuilder
+    def toProvider[B1 >: B: Tag: IsNotIntersection](implicit trace: ZTraceElement): URProvider[A, B1] =
+      ZIO.serviceWith[A](self).toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -76,12 +76,12 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[B1 >: B: Tag: IsNotIntersection](implicit trace: ZTraceElement): URServiceBuilder[A, B1] =
-      toServiceBuilder
+    @deprecated("use toProvider", "2.0.0")
+    def toLayer[B1 >: B: Tag: IsNotIntersection](implicit trace: ZTraceElement): URProvider[A, B1] =
+      toProvider
   }
 
-  implicit final class Function2ToServiceBuilderSyntax[
+  implicit final class Function2ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection
@@ -90,23 +90,23 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[C1 >: C: Tag: IsNotIntersection](implicit
+    def toProvider[C1 >: C: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B, C1] = {
+    ): URProvider[A with B, C1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
       } yield self(a, b)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -118,12 +118,12 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
-    def toLayer[C1 >: C: Tag: IsNotIntersection](implicit trace: ZTraceElement): URServiceBuilder[A with B, C1] =
-      toServiceBuilder
+    @deprecated("use toProvider", "2.0.0")
+    def toLayer[C1 >: C: Tag: IsNotIntersection](implicit trace: ZTraceElement): URProvider[A with B, C1] =
+      toProvider
   }
 
-  implicit final class Function3ToServiceBuilderSyntax[
+  implicit final class Function3ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -131,24 +131,24 @@ trait FunctionToServiceBuilderOps {
   ](self: (A, B, C) => D) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[D1 >: D: Tag: IsNotIntersection](implicit
+    def toProvider[D1 >: D: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C, D1] = {
+    ): URProvider[A with B with C, D1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
         c <- ZIO.service[C]
       } yield self(a, b, c)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -160,14 +160,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[D1 >: D: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C, D1] =
-      toServiceBuilder
+    ): URProvider[A with B with C, D1] =
+      toProvider
   }
 
-  implicit final class Function4ToServiceBuilderSyntax[
+  implicit final class Function4ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -178,25 +178,25 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[E1 >: E: Tag: IsNotIntersection](implicit
+    def toProvider[E1 >: E: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D, E1] = {
+    ): URProvider[A with B with C with D, E1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
         c <- ZIO.service[C]
         d <- ZIO.service[D]
       } yield self(a, b, c, d)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -208,14 +208,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[E1 >: E: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D, E1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D, E1] =
+      toProvider
   }
 
-  implicit final class Function5ToServiceBuilderSyntax[
+  implicit final class Function5ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -227,18 +227,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[F1 >: F: Tag: IsNotIntersection](implicit
+    def toProvider[F1 >: F: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E, F1] = {
+    ): URProvider[A with B with C with D with E, F1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -246,7 +246,7 @@ trait FunctionToServiceBuilderOps {
         d <- ZIO.service[D]
         e <- ZIO.service[E]
       } yield self(a, b, c, d, e)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -258,14 +258,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[F1 >: F: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E, F1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D with E, F1] =
+      toProvider
   }
 
-  implicit final class Function6ToServiceBuilderSyntax[
+  implicit final class Function6ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -278,18 +278,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[G1 >: G: Tag: IsNotIntersection](implicit
+    def toProvider[G1 >: G: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F, G1] = {
+    ): URProvider[A with B with C with D with E with F, G1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -298,7 +298,7 @@ trait FunctionToServiceBuilderOps {
         e <- ZIO.service[E]
         f <- ZIO.service[F]
       } yield self(a, b, c, d, e, f)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -310,14 +310,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[G1 >: G: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F, G1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D with E with F, G1] =
+      toProvider
   }
 
-  implicit final class Function7ToServiceBuilderSyntax[
+  implicit final class Function7ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -331,18 +331,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[H1 >: H: Tag: IsNotIntersection](implicit
+    def toProvider[H1 >: H: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G, H1] = {
+    ): URProvider[A with B with C with D with E with F with G, H1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -352,7 +352,7 @@ trait FunctionToServiceBuilderOps {
         f <- ZIO.service[F]
         g <- ZIO.service[G]
       } yield self(a, b, c, d, e, f, g)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -364,14 +364,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[H1 >: H: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G, H1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D with E with F with G, H1] =
+      toProvider
   }
 
-  implicit final class Function8ToServiceBuilderSyntax[
+  implicit final class Function8ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -386,18 +386,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[I1 >: I: Tag: IsNotIntersection](implicit
+    def toProvider[I1 >: I: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H, I1] = {
+    ): URProvider[A with B with C with D with E with F with G with H, I1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -408,7 +408,7 @@ trait FunctionToServiceBuilderOps {
         g <- ZIO.service[G]
         h <- ZIO.service[H]
       } yield self(a, b, c, d, e, f, g, h)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -420,14 +420,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[I1 >: I: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H, I1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D with E with F with G with H, I1] =
+      toProvider
   }
 
-  implicit final class Function9ToServiceBuilderSyntax[
+  implicit final class Function9ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -443,18 +443,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[J1 >: J: Tag: IsNotIntersection](implicit
+    def toProvider[J1 >: J: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I, J1] = {
+    ): URProvider[A with B with C with D with E with F with G with H with I, J1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -466,7 +466,7 @@ trait FunctionToServiceBuilderOps {
         h <- ZIO.service[H]
         i <- ZIO.service[I]
       } yield self(a, b, c, d, e, f, g, h, i)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -478,14 +478,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[J1 >: J: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I, J1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D with E with F with G with H with I, J1] =
+      toProvider
   }
 
-  implicit final class Function10ToServiceBuilderSyntax[
+  implicit final class Function10ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -502,18 +502,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[K1 >: K: Tag: IsNotIntersection](implicit
+    def toProvider[K1 >: K: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J, K1] = {
+    ): URProvider[A with B with C with D with E with F with G with H with I with J, K1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -526,7 +526,7 @@ trait FunctionToServiceBuilderOps {
         i <- ZIO.service[I]
         j <- ZIO.service[J]
       } yield self(a, b, c, d, e, f, g, h, i, j)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -538,14 +538,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[K1 >: K: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J, K1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D with E with F with G with H with I with J, K1] =
+      toProvider
   }
 
-  implicit final class Function11ToServiceBuilderSyntax[
+  implicit final class Function11ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -563,18 +563,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[L1 >: L: Tag: IsNotIntersection](implicit
+    def toProvider[L1 >: L: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K, L1] = {
+    ): URProvider[A with B with C with D with E with F with G with H with I with J with K, L1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -588,7 +588,7 @@ trait FunctionToServiceBuilderOps {
         j <- ZIO.service[J]
         k <- ZIO.service[K]
       } yield self(a, b, c, d, e, f, g, h, i, j, k)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -600,14 +600,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[L1 >: L: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K, L1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D with E with F with G with H with I with J with K, L1] =
+      toProvider
   }
 
-  implicit final class Function12ToServiceBuilderSyntax[
+  implicit final class Function12ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -626,18 +626,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[M1 >: M: Tag: IsNotIntersection](implicit
+    def toProvider[M1 >: M: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K with L, M1] = {
+    ): URProvider[A with B with C with D with E with F with G with H with I with J with K with L, M1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -652,7 +652,7 @@ trait FunctionToServiceBuilderOps {
         k <- ZIO.service[K]
         l <- ZIO.service[L]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -664,13 +664,13 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[M1 >: M: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K with L, M1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D with E with F with G with H with I with J with K with L, M1] =
+      toProvider
   }
-  implicit final class Function13ToServiceBuilderSyntax[
+  implicit final class Function13ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -690,18 +690,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[N1 >: N: Tag: IsNotIntersection](implicit
+    def toProvider[N1 >: N: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K with L with M, N1] = {
+    ): URProvider[A with B with C with D with E with F with G with H with I with J with K with L with M, N1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -717,7 +717,7 @@ trait FunctionToServiceBuilderOps {
         l <- ZIO.service[L]
         m <- ZIO.service[M]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l, m)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -729,14 +729,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[N1 >: N: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[A with B with C with D with E with F with G with H with I with J with K with L with M, N1] =
-      toServiceBuilder
+    ): URProvider[A with B with C with D with E with F with G with H with I with J with K with L with M, N1] =
+      toProvider
   }
 
-  implicit final class Function14ToServiceBuilderSyntax[
+  implicit final class Function14ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -757,18 +757,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[O1 >: O: Tag: IsNotIntersection](implicit
+    def toProvider[O1 >: O: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N,
       O1
     ] = {
@@ -788,7 +788,7 @@ trait FunctionToServiceBuilderOps {
         m <- ZIO.service[M]
         n <- ZIO.service[N]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l, m, n)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -800,17 +800,17 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[O1 >: O: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N,
       O1
     ] =
-      toServiceBuilder
+      toProvider
   }
 
-  implicit final class Function15ToServiceBuilderSyntax[
+  implicit final class Function15ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -832,18 +832,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[P1 >: P: Tag: IsNotIntersection](implicit
+    def toProvider[P1 >: P: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
       P1
     ] = {
@@ -864,7 +864,7 @@ trait FunctionToServiceBuilderOps {
         n <- ZIO.service[N]
         o <- ZIO.service[O]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -876,17 +876,17 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[P1 >: P: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
       P1
     ] =
-      toServiceBuilder
+      toProvider
   }
 
-  implicit final class Function16ToServiceBuilderSyntax[
+  implicit final class Function16ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -909,18 +909,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[Q1 >: Q: Tag: IsNotIntersection](implicit
+    def toProvider[Q1 >: Q: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
       Q1
     ] = {
@@ -942,7 +942,7 @@ trait FunctionToServiceBuilderOps {
         o <- ZIO.service[O]
         p <- ZIO.service[P]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -954,17 +954,17 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[Q1 >: Q: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
       Q1
     ] =
-      toServiceBuilder
+      toProvider
   }
 
-  implicit final class Function17ToServiceBuilderSyntax[
+  implicit final class Function17ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -988,18 +988,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[R1 >: R: Tag: IsNotIntersection](implicit
+    def toProvider[R1 >: R: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
       R1
     ] = {
@@ -1022,7 +1022,7 @@ trait FunctionToServiceBuilderOps {
         p <- ZIO.service[P]
         q <- ZIO.service[Q]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -1034,17 +1034,17 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[R1 >: R: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
       R1
     ] =
-      toServiceBuilder
+      toProvider
   }
 
-  implicit final class Function18ToServiceBuilderSyntax[
+  implicit final class Function18ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -1069,18 +1069,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[S1 >: S: Tag: IsNotIntersection](implicit
+    def toProvider[S1 >: S: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
       S1
     ] = {
@@ -1104,7 +1104,7 @@ trait FunctionToServiceBuilderOps {
         q <- ZIO.service[Q]
         r <- ZIO.service[R]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -1116,17 +1116,17 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[S1 >: S: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
       S1
     ] =
-      toServiceBuilder
+      toProvider
   }
 
-  implicit final class Function19ToServiceBuilderSyntax[
+  implicit final class Function19ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -1152,18 +1152,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[T1 >: T: Tag: IsNotIntersection](implicit
+    def toProvider[T1 >: T: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
       T1
     ] = {
@@ -1188,7 +1188,7 @@ trait FunctionToServiceBuilderOps {
         r <- ZIO.service[R]
         s <- ZIO.service[S]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -1200,17 +1200,17 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[T1 >: T: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
       T1
     ] =
-      toServiceBuilder
+      toProvider
   }
 
-  implicit final class Function20ToServiceBuilderSyntax[
+  implicit final class Function20ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -1237,18 +1237,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[U1 >: U: Tag: IsNotIntersection](implicit
+    def toProvider[U1 >: U: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
       U1
     ] = {
@@ -1274,7 +1274,7 @@ trait FunctionToServiceBuilderOps {
         s <- ZIO.service[S]
         t <- ZIO.service[T]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -1286,17 +1286,17 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[U1 >: U: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
       U1
     ] =
-      toServiceBuilder
+      toProvider
   }
 
-  implicit final class Function21ToServiceBuilderSyntax[
+  implicit final class Function21ToProviderOps[
     A: Tag: IsNotIntersection,
     B: Tag: IsNotIntersection,
     C: Tag: IsNotIntersection,
@@ -1324,18 +1324,18 @@ trait FunctionToServiceBuilderOps {
   ) {
 
     /**
-     * Converts this function to a ServiceBuilder that depends upon its inputs.
+     * Converts this function to a Provider that depends upon its inputs.
      *
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URServiceBuilder[Config with Repo, Foo] =
-     *   FooLive.toServiceBuilder
+     * val live: URProvider[Config with Repo, Foo] =
+     *   FooLive.toProvider
      * }}}
      */
-    def toServiceBuilder[V1 >: V: Tag: IsNotIntersection](implicit
+    def toProvider[V1 >: V: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
       V1
     ] = {
@@ -1362,7 +1362,7 @@ trait FunctionToServiceBuilderOps {
         t <- ZIO.service[T]
         u <- ZIO.service[U]
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u)
-    }.toServiceBuilder
+    }.toProvider
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -1374,14 +1374,14 @@ trait FunctionToServiceBuilderOps {
      *   FooLive.toLayer
      * }}}
      */
-    @deprecated("use toServiceBuilder", "2.0.0")
+    @deprecated("use toProvider", "2.0.0")
     def toLayer[V1 >: V: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URServiceBuilder[
+    ): URProvider[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
       V1
     ] =
-      toServiceBuilder
+      toProvider
   }
 
 }

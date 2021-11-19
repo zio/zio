@@ -44,12 +44,12 @@ trait TRandom {
 
 object TRandom extends Serializable {
 
-  val any: ZServiceBuilder[TRandom, Nothing, TRandom] = {
+  val any: ZProvider[TRandom, Nothing, TRandom] = {
     implicit val trace = Tracer.newTrace
-    ZServiceBuilder.service[TRandom]
+    ZProvider.service[TRandom]
   }
 
-  val live: ZServiceBuilder[Random, Nothing, TRandom] = {
+  val live: ZProvider[Random, Nothing, TRandom] = {
     implicit val trace = Tracer.newTrace
     Random.nextLong.flatMap { init =>
       TRef
@@ -58,7 +58,7 @@ object TRandom extends Serializable {
           TRandomLive(seed)
         }
         .commit
-    }.toServiceBuilder
+    }.toProvider
   }
 
   /**

@@ -2,7 +2,7 @@ package zio.test.mock.module
 
 import zio.stream.ZSink
 import zio.test.mock.{Mock, Proxy}
-import zio.{UIO, URServiceBuilder, ZIO}
+import zio.{UIO, URProvider, ZIO}
 
 /**
  * Example module used for testing ZIO Mock framework.
@@ -12,7 +12,7 @@ object StreamModuleMock extends Mock[StreamModule] {
   object Sink   extends Sink[Any, String, Int, String, Nothing, List[Int]]
   object Stream extends Stream[Any, String, Int]
 
-  val compose: URServiceBuilder[Proxy, StreamModule] =
+  val compose: URProvider[Proxy, StreamModule] =
     ZIO
       .service[Proxy]
       .flatMap { proxy =>
@@ -24,5 +24,5 @@ object StreamModuleMock extends Mock[StreamModule] {
           }
         }
       }
-      .toServiceBuilder
+      .toProvider
 }

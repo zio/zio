@@ -50,14 +50,14 @@ trait System extends Serializable {
 
 object System extends Serializable {
 
-  val any: ZServiceBuilder[System, Nothing, System] = {
+  val any: ZProvider[System, Nothing, System] = {
     implicit val trace = Tracer.newTrace
-    ZServiceBuilder.service[System]
+    ZProvider.service[System]
   }
 
-  val live: ServiceBuilder[Nothing, System] = {
+  val live: Provider[Nothing, System] = {
     implicit val trace = Tracer.newTrace
-    ZServiceBuilder.succeed[System](SystemLive)
+    ZProvider.succeed[System](SystemLive)
   }
 
   object SystemLive extends System {

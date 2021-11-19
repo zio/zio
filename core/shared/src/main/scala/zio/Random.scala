@@ -98,20 +98,20 @@ object Random extends Serializable {
       Random.shuffleWith(nextIntBounded(_), collection)
   }
 
-  val any: ZServiceBuilder[Random, Nothing, Random] = {
-    ZServiceBuilder.service[Random](Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
+  val any: ZProvider[Random, Nothing, Random] = {
+    ZProvider.service[Random](Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
   }
 
-  val live: ServiceBuilder[Nothing, Random] = {
-    ZServiceBuilder.succeed[Random](RandomLive)(Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
+  val live: Provider[Nothing, Random] = {
+    ZProvider.succeed[Random](RandomLive)(Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
   }
 
   /**
    * Constructs a `Random` service from a `scala.util.Random`.
    */
-  val scalaRandom: ZServiceBuilder[scala.util.Random, Nothing, Random] = {
+  val scalaRandom: ZProvider[scala.util.Random, Nothing, Random] = {
     implicit val trace = Tracer.newTrace
-    ZServiceBuilder {
+    ZProvider {
       for {
         random <- ZIO.service[scala.util.Random]
       } yield RandomScala(random)

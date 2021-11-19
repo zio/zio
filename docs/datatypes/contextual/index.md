@@ -55,7 +55,7 @@ val effect: ZIO[Console with Random, Nothing, Unit] = for {
 val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live ++ Random.live)
 ```
 
-We don't need to provide live service builders for built-in services (don't worry, we will discuss service builders later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
+We don't need to provide live providers for built-in services (don't worry, we will discuss providers later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
 
 ```scala mdoc:compile-only
 import zio._
@@ -83,17 +83,17 @@ ZIO environment facility enables us to:
 Defining service in ZIO is not very different from object-oriented style, it has the same principle; coding to an interface, not an implementation. But the way ZIO encourages us to implement this principle by using _Module Pattern_ which doesn't very differ from the object-oriented style. 
 
 ZIO have one data type that plays a key role in writing ZIO services using _Module Pattern_: 
-1. ZServiceBuilder
+1. ZProvider
 
 So, before diving into the _Module Pattern_, We need to learn more about ZIO Contextual Data Types. Let's review each of them:
 
-### ZServiceBuilder
+### ZProvider
 
-`ZServiceBuilder[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
+`ZProvider[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
 
-We can compose `serviceBuilderA` and `serviceBuilderB` _horizontally_ to build a service builder that has the requirements of both, to provide the capabilities of both, through `serviceBuilderA ++ serviceBuilderB`
+We can compose `providerA` and `providerB` _horizontally_ to build a provider that has the requirements of both, to provide the capabilities of both, through `providerA ++ providerB`
 
-We can also compose service builders _vertically_, meaning the output of one service builder is used as input for the subsequent service builder, resulting in one service builder with the requirement of the first, and the output of the second: `serviceBuilderA >>> serviceBuilderB`. When doing this, the first service builder must output all the services required by the second service builder, but we can defer creating some of these services and require them as part of the input of the final service builder using `ZServiceBuilder.identity`.  
+We can also compose providers _vertically_, meaning the output of one provider is used as input for the subsequent provider, resulting in one provider with the requirement of the first, and the output of the second: `providerA >>> providerB`. When doing this, the first provider must output all the services required by the second provider, but we can defer creating some of these services and require them as part of the input of the final provider using `ZProvider.identity`.  
 
 ## Defining Services in OOP
 
@@ -159,7 +159,7 @@ In the functional Scala as well as in object-oriented programming the best pract
 
 It is not mandatory but ZIO encourages us to follow this principle by bundling related functionality as an interface by using _Module Pattern_. 
 
-The core idea is that a service builder depends upon the interfaces exposed by the service builders immediately below itself, but is completely unaware of its dependencies' internal implementations.
+The core idea is that a provider depends upon the interfaces exposed by the providers immediately below itself, but is completely unaware of its dependencies' internal implementations.
 
 In object-oriented programming:
 
@@ -167,7 +167,7 @@ In object-oriented programming:
 - **Service Implementation** is done by implementing interfaces using _classes_ or creating _new object_ of the interface.
 - **Defining Dependencies** is done by using _constructors_. They allow us to build classes, give their dependencies. This is called constructor-based dependency injection.
 
-We have a similar analogy in Module Pattern, except instead of using _constructors_ we use **`ZServiceBuilder`** to define dependencies. So in ZIO fashion, we can think of `ZServiceBuilder` as a service constructor.
+We have a similar analogy in Module Pattern, except instead of using _constructors_ we use **`ZProvider`** to define dependencies. So in ZIO fashion, we can think of `ZProvider` as a service constructor.
 
 ZIO has two patterns to write services. The first version of _Module Pattern_ has some boilerplate, but the second version is very concise and straightforward. ZIO doesn't mandate any of them, you can use whichever you like.
 
@@ -179,9 +179,9 @@ Let's start learning this pattern by writing a `Logging` service:
 
 2. **Service Definition** — Then we create the `Logging` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
 
-3. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZServiceBuilder` data type by using the `ZServiceBuilder.succeed` constructor.
+3. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZProvider` data type by using the `ZProvider.succeed` constructor.
 
-4. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZServiceBuilder.fromService` and `ZServiceBuilder.fromServices`.
+4. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZProvider.fromService` and `ZProvider.fromServices`.
 
 5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. 
 
@@ -193,7 +193,7 @@ import zio.Console._
 ```
 
 ```scala mdoc:invisible
-import zio.{UIO, ServiceBuilder, ZServiceBuilder, ZIO, URIO}
+import zio.{UIO, Provider, ZProvider, ZIO, URIO}
 ```
 
 ```scala mdoc:silent:nest
@@ -206,7 +206,7 @@ object logging {
       def log(line: String): UIO[Unit]
     }
 
-    val live: UServiceBuilder[Logging] = ZServiceBuilder.succeed {
+    val live: UProvider[Logging] = ZProvider.succeed {
       new Service {
         override def log(line: String): UIO[Unit] =
           ZIO.succeed(println(line))
@@ -220,7 +220,7 @@ object logging {
 }
 ```
 
-We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZServiceBuilder.fromServices` constructor:
+We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZProvider.fromServices` constructor:
 
 ```scala mdoc:silent:nest:warn
 object logging {
@@ -232,8 +232,8 @@ object logging {
       def log(line: String): UIO[Unit]
     }
 
-    val live: URServiceBuilder[Clock with Console, Logging] =
-      ZServiceBuilder.fromServices[Clock, Console, Logging.Service] {
+    val live: URProvider[Clock with Console, Logging] =
+      ZProvider.fromServices[Clock, Console, Logging.Service] {
         (clock: Clock, console: Console) =>
           new Logging.Service {
             override def log(line: String): UIO[Unit] =
@@ -271,7 +271,7 @@ During writing an application we don't care which implementation version of the 
 
 Writing services with _Module Pattern 2.0_ is much easier than the previous one. It removes some level of indirection from the previous version, and much more similar to the object-oriented approach in writing services.
 
-_Module Pattern 2.0_ has more similarity with object-oriented way of defining services. We use classes to implement services, and we use constructors to define service dependencies; At the end of the day, we lift class constructor into the `ZServiceBuilder`.
+_Module Pattern 2.0_ has more similarity with object-oriented way of defining services. We use classes to implement services, and we use constructors to define service dependencies; At the end of the day, we lift class constructor into the `ZProvider`.
 
 1. **Service Definition** — Defining service in this version has changed slightly compared to the previous version. We would take the service definition and pull it out into the top-level:
 
@@ -314,12 +314,12 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 }
 ```
 
-4. **Defining ZServiceBuilder** — Now, we create a companion object for `LoggingLive` data type and lift the service implementation into the `ZServiceBuilder`:
+4. **Defining ZProvider** — Now, we create a companion object for `LoggingLive` data type and lift the service implementation into the `ZProvider`:
 
 ```scala mdoc:silent
 object LoggingLive {
-  val serviceBuilder: URServiceBuilder[Console with Clock, Logging] =
-    (LoggingLive(_, _)).toServiceBuilder[Logging]
+  val provider: URProvider[Console with Clock, Logging] =
+    (LoggingLive(_, _)).toProvider[Logging]
 }
 ```
 
@@ -333,32 +333,32 @@ object Logging {
 
 That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge. 
 
-Finally, we provide required service builders to our `app` effect:
+Finally, we provide required providers to our `app` effect:
 
 ```scala mdoc:silent:nest
  import zio._
  val app = Logging.log("Application Started")
 
  zio.Runtime.default.unsafeRun(
-   app.provide(LoggingLive.serviceBuilder)
+   app.provide(LoggingLive.provider)
  )
 ```
 
 ## Dependency Injection in ZIO
 
-ZServiceBuilder combined with the ZIO environment, allow us to use ZIO for dependency injection. There are two parts for dependency injection:
+ZProvider combined with the ZIO environment, allow us to use ZIO for dependency injection. There are two parts for dependency injection:
 1. **Building Dependency Graph**
 2. **Dependency Propagation**
 
-ZIO has a full solution to the dependency injection problem. It solves the first problem by using compositional properties of `ZServiceBuilder`, and solves the second by using ZIO Environment facilities like `ZIO#provide`. 
+ZIO has a full solution to the dependency injection problem. It solves the first problem by using compositional properties of `ZProvider`, and solves the second by using ZIO Environment facilities like `ZIO#provide`. 
 
 The way ZIO manages dependencies between application components gives us extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during _testing_ and _mocking_.
 
-By using ZServiceBuilder and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
+By using ZProvider and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
 
 ### Building Dependency Graph
 
-Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZServiceBuilder` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing service builders horizontally and vertically. More information about how to compose service builders is on the [ZServiceBuilder](zservicebuilder.md) page.
+Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZProvider` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing providers horizontally and vertically. More information about how to compose providers is on the [ZProvider](zprovider.md) page.
 
 ### Dependency Propagation
 
@@ -415,11 +415,11 @@ val loggingImpl = new Logging {
 val effect = app.provideEnvironment(ZEnvironment(loggingImpl))
 ```
 
-Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZServiceBuilder` to construct the dependency graph of our application, then we use methods like `ZIO#provide` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZProvider` to construct the dependency graph of our application, then we use methods like `ZIO#provide` to propagate dependencies into the environment of our ZIO effect.
 
 #### Using `provide` Method
 
-Unlike the `ZIO#provideEnvironment` which takes a `ZEnvironment[R]`, the `ZIO#provide` takes a `ZServiceBuilder` to the ZIO effect and translates it to another level. 
+Unlike the `ZIO#provideEnvironment` which takes a `ZEnvironment[R]`, the `ZIO#provide` takes a `ZProvider` to the ZIO effect and translates it to another level. 
 
 Assume we have written this piece of program that requires Clock and Console services:
 
@@ -447,7 +447,7 @@ As we see, the type of our effect converted from `ZIO[Random with Console with C
 
 #### Using `provideSome` Method
 
-Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSome` to partially apply some service builders to the `ZIO` effect.
+Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSome` to partially apply some providers to the `ZIO` effect.
 
 In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSome`:
 
@@ -466,7 +466,7 @@ val mainEffect: ZIO[Random with Clock, Nothing, Unit] =
 
 Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.  
 
- As `ZEnv` provides us the implementation of built-in services, we just need to provide service builders for those services that are not part of the `ZEnv`. 
+ As `ZEnv` provides us the implementation of built-in services, we just need to provide providers for those services that are not part of the `ZEnv`. 
 
 `ZIO#provideCustom` helps us to do so and returns an effect that only depends on `ZEnv`.
 
@@ -488,7 +488,7 @@ object Logging {
 }
 
 object LoggingLive {
-  val serviceBuilder: UServiceBuilder[Logging] = ZServiceBuilder.succeed {
+  val provider: UProvider[Logging] = ZProvider.succeed {
     new Logging {
       override def log(str: String): UIO[Unit] = ???
     }
@@ -504,8 +504,8 @@ val myApp: ZIO[Logging with Console with Clock, Nothing, Unit] = for {
 
 This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
 
-By using `ZIO#provideCustom` we only provide the `Logging` service builder, and it returns a `ZIO` effect which only requires `ZEnv`:
+By using `ZIO#provideCustom` we only provide the `Logging` provider, and it returns a `ZIO` effect which only requires `ZEnv`:
 
 ```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustom(LoggingLive.serviceBuilder)
+val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustom(LoggingLive.provider)
 ```

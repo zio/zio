@@ -13,25 +13,25 @@ object AutoWireSpec extends ZIOBaseSpec {
     suite("AutoWireSpec")(
       suite("inject")(
         suite("meta-suite") {
-          val doubleServiceBuilder = ZServiceBuilder.succeed(100.1)
-          val stringServiceBuilder = ZServiceBuilder.succeed("this string is 28 chars long")
-          val intServiceBuilder =
-            ZServiceBuilder {
+          val doubleProvider = ZProvider.succeed(100.1)
+          val stringProvider = ZProvider.succeed("this string is 28 chars long")
+          val intProvider =
+            ZProvider {
               for {
                 str    <- ZIO.service[String]
                 double <- ZIO.service[Double]
               } yield str.length + double.toInt
             }
-          test("automatically constructs a service builder") {
+          test("automatically constructs a provider") {
             val program = ZIO.environment[ZEnv] *> ZIO.service[Int]
             assertM(program)(equalTo(128))
-          }.injectCustom(doubleServiceBuilder, stringServiceBuilder, intServiceBuilder)
+          }.injectCustom(doubleProvider, stringProvider, intProvider)
         },
         test("reports missing top-level dependencies") {
           val program: URIO[String with Int, String] = UIO("test")
           val _                                      = program
           val checked =
-            typeCheck("""test("foo")(assertM(program)(anything)).inject(ZServiceBuilder.succeed(3))""")
+            typeCheck("""test("foo")(assertM(program)(anything)).inject(ZProvider.succeed(3))""")
           assertM(checked)(isLeft(containsStringWithoutAnsi("missing String")))
         } @@ TestAspect.exceptDotty,
         test("reports multiple missing top-level dependencies") {
@@ -44,20 +44,20 @@ object AutoWireSpec extends ZIOBaseSpec {
           )
         } @@ TestAspect.exceptDotty,
         test("reports missing transitive dependencies") {
-          import TestServiceBuilder._
+          import TestProvider._
           val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
           val _                               = program
 
           val checked = typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live)""")
           assertM(checked)(
             isLeft(
-              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestServiceBuilder.Fly") &&
-                containsStringWithoutAnsi("for TestServiceBuilder.OldLady.live")
+              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestProvider.Fly") &&
+                containsStringWithoutAnsi("for TestProvider.OldLady.live")
             )
           )
         } @@ TestAspect.exceptDotty,
         test("reports nested missing transitive dependencies") {
-          import TestServiceBuilder._
+          import TestProvider._
           val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
           val _                               = program
 
@@ -65,13 +65,13 @@ object AutoWireSpec extends ZIOBaseSpec {
             typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.live)""")
           assertM(checked)(
             isLeft(
-              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestServiceBuilder.Spider") &&
-                containsStringWithoutAnsi("for TestServiceBuilder.Fly.live")
+              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestProvider.Spider") &&
+                containsStringWithoutAnsi("for TestProvider.Fly.live")
             )
           )
         } @@ TestAspect.exceptDotty,
         test("reports circular dependencies") {
-          import TestServiceBuilder._
+          import TestProvider._
           val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
           val _                               = program
 
@@ -81,19 +81,19 @@ object AutoWireSpec extends ZIOBaseSpec {
             )
           assertM(checked)(
             isLeft(
-              containsStringWithoutAnsi("TestServiceBuilder.Fly.manEatingFly") &&
+              containsStringWithoutAnsi("TestProvider.Fly.manEatingFly") &&
                 containsStringWithoutAnsi(
-                  "both requires and is transitively required by TestServiceBuilder.OldLady.live"
+                  "both requires and is transitively required by TestProvider.OldLady.live"
                 )
             )
           )
         } @@ TestAspect.exceptDotty
       ),
       suite(".injectShared") {
-        val addOne            = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
-        val refServiceBuilder = Ref.make(1).toServiceBuilder
+        val addOne      = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
+        val refProvider = Ref.make(1).toProvider
 
-        suite("service builders are shared between tests and suites")(
+        suite("providers are shared between tests and suites")(
           suite("suite 1")(
             test("test 1")(assertM(addOne)(equalTo(1))),
             test("test 2")(assertM(addOne)(equalTo(2)))
@@ -102,7 +102,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 3")(assertM(addOne)(equalTo(3))),
             test("test 4")(assertM(addOne)(equalTo(4)))
           )
-        ).injectShared(refServiceBuilder) @@ TestAspect.sequential
+        ).injectShared(refProvider) @@ TestAspect.sequential
       },
       suite(".injectCustomShared") {
         case class IntService(ref: Ref[Int]) {
@@ -115,9 +115,9 @@ object AutoWireSpec extends ZIOBaseSpec {
             .zip(Random.nextIntBounded(2))
             .flatMap { case (ref, int) => ref.add(int) }
 
-        val refServiceBuilder: UServiceBuilder[IntService] = Ref.make(1).map(IntService(_)).toServiceBuilder
+        val refProvider: UProvider[IntService] = Ref.make(1).map(IntService(_)).toProvider
 
-        suite("service builders are shared between tests and suites")(
+        suite("providers are shared between tests and suites")(
           suite("suite 1")(
             test("test 1")(assertM(addOne)(equalTo(1))),
             test("test 2")(assertM(addOne)(equalTo(2)))
@@ -126,14 +126,14 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 3")(assertM(addOne)(equalTo(2))),
             test("test 4")(assertM(addOne)(equalTo(3)))
           )
-        ).injectCustomShared(refServiceBuilder) @@ TestAspect.sequential
+        ).injectCustomShared(refProvider) @@ TestAspect.sequential
       } @@ TestAspect.exceptDotty,
       suite(".injectSomeShared") {
         val addOne =
           ZIO.service[Ref[Int]].zip(Random.nextIntBounded(2)).flatMap { case (ref, int) => ref.getAndUpdate(_ + int) }
-        val refServiceBuilder = Ref.make(1).toServiceBuilder
+        val refProvider = Ref.make(1).toProvider
 
-        suite("service builders are shared between tests and suites")(
+        suite("providers are shared between tests and suites")(
           suite("suite 1")(
             test("test 1")(assertM(addOne)(equalTo(1))),
             test("test 2")(assertM(addOne)(equalTo(2)))
@@ -142,44 +142,44 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 3")(assertM(addOne)(equalTo(2))),
             test("test 4")(assertM(addOne)(equalTo(3)))
           )
-        ).injectSomeShared[Random](refServiceBuilder) @@ TestAspect.sequential
+        ).injectSomeShared[Random](refProvider) @@ TestAspect.sequential
       },
       suite(".injectSome") {
-        test("automatically constructs a service builder, leaving off TestEnvironment") {
+        test("automatically constructs a provider, leaving off TestEnvironment") {
           for {
             result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
           } yield assertTrue(result == "Your Lucky Number is -1295463240")
-        }.injectSome[Random](ZServiceBuilder.succeed("Your Lucky Number is"))
+        }.injectSome[Random](ZProvider.succeed("Your Lucky Number is"))
       },
       suite(".injectCustom") {
-        test("automatically constructs a service builder, leaving off TestEnvironment") {
+        test("automatically constructs a provider, leaving off TestEnvironment") {
           for {
             result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
           } yield assertTrue(result == "Your Lucky Number is -1295463240")
-        }.injectCustom(ZServiceBuilder.succeed("Your Lucky Number is"))
+        }.injectCustom(ZProvider.succeed("Your Lucky Number is"))
       } @@ TestAspect.exceptDotty
     )
 
-  object TestServiceBuilder {
+  object TestProvider {
     trait OldLady {
       def willDie: UIO[Boolean]
     }
 
     object OldLady {
-      def live: URServiceBuilder[Fly, OldLady] = ZServiceBuilder.succeed(new OldLady {
+      def live: URProvider[Fly, OldLady] = ZProvider.succeed(new OldLady {
         override def willDie: UIO[Boolean] = UIO(false)
       })
     }
 
     trait Fly {}
     object Fly {
-      def live: URServiceBuilder[Spider, Fly]          = ZServiceBuilder.succeed(new Fly {})
-      def manEatingFly: URServiceBuilder[OldLady, Fly] = ZServiceBuilder.succeed(new Fly {})
+      def live: URProvider[Spider, Fly]          = ZProvider.succeed(new Fly {})
+      def manEatingFly: URProvider[OldLady, Fly] = ZProvider.succeed(new Fly {})
     }
 
     trait Spider {}
     object Spider {
-      def live: UServiceBuilder[Spider] = ZServiceBuilder.succeed(new Spider {})
+      def live: UProvider[Spider] = ZProvider.succeed(new Spider {})
     }
   }
 }

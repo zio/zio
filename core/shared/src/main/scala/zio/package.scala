@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 package object zio
     extends BuildFromCompat
     with EitherCompat
-    with FunctionToServiceBuilderOps
+    with FunctionToProviderSyntax
     with IntersectionTypeCompat
     with VersionSpecific
     with DurationModule {
@@ -45,27 +45,27 @@ package object zio
 
   val Managed: ZManaged.type = ZManaged
 
-  type RServiceBuilder[-RIn, +ROut]  = ZServiceBuilder[RIn, Throwable, ROut]
-  type URServiceBuilder[-RIn, +ROut] = ZServiceBuilder[RIn, Nothing, ROut]
-  type ServiceBuilder[+E, +ROut]     = ZServiceBuilder[Any, E, ROut]
-  type UServiceBuilder[+ROut]        = ZServiceBuilder[Any, Nothing, ROut]
-  type TaskServiceBuilder[+ROut]     = ZServiceBuilder[Any, Throwable, ROut]
+  type RProvider[-RIn, +ROut]  = ZProvider[RIn, Throwable, ROut]
+  type URProvider[-RIn, +ROut] = ZProvider[RIn, Nothing, ROut]
+  type Provider[+E, +ROut]     = ZProvider[Any, E, ROut]
+  type UProvider[+ROut]        = ZProvider[Any, Nothing, ROut]
+  type TaskProvider[+ROut]     = ZProvider[Any, Throwable, ROut]
 
-  @deprecated("use ZServiceBuilder", "2.0.0")
-  type ZLayer[-RIn, +E, +ROut] = ZServiceBuilder[RIn, E, ROut]
-  @deprecated("use ZServiceBuilder", "2.0.0")
-  val ZLayer: ZServiceBuilder.type = ZServiceBuilder
+  @deprecated("use ZProvider", "2.0.0")
+  type ZLayer[-RIn, +E, +ROut] = ZProvider[RIn, E, ROut]
+  @deprecated("use ZProvider", "2.0.0")
+  val ZLayer: ZProvider.type = ZProvider
 
-  @deprecated("use RServiceBuilder", "2.0.0")
-  type RLayer[-RIn, +ROut] = ZServiceBuilder[RIn, Throwable, ROut]
-  @deprecated("use URServiceBuilder", "2.0.0")
-  type URLayer[-RIn, +ROut] = ZServiceBuilder[RIn, Nothing, ROut]
-  @deprecated("use ServiceBuilder", "2.0.0")
-  type Layer[+E, +ROut] = ZServiceBuilder[Any, E, ROut]
-  @deprecated("use UServiceBuilder", "2.0.0")
-  type ULayer[+ROut] = ZServiceBuilder[Any, Nothing, ROut]
-  @deprecated("use TaskServiceBuilder", "2.0.0")
-  type TaskLayer[+ROut] = ZServiceBuilder[Any, Throwable, ROut]
+  @deprecated("use RProvider", "2.0.0")
+  type RLayer[-RIn, +ROut] = ZProvider[RIn, Throwable, ROut]
+  @deprecated("use URProvider", "2.0.0")
+  type URLayer[-RIn, +ROut] = ZProvider[RIn, Nothing, ROut]
+  @deprecated("use Provider", "2.0.0")
+  type Layer[+E, +ROut] = ZProvider[Any, E, ROut]
+  @deprecated("use UProvider", "2.0.0")
+  type ULayer[+ROut] = ZProvider[Any, Nothing, ROut]
+  @deprecated("use TaskProvider", "2.0.0")
+  type TaskLayer[+ROut] = ZProvider[Any, Throwable, ROut]
 
   type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
   val Queue: ZQueue.type = ZQueue

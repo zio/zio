@@ -717,9 +717,9 @@ object TestRandom extends Serializable {
    * useful for providing the required environment to an effect that requires a
    * `Random`, such as with `ZIO#provide`.
    */
-  def make(data: Data): ServiceBuilder[Nothing, TestRandom] = {
+  def make(data: Data): Provider[Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
-    ZServiceBuilder {
+    ZProvider {
       for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
@@ -728,15 +728,15 @@ object TestRandom extends Serializable {
     }
   }
 
-  val any: ZServiceBuilder[TestRandom, Nothing, TestRandom] =
-    ZServiceBuilder.environment[TestRandom](Tracer.newTrace)
+  val any: ZProvider[TestRandom, Nothing, TestRandom] =
+    ZProvider.environment[TestRandom](Tracer.newTrace)
 
-  val deterministic: ServiceBuilder[Nothing, TestRandom] =
+  val deterministic: Provider[Nothing, TestRandom] =
     make(DefaultData)
 
-  val random: ZServiceBuilder[Clock, Nothing, TestRandom] = {
+  val random: ZProvider[Clock, Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
-    (ZServiceBuilder.service[Clock] ++ deterministic) >>> ZServiceBuilder {
+    (ZProvider.service[Clock] ++ deterministic) >>> ZProvider {
       for {
         random     <- ZIO.service[Random]
         testRandom <- ZIO.service[TestRandom]

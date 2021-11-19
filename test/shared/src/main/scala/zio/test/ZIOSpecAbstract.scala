@@ -39,14 +39,14 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {
     implicit val trace = Tracer.newTrace
-    runSpec.provideSome[ZEnv with ZIOAppArgs](TestEnvironment.live ++ serviceBuilder)
+    runSpec.provideSome[ZEnv with ZIOAppArgs](TestEnvironment.live ++ provider)
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      def serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, Environment] =
-        self.serviceBuilder +!+ that.serviceBuilder
+      def provider: ZProvider[ZIOAppArgs, Any, Environment] =
+        self.provider +!+ that.provider
       override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs, Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =
@@ -104,7 +104,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       runner =
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs, Any](
-            ZServiceBuilder.succeedMany(env)
+            ZProvider.succeedMany(env)
           )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)

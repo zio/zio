@@ -10,19 +10,7 @@ import zio.test.{
   TestEnvironment,
   ZIOSpecAbstract
 }
-import zio.{
-  Chunk,
-  Clock,
-  ServiceBuilder,
-  Runtime,
-  UIO,
-  UServiceBuilder,
-  ZEnvironment,
-  ZIO,
-  ZIOAppArgs,
-  ZServiceBuilder,
-  ZTraceElement
-}
+import zio.{Chunk, Clock, Provider, Runtime, UIO, UProvider, ZEnvironment, ZIO, ZIOAppArgs, ZProvider, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -48,35 +36,35 @@ abstract class BaseTestTask(
     eventHandler: EventHandler,
     spec: ZIOSpecAbstract
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
-    val argsserviceBuilder: UServiceBuilder[ZIOAppArgs] =
-      ZServiceBuilder.succeed(
+    val argsprovider: UProvider[ZIOAppArgs] =
+      ZProvider.succeed(
         ZIOAppArgs(Chunk.empty)
       )
 
-    val filledTestserviceBuilder: ServiceBuilder[Nothing, TestEnvironment] =
+    val filledTestprovider: Provider[Nothing, TestEnvironment] =
       zio.ZEnv.live >>> TestEnvironment.live
 
-    val serviceBuilder: ServiceBuilder[Error, spec.Environment] =
-      (argsserviceBuilder +!+ filledTestserviceBuilder) >>> spec.serviceBuilder.mapError(e => new Error(e.toString))
+    val provider: Provider[Error, spec.Environment] =
+      (argsprovider +!+ filledTestprovider) >>> spec.provider.mapError(e => new Error(e.toString))
 
-    val fullServiceBuilder: ServiceBuilder[Error, spec.Environment with ZIOAppArgs with TestEnvironment with zio.ZEnv] =
-      serviceBuilder +!+ argsserviceBuilder +!+ filledTestserviceBuilder
+    val fullProvider: Provider[Error, spec.Environment with ZIOAppArgs with TestEnvironment with zio.ZEnv] =
+      provider +!+ argsprovider +!+ filledTestprovider
 
     for {
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args)
                 .provide(
-                  fullServiceBuilder
+                  fullProvider
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
     } yield ()
   }
 
-  protected def sbtTestServiceBuilder(
+  protected def sbtTestProvider(
     loggers: Array[Logger]
-  ): ServiceBuilder[Nothing, TestLogger with Clock] =
-    ZServiceBuilder.succeed[TestLogger](new TestLogger {
+  ): Provider[Nothing, TestLogger with Clock] =
+    ZProvider.succeed[TestLogger](new TestLogger {
       def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live
@@ -92,7 +80,7 @@ abstract class BaseTestTask(
         case LegacySpecWrapper(abstractRunnableSpec) =>
           Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
             run(eventHandler, abstractRunnableSpec)
-              .provide(sbtTestServiceBuilder(loggers))
+              .provide(sbtTestProvider(loggers))
               .onError(e => UIO(println(e.prettyPrint)))
           }
       }

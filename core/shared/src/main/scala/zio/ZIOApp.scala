@@ -21,9 +21,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * An entry point for a ZIO application that allows sharing service builders
- * between applications. For a simpler version that uses the default ZIO
- * environment see `ZIOAppDefault`.
+ * An entry point for a ZIO application that allows sharing providers between
+ * applications. For a simpler version that uses the default ZIO environment see
+ * `ZIOAppDefault`.
  */
 trait ZIOApp extends ZIOAppPlatformSpecific { self =>
   private[zio] val shuttingDown = new AtomicBoolean(false)
@@ -33,10 +33,10 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
   type Environment
 
   /**
-   * A service builder that manages the acquisition and release of services
-   * necessary for the application to run.
+   * A provider that manages the acquisition and release of services necessary
+   * for the application to run.
    */
-  def serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, Environment]
+  def provider: ZProvider[ZIOAppArgs, Any, Environment]
 
   /**
    * The main function of the application, which can access the command-line
@@ -52,7 +52,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    * that executes the logic of both applications.
    */
   final def <>(that: ZIOApp)(implicit trace: ZTraceElement): ZIOApp =
-    ZIOApp(self.run.zipPar(that.run), self.serviceBuilder +!+ that.serviceBuilder, self.hook >>> that.hook)
+    ZIOApp(self.run.zipPar(that.run), self.provider +!+ that.provider, self.hook >>> that.hook)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
@@ -87,11 +87,11 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
     ZIO.runtime[ZEnv].flatMap { runtime =>
       val newRuntime = runtime.mapRuntimeConfig(hook)
 
-      val newServiceBuilder =
-        ZServiceBuilder.environment[ZEnv] +!+ ZServiceBuilder.succeed(ZIOAppArgs(args)) >>>
-          serviceBuilder +!+ ZServiceBuilder.environment[ZEnv with ZIOAppArgs]
+      val newProvider =
+        ZProvider.environment[ZEnv] +!+ ZProvider.succeed(ZIOAppArgs(args)) >>>
+          provider +!+ ZProvider.environment[ZEnv with ZIOAppArgs]
 
-      newRuntime.run(run.provide(newServiceBuilder))
+      newRuntime.run(run.provide(newProvider))
     }
 
   def runtime: Runtime[ZEnv] = Runtime.default
@@ -106,8 +106,8 @@ object ZIOApp {
     type Environment = app.Environment
     override final def hook: RuntimeConfigAspect =
       app.hook
-    final def serviceBuilder: ZServiceBuilder[ZIOAppArgs, Any, Environment] =
-      app.serviceBuilder
+    final def provider: ZProvider[ZIOAppArgs, Any, Environment] =
+      app.provider
     override final def run: ZIO[Environment with ZEnv with ZIOAppArgs, Any, Any] =
       app.run
     implicit final def tag: Tag[Environment] =
@@ -120,14 +120,14 @@ object ZIOApp {
    */
   def apply[R](
     run0: ZIO[R with ZEnv with ZIOAppArgs, Any, Any],
-    serviceBuilder0: ZServiceBuilder[ZIOAppArgs, Any, R],
+    provider0: ZProvider[ZIOAppArgs, Any, R],
     hook0: RuntimeConfigAspect
   )(implicit tagged: Tag[R]): ZIOApp =
     new ZIOApp {
       type Environment = R
       def tag: Tag[Environment] = tagged
       override def hook         = hook0
-      def serviceBuilder        = serviceBuilder0
+      def provider              = provider0
       def run                   = run0
     }
 
@@ -136,5 +136,5 @@ object ZIOApp {
    * configuration.
    */
   def fromZIO(run0: ZIO[ZEnv with ZIOAppArgs, Any, Any])(implicit trace: ZTraceElement): ZIOApp =
-    ZIOApp(run0, ZServiceBuilder.environment, RuntimeConfigAspect.identity)
+    ZIOApp(run0, ZProvider.environment, RuntimeConfigAspect.identity)
 }

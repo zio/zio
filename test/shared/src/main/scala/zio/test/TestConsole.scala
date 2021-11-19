@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZIO, ZServiceBuilder, ZTraceElement}
+import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZIO, ZProvider, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -193,8 +193,8 @@ object TestConsole extends Serializable {
    */
   def make(data: Data, debug: Boolean = true)(implicit
     trace: ZTraceElement
-  ): ZServiceBuilder[Live, Nothing, TestConsole] =
-    ZServiceBuilder {
+  ): ZProvider[Live, Nothing, TestConsole] =
+    ZProvider {
       for {
         live     <- ZIO.service[Live]
         ref      <- Ref.make(data)
@@ -203,13 +203,13 @@ object TestConsole extends Serializable {
       } yield test
     }
 
-  val any: ZServiceBuilder[TestConsole, Nothing, TestConsole] =
-    ZServiceBuilder.environment[TestConsole](Tracer.newTrace)
+  val any: ZProvider[TestConsole, Nothing, TestConsole] =
+    ZProvider.environment[TestConsole](Tracer.newTrace)
 
-  val debug: ZServiceBuilder[Live, Nothing, TestConsole] =
+  val debug: ZProvider[Live, Nothing, TestConsole] =
     make(Data(Nil, Vector()), true)(Tracer.newTrace)
 
-  val silent: ZServiceBuilder[Live, Nothing, TestConsole] =
+  val silent: ZProvider[Live, Nothing, TestConsole] =
     make(Data(Nil, Vector()), false)(Tracer.newTrace)
 
   /**

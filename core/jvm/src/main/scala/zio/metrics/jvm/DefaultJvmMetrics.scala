@@ -23,10 +23,10 @@ trait DefaultJvmMetrics extends MultipleJvmMetrics {
     )
 
   /**
-   * Service builder that starts collecting the same JVM metrics as the
-   * Prometheus Java client's default exporters
+   * Provider that starts collecting the same JVM metrics as the Prometheus Java
+   * client's default exporters
    */
-  lazy val live: ZServiceBuilder[
+  lazy val live: ZProvider[
     Clock with System,
     Throwable,
     BufferPools with ClassLoading with GarbageCollector with MemoryAllocation with MemoryPools with Standard with Thread with VersionInfo

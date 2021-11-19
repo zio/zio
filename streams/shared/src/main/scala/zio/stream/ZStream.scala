@@ -159,13 +159,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     type SinkEndReason = ZStream.SinkEndReason[C]
     import ZStream.SinkEndReason._
 
-    val serviceBuilder =
+    val provider =
       ZStream.Handoff.make[HandoffSignal] <*>
         Ref.make[SinkEndReason](SinkEnd) <*>
         Ref.make(Chunk[A1]()) <*>
         schedule.driver
 
-    ZStream.fromZIO(serviceBuilder).flatMap { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver) =>
+    ZStream.fromZIO(provider).flatMap { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver) =>
       lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
         ZChannel.readWithCause(
           (in: Chunk[A]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> handoffProducer,
@@ -2819,13 +2819,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(self.channel >>> channel)
 
   /**
-   * Provides a service builder to the stream, which translates it to another
-   * level.
+   * Provides a provider to the stream, which translates it to another level.
    */
   final def provide[E1 >: E, R0, R1](
-    serviceBuilder: ZServiceBuilder[R0, E1, R1]
+    provider: ZProvider[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
-    new ZStream(ZChannel.managed(serviceBuilder.build) { r =>
+    new ZStream(ZChannel.managed(provider.build) { r =>
       self.channel.provideEnvironment(r.upcast(ev))
     })
 
@@ -2834,28 +2833,28 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * leaving a stream that only depends on the `ZEnv`.
    *
    * {{{
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   * val loggingProvider: ZProvider[Any, Nothing, Logging] = ???
    *
    * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideCustom(loggingServiceBuilder)
+   * val stream2 = stream.provideCustom(loggingProvider)
    * }}}
    */
   def provideCustom[E1 >: E, R1](
-    serviceBuilder: ZServiceBuilder[ZEnv, E1, R1]
+    provider: ZProvider[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
-    provideSome[ZEnv](serviceBuilder)
+    provideSome[ZEnv](provider)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
    * leaving a stream that only depends on the `ZEnv`.
    *
    * {{{
-   * val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = ???
+   * val loggingLayer: ZProvider[Any, Nothing, Logging] = ???
    *
    * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
    *
@@ -2864,7 +2863,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   @deprecated("use provideCustom", "2.0.0")
   def provideCustomLayer[E1 >: E, R1](
-    layer: ZServiceBuilder[ZEnv, E1, R1]
+    layer: ZProvider[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
@@ -2877,22 +2876,22 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * leaving a stream that only depends on the `ZEnv`.
    *
    * {{{
-   * val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = ???
+   * val loggingProvider: ZProvider[Any, Nothing, Logging] = ???
    *
    * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideCustom(loggingServiceBuilder)
+   * val stream2 = stream.provideCustom(loggingProvider)
    * }}}
    */
   @deprecated("use provideCustom", "2.0.0")
   def provideCustomServices[E1 >: E, R1](
-    serviceBuilder: ZServiceBuilder[ZEnv, E1, R1]
+    provider: ZProvider[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
-    provideCustom(serviceBuilder)
+    provideCustom(provider)
 
   /**
    * Provides the stream with its required environment, which eliminates its
@@ -2902,8 +2901,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(channel.provideEnvironment(r))
 
   /**
-   * Provides a service builder to the stream, which translates it to another
-   * level.
+   * Provides a provider to the stream, which translates it to another level.
    */
   @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0, R1](
@@ -2912,25 +2910,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     provide(layer)
 
   /**
-   * Provides a service builder to the stream, which translates it to another
-   * level.
+   * Provides a provider to the stream, which translates it to another level.
    */
   @deprecated("use provide", "2.0.0")
   final def provideServices[E1 >: E, R0, R1](
-    serviceBuilder: ZServiceBuilder[R0, E1, R1]
+    provider: ZProvider[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
-    provide(serviceBuilder)
+    provide(provider)
 
   /**
    * Splits the environment into two parts, providing one part using the
-   * specified service builder and leaving the remainder `R0`.
+   * specified provider and leaving the remainder `R0`.
    *
    * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   * val clockProvider: ZProvider[Any, Nothing, Clock] = ???
    *
    * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSome[Random](clockServiceBuilder)
+   * val stream2 = stream.provideSome[Random](clockProvider)
    * }}}
    */
   final def provideSome[R0]: ZStream.ProvideSome[R0, R, E, A] =
@@ -2965,14 +2962,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
   /**
    * Splits the environment into two parts, providing one part using the
-   * specified service builder and leaving the remainder `R0`.
+   * specified provider and leaving the remainder `R0`.
    *
    * {{{
-   * val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = ???
+   * val clockProvider: ZProvider[Any, Nothing, Clock] = ???
    *
    * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSome[Random](clockServiceBuilder)
+   * val stream2 = stream.provideSome[Random](clockProvider)
    * }}}
    */
   @deprecated("use provideSome", "2.0.0")
@@ -5258,10 +5255,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def paginateM[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])])(implicit trace: ZTraceElement): ZStream[R, E, A] =
     paginateZIO(s)(f)
 
-  def provide[RIn, E, ROut, RIn2, ROut2](builder: ZServiceBuilder[RIn, E, ROut])(
+  def provide[RIn, E, ROut, RIn2, ROut2](builder: ZProvider[RIn, E, ROut])(
     stream: ZStream[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZStream[RIn with RIn2, E, ROut2] =
-    stream.provideSomeServices[RIn with RIn2](ZServiceBuilder.environment[RIn2] ++ builder)
+    stream.provideSomeServices[RIn with RIn2](ZProvider.environment[RIn2] ++ builder)
 
   /**
    * Like [[unfoldZIO]], but allows the emission of values to end one step
@@ -5783,13 +5780,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   final class ProvideSome[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
-      serviceBuilder: ZServiceBuilder[R0, E1, R1]
+      provider: ZProvider[R0, E1, R1]
     )(implicit
       ev: R0 with R1 <:< R,
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
-      self.provide[E1, R0, R0 with R1](ZServiceBuilder.environment[R0] ++ serviceBuilder)
+      self.provide[E1, R0, R0 with R1](ZProvider.environment[R0] ++ provider)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {

@@ -8,7 +8,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
 import zio.test.environment._
-import zio.{ Clock, FiberId, Has, _ }
+import zio.{Clock, FiberId, Has, _}
 import zio.test.environment.Live
 
 object ZManagedSpec extends DefaultRunnableSpec {
@@ -63,8 +63,8 @@ object ZManagedSpec extends DefaultRunnableSpec {
     ),
     suite("makeEffect")(
       test("Invokes cleanups in reverse order of acquisition.") {
-        var effects = List[Int]()
-        def acquire(x: Int): Int = { effects = x :: effects; x }
+        var effects               = List[Int]()
+        def acquire(x: Int): Int  = { effects = x :: effects; x }
         def release(x: Int): Unit = effects = x :: effects
 
         val res     = (x: Int) => ZManaged.acquireReleaseAttemptWith(acquire(x))(release)
@@ -511,29 +511,34 @@ object ZManagedSpec extends DefaultRunnableSpec {
       test("Merges elements") {
         def res(int: Int) =
           ZManaged.succeed(int)
-        val managed = ZManaged.mergeAllPar(List(1, 2, 3, 4).map(res))(List[Int]())({ case (acc, a) => a :: acc }).withParallelism(2)
+        val managed =
+          ZManaged.mergeAllPar(List(1, 2, 3, 4).map(res))(List[Int]()) { case (acc, a) => a :: acc }.withParallelism(2)
         managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
       },
       test("Uses at most n fibers for reservation") {
-        testReservePar(2, res => ZManaged.mergeAllPar(List.fill(4)(res))(0)({ case (a, _) => a }).withParallelism(2))
+        testReservePar(2, res => ZManaged.mergeAllPar(List.fill(4)(res))(0) { case (a, _) => a }.withParallelism(2))
       },
       test("Uses at most n fibers for acquisition") {
-        testAcquirePar(2, res => ZManaged.mergeAllPar(List.fill(4)(res))(0)({ case (a, _) => a }).withParallelism(2))
+        testAcquirePar(2, res => ZManaged.mergeAllPar(List.fill(4)(res))(0) { case (a, _) => a }.withParallelism(2))
       },
       test("Runs finalizers") {
-        testFinalizersPar(4, res => ZManaged.mergeAllPar(List.fill(4)(res))(0)({ case (a, _) => a }).withParallelism(2))
+        testFinalizersPar(4, res => ZManaged.mergeAllPar(List.fill(4)(res))(0) { case (a, _) => a }.withParallelism(2))
       },
       test("All finalizers run even when finalizers have defects") {
         for {
           releases <- Ref.make[Int](0)
-          _ <- ZManaged.mergeAllPar(List(
+          _ <- ZManaged
+                 .mergeAllPar(
+                   List(
                      ZManaged.finalizer(ZIO.dieMessage("Boom")),
                      ZManaged.finalizer(releases.update(_ + 1)),
                      ZManaged.finalizer(ZIO.dieMessage("Boom")),
                      ZManaged.finalizer(releases.update(_ + 1)),
                      ZManaged.finalizer(ZIO.dieMessage("Boom")),
                      ZManaged.finalizer(releases.update(_ + 1))
-                   ))(())((_, _) => ()).withParallelism(2)
+                   )
+                 )(())((_, _) => ())
+                 .withParallelism(2)
                  .useDiscard(ZIO.unit)
                  .exit
           count <- releases.get
@@ -741,39 +746,46 @@ object ZManagedSpec extends DefaultRunnableSpec {
         def res(int: Int) =
           ZManaged.succeed(List(int))
 
-        val managed = ZManaged.reduceAllPar(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res))({ case (acc, a) =>
-          a ++ acc
-        }).withParallelism(2)
+        val managed = ZManaged
+          .reduceAllPar(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) { case (acc, a) =>
+            a ++ acc
+          }
+          .withParallelism(2)
         managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
       },
       test("Uses at most n fibers for reservation") {
         testFinalizersPar(
           4,
-          res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res))({ case (a, _) => a }).withParallelism(2)
+          res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a }.withParallelism(2)
         )
       },
       test("Uses at most n fibers for acquisition") {
         testReservePar(
           2,
-          res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res))({ case (a, _) => a }).withParallelism(2)
+          res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a }.withParallelism(2)
         )
       },
       test("Runs finalizers") {
         testAcquirePar(
           2,
-          res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res))({ case (a, _) => a }).withParallelism(2)
+          res => ZManaged.reduceAllPar(ZManaged.succeed(0), List.fill(4)(res)) { case (a, _) => a }.withParallelism(2)
         )
       },
       test("All finalizers run even when finalizers have defects") {
         for {
           releases <- Ref.make[Int](0)
-          _ <- ZManaged.reduceAllPar(ZManaged.finalizer(ZIO.dieMessage("Boom")), List(
+          _ <- ZManaged
+                 .reduceAllPar(
+                   ZManaged.finalizer(ZIO.dieMessage("Boom")),
+                   List(
                      ZManaged.finalizer(releases.update(_ + 1)),
                      ZManaged.finalizer(ZIO.dieMessage("Boom")),
                      ZManaged.finalizer(releases.update(_ + 1)),
                      ZManaged.finalizer(ZIO.dieMessage("Boom")),
                      ZManaged.finalizer(releases.update(_ + 1))
-                   ))((_, _) => ()).withParallelism(2)
+                   )
+                 )((_, _) => ())
+                 .withParallelism(2)
                  .useDiscard(ZIO.unit)
                  .exit
           count <- releases.get
@@ -858,11 +870,11 @@ object ZManagedSpec extends DefaultRunnableSpec {
     suite("reject")(
       test("returns failure ignoring value") {
         val goodCase =
-          ZManaged.succeed(0).reject({ case v if v != 0 => "Partial failed!" }).sandbox.either
+          ZManaged.succeed(0).reject { case v if v != 0 => "Partial failed!" }.sandbox.either
 
         val badCase = ZManaged
           .succeed(1)
-          .reject({ case v if v != 0 => "Partial failed!" })
+          .reject { case v if v != 0 => "Partial failed!" }
           .sandbox
           .either
           .map(_.left.map(_.failureOrCause))
@@ -878,14 +890,14 @@ object ZManagedSpec extends DefaultRunnableSpec {
         val goodCase =
           ZManaged
             .succeed(0)
-            .rejectManaged[Any, String]({ case v if v != 0 => ZManaged.succeed("Partial failed!") })
+            .rejectManaged[Any, String] { case v if v != 0 => ZManaged.succeed("Partial failed!") }
             .sandbox
             .either
 
         val partialBadCase =
           ZManaged
             .succeed(1)
-            .rejectManaged({ case v if v != 0 => ZManaged.fail("Partial failed!") })
+            .rejectManaged { case v if v != 0 => ZManaged.fail("Partial failed!") }
             .sandbox
             .either
             .map(_.left.map(_.failureOrCause))
@@ -893,7 +905,7 @@ object ZManagedSpec extends DefaultRunnableSpec {
         val badCase =
           ZManaged
             .succeed(1)
-            .rejectManaged({ case v if v != 0 => ZManaged.fail("Partial failed!") })
+            .rejectManaged { case v if v != 0 => ZManaged.fail("Partial failed!") }
             .sandbox
             .either
             .map(_.left.map(_.failureOrCause))
@@ -1225,14 +1237,14 @@ object ZManagedSpec extends DefaultRunnableSpec {
     ),
     suite("toLayer")(
       test("converts a managed effect to a layer") {
-        ZEnv.live.build.toServiceBuilder
+        ZEnv.live.build.toProvider
         ???
       }
     ),
     suite("toLayerMany")(
       test("converts a managed effect to a layer") {
         val managed = ZEnv.live.build
-        val layer   = managed.toServiceBuilderMany
+        val layer   = managed.toProviderMany
         val zio1    = ZIO.environment[ZEnv]
         val zio2    = zio1.provideServices(layer)
         assertM(zio2)(anything)

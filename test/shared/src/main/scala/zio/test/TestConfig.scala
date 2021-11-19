@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{URIO, ZIO, ZServiceBuilder}
+import zio.{URIO, ZIO, ZProvider}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZTraceElement
 
@@ -55,7 +55,7 @@ object TestConfig {
   /**
    * Constructs a new `TestConfig` with the default settings.
    */
-  val default: ZServiceBuilder[Any, Nothing, TestConfig] =
+  val default: ZProvider[Any, Nothing, TestConfig] =
     live(100, 100, 200, 1000)(ZTraceElement.empty)
 
   /**
@@ -63,8 +63,8 @@ object TestConfig {
    */
   def live(repeats0: Int, retries0: Int, samples0: Int, shrinks0: Int)(implicit
     trace: ZTraceElement
-  ): ZServiceBuilder[Any, Nothing, TestConfig] =
-    ZServiceBuilder.succeed {
+  ): ZProvider[Any, Nothing, TestConfig] =
+    ZProvider.succeed {
       new TestConfig {
         val repeats = repeats0
         val retries = retries0

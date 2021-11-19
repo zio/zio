@@ -157,58 +157,59 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         normalizedRenames.flatMap(_.unapply(tree)).headOption
     }
   }
-  
+
   val UniversalRenames = Renames(scopes, renames)
 
   val ZIORenames = Renames(
     List("zio.ZIO"),
-    Map("run" -> "exit",
-      "provideLayer" -> "provideServices",
-      "provideSomeLayer" -> "provideSomeServices",
-      "provideCustomLayer" -> "provideCustomServices",
+    Map(
+      "run"                -> "exit",
+      "provideLayer"       -> "provideServices",
+      "provideSomeLayer"   -> "provideSomeServices",
+      "provideCustomLayer" -> "provideCustomServices"
     )
   )
 
   val STMRenames = Renames(
     List("zio.stm.ZSTM", "zio.stm.STM"),
     Map(
-      "collectAll_"            -> "collectAllDiscard",
-      "foldM" -> "foldSTM",
-      "foreach_"               -> "foreachDiscard",
-      "fromFunction"              -> "access",
-      "fromFunctionM"             -> "accessSTM",
-      "ifM" -> "ifSTM",
-      "loop_"                  -> "loopDiscard",
-      "partial" -> "attempt",
-      "replicateM" -> "replicateSTM",
-      "replicateM_" -> "replicateSTMDiscard",
-      "require" -> "someOrFail",
-      "unlessM" -> "unlessSTM",
-      "whenCaseM" -> "whenCaseSTM",
-      "whenM" -> "whenSTM",
+      "collectAll_"   -> "collectAllDiscard",
+      "foldM"         -> "foldSTM",
+      "foreach_"      -> "foreachDiscard",
+      "fromFunction"  -> "access",
+      "fromFunctionM" -> "accessSTM",
+      "ifM"           -> "ifSTM",
+      "loop_"         -> "loopDiscard",
+      "partial"       -> "attempt",
+      "replicateM"    -> "replicateSTM",
+      "replicateM_"   -> "replicateSTMDiscard",
+      "require"       -> "someOrFail",
+      "unlessM"       -> "unlessSTM",
+      "whenCaseM"     -> "whenCaseSTM",
+      "whenM"         -> "whenSTM"
     )
   )
-  
+
   val ScheduleRenames = Renames(
     List("zio.Schedule", "zio.stm.STM"),
     Map(
-      "addDelayM" -> "addDelayZIO",
-      "checkM" -> "checkZIO",
-      "contramapM"             -> "contramapZIO",
-      "delayedM" -> "delayedZIO",
-      "dimapM" -> "dimapZIO",
-      "foldM" -> "foldZIO",
-      "mapM" -> "mapZIO",
-      "modifyDelayM" -> "modifyDelayZIO",
-      "reconsiderM" -> "reconsiderZIO",
-      "untilInputM" -> "untilInputZIO",
-      "untilOutputM" -> "untilOutputZIO",
-      "whileInputM" -> "whileInputZIO",
-      "whileOutputM" -> "whileOutputZIO",
+      "addDelayM"     -> "addDelayZIO",
+      "checkM"        -> "checkZIO",
+      "contramapM"    -> "contramapZIO",
+      "delayedM"      -> "delayedZIO",
+      "dimapM"        -> "dimapZIO",
+      "foldM"         -> "foldZIO",
+      "mapM"          -> "mapZIO",
+      "modifyDelayM"  -> "modifyDelayZIO",
+      "reconsiderM"   -> "reconsiderZIO",
+      "untilInputM"   -> "untilInputZIO",
+      "untilOutputM"  -> "untilOutputZIO",
+      "whileInputM"   -> "whileInputZIO",
+      "whileOutputM"  -> "whileOutputZIO",
       "collectWhileM" -> "collectWhileZIO",
       "collectUntilM" -> "collectUntilZIO",
-      "recurWhileM" -> "recureWhileZIO",
-      "recurUntilM" -> "recureUntilZIO",
+      "recurWhileM"   -> "recureWhileZIO",
+      "recurUntilM"   -> "recureUntilZIO"
     )
   )
 
@@ -234,76 +235,76 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "rejectM"                   -> "rejectManaged",
       "run"                       -> "exit",
       "someOrElseM"               -> "someOrElseManaged",
-      "toLayer"                   -> "toServiceBuilder",
-      "toLayerMany"               -> "toServiceBuilderMany",
+      "toLayer"                   -> "toProvider",
+      "toLayerMany"               -> "toProviderMany",
       "unlessM"                   -> "unlessManaged",
       "whenCaseM"                 -> "whenCaseManaged",
       "whenM"                     -> "whenManaged"
     )
   )
 
-  val Random_Old  = SymbolMatcher.normalized("zio/random/package.Random#")
-  val Clock_Old   = SymbolMatcher.normalized("zio/clock/package.Clock#")
-  val System_Old  = SymbolMatcher.normalized("zio/system/package.System#")
-  val Console_Old = SymbolMatcher.normalized("zio/console/package.Console#")
-  val Sized_Old   = SymbolMatcher.normalized("zio/test/package.Sized#")
-  val SizedService_Old   = SymbolMatcher.normalized("zio/test/package.Sized.Service#")
-  val Live_Old    = SymbolMatcher.normalized("zio/test/environment/package.Live#")
-  val TestConfig_Old      = SymbolMatcher.normalized("zio/test/package.TestConfig#")
+  val Random_Old                 = SymbolMatcher.normalized("zio/random/package.Random#")
+  val Clock_Old                  = SymbolMatcher.normalized("zio/clock/package.Clock#")
+  val System_Old                 = SymbolMatcher.normalized("zio/system/package.System#")
+  val Console_Old                = SymbolMatcher.normalized("zio/console/package.Console#")
+  val Sized_Old                  = SymbolMatcher.normalized("zio/test/package.Sized#")
+  val SizedService_Old           = SymbolMatcher.normalized("zio/test/package.Sized.Service#")
+  val Live_Old                   = SymbolMatcher.normalized("zio/test/environment/package.Live#")
+  val TestConfig_Old             = SymbolMatcher.normalized("zio/test/package.TestConfig#")
   val TestConfigService_Old      = SymbolMatcher.normalized("zio/test/package.TestConfig.Service#")
-  val TestLogger_Old      = SymbolMatcher.normalized("zio/test/package.TestLogger#")
+  val TestLogger_Old             = SymbolMatcher.normalized("zio/test/package.TestLogger#")
   val TestLoggerService_Old      = SymbolMatcher.normalized("zio/test/package.TestLogger.Service#")
-  val TestAnnotations_Old      = SymbolMatcher.normalized("zio/test/package.TestAnnotations#")
-  val TestAnnotationsService_Old      = SymbolMatcher.normalized("zio/test/package.TestAnnotations.Service#")
-  val TestSystem_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestSystem#")
+  val TestAnnotations_Old        = SymbolMatcher.normalized("zio/test/package.TestAnnotations#")
+  val TestAnnotationsService_Old = SymbolMatcher.normalized("zio/test/package.TestAnnotations.Service#")
+  val TestSystem_Old             = SymbolMatcher.normalized("zio/test/environment/package.TestSystem#")
   val TestSystemService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestSystem.Service#")
-  val TestConsole_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestConsole#")
-  val TestConsoleService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestConsole.Service#")
-  val TestRandom_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestRandom#")
+  val TestConsole_Old            = SymbolMatcher.normalized("zio/test/environment/package.TestConsole#")
+  val TestConsoleService_Old     = SymbolMatcher.normalized("zio/test/environment/package.TestConsole.Service#")
+  val TestRandom_Old             = SymbolMatcher.normalized("zio/test/environment/package.TestRandom#")
   val TestRandomService_Old      = SymbolMatcher.normalized("zio/test/environment/package.TestRandom.Service#")
-  val FiberId_Old      = SymbolMatcher.normalized("zio/Fiber.Id#")
+  val FiberId_Old                = SymbolMatcher.normalized("zio/Fiber.Id#")
 
-  val Blocking_Old_Exact   = SymbolMatcher.exact("zio/blocking/package.Blocking#")
-  val Random_Old_Exact     = SymbolMatcher.exact("zio/random/package.Random#")
-  val Clock_Old_Exact      = SymbolMatcher.exact("zio/clock/package.Clock#")
-  val System_Old_Exact     = SymbolMatcher.exact("zio/system/package.System#")
-  val Console_Old_Exact    = SymbolMatcher.exact("zio/console/package.Console#")
-  val Test_Clock_Old_Exact = SymbolMatcher.exact("zio/test/environment/package.TestClock#")
-  val Sized_Old_Exact      = SymbolMatcher.exact("zio/test/package.Sized#")
-  val SizedService_Old_Exact      = SymbolMatcher.exact("zio/test/package.Sized.Service#")
-  val Live_Old_Exact       = SymbolMatcher.exact("zio/test/environment/package.Live#")
-  val LiveService_Old_Exact       = SymbolMatcher.exact("zio/test/environment/package.Live.Service#")
-  val TestConfig_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig#")
+  val Blocking_Old_Exact               = SymbolMatcher.exact("zio/blocking/package.Blocking#")
+  val Random_Old_Exact                 = SymbolMatcher.exact("zio/random/package.Random#")
+  val Clock_Old_Exact                  = SymbolMatcher.exact("zio/clock/package.Clock#")
+  val System_Old_Exact                 = SymbolMatcher.exact("zio/system/package.System#")
+  val Console_Old_Exact                = SymbolMatcher.exact("zio/console/package.Console#")
+  val Test_Clock_Old_Exact             = SymbolMatcher.exact("zio/test/environment/package.TestClock#")
+  val Sized_Old_Exact                  = SymbolMatcher.exact("zio/test/package.Sized#")
+  val SizedService_Old_Exact           = SymbolMatcher.exact("zio/test/package.Sized.Service#")
+  val Live_Old_Exact                   = SymbolMatcher.exact("zio/test/environment/package.Live#")
+  val LiveService_Old_Exact            = SymbolMatcher.exact("zio/test/environment/package.Live.Service#")
+  val TestConfig_Old_Exact             = SymbolMatcher.exact("zio/test/package.TestConfig#")
   val TestConfigService_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestConfig.Service#")
-  val TestLogger_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestLogger#")
+  val TestLogger_Old_Exact             = SymbolMatcher.exact("zio/test/package.TestLogger#")
   val TestLoggerService_Old_Exact      = SymbolMatcher.exact("zio/test/package.TestLogger.Service#")
-  val TestAnnotations_Old_Exact      = SymbolMatcher.exact("zio/test/package.Annotations#")
-  val TestAnnotationsService_Old_Exact      = SymbolMatcher.exact("zio/test/package.Annotations.Service#")
-  val TestSystem_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestSystem#")
+  val TestAnnotations_Old_Exact        = SymbolMatcher.exact("zio/test/package.Annotations#")
+  val TestAnnotationsService_Old_Exact = SymbolMatcher.exact("zio/test/package.Annotations.Service#")
+  val TestSystem_Old_Exact             = SymbolMatcher.exact("zio/test/environment/package.TestSystem#")
   val TestSystemService_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestSystem.Service#")
-  val TestConsole_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestConsole#")
-  val TestConsoleService_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestConsole.Service#")
-  val TestRandom_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestRandom#")
+  val TestConsole_Old_Exact            = SymbolMatcher.exact("zio/test/environment/package.TestConsole#")
+  val TestConsoleService_Old_Exact     = SymbolMatcher.exact("zio/test/environment/package.TestConsole.Service#")
+  val TestRandom_Old_Exact             = SymbolMatcher.exact("zio/test/environment/package.TestRandom#")
   val TestRandomService_Old_Exact      = SymbolMatcher.exact("zio/test/environment/package.TestRandom.Service#")
-  
-  val FiberId_Old_Exact      = SymbolMatcher.exact("zio/Fiber.Id#")
 
-  val hasImport    = Symbol("zio/Has#")
-  val newRandom    = Symbol("zio/Random#")
-  val newConsole   = Symbol("zio/Console#")
-  val newSystem    = Symbol("zio/System#")
-  val newClock     = Symbol("zio/Clock#")
-  val newTestClock = Symbol("zio/test/environment/TestClock#")
-  val newSized     = Symbol("zio/test/Sized#")
-  val newLive      = Symbol("zio/test/environment/Live#")
-  val newTestConfig      = Symbol("zio/test/TestConfig#")
-  val newTestLogger      = Symbol("zio/test/TestLogger#")
-  val newAnnotations      = Symbol("zio/test/Annotations#")
-  val newTestSystem      = Symbol("zio/test/environment/TestSystem#")
-  val newTestConsole      = Symbol("zio/test/environment/TestConsole#")
-  val newTestRandom      = Symbol("zio/test/environment/TestRandom#")
+  val FiberId_Old_Exact = SymbolMatcher.exact("zio/Fiber.Id#")
 
-  val newFiberId      = Symbol("zio/FiberId#")
+  val hasImport      = Symbol("zio/Has#")
+  val newRandom      = Symbol("zio/Random#")
+  val newConsole     = Symbol("zio/Console#")
+  val newSystem      = Symbol("zio/System#")
+  val newClock       = Symbol("zio/Clock#")
+  val newTestClock   = Symbol("zio/test/environment/TestClock#")
+  val newSized       = Symbol("zio/test/Sized#")
+  val newLive        = Symbol("zio/test/environment/Live#")
+  val newTestConfig  = Symbol("zio/test/TestConfig#")
+  val newTestLogger  = Symbol("zio/test/TestLogger#")
+  val newAnnotations = Symbol("zio/test/Annotations#")
+  val newTestSystem  = Symbol("zio/test/environment/TestSystem#")
+  val newTestConsole = Symbol("zio/test/environment/TestConsole#")
+  val newTestRandom  = Symbol("zio/test/environment/TestRandom#")
+
+  val newFiberId = Symbol("zio/FiberId#")
 
   val Clock_Old_Package   = SymbolMatcher.normalized("zio.clock")
   val Random_Old_Package  = SymbolMatcher.normalized("zio.random")
@@ -368,40 +369,40 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.blocking.blocking"                 -> "zio.ZIO.blocking",
     "zio.blocking.blockingExecutor"         -> "zio.ZIO.blockingExecutor",
     // Gen
-    "zio.test.Gen.anyInt" -> "zio.test.Gen.int",
-    "zio.test.Gen.anyString" -> "zio.test.Gen.string",
-    "zio.test.Gen.anyUnicodeChar" -> "zio.test.Gen.unicodeChar",
-    "zio.test.Gen.anyASCIIChar" -> "zio.test.Gen.asciiChar",
-    "zio.test.Gen.anyByte" -> "zio.test.Gen.byte",
-    "zio.test.Gen.anyChar" -> "zio.test.Gen.char",
-    "zio.test.Gen.anyDouble" -> "zio.test.Gen.double",
-    "zio.test.Gen.anyFloat" -> "zio.test.Gen.float",
-    "zio.test.Gen.anyHexChar" -> "zio.test.Gen.hexChar",
-    "zio.test.Gen.anyLong" -> "zio.test.Gen.long",
-    "zio.test.Gen.anyLowerHexChar" -> "zio.test.Gen.hexCharLower",
-    "zio.test.Gen.anyShort" -> "zio.test.Gen.short",
-    "zio.test.Gen.anyUpperHexChar" -> "zio.test.Gen.hexCharUpper",
-    "zio.test.Gen.anyASCIIString" -> "zio.test.Gen.asciiString",
-    "zio.test.Gen.anyUUID" -> "zio.test.Gen.uuid",
-    "zio.test.TimeVariants.anyDayOfWeek" -> "zio.test.Gen.dayOfWeek",
+    "zio.test.Gen.anyInt"                     -> "zio.test.Gen.int",
+    "zio.test.Gen.anyString"                  -> "zio.test.Gen.string",
+    "zio.test.Gen.anyUnicodeChar"             -> "zio.test.Gen.unicodeChar",
+    "zio.test.Gen.anyASCIIChar"               -> "zio.test.Gen.asciiChar",
+    "zio.test.Gen.anyByte"                    -> "zio.test.Gen.byte",
+    "zio.test.Gen.anyChar"                    -> "zio.test.Gen.char",
+    "zio.test.Gen.anyDouble"                  -> "zio.test.Gen.double",
+    "zio.test.Gen.anyFloat"                   -> "zio.test.Gen.float",
+    "zio.test.Gen.anyHexChar"                 -> "zio.test.Gen.hexChar",
+    "zio.test.Gen.anyLong"                    -> "zio.test.Gen.long",
+    "zio.test.Gen.anyLowerHexChar"            -> "zio.test.Gen.hexCharLower",
+    "zio.test.Gen.anyShort"                   -> "zio.test.Gen.short",
+    "zio.test.Gen.anyUpperHexChar"            -> "zio.test.Gen.hexCharUpper",
+    "zio.test.Gen.anyASCIIString"             -> "zio.test.Gen.asciiString",
+    "zio.test.Gen.anyUUID"                    -> "zio.test.Gen.uuid",
+    "zio.test.TimeVariants.anyDayOfWeek"      -> "zio.test.Gen.dayOfWeek",
     "zio.test.TimeVariants.anyFiniteDuration" -> "zio.test.Gen.finiteDuration",
-    "zio.test.TimeVariants.anyLocalDate" -> "zio.test.Gen.localDate",
-    "zio.test.TimeVariants.anyLocalTime" -> "zio.test.Gen.localTime",
-    "zio.test.TimeVariants.anyLocalDateTime" -> "zio.test.Gen.localDateTime",
-    "zio.test.TimeVariants.anyMonth" -> "zio.test.Gen.month",
-    "zio.test.TimeVariants.anyMonthDay" -> "zio.test.Gen.monthDay",
+    "zio.test.TimeVariants.anyLocalDate"      -> "zio.test.Gen.localDate",
+    "zio.test.TimeVariants.anyLocalTime"      -> "zio.test.Gen.localTime",
+    "zio.test.TimeVariants.anyLocalDateTime"  -> "zio.test.Gen.localDateTime",
+    "zio.test.TimeVariants.anyMonth"          -> "zio.test.Gen.month",
+    "zio.test.TimeVariants.anyMonthDay"       -> "zio.test.Gen.monthDay",
     "zio.test.TimeVariants.anyOffsetDateTime" -> "zio.test.Gen.offsetDateTime",
-    "zio.test.TimeVariants.anyOffsetTime" -> "zio.test.Gen.offsetTime",
-    "zio.test.TimeVariants.anyPeriod" -> "zio.test.Gen.period",
-    "zio.test.TimeVariants.anyYear" -> "zio.test.Gen.year",
-    "zio.test.TimeVariants.anyYearMonth" -> "zio.test.Gen.yearMonth",
-    "zio.test.TimeVariants.anyZonedDateTime" -> "zio.test.Gen.zonedDateTime",
-    "zio.test.TimeVariants.anyZoneOffset" -> "zio.test.Gen.zoneOffset",
-    "zio.test.TimeVariants.anyZoneId" -> "zio.test.Gen.zoneId",
+    "zio.test.TimeVariants.anyOffsetTime"     -> "zio.test.Gen.offsetTime",
+    "zio.test.TimeVariants.anyPeriod"         -> "zio.test.Gen.period",
+    "zio.test.TimeVariants.anyYear"           -> "zio.test.Gen.year",
+    "zio.test.TimeVariants.anyYearMonth"      -> "zio.test.Gen.yearMonth",
+    "zio.test.TimeVariants.anyZonedDateTime"  -> "zio.test.Gen.zonedDateTime",
+    "zio.test.TimeVariants.anyZoneOffset"     -> "zio.test.Gen.zoneOffset",
+    "zio.test.TimeVariants.anyZoneId"         -> "zio.test.Gen.zoneId",
     // App
-    "zio.App" -> "zio.ZIOAppDefault",
+    "zio.App"           -> "zio.ZIOAppDefault",
     "zio.Executor.asEC" -> "zio.Executor.asExecutionContext",
-    "zio.ZLayer" -> "zio.ZServiceBuilder"
+    "zio.ZLayer"        -> "zio.ZProvider"
   )
 
   val foreachParN             = ParNRenamer("foreachPar", 3)
@@ -416,8 +417,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     doc.tree.collect {
       case ZIORenames.Matcher(patch)       => patch
       case ZManagedRenames.Matcher(patch)  => patch
-      case STMRenames.Matcher(patch) => patch
-      case ScheduleRenames.Matcher(patch) => patch
+      case STMRenames.Matcher(patch)       => patch
+      case ScheduleRenames.Matcher(patch)  => patch
       case UniversalRenames.Matcher(patch) => patch
 
       // Replace >>= with flatMap. For some reason, this doesn't work with the
@@ -445,7 +446,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
       case t @ q"import zio.blocking._" =>
         Patch.removeTokens(t.tokens)
-        
+
       case t @ q"import zio.blocking.Blocking" =>
         Patch.removeTokens(t.tokens)
 
@@ -457,8 +458,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         Patch.replaceTree(t, "") + Patch.addGlobalImport(newSystem)
 
       /**
-       * Rename Services
-       * Clock.Service -> Clock
+       * Rename Services Clock.Service -> Clock
        */
       case t @ Test_Clock_Old_Service(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "TestClock") +
@@ -475,7 +475,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ System_Old_Service(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "System") +
           Patch.addGlobalImport(newSystem)
-        
+
       case t @ TestSystemService_Old_Exact(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "TestSystem") +
           Patch.addGlobalImport(newTestSystem)
@@ -503,19 +503,18 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ TestAnnotationsService_Old_Exact(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "Annotations") +
           Patch.addGlobalImport(newAnnotations)
-        
+
       case t @ LiveService_Old_Exact(Name(_)) =>
         Patch.addGlobalImport(hasImport) +
           Patch.addGlobalImport(newLive) +
           Patch.replaceTree(unwindSelect(t), s"Live")
-
 
       case t @ Console_Old_Service(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "Console") +
           Patch.addGlobalImport(newConsole)
 
       case t @ Blocking_Old_Exact(Name(_)) =>
-          Patch.replaceTree(unwindSelect(t), s"Any")
+        Patch.replaceTree(unwindSelect(t), s"Any")
 
       case t @ FiberId_Old_Exact(Name(_)) =>
         Patch.replaceTree(unwindSelect(t), "FiberId") +
@@ -592,10 +591,12 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           Patch.replaceTree(unwindSelect(t), s"Has[Live]")
 
       case t @ ImporteeNameOrRename(
-        Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | SizedService_Old(_) | 
-        Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) | 
-        TestConsole_Old(_) | TestConsoleService_Old(_) | TestRandom_Old(_) | TestRandomService_Old(_) | 
-        TestAnnotations_Old(_) | TestAnnotationsService_Old(_) | TestLogger_Old(_) | TestLoggerService_Old(_) | FiberId_Old(_)) =>
+            Random_Old(_) | Clock_Old(_) | Console_Old(_) | System_Old(_) | Sized_Old(_) | SizedService_Old(_) |
+            Live_Old(_) | TestConfig_Old(_) | TestConfigService_Old(_) | TestSystem_Old(_) | TestSystemService_Old(_) |
+            TestConsole_Old(_) | TestConsoleService_Old(_) | TestRandom_Old(_) | TestRandomService_Old(_) |
+            TestAnnotations_Old(_) | TestAnnotationsService_Old(_) | TestLogger_Old(_) | TestLoggerService_Old(_) |
+            FiberId_Old(_)
+          ) =>
         Patch.removeImportee(t)
 
       case t @ q"import zio.console._" =>
@@ -612,7 +613,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
       case t @ q"zio.duration.Duration" =>
         Patch.replaceTree(t, "zio.Duration")
-        
+
       case t @ q"zio.random.Random" =>
         Patch.replaceTree(t, "zio.Random")
 
@@ -621,13 +622,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
       case t @ q"Platform.fromExecutor" =>
         Patch.replaceTree(t, "RuntimeConfig.fromExecutor")
-        
+
       case t @ q"zio.internal.Platform" =>
         Patch.replaceTree(t, "zio.RuntimeConfig")
 
       case t @ q"zio.internal.Tracing" =>
         Patch.replaceTree(t, "zio.internal.tracing.Tracing")
-        
+
       case t @ q"import zio.internal.Tracing" =>
         Patch.replaceTree(t, "import zio.internal.tracing.Tracing")
 

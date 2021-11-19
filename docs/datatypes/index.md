@@ -28,12 +28,12 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  - **[Cause](core/cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
 
 ## Contextual Data Types
-- **[ZServiceBuilder](contextual/zservicebuilder.md)** — The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
-    + **[RServiceBuilder](contextual/rservicebuilder.md)** — `RServiceBuilder[-RIn, +ROut]` is a type alias for `ZServiceBuilder[RIn, Throwable, ROut]`, which represents a service builder that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
-    + **[UServiceBuilder](contextual/uservicebuilder.md)** — UServiceBuilder[+ROut] is a type alias for ZServiceBuilder[Any, Nothing, ROut], which represents a service builder that doesn't require any services as its input, it can't fail, and returns ROut as its output.
-    + **[ServiceBuilder](contextual/servicebuilder.md)** — ServiceBuilder[+E, +ROut] is a type alias for ZServiceBuilder[Any, E, ROut], which represents a service builder that doesn't require any services, it may fail with an error type of E, and returns ROut as its output.
-    + **[URServiceBuilder](contextual/urservicebuilder.md)** — URServiceBuilder[-RIn, +ROut] is a type alias for ZServiceBuilder[RIn, Nothing, ROut], which represents a set of services that requires RIn as its input, it can't fail, and returns ROut as its output.
-    + **[TaskServiceBuilder](contextual/task-servicebuilder.md)** — TaskServiceBuilder[+ROut] is a type alias for ZServiceBuilder[Any, Throwable, ROut], which represents a set of services that doesn't require any services as its input, it may fail with Throwable value, and returns ROut as its output.
+- **[ZProvider](contextual/zprovider.md)** — The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
+    + **[RProvider](contextual/rprovider.md)** — `RProvider[-RIn, +ROut]` is a type alias for `ZProvider[RIn, Throwable, ROut]`, which represents a provider that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
+    + **[UProvider](contextual/uprovider.md)** — UProvider[+ROut] is a type alias for ZProvider[Any, Nothing, ROut], which represents a provider that doesn't require any services as its input, it can't fail, and returns ROut as its output.
+    + **[Provider](contextual/provider.md)** — Provider[+E, +ROut] is a type alias for ZProvider[Any, E, ROut], which represents a provider that doesn't require any services, it may fail with an error type of E, and returns ROut as its output.
+    + **[URProvider](contextual/urprovider.md)** — URProvider[-RIn, +ROut] is a type alias for ZProvider[RIn, Nothing, ROut], which represents a set of services that requires RIn as its input, it can't fail, and returns ROut as its output.
+    + **[TaskProvider](contextual/task-provider.md)** — TaskProvider[+ROut] is a type alias for ZProvider[Any, Throwable, ROut], which represents a set of services that doesn't require any services as its input, it may fail with Throwable value, and returns ROut as its output.
 
 ## Concurrency
 

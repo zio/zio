@@ -11,8 +11,8 @@ import zio.test.environment.TestClock
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
-import zio.{ Clock, Clock, FiberId, Has, Random, Random, ZServiceBuilder, _ }
-import zio.test.{ Gen, Sized }
+import zio.{Clock, Clock, FiberId, Has, Random, Random, ZProvider, _}
+import zio.test.{Gen, Sized}
 import zio.test.environment.Live
 
 object ZIOSpec extends DefaultRunnableSpec {
@@ -74,8 +74,8 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("bracket")(
       test("bracket happy path") {
         for {
-          release  <- Ref.make(false)
-          result   <-
+          release <- Ref.make(false)
+          result <-
             ZIO.acquireReleaseWith(IO.succeed(42), (_: Int) => release.set(true), (a: Int) => ZIO.succeed(a + 1))
           released <- release.get
         } yield assert(result)(equalTo(43)) && assert(released)(isTrue)
@@ -306,9 +306,9 @@ object ZIOSpec extends DefaultRunnableSpec {
       test("returns failure ignoring value") {
         for {
           goodCase <-
-            exactlyOnce(0)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
+            exactlyOnce(0)(_.collect(s"value was not 0") { case v @ 0 => v }).sandbox.either
           badCase <-
-            exactlyOnce(1)(_.collect(s"value was not 0")({ case v @ 0 => v })).sandbox.either
+            exactlyOnce(1)(_.collect(s"value was not 0") { case v @ 0 => v }).sandbox.either
               .map(_.left.map(_.failureOrCause))
         } yield assert(goodCase)(isRight(equalTo(0))) &&
           assert(badCase)(isLeft(isLeft(equalTo("value was not 0"))))
@@ -356,15 +356,15 @@ object ZIOSpec extends DefaultRunnableSpec {
         for {
           goodCase <-
             exactlyOnce(0)(
-              _.collectZIO[Any, String, Int]("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })
+              _.collectZIO[Any, String, Int]("Predicate failed!") { case v @ 0 => ZIO.succeed(v) }
             ).sandbox.either
           partialBadCase <-
             exactlyOnce(0)(
-              _.collectZIO("Predicate failed!")({ case v @ 0 => ZIO.fail("Partial failed!") })
+              _.collectZIO("Predicate failed!") { case v @ 0 => ZIO.fail("Partial failed!") }
             ).sandbox.either
               .map(_.left.map(_.failureOrCause))
           badCase <-
-            exactlyOnce(1)(_.collectZIO("Predicate failed!")({ case v @ 0 => ZIO.succeed(v) })).sandbox.either
+            exactlyOnce(1)(_.collectZIO("Predicate failed!") { case v @ 0 => ZIO.succeed(v) }).sandbox.either
               .map(_.left.map(_.failureOrCause))
         } yield assert(goodCase)(isRight(equalTo(0))) &&
           assert(partialBadCase)(isLeft(isLeft(equalTo("Partial failed!")))) &&
@@ -1423,7 +1423,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           latch2 <- Promise.make[Nothing, Unit]
           fiber <- (latch1.succeed(()) *> ZIO.never).onExit {
                      case Exit.Failure(c) if c.isInterrupted => latch2.succeed(())
-                     case _                                => UIO.unit
+                     case _                                  => UIO.unit
                    }.fork
           _ <- latch1.await
           _ <- fiber.interrupt
@@ -1638,17 +1638,17 @@ object ZIOSpec extends DefaultRunnableSpec {
     ),
     suite("provideCustomLayer")(
       test("provides the part of the environment that is not part of the `ZEnv`") {
-        val loggingLayer: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
-        val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomServices(loggingLayer)
+        val loggingLayer: ZProvider[Any, Nothing, Logging] = Logging.live
+        val zio: ZIO[ZEnv with Logging, Nothing, Unit]     = ZIO.unit
+        val zio2: URIO[ZEnv, Unit]                         = zio.provideCustomServices(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
     suite("provideSomeLayer")(
       test("can split environment into two parts") {
-        val clockLayer: ZServiceBuilder[Any, Nothing, Has[Clock]]    = Clock.live
+        val clockLayer: ZProvider[Any, Nothing, Has[Clock]]      = Clock.live
         val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Has[Random], Unit]                   = zio.provideSomeServices[Has[Random]](clockLayer)
+        val zio2: URIO[Has[Random], Unit]                        = zio.provideSomeServices[Has[Random]](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -1861,9 +1861,9 @@ object ZIOSpec extends DefaultRunnableSpec {
       test("returns failure ignoring value") {
         for {
           goodCase <-
-            exactlyOnce(0)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
+            exactlyOnce(0)(_.reject { case v if v != 0 => "Partial failed!" }).sandbox.either
           badCase <-
-            exactlyOnce(1)(_.reject({ case v if v != 0 => "Partial failed!" })).sandbox.either
+            exactlyOnce(1)(_.reject { case v if v != 0 => "Partial failed!" }).sandbox.either
               .map(_.left.map(_.failureOrCause))
         } yield assert(goodCase)(isRight(equalTo(0))) &&
           assert(badCase)(isLeft(isLeft(equalTo("Partial failed!"))))
@@ -1874,13 +1874,13 @@ object ZIOSpec extends DefaultRunnableSpec {
         for {
           goodCase <-
             exactlyOnce(0)(
-              _.rejectZIO[Any, String]({ case v if v != 0 => ZIO.succeed("Partial failed!") })
+              _.rejectZIO[Any, String] { case v if v != 0 => ZIO.succeed("Partial failed!") }
             ).sandbox.either
           partialBadCase <-
-            exactlyOnce(1)(_.rejectZIO({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
+            exactlyOnce(1)(_.rejectZIO { case v if v != 0 => ZIO.fail("Partial failed!") }).sandbox.either
               .map(_.left.map(_.failureOrCause))
           badCase <-
-            exactlyOnce(1)(_.rejectZIO({ case v if v != 0 => ZIO.fail("Partial failed!") })).sandbox.either
+            exactlyOnce(1)(_.rejectZIO { case v if v != 0 => ZIO.fail("Partial failed!") }).sandbox.either
               .map(_.left.map(_.failureOrCause))
 
         } yield assert(goodCase)(isRight(equalTo(0))) &&
@@ -3077,7 +3077,7 @@ object ZIOSpec extends DefaultRunnableSpec {
     suite("serviceWith")(
       test("effectfully accesses a service in the environment") {
         val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
-        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo(3))
+        assertM(zio.provideServices(ZProvider.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3360,7 +3360,7 @@ object ZIOSpec extends DefaultRunnableSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provideServices(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provideServices(ZProvider.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(
@@ -3796,6 +3796,6 @@ object ZIOSpec extends DefaultRunnableSpec {
 
   object Logging {
     trait Service
-    val live: ZServiceBuilder[Any, Nothing, Logging] = ZServiceBuilder.succeed(new Logging.Service {})
+    val live: ZProvider[Any, Nothing, Logging] = ZProvider.succeed(new Logging.Service {})
   }
 }

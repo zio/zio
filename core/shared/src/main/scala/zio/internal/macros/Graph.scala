@@ -1,9 +1,9 @@
 package zio.internal.macros
 
-import zio.internal.macros.ServiceBuilderCompose._
+import zio.internal.macros.ProviderCompose._
 
 final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) => Boolean) {
-  def buildComplete(outputs: List[Key]): Either[::[GraphError[Key, A]], ServiceBuilderCompose[A]] =
+  def buildComplete(outputs: List[Key]): Either[::[GraphError[Key, A]], ProviderCompose[A]] =
     forEach(outputs) { output =>
       getNodeWithOutput[GraphError[Key, A]](output, error = GraphError.MissingTopLevelDependency(output))
         .flatMap(node => buildNode(node, Set(node)))
@@ -25,12 +25,12 @@ final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) 
   private def buildNode(
     node: Node[Key, A],
     seen: Set[Node[Key, A]]
-  ): Either[::[GraphError[Key, A]], ServiceBuilderCompose[A]] =
+  ): Either[::[GraphError[Key, A]], ProviderCompose[A]] =
     getDependencies(node).flatMap {
       forEach(_) { out =>
         assertNonCircularDependency(node, seen, out).flatMap(_ => buildNode(out, seen + out))
       }.map {
-        _.distinct.combineHorizontally >>> ServiceBuilderCompose.succeed(node.value)
+        _.distinct.combineHorizontally >>> ProviderCompose.succeed(node.value)
       }
     }
 

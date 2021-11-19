@@ -360,8 +360,8 @@ object AccessibleSpec extends DefaultRunnableSpec {
             def test(): Unit = throw new Exception("ups")
           }
         }
-        def serviceBuilder = ZServiceBuilder.succeed(new Module.Service {})
-        assertM(Module.test().flip.inject(serviceBuilder))(hasField("message", _.getMessage, equalTo("ups")))
+        def provider = ZProvider.succeed(new Module.Service {})
+        assertM(Module.test().flip.inject(provider))(hasField("message", _.getMessage, equalTo("ups")))
       }
     )
   )

@@ -365,8 +365,8 @@ trait LoggingService {
   def log(msg: String): ZIO[Any, Exception, Unit]
 }
 
-val schedulingServiceBuilder: ZServiceBuilder[Clock with LoggingService, Nothing, SchedulingService] =
-  ZServiceBuilder.fromFunction { env =>
+val schedulingProvider: ZProvider[Clock with LoggingService, Nothing, SchedulingService] =
+  ZProvider.fromFunction { env =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
         (ZIO.sleep(10.seconds) *> promise.succeed(1))
@@ -376,11 +376,11 @@ val schedulingServiceBuilder: ZServiceBuilder[Clock with LoggingService, Nothing
 }
 
 test("One can control time for failing effects too") {
-  val failingLogger = ZServiceBuilder.succeed(new LoggingService {
+  val failingLogger = ZProvider.succeed(new LoggingService {
     override def log(msg: String): ZIO[Any, Exception, Unit] = ZIO.fail(new Exception("BOOM"))
   })
 
-  val partialServiceBuilder = (Clock.any ++ failingLogger) >>> schedulingServiceBuilder
+  val partialProvider = (Clock.any ++ failingLogger) >>> schedulingProvider
 
   val testCase =
     for {
@@ -390,7 +390,7 @@ test("One can control time for failing effects too") {
       readRef <- promise.await
       result  <- result.join
     } yield assert(1)(equalTo(readRef)) && assert(result)(fails(isSubtype[Exception](anything)))
-  testCase.provideSome[TestEnvironment](partialServiceBuilder)
+  testCase.provideSome[TestEnvironment](partialProvider)
 }
 ```
 

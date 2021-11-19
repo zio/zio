@@ -31,7 +31,7 @@ import slick.jdbc.H2Profile.api._
 import slick.jdbc.JdbcProfile
 import zio.console.Console
 import zio.interop.console.cats.putStrLn
-import zio.{ExitCode, IO, URIO, ZEnvironment, ZIO, ZServiceBuilder}
+import zio.{ExitCode, IO, URIO, ZEnvironment, ZIO, ZProvider}
 
 import scala.jdk.CollectionConverters._
 
@@ -61,8 +61,8 @@ object ItemsTable {
 }
 
 object SlickItemRepository {
-  val live: ZServiceBuilder[DatabaseProvider, Throwable, ItemRepository] =
-    ZServiceBuilder.fromServiceM { db =>
+  val live: ZProvider[DatabaseProvider, Throwable, ItemRepository] =
+    ZProvider.fromServiceM { db =>
       db.profile.flatMap { profile =>
         import profile.api._
 
@@ -111,8 +111,8 @@ object Main extends zio.App {
     ).asJava
   )
 
-  private val env: ZServiceBuilder[Any, Throwable, ItemRepository] =
-    (ZServiceBuilder.succeed(config) ++ ZServiceBuilder.succeed[JdbcProfile](
+  private val env: ZProvider[Any, Throwable, ItemRepository] =
+    (ZProvider.succeed(config) ++ ZProvider.succeed[JdbcProfile](
       slick.jdbc.H2Profile
     )) >>> DatabaseProvider.live >>> SlickItemRepository.live
 

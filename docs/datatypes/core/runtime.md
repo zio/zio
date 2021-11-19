@@ -198,13 +198,13 @@ val program: ZIO[Console, Throwable, Unit] =
     _ <- putStrLn("Thank you for " + a)
   } yield ()
 
-val diagnosticsServiceBuilder: ZServiceBuilder[ZEnv, Throwable, Diagnostics] =
+val diagnosticsProvider: ZProvider[ZEnv, Throwable, Diagnostics] =
   Diagnostics.make("localhost", 1111)
 
 val runtime: Runtime[ZEnv] =
   Runtime.default.mapRuntimeConfig(_.withSupervisor(ZMXSupervisor))
 
-runtime.unsafeRun(program.provideCustom(diagnosticsServiceBuilder))
+runtime.unsafeRun(program.provideCustom(diagnosticsProvider))
 ```
 
 ### User-defined Executor

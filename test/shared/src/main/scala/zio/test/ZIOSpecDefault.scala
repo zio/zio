@@ -6,8 +6,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 abstract class ZIOSpecDefault extends ZIOSpec[TestEnvironment] {
 
-  final val testServiceBuilder: ZServiceBuilder[TestEnvironment, Any, TestEnvironment] =
-    ZServiceBuilder.environment(Tracer.newTrace)
+  final val testProvider: ZProvider[TestEnvironment, Any, TestEnvironment] =
+    ZProvider.environment(Tracer.newTrace)
 
   def spec: ZSpec[TestEnvironment, Any]
 }

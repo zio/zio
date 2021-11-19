@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{IO, ServiceBuilder, Ref, System, UIO, URIO, ZIO, ZServiceBuilder, ZTraceElement}
+import zio.{IO, Provider, Ref, System, UIO, URIO, ZIO, ZProvider, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZTrace
@@ -161,15 +161,15 @@ object TestSystem extends Serializable {
    * useful for providing the required environment to an effect that requires a
    * `Console`, such as with `ZIO#provide`.
    */
-  def live(data: Data): ServiceBuilder[Nothing, TestSystem] = {
+  def live(data: Data): Provider[Nothing, TestSystem] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    Ref.make(data).map(Test).toServiceBuilder
+    Ref.make(data).map(Test).toProvider
   }
 
-  val any: ZServiceBuilder[TestSystem, Nothing, TestSystem] =
-    ZServiceBuilder.environment[TestSystem](Tracer.newTrace)
+  val any: ZProvider[TestSystem, Nothing, TestSystem] =
+    ZProvider.environment[TestSystem](Tracer.newTrace)
 
-  val default: ServiceBuilder[Nothing, TestSystem] =
+  val default: Provider[Nothing, TestSystem] =
     live(DefaultData)
 
   /**

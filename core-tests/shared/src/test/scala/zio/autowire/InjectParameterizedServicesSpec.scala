@@ -1,8 +1,8 @@
 package zio.autowire
 
-import zio.{Tag, UIO, ZIO, ZServiceBuilder}
+import zio.{Tag, UIO, ZIO, ZProvider}
 import zio.test._
-import zio.UServiceBuilder
+import zio.UProvider
 
 // https://github.com/kitlangton/zio-magic/issues/76
 object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
@@ -38,15 +38,15 @@ object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
   object ParameterizedServiceWithTypeAlias {
     type Alias = String
 
-    val live: UServiceBuilder[ParameterizedService[Alias]] =
-      ZServiceBuilder.succeed(new ParameterizedService[Alias] {
+    val live: UProvider[ParameterizedService[Alias]] =
+      ZProvider.succeed(new ParameterizedService[Alias] {
         override def something: UIO[Unit] = ZIO.unit
       })
   }
 
   object ParameterisedServiceWithoutTypeAlias {
-    val live: UServiceBuilder[ParameterizedService[String]] =
-      ZServiceBuilder.succeed(new ParameterizedService[String] {
+    val live: UProvider[ParameterizedService[String]] =
+      ZProvider.succeed(new ParameterizedService[String] {
         override def something: UIO[Unit] = ZIO.unit
       })
   }

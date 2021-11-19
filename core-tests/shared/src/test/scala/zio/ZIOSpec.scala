@@ -1835,17 +1835,17 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("provideCustom")(
       test("provides the part of the environment that is not part of the `ZEnv`") {
-        val loggingServiceBuilder: ZServiceBuilder[Any, Nothing, Logging] = Logging.live
-        val zio: ZIO[ZEnv with Logging, Nothing, Unit]                    = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                                        = zio.provideCustom(loggingServiceBuilder)
+        val loggingProvider: ZProvider[Any, Nothing, Logging] = Logging.live
+        val zio: ZIO[ZEnv with Logging, Nothing, Unit]        = ZIO.unit
+        val zio2: URIO[ZEnv, Unit]                            = zio.provideCustom(loggingProvider)
         assertM(zio2)(anything)
       }
     ),
     suite("provideSome")(
       test("can split environment into two parts") {
-        val clockServiceBuilder: ZServiceBuilder[Any, Nothing, Clock] = Clock.live
-        val zio: ZIO[Clock with Random, Nothing, Unit]                = ZIO.unit
-        val zio2: URIO[Random, Unit]                                  = zio.provideSome[Random](clockServiceBuilder)
+        val clockProvider: ZProvider[Any, Nothing, Clock] = Clock.live
+        val zio: ZIO[Clock with Random, Nothing, Unit]    = ZIO.unit
+        val zio2: URIO[Random, Unit]                      = zio.provideSome[Random](clockProvider)
         assertM(zio2)(anything)
       }
     ),
@@ -3302,7 +3302,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("serviceWith")(
       test("effectfully accesses a service in the environment") {
         val zio = ZIO.serviceWithZIO[Int](int => UIO(int + 3))
-        assertM(zio.inject(ZServiceBuilder.succeed(0)))(equalTo(3))
+        assertM(zio.inject(ZProvider.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3600,7 +3600,7 @@ object ZIOSpec extends ZIOBaseSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provide(ZServiceBuilder.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provide(ZProvider.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(
@@ -4054,7 +4054,7 @@ object ZIOSpec extends ZIOBaseSpec {
 
   object Logging {
     trait Service
-    val live: ZServiceBuilder[Any, Nothing, Logging] = ZServiceBuilder.succeed(new Logging.Service {})
+    val live: ZProvider[Any, Nothing, Logging] = ZProvider.succeed(new Logging.Service {})
   }
 
 }
