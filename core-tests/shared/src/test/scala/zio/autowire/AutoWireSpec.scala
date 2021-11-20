@@ -57,17 +57,6 @@ object AutoWireSpec extends ZIOBaseSpec {
               )
             )
           } @@ TestAspect.exceptDotty,
-          test("reports unused, extra layers") {
-            val someLayer: URLayer[Double, String] = ZLayer.succeed("hello")
-            val doubleLayer: ULayer[Double]        = ZLayer.succeed(1.0)
-            val _                                  = (someLayer, doubleLayer)
-
-            val checked =
-              typeCheck(
-                "ZIO.service[Int].inject(ZLayer.succeed(12), doubleLayer, someLayer)"
-              )
-            assertM(checked)(isLeft(containsStringWithoutAnsi("unused")))
-          } @@ TestAspect.exceptDotty,
           test("reports missing top-level layers") {
             val program: URIO[String with Int, String] = UIO("test")
             val _                                      = program

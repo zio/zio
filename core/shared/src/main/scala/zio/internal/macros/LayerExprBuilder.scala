@@ -8,6 +8,7 @@ final case class ZLayerExprBuilder[Key, A](
   showKey: Key => String,
   showExpr: A => String,
   abort: String => Nothing,
+  warn: String => Unit,
   emptyExpr: A,
   composeH: (A, A) => A,
   composeV: (A, A) => A
@@ -37,7 +38,7 @@ final case class ZLayerExprBuilder[Key, A](
       }
         .mkString("\n")
 
-      reportErrorMessage(message)
+      reportWarning("Not all provided layers are needed.\n" + message)
     }
   }
 
@@ -73,6 +74,24 @@ final case class ZLayerExprBuilder[Key, A](
     abort(s"""
 
 ${s"  ZLayer Wiring Error  ".red.inverted.bold}
+
+$body
+
+""")
+  }
+
+  private def reportWarning(warning: String): Unit = {
+    val body = warning
+      .split("\n")
+      .map { line =>
+        if (line.forall(_.isWhitespace)) line
+        else "❯ ".yellow + line
+      }
+      .mkString("\n")
+
+    warn(s"""
+
+${s"  ZLayer Wiring Warning  ".yellow.inverted.bold}
 
 $body
 
