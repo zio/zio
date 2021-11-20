@@ -8,16 +8,16 @@ import scala.reflect.macros.blackbox
 private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
 
-  def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
+  def provideImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[Any, E, A]] =
-    injectBaseImpl[F, Any, R, E, A](layer, "provide")
+    provideBaseImpl[F, Any, R, E, A](layer, "manuallyProvide")
 
-  def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+  def provideSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[R0, E, A]] = {
     assertEnvIsNotNothing[R0]()
-    injectBaseImpl[F, R0, R, E, A](layer, "provide")
+    provideBaseImpl[F, R0, R, E, A](layer, "manuallyProvide")
   }
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
@@ -40,9 +40,9 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
         s"""
 ${"  ZLayer Wiring Error  ".red.bold.inverted}
         
-You must provide a type to ${"injectSome".cyan.bold} (e.g. ${"foo.injectSome".cyan.bold}${"[UserService with Config".red.bold.underlined}${"(AnotherService.live)".cyan.bold})
+You must provide a type to ${"provideSome".cyan.bold} (e.g. ${"foo.provideSome".cyan.bold}${"[UserService with Config".red.bold.underlined}${"(AnotherService.live)".cyan.bold})
 
-This type represents the services you are ${"not".underlined} currently injecting, leaving them in the environment until later.
+This type represents the services you are ${"not".underlined} currently providing, leaving them in the environment until later.
 
 """
       c.abort(c.enclosingPosition, errorMessage)

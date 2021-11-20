@@ -53,7 +53,7 @@ abstract class BaseTestTask(
     for {
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args)
-                .provide(
+                .manuallyProvide(
                   fullLayer
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
@@ -80,7 +80,7 @@ abstract class BaseTestTask(
         case LegacySpecWrapper(abstractRunnableSpec) =>
           Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
             run(eventHandler, abstractRunnableSpec)
-              .provide(sbtTestLayer(loggers))
+              .manuallyProvide(sbtTestLayer(loggers))
               .onError(e => UIO(println(e.prettyPrint)))
           }
       }

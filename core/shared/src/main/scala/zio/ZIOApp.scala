@@ -91,7 +91,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
         ZLayer.environment[ZEnv] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
           layer +!+ ZLayer.environment[ZEnv with ZIOAppArgs]
 
-      newRuntime.run(run.provide(newLayer))
+      newRuntime.run(run.manuallyProvide(newLayer))
     }
 
   def runtime: Runtime[ZEnv] = Runtime.default

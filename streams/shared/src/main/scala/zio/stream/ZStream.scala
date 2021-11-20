@@ -2821,7 +2821,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Provides a layer to the stream, which translates it to another level.
    */
-  final def provide[E1 >: E, R0, R1](
+  final def manuallyProvide[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
     new ZStream(ZChannel.managed(layer.build) { r =>
@@ -2837,17 +2837,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideCustom(loggingLayer)
+   * val stream2 = stream.manuallyProvideCustom(loggingLayer)
    * }}}
    */
-  def provideCustom[E1 >: E, R1](
+  def manuallyProvideCustom[E1 >: E, R1](
     layer: ZLayer[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
-    provideSome[ZEnv](layer)
+    manuallyProvideSome[ZEnv](layer)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -2885,7 +2885,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
-    provide(layer)
+    manuallyProvide(layer)
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -2899,7 +2899,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideSome[Random](clockLayer)
    * }}}
    */
-  final def provideSome[R0]: ZStream.ProvideSome[R0, R, E, A] =
+  final def manuallyProvideSome[R0]: ZStream.ProvideSome[R0, R, E, A] =
     new ZStream.ProvideSome[R0, R, E, A](self)
 
   /**
@@ -2927,7 +2927,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   @deprecated("use provideSome", "2.0.0")
   final def provideSomeLayer[R0]: ZStream.ProvideSome[R0, R, E, A] =
-    provideSome
+    manuallyProvideSome
 
   /**
    * Re-chunks the elements of the stream into chunks of `n` elements each. The
@@ -5739,7 +5739,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
-      self.provide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      self.manuallyProvide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {

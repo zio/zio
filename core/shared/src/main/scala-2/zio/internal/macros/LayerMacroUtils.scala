@@ -74,7 +74,7 @@ private[zio] trait LayerMacroUtils {
   def getRequirements[T: c.WeakTypeTag]: List[c.Type] =
     getRequirements(weakTypeOf[T])
 
-  def injectBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+  def provideBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layer: Seq[c.Expr[ZLayer[_, E, _]]],
     method: String
   ): c.Expr[F[R0, E, A]] = {

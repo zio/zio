@@ -1012,7 +1012,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
       type OutEnv[Env] = R0
       type OutErr[Err] = Err
       def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.provide(layer)
+        spec.manuallyProvide(layer)
     }
 
   /**
@@ -1112,7 +1112,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
       type OutEnv[Env] = R0
       type OutErr[Err] = Err
       def apply[R >: R1, E >: E1](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R0, E] =
-        spec.provideShared(layer)
+        spec.manuallyProvideShared(layer)
     }
 
   /**
@@ -1844,7 +1844,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def apply[R >: R0 with R1, E >: E1](
           spec: Spec[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
-          spec.provide[TestFailure[E], R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+          spec.manuallyProvide[TestFailure[E], R0, R0 with R1](ZLayer.environment[R0] ++ layer)
       }
   }
 
@@ -1868,7 +1868,7 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def apply[R >: R0 with R1, E >: E1](
           spec: Spec[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
-          spec.provideShared[TestFailure[E], R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+          spec.manuallyProvideShared[TestFailure[E], R0, R0 with R1](ZLayer.environment[R0] ++ layer)
       }
   }
 }

@@ -414,7 +414,7 @@ object Runtime {
    *
    * This method is useful for small applications and integrating ZIO with
    * legacy code, but other applications should investigate using
-   * [[ZIO.provide]] directly in their application entry points.
+   * [[ZIO.manuallyProvide]] directly in their application entry points.
    */
   def unsafeFromLayer[R](
     layer: Layer[Any, R],

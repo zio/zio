@@ -1837,7 +1837,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustom(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]                      = zio.manuallyProvideCustom(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -1845,7 +1845,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("can split environment into two parts") {
         val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Random, Unit]                   = zio.provideSome[Random](clockLayer)
+        val zio2: URIO[Random, Unit]                   = zio.manuallyProvideSome[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -3302,7 +3302,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("serviceWith")(
       test("effectfully accesses a service in the environment") {
         val zio = ZIO.serviceWithZIO[Int](int => UIO(int + 3))
-        assertM(zio.inject(ZLayer.succeed(0)))(equalTo(3))
+        assertM(zio.provide(ZLayer.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3600,7 +3600,7 @@ object ZIOSpec extends ZIOBaseSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provide(ZLayer.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.manuallyProvide(ZLayer.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(

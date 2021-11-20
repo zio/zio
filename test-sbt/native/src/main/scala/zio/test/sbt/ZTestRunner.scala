@@ -90,7 +90,7 @@ sealed class ZTestTask(
       case NewSpecWrapper(zioSpec) =>
         Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
           zioSpec.run
-            .provide(ZLayer.succeed(ZIOAppArgs(Chunk.empty)) ++ zio.ZEnv.live)
+            .manuallyProvide(ZLayer.succeed(ZIOAppArgs(Chunk.empty)) ++ zio.ZEnv.live)
             .onError(e => UIO(println(e.prettyPrint)))
         } { exit =>
           exit match {
@@ -102,7 +102,7 @@ sealed class ZTestTask(
       case LegacySpecWrapper(abstractRunnableSpec) =>
         Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
           run(eventHandler, abstractRunnableSpec).toManaged
-            .provide(sbtTestLayer(loggers))
+            .manuallyProvide(sbtTestLayer(loggers))
             .useDiscard(ZIO.unit)
         } { exit =>
           exit match {

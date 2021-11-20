@@ -24,7 +24,7 @@ import scala.collection.mutable.Builder
 
 /**
  * A `ZLayer[E, A, B]` describes how to build one or more services in your
- * application. Services can be injected into effects via ZIO#inject. Effects
+ * application. Services can be provided to effects via ZIO#provided. Effects
  * can require services via ZIO.service."
  *
  * Layer can be thought of as recipes for producing bundles of services, given
@@ -379,7 +379,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
-     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * as [[ZIO.provide]] or [[ZLayer.wire]], will display a tree visualization
      * of the constructed layer graph.
      *
      * {{{
@@ -410,7 +410,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
-     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * as [[ZIO.provide]] or [[ZLayer.wire]], will display a tree visualization
      * of the constructed layer graph as well as a link to Mermaid chart.
      *
      * {{{

@@ -811,7 +811,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  final def provide[E1 >: E, R0, R1](
+  final def manuallyProvide[E1 >: E, R0, R1](
     layer: => ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
     ZManaged.suspend(layer.build.map(_.upcast(ev)).flatMap(r => self.provideEnvironment(r)))
@@ -828,14 +828,14 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideCustom(loggingLayer)
    * }}}
    */
-  final def provideCustom[E1 >: E, R1](
+  final def manuallyProvideCustom[E1 >: E, R1](
     layer: => ZLayer[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
-    provideSome[ZEnv](layer)
+    manuallyProvideSome[ZEnv](layer)
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -857,7 +857,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
-    provideCustom(layer)
+    manuallyProvideCustom(layer)
 
   /**
    * Provides the `ZManaged` effect with its required environment, which
@@ -873,7 +873,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def provideLayer[E1 >: E, R0, R1](
     layer: => ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    provide(layer)
+    manuallyProvide(layer)
 
   /**
    * Splits the environment into two parts, providing one part using the
@@ -887,7 +887,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideSome[Random](clockLayer)
    * }}}
    */
-  final def provideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
+  final def manuallyProvideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
     new ZManaged.ProvideSome[R0, R, E, A](self)
 
   /**
@@ -913,7 +913,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   @deprecated("use provideSome", "2.0.0")
   final def provideSomeLayer[R0]: ZManaged.ProvideSome[R0, R, E, A] =
-    provideSome
+    manuallyProvideSome
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -1575,7 +1575,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZManaged[R0, E1, A] =
-      self.provide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      self.manuallyProvide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {

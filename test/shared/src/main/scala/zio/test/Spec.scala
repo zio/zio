@@ -43,7 +43,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Annotates each test in this spec with the specified test annotation.
    */
-  final def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): Spec[R, E, T] =
+  def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): Spec[R, E, T] =
     transform[R, E, T] {
       case TestCase(test, annotations) => Spec.TestCase(test, annotations.annotate(key, value))
       case c                           => c
@@ -52,7 +52,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Returns a new spec with the annotation map at each node.
    */
-  final def annotated(implicit trace: ZTraceElement): Spec[R with Annotations, Annotated[E], Annotated[T]] =
+  def annotated(implicit trace: ZTraceElement): Spec[R with Annotations, Annotated[E], Annotated[T]] =
     transform[R with Annotations, Annotated[E], Annotated[T]] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
@@ -65,7 +65,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Returns a new spec with remapped errors and tests.
    */
   @deprecated("use mapBoth", "2.0.0")
-  final def bimap[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E], trace: ZTraceElement): Spec[R, E1, T1] =
+  def bimap[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E], trace: ZTraceElement): Spec[R, E1, T1] =
     transform[R, E1, T1] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(managed, spec)  => LabeledCase(managed, spec)
@@ -78,7 +78,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Transforms the environment being provided to each test in this spec with
    * the specified function.
    */
-  final def provideSomeEnvironment[R0](
+  def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[R0, E, T] =
     transform[R0, E, T] {
@@ -93,7 +93,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Returns the number of tests in the spec that satisfy the specified
    * predicate.
    */
-  final def countTests(f: T => Boolean)(implicit trace: ZTraceElement): ZManaged[R, E, Int] =
+  def countTests(f: T => Boolean)(implicit trace: ZTraceElement): ZManaged[R, E, Int] =
     fold[ZManaged[R, E, Int]] {
       case ExecCase(_, spec)    => spec
       case LabeledCase(_, spec) => spec
@@ -105,13 +105,13 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Returns an effect that models execution of this spec.
    */
-  final def execute(defExec: ExecutionStrategy)(implicit trace: ZTraceElement): ZManaged[R, Nothing, Spec[Any, E, T]] =
+  def execute(defExec: ExecutionStrategy)(implicit trace: ZTraceElement): ZManaged[R, Nothing, Spec[Any, E, T]] =
     ZManaged.environmentWithManaged(provideEnvironment(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
 
   /**
    * Determines if any node in the spec is satisfied by the given predicate.
    */
-  final def exists[R1 <: R, E1 >: E](
+  def exists[R1 <: R, E1 >: E](
     f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]
   )(implicit trace: ZTraceElement): ZManaged[R1, E1, Boolean] =
     fold[ZManaged[R1, E1, Boolean]] {
@@ -128,7 +128,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * specified predicate. If no annotations satisfy the specified predicate then
    * returns `Some` with an empty suite if this is a suite or `None` otherwise.
    */
-  final def filterAnnotations[V](
+  def filterAnnotations[V](
     key: TestAnnotation[V]
   )(f: V => Boolean)(implicit trace: ZTraceElement): Option[Spec[R, E, T]] =
     caseValue match {
@@ -152,7 +152,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * spec. If no labels satisfy the specified predicate then returns `Some` with
    * an empty suite if this is a suite or `None` otherwise.
    */
-  final def filterLabels(f: String => Boolean)(implicit trace: ZTraceElement): Option[Spec[R, E, T]] =
+  def filterLabels(f: String => Boolean)(implicit trace: ZTraceElement): Option[Spec[R, E, T]] =
     caseValue match {
       case ExecCase(exec, spec) =>
         spec.filterLabels(f).map(spec => Spec.exec(exec, spec))
@@ -174,13 +174,13 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * returns `Some` with an empty suite with the root label if this is a suite
    * or `None` otherwise.
    */
-  final def filterTags(f: String => Boolean)(implicit trace: ZTraceElement): Option[Spec[R, E, T]] =
+  def filterTags(f: String => Boolean)(implicit trace: ZTraceElement): Option[Spec[R, E, T]] =
     filterAnnotations(TestAnnotation.tagged)(_.exists(f))
 
   /**
    * Folds over all nodes to produce a final result.
    */
-  final def fold[Z](f: SpecCase[R, E, T, Z] => Z)(implicit trace: ZTraceElement): Z =
+  def fold[Z](f: SpecCase[R, E, T, Z] => Z)(implicit trace: ZTraceElement): Z =
     caseValue match {
       case ExecCase(exec, spec)     => f(ExecCase(exec, spec.fold(f)))
       case LabeledCase(label, spec) => f(LabeledCase(label, spec.fold(f)))
@@ -194,7 +194,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * suites, utilizing the specified default for other cases.
    */
   @deprecated("use foldManaged", "2.0.0")
-  final def foldM[R1 <: R, E1, Z](
+  def foldM[R1 <: R, E1, Z](
     defExec: ExecutionStrategy
   )(f: SpecCase[R, E, T, Z] => ZManaged[R1, E1, Z])(implicit trace: ZTraceElement): ZManaged[R1, E1, Z] =
     foldManaged(defExec)(f)
@@ -203,7 +203,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Effectfully folds over all nodes according to the execution strategy of
    * suites, utilizing the specified default for other cases.
    */
-  final def foldManaged[R1 <: R, E1, Z](
+  def foldManaged[R1 <: R, E1, Z](
     defExec: ExecutionStrategy
   )(f: SpecCase[R, E, T, Z] => ZManaged[R1, E1, Z])(implicit trace: ZTraceElement): ZManaged[R1, E1, Z] =
     caseValue match {
@@ -222,7 +222,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Determines if all node in the spec are satisfied by the given predicate.
    */
-  final def forall[R1 <: R, E1 >: E](
+  def forall[R1 <: R, E1 >: E](
     f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]
   )(implicit trace: ZTraceElement): ZManaged[R1, E1, Boolean] =
     fold[ZManaged[R1, E1, Boolean]] {
@@ -239,7 +239,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * effectfully transforming every test with the provided function, finally
    * reconstructing the spec with the same structure.
    */
-  final def foreachExec[R1 <: R, E1, A](
+  def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
   )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A])(implicit
     trace: ZTraceElement
@@ -264,7 +264,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * effectfully transforming every test with the provided function, finally
    * reconstructing the spec with the same structure.
    */
-  final def foreach[R1 <: R, E1, A](
+  def foreach[R1 <: R, E1, A](
     failure: Cause[E] => ZIO[R1, E1, A],
     success: T => ZIO[R1, E1, A]
   )(implicit trace: ZTraceElement): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
@@ -275,7 +275,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * effectfully transforming every test with the provided function, finally
    * reconstructing the spec with the same structure.
    */
-  final def foreachPar[R1 <: R, E1, A](
+  def foreachPar[R1 <: R, E1, A](
     failure: Cause[E] => ZIO[R1, E1, A],
     success: T => ZIO[R1, E1, A]
   )(implicit trace: ZTraceElement): ZManaged[R1, Nothing, Spec[R1, E1, A]] =
@@ -286,7 +286,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * effectfully transforming every test with the provided function, finally
    * reconstructing the spec with the same structure.
    */
-  final def foreachParN[R1 <: R, E1, A](
+  def foreachParN[R1 <: R, E1, A](
     n: Int
   )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A])(implicit
     trace: ZTraceElement
@@ -296,7 +296,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Returns a new spec with remapped errors and tests.
    */
-  final def mapBoth[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E], trace: ZTraceElement): Spec[R, E1, T1] =
+  def mapBoth[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E], trace: ZTraceElement): Spec[R, E1, T1] =
     transform[R, E1, T1] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(managed, spec)  => LabeledCase(managed, spec)
@@ -308,7 +308,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Returns a new spec with remapped errors.
    */
-  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E], trace: ZTraceElement): Spec[R, E1, T] =
+  def mapError[E1](f: E => E1)(implicit ev: CanFail[E], trace: ZTraceElement): Spec[R, E1, T] =
     transform[R, E1, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
@@ -320,7 +320,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Returns a new spec with remapped labels.
    */
-  final def mapLabel(f: String => String)(implicit trace: ZTraceElement): Spec[R, E, T] =
+  def mapLabel(f: String => String)(implicit trace: ZTraceElement): Spec[R, E, T] =
     transform[R, E, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(f(label), spec)
@@ -332,7 +332,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Returns a new spec with remapped tests.
    */
-  final def mapTest[T1](f: T => T1)(implicit trace: ZTraceElement): Spec[R, E, T1] =
+  def mapTest[T1](f: T => T1)(implicit trace: ZTraceElement): Spec[R, E, T1] =
     transform[R, E, T1] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
@@ -344,15 +344,15 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Provides a layer to the spec, translating it up a level.
    */
-  final def provide[E1 >: E, R0, R1](
+  def manuallyProvide[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     transform[R0, E1, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
-      case ManagedCase(managed)        => ManagedCase(managed.provide(layer))
+      case ManagedCase(managed)        => ManagedCase(managed.manuallyProvide(layer))
       case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.provide(layer), annotations)
+      case TestCase(test, annotations) => TestCase(test.manuallyProvide(layer), annotations)
     }
 
   /**
@@ -368,12 +368,12 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideCustom(loggingLayer)
    * }}}
    */
-  def provideCustom[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
+  def manuallyProvideCustom[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): Spec[TestEnvironment, E1, T] =
-    provideSome[TestEnvironment](layer)
+    manuallyProvideSome[TestEnvironment](layer)
 
   /**
    * Provides each test with the part of the environment that is not part of the
@@ -394,7 +394,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     tagged: Tag[R1],
     trace: ZTraceElement
   ): Spec[TestEnvironment, E1, T] =
-    provideCustom(layer)
+    manuallyProvideCustom(layer)
 
   /**
    * Provides all tests with a shared version of the part of the environment
@@ -415,7 +415,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     tagged: Tag[R1],
     trace: ZTraceElement
   ): Spec[TestEnvironment, E1, T] =
-    provideSomeShared(layer)
+    manuallyProvideSomeShared(layer)
 
   /**
    * Provides all tests with a shared version of the part of the environment
@@ -430,46 +430,46 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideCustomShared(loggingLayer)
    * }}}
    */
-  def provideCustomShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
+  def manuallyProvideCustomShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): Spec[TestEnvironment, E1, T] =
-    provideSomeShared[TestEnvironment](layer)
+    manuallyProvideSomeShared[TestEnvironment](layer)
 
   /**
    * Provides each test in this spec with its required environment
    */
-  final def provideEnvironment(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[Any, E, T] =
+  def provideEnvironment(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[Any, E, T] =
     provideSomeEnvironment(_ => r)
 
   /**
    * Provides a layer to the spec, translating it up a level.
    */
   @deprecated("use provide", "2.0.0")
-  final def provideLayer[E1 >: E, R0, R1](
+  def provideLayer[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provide(layer)
+    manuallyProvide(layer)
 
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
   @deprecated("use provideShared", "2.0.0")
-  final def provideLayerShared[E1 >: E, R0, R1](
+  def provideLayerShared[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
-    provideShared(layer)
+    manuallyProvideShared(layer)
 
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
-  final def provideShared[E1 >: E, R0, R1](
+  def manuallyProvideShared[E1 >: E, R0, R1](
     layer: ZLayer[R0, E1, R1]
   )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
     caseValue match {
-      case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideShared(layer))
-      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideShared(layer))
+      case ExecCase(exec, spec)     => Spec.exec(exec, spec.manuallyProvideShared(layer))
+      case LabeledCase(label, spec) => Spec.labeled(label, spec.manuallyProvideShared(layer))
       case ManagedCase(managed) =>
         Spec.managed(
           layer.build.flatMap(r => managed.map(_.provideEnvironment(r.upcast(ev))).provideEnvironment(r.upcast(ev)))
@@ -478,7 +478,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
         Spec.managed(
           layer.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r.upcast(ev)))))
         )
-      case TestCase(test, annotations) => Spec.test(test.provide(layer), annotations)
+      case TestCase(test, annotations) => Spec.test(test.manuallyProvide(layer), annotations)
     }
 
   /**
@@ -493,7 +493,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideSome[Random](clockLayer)
    * }}}
    */
-  final def provideSome[R0]: Spec.ProvideSome[R0, R, E, T] =
+  def manuallyProvideSome[R0]: Spec.ProvideSome[R0, R, E, T] =
     new Spec.ProvideSome[R0, R, E, T](self)
 
   /**
@@ -509,7 +509,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * }}}
    */
   @deprecated("use provideSome", "2.0.0")
-  final def provideSomeLayer[R0]: Spec.ProvideSome[R0, R, E, T] =
+  def provideSomeLayer[R0]: Spec.ProvideSome[R0, R, E, T] =
     new Spec.ProvideSome[R0, R, E, T](self)
 
   /**
@@ -526,7 +526,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * }}}
    */
   @deprecated("use provideSomeShared", "2.0.0")
-  final def provideSomeLayerShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
+  def provideSomeLayerShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
     new Spec.ProvideSomeShared[R0, R, E, T](self)
 
   /**
@@ -542,13 +542,13 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * val spec2 = spec.provideSomeShared[Random](clockLayer)
    * }}}
    */
-  final def provideSomeShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
+  def manuallyProvideSomeShared[R0]: Spec.ProvideSomeShared[R0, R, E, T] =
     new Spec.ProvideSomeShared[R0, R, E, T](self)
 
   /**
    * Computes the size of the spec, i.e. the number of tests in the spec.
    */
-  final def size(implicit trace: ZTraceElement): ZManaged[R, E, Int] =
+  def size(implicit trace: ZTraceElement): ZManaged[R, E, Int] =
     fold[ZManaged[R, E, Int]] {
       case ExecCase(_, counts)    => counts
       case LabeledCase(_, counts) => counts
@@ -560,7 +560,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Transforms the spec one layer at a time.
    */
-  final def transform[R1, E1, T1](
+  def transform[R1, E1, T1](
     f: SpecCase[R, E, T, Spec[R1, E1, T1]] => SpecCase[R1, E1, T1, Spec[R1, E1, T1]]
   )(implicit trace: ZTraceElement): Spec[R1, E1, T1] =
     caseValue match {
@@ -574,7 +574,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Transforms the spec statefully, one layer at a time.
    */
-  final def transformAccum[R1, E1, T1, Z](
+  def transformAccum[R1, E1, T1, Z](
     z0: Z
   )(
     f: (Z, SpecCase[R, E, T, Spec[R1, E1, T1]]) => (Z, SpecCase[R1, E1, T1, Spec[R1, E1, T1]])
@@ -618,19 +618,19 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Updates a service in the environment of this effect.
    */
-  final def updateService[M] =
+  def updateService[M] =
     new Spec.UpdateService[R, E, T, M](self)
 
   /**
    * Updates a service at the specified key in the environment of this effect.
    */
-  final def updateServiceAt[Service]: Spec.UpdateServiceAt[R, E, T, Service] =
+  def updateServiceAt[Service]: Spec.UpdateServiceAt[R, E, T, Service] =
     new Spec.UpdateServiceAt[R, E, T, Service](self)
 
   /**
    * Runs the spec only if the specified predicate is satisfied.
    */
-  final def when(
+  def when(
     b: => Boolean
   )(implicit ev: T <:< TestSuccess, trace: ZTraceElement): Spec[R with Annotations, E, TestSuccess] =
     whenZIO(ZIO.succeedNow(b))
@@ -639,7 +639,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Runs the spec only if the specified effectual predicate is satisfied.
    */
   @deprecated("use whenZIO", "2.0.0")
-  final def whenM[R1 <: R, E1 >: E](
+  def whenM[R1 <: R, E1 >: E](
     b: ZIO[R1, E1, Boolean]
   )(implicit ev: T <:< TestSuccess, trace: ZTraceElement): Spec[R1 with Annotations, E1, TestSuccess] =
     whenZIO(b)
@@ -647,7 +647,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Runs the spec only if the specified effectual predicate is satisfied.
    */
-  final def whenZIO[R1 <: R, E1 >: E](
+  def whenZIO[R1 <: R, E1 >: E](
     b: ZIO[R1, E1, Boolean]
   )(implicit ev: T <:< TestSuccess, trace: ZTraceElement): Spec[R1 with Annotations, E1, TestSuccess] =
     caseValue match {
@@ -714,7 +714,7 @@ object Spec extends SpecLowPriority {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
-      self.provide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      self.manuallyProvide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
   }
 
   final class ProvideSomeShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
@@ -722,22 +722,22 @@ object Spec extends SpecLowPriority {
       layer: ZLayer[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
       self.caseValue match {
-        case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeShared(layer))
-        case LabeledCase(label, spec) => Spec.labeled(label, spec.provideSomeShared(layer))
+        case ExecCase(exec, spec)     => Spec.exec(exec, spec.manuallyProvideSomeShared(layer))
+        case LabeledCase(label, spec) => Spec.labeled(label, spec.manuallyProvideSomeShared(layer))
         case ManagedCase(managed) =>
           Spec.managed(
             layer.build.flatMap { r =>
               managed
-                .map(_.provideSome[R0](ZLayer.succeedMany(r)))
-                .provideSome[R0](ZLayer.succeedMany(r))
+                .map(_.manuallyProvideSome[R0](ZLayer.succeedMany(r)))
+                .manuallyProvideSome[R0](ZLayer.succeedMany(r))
             }
           )
         case MultipleCase(specs) =>
           Spec.managed(
-            layer.build.map(r => Spec.multiple(specs.map(_.provideSome[R0](ZLayer.succeedMany(r)))))
+            layer.build.map(r => Spec.multiple(specs.map(_.manuallyProvideSome[R0](ZLayer.succeedMany(r)))))
           )
         case TestCase(test, annotations) =>
-          Spec.test(test.provideSome(layer), annotations)
+          Spec.test(test.manuallyProvideSome(layer), annotations)
       }
   }
 

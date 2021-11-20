@@ -10,7 +10,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
       test("Issue #4802") {
         ZIO
           .serviceWithZIO[Ref[Int]](_.get)
-          .inject(Ref.make(10).toLayer)
+          .provide(Ref.make(10).toLayer)
           .map { int =>
             assertTrue(int == 10)
           }
@@ -51,7 +51,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
         def foo[T: Tag](t: T): URIO[Service[T], T] =
           ZIO.serviceWithZIO(_.foo(t))
 
-        foo(12).inject(Service.live).map { result =>
+        foo(12).provide(Service.live).map { result =>
           assertTrue(result == 12)
         }
       },
@@ -66,7 +66,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
           }
 
         val layer = testBaseLayer[Any, String] >>> testSecondLayer[String]
-        ZIO.unit.provideCustom(layer).as(assertTrue(true))
+        ZIO.unit.manuallyProvideCustom(layer).as(assertTrue(true))
       },
       // https://github.com/zio/zio/issues/3816
       test("Issue #3816") {
@@ -94,7 +94,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
           .environmentWithZIO[ContainerProvider[Int, Container[Int]]] { _ =>
             ContainerProvider.provide[Int, Container[Int]]
           }
-          .inject(ContainerProvider.layer[Int, Container[Int]](new Container(10)))
+          .provide(ContainerProvider.layer[Int, Container[Int]](new Container(10)))
           .either
           .map { result =>
             assertTrue(result.isRight)
@@ -162,7 +162,7 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
           !(a.tag <:< c.tag),
           !(c.tag <:< a.tag),
           !(a.tag <:< d.tag)
-        )).provide(myCache)
+        )).manuallyProvide(myCache)
       }
     )
 

@@ -15,7 +15,7 @@ The `TRandom` service is the same as the `Random` service. There are no differen
 | `nextInt`     |               | `URSTM[TRandom, Int]`         |
 | ...           | ...           | ...                           |
 
-When we use operations of the `TRandom` service, they add `TRandom` dependency on our `STM` data type. After committing all the transactions, we can `inject`/`provide` a `TRandom` implementation into our effect:
+When we use operations of the `TRandom` service, they add `TRandom` dependency on our `STM` data type. After committing all the transactions, we can `provide` a `TRandom` implementation into our effect:
 
 ```scala mdoc:invisible
 import zio.stm.TRandom
@@ -23,5 +23,5 @@ val myApp = TRandom.nextInt.commit
 ```
 
 ```scala mdoc:silent:nest
-myApp.injectCustom(TRandom.live)
+myApp.provideCustom(TRandom.live)
 ```
