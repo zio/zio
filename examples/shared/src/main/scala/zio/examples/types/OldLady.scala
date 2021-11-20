@@ -9,12 +9,12 @@ trait OldLady {
 object OldLady {
   def contentsOfStomach: ZIO[OldLady, Nothing, List[String]] = ZIO.serviceWithZIO(_.contentsOfStomach)
 
-  def live: URLayer[Spider with Bear, OldLady] =
+  def live: URLayer[Spider with Bear with Console, OldLady] =
     ZLayer {
       for {
         spiderGuts <- Spider.contentsOfStomach
       } yield new OldLady {
-        def contentsOfStomach: UIO[List[String]] = UIO("a Spdder" :: spiderGuts)
+        def contentsOfStomach: UIO[List[String]] = UIO("a Spider" :: spiderGuts)
       }
     }
 }

@@ -1,6 +1,8 @@
 package zio.internal.macros
 
 import zio._
+import zio.internal.TerminalRendering
+import zio.internal.TerminalRendering.LayerWiringError
 import zio.internal.ansi.AnsiStringOps
 
 final case class ZLayerExprBuilder[Key, A](
@@ -33,12 +35,9 @@ final case class ZLayerExprBuilder[Key, A](
     val leftovers = graph.nodes.filterNot(node => used.contains(node.value))
 
     if (leftovers.nonEmpty) {
-      val message = leftovers.map { node =>
-        s"${"unused".underlined} ${showExpr(node.value).blue.bold}"
-      }
-        .mkString("\n")
+      val message = "\n" + TerminalRendering.unusedLayersError(leftovers.map(node => showExpr(node.value)))
 
-      reportWarning("Not all provided layers are needed.\n" + message)
+      warn(message)
     }
   }
 
@@ -99,14 +98,25 @@ $body
   }
 
   private def reportGraphErrors(errors: ::[GraphError[Key, A]]): Nothing = {
-    val allErrors = sortErrors(errors)
+    val allErrors = errors.map(renderError)
+    println(allErrors)
 
-    val errorMessage =
-      allErrors
-        .map(renderError)
-        .mkString("\n\n")
+    val topLevelErrors = allErrors.collect { case top: LayerWiringError.MissingTopLevel =>
+      top.layer
+    }
 
-    reportErrorMessage(errorMessage)
+    val transitive = allErrors.collect { case LayerWiringError.MissingTransitive(layer, deps) =>
+      layer -> deps
+    }.groupMap(_._1)(_._2).map { case (key, value) => key -> value.flatten }
+
+    val circularErrors = allErrors.collect { case LayerWiringError.Circular(layer, dep) =>
+      layer -> dep
+    }
+
+    if (circularErrors.nonEmpty)
+      abort(TerminalRendering.circularityError(circularErrors))
+    else
+      abort(TerminalRendering.missingLayersError(topLevelErrors, transitive))
   }
 
   /**
@@ -135,29 +145,22 @@ $body
     initialCircularErrors ++ groupedTransitiveErrors ++ remainingErrors
   }
 
-  private def renderError(error: GraphError[Key, A]): String =
+  private def renderError(error: GraphError[Key, A]): LayerWiringError =
     error match {
       case GraphError.MissingTransitiveDependencies(node, dependencies) =>
-        val styledDependencies = dependencies.zipWithIndex.map { case (dep, idx) =>
-          val prefix = if (idx == 0) "missing".underlined else " " * 7
-          val styled = showKey(dep).blue.bold
-          s"""$prefix $styled"""
-        }
-          .mkString("\n")
-        val styledLayer = showExpr(node.value).blue
-        s"""$styledDependencies
-    ${"for".underlined} $styledLayer"""
+        LayerWiringError.MissingTransitive(showExpr(node.value), dependencies.map(showKey).toList)
 
       case GraphError.MissingTopLevelDependency(dependency) =>
-        val styledDependency = showKey(dependency).blue.bold
-        s"""${"missing".underlined} $styledDependency"""
+        LayerWiringError.MissingTopLevel(showKey(dependency))
 
       case GraphError.CircularDependency(node, dependency, _) =>
-        val styledNode       = showExpr(node.value).blue.bold
-        val styledDependency = showExpr(dependency.value).blue
-        s"""
-${"Circular Dependency".blue} 
-$styledNode both requires ${"and".bold} is transitively required by $styledDependency"""
+        LayerWiringError.Circular(showExpr(node.value), showExpr(dependency.value))
+      //        val styledNode       = showExpr(node.value).blue.bold
+      //        val styledDependency = showExpr(dependency.value).blue
+      //        s"""
+      //${"Circular Dependency".blue}
+      //$styledNode both requires ${"and".bold} is transitively required by $styledDependency"""
+      //    }
     }
 }
 

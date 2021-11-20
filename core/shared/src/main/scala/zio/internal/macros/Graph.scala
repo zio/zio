@@ -16,22 +16,16 @@ final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) 
   private def getNodeWithOutput[E](output: Key, error: E): Either[::[E], Node[Key, A]] =
     nodes.find(_.outputs.exists(keyEquals(_, output))).toRight(::(error, Nil))
 
-  private def getDependencies[E](node: Node[Key, A]): Either[::[GraphError[Key, A]], List[Node[Key, A]]] =
-    forEach(node.inputs) { input =>
-      getNodeWithOutput(input, error = GraphError.missingTransitiveDependency(node, input))
-    }
-      .map(_.distinct)
-
   private def buildNode(
     node: Node[Key, A],
     seen: Set[Node[Key, A]]
   ): Either[::[GraphError[Key, A]], LayerCompose[A]] =
-    getDependencies(node).flatMap {
-      forEach(_) { out =>
+    forEach(node.inputs) { input =>
+      getNodeWithOutput(input, error = GraphError.missingTransitiveDependency(node, input)).flatMap { out =>
         assertNonCircularDependency(node, seen, out).flatMap(_ => buildNode(out, seen + out))
-      }.map {
-        _.distinct.combineHorizontally >>> LayerCompose.succeed(node.value)
       }
+    }.map {
+      _.distinct.combineHorizontally >>> LayerCompose.succeed(node.value)
     }
 
   private def assertNonCircularDependency(
