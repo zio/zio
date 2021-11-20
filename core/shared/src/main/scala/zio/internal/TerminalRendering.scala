@@ -93,19 +93,25 @@ object TerminalRendering {
     }.mkString("\n").indent(3)
 
     val message =
-      if (missingLayers.size > 1) {
-        s"Please provide layers for the following ${missingLayers.size.toString.underlined} types:"
-      } else {
-        s"Please provide a layer for the following type:"
-      }
+      if (missingLayers.size > 1)
+        s"Your effect requires services that are not in the environment.\n".bold +
+          s"Please provide layers for the following ${missingLayers.size.toString.underlined} types:"
+      else
+        s"Your effect requires a that is not in the environment.\n".bold +
+          s"Please provide a layer for the following type:"
 
     s"""
        |
        |${title("ZIO App Error").red}
        |
-       | $message
+       |${message.indent(1)}
        |
        |${missingLayersString}
+       |
+       | Call your effect's ${"provide".green.bold} method with the layers you need.
+       | You can read more about layers and providing services here:
+       | 
+       |   https://zio.dev/version-1.x/datatypes/contextual/index
        |
        |${line.red}
        |
@@ -168,13 +174,15 @@ object TerminalRendering {
   def pluralizeLayers(n: Int): String =
     pluralize(n, "layer", "layers")
 
+  private val width = 70
+
   /**
    * Makes text look like this:
    *
    * ──── NAME ───────────────────────────────
    */
   private def title(name: String): String =
-    s"─── ${name.toUpperCase} ".padTo(80, '─')
+    s"─── ${name.toUpperCase} ".padTo(width, '─')
 
   /**
    * A solid line, 80 characters long.
@@ -182,7 +190,7 @@ object TerminalRendering {
    * ────────────────────────────────
    */
   private def line: String =
-    "─" * 80
+    "─" * width
 
   implicit final class StringOps(private val self: String) extends AnyVal {
     def center(n: Int): String =
