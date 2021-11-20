@@ -37,6 +37,8 @@ val intGen: Gen[Has[Random], Int] = Gen.int
 
 ### Character Generators
 
+In addition to `Gen.char`, ZIO Test offers a variety of specialized character generators:
+
 * `Gen.alphaChar` — e.g. `Z, z, A, t, o, e, K, E, y, N`
 * `Gen.alphaNumericChar` — e.g. `b, O, X, B, 4, M, k, 9, a, p`
 * `Gen.asciiChar` — e.g. `, >, , , , 2, k, , , `
@@ -50,31 +52,31 @@ val intGen: Gen[Has[Random], Int] = Gen.int
 
 ### String Generators
 
+Besides the primitive string generator, `Gen.string`, ZIO Test also provides the following specialized generators:
+
 1. `Gen.stringBounded` — A generator of strings whose size falls within the specified bounds:
 
-```scala mdoc:compile-only
-Gen.stringBounded(1, 5)(Gen.alphaChar)
-  .runCollectN(10)
-  .debug
-// Sample Ouput: List(b, YJXzY, Aro, y, WMPbj, Abxt, kJep, LKN, kUtr, xJ)
-```
+  ```scala mdoc:compile-only
+  Gen.stringBounded(1, 5)(Gen.alphaChar)
+    .runCollectN(10)
+    .debug
+  // Sample Ouput: List(b, YJXzY, Aro, y, WMPbj, Abxt, kJep, LKN, kUtr, xJ)
+  ```
 
 2. `Gen.stringN` — A generator of strings of fixed size:
 
-```scala mdoc:compile-only
-Gen.stringN(5)(Gen.alphaChar)
-  .runCollectN(10)
-  .debug
-// Sample Output: List(BuywQ, tXCEy, twZli, ffLwI, BPEbz, OKYTi, xeDJW, iDUVn, cuMCr, keQAA)
-```
+  ```scala mdoc:compile-only
+  Gen.stringN(5)(Gen.alphaChar)
+    .runCollectN(10)
+    .debug
+  // Sample Output: List(BuywQ, tXCEy, twZli, ffLwI, BPEbz, OKYTi, xeDJW, iDUVn, cuMCr, keQAA)
+  ```
 
-Here are some other string generators:
-
-* `Gen.string1` — A generator of strings of at least one character.
-* `Gen.iso_8859_1` — A generator of strings that can be encoded in the ISO-8859-1 character set.
-* `Gen.asciiString` — A generator of US-ASCII characters.
-* `Gen.alphaNumericString` — A generator of alphanumeric characters.
-* `Gen.alphaNumericStringBounded` — A generator of alphanumeric strings whose size falls within the specified bounds.
+3. `Gen.string1` — A generator of strings of at least one character.
+4. `Gen.alphaNumericString` — A generator of alphanumeric characters.
+5. `Gen.alphaNumericStringBounded` — A generator of alphanumeric strings whose size falls within the specified bounds.
+6. `Gen.iso_8859_1` — A generator of strings that can be encoded in the ISO-8859-1 character set.
+7. `Gen.asciiString` — A generator of US-ASCII characters.
 
 ### Collection Generators
 
@@ -97,8 +99,6 @@ Gen.setOfBounded(1, 3)(Gen.alphaChar)
 Gen.setOfN(2)(Gen.alphaChar)
 // Sample Output: Set(J, u), Set(u, p), Set(i, m), Set(b, N), Set(B, Z)
 ```
-
-### PartialFunction Types
 
 
 ### Generating from Fixed Values
@@ -192,12 +192,12 @@ test("unfoldGen") {
   
 2. `Gen.fromZIOSample`
 
-   ```scala mdoc:compile-only
-   val gen: Gen[Has[Random], Int] =
-     Gen.fromZIOSample(
-       Random.nextInt.map(Sample.shrinkIntegral(0))
-     )
-   ```
+  ```scala mdoc:compile-only
+  val gen: Gen[Has[Random], Int] =
+    Gen.fromZIOSample(
+      Random.nextInt.map(Sample.shrinkIntegral(0))
+    )
+  ```
    
 3. `Gen.fromRandomSample`
 
@@ -216,9 +216,9 @@ test("unfoldGen") {
   
 5. `Gen.fromZIO`
 
-   ```scala mdoc:compile-only
-   val gen: Gen[Has[Random], Int] = Gen.fromZIO(Random.nextInt) 
-   ```
+  ```scala mdoc:compile-only
+  val gen: Gen[Has[Random], Int] = Gen.fromZIO(Random.nextInt) 
+  ```
 
 ### Uniform and Non-uniform Generators
 
@@ -255,17 +255,9 @@ Gen.exponential.map(x => math.round(x * 100) / 100.0)
 ### Others
 
 * `Gen.bounded`
-* `Gen.chunkOf`
-* `Gen.chunkOf1`
-* `Gen.chunkOfBounded`
-* `Gen.chunkOfN`
 * `Gen.collectAll`
 * `Gen.concatAll`
 * `Gen.const`
-* `Gen.listOf`
-* `Gen.listOf1`
-* `Gen.listOfBounded`
-* `Gen.listOfN` 
 
 ### Generating Date/Time Types
 
