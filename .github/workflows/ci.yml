@@ -1,6 +1,7 @@
 name: CI
 
 env:
+  CI_RELEASE: "+internalMacrosJVM/publish;+internalMacrosJS/publish;+internalMacrosNative/publish"
   JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx3G # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
   JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx3G # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
 
