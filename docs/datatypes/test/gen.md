@@ -60,7 +60,7 @@ Besides the primitive string generator, `Gen.string`, ZIO Test also provides the
   Gen.stringBounded(1, 5)(Gen.alphaChar)
     .runCollectN(10)
     .debug
-  // Sample Ouput: List(b, YJXzY, Aro, y, WMPbj, Abxt, kJep, LKN, kUtr, xJ)
+  // Sample Output: List(b, YJXzY, Aro, y, WMPbj, Abxt, kJep, LKN, kUtr, xJ)
   ```
 
 2. `Gen.stringN` — A generator of strings of fixed size:
@@ -100,10 +100,7 @@ Gen.setOfN(2)(Gen.alphaChar)
 // Sample Output: Set(J, u), Set(u, p), Set(i, m), Set(b, N), Set(B, Z)
 ```
 
-
 ### Generating from Fixed Values
-
-* `Gen.empty`
 
 1. `Gen.elements` — Constructs a non-deterministic generator that only generates randomly from the fixed values:
 
@@ -130,6 +127,17 @@ Gen.fromIterable(List("red", "green", "blue"))
   .debug
 // Output: List(red, green, blue, red, green, blue, red, green, blue, red)
 ```
+
+### Generating Fixed Values
+
+1. `Gen.empty`
+
+2. `Gen.constSample`
+
+  ```scala mdoc:compile-only
+  val gen: Gen[Any, Int] = Gen.constSample(Sample.noShrink(5))
+  ```
+
 
 ### Suspended Generator
 
@@ -182,12 +190,12 @@ test("unfoldGen") {
 }
 ```
 
-### From Constant Values
+### From a ZIO Effect
 
-1. `Gen.constSample`
+1. `Gen.fromZIO`
 
   ```scala mdoc:compile-only
-  val gen: Gen[Any, Int] = Gen.constSample(Sample.noShrink(5))
+  val gen: Gen[Has[Random], Int] = Gen.fromZIO(Random.nextInt) 
   ```
   
 2. `Gen.fromZIOSample`
@@ -198,26 +206,22 @@ test("unfoldGen") {
       Random.nextInt.map(Sample.shrinkIntegral(0))
     )
   ```
-   
-3. `Gen.fromRandomSample`
+
+### From a Random Effect
+
+3. `Gen.fromRandom` — Constructs a generator from a function that uses randomness:
+
+  ```scala mdoc:compile-only
+  val gen: Gen[Has[Random], Int] = Gen.fromRandom(_.nextInt) 
+  ```
+  
+4. `Gen.fromRandomSample` — Constructs a generator from a function that uses randomness to produce a sample:
 
   ```scala mdoc:compile-only
   val gen: Gen[Has[Random], Int] =
     Gen.fromRandomSample(
       _.nextIntBounded(20).map(Sample.shrinkIntegral(0))
     )
-  ```
-
-4. `Gen.fromRandom`
-
-  ```scala mdoc:compile-only
-  val gen: Gen[Has[Random], Int] = Gen.fromRandom(_.nextInt) 
-  ```
-  
-5. `Gen.fromZIO`
-
-  ```scala mdoc:compile-only
-  val gen: Gen[Has[Random], Int] = Gen.fromZIO(Random.nextInt) 
   ```
 
 ### Uniform and Non-uniform Generators
@@ -241,19 +245,11 @@ Gen.exponential.map(x => math.round(x * 100) / 100.0)
 // Sample Output: List(0.22, 3.02, 1.96, 1.13, 0.81, 0.92, 1.7, 1.47, 1.55, 0.46)
 ```
 
-### Specialized Types
+### Other Generators
 
-* `Gen.oneOf`
 * `Gen.throwable`
-* `Gen.uniform`
 * `Gen.unit`
 * `Gen.uuid`
-* `Gen.option`
-* `Gen.some`
-* `Gen.none`
-
-### Others
-
 * `Gen.bounded`
 * `Gen.collectAll`
 * `Gen.concatAll`
@@ -373,7 +369,8 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 
   Let's see some example of chained ZIO effects:
 
-  ```scala
+  ```scala mdoc:compile-only
+  import zio._
   val effect1 = ZIO(2).flatMap(x => ZIO(x * 2))
   val effect2 = ZIO(1) *> ZIO(2)
   ```
@@ -391,7 +388,7 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 6. Concurrent effects (`Gen.concurrent`): A generator of effects that are the result of applying concurrency combinators to the specified effect that are guaranteed not to change its value.
 
   ```scala mdoc:compile-only
-  val random : Gen[Has[Random], UIO[Int]] = Gen.successes(Gen.int).flatMap(Gen.concurrent)
+  val random : Gen[Has[Random], UIO[Int]]  = Gen.successes(Gen.int).flatMap(Gen.concurrent)
   val constant: Gen[Any, UIO[Int]]         = Gen.concurrent(ZIO(3))
   ```
   
@@ -407,38 +404,42 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
   
 ### Generating Compound Types
 
-1. tuples
+1. tuples — We can combine generators using for-comprehension syntax and tuples:
 
 ```scala mdoc:compile-only
-val tuples: Gen[Has[Random], (Int, Int)] =
+val tuples: Gen[Has[Random], (Int, Double)] =
   for {
     a <- Gen.int
-    b <- Gen.int
+    b <- Gen.double
   } yield (a, b)
 ```
 
-2. options
+2. `Gen.oneOf` — It takes variable number of generators and select one of them:
 
 ```scala mdoc:compile-only
-val intOptions: Gen[Has[Random], Option[Int]] =
-  Gen.option(Gen.int)
+sealed trait Color
+case object Red extends Color
+case object Blue extends Color
+case object Green extends Color
+
+Gen.oneOf(Gen.const(Red), Gen.const(Blue), Gen.const(Green))
+// Sample Ouput: Green, Green, Red, Green, Red
 ```
 
-3. either
+4. `Gen.option` — A generator of _optional_ values:
+
+```scala mdoc:compile-only
+val intOptions: Gen[Has[Random], Option[Int]] = Gen.option(Gen.int)
+val someInts:   Gen[Has[Random], Option[Int]] = Gen.some(Gen.int)
+val nons:       Gen[Any, Option[Nothing]]     = Gen.none
+```
+
+3. `Gen.either` — A generator of _either_ values:
 
 ```scala mdoc:compile-only
 val char: Gen[Has[Random], Either[Char, Char]] =
   Gen.either(Gen.numericChar, Gen.alphaChar)
 ```
-
-5. lists
-
-```scala mdoc:compile-only
-val listOfInts: Gen[Has[Random] with Has[Sized], List[Int]] =
-  Gen.listOf(Gen.int)
-```
-
-4. Gen.chunkOf
 
 ### Sized Generators
 
