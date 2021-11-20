@@ -588,7 +588,7 @@ val logging : URIO[Logging, Logging] = ZIO.service
 And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWith` operator:
 
 ```scala mdoc:silent:nest
-def log(line: String): URIO[Logging, Unit] = ZIO.serviceWith(_.log(line))
+def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO(_.log(line))
 ```
 
 ```scala mdoc:reset
