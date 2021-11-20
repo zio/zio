@@ -130,18 +130,25 @@ Gen.fromIterable(List("red", "green", "blue"))
 
 ### Generating Fixed Values
 
-1. `Gen.empty`
+1. `Gen.empty` — An empty generator, which generates no values and returns nothing.
 
-2. `Gen.constSample`
+2. `Gen.const` — A constant generator of the specified value.
 
   ```scala mdoc:compile-only
-  val gen: Gen[Any, Int] = Gen.constSample(Sample.noShrink(5))
+  Gen.const(true).runCollectN(5)
+  // Output: List(true, true, true, true, true)
   ```
+  
+3. `Gen.constSample` — A constant generator of the specified sample:
 
+  ```scala mdoc:compile-only
+   Gen.constSample(Sample.noShrink(false)).runCollectN(5)
+  // Output: List(true, true, true, true, true)
+  ```
 
 ### Suspended Generator
 
-* `Gen.suspend` — Lazily constructs a generator. This is useful to avoid infinite recursion when creating generators that refer to themselves.
+The `Gen.suspend` constructs a generator lazily. This is useful to avoid infinite recursion when creating generators that refer to themselves.
 
 ### Unfold Generator
 
@@ -251,7 +258,6 @@ Gen.exponential.map(x => math.round(x * 100) / 100.0)
 * `Gen.unit`
 * `Gen.uuid`
 * `Gen.bounded`
-* `Gen.const`
 
 ### Generating Date/Time Types
 
@@ -470,7 +476,7 @@ val gen: ZIO[Any, Nothing, List[Int]] =
       Gen.fromIterable(List(4, 5))
     )
   ).runCollect
-Output: List(1, 2, 3, 4, 5)
+// Output: List(1, 2, 3, 4, 5)
 ```
 
 ### Sized Generators
