@@ -569,7 +569,7 @@ trait Logging {
 
 In ZIO 1.x, when we wanted to access a service from the environment, we used the `ZIO.access` + `Has#get` combination (`ZIO.access(_.get)`):
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 val logging: URIO[Logging, Logging] = ZIO.access(_.get)
 ```
 
@@ -591,7 +591,7 @@ And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWith` operat
 def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO(_.log(line))
 ```
 
-```scala mdoc:reset
+```scala mdoc:reset:invisible
 import zio._
 ```
 
@@ -620,7 +620,7 @@ for {
 
 ### Building the Dependency Graph
 
-To create the dependency graph in ZIO 1.x, we should compose the required layera manually. As the ordering of layer compositions matters, and also we should care about composing layers in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
+To create the dependency graph in ZIO 1.x, we should compose the required layer manually. As the ordering of layer compositions matters, and also we should care about composing layers in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
 
 Assume we have the following dependency graph with two top-level dependencies:
 
