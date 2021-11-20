@@ -100,8 +100,6 @@ Gen.setOfN(2)(Gen.alphaChar)
 
 ### PartialFunction Types
 
-* `Gen.partialFunction`
-* `Gen.partialFunctionWith`
 
 ### Generating from Fixed Values
 
@@ -290,12 +288,33 @@ Gen.exponential.map(x => math.round(x * 100) / 100.0)
 | `java.time.LocalTime`      | `Gen.localTime`      |
 | `zio.duration.Duration`    | `Gen.finiteDuration` |
 
-### Generating Functions
+### Function Generators
 
-* `Gen.function` — Gen[R, B] => Gen[R, A => B]
-* `Gen.function2` — Gen[R, C] => Gen[R, (A, B) => C]
-* `Gen.functionWith` — Gen[R, B] => (A => Int) => Gen[R, A => B]
-* `Gen.functionWith` — Gen[R, B] => ((A, B) => Int) => Gen[R, (A, B) => C]
+To test some properties, we need to generate functions. There are two types of function generators:
+
+1. `Gen.function` — It takes a generator of type `B` and produces a generator of functions from `A` to `B`:
+
+```scala
+def function[R, A, B](gen: Gen[R, B]): Gen[R, A => B]
+```
+
+Two `A` values will be considered to be equal, and thus will be guaranteed to generate the same `B` value, if they have the same
+`hashCode`.
+
+2. `Gen.functionWith` — It takes a generator of type `B` and also a hash function for `A` values, and produces a generator of functions from `A` to `B`:
+
+```scala
+def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B]
+```
+
+Two `A` values will be considered to be equal, and thus will be guaranteed to generate the same `B` value, if they have the same hash. This is useful when `A` does not implement `hashCode` in a way that is consistent with equality.
+
+Accordingly, ZIO Test provides a variety of function generators for `Function2`, `Function3`, ..., and also the `PartialFunction`: 
+
+* `Gen.function2` —  Gen[R, C] => Gen[R, (A, B) => C]
+* `Gen.functionWith2` — Gen[R, B] => ((A, B) => Int) => Gen[R, (A, B) => C]
+* `Gen.partialFunction` — Gen[R, B] => Gen[R, PartialFunction[A, B]]
+* `Gen.partialFunctionWith` — Gen[R, B] => (A => Int) => Gen[R, PartialFunction[A, B]]
 
 Let's write a test for `ZIO.foldLeft` operator. This operator has the following signature:
 
