@@ -78,27 +78,23 @@ Besides the primitive string generator, `Gen.string`, ZIO Test also provides the
 6. `Gen.iso_8859_1` — A generator of strings that can be encoded in the ISO-8859-1 character set.
 7. `Gen.asciiString` — A generator of US-ASCII characters.
 
-### Collection Generators
+### Generating Fixed Values
 
-ZIO Test has generators for collection data types such as _sets_, _lists_, _vectors_, _chunks_, and _maps_. These data types share similar APIs. The following example illustrates how the generator of sets works:
+1. `Gen.empty` — An empty generator, which generates no values and returns nothing.
 
-```scala mdoc:compile-only
-// A sized generator of sets
-Gen.setOf(Gen.alphaChar)
-// Sample Output: Set(Y, M, c), Set(), Set(g, x, Q), Set(s), Set(f, J, b, R)
+2. `Gen.const` — A constant generator of the specified value.
 
-// A sized generator of non-empty sets
-Gen.setOf1(Gen.alphaChar)  
-// Sample Output: Set(Y), Set(L, S), Set(i), Set(H), Set(r, Z, z)
+  ```scala mdoc:compile-only
+  Gen.const(true).runCollectN(5)
+  // Output: List(true, true, true, true, true)
+  ```
 
-// A generator of sets whose size falls within the specified bounds.
-Gen.setOfBounded(1, 3)(Gen.alphaChar)
-// Sample Output: Set(Q), Set(q, J), Set(V, t, h), Set(c), Set(X, O)
+3. `Gen.constSample` — A constant generator of the specified sample:
 
-// A generator of sets of the specified size.
-Gen.setOfN(2)(Gen.alphaChar)
-// Sample Output: Set(J, u), Set(u, p), Set(i, m), Set(b, N), Set(B, Z)
-```
+  ```scala mdoc:compile-only
+   Gen.constSample(Sample.noShrink(false)).runCollectN(5)
+  // Output: List(true, true, true, true, true)
+  ```
 
 ### Generating from Fixed Values
 
@@ -128,23 +124,27 @@ Gen.fromIterable(List("red", "green", "blue"))
 // Output: List(red, green, blue, red, green, blue, red, green, blue, red)
 ```
 
-### Generating Fixed Values
+### Collection Generators
 
-1. `Gen.empty` — An empty generator, which generates no values and returns nothing.
+ZIO Test has generators for collection data types such as _sets_, _lists_, _vectors_, _chunks_, and _maps_. These data types share similar APIs. The following example illustrates how the generator of sets works:
 
-2. `Gen.const` — A constant generator of the specified value.
+```scala mdoc:compile-only
+// A sized generator of sets
+Gen.setOf(Gen.alphaChar)
+// Sample Output: Set(Y, M, c), Set(), Set(g, x, Q), Set(s), Set(f, J, b, R)
 
-  ```scala mdoc:compile-only
-  Gen.const(true).runCollectN(5)
-  // Output: List(true, true, true, true, true)
-  ```
-  
-3. `Gen.constSample` — A constant generator of the specified sample:
+// A sized generator of non-empty sets
+Gen.setOf1(Gen.alphaChar)  
+// Sample Output: Set(Y), Set(L, S), Set(i), Set(H), Set(r, Z, z)
 
-  ```scala mdoc:compile-only
-   Gen.constSample(Sample.noShrink(false)).runCollectN(5)
-  // Output: List(true, true, true, true, true)
-  ```
+// A generator of sets whose size falls within the specified bounds.
+Gen.setOfBounded(1, 3)(Gen.alphaChar)
+// Sample Output: Set(Q), Set(q, J), Set(V, t, h), Set(c), Set(X, O)
+
+// A generator of sets of the specified size.
+Gen.setOfN(2)(Gen.alphaChar)
+// Sample Output: Set(J, u), Set(u, p), Set(i, m), Set(b, N), Set(B, Z)
+```
 
 ### Suspended Generator
 
@@ -237,20 +237,20 @@ test("unfoldGen") {
 
 2. `Gen.weighted` — A generator which chooses one of the given generators according to their weights. For example, the following generator will generate 90% true and 10% false values:
 
-```scala mdoc:compile-only
-val trueFalse = Gen.weighted((Gen.const(true), 9), (Gen.const(false), 1))
-trueFalse.runCollectN(10).debug
-// Sample Output: List(false, false, false, false, false, false, false, false, true, false)
-```
+  ```scala mdoc:compile-only
+  val trueFalse = Gen.weighted((Gen.const(true), 9), (Gen.const(false), 1))
+  trueFalse.runCollectN(10).debug
+  // Sample Output: List(false, false, false, false, false, false, false, false, true, false)
+  ```
 
 3. `Gen.exponential` — A generator of exponentially distributed doubles with mean `1`:
 
-```scala mdoc:compile-only
-Gen.exponential.map(x => math.round(x * 100) / 100.0)
-  .runCollectN(10)
-  .debug
-// Sample Output: List(0.22, 3.02, 1.96, 1.13, 0.81, 0.92, 1.7, 1.47, 1.55, 0.46)
-```
+  ```scala mdoc:compile-only
+  Gen.exponential.map(x => math.round(x * 100) / 100.0)
+    .runCollectN(10)
+    .debug
+  // Sample Output: List(0.22, 3.02, 1.96, 1.13, 0.81, 0.92, 1.7, 1.47, 1.55, 0.46)
+  ```
 
 ### Other Generators
 
@@ -286,18 +286,18 @@ To test some properties, we need to generate functions. There are two types of f
 
 1. `Gen.function` — It takes a generator of type `B` and produces a generator of functions from `A` to `B`:
 
-```scala
-def function[R, A, B](gen: Gen[R, B]): Gen[R, A => B]
-```
+  ```scala
+  def function[R, A, B](gen: Gen[R, B]): Gen[R, A => B]
+  ```
 
 Two `A` values will be considered to be equal, and thus will be guaranteed to generate the same `B` value, if they have the same
 `hashCode`.
 
 2. `Gen.functionWith` — It takes a generator of type `B` and also a hash function for `A` values, and produces a generator of functions from `A` to `B`:
 
-```scala
-def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B]
-```
+  ```scala
+  def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int): Gen[R, A => B]
+  ```
 
 Two `A` values will be considered to be equal, and thus will be guaranteed to generate the same `B` value, if they have the same hash. This is useful when `A` does not implement `hashCode` in a way that is consistent with equality.
 
@@ -369,6 +369,7 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
   val causes: Gen[Has[Random] with Has[Sized], Cause[String]] = 
     Gen.causes(Gen.string, Gen.throwable)
   ```
+  
 5. Chained effects (`Gen.chined`, `Gen.chainedN`): A generator of effects that are the result of chaining the specified effect with itself a random number of times.
 
   Let's see some example of chained ZIO effects:
@@ -410,126 +411,126 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 
 1. tuples — We can combine generators using for-comprehension syntax and tuples:
 
-```scala mdoc:compile-only
-val tuples: Gen[Has[Random], (Int, Double)] =
-  for {
-    a <- Gen.int
-    b <- Gen.double
-  } yield (a, b)
-```
+  ```scala mdoc:compile-only
+  val tuples: Gen[Has[Random], (Int, Double)] =
+    for {
+      a <- Gen.int
+      b <- Gen.double
+    } yield (a, b)
+  ```
 
 2. `Gen.oneOf` — It takes variable number of generators and select one of them:
 
-```scala mdoc:compile-only
-sealed trait Color
-case object Red extends Color
-case object Blue extends Color
-case object Green extends Color
-
-Gen.oneOf(Gen.const(Red), Gen.const(Blue), Gen.const(Green))
-// Sample Ouput: Green, Green, Red, Green, Red
-```
+  ```scala mdoc:compile-only
+  sealed trait Color
+  case object Red extends Color
+  case object Blue extends Color
+  case object Green extends Color
+  
+  Gen.oneOf(Gen.const(Red), Gen.const(Blue), Gen.const(Green))
+  // Sample Ouput: Green, Green, Red, Green, Red
+  ```
 
 4. `Gen.option` — A generator of _optional_ values:
 
-```scala mdoc:compile-only
-val intOptions: Gen[Has[Random], Option[Int]] = Gen.option(Gen.int)
-val someInts:   Gen[Has[Random], Option[Int]] = Gen.some(Gen.int)
-val nons:       Gen[Any, Option[Nothing]]     = Gen.none
-```
+  ```scala mdoc:compile-only
+  val intOptions: Gen[Has[Random], Option[Int]] = Gen.option(Gen.int)
+  val someInts:   Gen[Has[Random], Option[Int]] = Gen.some(Gen.int)
+  val nons:       Gen[Any, Option[Nothing]]     = Gen.none
+  ```
 
 3. `Gen.either` — A generator of _either_ values:
 
-```scala mdoc:compile-only
-val char: Gen[Has[Random], Either[Char, Char]] =
-  Gen.either(Gen.numericChar, Gen.alphaChar)
-```
+  ```scala mdoc:compile-only
+  val char: Gen[Has[Random], Either[Char, Char]] =
+    Gen.either(Gen.numericChar, Gen.alphaChar)
+  ```
 
 4. `Gen.collectAll` — Composes the specified generators to create a _cartesian product of elements_ with the specified function:
 
-```scala mdoc:compile-only
-val gen: ZIO[Any, Nothing, List[List[Int]]] =
-  Gen.collectAll(
-    List(
-      Gen.fromIterable(List(1, 2)),
-      Gen.fromIterable(List(3)),
-      Gen.fromIterable(List(4, 5))
-    )
-  ).runCollect
-// Output:
-// List(
-//  List(1, 3, 4),
-//  List(1, 3, 5),
-//  List(2, 3, 4),
-//  List(2, 3, 5)
-//)
-```
+  ```scala mdoc:compile-only
+  val gen: ZIO[Any, Nothing, List[List[Int]]] =
+    Gen.collectAll(
+      List(
+        Gen.fromIterable(List(1, 2)),
+        Gen.fromIterable(List(3)),
+        Gen.fromIterable(List(4, 5))
+      )
+    ).runCollect
+  // Output:
+  // List(
+  //  List(1, 3, 4),
+  //  List(1, 3, 5),
+  //  List(2, 3, 4),
+  //  List(2, 3, 5)
+  //)
+  ```
 
 5. `Gen.concatAll` — Combines the specified deterministic generators to return a new deterministic generator that generates all the values generated by the specified generators:
 
-```scala mdoc:compile-only
-val gen: ZIO[Any, Nothing, List[Int]] =
-  Gen.concatAll(
-    List(
-      Gen.fromIterable(List(1, 2)),
-      Gen.fromIterable(List(3)),
-      Gen.fromIterable(List(4, 5))
-    )
-  ).runCollect
-// Output: List(1, 2, 3, 4, 5)
-```
+  ```scala mdoc:compile-only
+  val gen: ZIO[Any, Nothing, List[Int]] =
+    Gen.concatAll(
+      List(
+        Gen.fromIterable(List(1, 2)),
+        Gen.fromIterable(List(3)),
+        Gen.fromIterable(List(4, 5))
+      )
+    ).runCollect
+  // Output: List(1, 2, 3, 4, 5)
+  ```
 
 ### Sized Generators
 
 1. `Gen.sized`
 
-```scala mdoc:compile-only
-Gen.sized(Gen.int(0, _))
-  .runCollectN(10)
-  .provideCustomLayer(Sized.live(5))
-  .debug
-// Output: List(5, 4, 1, 2, 0, 4, 2, 0, 1, 2)
-```
+  `````scala mdoc:compile-only
+  Gen.sized(Gen.int(0, _))
+    .runCollectN(10)
+    .provideCustomLayer(Sized.live(5))
+    .debug
+  // Output: List(5, 4, 1, 2, 0, 4, 2, 0, 1, 2)
+  ```
 
 2. `Gen.size`
 
-```scala mdoc:compile-only
-Gen.size.flatMap(Gen.int(0, _))
-  .runCollectN(10)
-  .provideCustomLayer(Sized.live(5))
-  .debug
-// Output: List(3, 1, 4, 0, 4, 3, 1, 1, 5, 5)
-```
+  ```scala mdoc:compile-only
+  Gen.size.flatMap(Gen.int(0, _))
+    .runCollectN(10)
+    .provideCustomLayer(Sized.live(5))
+    .debug
+  // Output: List(3, 1, 4, 0, 4, 3, 1, 1, 5, 5)
+  ```
 
 3. `Gen.small`
 
-```scala mdoc:compile-only
-Gen.small(Gen.const(_))
-        .runCollectN(10)
-        .provideCustomLayer(Sized.live(1000))
-        .debug
-// Output: List(6, 39, 73, 3, 57, 51, 40, 12, 110, 46)
-```
+  ```scala mdoc:compile-only
+  Gen.small(Gen.const(_))
+          .runCollectN(10)
+          .provideCustomLayer(Sized.live(1000))
+          .debug
+  // Output: List(6, 39, 73, 3, 57, 51, 40, 12, 110, 46)
+  ```
 
 4. `Gen.medium`
 
-```scala mdoc:compile-only
-Gen.medium(Gen.const(_))
-        .runCollectN(10)
-        .provideCustomLayer(Sized.live(1000))
-        .debug
-// Output: List(93, 42, 58, 228, 42, 5, 12, 214, 106, 79)
-```
+  ```scala mdoc:compile-only
+  Gen.medium(Gen.const(_))
+          .runCollectN(10)
+          .provideCustomLayer(Sized.live(1000))
+          .debug
+  // Output: List(93, 42, 58, 228, 42, 5, 12, 214, 106, 79)
+  ```
 
 5. `Gen.large`
 
-```scala mdoc:compile-only
-Gen.large(Gen.const(_))
-  .runCollectN(10)
-  .provideCustomLayer(Sized.live(1000))
-  .debug
-// Ouput: List(797, 218, 596, 278, 301, 779, 165, 486, 695, 788)
-```
+  ```scala mdoc:compile-only
+  Gen.large(Gen.const(_))
+    .runCollectN(10)
+    .provideCustomLayer(Sized.live(1000))
+    .debug
+  // Ouput: List(797, 218, 596, 278, 301, 779, 165, 486, 695, 788)
+  ```
 
 ## Running a Generator
 
