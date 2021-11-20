@@ -94,6 +94,9 @@ lazy val root = project
     coreTestsJS,
     coreTestsJVM,
     docs,
+    internalMacrosJS,
+    internalMacrosJVM,
+    internalMacrosNative,
     examplesJS,
     examplesJVM,
     macrosJS,
@@ -221,7 +224,6 @@ lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
-  .settings(publish / skip := true)
 
 lazy val internalMacrosJVM    = internalMacros.jvm.settings(dottySettings)
 lazy val internalMacrosJS     = internalMacros.js.settings(dottySettings)
