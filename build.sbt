@@ -19,7 +19,8 @@ inThisBuild(
         "john@degoes.net",
         url("http://degoes.net")
       )
-    )
+    ),
+    version := "2.0.0-M6"
   )
 )
 
