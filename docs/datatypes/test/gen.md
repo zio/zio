@@ -132,8 +132,50 @@ Gen.fromIterable(List("red", "green", "blue"))
 
 ### Unfold Generator
 
-* `Gen.unfoldGen`
-* `Gen.unfoldGenN`
+The `unfoldGen` takes the initial state and depending on the previous state, it determines what will be the next generated value:
+
+```scala
+def unfoldGen[R <: Has[Random] with Has[Sized], S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]]
+```
+
+Assume we want to test the built-in scala stack (`scala.collection.mutable.Stack`). One way to do that is to create an acceptable series of push and pop commands, and then check that the stack doesn't throw any exception by executing these commands:
+
+```scala mdoc:silent
+sealed trait Command
+case object Pop                   extends Command
+final case class Push(value: Char) extends Command
+
+val genPop: Gen[Any, Command]          = Gen.const(Pop)
+def genPush: Gen[Has[Random], Command] = Gen.alphaChar.map(Push)
+
+val genCommands: Gen[Has[Random] with Has[Sized], List[Command]] =
+  Gen.unfoldGen(0) { n =>
+    if (n <= 0)
+      genPush.map(command => (n + 1, command))
+    else
+      Gen.oneOf(
+        genPop.map(command => (n - 1, command)),
+        genPush.map(command => (n + 1, command))
+      )
+  }
+```
+
+We are now ready to test the generated list of commands:
+
+```scala mdoc:compile-only
+import zio.test.{ test, _ }
+
+test("unfoldGen") {
+  check(genCommands) { commands =>
+    val stack = scala.collection.mutable.Stack.empty[Int]
+    commands.foreach {
+      case Pop => stack.pop()
+      case Push(value) => stack.push(value)
+    }
+    assertCompletes
+  }
+}
+```
 
 ### From Constant Values
 
