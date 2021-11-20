@@ -1,12 +1,29 @@
 package zio.internal.macros
 
 import zio._
+import zio.internal.TerminalRendering
 import zio.internal.ansi.AnsiStringOps
 
 import scala.reflect.macros.blackbox
 
 private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
+
+  def validate[Provided: WeakTypeTag, Required: WeakTypeTag](zio: c.Tree): c.Tree = {
+
+    val required = getRequirements[Required]
+    val provided = getRequirements[Provided]
+
+    val missing =
+      required.toSet -- provided.toSet
+
+    if (missing.nonEmpty) {
+      val message = TerminalRendering.missingLayersForZIOApp(missing.map(_.toString))
+      c.abort(c.enclosingPosition, message)
+    }
+
+    zio
+  }
 
   def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*

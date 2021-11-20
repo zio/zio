@@ -20,6 +20,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.language.implicitConversions
+
 /**
  * An entry point for a ZIO application that allows sharing layers between
  * applications. For a simpler version that uses the default ZIO environment see
@@ -31,6 +33,11 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
   implicit def tag: Tag[Environment]
 
   type Environment
+
+  type Total = Environment with ZEnv with ZIOAppArgs
+
+  implicit def correctEnv[R, E, A](zio: ZIO[R, E, A]): ZIO[Total, E, A] =
+    macro internal.macros.LayerMacros.validate[Total, R]
 
   /**
    * A layer that manages the acquisition and release of services necessary for

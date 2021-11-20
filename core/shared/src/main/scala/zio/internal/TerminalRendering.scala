@@ -84,6 +84,34 @@ object TerminalRendering {
        |""".stripMargin
   }
 
+  def missingLayersForZIOApp(value: Set[String]): String = {
+
+    val missingLayers = value.toList.map(_.magenta.bold)
+    val missingLayersString = missingLayers.zipWithIndex.map { case (layer, index) =>
+      val i = s"${index + 1}.".faint
+      s"$i $layer"
+    }.mkString("\n").indent(3)
+
+    val message =
+      if (missingLayers.size > 1) {
+        s"Please provide layers for the following ${missingLayers.size.toString.underlined} types:"
+      } else {
+        s"Please provide a layer for the following type:"
+      }
+
+    s"""
+       |
+       |${title("ZIO App Error").red}
+       |
+       | $message
+       |
+       |${missingLayersString}
+       |
+       |${line.red}
+       |
+       |""".stripMargin
+  }
+
   def unusedLayersError(layers: List[String]) = {
 
     val layerStrings = layers.zipWithIndex.map { case (layer, index) =>

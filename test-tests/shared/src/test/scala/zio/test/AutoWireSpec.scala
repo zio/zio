@@ -32,7 +32,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           val _                                      = program
           val checked =
             typeCheck("""test("foo")(assertM(program)(anything)).inject(ZLayer.succeed(3))""")
-          assertM(checked)(isLeft(containsStringWithoutAnsi("missing String")))
+          assertM(checked)(isLeft(containsStringWithoutAnsi("String")))
         } @@ TestAspect.exceptDotty,
         test("reports multiple missing top-level dependencies") {
           val program: URIO[String with Int, String] = UIO("test")
@@ -40,7 +40,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
           val checked = typeCheck("""test("foo")(assertM(program)(anything)).inject()""")
           assertM(checked)(
-            isLeft(containsStringWithoutAnsi("missing String") && containsStringWithoutAnsi("missing Int"))
+            isLeft(containsStringWithoutAnsi("String") && containsStringWithoutAnsi("Int"))
           )
         } @@ TestAspect.exceptDotty,
         test("reports missing transitive dependencies") {
@@ -51,8 +51,8 @@ object AutoWireSpec extends ZIOBaseSpec {
           val checked = typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live)""")
           assertM(checked)(
             isLeft(
-              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestLayer.Fly") &&
-                containsStringWithoutAnsi("for TestLayer.OldLady.live")
+              containsStringWithoutAnsi("zio.test.AutoWireSpec.TestLayer.Fly") &&
+                containsStringWithoutAnsi("Required by TestLayer.OldLady.live")
             )
           )
         } @@ TestAspect.exceptDotty,
@@ -65,8 +65,8 @@ object AutoWireSpec extends ZIOBaseSpec {
             typeCheck("""test("foo")(assertM(program)(anything)).inject(OldLady.live, Fly.live)""")
           assertM(checked)(
             isLeft(
-              containsStringWithoutAnsi("missing zio.test.AutoWireSpec.TestLayer.Spider") &&
-                containsStringWithoutAnsi("for TestLayer.Fly.live")
+              containsStringWithoutAnsi("zio.test.AutoWireSpec.TestLayer.Spider") &&
+                containsStringWithoutAnsi("Required by TestLayer.Fly.live")
             )
           )
         } @@ TestAspect.exceptDotty,
@@ -82,8 +82,9 @@ object AutoWireSpec extends ZIOBaseSpec {
           assertM(checked)(
             isLeft(
               containsStringWithoutAnsi("TestLayer.Fly.manEatingFly") &&
+                containsStringWithoutAnsi("OldLady.live") &&
                 containsStringWithoutAnsi(
-                  "both requires and is transitively required by TestLayer.OldLady.live"
+                  "A layer simultaneously requires and is required by another"
                 )
             )
           )

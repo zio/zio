@@ -5,6 +5,11 @@ import zio._
 
 import java.io.IOException
 
+// 1. Implicit conversions to LayerBuilderType
+// 2. Unify errors
+// 3. Implicit Environment helper
+// 4. Implicit conversion
+
 object ZLayerInjectExample extends ZIOAppDefault {
   val program: ZIO[OldLady with Console, IOException, Unit] =
     OldLady.contentsOfStomach.flatMap { contents =>
@@ -19,13 +24,11 @@ object ZLayerInjectExample extends ZIOAppDefault {
       Spider.live,
       Fly.live,
       Bear.live,
-      thing,
-      Console.live,
-      ZLayer.Debug.tree
+      Console.live
     )
 
   def run: ZIO[Any, IOException, Unit] =
     program
-      .inject(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live, ZLayer.Debug.tree)
+      .inject(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
 
 }

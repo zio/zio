@@ -98,8 +98,7 @@ $body
   }
 
   private def reportGraphErrors(errors: ::[GraphError[Key, A]]): Nothing = {
-    val allErrors = errors.map(renderError)
-    println(allErrors)
+    val allErrors = sortErrors(errors).map(renderError).toList
 
     val topLevelErrors = allErrors.collect { case top: LayerWiringError.MissingTopLevel =>
       top.layer
