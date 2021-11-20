@@ -57,7 +57,7 @@ object Macros {
            |[${Console.RED}error${Console.RESET}]    
            |""".stripMargin
       )
-      report.throwError("Auto-generated traces are disabled")
+      report.errorAndAbort("Auto-generated traces are disabled")
     }
 
   }
