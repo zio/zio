@@ -76,20 +76,27 @@ Here are some other string generators:
 * `Gen.alphaNumericString` — A generator of alphanumeric characters.
 * `Gen.alphaNumericStringBounded` — A generator of alphanumeric strings whose size falls within the specified bounds.
 
-### Collection Types
+### Collection Generators
 
-* `Gen.setOf`
-* `Gen.setOf1`
-* `Gen.setOfBounded`
-* `Gen.setOfN`
-* `Gen.vectorOf`
-* `Gen.vectorOf1`
-* `Gen.vectorOfBounded`
-* `Gen.vectorOfN`
-* `Gen.mapOf`
-* `Gen.mapOf1`
-* `Gen.mapOfN`
-* `Gen.mapOfBounded`
+ZIO Test has generators for collection data types such as _sets_, _lists_, _vectors_, _chunks_, and _maps_. These data types share similar APIs. The following example illustrates how the generator of sets works:
+
+```scala mdoc:compile-only
+// A sized generator of sets
+Gen.setOf(Gen.alphaChar)
+// Sample Output: Set(Y, M, c), Set(), Set(g, x, Q), Set(s), Set(f, J, b, R)
+
+// A sized generator of non-empty sets
+Gen.setOf1(Gen.alphaChar)  
+// Sample Output: Set(Y), Set(L, S), Set(i), Set(H), Set(r, Z, z)
+
+// A generator of sets whose size falls within the specified bounds.
+Gen.setOfBounded(1, 3)(Gen.alphaChar)
+// Sample Output: Set(Q), Set(q, J), Set(V, t, h), Set(c), Set(X, O)
+
+// A generator of sets of the specified size.
+Gen.setOfN(2)(Gen.alphaChar)
+// Sample Output: Set(J, u), Set(u, p), Set(i, m), Set(b, N), Set(B, Z)
+```
 
 ### PartialFunction Types
 
@@ -142,7 +149,7 @@ Assume we want to test the built-in scala stack (`scala.collection.mutable.Stack
 
 ```scala mdoc:silent
 sealed trait Command
-case object Pop                   extends Command
+case object Pop                    extends Command
 final case class Push(value: Char) extends Command
 
 val genPop: Gen[Any, Command]          = Gen.const(Pop)
