@@ -1868,7 +1868,9 @@ object TestAspect extends TestAspectCompanionVersionSpecific with TimeoutVariant
         def apply[R >: R0 with R1, E >: E1](
           spec: Spec[R, TestFailure[E], TestSuccess]
         )(implicit trace: ZTraceElement): Spec[R0, TestFailure[E], TestSuccess] =
-          spec.asInstanceOf[Spec[R0 with R1, TestFailure[E], TestSuccess]].provideShared(ZLayer.environment[R0] ++ layer)
+          spec
+            .asInstanceOf[Spec[R0 with R1, TestFailure[E], TestSuccess]]
+            .provideShared(ZLayer.environment[R0] ++ layer)
       }
   }
 }
