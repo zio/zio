@@ -90,7 +90,7 @@ trait Runtime[+R] {
     //defaultUnsafeRunSync(zio).fold(cause => throw FiberFailure(cause), identity(_))
     try unsafeRunFast(zio, 50)
     catch {
-      case failure : ZIO.ZioError[_] => throw FiberFailure(failure.cause)
+      case failure: ZIO.ZioError[_] => throw FiberFailure(failure.cause)
     }
 
   /**
@@ -125,7 +125,7 @@ trait Runtime[+R] {
     try {
       Exit.Success(unsafeRunFast(zio, 50))
     } catch {
-      case failure : ZIO.ZioError[_] => Exit.Failure(failure.cause.asInstanceOf[Cause[E]])
+      case failure: ZIO.ZioError[_] => Exit.Failure(failure.cause.asInstanceOf[Cause[E]])
     }
 
   private[zio] def unsafeRunFast[E, A](zio: ZIO[R, E, A], maxStack: Int)(implicit
@@ -199,7 +199,7 @@ trait Runtime[+R] {
 
                 // Give up, the mini-interpreter can't handle it:
                 defaultUnsafeRunSync(zio) match {
-                  case Exit.Success(value) => 
+                  case Exit.Success(value) =>
                     if (x1 ne null) {
                       val k = x1
                       x1 = x2; x2 = x3; x3 = x4; x4 = nullK
@@ -212,7 +212,7 @@ trait Runtime[+R] {
                 }
             }
           } catch {
-            case failure : ZIO.ZioError[_] =>
+            case failure: ZIO.ZioError[_] =>
               val builder = stackTraceBuilder.value
 
               builder += failure.trace
