@@ -146,6 +146,16 @@ Gen.setOfN(2)(Gen.alphaChar)
 // Sample Output: Set(J, u), Set(u, p), Set(i, m), Set(b, N), Set(B, Z)
 ```
 
+### Bounded Generator
+
+The `Gen.bounded` constructor is a generator whose size falls within the specified bounds:
+
+```scala mdoc:compile-only
+Gen.bounded(2, 5)(Gen.stringN(_)(Gen.alphaChar))
+  .runCollectN(5)
+// Sample Output: List(jU, tqwQ, VBTlQ, lH, JAH)
+```
+
 ### Suspended Generator
 
 The `Gen.suspend` constructs a generator lazily. This is useful to avoid infinite recursion when creating generators that refer to themselves.
@@ -257,7 +267,6 @@ test("unfoldGen") {
 * `Gen.throwable`
 * `Gen.unit`
 * `Gen.uuid`
-* `Gen.bounded`
 
 ### Generating Date/Time Types
 
