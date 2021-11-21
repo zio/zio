@@ -138,18 +138,6 @@ object TerminalRendering {
        |""".stripMargin
   }
 
-  val unexpectedOutputError = {
-    val B = "Option".cyan
-    val A = "Int".cyan
-    s"""${title("Invalid Error Type")}
-       |
-       | This method is only callable when the error type is an $B
-       | But the error type of this effect is an $A
-       |       
-       |$line
-       |""".stripMargin
-  }
-
   def injectSomeNothingEnvError: String = {
     val message = s"You must provide a type to ${"injectSome".green}.".bold
     val A       = "A".cyan
@@ -171,7 +159,7 @@ object TerminalRendering {
        |""".stripMargin
   }
 
-  def example(_args: Array[String]): Unit = {
+  def example(): Unit = {
     val missing = Map(
       "UserService.live" -> List("zio.Clock", "example.UserService"),
       "Database.live"    -> List("java.sql.Connection"),
