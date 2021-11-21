@@ -569,7 +569,7 @@ trait Logging {
 
 In ZIO 1.x, when we wanted to access a service from the environment, we used the `ZIO.access` + `Has#get` combination (`ZIO.access(_.get)`):
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 val logging: URIO[Logging, Logging] = ZIO.access(_.get)
 ```
 
@@ -585,13 +585,13 @@ ZIO 2.x reduces one level of indirection by using `ZIO.service` operator:
 val logging : URIO[Logging, Logging] = ZIO.service
 ```
 
-And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWith` operator:
+And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWithZIO` operator:
 
 ```scala mdoc:silent:nest
-def log(line: String): URIO[Logging, Unit] = ZIO.serviceWith(_.log(line))
+def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO(_.log(line))
 ```
 
-```scala mdoc:reset
+```scala mdoc:reset:invisible
 import zio._
 ```
 
@@ -620,7 +620,7 @@ for {
 
 ### Building the Dependency Graph
 
-To create the dependency graph in ZIO 1.x, we should compose the required layera manually. As the ordering of layer compositions matters, and also we should care about composing layers in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
+To create the dependency graph in ZIO 1.x, we should compose the required layer manually. As the ordering of layer compositions matters, and also we should care about composing layers in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
 
 Assume we have the following dependency graph with two top-level dependencies:
 
@@ -937,7 +937,7 @@ trait Logging {
 // Accessor Methods Inside the Companion Object
 object Logging {
   def log(line: String): URIO[Logging, Unit] =
-    ZIO.serviceWith(_.log(line))
+    ZIO.serviceWithZIO(_.log(line))
 }
 
 // Implementation of the Service Interface
@@ -1027,7 +1027,7 @@ As we see, we have the following changes:
    
     In Module Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
 
-4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWith(_.log(line))`.
+4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
 
    We also have accessor methods on the fly, by extending the companion object of the service interface with `Accessible`, e.g. `object Logging extends Accessible[Logging]`. So then we can simply access the `log` method by calling the `Logging(_.log(line))` method:
    
