@@ -476,16 +476,8 @@ private[zio] final class FiberContext[E, A](
             // Prevent interruption of interruption:
             unsafeSetInterrupting(true)
 
-          case ZIO.ZioError(exit) =>
-            exit match {
-              case Exit.Success(value) =>
-                curZio = unsafeNextEffect(value)
-
-              case Exit.Failure(cause) =>
-                val trace = curZio.trace
-
-                curZio = ZIO.failCause(cause)(trace)
-            }
+          case ZIO.ZioError(cause, trace) =>
+            curZio = ZIO.failCause(cause)(trace)
 
           // Catastrophic error handler. Any error thrown inside the interpreter is
           // either a bug in the interpreter or a bug in the user's code. Let the
