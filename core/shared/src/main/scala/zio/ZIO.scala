@@ -1462,10 +1462,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
-  final def provide[E1 >: E, R0, R1](
-    layer: => ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
-    ZIO.suspendSucceed(layer.build.map(_.upcast(ev)).use(r => self.provideEnvironment(r)))
+  final def provide[E1 >: E, R0](
+    layer: => ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): ZIO[R0, E1, A] =
+    ZIO.suspendSucceed(layer.build.use(r => self.provideEnvironment(r)))
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -1521,9 +1521,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Provides a layer to the ZIO effect, which translates it to another level.
    */
   @deprecated("use provide", "2.0.0")
-  final def provideLayer[E1 >: E, R0, R1](
-    layer: => ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZIO[R0, E1, A] =
+  final def provideLayer[E1 >: E, R0](
+    layer: => ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): ZIO[R0, E1, A] =
     provide(layer)
 
   /**
@@ -5665,7 +5665,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
-      self.provide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZIO[R0 with R1, E, A]].provide(ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {

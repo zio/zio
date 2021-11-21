@@ -6,7 +6,7 @@ import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.render.TestRenderer
-import zio.{Cause, Clock, Layer, Promise, ZIO, ZTraceElement}
+import zio.{Cause, Layer, Promise, ZIO, ZTraceElement}
 
 import scala.{Console => SConsole}
 
@@ -52,7 +52,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provide[Nothing, TestEnvironment, TestLogger with Clock](
+             .provide(
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
@@ -62,7 +62,7 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provide[Nothing, TestEnvironment, TestLogger with Clock](
+                   .provide(
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)

@@ -344,9 +344,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Provides a layer to the spec, translating it up a level.
    */
-  final def provide[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
+  final def provide[E1 >: E, R0](
+    layer: ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): Spec[R0, E1, T] =
     transform[R0, E1, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
@@ -447,36 +447,36 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Provides a layer to the spec, translating it up a level.
    */
   @deprecated("use provide", "2.0.0")
-  final def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
+  final def provideLayer[E1 >: E, R0](
+    layer: ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): Spec[R0, E1, T] =
     provide(layer)
 
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
   @deprecated("use provideShared", "2.0.0")
-  final def provideLayerShared[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
+  final def provideLayerShared[E1 >: E, R0](
+    layer: ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): Spec[R0, E1, T] =
     provideShared(layer)
 
   /**
    * Provides a layer to the spec, sharing services between all tests.
    */
-  final def provideShared[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): Spec[R0, E1, T] =
+  final def provideShared[E1 >: E, R0](
+    layer: ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): Spec[R0, E1, T] =
     caseValue match {
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideShared(layer))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideShared(layer))
       case ManagedCase(managed) =>
         Spec.managed(
-          layer.build.flatMap(r => managed.map(_.provideEnvironment(r.upcast(ev))).provideEnvironment(r.upcast(ev)))
+          layer.build.flatMap(r => managed.map(_.provideEnvironment(r)).provideEnvironment(r))
         )
       case MultipleCase(specs) =>
         Spec.managed(
-          layer.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r.upcast(ev)))))
+          layer.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r))))
         )
       case TestCase(test, annotations) => Spec.test(test.provide(layer), annotations)
     }
@@ -714,7 +714,7 @@ object Spec extends SpecLowPriority {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
-      self.provide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[Spec[R0 with R1, E, T]].provide(ZLayer.environment[R0] ++ layer)
   }
 
   final class ProvideSomeShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {

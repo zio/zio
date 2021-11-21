@@ -93,15 +93,15 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
 
 private final class InjectSomePartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
 
-  def provide[E1 >: E, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+  def provide[E1 >: E](
+    layer: ZLayer[R0, E1, R]
+  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
     self.provide(layer)
 
   @deprecated("use provide", "2.0.0")
-  def provideLayer[E1 >: E, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+  def provideLayer[E1 >: E](
+    layer: ZLayer[R0, E1, R]
+  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
     provide(layer)
 
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
@@ -110,15 +110,15 @@ private final class InjectSomePartiallyApplied[R0, -R, +E, +T](val self: Spec[R,
 
 private final class InjectSomeSharedPartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
 
-  def provideShared[E1 >: E, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+  def provideShared[E1 >: E](
+    layer: ZLayer[R0, E1, R]
+  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
     self.provideShared(layer)
 
   @deprecated("use provideShared", "2.0.0")
-  def provideLayerShared[E1 >: E, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): Spec[R0, E1, T] =
+  def provideLayerShared[E1 >: E](
+    layer: ZLayer[R0, E1, R]
+  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
     provideShared(layer)
 
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
