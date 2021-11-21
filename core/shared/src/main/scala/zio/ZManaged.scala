@@ -811,10 +811,10 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
-  final def provide[E1 >: E, R0, R1](
-    layer: => ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
-    ZManaged.suspend(layer.build.map(_.upcast(ev)).flatMap(r => self.provideEnvironment(r)))
+  final def provide[E1 >: E, R0](
+    layer: => ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): ZManaged[R0, E1, A] =
+    ZManaged.suspend(layer.build.flatMap(r => self.provideEnvironment(r)))
 
   /**
    * Provides the part of the environment that is not part of the `ZEnv`,
@@ -870,9 +870,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
   @deprecated("use provide", "2.0.0")
-  final def provideLayer[E1 >: E, R0, R1](
-    layer: => ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZManaged[R0, E1, A] =
+  final def provideLayer[E1 >: E, R0](
+    layer: => ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): ZManaged[R0, E1, A] =
     provide(layer)
 
   /**
@@ -1575,7 +1575,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZManaged[R0, E1, A] =
-      self.provide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZManaged[R0 with R1, E, A]].provide(ZLayer.environment[R0] ++ layer)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {

@@ -4,7 +4,7 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Clock, Layer, ZIO, ZTraceElement}
+import zio.{Layer, ZIO, ZTraceElement}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -259,7 +259,7 @@ object IntelliJRenderUtils {
     for {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
-             .provide[Nothing, TestEnvironment, TestLogger with Clock](
+             .provide[Nothing, TestEnvironment](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output

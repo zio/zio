@@ -2821,11 +2821,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Provides a layer to the stream, which translates it to another level.
    */
-  final def provide[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
+  final def provide[E1 >: E, R0](
+    layer: ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): ZStream[R0, E1, A] =
     new ZStream(ZChannel.managed(layer.build) { r =>
-      self.channel.provideEnvironment(r.upcast(ev))
+      self.channel.provideEnvironment(r)
     })
 
   /**
@@ -2882,9 +2882,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Provides a layer to the stream, which translates it to another level.
    */
   @deprecated("use provide", "2.0.0")
-  final def provideLayer[E1 >: E, R0, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev: R1 <:< R, trace: ZTraceElement): ZStream[R0, E1, A] =
+  final def provideLayer[E1 >: E, R0](
+    layer: ZLayer[R0, E1, R]
+  )(implicit trace: ZTraceElement): ZStream[R0, E1, A] =
     provide(layer)
 
   /**
@@ -5739,7 +5739,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
-      self.provide[E1, R0, R0 with R1](ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZStream[R0 with R1, E, A]].provide(ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
