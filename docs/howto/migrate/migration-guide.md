@@ -585,7 +585,7 @@ ZIO 2.x reduces one level of indirection by using `ZIO.service` operator:
 val logging : URIO[Logging, Logging] = ZIO.service
 ```
 
-And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWith` operator:
+And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWithZIO` operator:
 
 ```scala mdoc:silent:nest
 def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO(_.log(line))
