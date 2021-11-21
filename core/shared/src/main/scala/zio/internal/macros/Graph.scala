@@ -21,9 +21,11 @@ final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) 
     seen: Set[Node[Key, A]]
   ): Either[::[GraphError[Key, A]], LayerCompose[A]] =
     forEach(node.inputs) { input =>
-      getNodeWithOutput(input, error = GraphError.missingTransitiveDependency(node, input)).flatMap { out =>
-        assertNonCircularDependency(node, seen, out).flatMap(_ => buildNode(out, seen + out))
-      }
+      for {
+        out    <- getNodeWithOutput(input, error = GraphError.missingTransitiveDependency(node, input))
+        _      <- assertNonCircularDependency(node, seen, out)
+        result <- buildNode(out, seen + out)
+      } yield result
     }.map {
       _.distinct.combineHorizontally >>> LayerCompose.succeed(node.value)
     }

@@ -5,7 +5,7 @@ import zio.Chunk
 sealed trait GraphError[+Key, +A]
 
 object GraphError {
-  def missingTransitiveDependency[Key, A](node: Node[Key, A], dependency: Key): MissingTransitiveDependencies[Key, A] =
+  def missingTransitiveDependency[Key, A](node: Node[Key, A], dependency: Key): GraphError[Key, A] =
     MissingTransitiveDependencies(node, Chunk(dependency))
 
   case class MissingTransitiveDependencies[+Key, +A](node: Node[Key, A], dependency: Chunk[Key])

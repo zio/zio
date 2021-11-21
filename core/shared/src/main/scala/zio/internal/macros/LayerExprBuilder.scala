@@ -106,7 +106,7 @@ $body
 
     val transitive = allErrors.collect { case LayerWiringError.MissingTransitive(layer, deps) =>
       layer -> deps
-    }.groupMap(_._1)(_._2).map { case (key, value) => key -> value.flatten }
+    }.groupBy(_._1).map { case (key, value) => key -> value.flatMap(_._2) }
 
     val circularErrors = allErrors.collect { case LayerWiringError.Circular(layer, dep) =>
       layer -> dep
