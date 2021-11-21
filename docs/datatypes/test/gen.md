@@ -80,21 +80,25 @@ Besides the primitive string generator, `Gen.string`, ZIO Test also provides the
 
 ### Generating Fixed Values
 
-1. `Gen.empty` — An empty generator, which generates no values and returns nothing.
-
-2. `Gen.const` — A constant generator of the specified value.
+1. `Gen.const` — A constant generator of the specified value.
 
   ```scala mdoc:compile-only
   Gen.const(true).runCollectN(5)
   // Output: List(true, true, true, true, true)
   ```
 
-3. `Gen.constSample` — A constant generator of the specified sample:
+2. `Gen.constSample` — A constant generator of the specified sample:
 
   ```scala mdoc:compile-only
    Gen.constSample(Sample.noShrink(false)).runCollectN(5)
   // Output: List(true, true, true, true, true)
   ```
+  
+3. `Gen.unit` — A constant generator of the unit value.
+
+4. `Gen.throwable` — A generator of throwables.
+
+Note that there is an empty generator called `Gen.empty`, which generates no values and returns nothing. We can think of that as a generator of empty stream, `Gen(Stream.empty)`.
 
 ### Generating from Fixed Values
 
@@ -261,12 +265,6 @@ test("unfoldGen") {
     .debug
   // Sample Output: List(0.22, 3.02, 1.96, 1.13, 0.81, 0.92, 1.7, 1.47, 1.55, 0.46)
   ```
-
-### Other Generators
-
-* `Gen.throwable`
-* `Gen.unit`
-* `Gen.uuid`
 
 ### Generating Date/Time Types
 
@@ -491,47 +489,49 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 
 ### Sized Generators
 
-1. `Gen.sized`
+1. `Gen.sized` — A sized generator takes a function from `Int` to `Gen[R, A]` and creates a generator by applying a size to that function:
 
-  `````scala mdoc:compile-only
+  ```scala mdoc:compile-only
   Gen.sized(Gen.int(0, _))
     .runCollectN(10)
     .provideCustomLayer(Sized.live(5))
     .debug
-  // Output: List(5, 4, 1, 2, 0, 4, 2, 0, 1, 2)
+  // Sample Output: List(5, 4, 1, 2, 0, 4, 2, 0, 1, 2)
   ```
 
-2. `Gen.size`
+2. `Gen.size` — A generator which accesses the _size_ from the environment and generates that:
 
   ```scala mdoc:compile-only
-  Gen.size.flatMap(Gen.int(0, _))
-    .runCollectN(10)
-    .provideCustomLayer(Sized.live(5))
+  Gen.size
+    .runCollectN(5)
+    .provideCustomLayer(Sized.live(100))
     .debug
-  // Output: List(3, 1, 4, 0, 4, 3, 1, 1, 5, 5)
+  // Output: List(100, 100, 100, 100, 100)
   ```
 
-3. `Gen.small`
+There are also three sized generators, named _small_, _medium_ and _large_, that use an exponential distribution of size values:
+
+1. `Gen.small` — The values generated will be strongly concentrated towards the lower end of the range but a few larger values will still be generated:
 
   ```scala mdoc:compile-only
   Gen.small(Gen.const(_))
-          .runCollectN(10)
-          .provideCustomLayer(Sized.live(1000))
-          .debug
+    .runCollectN(10)
+    .provideCustomLayer(Sized.live(1000))
+    .debug
   // Output: List(6, 39, 73, 3, 57, 51, 40, 12, 110, 46)
   ```
 
-4. `Gen.medium`
+4. `Gen.medium` — The majority of sizes will be towards the lower end of the range but some larger sizes will be generated as well:
 
   ```scala mdoc:compile-only
   Gen.medium(Gen.const(_))
-          .runCollectN(10)
-          .provideCustomLayer(Sized.live(1000))
-          .debug
+    .runCollectN(10)
+    .provideCustomLayer(Sized.live(1000))
+    .debug
   // Output: List(93, 42, 58, 228, 42, 5, 12, 214, 106, 79)
   ```
 
-5. `Gen.large`
+5. `Gen.large` — The values generated will be strongly concentrated towards the lower end of the range but a few larger values will still be generated:
 
   ```scala mdoc:compile-only
   Gen.large(Gen.const(_))
