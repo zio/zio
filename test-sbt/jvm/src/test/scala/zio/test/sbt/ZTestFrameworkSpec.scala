@@ -286,7 +286,7 @@ object ZTestFrameworkSpec {
   }
 
   def assertSourceLocation()(implicit trace: ZTraceElement): String = {
-    val filePath = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, _, _) =>
+    val filePath = Option(trace).collect { case ZTraceElement(_, file, _) =>
       file
     }
     filePath.fold("")(path => cyan(s"at $path:XXX"))
@@ -294,7 +294,7 @@ object ZTestFrameworkSpec {
 
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers(implicit trace: ZTraceElement): String = {
-      val filePath = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, _, _) =>
+      val filePath = Option(trace).collect { case ZTraceElement(_, file, _) =>
         file
       }
       filePath.fold(output)(path => output.replaceAll(Pattern.quote(path + ":") + "\\d+", path + ":XXX"))
