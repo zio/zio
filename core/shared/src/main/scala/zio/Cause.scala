@@ -492,8 +492,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     mapTrace(_ ++ trace)
 
   /**
-   * Returns a homogenized list of failures for the cause. This homogenization process throws
-   * away key information, but it is useful for interop with traditional stack traces.
+   * Returns a homogenized list of failures for the cause. This homogenization
+   * process throws away key information, but it is useful for interop with
+   * traditional stack traces.
    */
   final def unified: List[Unified] = {
     @tailrec
