@@ -545,7 +545,7 @@ There are also three sized generators, named _small_, _medium_ and _large_, that
 
 To run a generator, we can call `runCollect` operation:
 
-```scala mdoc:nest
+```scala mdoc:silent:nest
 val ints: ZIO[Has[Random], Nothing, List[Int]] = intGen.runCollect.debug
 // Output: List(-2090696713)
 ```
