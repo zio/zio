@@ -106,7 +106,7 @@ object TerminalRendering {
        |
        |${message.indent(1)}
        |
-       |${missingLayersString}
+       |$missingLayersString
        |
        | Call your effect's ${"provide".green.bold} method with the layers you need.
        | You can read more about layers and providing services here:
@@ -123,13 +123,13 @@ object TerminalRendering {
     val layerStrings = layers.zipWithIndex.map { case (layer, index) =>
       val i = s"${index + 1}.".faint
       s"$i ${layer.cyan}"
-    }.mkString("\n").indent(2)
+    }.mkString("\n").indent(3)
 
     s"""
        |${title("ZLayer Warning").yellow}
        |
-       |${"You have provided more than is required.".bold}
-       |You may remove the following ${pluralizeLayers(layers.size).bold}:
+       | ${"You have provided more than is required.".bold}
+       | You may remove the following ${pluralizeLayers(layers.size).bold}:
        |   
        |$layerStrings
        |  
@@ -150,7 +150,28 @@ object TerminalRendering {
        |""".stripMargin
   }
 
-  def example: Unit = {
+  def injectSomeNothingEnvError: String = {
+    val message = s"You must provide a type to ${"injectSome".green}.".bold
+    val A       = "A".cyan
+    val B       = "B".magenta
+    val C       = "C".cyan
+    val example = s"effect" + s".injectSome[$B".green + "]".green + "(layer)"
+    s"""${title("ZLayer Error").red}
+       |
+       | $message
+       | Specify the types of the leftover services, e.g.:
+       | 
+       |   val effect: URIO[$A & $B & $C, Unit] = ???
+       |   
+       |   val layer: ULayer[$A & $C] = ???
+       | 
+       |   $example 
+       |       
+       |${line.red}
+       |""".stripMargin
+  }
+
+  def example(_args: Array[String]): Unit = {
     val missing = Map(
       "UserService.live" -> List("zio.Clock", "example.UserService"),
       "Database.live"    -> List("java.sql.Connection"),
@@ -158,6 +179,7 @@ object TerminalRendering {
     )
     println(missingLayersError(List("java.lang.String", "List[Boolean]"), missing))
     println(unusedLayersError(List("java.lang.String", "List[Boolean]", "zio.Console")))
+    println(injectSomeNothingEnvError)
   }
 
   /**
@@ -182,7 +204,7 @@ object TerminalRendering {
    * ──── NAME ───────────────────────────────
    */
   private def title(name: String): String =
-    s"─── ${name.toUpperCase} ".padTo(width, '─')
+    s"──── ${name.toUpperCase} ".padTo(width, '─')
 
   /**
    * A solid line, 80 characters long.

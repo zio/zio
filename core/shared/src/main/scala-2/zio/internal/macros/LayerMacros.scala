@@ -53,16 +53,8 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
     val outType     = weakTypeOf[R]
     val nothingType = weakTypeOf[Nothing]
     if (outType =:= nothingType) {
-      val errorMessage =
-        s"""
-${"  ZLayer Wiring Error  ".red.bold.inverted}
-        
-You must provide a type to ${"injectSome".cyan.bold} (e.g. ${"foo.injectSome".cyan.bold}${"[UserService with Config".red.bold.underlined}${"(AnotherService.live)".cyan.bold})
-
-This type represents the services you are ${"not".underlined} currently injecting, leaving them in the environment until later.
-
-"""
-      c.abort(c.enclosingPosition, errorMessage)
+      val message: String = TerminalRendering.injectSomeNothingEnvError
+      c.abort(c.enclosingPosition, message)
     }
   }
 
