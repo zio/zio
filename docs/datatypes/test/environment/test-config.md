@@ -21,4 +21,4 @@ TestConfig.live(
 )
 ```
 
-So by default, the ZIO Test runner will run tests with this config.
+So by default, the ZIO Test runner will run tests with this config. Regular users do not need access to this service unless they need to change or access configurations from the ZIO Test environment.
