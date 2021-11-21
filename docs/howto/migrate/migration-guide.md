@@ -937,7 +937,7 @@ trait Logging {
 // Accessor Methods Inside the Companion Object
 object Logging {
   def log(line: String): URIO[Logging, Unit] =
-    ZIO.serviceWith(_.log(line))
+    ZIO.serviceWithZIO(_.log(line))
 }
 
 // Implementation of the Service Interface
@@ -1027,7 +1027,7 @@ As we see, we have the following changes:
    
     In Module Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
 
-4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWith(_.log(line))`.
+4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
 
    We also have accessor methods on the fly, by extending the companion object of the service interface with `Accessible`, e.g. `object Logging extends Accessible[Logging]`. So then we can simply access the `log` method by calling the `Logging(_.log(line))` method:
    
