@@ -194,6 +194,7 @@ module.exports = {
             "datatypes/test/environment/random",
             "datatypes/test/environment/system",
             "datatypes/test/environment/live",
+            "datatypes/test/environment/config",
           ]
         },
         "datatypes/test/test-aspect",
