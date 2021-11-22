@@ -354,7 +354,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ) extends ZLayer[RIn, E, ROut3]
 
   /**
-   * Constructs a layerfrom a managed resource.
+   * Constructs a layer from a managed resource.
    */
   def apply[RIn, E, ROut: Tag: IsNotIntersection](managed: ZManaged[RIn, E, ROut])(implicit
     trace: ZTraceElement

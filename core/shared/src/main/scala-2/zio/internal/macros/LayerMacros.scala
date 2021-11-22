@@ -1,12 +1,29 @@
 package zio.internal.macros
 
 import zio._
+import zio.internal.TerminalRendering
 import zio.internal.ansi.AnsiStringOps
 
 import scala.reflect.macros.blackbox
 
 private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
+
+  def validate[Provided: WeakTypeTag, Required: WeakTypeTag](zio: c.Tree): c.Tree = {
+
+    val required = getRequirements[Required]
+    val provided = getRequirements[Provided]
+
+    val missing =
+      required.toSet -- provided.toSet
+
+    if (missing.nonEmpty) {
+      val message = TerminalRendering.missingLayersForZIOApp(missing.map(_.toString))
+      c.abort(c.enclosingPosition, message)
+    }
+
+    zio
+  }
 
   def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
@@ -36,16 +53,8 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
     val outType     = weakTypeOf[R]
     val nothingType = weakTypeOf[Nothing]
     if (outType =:= nothingType) {
-      val errorMessage =
-        s"""
-${"  ZLayer Wiring Error  ".red.bold.inverted}
-        
-You must provide a type to ${"injectSome".cyan.bold} (e.g. ${"foo.injectSome".cyan.bold}${"[UserService with Config".red.bold.underlined}${"(AnotherService.live)".cyan.bold})
-
-This type represents the services you are ${"not".underlined} currently injecting, leaving them in the environment until later.
-
-"""
-      c.abort(c.enclosingPosition, errorMessage)
+      val message: String = TerminalRendering.injectSomeNothingEnvError
+      c.abort(c.enclosingPosition, message)
     }
   }
 

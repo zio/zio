@@ -54,7 +54,8 @@ trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
       typeRepr.show
     }
 
-    def compileError(message: String) : Nothing = report.throwError(message)
+    def compileError(message: String) : Nothing = report.errorAndAbort(message)
+    def compileWarning(message: String) : Unit = report.warning(message)
     def empty: LayerExpr = '{ZLayer.succeed(())}
     def composeH(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
       lhs match {
@@ -79,6 +80,7 @@ trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
       renderTypeRepr,
       renderExpr,
       compileError,
+      compileWarning,
       empty,
       composeH,
       composeV
