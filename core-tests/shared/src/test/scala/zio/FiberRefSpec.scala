@@ -5,7 +5,8 @@ import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
 
-object FiberRefSpec extends ZIOBaseNewSpec {
+// TODO Figure out failures when this is using the new Spec style.
+object FiberRefSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
@@ -374,7 +375,7 @@ object FiberRefSpec extends ZIOBaseNewSpec {
         } yield assert(person)(equalTo(Person("Jane Doe", 43)))
       }
     )
-  ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
+  ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber) @@ TestAspect.sequential
 }
 
 object FiberRefSpecUtil {

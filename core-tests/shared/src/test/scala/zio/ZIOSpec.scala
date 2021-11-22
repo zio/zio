@@ -10,7 +10,7 @@ import zio.test._
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-object ZIOSpec extends ZIOBaseSpec {
+object ZIOSpec extends ZIOBaseNewSpec {
 
   import ZIOTag._
 
