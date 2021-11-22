@@ -10,6 +10,43 @@ trait Sized extends Serializable {
   def size: UIO[Int]
   def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A]
 }
+
+object Sized {
+  def size: URIO[Has[Sized], Int] = ???
+  def withSize[R <: Has[Sized], E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] = ???
+}
+```
+
+The `Sized` service has two APIs:
+
+1. `Sized.size` — To access the default _size_ value from the environment, we can use the `Sized.size` API.
+
+2. `Sized.withSize` — To change the default _size_ temporarily, we can use the `Size.withSize`. It takes a `size` and a ZIO effect, and runs that effect bounded with the given `size`:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test._
+
+val effect     : UIO[String]             = ZIO.succeed("effect")
+val sizedEffect: RIO[Has[Sized], String] = Sized.withSize(10)(effect)
+```
+
+ZIO Test has a test aspect called `TestAspect.sized` which is a helper method for this operation. This test aspect runs each test with the given _size_ value:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test._
+
+object SizedSpec extends DefaultRunnableSpec {
+  def spec =
+    suite("sized") {
+      test("bounded int generator shouldn't cross its boundaries") {
+        check(Gen.sized(Gen.int(0, _))) { n =>
+          assertTrue(n >= 0 && n <= 200)
+        }
+      } @@ TestAspect.sized(200)
+    }
+}
 ```
 
 For example, the `Gen.sized` generator has the following signature:
