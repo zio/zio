@@ -6,7 +6,7 @@ import zio.test.Assertion.{equalTo, isLeft}
 import zio.test.AssertionM.Render.param
 import zio.test._
 
-object AutoWireSpec extends ZIOBaseSpec {
+object AutoWireSpec extends ZIOBaseNewSpec {
 
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
@@ -133,7 +133,12 @@ object AutoWireSpec extends ZIOBaseSpec {
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
               program.injectCustom(stringLayer)
 
-            assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
+            for {
+                random <- ZManaged.service[Random]
+                _ <- ZIO.debug(random).toManaged
+                result <- provided.toManaged
+            } yield assert(result)(equalTo("Your Lucky Number is: -1295463240"))
+//            assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
           }
         ),
         suite("injectSome")(
@@ -292,7 +297,12 @@ object AutoWireSpec extends ZIOBaseSpec {
             val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged *>
               program.injectCustom(stringLayer)
 
-            assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
+//            assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
+            for {
+              random <- ZManaged.service[Random]
+              _ <- ZIO.debug(random).toManaged
+              result <- provided
+            } yield assert(result)(equalTo("Your Lucky Number is: -1295463240"))
           }
         ),
         suite("injectSome")(

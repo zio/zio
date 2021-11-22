@@ -22,6 +22,28 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render._
 
+trait SpecLayer[Environment] {
+  def layer: ZLayer[ZIOAppArgs, Any, Environment]
+}
+object SpecLayer {
+  def apply[T](layerInput: ZLayer[ZIOAppArgs, Any, T]) =
+    new SpecLayer[T] {
+      override def layer: ZLayer[ZIOAppArgs, Any, T] = layerInput
+    }
+
+  final def composeLayers[T, U](
+                                 self: SpecLayer[T],
+                                 that: SpecLayer[U]
+                               )(implicit trace: ZTraceElement): SpecLayer[T with U] = {
+
+    new SpecLayer[T with U] {
+      override def layer: ZLayer[ZIOAppArgs, Any, T with U] =
+        self.layer +!+ that.layer
+    }
+  }
+
+
+}
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
@@ -41,7 +63,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     implicit val trace = Tracer.newTrace
     runSpec.provideSome[ZEnv with ZIOAppArgs](TestEnvironment.live ++ layer)
   }
-
+  
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
@@ -108,10 +130,11 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       runner =
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs, Any](
-            ZLayer.succeedMany(env)
+            ZLayer.succeedMany(env) +!+ testEnvironment
           )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
+      // TODO Consider something that outputs Stream[ExecutedSpec[Any]] here?
       results <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provide(runner.bootstrap)
       _ <- TestLogger
