@@ -6,7 +6,7 @@ import zio.test._
 
 import java.util.concurrent.atomic.AtomicReference
 
-object FiberRefSpecJvm extends ZIOBaseSpec {
+object FiberRefSpecJvm extends ZIOBaseNewSpec {
 
   def spec: Spec[Environment, TestFailure[Any], TestSuccess] = suite("FiberRefSpecJvm")(
     test("unsafe handles behave properly if fiber specific data cannot be accessed") {

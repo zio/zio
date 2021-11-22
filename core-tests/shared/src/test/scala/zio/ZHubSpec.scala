@@ -2,7 +2,7 @@ package zio
 
 import zio.test.Assertion._
 import zio.test._
-object ZHubSpec extends ZIOBaseSpec {
+object ZHubSpec extends ZIOBaseNewSpec {
 
   val smallInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_), 1)

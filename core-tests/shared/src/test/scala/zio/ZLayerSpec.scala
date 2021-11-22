@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
 
-object ZLayerSpec extends ZIOBaseSpec {
+object ZLayerSpec extends ZIOBaseNewSpec {
 
   import ZIOTag._
 
