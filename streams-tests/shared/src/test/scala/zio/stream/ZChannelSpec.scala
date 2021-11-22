@@ -4,7 +4,8 @@ import zio._
 import zio.test.Assertion._
 import zio.test._
 
-object ZChannelSpec extends ZIOBaseNewSpec {
+// TODO Confirm migration problems
+object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: Spec[Random with TestClock with TestConsole with TestRandom with TestSystem with Annotations, TestFailure[

@@ -11,7 +11,8 @@ import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
-object ZStreamSpec extends ZIOBaseNewSpec {
+// TODO Confirm migration problems
+object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
