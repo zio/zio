@@ -8,7 +8,6 @@ The `Sized` service enables the _Sized Generators_ to access the _size_ from the
 ```scala mdoc:invisible
 import zio._
 import zio.test._
-import zio.test.environment._
 ```
 
 ```scala mdoc:compile-only
@@ -33,7 +32,7 @@ To access the default _size_ value from the environment, we can use the `Sized.s
 
 ```scala mdoc:compile-only
 object Sized {
-  def withSize[R <: Has[Sized], E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] = ???
+  def withSize[R <: Sized, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] = ???
 }
 ```
 
@@ -41,7 +40,7 @@ For example, the `Gen.sized` generator has the following signature:
 
 ```scala mdoc:compile-only
 object Gen {
-  def sized[R <: Has[Sized], A](f: Int => Gen[R, A]): Gen[R, A] = ???
+  def sized[R <: Sized, A](f: Int => Gen[R, A]): Gen[R, A] = ???
 }
 ```
 
@@ -53,14 +52,14 @@ In the following example, we are creating a sized generator, which generates int
 import zio._
 import zio.test._
 
-val sizedInts: Gen[Has[Random] with Has[Sized], Int] = 
+val sizedInts: Gen[Random with Sized, Int] = 
   Gen.sized(Gen.int(0, _))
 ```
 
 To generate some sample values, we can use `Gen#runCollectN` operator on that:
 
 ```scala mdoc:silent:nest
-val samples: URIO[Has[Random] with Has[Sized], List[Int]] = 
+val samples: URIO[Random with Sized, List[Int]] = 
   sizedInts.runCollectN(5).debug
 ```
 
@@ -68,7 +67,7 @@ The return type requires _Random_ and _Sized_ services. Therefore, to run this e
 
 ```scala mdoc:silent:nest
 zio.Runtime.default.unsafeRun(
-  samples.provideCustomLayer(Sized.live(100)) 
+  samples.provideCustom(Sized.live(100)) 
 )
 // Sample Output: List(34, 44, 89, 14, 15)
 ```
@@ -77,14 +76,14 @@ The previous example was for educational purposes. In the real world, when we ar
 
 ```scala mdoc:compile-only
 type TestEnvironment =
-  Has[Annotations]
-    with Has[Live]
-    with Has[Sized]
-    with Has[TestClock]
-    with Has[TestConfig]
-    with Has[TestConsole]
-    with Has[TestRandom]
-    with Has[TestSystem]
+  Annotations
+    with Live
+    with Sized
+    with TestClock
+    with TestConfig
+    with TestConsole
+    with TestRandom
+    with TestSystem
     with ZEnv
 ```
 
@@ -109,7 +108,7 @@ To change the default _size_ temporarily, we can use the `Size.withSize`. It tak
 
 ```scala mdoc:compile-only
 object Sized {
-  def withSize[R <: Has[Sized], E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] = ???
+  def withSize[R <: Sized, E, A](size: Int)(zio: ZIO[R, E, A]): ZIO[R, E, A] = ???
 }
 ```
 
@@ -118,7 +117,7 @@ import zio._
 import zio.test._
 
 val effect     : UIO[String]             = ZIO.succeed("effect")
-val sizedEffect: RIO[Has[Sized], String] = Sized.withSize(10)(effect)
+val sizedEffect: RIO[Sized, String] = Sized.withSize(10)(effect)
 ```
 
 ZIO Test has a test aspect called `TestAspect.sized` which is a helper method for this operation. This test aspect runs each test with the given _size_ value:

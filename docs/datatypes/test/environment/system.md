@@ -9,7 +9,7 @@ Internally, `TestSystem` maintains mappings of environment variables and system 
 
 ```scala mdoc:compile-only
 import zio.System
-import zio.test.environment.TestSystem
+import zio.test._
 
 for {
   _      <- TestSystem.putProperty("java.vm.name", "VM")

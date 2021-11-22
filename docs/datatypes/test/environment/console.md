@@ -12,9 +12,9 @@ All calls to `print` and `printLine` using the `TestConsole` will write the stri
 Together, these functions make it easy to test programs interacting with the console.
 
 ```scala mdoc:compile-only
+import zio._
+import zio.test._
 import zio.Console._
-import zio.test.environment.TestConsole
-import zio.ZIO
 
 val sayHello = for {
   name <- readLine

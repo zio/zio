@@ -17,9 +17,7 @@ val myProgram = test("my suite")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only
-import zio.test.environment._
-
-myProgram.provideLayer(testEnvironment)
+myProgram.provide(testEnvironment)
 ```
 
 Then all environmental effects, such as printing to the console or generating random numbers, will be implemented by the `TestEnvironment` and will be fully testable. When we do need to access the "live" environment, for example to print debugging information to the console, we just use the `live` combinator along with the effect as our normally would. 
@@ -28,22 +26,16 @@ If we are only interested in one of the test implementations for our application
 
 ```scala mdoc:invisible:nest
 import zio.test._
-import zio.Has
-import zio.test.environment.TestConsole
-val myProgram: ZSpec[Has[TestConsole], Nothing] = test("my suite")(assertTrue(true))
+val myProgram: ZSpec[TestConsole, Nothing] = test("my suite")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only
-import zio.test.environment._
-
-myProgram.provideLayer(TestConsole.make(TestConsole.Data()))
+myProgram.provide(TestConsole.make(TestConsole.Data()))
 ```
 
 Finally, we can create a `Test` object that implements the test interface directly using the `makeTest` method. This can be useful when we want to access some testing functionality without using the environment type:
 
 ```scala mdoc:compile-only
-import zio.test.environment._
-
 for {
   testRandom <- TestRandom.makeTest(TestRandom.DefaultData)
   n          <- testRandom.nextInt

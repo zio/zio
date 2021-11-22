@@ -51,7 +51,6 @@ To do that we can use `jvmOnly`, `jsOnly` or `nativeOnly` aspects:
 import zio._
 import zio.test.{test, _}
 import zio.test.TestAspect._
-import zio.test.environment.live
 
 test("Java virtual machine name can be accessed") {
   for {

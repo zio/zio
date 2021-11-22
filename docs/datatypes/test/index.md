@@ -122,7 +122,7 @@ import zio._
 import zio.test.{test, _}
 import zio.test.Assertion._
 
-val kafkaLayer: ZLayer[Any, Nothing, Has[Int]] = ZLayer.succeed(1)
+val kafkaLayer: ZLayer[Any, Nothing, Int] = ZLayer.succeed(1)
 val test1 = test("kafkatest")(assertTrue(true))
 val test2 = test("kafkatest")(assertTrue(true))
 val test3 = test("kafkatest")(assertTrue(true))

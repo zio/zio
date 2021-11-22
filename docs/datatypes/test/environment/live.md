@@ -30,7 +30,6 @@ To run the `Clock.currentTime` within the live environment, we should use the `L
 import zio._
 import zio.test.{test, _}
 import zio.test.Assertion._
-import zio.test.environment._
 
 import java.util.concurrent.TimeUnit
 
@@ -51,7 +50,6 @@ For example, assume we have a long-running task that is required to run within t
 import zio._
 import zio.test.{test, _}
 import zio.test.Assertion._
-import zio.test.environment._
 
 val longRunningSUT =
   ZIO.attemptBlockingInterrupt {

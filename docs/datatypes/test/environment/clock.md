@@ -12,7 +12,6 @@ For example, here is how we can test `ZIO#timeout` using `TestClock`:
 ```scala mdoc:compile-only
 import zio._
 import zio.ZIO
-import zio.test.environment.TestClock
 
 for {
   fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork

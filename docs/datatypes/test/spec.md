@@ -47,11 +47,10 @@ Let's see how we can test the `sayHello` function, which uses the `Console` serv
 import zio._
 import zio.test.{test, _}
 import zio.test.Assertion._
-import zio.test.environment._
 
 import java.io.IOException
 
-def sayHello: ZIO[Has[Console], IOException, Unit] =
+def sayHello: ZIO[Console, IOException, Unit] =
   Console.printLine("Hello, World!")
 
 suite("HelloWorldSpec")(
@@ -121,7 +120,7 @@ suite("a test suite with shared kafka layer")(
   test("consuming elements from the kafka service") {
     assertM(Kafka.consume(topic = "testTopic"))(Assertion.anything)
   }
-).provideCustomLayerShared(EmbeddedKafka.layer)
+).provideCustomShared(EmbeddedKafka.layer)
 ```
 
 ```scala mdoc:reset

@@ -15,7 +15,7 @@ The `TestRandom` service operates in two modes:
 
 ```scala mdoc:compile-only
 import zio.Random
-import zio.test.environment.TestRandom
+import zio.test._
 
 for {
   _ <- TestRandom.feedInts(4, 5, 2)
