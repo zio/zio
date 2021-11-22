@@ -412,26 +412,26 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Creates a pipeline that maps elements with the specified effect.
    */
-  def mapZIO[R1, E1, In, Out](
-    f: In => ZIO[R1, E1, Out]
+  def mapZIO[Env, Err, In, Out](
+    f: In => ZIO[Env, Err, Out]
   ): ZPipeline.WithOut[
-    R1,
+    Nothing,
+    Env,
+    Err,
     Any,
     Nothing,
-    E1,
-    Nothing,
     In,
-    ({ type OutEnv[Env] = R1 })#OutEnv,
-    ({ type OutErr[Err] = E1 })#OutErr,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Out })#OutElem
   ] =
-    new ZPipeline[R1, Any, Nothing, E1, Nothing, In] {
-      type OutEnv[Env]   = R1
-      type OutErr[Err]   = E1
+    new ZPipeline[Nothing, Env, Err, Any, Nothing, In] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = Err
       type OutElem[Elem] = Out
-      def apply[R >: R1, E <: E1, A <: In](stream: ZStream[R, E, A])(implicit
+      def apply[Env1 <: Env, Err1 >: Err, Elem <: In](stream: ZStream[Env1, Err1, Elem])(implicit
         trace: ZTraceElement
-      ): ZStream[R1, E1, Out] =
+      ): ZStream[Env1, Err1, Out] =
         stream.mapZIO(f)
     }
 
