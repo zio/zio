@@ -6,7 +6,7 @@ import zio.test._
 
 import scala.io.Source
 
-object ZPipelineSpec extends ZIOBaseSpec {
+object ZPipelineSpec extends ZIOBaseNewSpec {
 
   def spec =
     suite("ZPipelineSpec")(

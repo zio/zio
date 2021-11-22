@@ -6,7 +6,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.jvmOnly
 import zio.test._
 
-object ZSinkSpec extends ZIOBaseSpec {
+object ZSinkSpec extends ZIOBaseNewSpec {
 
   import ZIOTag._
 
