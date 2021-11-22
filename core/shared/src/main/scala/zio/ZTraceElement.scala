@@ -41,12 +41,7 @@ object ZTraceElement {
 
         val (before, after) = if (last < 0) ("", "." + location) else location.splitAt(last)
 
-        def stripSlash(file: String): String = {
-          val last = file.lastIndexOf("/")
-          if (last < 0) file else file.drop(last + 1)
-        }
-
-        Some(new StackTraceElement(before, after.drop(1), stripSlash(file), line))
+        Some(new StackTraceElement(before, after.drop(1), file, line))
 
       case _ => None
     }
