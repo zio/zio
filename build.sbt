@@ -202,7 +202,7 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val macrosJVM    = macros.jvm
 lazy val macrosJS     = macros.js
-lazy val macrosNative = macros.native
+lazy val macrosNative = macros.native.settings(nativeSettings)
 
 lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros-tests"))
