@@ -239,7 +239,7 @@ object IntelliJRenderUtils {
     s"##teamcity[testSuiteFinished name='$name']" + "\n"
 
   def testStarted(name: String)(implicit trace: ZTraceElement): String = {
-    val location = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, line, _) =>
+    val location = Option(trace).collect { case ZTraceElement(_, file, line) =>
       (file, line)
     }
 

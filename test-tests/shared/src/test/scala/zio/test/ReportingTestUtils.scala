@@ -271,7 +271,7 @@ object ReportingTestUtils {
   )
 
   def assertSourceLocation()(implicit trace: ZTraceElement): String =
-    Option(trace).collect { case ZTraceElement.SourceLocation(_, path, line, _) =>
+    Option(trace).collect { case ZTraceElement(_, path, line) =>
       cyan(s"at $path:$line")
     }.getOrElse("")
 }

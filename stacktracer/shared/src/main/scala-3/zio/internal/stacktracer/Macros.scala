@@ -24,10 +24,9 @@ object Macros {
     }
 
     val pos    = Position.ofMacroExpansion
-    val file   = pos.sourceFile.path.toString
+    val file   = pos.sourceFile.name
     val line   = pos.startLine + 1
-    val column = pos.startColumn
-    createTrace(location, file, line, column)
+    createTrace(location, file, line)
   }
 
   def newTraceImpl(using ctx: Quotes): Expr[Tracer.instance.Type] =

@@ -207,7 +207,7 @@ package object test extends CompileVariants {
     assertion: AssertionM[A],
     expression: Option[String]
   )(implicit trace: ZTraceElement): TestResult = {
-    val sourceLocation = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, line, _) =>
+    val sourceLocation = Option(trace).collect { case ZTraceElement(_, file, line) =>
       s"$file:$line"
     }
 

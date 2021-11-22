@@ -32,29 +32,8 @@ final case class ZTrace(
    * Converts the ZIO trace into a Java stack trace, by converting each trace
    * element into a Java stack trace element.
    */
-  def toJava: Chunk[StackTraceElement] = {
-    val chunkBuilder  = ChunkBuilder.make[StackTraceElement](stackTrace.size)
-    val chunkIterator = stackTrace.chunkIterator
-    var index         = 0
-    var previous      = -1
-    while (chunkIterator.hasNextAt(index)) {
-      chunkIterator.nextAt(index) match {
-        case ZTraceElement.SourceLocation(location, file, line, _) if line != previous =>
-          previous = line
-          val last            = location.lastIndexOf(".")
-          val (before, after) = if (last < 0) ("", "." + location) else location.splitAt(last)
-          def stripSlash(file: String): String = {
-            val last = file.lastIndexOf("/")
-            if (last < 0) file else file.drop(last + 1)
-          }
-          val stackTraceElement = new StackTraceElement(before, after.drop(1), stripSlash(file), line)
-          chunkBuilder += stackTraceElement
-        case _ =>
-      }
-      index += 1
-    }
-    chunkBuilder.result()
-  }
+  def toJava: Chunk[StackTraceElement] =
+    stackTrace.flatMap(ZTraceElement.toJava)
 }
 
 object ZTrace {

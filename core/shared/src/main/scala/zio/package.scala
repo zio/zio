@@ -87,17 +87,6 @@ package object zio
   type Semaphore = stm.TSemaphore
 
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
-  object ZTraceElement {
-    val empty: ZTraceElement      = Tracer.instance.empty
-    val NoLocation: ZTraceElement = Tracer.instance.empty
-    object SourceLocation {
-      def apply(location: String, file: String, line: Int, column: Int): ZTraceElement =
-        Tracer.instance.apply(location, file, line, column)
-
-      def unapply(trace: ZTraceElement): Option[(String, String, Int, Int)] =
-        Tracer.instance.unapply(trace)
-    }
-  }
 
   trait IsNotIntersection[A] extends Serializable
 
