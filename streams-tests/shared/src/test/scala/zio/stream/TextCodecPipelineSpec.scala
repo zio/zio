@@ -7,7 +7,8 @@ import zio.test._
 
 import java.nio.charset.{Charset, StandardCharsets}
 
-object TextCodecPipelineSpec extends ZIOBaseNewSpec {
+// TODO Confirm migration problems
+object TextCodecPipelineSpec extends ZIOBaseSpec {
 
   type UtfDecodingPipeline = ZPipeline.WithOut[
     Nothing,

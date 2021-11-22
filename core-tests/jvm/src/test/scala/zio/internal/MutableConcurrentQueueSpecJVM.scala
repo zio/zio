@@ -1,7 +1,7 @@
 package zio.internal
 
 import zio.SerializableSpecHelpers._
-import zio.ZIOBaseNewSpec
+import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
 
@@ -11,7 +11,8 @@ import zio.test._
  *
  * Concurrent tests are run via jcstress and are in [[RingBufferConcurrencyTests]].
  */
-object MutableConcurrentQueueSpecJVM extends ZIOBaseNewSpec {
+// TODO Confirm migration problems
+object MutableConcurrentQueueSpecJVM extends ZIOBaseSpec {
 
   def spec = suite("MutableConcurrentQueueSpec")(
     suite("Serialization works for")(
