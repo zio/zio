@@ -1,7 +1,7 @@
 package zio
 
 import zio.test._
-import zio.test.TestAspect._
+import zio.test.TestAspect.jvmOnly
 
 object RuntimeSpec extends ZIOBaseSpec {
   val r = Runtime.default

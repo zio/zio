@@ -233,7 +233,7 @@ trait Runtime[+R] {
             case t: Throwable =>
               val builder = stackTraceBuilder.value
 
-              chunkBuilder += zio.trace 
+              chunkBuilder += zio.trace
 
               if (x1 ne null) {
                 builder += x1.trace
