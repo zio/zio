@@ -3,7 +3,7 @@ package zio.internal.metrics
 import zio._
 import zio.test._
 
-object ConcurrentSummarySpec extends ZIOBaseSpec {
+object ConcurrentSummarySpec extends ZIOBaseNewSpec {
   override def spec: ZSpec[Environment, Any] =
     suite("ConcurrentSummary")(
       test("single observe works with maxSize = 0") {

@@ -1,6 +1,6 @@
 package zio.internal
 
-import zio.ZIOBaseSpec
+import zio.ZIOBaseNewSpec
 import zio.test.Assertion._
 import zio.test._
 
@@ -10,7 +10,7 @@ import zio.test._
  *
  * Concurrent tests are run via jcstress and are in [[RingBufferConcurrencyTests]].
  */
-object MutableConcurrentQueueSpec extends ZIOBaseSpec {
+object MutableConcurrentQueueSpec extends ZIOBaseNewSpec {
 
   def spec = suite("MutableConcurrentQueueSpec")(
     suite("Make a bounded MutableConcurrentQueue")(

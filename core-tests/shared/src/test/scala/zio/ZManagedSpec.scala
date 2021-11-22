@@ -9,7 +9,7 @@ import zio.test._
 import scala.concurrent.ExecutionContext
 
 // Confirmed test hang in new form
-object ZManagedSpec extends ZIOBaseSpec {
+object ZManagedSpec extends ZIOBaseNewSpec {
 
   import ZIOTag._
 
