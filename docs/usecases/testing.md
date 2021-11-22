@@ -4,33 +4,6 @@ title:  "Testing"
 ---
 
 
-From there the fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
-
-```scala mdoc:silent
-import zio._
-import zio.test._
-import zio.test.Assertion._
-
-import java.io.IOException
-
-import HelloWorld._
-
-object HelloWorld {
-  def sayHello: ZIO[Console, IOException, Unit] =
-    Console.printLine("Hello, World!")
-}
-
-object HelloWorldSpec extends DefaultRunnableSpec {
-  def spec = suite("HelloWorldSpec")(
-    test("sayHello correctly displays output") {
-      for {
-        _      <- sayHello
-        output <- TestConsole.output
-      } yield assert(output)(equalTo(Vector("Hello, World!\n")))
-    }
-  )
-}
-```
 
 In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. In the example above, our test involved the effect of printing to the console but we didn't have to do anything differently in our test.
 

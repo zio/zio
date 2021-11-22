@@ -17,3 +17,33 @@ libraryDependencies ++= Seq(
 )
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 ```
+
+## Our Fist Lines of ZIO Test
+
+The fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program you can run from within SBT using `test:run` or by using `test` with the SBT test runner.
+
+```scala mdoc:silent
+import zio._
+import zio.test._
+import zio.test.Assertion._
+
+import java.io.IOException
+
+import HelloWorld._
+
+object HelloWorld {
+  def sayHello: ZIO[Console, IOException, Unit] =
+    Console.printLine("Hello, World!")
+}
+
+object HelloWorldSpec extends DefaultRunnableSpec {
+  def spec = suite("HelloWorldSpec")(
+    test("sayHello correctly displays output") {
+      for {
+        _      <- sayHello
+        output <- TestConsole.output
+      } yield assert(output)(equalTo(Vector("Hello, World!\n")))
+    }
+  )
+}
+```
