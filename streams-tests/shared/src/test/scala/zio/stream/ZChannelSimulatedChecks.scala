@@ -3,9 +3,9 @@ package zio.stream
 import zio.stream.ZChannelSimulatedChecks.Simulation.{opsToDoneChannel, opsToEffect, opsToOutChannel}
 import zio.test.Assertion._
 import zio.test._
-import zio.{Chunk, IO, Random, ZIO, ZIOBaseSpec}
+import zio.{Chunk, IO, Random, ZIO, ZIOBaseNewSpec}
 
-object ZChannelSimulatedChecks extends ZIOBaseSpec {
+object ZChannelSimulatedChecks extends ZIOBaseNewSpec {
   override def spec =
     suite("ZChannel simulated checks")(
       test("done channel")(
