@@ -17,8 +17,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.{ZIO, ZIOAppArgs, ZLayer}
-import zio.test.{AbstractRunnableSpec, SpecLayer, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
+import zio.ZIO
+import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -152,7 +152,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
                     ),
                     legacyTests
                   )
-                case None => 
+                case None =>
                   println("First new spec. Nothing to combine with yet")
                   (Some(taskNew), legacyTests)
               }

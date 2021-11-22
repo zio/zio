@@ -134,9 +134,9 @@ object AutoWireSpec extends ZIOBaseNewSpec {
               program.injectCustom(stringLayer)
 
             for {
-                random <- ZManaged.service[Random]
-                _ <- ZIO.debug(random).toManaged
-                result <- provided.toManaged
+              random <- ZManaged.service[Random]
+              _      <- ZIO.debug(random).toManaged
+              result <- provided.toManaged
             } yield assert(result)(equalTo("Your Lucky Number is: -1295463240"))
 //            assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
           }
@@ -300,7 +300,7 @@ object AutoWireSpec extends ZIOBaseNewSpec {
 //            assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
             for {
               random <- ZManaged.service[Random]
-              _ <- ZIO.debug(random).toManaged
+              _      <- ZIO.debug(random).toManaged
               result <- provided
             } yield assert(result)(equalTo("Your Lucky Number is: -1295463240"))
           }

@@ -41,7 +41,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     implicit val trace = Tracer.newTrace
     runSpec.provideSome[ZEnv with ZIOAppArgs](TestEnvironment.live ++ layer)
   }
-  
+
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
