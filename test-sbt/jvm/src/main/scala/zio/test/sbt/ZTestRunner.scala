@@ -17,8 +17,8 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.ZIO
-import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
+import zio.{ZIO, ZIOAppArgs, ZLayer}
+import zio.test.{AbstractRunnableSpec, SpecLayer, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -147,12 +147,14 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
                         existingNewTestTask.testClassLoader,
                         existingNewTestTask.sendSummary zip taskNew.sendSummary,
                         existingNewTestTask.args,
-                        existingNewTestTask.newSpec <> (taskNew.newSpec)
+                        existingNewTestTask.newSpec <> taskNew.newSpec
                       )
                     ),
                     legacyTests
                   )
-                case None => (Some(taskNew), legacyTests)
+                case None => 
+                  println("First new spec. Nothing to combine with yet")
+                  (Some(taskNew), legacyTests)
               }
             case other =>
               throw new RuntimeException("Other case: " + other)

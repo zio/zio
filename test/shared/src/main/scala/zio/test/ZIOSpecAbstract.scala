@@ -22,28 +22,6 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render._
 
-trait SpecLayer[Environment] {
-  def layer: ZLayer[ZIOAppArgs, Any, Environment]
-}
-object SpecLayer {
-  def apply[T](layerInput: ZLayer[ZIOAppArgs, Any, T]) =
-    new SpecLayer[T] {
-      override def layer: ZLayer[ZIOAppArgs, Any, T] = layerInput
-    }
-
-  final def composeLayers[T, U](
-                                 self: SpecLayer[T],
-                                 that: SpecLayer[U]
-                               )(implicit trace: ZTraceElement): SpecLayer[T with U] = {
-
-    new SpecLayer[T with U] {
-      override def layer: ZLayer[ZIOAppArgs, Any, T with U] =
-        self.layer +!+ that.layer
-    }
-  }
-
-
-}
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp { self =>
 

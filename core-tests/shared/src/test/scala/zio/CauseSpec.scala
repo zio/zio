@@ -4,8 +4,8 @@ import zio.Cause.{Both, Then, empty}
 import zio.test.Assertion._
 import zio.test._
 
-object CauseSpec extends ZIOBaseSpec {
-  override def aspects: List[TestAspect.WithOut[
+object CauseSpec extends ZIOBaseNewSpec {
+  override def aspects: Chunk[TestAspect.WithOut[
     Nothing,
     TestEnvironment,
     Nothing,
@@ -13,8 +13,8 @@ object CauseSpec extends ZIOBaseSpec {
     ({ type OutEnv[Env] = Env })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ]] =
-    if (TestPlatform.isJVM) List(TestAspect.timeout(10.minutes))
-    else List(TestAspect.sequential, TestAspect.timeout(10.minutes))
+    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(10.minutes))
+    else Chunk(TestAspect.sequential, TestAspect.timeout(10.minutes))
 
   def spec = suite("CauseSpec")(
     suite("Cause")(
