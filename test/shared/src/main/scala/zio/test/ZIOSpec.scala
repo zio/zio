@@ -23,4 +23,22 @@ abstract class ZIOSpec[R: Tag] extends ZIOSpecAbstract { self =>
   type Environment = R
 
   final val tag: Tag[R] = Tag[R]
+
+  // TODO Needed? Dedup at least.
+  /**
+   * Builds a spec with a single test.
+   */
+  def test[In](label: String)(
+    assertion: => In
+  )(implicit
+    testConstructor: TestConstructor[Nothing, In],
+    trace: ZTraceElement
+  ): testConstructor.Out =
+    zio.test.test(label)(assertion)
+
+  def suite[In](label: String)(specs: In*)(implicit
+    suiteConstructor: SuiteConstructor[In],
+    trace: ZTraceElement
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
+    zio.test.suite(label)(specs: _*)
 }

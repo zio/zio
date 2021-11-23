@@ -3,7 +3,7 @@ package zio
 import zio.test._
 import zio.test.TestAspect._
 
-object ZEnvironmentIssuesSpec extends DefaultRunnableSpec {
+object ZEnvironmentIssuesSpec extends ZIOSpecDefault {
 
   def spec = suite("ZEnvironmentIssuesSpec")(
     test("Providing a subtype") {

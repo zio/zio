@@ -198,5 +198,6 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 private[junit] class TestFailed(message: String, cause: Throwable = null)
     extends Throwable(message, cause, false, false)
 
+// TODO What to do here? Are these being run as part of the normal CI process?
 @RunWith(classOf[ZTestJUnitRunner])
 abstract class JUnitRunnableSpec extends DefaultRunnableSpec

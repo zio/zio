@@ -63,7 +63,7 @@ trait ZIOBaseNewSpec extends ZIOSpecDefault {
   /**
    * Builds a spec with a single test.
    */
-  def test[In](label: String)(
+  override def test[In](label: String)(
     assertion: => In
   )(implicit
     testConstructor: TestConstructor[Nothing, In],
@@ -71,7 +71,7 @@ trait ZIOBaseNewSpec extends ZIOSpecDefault {
   ): testConstructor.Out =
     zio.test.test(label)(assertion)
 
-  def suite[In](label: String)(specs: In*)(implicit
+  override def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
     trace: ZTraceElement
   ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =

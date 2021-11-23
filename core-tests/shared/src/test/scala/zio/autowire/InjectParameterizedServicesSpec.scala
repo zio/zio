@@ -5,9 +5,9 @@ import zio.test._
 import zio.ULayer
 
 // https://github.com/kitlangton/zio-magic/issues/76
-object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
+object InjectParameterizedServicesSpec extends ZIOSpecDefault {
 
-  def spec: ZSpec[Environment, Failure] = suite("Samples")(
+  def spec = suite("Samples")(
     test("compiles with ParameterisedServiceImpl1 direct usage") {
       ParameterizedService.something[String].as(assertCompletes)
     }.inject(ParameterisedServiceWithoutTypeAlias.live),
