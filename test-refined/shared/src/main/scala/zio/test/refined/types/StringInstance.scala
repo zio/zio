@@ -24,7 +24,7 @@ trait StringInstance {
   def finiteStringGen[N <: Int]: FiniteStringPartiallyApplied[N, MaxSize[N]] =
     new FiniteStringPartiallyApplied[N, MaxSize[N]](0)
   def nonEmptyStringGen[R](charGen: Gen[R, Char]): Gen[R with Random with Sized, NonEmptyString] =
-    Gen.string(charGen).map(Refined.unsafeApply)
+    Gen.string1(charGen).map(Refined.unsafeApply)
   def nonEmptyFiniteStringGen[N <: Int]: FiniteStringPartiallyApplied[N, Size[Interval.Closed[_1, N]]] =
     new FiniteStringPartiallyApplied[N, Size[Interval.Closed[_1, N]]](1)
   def trimmedStringGen[R](charGen: Gen[R, Char]): Gen[R with Random with Sized, TrimmedString] =
