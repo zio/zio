@@ -1,16 +1,8 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.test.{
-  AbstractRunnableSpec,
-  FilteredSpec,
-  SummaryBuilder,
-  TestArgs,
-  TestLogger,
-  TestEnvironment,
-  ZIOSpecAbstract
-}
-import zio.{Chunk, Clock, Layer, Runtime, UIO, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
+import zio.{Chunk, Clock, Layer, Runtime, RuntimeConfigFlag, UIO, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -74,6 +66,7 @@ abstract class BaseTestTask(
       spec match {
         case NewSpecWrapper(zioSpec) =>
           Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
+//            Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig.copy(runtimeConfigFlags = zioSpec.runtime.runtimeConfig.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)).unsafeRun {
             run(eventHandler, zioSpec)
               .onError(e => UIO(println(e.prettyPrint)))
           }

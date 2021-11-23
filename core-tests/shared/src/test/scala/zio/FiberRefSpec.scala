@@ -5,8 +5,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.flaky
 import zio.test._
 
-// TODO Figure out failures when this is using the new Spec style.
-object FiberRefSpec extends ZIOBaseSpec {
+object FiberRefSpec extends ZIOBaseNewSpec {
 
   import ZIOTag._
 
@@ -294,8 +293,6 @@ object FiberRefSpec extends ZIOBaseSpec {
       test("an unsafe handle is initialized and updated properly") {
         for {
           fiberRef <- FiberRef.make(initial)
-          config   <- ZIO.runtimeConfig
-          _        <- ZIO.debug(config)
           handle   <- fiberRef.unsafeAsThreadLocal
           value1   <- UIO(handle.get())
           _        <- fiberRef.set(update1)
@@ -303,6 +300,18 @@ object FiberRefSpec extends ZIOBaseSpec {
           _        <- UIO(handle.set(update2))
           value3   <- fiberRef.get
         } yield assert((value1, value2, value3))(equalTo((initial, update1, update2)))
+      },
+      
+      test("an unsafe handle is initialized and updated properlyX") {
+        for {
+          fiberRef: ZFiberRef.Runtime[String] <- FiberRef.make(initial)
+          config   <- ZIO.runtimeConfig
+          _        <- ZIO.debug(config)
+          handle: ThreadLocal[String] <- fiberRef.unsafeAsThreadLocal
+          value1   <- UIO(handle.get())
+          _        <- fiberRef.set(update1)
+          value2   <- UIO(handle.get())
+        } yield assert((value1, value2))(equalTo((initial, update1)))
       },
       test("unsafe handles work properly when initialized in a race") {
         for {
@@ -377,7 +386,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         } yield assert(person)(equalTo(Person("Jane Doe", 43)))
       }
     )
-  ) @@ TestAspect.sequential
+  ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber) @@ TestAspect.sequential
 }
 
 object FiberRefSpecUtil {

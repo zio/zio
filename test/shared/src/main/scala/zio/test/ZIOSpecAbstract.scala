@@ -103,13 +103,16 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with ZIOAppArgs, ExecutedSpec[Any]] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
+    val defaultRuntimeConfig = RuntimeConfig.makeDefault()
     for {
       env <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs]
       runner =
+        // TODO Experiment with enabling 
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs, Any](
             ZLayer.succeedMany(env) +!+ testEnvironment
           )
+//          , defaultRuntimeConfig.copy(runtimeConfigFlags = defaultRuntimeConfig.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       // TODO Consider something that outputs Stream[ExecutedSpec[Any]] here?

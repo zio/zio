@@ -5593,7 +5593,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     runtimeConfig: => RuntimeConfig
   )(zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
-      ZIO.setRuntimeConfig(runtimeConfig).acquireRelease(ZIO.setRuntimeConfig(currentRuntimeConfig), zio)
+      (ZIO.setRuntimeConfig(runtimeConfig) *> ZIO.yieldNow).acquireRelease(ZIO.setRuntimeConfig(currentRuntimeConfig), zio)
     }
 
   /**
