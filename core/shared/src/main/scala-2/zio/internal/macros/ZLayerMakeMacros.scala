@@ -2,13 +2,14 @@ package zio.internal.macros
 
 import zio.internal.ansi.AnsiStringOps
 import zio.ZLayer
+import zio.internal.TerminalRendering
 
 import scala.reflect.macros.blackbox
 
-final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
+final class ZLayerMakeMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
 
-  def wireImpl[
+  def makeImpl[
     E,
     R0: c.WeakTypeTag,
     R: c.WeakTypeTag
@@ -29,13 +30,7 @@ final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
     val outType     = weakTypeOf[R]
     val nothingType = weakTypeOf[Nothing]
     if (outType == nothingType) {
-      val errorMessage =
-        s"""
-${"  ZLayer Wiring Error  ".red.bold.inverted}
-        
-You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
-
-"""
+      val errorMessage = TerminalRendering.provideSomeNothingEnvError
       c.abort(c.enclosingPosition, errorMessage)
     }
   }

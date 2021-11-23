@@ -514,7 +514,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: ZTraceElement): ZIO[R1, E2, A1] = {
 
     def hh(e: E) = ZIO.runtime[Any].flatMap(runtime => if (runtime.platform.fatal(e)) ZIO.die(e) else h(e))
-    self.foldM[R1, E2, A1](hh, ZIO.succeedNow)
+    self.foldZIO[R1, E2, A1](hh, ZIO.succeedNow)
   }
 
   /**
@@ -1476,27 +1476,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *
    * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
-   * val zio2 = zio.provideCustom(loggingLayer)
-   * }}}
-   */
-  final def provideCustom[E1 >: E, R1](
-    layer: => ZLayer[ZEnv, E1, R1]
-  )(implicit
-    ev: ZEnv with R1 <:< R,
-    tagged: Tag[R1],
-    trace: ZTraceElement
-  ): ZIO[ZEnv, E1, A] =
-    provideSome[ZEnv](layer)
-
-  /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving an effect that only depends on the `ZEnv`.
-   *
-   * {{{
-   * val zio: ZIO[ZEnv with Logging, Nothing, Unit] = ???
-   *
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-   *
    * val zio2 = zio.provideCustomLayer(loggingLayer)
    * }}}
    */
@@ -1508,7 +1487,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     tagged: Tag[R1],
     trace: ZTraceElement
   ): ZIO[ZEnv, E1, A] =
-    provideCustom(layer)
+    ev.liftEnv(self).provide[E1, ZEnv](ZEnv.any ++ layer)
 
   /**
    * Provides the `ZIO` effect with its required environment, which eliminates
@@ -1527,19 +1506,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     provide(layer)
 
   /**
-   * Splits the environment into two parts, providing one part using the
+   * Splits the environment into two parts, assembling one part using the
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
-   *
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
    *
    * val zio2 = zio.provideSome[Random](clockLayer)
    * }}}
    */
-  final def provideSome[R0]: ZIO.ProvideSome[R0, R, E, A] =
-    new ZIO.ProvideSome[R0, R, E, A](self)
+  final def provideSome[R0]: ProvideSomePartiallyApplied[R0, R, E, A] =
+    new ProvideSomePartiallyApplied[R0, R, E, A](self)
 
   /**
    * Transforms the environment being provided to this effect with the specified
@@ -1563,7 +1542,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   @deprecated("use provideSome", "2.0.0")
-  final def provideSomeLayer[R0]: ZIO.ProvideSome[R0, R, E, A] =
+  final def provideSomeLayer[R0]: ProvideSomePartiallyApplied[R0, R, E, A] =
     provideSome
 
   /**
@@ -4944,9 +4923,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Given an environment `R`, returns a function that can supply the
    * environment to programs that require it, removing their need for any
    * specific environment.
-   *
-   * This is similar to dependency injection, and the `provide` function can be
-   * thought of as `inject`.
    */
   def provideEnvironment[R, E, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): ZIO[R, E, A] => IO[E, A] =
     _.provideEnvironment(r)
@@ -4954,7 +4930,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def provide[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
     zio: ZIO[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
-    zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
+    zio.provide[E, RIn with RIn2](ZLayer.environment[RIn with RIn2] ++ builder)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -5659,13 +5635,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      */
     def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
-  }
-
-  final class ProvideSome[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
-    def apply[E1 >: E, R1](
-      layer: => ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
-      self.asInstanceOf[ZIO[R0 with R1, E, A]].provide(ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {

@@ -6,7 +6,7 @@ import zio.test._
 import java.io.IOException
 
 // https://github.com/kitlangton/zio-magic/issues/91
-object InjectSomeSpec extends DefaultRunnableSpec {
+object ProvideSomeSpec extends DefaultRunnableSpec {
 
   final case class TestService(console: Console, clock: Clock) {
     def somethingMagical(annotate: String): ZIO[Any, IOException, Unit] =
@@ -22,11 +22,11 @@ object InjectSomeSpec extends DefaultRunnableSpec {
       (TestService.apply _).toLayer
   }
 
-  val partial: ZLayer[Console, Nothing, Clock with Console with TestService] =
+  val partial: ZLayer[Console, Nothing, Clock with TestService] =
     (Clock.live ++ ZLayer.service[Console]) >+> TestService.live
 
   val partialLayer: ZLayer[Console, Nothing, TestService with Clock] =
-    ZLayer.wireSome[Console, TestService with Clock](
+    ZLayer.makeSome[Console, TestService with Clock](
       Clock.live,
       TestService.live
     )
@@ -41,25 +41,25 @@ object InjectSomeSpec extends DefaultRunnableSpec {
     } yield assertCompletes
 
   def spec: ZSpec[Console with TestConsole with Annotations, Any] =
-    suite("InjectSomeSpec")(
+    suite("ProvideSomeSpec")(
       test("basic") {
         testCase("basic").provideSome[Console](partial)
       },
-      test("injectSome") {
-        testCase("injectSome").injectSome[Console](
+      test("provideSome") {
+        testCase("provideSome").provideSome[Console](
           Clock.live,
           TestService.live
         )
       },
-      test("double injectSome") {
-        testCase("double injectSome")
-          .injectSome[Console with Clock](
+      test("double provideSome") {
+        testCase("double provideSome")
+          .provideSome[Console with Clock](
             TestService.live
           )
-          .injectSome[Console](Clock.live)
+          .provideSome[Console](Clock.live)
       },
-      test("wireSome") {
-        testCase("wireSome").provideSome[Console](partialLayer)
+      test("makeSome") {
+        testCase("makeSome").provideSome[Console](partialLayer)
       }
     ) @@ TestAspect.silent
 }
