@@ -1,10 +1,10 @@
 import com.github.ghik.silencer.silent
 import zio.test._
 
-object StreamREPLSpec extends DefaultRunnableSpec {
+object StreamREPLSpec extends ZIOSpecDefault {
 
   @silent("Unused import")
-  def spec: ZSpec[Environment, Failure] = suite("StreamREPLSpec")(
+  def spec = suite("StreamREPLSpec")(
     test("settings compile") {
       import zio.Runtime.default._
       import zio._

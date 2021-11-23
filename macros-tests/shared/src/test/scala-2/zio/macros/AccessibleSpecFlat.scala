@@ -5,9 +5,9 @@ import zio.stream._
 import zio.test.Assertion._
 import zio.test._
 
-object AccessibleSpecFlat extends DefaultRunnableSpec {
+object AccessibleSpecFlat extends ZIOSpecDefault {
 
-  def spec: ZSpec[Environment, Failure] = suite("AccessibleSpecPlain")(
+  def spec = suite("AccessibleSpecPlain")(
     suite("Accessible macro")(
       test("compiles when applied to object with empty Service") {
         assertM(typeCheck {

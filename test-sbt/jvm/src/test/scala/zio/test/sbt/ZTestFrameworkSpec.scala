@@ -257,7 +257,7 @@ object ZTestFrameworkSpec {
   }
 
   lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
-  object SimpleFailingSpec extends DefaultRunnableSpec {
+  object SimpleFailingSpec extends ZIOSpecDefault {
     def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
       test("failing test") {
         zio.test.assert(1)(Assertion.equalTo(2))
@@ -272,15 +272,15 @@ object ZTestFrameworkSpec {
   }
 
   lazy val timedSpecFQN = TimedSpec.getClass.getName
-  object TimedSpec extends DefaultRunnableSpec {
-    override def spec: ZSpec[Environment, Failure] = test("timed passing test") {
+  object TimedSpec extends ZIOSpecDefault {
+    override def spec = test("timed passing test") {
       zio.test.assertCompletes
     } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
   }
 
   lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
-  object MultiLineSpec extends DefaultRunnableSpec {
-    def spec: ZSpec[Environment, Failure] = test("multi-line test") {
+  object MultiLineSpec extends ZIOSpecDefault {
+    def spec = test("multi-line test") {
       zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
     }
   }

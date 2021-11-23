@@ -13,6 +13,7 @@ import zio.test._
 import zio.{ Clock, FiberId, _ }
 import zio.test.Live
 
+// TODO Do we want to try and Scalafix old Specs?
 object ZManagedSpec extends DefaultRunnableSpec {
 
   def spec: ZSpec[Environment, Failure] = suite("ZManaged")(

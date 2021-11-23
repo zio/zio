@@ -14,9 +14,10 @@ import scala.util.{Failure, Success, Try}
 import zio.{ Clock, FiberId, Random, Random, _ }
 import zio.test.{ Gen, Live, Sized }
 
+// TODO Do we want to try and Scalafix old Specs?
 object ZIOSpec extends DefaultRunnableSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
+  def spec = suite("ZIOSpec")(
     suite("&&")(
       test("true and true is true") {
         assertM(ZIO.succeed(true) && ZIO.succeed(true))(isTrue)

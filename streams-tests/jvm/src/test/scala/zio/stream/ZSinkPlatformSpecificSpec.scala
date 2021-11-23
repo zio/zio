@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 
+// TODO Figure out how to convert
 object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
 
   override def spec: ZSpec[Any, Throwable] = suite("ZSink JVM")(

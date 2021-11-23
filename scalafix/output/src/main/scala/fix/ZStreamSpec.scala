@@ -17,6 +17,7 @@ import scala.concurrent.ExecutionContext
 import zio.Clock
 import zio.test.{ Gen, TestClock }
 
+// TODO Do we want to try and Scalafix old Specs?
 object ZStreamSpec extends DefaultRunnableSpec {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
