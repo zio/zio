@@ -142,7 +142,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case existingNewTestTask :: otherTasks =>
-                  if (existingNewTestTask.merges < 1) {
+                  if (existingNewTestTask.merges < 10) {
                     println("Composing with previous Spec")
                     (
                       MergedSpec(
@@ -179,7 +179,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
     (legacyTaskList ++ newTaskOpt.map(_.spec)).toArray
   }
-
+  
   def mergeSingle(zioTasks: Array[ZTestTask]): Array[Task] = {
     val (newTaskOpt, legacyTaskList) =
       zioTasks.foldLeft((None: Option[ZTestTaskNew], List[ZTestTaskLegacy]())) {

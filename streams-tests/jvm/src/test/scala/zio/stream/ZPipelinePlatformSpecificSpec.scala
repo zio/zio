@@ -7,8 +7,8 @@ import zio.test.Assertion._
 
 import java.util.zip.Deflater
 
-object ZPipelinePlatformSpecificSpec extends ZIOBaseNewSpec {
-  override def aspects: Chunk[TestAspect.WithOut[
+object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
+  override def aspects: List[TestAspect.WithOut[
     Nothing,
     TestEnvironment,
     Nothing,
@@ -16,9 +16,9 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseNewSpec {
     ({ type OutEnv[Env] = Env })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ]] =
-    Chunk(TestAspect.timeout(300.seconds))
+    List(TestAspect.timeout(300.seconds))
 
-  def spec = suite("ZPipeline JVM")(
+  def spec: ZSpec[Environment, Failure] = suite("ZPipeline JVM")(
     suite("Constructors")(
       suite("Deflate")(
         test("JDK inflates what was deflated")(
