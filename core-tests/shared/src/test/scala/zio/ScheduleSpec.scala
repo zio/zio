@@ -9,8 +9,7 @@ import java.time.temporal.{ChronoField, ChronoUnit}
 import java.time.{Instant, OffsetDateTime, ZoneId}
 import scala.concurrent.Future
 
-// TODO Confirm this is a bad test.
-object ScheduleSpec extends ZIOBaseSpec {
+object ScheduleSpec extends ZIOBaseNewSpec {
 
   import ZIOTag._
 
