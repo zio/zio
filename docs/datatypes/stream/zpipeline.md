@@ -128,7 +128,7 @@ import zio.stream.compression._
 ZStream
   .fromFile(Paths.get("file.txt"))
   .via(
-    ZPipeline.gzip[Any, Throwable](
+    ZPipeline.gzip[Any, IOException](
       bufferSize = 64 * 1024,
       level = CompressionLevel.DefaultCompression,
       strategy = CompressionStrategy.DefaultStrategy,
