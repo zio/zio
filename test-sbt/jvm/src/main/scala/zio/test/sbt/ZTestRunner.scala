@@ -142,10 +142,8 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case existingNewTestTask :: otherTasks =>
-                  println("Merging")
-
-                  if (existingNewTestTask.merges < 20) {
-                    println("Previous merge style")
+                  if (existingNewTestTask.merges < 10) {
+                    println("Composing with previous Spec")
                     (
                       MergedSpec(
                         new ZTestTaskNew(
@@ -160,7 +158,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
                       legacyTests
                     )
                   } else {
-                    println("New merge style")
+                    println("Constructing a new Spec")
                     (
                       MergedSpec(
                         taskNew,
@@ -180,6 +178,40 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
       }
 
     (legacyTaskList ++ newTaskOpt.map(_.spec)).toArray
+  }
+  
+  def mergeSingle(zioTasks: Array[ZTestTask]): Array[Task] = {
+    val (newTaskOpt, legacyTaskList) =
+      zioTasks.foldLeft((None: Option[ZTestTaskNew], List[ZTestTaskLegacy]())) {
+        case ((newTests, legacyTests), nextSpec) =>
+          nextSpec match {
+            case legacy: ZTestTaskLegacy => (newTests, legacyTests :+ legacy)
+            case taskNew: ZTestTaskNew =>
+              newTests match {
+                case Some(existingNewTestTask: ZTestTaskNew) =>
+                  println("Merging")
+                  (
+                    Some(
+                      new ZTestTaskNew(
+                        existingNewTestTask.taskDef,
+                        existingNewTestTask.testClassLoader,
+                        existingNewTestTask.sendSummary zip taskNew.sendSummary,
+                        existingNewTestTask.args,
+                        existingNewTestTask.newSpec <> taskNew.newSpec
+                      )
+                    ),
+                    legacyTests
+                  )
+                case None =>
+                  println("First new spec. Nothing to combine with yet")
+                  (Some(taskNew), legacyTests)
+              }
+            case other =>
+              throw new RuntimeException("Other case: " + other)
+          }
+      }
+
+    (legacyTaskList ++ newTaskOpt.toList).toArray
   }
 
 }

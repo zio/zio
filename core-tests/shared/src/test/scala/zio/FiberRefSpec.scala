@@ -294,6 +294,8 @@ object FiberRefSpec extends ZIOBaseSpec {
       test("an unsafe handle is initialized and updated properly") {
         for {
           fiberRef <- FiberRef.make(initial)
+          config       <- ZIO.runtimeConfig
+          _ <- ZIO.debug(config)
           handle   <- fiberRef.unsafeAsThreadLocal
           value1   <- UIO(handle.get())
           _        <- fiberRef.set(update1)
@@ -375,7 +377,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         } yield assert(person)(equalTo(Person("Jane Doe", 43)))
       }
     )
-  ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber) @@ TestAspect.sequential
+  )  @@ TestAspect.sequential
 }
 
 object FiberRefSpecUtil {
