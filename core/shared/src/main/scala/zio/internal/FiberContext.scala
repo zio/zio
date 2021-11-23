@@ -476,16 +476,8 @@ private[zio] final class FiberContext[E, A](
             // Prevent interruption of interruption:
             unsafeSetInterrupting(true)
 
-          case ZIO.ZioError(exit) =>
-            exit match {
-              case Exit.Success(value) =>
-                curZio = unsafeNextEffect(value)
-
-              case Exit.Failure(cause) =>
-                val trace = curZio.trace
-
-                curZio = ZIO.failCause(cause)(trace)
-            }
+          case ZIO.ZioError(cause, trace) =>
+            curZio = ZIO.failCause(cause)(trace)
 
           // Catastrophic error handler. Any error thrown inside the interpreter is
           // either a bug in the interpreter or a bug in the user's code. Let the
@@ -552,18 +544,10 @@ private[zio] final class FiberContext[E, A](
     }
 
   private def unsafeCaptureTrace(prefix: List[ZTraceElement]): ZTrace = {
-    val builder = ChunkBuilder.make[ZTraceElement]()
-    val empty   = ZTraceElement.empty
-    var last    = empty
+    val builder = StackTraceBuilder.unsafeMake()
 
-    def addToTrace(trace: ZTraceElement): Unit =
-      if ((trace ne null) && (trace ne empty) && (trace ne last)) {
-        last = trace
-        builder += trace
-      }
-
-    prefix.foreach(addToTrace(_))
-    stack.foreach(k => addToTrace(k.trace))
+    prefix.foreach(builder += _)
+    stack.foreach(k => builder += k.trace)
 
     ZTrace(fiberId, builder.result())
   }
@@ -651,7 +635,7 @@ private[zio] final class FiberContext[E, A](
 
     val parentScope = (forkScope orElse unsafeGetRef(forkScopeOverride)).getOrElse(scope)
 
-    val childId    = Fiber.newFiberId()
+    val childId    = FiberId.unsafeMake()
     val childScope = ZScope.unsafeMake[Exit[E, A]]()
 
     val childContext = new FiberContext[E, A](

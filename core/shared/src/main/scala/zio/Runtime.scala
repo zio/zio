@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberContext, Platform, StackBool}
+import zio.internal.{FiberContext, Platform, StackBool, StackTraceBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -86,8 +86,11 @@ trait Runtime[+R] {
    * This method is effectful and should only be done at the edges of your
    * program.
    */
-  final def unsafeRun[E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): A =
-    unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
+  final def unsafeRun[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): A =
+    try unsafeRunFast(zio, 50)
+    catch {
+      case failure: ZIO.ZioError[_] => throw FiberFailure(failure.cause)
+    }
 
   /**
    * Executes the effect asynchronously, discarding the result of execution.
@@ -106,10 +109,10 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your
    * program.
    */
-  final def unsafeRunSync[E, A](zio0: => ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
-    defaultUnsafeRunSync(zio0) // tryFastUnsafeRunSync(zio0, 0)
+  final def unsafeRunSync[E, A](zio0: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
+    unsafeRunSyncFast(zio0)
 
-  protected final def defaultUnsafeRunSync[E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] = {
+  private[zio] final def defaultUnsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
     unsafeRunWith(zio)(result.set)
@@ -117,96 +120,157 @@ trait Runtime[+R] {
     result.get()
   }
 
-  protected def tryFastUnsafeRunSync[E, A](zio: ZIO[R, E, A], stack: Int)(implicit trace: ZTraceElement): Exit[E, A] =
-    if (stack >= 50) defaultUnsafeRunSync(zio)
-    else {
-      type Erased = ZIO[Any, Any, Any]
-      def erase[R, E, A](zio: ZIO[R, E, A]): Erased = zio.asInstanceOf[ZIO[Any, Any, Any]]
-      type K = Any => Erased
-      def eraseK[R, E, A, B](f: A => ZIO[R, E, B]): K = f.asInstanceOf[K]
+  private[zio] def unsafeRunSyncFast[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
+    try {
+      Exit.Success(unsafeRunFast(zio, 50))
+    } catch {
+      case failure: ZIO.ZioError[_] => Exit.Failure(failure.cause.asInstanceOf[Cause[E]])
+    }
 
-      val nullK = null.asInstanceOf[K]
+  private[zio] def unsafeRunFast[E, A](zio: ZIO[R, E, A], maxStack: Int)(implicit
+    trace0: ZTraceElement
+  ): A = {
+    import ZIO.TracedCont
+    import Runtime.{Lazy, UnsafeSuccess}
 
-      var curZio               = erase(zio)
-      var x1, x2, x3, x4       = nullK
-      var done: Exit[Any, Any] = null.asInstanceOf[Exit[Any, Any]]
+    type Erased  = ZIO[Any, Any, Any]
+    type ErasedK = TracedCont[Any, Any, Any, Any]
 
-      while (done eq null) {
-        try {
-          curZio.tag match {
-            case ZIO.Tags.FlatMap =>
-              val zio = curZio.asInstanceOf[ZIO.FlatMap[R, E, Any, A]]
+    val nullK = null.asInstanceOf[ErasedK]
 
-              curZio = erase(zio.zio)
+    def loop(zio: ZIO[R, _, _], stack: Int, stackTraceBuilder: Lazy[StackTraceBuilder]): UnsafeSuccess =
+      if (stack >= maxStack) {
+        defaultUnsafeRunSync(zio) match {
+          case Exit.Success(success) => success.asInstanceOf[UnsafeSuccess]
+          case Exit.Failure(cause)   => throw new ZIO.ZioError(cause, zio.trace)
+        }
+      } else {
+        var curZio         = zio.asInstanceOf[Erased]
+        var x1, x2, x3, x4 = nullK
+        var success        = null.asInstanceOf[UnsafeSuccess]
 
-              val k = eraseK(zio.k)
+        while (success eq null) {
+          try {
+            curZio.tag match {
+              case ZIO.Tags.FlatMap =>
+                val zio = curZio.asInstanceOf[ZIO.FlatMap[R, E, Any, A]]
 
-              if (x1 eq null) x1 = k
-              else if (x2 eq null) {
-                x2 = x1; x1 = k
-              } else if (x3 eq null) {
-                x3 = x2; x2 = x1; x1 = k
-              } else if (x4 eq null) {
-                x4 = x3; x3 = x2; x2 = x1; x1 = k
-              } else {
-                // Our "register"-based stack can't handle it, try consuming more JVM stack:
-                val exit = tryFastUnsafeRunSync(zio, stack + 1)
+                val k = zio.asInstanceOf[ErasedK]
 
-                curZio = exit match {
-                  case Exit.Failure(cause) => ZIO.failCause(cause)
-                  case Exit.Success(value) => ZIO.succeedNow(value)
+                if (x4 eq null) {
+                  x4 = x3; x3 = x2; x2 = x1; x1 = k
+
+                  curZio = zio.zio.asInstanceOf[Erased]
+                } else {
+                  // Our "register"-based stack can't handle it, try consuming more JVM stack:
+                  curZio = k(loop(zio.zio, stack + 1, stackTraceBuilder))
+                }
+
+              case ZIO.Tags.SucceedNow =>
+                val zio = curZio.asInstanceOf[ZIO.SucceedNow[Any]]
+
+                if (x1 ne null) {
+                  val k = x1
+                  x1 = x2; x2 = x3; x3 = x4; x4 = nullK
+                  curZio = k(zio.value)
+                } else {
+                  success = zio.value.asInstanceOf[UnsafeSuccess]
+                }
+
+              case ZIO.Tags.Fail =>
+                val zio = curZio.asInstanceOf[ZIO.Fail[E]]
+
+                throw new ZIO.ZioError(zio.cause(), zio.trace)
+
+              case ZIO.Tags.Succeed =>
+                val zio = curZio.asInstanceOf[ZIO.Succeed[Any]]
+
+                if (x1 ne null) {
+                  val k = x1
+                  x1 = x2; x2 = x3; x3 = x4; x4 = nullK
+                  curZio = k(zio.effect())
+                } else {
+                  success = zio.effect().asInstanceOf[UnsafeSuccess]
+                }
+
+              case _ =>
+                val zio = curZio
+
+                // Give up, the mini-interpreter can't handle it:
+                defaultUnsafeRunSync(zio) match {
+                  case Exit.Success(value) =>
+                    if (x1 ne null) {
+                      val k = x1
+                      x1 = x2; x2 = x3; x3 = x4; x4 = nullK
+                      curZio = k(value)
+                    } else {
+                      success = value.asInstanceOf[UnsafeSuccess]
+                    }
+
+                  case Exit.Failure(cause) => throw new ZIO.ZioError(cause, zio.trace)
+                }
+            }
+          } catch {
+            case failure: ZIO.ZioError[_] =>
+              val builder = stackTraceBuilder.value
+
+              builder += failure.trace
+              if (x1 ne null) {
+                builder += x1.trace
+                if (x2 ne null) {
+                  builder += x2.trace
+                  if (x3 ne null) {
+                    builder += x3.trace
+                    if (x4 ne null) {
+                      builder += x4.trace
+                    }
+                  }
                 }
               }
 
-            case ZIO.Tags.SucceedNow =>
-              val zio = curZio.asInstanceOf[ZIO.SucceedNow[A]]
+              throw failure
+
+            case t: Throwable =>
+              val builder = stackTraceBuilder.value
+
+              builder += zio.trace
 
               if (x1 ne null) {
-                val k = x1
-                x1 = x2; x2 = x3; x3 = x4; x4 = nullK
-                curZio = k(zio.value)
-              } else {
-                done = Exit.succeed(zio.value)
+                builder += x1.trace
+                if (x2 ne null) {
+                  builder += x2.trace
+                  if (x3 ne null) {
+                    builder += x3.trace
+                    if (x4 ne null) {
+                      builder += x4.trace
+                    }
+                  }
+                }
               }
 
-            case ZIO.Tags.Fail =>
-              val zio = curZio.asInstanceOf[ZIO.Fail[E]]
-
-              done = Exit.failCause(zio.cause())
-
-            case ZIO.Tags.Succeed =>
-              val zio = curZio.asInstanceOf[ZIO.Succeed[A]]
-
-              if (x1 ne null) {
-                val k = x1
-                x1 = x2; x2 = x3; x3 = x4; x4 = nullK
-                curZio = k(zio.effect())
-              } else {
-                val value = zio.effect()
-
-                done = Exit.succeed(value)
-              }
-
-            case _ =>
-              val zio = curZio
-
-              // Give up, the mini-interpreter can't handle it:
-              curZio = defaultUnsafeRunSync(zio) match {
-                case Exit.Failure(cause) => ZIO.failCause(cause)
-                case Exit.Success(value) => ZIO.succeedNow(value)
-              }
+              if (!runtimeConfig.fatal(t)) throw new ZIO.ZioError(Cause.die(t), trace0)
+              else runtimeConfig.reportFatal(t)
           }
-        } catch {
-          case ZIO.ZioError(e) =>
-            done = Exit.fail(e)
-
-          case t: Throwable if !runtimeConfig.fatal(t) =>
-            done = Exit.die(t)
         }
+
+        success
       }
 
-      done.asInstanceOf[Exit[E, A]]
+    val stackTraceBuilder = Lazy.stackTraceBuilder()
+
+    try {
+      loop(zio, 0, stackTraceBuilder).asInstanceOf[A]
+    } catch {
+      case failure: ZIO.ZioError[_] =>
+        val cause = failure.cause.asInstanceOf[Cause[E]]
+
+        val fiberId = cause.trace.fiberId.getOrElse(FiberId.unsafeMake())
+
+        val trace = ZTrace(fiberId, stackTraceBuilder.value.result())
+
+        throw new ZIO.ZioError(cause.traced(trace), trace0)
     }
+  }
 
   /**
    * Executes the effect asynchronously, eventually passing the exit value to
@@ -216,7 +280,7 @@ trait Runtime[+R] {
    * program.
    */
   final def unsafeRunAsyncWith[E, A](
-    zio: => ZIO[R, E, A]
+    zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): Unit = {
     unsafeRunAsyncCancelable(zio)(k)
     ()
@@ -231,7 +295,7 @@ trait Runtime[+R] {
    * program.
    */
   final def unsafeRunAsyncCancelable[E, A](
-    zio: => ZIO[R, E, A]
+    zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => Exit[E, A] = {
     lazy val curZio = zio
     val canceler    = unsafeRunWith(curZio)(k)
@@ -252,7 +316,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be done at the edges of your
    * program.
    */
-  final def unsafeRunTask[A](task: => RIO[R, A])(implicit trace: ZTraceElement): A =
+  final def unsafeRunTask[A](task: RIO[R, A])(implicit trace: ZTraceElement): A =
     unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
 
   /**
@@ -299,9 +363,9 @@ trait Runtime[+R] {
   def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapRuntimeConfig(_.copy(reportFatal = f))
 
   private final def unsafeRunWith[E, A](
-    zio: => ZIO[R, E, A]
+    zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
-    val fiberId = Fiber.newFiberId()
+    val fiberId = FiberId.unsafeMake()
 
     val scope = ZScope.unsafeMake[Exit[E, A]]()
 
@@ -333,6 +397,17 @@ trait Runtime[+R] {
 }
 
 object Runtime {
+  private[zio] type UnsafeSuccess <: AnyRef
+  private[zio] class Lazy[A](thunk: () => A) {
+    lazy val value = thunk()
+  }
+  private[zio] object Lazy {
+    def apply[A](a: => A): Lazy[A] = new Lazy(() => a)
+
+    def stackTraceBuilder[A](): Lazy[StackTraceBuilder] =
+      new Lazy(() => StackTraceBuilder.unsafeMake())
+  }
+
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
     def runtimeConfig = underlying.runtimeConfig
     def environment   = underlying.environment

@@ -2995,7 +2995,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     succeedWith { (runtimeConfig, _) =>
       try effect
       catch {
-        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t))
+        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Cause.fail(t), trace)
       }
     }
 
@@ -5248,7 +5248,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceedWith { (runtimeConfig, _) =>
       try rio
       catch {
-        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t))
+        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Cause.fail(t), trace)
       }
     }
 
@@ -5283,7 +5283,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceedWith((runtimeConfig, fiberId) =>
       try f(runtimeConfig, fiberId)
       catch {
-        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t))
+        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Cause.fail(t), trace)
       }
     )
 
@@ -6236,7 +6236,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val SetRuntimeConfig       = 29
   }
 
-  private[zio] final case class ZioError[E, A](exit: Exit[E, A]) extends Throwable with NoStackTrace
+  private[zio] final case class ZioError[E](cause: Cause[E], trace: ZTraceElement) extends Throwable with NoStackTrace
 
   private[zio] trait TracedCont[-A0, -R, +E, +A] extends (A0 => ZIO[R, E, A]) {
     val trace: ZTraceElement
