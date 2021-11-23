@@ -13,7 +13,7 @@ import scala.math.Numeric.DoubleIsFractional
 object GenSpec extends ZIOBaseSpec {
   implicit val localDateTimeOrdering: Ordering[LocalDateTime] = _ compareTo _
 
-  def spec: ZSpec[Environment, Failure] = suite("GenSpec")(
+  def spec = suite("GenSpec")(
     suite("integration tests")(
       test("with bogus even property") {
         val gen = Gen.int(0, 100)

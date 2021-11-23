@@ -9,7 +9,7 @@ import zio.{Clock, Layer, ZIO, ZTraceElement}
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("IntelliJ Renderer")(
       test("correctly reports a successful test") {
         assertM(runLog(test1))(equalTo(test1Expected.mkString))

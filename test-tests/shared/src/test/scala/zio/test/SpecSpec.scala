@@ -7,7 +7,7 @@ import zio.test.TestUtils._
 
 object SpecSpec extends ZIOBaseSpec {
 
-  val layer: ZLayer[Any, Nothing, Unit] =
+  val specLayer: ZLayer[Any, Nothing, Unit] =
     ZLayer.succeed(())
 
   def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
@@ -17,14 +17,14 @@ object SpecSpec extends ZIOBaseSpec {
           _ <- ZIO.environment[TestEnvironment]
           _ <- ZIO.service[Unit]
         } yield assertCompletes
-      }.provideCustom(layer)
+      }.provideCustom(specLayer)
     ),
     suite("provide")(
       test("does not have early initialization issues") {
         for {
           _ <- ZIO.service[Unit]
         } yield assertCompletes
-      }.provide(layer)
+      }.provide(specLayer)
     ),
     suite("provideShared")(
       test("gracefully handles fiber death") {
@@ -47,10 +47,10 @@ object SpecSpec extends ZIOBaseSpec {
           }
         )
         for {
-          ref    <- Ref.make(true)
-          layer   = ZLayer.fromZIO(ref.set(false).as(ref))
-          _      <- execute(spec.provideCustomShared(layer) @@ ifEnvSet("foo"))
-          result <- ref.get
+          ref      <- Ref.make(true)
+          specLayer = ZLayer.fromZIO(ref.set(false).as(ref))
+          _        <- execute(spec.provideCustomShared(specLayer) @@ ifEnvSet("foo"))
+          result   <- ref.get
         } yield assert(result)(isTrue)
       },
       test("is not interfered with by test level failures") {
@@ -107,7 +107,7 @@ object SpecSpec extends ZIOBaseSpec {
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    }
-                 ).provideSomeShared[TestEnvironment](layer) @@ nondeterministic
+                 ).provideSomeShared[TestEnvironment](specLayer) @@ nondeterministic
           _      <- execute(spec)
           result <- ref.get
         } yield assert(result)(hasSize(isGreaterThan(1)))
@@ -126,16 +126,16 @@ object SpecSpec extends ZIOBaseSpec {
               output <- TestConsole.output
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           }
-        ).provideSomeShared[TestEnvironment](layer) @@ silent
+        ).provideSomeShared[TestEnvironment](specLayer) @@ silent
         assertM(succeeded(spec))(isTrue)
       },
       test("releases resources as soon as possible") {
         for {
-          ref    <- Ref.make[List[String]](List.empty)
-          acquire = ref.update("Acquiring" :: _)
-          release = ref.update("Releasing" :: _)
-          update  = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
-          layer   = ZManaged.acquireReleaseWith(acquire *> Ref.make(0))(_ => release).toLayer
+          ref      <- Ref.make[List[String]](List.empty)
+          acquire   = ref.update("Acquiring" :: _)
+          release   = ref.update("Releasing" :: _)
+          update    = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
+          specLayer = ZManaged.acquireReleaseWith(acquire *> Ref.make(0))(_ => release).toLayer
           spec = suite("spec")(
                    suite("suite1")(
                      test("test1") {
@@ -144,7 +144,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomShared(layer),
+                   ).provideCustomShared(specLayer),
                    suite("suite2")(
                      test("test1") {
                        assertM(update)(equalTo(1))
@@ -152,7 +152,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomShared(layer)
+                   ).provideCustomShared(specLayer)
                  ) @@ sequential
           succeeded <- succeeded(spec)
           log       <- ref.get.map(_.reverse)

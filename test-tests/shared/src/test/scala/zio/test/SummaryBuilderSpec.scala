@@ -12,7 +12,7 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
   def labelOnly(log: Vector[String]): String =
     log.take(1).mkString.stripLineEnd
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("SummaryBuilderSpec")(
       test("doesn't generate summary for a successful test") {
         assertM(runSummary(test1))(equalTo(""))

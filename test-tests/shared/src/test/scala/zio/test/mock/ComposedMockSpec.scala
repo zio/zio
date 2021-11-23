@@ -1,7 +1,7 @@
 package zio.test.mock
 
 import zio._
-import zio.test.{Assertion, ZIOBaseSpec, ZSpec, assertM}
+import zio.test.{Assertion, ZIOBaseSpec, assertM}
 
 import java.io.IOException
 
@@ -19,7 +19,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
     assertM(result)(check)
   }
 
-  def spec: ZSpec[Environment, Failure] = suite("ComposedMockSpec")(
+  def spec = suite("ComposedMockSpec")(
     suite("mocking composed environments")(
       {
         val cmd1     = MockClock.NanoTime(value(42L))

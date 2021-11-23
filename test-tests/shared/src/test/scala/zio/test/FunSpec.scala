@@ -7,7 +7,7 @@ import scala.math.abs
 
 object FunSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("FunSpec")(
+  def spec = suite("FunSpec")(
     test("fun converts effects into pure functions") {
       for {
         f <- Fun.make((n: Int) => Random.nextIntBounded(n))

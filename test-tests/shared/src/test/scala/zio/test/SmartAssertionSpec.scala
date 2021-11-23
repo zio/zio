@@ -25,7 +25,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
-  def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
+  def spec = suite("SmartAssertionSpec")(
     suite("Array")(
       suite("==")(
         test("success") {

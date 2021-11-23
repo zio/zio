@@ -45,7 +45,7 @@ object LawsSpec extends ZIOBaseSpec {
       eq.equal(self, that)
   }
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("LawsSpec") {
       suite("equalLaws")(
         test("int") {

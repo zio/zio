@@ -2,7 +2,7 @@ package zio.test.mock
 
 import zio._
 import zio.test.mock.internal.MockException
-import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
+import zio.test.{Assertion, ZIOBaseSpec}
 
 import java.io.IOException
 
@@ -11,7 +11,7 @@ object EmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[Console] {
   import Assertion._
   import MockException._
 
-  def spec: ZSpec[Environment, Failure] = suite("EmptyMockSpec")(
+  def spec = suite("EmptyMockSpec")(
     suite("expect no calls on empty mocks")(
       testValue("should succeed when no call")(
         MockConsole.empty,

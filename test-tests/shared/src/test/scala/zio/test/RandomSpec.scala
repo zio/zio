@@ -10,7 +10,7 @@ import scala.util.{Random => SRandom}
 
 object RandomSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("RandomSpec")(
+  def spec = suite("RandomSpec")(
     test("check clearBooleans")(checkClear(_.nextBoolean())(_.feedBooleans(_: _*))(_.clearBooleans)(_.nextBoolean)),
     test("check clearBytes")(checkClear(nextBytes(1))(_.feedBytes(_: _*))(_.clearBytes)(_.nextBytes(1))),
     test("check clearChars")(

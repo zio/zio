@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 
 object ClockSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ClockSpec")(
       test("sleep does not require passage of clock time") {
         for {
