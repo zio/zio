@@ -179,7 +179,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
     (legacyTaskList ++ newTaskOpt.map(_.spec)).toArray
   }
-  
+
   def mergeSingle(zioTasks: Array[ZTestTask]): Array[Task] = {
     val (newTaskOpt, legacyTaskList) =
       zioTasks.foldLeft((None: Option[ZTestTaskNew], List[ZTestTaskLegacy]())) {
