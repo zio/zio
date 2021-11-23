@@ -256,7 +256,7 @@ object ZStreamSpec extends ZIOBaseNewSpec {
                 results <- fib.join.map(_.collect { case Some(ex) => ex })
               } yield assert(results)(equalTo(Chunk(2, 3)))
             }
-          } @@ zioTag(interruption) @@ TestAspect.jvmOnly,
+          } @@ zioTag(interruption) @@ TestAspect.jvmOnly @@ TestAspect.flaky,
           test("leftover handling") {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(

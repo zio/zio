@@ -142,7 +142,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case existingNewTestTask :: otherTasks =>
-                  if (existingNewTestTask.merges < 10) {
+                  if (existingNewTestTask.merges < 1) {
                     println("Composing with previous Spec")
                     (
                       MergedSpec(
