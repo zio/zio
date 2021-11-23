@@ -554,13 +554,13 @@ trait ZSinkPlatformSpecificConstructors {
    * Uses the provided `Path` to create a [[ZSink]] that consumes byte chunks
    * and writes them to the `File`. The sink will yield count of bytes written.
    */
-  final def fromFile(
+  final def fromFile[InErr >: IOException, OutErr >: InErr](
     path: => Path,
     position: Long = 0L,
     options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
   )(implicit
     trace: ZTraceElement
-  ): ZSink[Any, Throwable, Byte, Throwable, Byte, Long] = {
+  ): ZSink[Any, InErr, Byte, OutErr, Byte, Long] = {
 
     val managedChannel = ZManaged.acquireReleaseWith(
       ZIO
@@ -577,6 +577,9 @@ trait ZSinkPlatformSpecificConstructors {
             )
             .position(position)
         )
+        .refineOrDie { case e: IOException =>
+          e
+        }
     )(chan => ZIO.attemptBlocking(chan.close()).orDie)
 
     ZSink.unwrapManaged {
@@ -588,6 +591,8 @@ trait ZSinkPlatformSpecificConstructors {
             chan.write(ByteBuffer.wrap(bytes))
 
             bytesWritten + bytes.length.toLong
+          }.refineOrDie { case e: IOException =>
+            e
           }
         }
       }
@@ -601,9 +606,9 @@ trait ZSinkPlatformSpecificConstructors {
    *
    * The caller of this function is responsible for closing the `OutputStream`.
    */
-  final def fromOutputStream(
+  final def fromOutputStream[InErr >: IOException, OutErr >: InErr](
     os: OutputStream
-  )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, IOException, Byte, Long] = fromOutputStreamManaged(
+  )(implicit trace: ZTraceElement): ZSink[Any, InErr, Byte, OutErr, Byte, Long] = fromOutputStreamManaged(
     ZManaged.succeedNow(os)
   )
 
@@ -615,9 +620,9 @@ trait ZSinkPlatformSpecificConstructors {
    * The `OutputStream` will be automatically closed after the stream is
    * finished or an error occurred.
    */
-  final def fromOutputStreamManaged(
+  final def fromOutputStreamManaged[InErr >: IOException, OutErr >: InErr](
     os: ZManaged[Any, IOException, OutputStream]
-  )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, IOException, Byte, Long] =
+  )(implicit trace: ZTraceElement): ZSink[Any, InErr, Byte, OutErr, Byte, Long] =
     ZSink.unwrapManaged {
       os.map { out =>
         ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>

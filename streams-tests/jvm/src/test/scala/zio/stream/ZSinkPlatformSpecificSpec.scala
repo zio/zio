@@ -38,6 +38,15 @@ object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
           length <- ZStream.fromIterable(bytes).run(ZSink.fromOutputStream(os))
           str    <- Task(os.toString("UTF-8"))
         } yield assert(data)(equalTo(str)) && assert(bytes.length.toLong)(equalTo(length))
+      },
+      test("on failing stream") {
+        for {
+          result <- ZStream
+                      .fail(new RuntimeException("test"))
+                      .run(ZSink.fromOutputStream(new ByteArrayOutputStream))
+                      .mapError(_.getMessage)
+                      .exit
+        } yield assert(result)(fails(equalTo("test")))
       }
     )
   )
