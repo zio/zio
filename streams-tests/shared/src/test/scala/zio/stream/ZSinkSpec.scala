@@ -6,8 +6,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect.jvmOnly
 import zio.test._
 
-// TODO Confirm migration problems
-object ZSinkSpec extends ZIOBaseSpec {
+object ZSinkSpec extends ZIOBaseNewSpec {
 
   import ZIOTag._
 

@@ -6,8 +6,7 @@ import zio.test._
 
 import scala.io.Source
 
-// TODO Confirm migration problems
-object ZPipelineSpec extends ZIOBaseSpec {
+object ZPipelineSpec extends ZIOBaseNewSpec {
 
   def spec =
     suite("ZPipelineSpec")(
