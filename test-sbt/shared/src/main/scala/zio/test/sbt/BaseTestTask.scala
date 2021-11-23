@@ -1,8 +1,16 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
-import zio.{Chunk, Clock, Layer, Runtime, RuntimeConfigFlag, UIO, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.test.{
+  AbstractRunnableSpec,
+  FilteredSpec,
+  SummaryBuilder,
+  TestArgs,
+  TestEnvironment,
+  TestLogger,
+  ZIOSpecAbstract
+}
+import zio.{Chunk, Clock, Layer, Runtime, UIO, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,

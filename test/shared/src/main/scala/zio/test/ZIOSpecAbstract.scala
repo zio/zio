@@ -105,9 +105,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
     val defaultRuntimeConfig = RuntimeConfig.makeDefault()
     for {
-      env <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs]
+      env   <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs]
       runner =
-        // TODO Experiment with enabling 
+        // TODO Experiment with enabling
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs, Any](
             ZLayer.succeedMany(env) +!+ testEnvironment

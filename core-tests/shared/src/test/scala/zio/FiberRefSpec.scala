@@ -301,16 +301,15 @@ object FiberRefSpec extends ZIOBaseNewSpec {
           value3   <- fiberRef.get
         } yield assert((value1, value2, value3))(equalTo((initial, update1, update2)))
       },
-      
       test("an unsafe handle is initialized and updated properlyX") {
         for {
           fiberRef: ZFiberRef.Runtime[String] <- FiberRef.make(initial)
-          config   <- ZIO.runtimeConfig
-          _        <- ZIO.debug(config)
-          handle: ThreadLocal[String] <- fiberRef.unsafeAsThreadLocal
-          value1   <- UIO(handle.get())
-          _        <- fiberRef.set(update1)
-          value2   <- UIO(handle.get())
+          config                              <- ZIO.runtimeConfig
+          _                                   <- ZIO.debug(config)
+          handle: ThreadLocal[String]         <- fiberRef.unsafeAsThreadLocal
+          value1                              <- UIO(handle.get())
+          _                                   <- fiberRef.set(update1)
+          value2                              <- UIO(handle.get())
         } yield assert((value1, value2))(equalTo((initial, update1)))
       },
       test("unsafe handles work properly when initialized in a race") {
