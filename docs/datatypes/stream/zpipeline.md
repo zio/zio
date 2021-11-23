@@ -7,6 +7,7 @@ title: "ZPipeline"
 import zio.stream.{UStream, ZStream, ZPipeline, ZSink}
 import zio.{Schedule, Chunk, IO, ZIO}
 import zio.Console._
+import java.io.IOException
 import java.nio.file.Paths
 ```
 
@@ -231,7 +232,7 @@ val lines: ZStream[Any, Throwable, String] =
 2. **Composing ZPipeline with ZSink** — One pipeline can be composed with a sink, resulting in a sink that processes elements by piping them through the pipeline and piping the results into the sink:
 
 ```scala mdoc:silent:nest
-val refine: ZIO[Any, Throwable, Long] =
+val refine: ZIO[Any, IOException, Long] =
   ZStream
     .fromFile(Paths.get("file.txt"))
     .via(

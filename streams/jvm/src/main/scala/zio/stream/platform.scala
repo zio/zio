@@ -217,17 +217,20 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
-  ): ZStream[Any, Throwable, Byte] =
+  ): ZStream[Any, IOException, Byte] =
     ZStream
-      .acquireReleaseWith(ZIO.attemptBlockingInterrupt(FileChannel.open(path)))(chan =>
-        ZIO.attemptBlocking(chan.close()).orDie
-      )
+      .acquireReleaseWith(ZIO.attemptBlockingInterrupt(FileChannel.open(path)).refineOrDie { case e: IOException =>
+        e
+      })(chan => ZIO.attemptBlocking(chan.close()).orDie)
       .flatMap { channel =>
         ZStream.fromZIO(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
           ZStream.repeatZIOChunkOption(
             for {
-              bytesRead <- ZIO.attemptBlockingInterrupt(channel.read(reusableBuffer)).asSomeError
-              _         <- ZIO.fail(None).when(bytesRead == -1)
+              bytesRead <- ZIO
+                             .attemptBlockingInterrupt(channel.read(reusableBuffer))
+                             .refineOrDie { case e: IOException => e }
+                             .asSomeError
+              _ <- ZIO.fail(None).when(bytesRead == -1)
               chunk <- UIO {
                          reusableBuffer.flip()
                          Chunk.fromByteBuffer(reusableBuffer)
