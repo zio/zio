@@ -3381,7 +3381,7 @@ object ZStreamSpec extends ZIOBaseNewSpec {
               value <- ref.get
             } yield assert(value)(equalTo(true))
           }
-        ) @@ TestAspect.timeout(15.seconds),
+        ) @@ TestAspect.timeout(15.seconds) @@ TestAspect.flaky, // TODO Decide if flaky is appropriate
         suite("timeout")(
           test("succeed") {
             assertM(
