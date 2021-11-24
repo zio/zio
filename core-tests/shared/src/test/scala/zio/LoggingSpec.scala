@@ -25,7 +25,7 @@ object LoggingSpec extends ZIOBaseSpec {
 
   val clearOutput: UIO[Unit] = UIO(_logOutput.set(Vector.empty))
 
-  val testLogger: ZLogger[String, Unit] =
+  val stringLogger =
     new ZLogger[String, Unit] {
       @tailrec
       def apply(
@@ -46,7 +46,10 @@ object LoggingSpec extends ZIOBaseSpec {
       }
     }
 
-  override def runner: TestRunner[Environment, Any] = super.runner.withRuntimeConfig(_.copy(logger = testLogger))
+  val testLoggers: ZLogger.Set[String & Cause[Any], Unit] =
+    ZLogger.Set(stringLogger, stringLogger.contramap((cause: Cause[Any]) => cause.prettyPrint))
+
+  override def runner: TestRunner[Environment, Any] = super.runner.withRuntimeConfig(_.copy(loggers = testLoggers))
 
   def spec: ZSpec[Any, Any] =
     suite("LoggingSpec")(
@@ -93,7 +96,7 @@ object LoggingSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.logSpan("test span")(ZIO.log("It's alive!"))
           output <- logOutput
-          _      <- ZIO.debug(output(0).call(ZLogger.defaultFormatter))
+          _      <- ZIO.debug(output(0).call(ZLogger.defaultString))
         } yield assertTrue(true)
       },
       test("none") {
