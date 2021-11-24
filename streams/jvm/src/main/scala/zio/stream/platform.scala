@@ -468,7 +468,7 @@ trait ZStreamPlatformSpecificConstructors {
      *
      * The sink will yield the count of bytes written.
      */
-    def write(implicit trace: ZTraceElement): ZSink[Any, Throwable, Byte, Throwable, Nothing, Int] =
+    def write(implicit trace: ZTraceElement): ZSink[Any, Byte, Throwable, Nothing, Int] =
       ZSink.foldLeftChunksZIO[Any, Throwable, Byte, Int](0) { case (nbBytesWritten, c) =>
         ZIO.async[Any, Throwable, Int] { callback =>
           socket.write(
@@ -560,7 +560,7 @@ trait ZSinkPlatformSpecificConstructors {
     options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
   )(implicit
     trace: ZTraceElement
-  ): ZSink[Any, Throwable, Byte, Throwable, Byte, Long] = {
+  ): ZSink[Any, Byte, Throwable, Byte, Long] = {
 
     val managedChannel = ZManaged.acquireReleaseWith(
       ZIO
@@ -603,7 +603,7 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromOutputStream(
     os: OutputStream
-  )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, IOException, Byte, Long] = fromOutputStreamManaged(
+  )(implicit trace: ZTraceElement): ZSink[Any, Byte, IOException, Byte, Long] = fromOutputStreamManaged(
     ZManaged.succeedNow(os)
   )
 
@@ -617,7 +617,7 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromOutputStreamManaged(
     os: ZManaged[Any, IOException, OutputStream]
-  )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, IOException, Byte, Long] =
+  )(implicit trace: ZTraceElement): ZSink[Any, Byte, IOException, Byte, Long] =
     ZSink.unwrapManaged {
       os.map { out =>
         ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>

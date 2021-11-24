@@ -81,7 +81,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                            Task.unit
                        }
                        .take(chunk.size.toLong)
-                       .run(ZSink.collectAll[Throwable, Int])
+                       .run(ZSink.collectAll[Int])
                        .fork
             _ <- latch.await
             s <- fiber.join

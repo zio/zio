@@ -6,9 +6,9 @@ import zio.{IO, UIO}
 
 object SinkUtils {
 
-  def findSink[A](a: A): ZSink[Any, Nothing, A, Unit, A, A] =
+  def findSink[A](a: A): ZSink[Any, A, Unit, A, A] =
     ZSink
-      .fold[Nothing, A, Option[A]](None)(_.isEmpty)((_, v) => if (a == v) Some(a) else None)
+      .fold[A, Option[A]](None)(_.isEmpty)((_, v) => if (a == v) Some(a) else None)
       .mapZIO {
         case Some(v) => IO.succeedNow(v)
         case None    => IO.fail(())
@@ -16,8 +16,8 @@ object SinkUtils {
 
   def sinkRaceLaw[E, A, L](
     stream: ZStream[Any, Nothing, A],
-    s1: ZSink[Any, Nothing, A, E, L, A],
-    s2: ZSink[Any, Nothing, A, E, L, A]
+    s1: ZSink[Any, A, E, L, A],
+    s2: ZSink[Any, A, E, L, A]
   ): UIO[TestResult] =
     for {
       r1 <- stream.run(s1).either
@@ -37,8 +37,8 @@ object SinkUtils {
 
   def zipParLaw[A, B, C, L, E](
     s: ZStream[Any, Nothing, A],
-    sink1: ZSink[Any, Nothing, A, E, A, B],
-    sink2: ZSink[Any, Nothing, A, E, A, C]
+    sink1: ZSink[Any, A, E, A, B],
+    sink2: ZSink[Any, A, E, A, C]
   ): UIO[TestResult] =
     for {
       zb  <- s.run(sink1).either
