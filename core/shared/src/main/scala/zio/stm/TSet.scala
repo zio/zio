@@ -16,8 +16,7 @@
 
 package zio.stm
 
-import zio.NonEmptyChunk
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.{Chunk, NonEmptyChunk}
 
 /**
  * Transactional set implemented on top of [[TMap]].
@@ -53,7 +52,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   def diff(other: TSet[A]): USTM[Unit] =
-    other.toSet.flatMap(vals => removeIf(vals.contains))
+    other.toSet.flatMap(vals => removeIfDiscard(vals.contains))
 
   /**
    * Atomically folds using a pure function.
@@ -85,7 +84,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    * provided set.
    */
   def intersect(other: TSet[A]): USTM[Unit] =
-    other.toSet.flatMap(vals => retainIf(vals.contains))
+    other.toSet.flatMap(vals => retainIfDiscard(vals.contains))
 
   /**
    * Stores new element in the set.
@@ -94,16 +93,28 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     tmap.put(a, ())
 
   /**
+   * Removes bindings matching predicate and returns the removed entries.
+   */
+  def removeIf(p: A => Boolean): USTM[Chunk[A]] =
+    tmap.removeIf((k, _) => p(k)).map(_.map(_._1))
+
+  /**
    * Removes elements matching predicate.
    */
-  def removeIf(p: A => Boolean): USTM[Unit] =
-    tmap.removeIf((k, _) => p(k))
+  def removeIfDiscard(p: A => Boolean): USTM[Unit] =
+    tmap.removeIfDiscard((k, _) => p(k))
+
+  /**
+   * Retains bindings matching predicate and returns removed bindings.
+   */
+  def retainIf(p: A => Boolean): USTM[Chunk[A]] =
+    tmap.retainIf((k, _) => p(k)).map(_.map(_._1))
 
   /**
    * Retains elements matching predicate.
    */
-  def retainIf(p: A => Boolean): USTM[Unit] =
-    tmap.retainIf((k, _) => p(k))
+  def retainIfDiscard(p: A => Boolean): USTM[Unit] =
+    tmap.retainIfDiscard((k, _) => p(k))
 
   /**
    * Returns the set's cardinality.
