@@ -7,7 +7,7 @@ import zio.test._
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
 
-object CancelableFutureSpecJVM extends ZIOBaseNewSpec {
+object CancelableFutureSpecJVM extends ZIOBaseSpec {
 
   import ZIOTag._
 

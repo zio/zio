@@ -7,7 +7,7 @@ import zio.test.Assertion._
 
 import java.util.zip.Deflater
 
-object ZPipelinePlatformSpecificSpec extends ZIOBaseNewSpec {
+object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
   override def aspects: Chunk[TestAspect.WithOut[
     Nothing,
     TestEnvironment,

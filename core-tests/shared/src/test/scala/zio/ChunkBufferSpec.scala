@@ -5,7 +5,7 @@ import zio.test._
 
 import java.nio._
 
-object ChunkBufferSpec extends ZIOBaseNewSpec {
+object ChunkBufferSpec extends ZIOBaseSpec {
 
   def spec = suite("ChunkBufferSpec")(
     suite("ByteBuffer")(

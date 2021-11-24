@@ -1,10 +1,10 @@
 package zio.internal
 
-import zio.ZIOBaseNewSpec
+import zio.ZIOBaseSpec
 import zio.test.Assertion._
 import zio.test._
 
-object OneShotSpec extends ZIOBaseNewSpec {
+object OneShotSpec extends ZIOBaseSpec {
 
   def spec = suite("OneShotSpec")(
     suite("OneShotSpec")(

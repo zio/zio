@@ -2,9 +2,9 @@ package zio.stm
 
 import zio.test.Assertion._
 import zio.test._
-import zio.{Chunk, Random, ZIOBaseNewSpec}
+import zio.{Chunk, Random, ZIOBaseSpec}
 
-object TPriorityQueueSpec extends ZIOBaseNewSpec {
+object TPriorityQueueSpec extends ZIOBaseSpec {
 
   final case class Event(time: Int, description: String)
 

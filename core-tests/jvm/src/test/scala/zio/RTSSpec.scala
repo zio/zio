@@ -7,7 +7,7 @@ import zio.test._
 import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
 
-object RTSSpec extends ZIOBaseNewSpec {
+object RTSSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 

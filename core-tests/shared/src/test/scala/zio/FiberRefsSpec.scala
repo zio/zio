@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object FiberRefsSpec extends ZIOBaseNewSpec {
+object FiberRefsSpec extends ZIOBaseSpec {
 
   def spec = suite("FiberRefSpec")(
     test("propagate FiberRef values across fiber boundaries") {

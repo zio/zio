@@ -7,7 +7,7 @@ import java.time.{Duration => JavaDuration}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration => ScalaDuration}
 
-object DurationSpec extends ZIOBaseNewSpec {
+object DurationSpec extends ZIOBaseSpec {
 
   def spec = suite("DurationSpec")(
     suite("Make a Duration from positive nanos and check that: ")(

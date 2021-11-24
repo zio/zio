@@ -41,7 +41,7 @@ object TestExecutor {
   }
 }
 
-object ExecutorSpec extends ZIOBaseNewSpec {
+object ExecutorSpec extends ZIOBaseSpec {
 
   def spec = suite("ExecutorSpec")(
     suite("Create the default unyielding executor and check that:")(

@@ -14,7 +14,6 @@ import java.nio.{Buffer, ByteBuffer}
 import java.util.concurrent.CountDownLatch
 import scala.concurrent.ExecutionContext.global
 
-// TODO Figure out how to convert
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
   def socketClient(port: Int): ZManaged[Any, Throwable, AsynchronousSocketChannel] =
     ZManaged.acquireReleaseWith(ZIO.attemptBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>

@@ -1,10 +1,10 @@
 package zio.stm
 
-import zio.{Chunk, ZIOBaseNewSpec}
+import zio.{Chunk, ZIOBaseSpec}
 import zio.test.Assertion._
 import zio.test._
 
-object TQueueSpec extends ZIOBaseNewSpec {
+object TQueueSpec extends ZIOBaseSpec {
 
   def spec = suite("TQueue")(
     suite("factories")(

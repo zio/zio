@@ -6,7 +6,7 @@ import zio.test._
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-object ClockSpecJVM extends ZIOBaseNewSpec {
+object ClockSpecJVM extends ZIOBaseSpec {
 
   def spec: Spec[Annotations with TestConfig with ZTestEnv with Live with Annotations, TestFailure[
     Any

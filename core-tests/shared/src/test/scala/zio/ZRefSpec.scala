@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object ZRefSpec extends ZIOBaseNewSpec {
+object ZRefSpec extends ZIOBaseSpec {
 
   def spec = suite("ZRefSpec")(
     suite("Atomic")(

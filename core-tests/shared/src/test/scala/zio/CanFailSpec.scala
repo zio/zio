@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object CanFailSpec extends ZIOBaseNewSpec {
+object CanFailSpec extends ZIOBaseSpec {
 
   def spec = suite("CanFailSpec")(
     test("useful combinators compile") {

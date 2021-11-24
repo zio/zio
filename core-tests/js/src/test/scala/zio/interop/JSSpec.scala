@@ -6,7 +6,7 @@ import zio.test._
 
 import scala.scalajs.js.{Promise => JSPromise}
 
-object JSSpec extends ZIOBaseNewSpec {
+object JSSpec extends ZIOBaseSpec {
   def spec: Spec[Any, TestFailure[Throwable], TestSuccess] = suite("JSSpec")(
     suite("Task.fromPromiseJS must")(
       test("be lazy on the Promise parameter") {

@@ -4,7 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test._
 
-object SingleThreadedRingBufferSpec extends ZIOBaseNewSpec {
+object SingleThreadedRingBufferSpec extends ZIOBaseSpec {
 
   def spec =
     suite("SingleThreadedRingBufferSpec")(

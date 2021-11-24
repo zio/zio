@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object PromiseSpec extends ZIOBaseNewSpec {
+object PromiseSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 

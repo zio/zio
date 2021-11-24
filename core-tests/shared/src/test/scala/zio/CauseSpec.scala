@@ -4,7 +4,7 @@ import zio.Cause.{Both, Then, empty}
 import zio.test.Assertion._
 import zio.test._
 
-object CauseSpec extends ZIOBaseNewSpec {
+object CauseSpec extends ZIOBaseSpec {
   override def aspects: Chunk[TestAspect.WithOut[
     Nothing,
     TestEnvironment,

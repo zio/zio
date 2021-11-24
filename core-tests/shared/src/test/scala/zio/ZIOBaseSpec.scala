@@ -4,8 +4,8 @@ import zio.test._
 
 import scala.annotation.tailrec
 
-trait ZIOBaseSpec extends DefaultRunnableSpec {
-  override def aspects: List[TestAspect.WithOut[
+trait ZIOBaseSpec extends ZIOSpecDefault {
+  override def aspects: Chunk[TestAspect.WithOut[
     Nothing,
     TestEnvironment,
     Nothing,
@@ -13,13 +13,8 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
     ({ type OutEnv[Env] = Env })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ]] =
-    if (TestPlatform.isJVM) List(TestAspect.timeout(120.seconds))
-    else List(TestAspect.sequential, TestAspect.timeout(120.seconds))
-
-  override def runner: TestRunner[Environment, Any] =
-    defaultTestRunner.withRuntimeConfig(self =>
-      self.copy(runtimeConfigFlags = self.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
-    )
+    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(120.seconds))
+    else Chunk(TestAspect.sequential, TestAspect.timeout(120.seconds))
 
   sealed trait ZIOTag {
     val value: String
@@ -62,4 +57,22 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
       case Nil     => Nil
     }
   }
+
+  // TODO Needed?
+  /**
+   * Builds a spec with a single test.
+   */
+  override def test[In](label: String)(
+    assertion: => In
+  )(implicit
+    testConstructor: TestConstructor[Nothing, In],
+    trace: ZTraceElement
+  ): testConstructor.Out =
+    zio.test.test(label)(assertion)
+
+  override def suite[In](label: String)(specs: In*)(implicit
+    suiteConstructor: SuiteConstructor[In],
+    trace: ZTraceElement
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
+    zio.test.suite(label)(specs: _*)
 }

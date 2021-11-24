@@ -5,7 +5,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object FiberSpec extends ZIOBaseNewSpec {
+object FiberSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 

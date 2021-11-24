@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object NeedsEnvSpec extends ZIOBaseNewSpec {
+object NeedsEnvSpec extends ZIOBaseSpec {
 
   def spec = suite("NeedsEnvSpec")(
     test("useful combinators compile") {

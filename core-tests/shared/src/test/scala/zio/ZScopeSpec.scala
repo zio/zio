@@ -3,7 +3,7 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object ZScopeSpec extends ZIOBaseNewSpec {
+object ZScopeSpec extends ZIOBaseSpec {
 
   def testScope[A](label: String, a: A)(f: (Ref[A], ZScope[Unit]) => UIO[A]): ZSpec[Any, Nothing] =
     test(label) {

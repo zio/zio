@@ -2,9 +2,9 @@ package zio.stm
 
 import zio.test.Assertion._
 import zio.test._
-import zio.{Chunk, ZIOBaseNewSpec}
+import zio.{Chunk, ZIOBaseSpec}
 
-object TArraySpec extends ZIOBaseNewSpec {
+object TArraySpec extends ZIOBaseSpec {
 
   import ZIOTag._
 

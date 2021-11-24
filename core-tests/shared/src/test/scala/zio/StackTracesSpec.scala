@@ -4,7 +4,7 @@ import zio.test.Assertion.{containsString, matchesRegex}
 import zio.test.{TestResult, assert, assertTrue}
 import zio.test.TestAspect.sequential
 
-object StackTracesSpec extends ZIOBaseNewSpec {
+object StackTracesSpec extends ZIOBaseSpec {
 
   def spec = suite("StackTracesSpec")(
     suite("captureSimpleCause")(

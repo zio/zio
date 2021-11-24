@@ -1,9 +1,9 @@
 package zio.stm
 
 import zio.test._
-import zio.{UIO, ZIOBaseNewSpec}
+import zio.{UIO, ZIOBaseSpec}
 
-object STMLazinessSpec extends ZIOBaseNewSpec {
+object STMLazinessSpec extends ZIOBaseSpec {
 
   def assertLazy(f: (=> Nothing) => Any): UIO[TestResult] =
     UIO.succeed {

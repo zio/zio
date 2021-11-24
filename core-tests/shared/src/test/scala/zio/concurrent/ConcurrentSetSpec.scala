@@ -3,7 +3,7 @@ package zio.concurrent
 import zio._
 import zio.test._
 
-object ConcurrentSetSpec extends ZIOBaseNewSpec {
+object ConcurrentSetSpec extends ZIOBaseSpec {
 
   override def spec = suite("ConcurrentSetSpec")(
     test("add") {

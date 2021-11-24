@@ -6,7 +6,7 @@ import zio.test._
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-object BlockingSpec extends ZIOBaseNewSpec {
+object BlockingSpec extends ZIOBaseSpec {
 
   def spec = suite("BlockingSpec")(
     suite("Make a Blocking Service and verify that")(

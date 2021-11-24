@@ -6,7 +6,7 @@ import zio.test.TestAspect._
 
 import scala.annotation.tailrec
 
-object LoggingSpec extends ZIOBaseNewSpec {
+object LoggingSpec extends ZIOBaseSpec {
   final case class LogEntry(
     trace: ZTraceElement,
     fiberId: FiberId.Runtime,

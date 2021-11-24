@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object ZIOAppSpec extends ZIOBaseNewSpec {
+object ZIOAppSpec extends ZIOBaseSpec {
   def spec = suite("ZIOAppSpec")(
     test("fromZIO") {
       for {

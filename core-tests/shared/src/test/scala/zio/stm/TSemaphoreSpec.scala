@@ -1,11 +1,11 @@
 package zio.stm
 
-import zio.{Promise, Random, ZIO, ZIOBaseNewSpec}
+import zio.{Promise, Random, ZIO, ZIOBaseSpec}
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object TSemaphoreSpec extends ZIOBaseNewSpec {
+object TSemaphoreSpec extends ZIOBaseSpec {
   override def spec = suite("TSemaphore")(
     suite("factories")(
       test("make") {

@@ -3,7 +3,7 @@ package zio
 import zio.test._
 import zio.test.TestAspect.nonFlaky
 
-object ZPoolSpec extends ZIOBaseNewSpec {
+object ZPoolSpec extends ZIOBaseSpec {
   def spec =
     suite("ZPoolSpec") {
       test("preallocates pool items") {

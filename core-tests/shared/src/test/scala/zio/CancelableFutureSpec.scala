@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object CancelableFutureSpec extends ZIOBaseNewSpec {
+object CancelableFutureSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
