@@ -10,6 +10,7 @@ import zio.{Console, Random, Clock}
 import java.io.IOException
 import zio.test.{Spec, TestFailure, TestSuccess}
 
+// TODO Find out the purpose of this test
 class MockExampleSpecWithJUnit extends JUnitRunnableSpec {
 
   def spec: Spec[Any, TestFailure[IOException], TestSuccess] = suite("suite with mocks")(
