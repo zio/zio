@@ -40,7 +40,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {
     implicit val trace = Tracer.newTrace
     runSpec.provide[Any, ZEnv with ZIOAppArgs](
-      ZLayer.environment[ZEnv with ZIOAppArgs] ++ (TestEnvironment.live ++ layer)
+      ZLayer.environment[ZEnv with ZIOAppArgs] ++ (TestEnvironment.live ++ layer ++ TestLogger.fromConsole)
     )
   }
 
@@ -49,7 +49,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       type Environment = self.Environment with that.Environment
       def layer: ZLayer[ZIOAppArgs, Any, Environment] =
         self.layer +!+ that.layer
-      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs, Any, Any] =
+      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] =
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =
         self.spec + that.spec
@@ -61,7 +61,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       }
     }
 
-  protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs, Any, Any] = {
+  protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] = {
     implicit val trace = Tracer.newTrace
     for {
       args         <- ZIO.service[ZIOAppArgs]
@@ -100,18 +100,18 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     }
 
   private[zio] def runSpec(
-    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any],
+    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any],
     testArgs: TestArgs
-  )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with ZIOAppArgs, ExecutedSpec[Any]] = {
+  )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, ExecutedSpec[Any]] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     val defaultRuntimeConfig = RuntimeConfig.makeDefault()
     for {
-      env   <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs]
+      env   <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
       runner =
         // TODO Experiment with enabling
         TestRunner(
-          TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs, Any](
+          TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any](
             ZLayer.succeedMany(env) +!+ testEnvironment
           )
 //          , defaultRuntimeConfig.copy(runtimeConfigFlags = defaultRuntimeConfig.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
@@ -123,7 +123,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       _ <- TestLogger
              .logLine(SummaryBuilder.buildSummary(results).summary)
              .when(testArgs.printSummary)
-             .provide(runner.bootstrap)
+//             .provide(runner.bootstrap)
     } yield results
   }
 }

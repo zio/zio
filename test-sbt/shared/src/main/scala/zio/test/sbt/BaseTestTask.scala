@@ -1,16 +1,8 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.test.{
-  AbstractRunnableSpec,
-  FilteredSpec,
-  SummaryBuilder,
-  TestArgs,
-  TestEnvironment,
-  TestLogger,
-  ZIOSpecAbstract
-}
-import zio.{Chunk, Clock, Layer, Runtime, UIO, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
+import zio.{Chunk, Clock, Console, Layer, Random, Runtime, System, UIO, ULayer, ZEnv, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -34,8 +26,9 @@ abstract class BaseTestTask(
 
   protected def run(
     eventHandler: EventHandler,
-    spec: ZIOSpecAbstract
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
+    spec: ZIOSpecAbstract, 
+    loggers: Array[Logger]
+  )(implicit trace: ZTraceElement): ZIO[TestLogger with Clock, Throwable, Unit] = {
     val argslayer: ULayer[ZIOAppArgs] =
       ZLayer.succeed(
         ZIOAppArgs(Chunk.empty)
@@ -47,13 +40,16 @@ abstract class BaseTestTask(
     val layer: Layer[Error, spec.Environment] =
       (argslayer +!+ filledTestlayer) >>> spec.layer.mapError(e => new Error(e.toString))
 
-    val fullLayer: Layer[Error, spec.Environment with ZIOAppArgs with TestEnvironment with zio.ZEnv] =
+    val fullLayer: Layer[Error, spec.Environment with ZIOAppArgs with TestEnvironment with ZEnv] =
       layer +!+ argslayer +!+ filledTestlayer
+      
+    val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
 
     for {
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args)
                 .provide(
+                  testLoggers,
                   fullLayer
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
@@ -75,7 +71,8 @@ abstract class BaseTestTask(
         case NewSpecWrapper(zioSpec) =>
           Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
 //            Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig.copy(runtimeConfigFlags = zioSpec.runtime.runtimeConfig.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)).unsafeRun {
-            run(eventHandler, zioSpec)
+            run(eventHandler, zioSpec, loggers)
+              .provide(sbtTestLayer(loggers))
               .onError(e => UIO(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>

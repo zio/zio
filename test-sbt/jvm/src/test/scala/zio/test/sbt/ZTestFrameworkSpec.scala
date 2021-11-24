@@ -17,20 +17,20 @@ object ZTestFrameworkSpec {
     run(tests: _*)
 
   def tests: Seq[Try[Unit]] = Seq(
-    test("should return correct fingerprints")(testFingerprints()),
-    test("should report events")(testReportEvents()),
-    test("should report durations")(testReportDurations()),
+//    test("should return correct fingerprints")(testFingerprints()), // GOOD
+//    test("should report events")(testReportEvents()), // GOOD
+//    test("should report durations")(testReportDurations()),
     test("should log messages")(testLogMessages()),
-    test("should correctly display colorized output for multi-line strings")(testColored()),
-    test("should test only selected test")(testTestSelection()),
-    test("should return summary when done")(testSummary()),
-    test("should use a shared layer without re-initializing it")(testSharedLayer()),
-    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
+//    test("should correctly display colorized output for multi-line strings")(testColored()),
+//    test("should test only selected test")(testTestSelection()),
+//    test("should return summary when done")(testSummary()),
+//    test("should use a shared layer without re-initializing it")(testSharedLayer()),
+//    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
   def testFingerprints(): Unit = {
     val fingerprints = new ZTestFramework().fingerprints.toSeq
-    assertEquals("fingerprints", fingerprints, Seq(RunnableSpecFingerprint, ZioSpecFingerprint))
+    assertEquals("fingerprints", fingerprints, Seq(ZioSpecFingerprint))
   }
 
   def testReportEvents(): Unit = {
@@ -47,7 +47,7 @@ object ZTestFrameworkSpec {
   }
 
   private def sbtEvent(fqn: String, label: String, status: Status) =
-    ZTestEvent(fqn, new TestSelector(label), status, None, 0, RunnableSpecFingerprint)
+    ZTestEvent(fqn, new TestSelector(label), status, None, 0, ZioSpecFingerprint)
 
   def testReportDurations(): Unit = {
     val reported = ArrayBuffer[Event]()
@@ -175,7 +175,7 @@ object ZTestFrameworkSpec {
   }
 
   def testSummary(): Unit = {
-    val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
+    val taskDef = new TaskDef(failingSpecFQN, ZioSpecFingerprint, false, Array())
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
@@ -197,7 +197,7 @@ object ZTestFrameworkSpec {
   }
 
   def testNoTestsExecutedWarning(): Unit = {
-    val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
+    val taskDef = new TaskDef(failingSpecFQN, ZioSpecFingerprint, false, Array())
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
@@ -235,10 +235,7 @@ object ZTestFrameworkSpec {
     val tasks =
       fqns
         .map(fqn =>
-          if (fqn.contains("Shared"))
             new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector))
-          else
-            new TaskDef(fqn, RunnableSpecFingerprint, false, Array(new SuiteSelector))
         )
         .toArray
     val task = new ZTestFramework()
@@ -256,13 +253,16 @@ object ZTestFrameworkSpec {
     doRun(Iterable(task))
   }
 
-  lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
-  object SimpleFailingSpec extends DefaultRunnableSpec {
+  lazy val failingSpecFQN = SimpleFailingSharedSpec.getClass.getName
+  object SimpleFailingSharedSpec extends ZIOSpecDefault {
+//    override def layer = sharedLayer
     def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
       test("failing test") {
+//        assertTrue(1 == 2)
         zio.test.assert(1)(Assertion.equalTo(2))
       },
       test("passing test") {
+//        assertTrue(1 == 2)
         zio.test.assert(1)(Assertion.equalTo(1))
       },
       test("ignored test") {
@@ -271,16 +271,16 @@ object ZTestFrameworkSpec {
     )
   }
 
-  lazy val timedSpecFQN = TimedSpec.getClass.getName
-  object TimedSpec extends DefaultRunnableSpec {
-    override def spec: ZSpec[Environment, Failure] = test("timed passing test") {
+  lazy val timedSpecFQN = TimedSharedSpec.getClass.getName
+  object TimedSharedSpec extends ZIOSpecDefault {
+    override def spec = test("timed passing test") {
       zio.test.assertCompletes
     } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
   }
 
-  lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
-  object MultiLineSpec extends DefaultRunnableSpec {
-    def spec: ZSpec[Environment, Failure] = test("multi-line test") {
+  lazy val multiLineSpecFQN = MultiLineSharedSpec.getClass.getName
+  object MultiLineSharedSpec extends ZIOSpecDefault {
+    def spec = test("multi-line test") {
       zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
     }
   }
