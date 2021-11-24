@@ -57,10 +57,10 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val fatal = (_: Throwable) => false
 
-    val logger: ZLogger[String, Unit] =
+    val loggerString: ZLogger[String, Unit] =
       (
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         level: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -81,6 +81,10 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         }
       }
 
+    val loggerCause: ZLogger[Cause[Any], Unit] = loggerString.contramap(_.prettyPrint)
+
+    val loggers = ZLogger.Set(loggerString, loggerCause).filterLogLevel(_ >= LogLevel.Info)
+
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()
       throw t
@@ -94,7 +98,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       fatal,
       reportFatal,
       supervisor,
-      logger.filterLogLevel(_ >= LogLevel.Info),
+      loggers,
       RuntimeConfigFlags.empty
     )
   }

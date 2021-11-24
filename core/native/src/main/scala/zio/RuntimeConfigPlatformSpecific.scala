@@ -59,7 +59,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         throw t
       },
       supervisor = Supervisor.none,
-      logger = ZLogger.defaultString.map(println(_)).filterLogLevel(_ >= LogLevel.Info),
+      loggers = ZLogger.Set.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info),
       runtimeConfigFlags = RuntimeConfigFlags.empty
     )
 
