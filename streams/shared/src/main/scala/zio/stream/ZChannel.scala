@@ -784,7 +784,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def pipeToOrFail[Env1 <: Env, OutErr1 >: OutErr, OutElem2, OutDone2](
     that: => ZChannel[Env1, Nothing, OutElem, OutDone, OutErr1, OutElem2, OutDone2]
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] = {
-    final case class ChannelFailure(err: OutErr) extends Throwable
+    case class ChannelFailure(err: OutErr1) extends Throwable
     self.catchAll(err => ZChannel.failCause(Cause.die(ChannelFailure(err)))).pipeTo(that).catchAllCause {
       case Cause.Die(ChannelFailure(err), _) => ZChannel.fail(err)
       case cause                             => ZChannel.failCause(cause)
