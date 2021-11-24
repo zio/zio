@@ -23,7 +23,7 @@ test("effects can be safely interrupted") {
 
 By applying a `timeout(1.second)` test aspect, this will work with ZIO's interruption mechanism. So when we run this test, you can see a tone of print lines, and after a second, the `timeout` aspect will interrupt that.
 
-## Non Flaky
+## Flaky and Non-flaky Tests
 
 Whenever we deal with concurrency issues or race conditions, we should ensure that our tests pass consistently. The `nonFlaky` is a test aspect to do that.
 
@@ -40,6 +40,8 @@ test("random value is always greater than zero") {
   } yield assert(random)(Assertion.isGreaterThan(0))
 } @@ nonFlaky
 ```
+
+Additionally, there is a `TestAspect.flaky` test aspect which retries a test until it succeeds.
 
 ## Debugging
 
