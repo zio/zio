@@ -24,7 +24,7 @@ import scala.collection.mutable.Builder
 
 /**
  * A `ZLayer[E, A, B]` describes how to build one or more services in your
- * application. Services can be injected into effects via ZIO#inject. Effects
+ * application. Services can be provided into effects via ZIO#provide. Effects
  * can require services via ZIO.service."
  *
  * Layer can be thought of as recipes for producing bundles of services, given
@@ -266,7 +266,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def toRuntime(
     runtimeConfig: RuntimeConfig
   )(implicit ev: Any <:< RIn, trace: ZTraceElement): Managed[E, Runtime[ROut]] =
-    build.provideEnvironment(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
+    ev.liftEnv(self).build.map(Runtime(_, runtimeConfig))
 
   /**
    * Updates one of the services output by this layer.
@@ -354,7 +354,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ) extends ZLayer[RIn, E, ROut3]
 
   /**
-   * Constructs a layerfrom a managed resource.
+   * Constructs a layer from a managed resource.
    */
   def apply[RIn, E, ROut: Tag: IsNotIntersection](managed: ZManaged[RIn, E, ROut])(implicit
     trace: ZTraceElement
@@ -379,18 +379,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
-     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * as [[ZIO.provide]] or [[ZLayer.make]], will display a tree visualization
      * of the constructed layer graph.
      *
      * {{{
      *   val layer =
-     *     ZLayer.wire[OldLady](
+     *     ZLayer.make[OldLady](
      *       OldLady.live,
      *       Spider.live,
      *       Fly.live,
      *       Bear.live,
      *       Console.live,
-     *       ZLayer.Debug.tree
+     *       ZLayer.Debug.tree // <- Include it like this
      *     )
      *
      * // Including `ZLayer.Debug.tree` will generate the following compilation error:
@@ -410,12 +410,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
-     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * as [[ZIO.provide]] or [[ZLayer.make]], will display a tree visualization
      * of the constructed layer graph as well as a link to Mermaid chart.
      *
      * {{{
      *   val layer =
-     *     ZLayer.wire[OldLady](
+     *     ZLayer.make[OldLady](
      *       OldLady.live,
      *       Spider.live,
      *       Fly.live,

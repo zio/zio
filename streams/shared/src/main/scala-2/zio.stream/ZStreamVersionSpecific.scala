@@ -17,43 +17,28 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to stream
-   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.injectCustom(oldLadyLayer, flyLayer)
+   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def injectCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[ZEnv, E1, O] =
-    macro LayerMacros.injectSomeImpl[ZStream, ZEnv, R, E1, O]
-
-  /**
-   * Splits the environment into two parts, assembling one part using the
-   * specified layer and leaving the remainder `R0`.
-   *
-   * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
-   *
-   * val managed: ZStream[Clock with Random, Nothing, Unit] = ???
-   *
-   * val managed2 = managed.injectSome[Random](clockLayer)
-   * }}}
-   */
-  def injectSome[R0]: ProvideSomeStreamPartiallyApplied[R0, R, E, O] =
-    new ProvideSomeStreamPartiallyApplied[R0, R, E, O](self)
+  def provideCustom[E1 >: E](layers: ZLayer[_, E1, _]*): ZStream[ZEnv, E1, O] =
+    macro LayerMacros.provideSomeImpl[ZStream, ZEnv, R, E1, O]
 
   /**
    * Automatically assembles a layer for the ZStream effect.
    */
-  def inject[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[Any, E1, O] =
-    macro LayerMacros.injectImpl[ZStream, R, E1, O]
+  def provide[E1 >: E](layers: ZLayer[_, E1, _]*): ZStream[Any, E1, O] =
+    macro LayerMacros.provideImpl[ZStream, R, E1, O]
 
 }
 
-private final class ProvideSomeStreamPartiallyApplied[R0, -R, +E, +O](
+final class ProvideSomeStreamPartiallyApplied[R0, -R, +E, +O](
   val self: ZStream[R, E, O]
 ) extends AnyVal {
-  def provide[E1 >: E, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R]): ZStream[R0, E1, O] =
+  def provide[E1 >: E](
+    layer: ZLayer[R0, E1, R]
+  )(implicit ev: NeedsEnv[R]): ZStream[R0, E1, O] =
     self.provide(layer)
 
-  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[R0, E1, O] =
-    macro LayerMacros.injectSomeImpl[ZStream, R0, R, E1, O]
+  def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZStream[R0, E1, O] =
+    macro LayerMacros.provideSomeImpl[ZStream, R0, R, E1, O]
 }

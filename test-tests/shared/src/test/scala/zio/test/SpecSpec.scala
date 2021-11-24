@@ -40,7 +40,8 @@ object SpecSpec extends ZIOBaseSpec {
       test("does not acquire the environment if the suite is ignored") {
         val spec = suite("suite")(
           test("test1") {
-            assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
+            ZIO.service[Console] *>
+              assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
           },
           test("test2") {
             assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
@@ -67,19 +68,15 @@ object SpecSpec extends ZIOBaseSpec {
         ).provideShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
-          successes = executedSpec.fold[Int] { c =>
-                        c match {
-                          case ExecutedSpec.LabeledCase(_, count) => count
-                          case ExecutedSpec.MultipleCase(counts)  => counts.sum
-                          case ExecutedSpec.TestCase(test, _)     => if (test.isRight) 1 else 0
-                        }
+          successes = executedSpec.fold[Int] {
+                        case ExecutedSpec.LabeledCase(_, count) => count
+                        case ExecutedSpec.MultipleCase(counts)  => counts.sum
+                        case ExecutedSpec.TestCase(test, _)     => if (test.isRight) 1 else 0
                       }
-          failures = executedSpec.fold[Int] { c =>
-                       c match {
-                         case ExecutedSpec.LabeledCase(_, count) => count
-                         case ExecutedSpec.MultipleCase(counts)  => counts.sum
-                         case ExecutedSpec.TestCase(test, _)     => if (test.isLeft) 1 else 0
-                       }
+          failures = executedSpec.fold[Int] {
+                       case ExecutedSpec.LabeledCase(_, count) => count
+                       case ExecutedSpec.MultipleCase(counts)  => counts.sum
+                       case ExecutedSpec.TestCase(test, _)     => if (test.isLeft) 1 else 0
                      }
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
@@ -103,6 +100,7 @@ object SpecSpec extends ZIOBaseSpec {
                    },
                    test("test3") {
                      for {
+                       _ <- ZIO.service[Unit]
                        n <- Random.nextInt
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
@@ -122,9 +120,10 @@ object SpecSpec extends ZIOBaseSpec {
           },
           test("test2") {
             for {
-              _      <- Console.printLine("Hello, World!")
+              _      <- ZIO.service[Unit]
+              _      <- Console.printLine("Hi Everybody!")
               output <- TestConsole.output
-            } yield assert(output)(equalTo(Vector("Hello, World!\n")))
+            } yield assert(output)(equalTo(Vector("Hi Everybody!\n")))
           }
         ).provideSomeShared[TestEnvironment](specLayer) @@ silent
         assertM(succeeded(spec))(isTrue)
@@ -142,7 +141,8 @@ object SpecSpec extends ZIOBaseSpec {
                        assertM(update)(equalTo(1))
                      },
                      test("test2") {
-                       assertM(update)(equalTo(2))
+                       ZIO.service[Console] *>
+                         assertM(update)(equalTo(2))
                      }
                    ).provideCustomShared(specLayer),
                    suite("suite2")(
@@ -150,7 +150,8 @@ object SpecSpec extends ZIOBaseSpec {
                        assertM(update)(equalTo(1))
                      },
                      test("test2") {
-                       assertM(update)(equalTo(2))
+                       ZIO.service[Console] *>
+                         assertM(update)(equalTo(2))
                      }
                    ).provideCustomShared(specLayer)
                  ) @@ sequential
@@ -167,6 +168,7 @@ object SpecSpec extends ZIOBaseSpec {
                 suite("d") {
                   test("test") {
                     for {
+                      _ <- ZIO.service[Console]
                       n <- ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
                     } yield assert(n)(equalTo(1))
                   }

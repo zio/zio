@@ -4,7 +4,7 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Clock, Layer, ZIO, ZTraceElement}
+import zio.{Layer, ZIO, ZTraceElement}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -239,7 +239,7 @@ object IntelliJRenderUtils {
     s"##teamcity[testSuiteFinished name='$name']" + "\n"
 
   def testStarted(name: String)(implicit trace: ZTraceElement): String = {
-    val location = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, line, _) =>
+    val location = Option(trace).collect { case ZTraceElement(_, file, line) =>
       (file, line)
     }
 
@@ -259,7 +259,7 @@ object IntelliJRenderUtils {
     for {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
-             .provide[Nothing, TestEnvironment, TestLogger with Clock](
+             .provide[Nothing, TestEnvironment](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output

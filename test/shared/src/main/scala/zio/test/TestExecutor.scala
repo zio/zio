@@ -59,6 +59,7 @@ object TestExecutor {
               ExecutedSpec.test(result, staticAnnotations ++ dynamicAnnotations)
             }.toManaged
         }.useNow)
+
     val environment = env
   }
 }

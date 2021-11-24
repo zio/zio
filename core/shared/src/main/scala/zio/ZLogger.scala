@@ -110,7 +110,7 @@ object ZLogger {
     }
 
     trace match {
-      case ZTraceElement.SourceLocation(location, file, line, column) =>
+      case ZTraceElement(location, file, line) =>
         sb.append(" location=")
 
         appendQuoted(location, sb)
@@ -121,9 +121,6 @@ object ZLogger {
 
         sb.append(" line=")
           .append(line)
-
-        sb.append(" column=")
-          .append(column)
 
       case _ =>
     }

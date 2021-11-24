@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * applications. For a simpler version that uses the default ZIO environment see
  * `ZIOAppDefault`.
  */
-trait ZIOApp extends ZIOAppPlatformSpecific { self =>
+trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
   private[zio] val shuttingDown = new AtomicBoolean(false)
 
   implicit def tag: Tag[Environment]

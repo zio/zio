@@ -94,10 +94,14 @@ lazy val root = project
     coreTestsJS,
     coreTestsJVM,
     docs,
+    internalMacrosJS,
+    internalMacrosJVM,
+    internalMacrosNative,
     examplesJS,
     examplesJVM,
     macrosJS,
     macrosJVM,
+    macrosNative,
     macrosTestsJS,
     macrosTestsJVM,
     scalafixTests,
@@ -137,7 +141,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.5")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.8")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(
@@ -188,7 +192,7 @@ lazy val coreTestsJVM = coreTests.jvm
 lazy val coreTestsJS = coreTests.js
   .settings(dottySettings)
 
-lazy val macros = crossProject(JSPlatform, JVMPlatform)
+lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
   .dependsOn(core)
   .settings(stdSettings("zio-macros"))
@@ -196,8 +200,9 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
 
-lazy val macrosJVM = macros.jvm
-lazy val macrosJS  = macros.js
+lazy val macrosJVM    = macros.jvm
+lazy val macrosJS     = macros.js
+lazy val macrosNative = macros.native.settings(nativeSettings)
 
 lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros-tests"))
@@ -221,7 +226,6 @@ lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
-  .settings(publish / skip := true)
 
 lazy val internalMacrosJVM    = internalMacros.jvm.settings(dottySettings)
 lazy val internalMacrosJS     = internalMacros.js.settings(dottySettings)
@@ -612,7 +616,7 @@ lazy val scalafixInput = project
   .in(file("scalafix/input"))
   .settings(
     scalafixSettings,
-    skip in publish                  := true,
+    publish / skip                   := true,
     libraryDependencies += "dev.zio" %% "zio"         % zio1Version,
     libraryDependencies += "dev.zio" %% "zio-streams" % zio1Version,
     libraryDependencies += "dev.zio" %% "zio-test"    % zio1Version
@@ -622,7 +626,7 @@ lazy val scalafixOutput = project
   .in(file("scalafix/output"))
   .settings(
     scalafixSettings,
-    skip in publish := true
+    publish / skip := true
   )
   .dependsOn(coreJVM, testJVM, streamsJVM)
 
@@ -630,16 +634,16 @@ lazy val scalafixTests = project
   .in(file("scalafix/tests"))
   .settings(
     scalafixSettings,
-    skip in publish                       := true,
+    publish / skip                        := true,
     libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.9.32" % Test cross CrossVersion.full,
-    compile.in(Compile) :=
-      compile.in(Compile).dependsOn(compile.in(scalafixInput, Compile)).value,
+    Compile / compile :=
+      (Compile / compile).dependsOn(scalafixInput / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=
-      sourceDirectories.in(scalafixOutput, Compile).value,
+      (scalafixOutput / Compile / sourceDirectories).value,
     scalafixTestkitInputSourceDirectories :=
-      sourceDirectories.in(scalafixInput, Compile).value,
+      (scalafixInput / Compile / sourceDirectories).value,
     scalafixTestkitInputClasspath :=
-      fullClasspath.in(scalafixInput, Compile).value
+      (scalafixInput / Compile / fullClasspath).value
   )
   .dependsOn(scalafixRules)
   .enablePlugins(ScalafixTestkitPlugin)

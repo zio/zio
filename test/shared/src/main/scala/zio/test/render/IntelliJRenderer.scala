@@ -76,7 +76,7 @@ object IntelliJRenderer extends IntelliJRenderer {
 
   val locationRenderer: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.trace) { case child :: _ =>
-      child.headOption.collect { case ZTraceElement.SourceLocation(_, file, line, _) =>
+      child.headOption.collect { case ZTraceElement(_, file, line) =>
         s"file://$file:$line"
       }
     }

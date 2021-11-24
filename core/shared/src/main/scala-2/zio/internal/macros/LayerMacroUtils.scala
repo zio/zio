@@ -31,6 +31,7 @@ private[zio] trait LayerMacroUtils {
       showKey = tpe => tpe.toString,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       abort = c.abort(c.enclosingPosition, _),
+      warn = c.warning(c.enclosingPosition, _),
       emptyExpr = reify(ZLayer.succeed(())),
       composeH = (lhs, rhs) => c.Expr(q"""$lhs ++ $rhs"""),
       composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
@@ -65,20 +66,17 @@ private[zio] trait LayerMacroUtils {
 
   def getNode(layer: LayerExpr): Node[c.Type, LayerExpr] = {
     val typeArgs = layer.actualType.dealias.typeArgs
-    // ZIO[in, _, out]
+    // ZLayerZIO[in, _, out]
     val in  = typeArgs.head
     val out = typeArgs(2)
     Node(getRequirements(in), getRequirements(out), layer)
   }
 
-  def getRequirements[T: c.WeakTypeTag]: List[c.Type] =
-    getRequirements(weakTypeOf[T])
-
-  def injectBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
-    layer: Seq[c.Expr[ZLayer[_, E, _]]],
+  def provideBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+    layers: Seq[c.Expr[ZLayer[_, E, _]]],
     method: String
   ): c.Expr[F[R0, E, A]] = {
-    val expr = constructLayer[R0, R, E](layer)
+    val expr = constructLayer[R0, R, E](layers)
     c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}(${expr.tree})")
   }
 
@@ -150,6 +148,9 @@ private[zio] trait LayerMacroUtils {
     case Left(_)      => None
     case Right(value) => Some(value)
   }
+
+  def getRequirements[T: c.WeakTypeTag]: List[c.Type] =
+    getRequirements(weakTypeOf[T])
 
   def getRequirements(tpe: Type): List[c.Type] = {
     val intersectionTypes = tpe.dealias.map(_.dealias).intersectionTypes

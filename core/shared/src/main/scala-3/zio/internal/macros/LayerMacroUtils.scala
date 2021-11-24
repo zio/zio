@@ -11,7 +11,7 @@ private [zio] object LayerMacroUtils {
 
   def renderExpr[A](expr: Expr[A])(using Quotes): String = {
     import quotes.reflect._
-    expr.asTerm.pos.sourceCode.getOrElse(expr.show)
+    scala.util.Try(expr.asTerm.pos.sourceCode).toOption.flatten.getOrElse(expr.show)
   }
 
   def buildMemoizedLayer(ctx: Quotes)(exprGraph: ZLayerExprBuilder[ctx.reflect.TypeRepr, LayerExpr], requirements: List[ctx.reflect.TypeRepr]) : LayerExpr = {
@@ -41,7 +41,7 @@ private [zio] object LayerMacroUtils {
         getNodes(layer)
 
       case other =>
-        report.throwError(
+        report.errorAndAbort(
           "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
           "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
         )
@@ -71,7 +71,7 @@ private [zio] object LayerMacroUtils {
     import ctx.reflect._
 
     def go(tpe: TypeRepr): List[TypeRepr] =
-      tpe.dealias.simplified match {
+      tpe.dealias.widen match {
         case AndType(lhs, rhs) =>
           go(lhs) ++ go(rhs)
 

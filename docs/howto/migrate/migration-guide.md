@@ -569,7 +569,7 @@ trait Logging {
 
 In ZIO 1.x, when we wanted to access a service from the environment, we used the `ZIO.access` + `Has#get` combination (`ZIO.access(_.get)`):
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:nest:warn
 val logging: URIO[Logging, Logging] = ZIO.access(_.get)
 ```
 
@@ -585,13 +585,13 @@ ZIO 2.x reduces one level of indirection by using `ZIO.service` operator:
 val logging : URIO[Logging, Logging] = ZIO.service
 ```
 
-And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWith` operator:
+And to write the accessor method in ZIO 2.x, we can use `ZIO.serviceWithZIO` operator:
 
 ```scala mdoc:silent:nest
-def log(line: String): URIO[Logging, Unit] = ZIO.serviceWith(_.log(line))
+def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO(_.log(line))
 ```
 
-```scala mdoc:reset
+```scala mdoc:reset:invisible
 import zio._
 ```
 
@@ -620,7 +620,7 @@ for {
 
 ### Building the Dependency Graph
 
-To create the dependency graph in ZIO 1.x, we should compose the required layera manually. As the ordering of layer compositions matters, and also we should care about composing layers in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
+To create the dependency graph in ZIO 1.x, we should compose the required layer manually. As the ordering of layer compositions matters, and also we should care about composing layers in both vertical and horizontal manner, it would be a cumbersome job to create a dependency graph with a lot of boilerplates.
 
 Assume we have the following dependency graph with two top-level dependencies:
 
@@ -718,7 +718,7 @@ In ZIO 2.x, we can automatically construct dependencies with friendly compile-ti
 
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
-  myApp.inject(
+  myApp.provide(
     Console.live,
     Logging.live,
     Database.live,
@@ -732,7 +732,7 @@ The order of dependencies doesn't matter:
 
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
-  myApp.inject(
+  myApp.provide(
     DocRepo.live,
     BlobStorage.live,
     Logging.live,
@@ -746,7 +746,7 @@ If we miss some dependencies, it doesn't compile, and the compiler gives us the 
 
 ```scala
 val app: ZIO[Any, Nothing, Unit] =
-  myApp.inject(
+  myApp.provide(
     DocRepo.live,
     BlobStorage.live,
 //    Logging.live,
@@ -766,10 +766,10 @@ val app: ZIO[Any, Nothing, Unit] =
 ❯     for UserRepo.live
 ```
 
-We can also directly construct a layer using `ZLayer.wire`:
+We can also directly construct a layer using `ZLayer.make`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.wire[DocRepo with UserRepo](
+val layer = ZLayer.make[DocRepo with UserRepo](
   Console.live,
   Logging.live,
   DocRepo.live,
@@ -779,10 +779,10 @@ val layer = ZLayer.wire[DocRepo with UserRepo](
 )
 ```
 
-And also the `ZLayer.wireSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.wireSome[In, Out]`:
+And also the `ZLayer.makeSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.makeSome[In, Out]`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.wireSome[Console, DocRepo with UserRepo](
+val layer = ZLayer.makeSome[Console, DocRepo with UserRepo](
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -801,11 +801,11 @@ val app: ZIO[Console, Nothing, Unit] =
   )
 ```
 
-In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#injectSome[Rest](l1, l2, ...)` operator:
+In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#provideSome[Rest](l1, l2, ...)` operator:
 
 ```scala mdoc:silent:nest:warn
 val app: ZIO[Console, Nothing, Unit] =
-  myApp.injectSome[Console](
+  myApp.provideSome[Console](
     Logging.live,
     DocRepo.live,
     Database.live,
@@ -824,11 +824,11 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
   )
 ```
 
-In ZIO 2.x, the `ZIO#injectCustom` does the similar but for the injection:
+In ZIO 2.x, the `ZIO#provideCustom` does the similar but for the injection:
 
 ```scala mdoc:silent:nest
 val app: ZIO[zio.ZEnv, Nothing, Unit] =
-  myApp.injectCustom(
+  myApp.provideCustom(
     Logging.live,
     DocRepo.live,
     Database.live,
@@ -838,23 +838,23 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 ```
 
 > Note:
-> All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `inject`/`wire` methods.
+> All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `provide`/`make` methods.
 
 
-| ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
-|--------------------------------------------------------|----------------------------|
-| `ZIO#provide`                                          | `ZIO#inject`               |
-| `ZIO#provideSome`                                      | `ZIO#injectSome`           |
-| `ZIO#provideCustom`                                    | `ZIO#injectCustom`         |
-| Composing manually using `ZLayer` combinators | `ZLayer#wire`     |
-| Composing manually using `ZLayer` combinators | `ZLayer#wireSome` |
+| ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically) |
+|--------------------------------------------------------|-------------------------|
+| `ZIO#provide`                                          | `ZIO#provide`           |
+| `ZIO#provideSome`                                      | `ZIO#provideSome`       |
+| `ZIO#provideCustom`                                    | `ZIO#provideCustom`     |
+| Composing manually using `ZLayer` combinators | `ZLayer#make`           |
+| Composing manually using `ZLayer` combinators | `ZLayer#makeSome`       |
 
 ### ZLayer Debugging
 
 To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.tree` and `ZLayer.Debug.mermaid`. For example, by including `ZLayer.Debug.mermaid` into our layer construction, the compiler generates the following debug information:
 
 ```scala
-val layer = ZLayer.wire[DocRepo with UserRepo](
+val layer = ZLayer.make[DocRepo with UserRepo](
   Console.live,
   Logging.live,
   DocRepo.live,
@@ -937,7 +937,7 @@ trait Logging {
 // Accessor Methods Inside the Companion Object
 object Logging {
   def log(line: String): URIO[Logging, Unit] =
-    ZIO.serviceWith(_.log(line))
+    ZIO.serviceWithZIO(_.log(line))
 }
 
 // Implementation of the Service Interface
@@ -1027,7 +1027,7 @@ As we see, we have the following changes:
    
     In Module Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
 
-4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWith(_.log(line))`.
+4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
 
    We also have accessor methods on the fly, by extending the companion object of the service interface with `Accessible`, e.g. `object Logging extends Accessible[Logging]`. So then we can simply access the `log` method by calling the `Logging(_.log(line))` method:
    
@@ -1540,7 +1540,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _     <- Console.printLine(count)
   } yield count
 
-  def run = app.injectCustom(ZState.makeLayer(MyState(0)))
+  def run = app.provideCustom(ZState.makeLayer(MyState(0)))
 }
 ```
 

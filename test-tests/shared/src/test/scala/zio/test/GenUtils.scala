@@ -65,7 +65,7 @@ object GenUtils {
     }
 
   def provideSize[A](zio: ZIO[Random with Sized, Nothing, A])(n: Int): URIO[Random, A] =
-    zio.provide[Nothing, Random, Random with Sized](Random.any ++ Sized.live(n))
+    zio.provide(Random.any ++ Sized.live(n))
 
   val random: Gen[Any, Gen[Random, Int]] =
     Gen.const(Gen.int(-10, 10))

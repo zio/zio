@@ -178,7 +178,7 @@ class MutableRunnableSpec[R: Tag](
   final override def spec: ZSpec[Environment, Failure] = {
     implicit val trace = Tracer.newTrace
     specBuilt = true
-    (stack.head @@ aspect).toSpec.provideCustomShared(layer.mapError(TestFailure.fail))
+    (stack.head @@ aspect).toSpec.provideShared(ZLayer.environment[Environment] ++ layer.mapError(TestFailure.fail))
   }
 
   override def aspects: List[TestAspect.WithOut[

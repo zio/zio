@@ -27,7 +27,7 @@ import scala.annotation.tailrec
 sealed trait FiberId extends Serializable { self =>
   import FiberId._
 
-  def combine(that: FiberId): FiberId =
+  final def combine(that: FiberId): FiberId =
     (self, that) match {
       case (None, that)                                 => that
       case (that, None)                                 => that
@@ -37,11 +37,29 @@ sealed trait FiberId extends Serializable { self =>
       case (self @ Runtime(_, _), that @ Runtime(_, _)) => Composite(Set(self, that))
     }
 
-  def ids: Set[Int] =
+  final def getOrElse(that: => FiberId): FiberId = if (isNone) that else self
+
+  final def ids: Set[Int] =
     self match {
       case None                => Set.empty
       case Runtime(id, _)      => Set(id)
       case Composite(fiberIds) => fiberIds.map(_.id)
+    }
+
+  final def isNone: Boolean =
+    self match {
+      case None           => true
+      case Composite(set) => set.forall(_.isNone)
+      case _              => false
+    }
+
+  final def threadName: String = s"zio-fiber-${self.ids.mkString(",")}"
+
+  final def toOption: Option[FiberId] =
+    self match {
+      case None           => Option.empty[FiberId]
+      case Composite(set) => set.map(_.toOption).collect { case Some(fiberId) => fiberId }.reduceOption(_.combine(_))
+      case other          => Some(other)
     }
 }
 
@@ -52,6 +70,11 @@ object FiberId {
 
   def combineAll(fiberIds: Set[FiberId]): FiberId =
     fiberIds.foldLeft[FiberId](FiberId.None)(_ combine _)
+
+  private[zio] def unsafeMake(): FiberId.Runtime =
+    FiberId.Runtime((java.lang.System.currentTimeMillis / 1000).toInt, _fiberCounter.getAndIncrement())
+
+  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 
   case object None                                           extends FiberId
   final case class Runtime(id: Int, startTimeSeconds: Int)   extends FiberId

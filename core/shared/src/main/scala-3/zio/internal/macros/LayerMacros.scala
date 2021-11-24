@@ -9,7 +9,7 @@ import zio.internal.macros.StringUtils.StringOps
 import LayerMacroUtils._
 
 object LayerMacros {
-  def injectImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layer: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
+  def provideImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layer: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
     val layerExpr = fromAutoImpl[R0, R, E](layer)
     '{$zio.provide($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
   }
@@ -54,7 +54,8 @@ trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
       typeRepr.show
     }
 
-    def compileError(message: String) : Nothing = report.throwError(message)
+    def compileError(message: String) : Nothing = report.errorAndAbort(message)
+    def compileWarning(message: String) : Unit = report.warning(message)
     def empty: LayerExpr = '{ZLayer.succeed(())}
     def composeH(lhs: LayerExpr, rhs: LayerExpr): LayerExpr =
       lhs match {
@@ -79,6 +80,7 @@ trait ExprGraphCompileVariants { self : ZLayerExprBuilder.type =>
       renderTypeRepr,
       renderExpr,
       compileError,
+      compileWarning,
       empty,
       composeH,
       composeV

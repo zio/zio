@@ -39,9 +39,18 @@ private[zio] trait Counter {
    */
   def increment(value: Double)(implicit trace: ZTraceElement): UIO[Any]
 
+  /**
+   * Increments the counter by one.
+   */
+  final def increment(implicit trace: ZTraceElement): UIO[Any] =
+    increment(1.0)
+
   private[zio] def unsafeCount(): Double
 
   private[zio] def unsafeIncrement(value: Double): Unit
+
+  private[zio] final def unsafeIncrement(): Unit =
+    unsafeIncrement(1.0)
 }
 
 private[zio] object Counter {

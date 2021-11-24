@@ -15,7 +15,6 @@
  */
 
 import zio.internal.stacktracer.Tracer
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 package object zio
     extends BuildFromCompat
@@ -87,21 +86,22 @@ package object zio
   type Semaphore = stm.TSemaphore
 
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
-  object ZTraceElement {
-    val empty: ZTraceElement      = Tracer.instance.empty
-    val NoLocation: ZTraceElement = Tracer.instance.empty
-    object SourceLocation {
-      def apply(location: String, file: String, line: Int, column: Int): ZTraceElement =
-        Tracer.instance.apply(location, file, line, column)
-
-      def unapply(trace: ZTraceElement): Option[(String, String, Int, Int)] =
-        Tracer.instance.unapply(trace)
-    }
-  }
 
   trait IsNotIntersection[A] extends Serializable
 
   object IsNotIntersection extends IsNotIntersectionVersionSpecific {
-    def apply[A: IsNotIntersection]: IsNotIntersection[A] = implicitly[IsNotIntersection[A]]
+    def apply[A](implicit isNotIntersection: IsNotIntersection[A]): IsNotIntersection[A] = isNotIntersection
   }
+
+  implicit final class SubtypeOps[R, R0](private val self: R0 <:< R) extends AnyVal {
+    @inline def liftEnv[E, A](zio: ZIO[R, E, A]): ZIO[R0, E, A] =
+      zio.asInstanceOf[ZIO[R0, E, A]]
+
+    @inline def liftEnv[E, A](managed: ZManaged[R, E, A]): ZManaged[R0, E, A] =
+      managed.asInstanceOf[ZManaged[R0, E, A]]
+
+    @inline def liftEnv[E, A](layer: ZLayer[R, E, A]): ZLayer[R0, E, A] =
+      layer.asInstanceOf[ZLayer[R0, E, A]]
+  }
+
 }

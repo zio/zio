@@ -43,7 +43,7 @@ private[zio] final class FiberContext[E, A](
   import FiberContext._
   import FiberState._
 
-  fibersStarted.unsafeCount()
+  fibersStarted.unsafeIncrement()
 
   // Accessed from multiple threads:
   private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
@@ -476,16 +476,8 @@ private[zio] final class FiberContext[E, A](
             // Prevent interruption of interruption:
             unsafeSetInterrupting(true)
 
-          case ZIO.ZioError(exit) =>
-            exit match {
-              case Exit.Success(value) =>
-                curZio = unsafeNextEffect(value)
-
-              case Exit.Failure(cause) =>
-                val trace = curZio.trace
-
-                curZio = ZIO.failCause(cause)(trace)
-            }
+          case ZIO.ZioError(cause, trace) =>
+            curZio = ZIO.failCause(cause)(trace)
 
           // Catastrophic error handler. Any error thrown inside the interpreter is
           // either a bug in the interpreter or a bug in the user's code. Let the
@@ -552,18 +544,10 @@ private[zio] final class FiberContext[E, A](
     }
 
   private def unsafeCaptureTrace(prefix: List[ZTraceElement]): ZTrace = {
-    val builder = ChunkBuilder.make[ZTraceElement]()
-    val empty   = ZTraceElement.empty
-    var last    = empty
+    val builder = StackTraceBuilder.unsafeMake()
 
-    def addToTrace(trace: ZTraceElement): Unit =
-      if ((trace ne null) && (trace ne empty) && (trace ne last)) {
-        last = trace
-        builder += trace
-      }
-
-    prefix.foreach(addToTrace(_))
-    stack.foreach(k => addToTrace(k.trace))
+    prefix.foreach(builder += _)
+    stack.foreach(k => builder += k.trace)
 
     ZTrace(fiberId, builder.result())
   }
@@ -651,7 +635,7 @@ private[zio] final class FiberContext[E, A](
 
     val parentScope = (forkScope orElse unsafeGetRef(forkScopeOverride)).getOrElse(scope)
 
-    val childId    = Fiber.newFiberId()
+    val childId    = FiberId.unsafeMake()
     val childScope = ZScope.unsafeMake[Exit[E, A]]()
 
     val childContext = new FiberContext[E, A](
@@ -1062,24 +1046,24 @@ private[zio] final class FiberContext[E, A](
 
             val lifetime = endTimeSeconds - startTimeSeconds
 
-            fiberLifetimes.observe(lifetime.toDouble)
+            fiberLifetimes.unsafeObserve(lifetime.toDouble)
 
             newExit match {
-              case Exit.Success(_) => fiberSuccesses.unsafeCount()
+              case Exit.Success(_) => fiberSuccesses.unsafeIncrement()
 
               case Exit.Failure(cause) =>
-                fiberFailures.unsafeCount()
+                fiberFailures.unsafeIncrement()
 
                 cause.fold[Unit](
                   "<empty>",
                   (failure, _) => {
-                    fiberFailureCauses.observe(failure.getClass.getName)
+                    fiberFailureCauses.unsafeObserve(failure.getClass.getName)
                   },
                   (defect, _) => {
-                    fiberFailureCauses.observe(defect.getClass.getName)
+                    fiberFailureCauses.unsafeObserve(defect.getClass.getName)
                   },
                   (fiberId, _) => {
-                    fiberFailureCauses.observe(classOf[InterruptedException].getName)
+                    fiberFailureCauses.unsafeObserve(classOf[InterruptedException].getName)
                   }
                 )(combineUnit, combineUnit, leftUnit)
             }
@@ -1226,7 +1210,7 @@ private[zio] object FiberContext {
   lazy val fibersStarted  = ZIOMetric.count("zio-fiber-started").counter
   lazy val fiberSuccesses = ZIOMetric.count("zio-fiber-successes").counter
   lazy val fiberFailures  = ZIOMetric.count("zio-fiber-failures").counter
-  lazy val fiberLifetimes = ZIOMetric.observeHistogram("zio-fiber-lifetimes", fiberLifetimeBoundaries)
+  lazy val fiberLifetimes = ZIOMetric.observeHistogram("zio-fiber-lifetimes", fiberLifetimeBoundaries).histogram
 
   lazy val fiberLifetimeBoundaries = ZIOMetric.Histogram.Boundaries.exponential(1.0, 2.0, 100)
 
