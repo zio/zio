@@ -31,9 +31,9 @@ import zio.test.render.LogLine.Message
 
 /**
  * Custom JUnit 4 runner for ZIO Test Specs.<br/> Any instance of
- * [[zio.test.AbstractRunnableSpec]], that is a class (JUnit won't run objects),
- * if annotated with `@RunWith(classOf[ZTestJUnitRunner])` can be run by IDEs
- * and build tools that support JUnit.<br/> Your spec can also extend
+ * [[zio.test.ZIOSpecAbstract]], that is a class (JUnit won't run objects), if
+ * annotated with `@RunWith(classOf[ZTestJUnitRunner])` can be run by IDEs and
+ * build tools that support JUnit.<br/> Your spec can also extend
  * [[JUnitRunnableSpec]] to inherit the annotation. In order to expose the
  * structure of the test to JUnit (and the external tools), `getDescription` has
  * to execute Suite level effects. This means that these effects will be
@@ -41,17 +41,16 @@ import zio.test.render.LogLine.Message
  * Scala.JS is not supported, as JUnit TestFramework for SBT under Scala.JS
  * doesn't support custom runners.
  */
-// TODO What all needs to be done here for ZIOSpec support?
 class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   import zio.Runtime.default.unsafeRun
 
   private val className = klass.getName.stripSuffix("$")
 
-  private lazy val spec: AbstractRunnableSpec = {
+  private lazy val spec: ZIOSpecAbstract = {
     klass
       .getDeclaredConstructor()
       .newInstance()
-      .asInstanceOf[AbstractRunnableSpec]
+      .asInstanceOf[ZIOSpecAbstract]
   }
 
   private var filter = Filter.ALL
@@ -75,18 +74,42 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           ZManaged.succeed(description.addChild(testDescription(path.lastOption.getOrElse(""), path)))
       }
 
+    val emptyArgsLayer: ULayer[ZIOAppArgs] =
+      ZLayer.succeed(
+        ZIOAppArgs(Chunk.empty)
+      )
+
     unsafeRun(
       traverse(filteredSpec, description)
-        .provide(spec.runner.executor.environment)
+        .provide(
+          ZEnv.live,
+          TestEnvironment.live,
+          emptyArgsLayer,
+          spec.layer
+        )
         .useNow
     )
     description
   }
 
   override def run(notifier: RunNotifier): Unit =
-    zio.Runtime(ZEnvironment.empty, spec.runner.runtimeConfig).unsafeRun {
-      val instrumented = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
-      spec.runner.run(instrumented).unit.provide(spec.runner.bootstrap)
+    zio.Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRun {
+      val emptyArgsLayer: ULayer[ZIOAppArgs] =
+        ZLayer.succeed(
+          ZIOAppArgs(Chunk.empty)
+        )
+
+      val instrumented: ZSpec[spec.Environment with TestEnvironment with ZIOAppArgs, Any] =
+        instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
+      spec
+        .runSpec(instrumented, TestArgs.empty)
+        .provide(
+          ZEnv.live,
+          TestEnvironment.live,
+          emptyArgsLayer,
+          spec.layer
+        )
+//      spec.runner.run(instrumented).unit.provide(spec.runner.bootstrap)
     }
 
   private def reportRuntimeFailure[E](
@@ -156,7 +179,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     Spec(loop(zspec.caseValue))
   }
 
-  private def filteredSpec: ZSpec[spec.Environment, spec.Failure] =
+  private def filteredSpec =
     spec.spec
       .filterLabels(l => filter.shouldRun(testDescription(l, Vector.empty)))
       .getOrElse(spec.spec)
@@ -199,6 +222,5 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 private[junit] class TestFailed(message: String, cause: Throwable = null)
     extends Throwable(message, cause, false, false)
 
-// TODO What to do here? Are these being run as part of the normal CI process?
 @RunWith(classOf[ZTestJUnitRunner])
-abstract class JUnitRunnableSpec extends DefaultRunnableSpec
+abstract class JUnitRunnableSpec extends ZIOSpecDefault

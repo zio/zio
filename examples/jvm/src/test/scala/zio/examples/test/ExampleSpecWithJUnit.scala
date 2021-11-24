@@ -3,8 +3,8 @@ package zio.examples.test
 import zio.test._
 import zio.test.junit.JUnitRunnableSpec
 
-// TODO Find out the purpose of this test
 class ExampleSpecWithJUnit extends JUnitRunnableSpec {
+
   def spec = suite("some suite")(
     test("failing test") {
       assert(1)(Assertion.equalTo(2))
