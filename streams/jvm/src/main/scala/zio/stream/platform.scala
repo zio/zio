@@ -603,7 +603,7 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromOutputStream(
     os: OutputStream
-  )(implicit trace: ZTraceElement): ZSink[Any,IOException, Byte, Byte, Long] = fromOutputStreamManaged(
+  )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, Byte, Long] = fromOutputStreamManaged(
     ZManaged.succeedNow(os)
   )
 
