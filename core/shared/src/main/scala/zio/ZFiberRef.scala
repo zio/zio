@@ -279,7 +279,7 @@ object ZFiberRef {
 
       }
 
-    def get(implicit trace: ZTraceElement): IO[Nothing, A] =
+    def get(implicit trace: ZTraceElement): UIO[A] =
       modify(v => (v, v))
 
     def getAndSet(a: A)(implicit trace: ZTraceElement): UIO[A] =
