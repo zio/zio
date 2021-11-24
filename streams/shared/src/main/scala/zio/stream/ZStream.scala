@@ -68,7 +68,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Symbolic alias for [[[zio.stream.ZStream!.run[R1<:R,E1>:E,B]*]]].
    */
-  def >>>[R1 <: R, E1 >: E, A2 >: A, Z](sink: ZSink[R1, A2, E1, Any, Z])(implicit
+  def >>>[R1 <: R, E1 >: E, A2 >: A, Z](sink: ZSink[R1, E1, A2, Any, Z])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, Z] =
     self.run(sink)
@@ -111,7 +111,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * [[ZSink.foldUntilM]] for sinks that cover the common usecases.
    */
   final def aggregateAsync[R1 <: R, E1 >: E, A1 >: A, B](
-    sink: ZSink[R1, A1, E1, A1, B]
+    sink: ZSink[R1, E1, A1, A1, B]
   )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
     aggregateAsyncWithin(sink, Schedule.forever)
 
@@ -126,7 +126,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   `ZStream[R1 with Clock, E2, B]`
    */
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, A1 >: A, B](
-    sink: ZSink[R1, A1, E1, A1, B],
+    sink: ZSink[R1, E1, A1, A1, B],
     schedule: Schedule[R1, Option[B], Any]
   )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
     aggregateAsyncWithinEither(sink, schedule).collect { case Right(v) =>
@@ -153,7 +153,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   `ZStream[R1 with Clock, E2, Either[C, B]]`
    */
   def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
-    sink: ZSink[R1, A1, E1, A1, B],
+    sink: ZSink[R1, E1, A1, A1, B],
     schedule: Schedule[R1, Option[B], C]
   )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, Either[C, B]] = {
     type HandoffSignal = ZStream.HandoffSignal[C, E1, A]
@@ -2755,7 +2755,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * provided stream is valid only within the scope of [[ZManaged]].
    */
   def peel[R1 <: R, E1 >: E, A1 >: A, Z](
-    sink: ZSink[R1, A1, E1, A1, Z]
+    sink: ZSink[R1, E1, A1, A1, Z]
   )(implicit trace: ZTraceElement): ZManaged[R1, E1, (Z, ZStream[Any, E, A1])] = {
     sealed trait Signal
     object Signal {
@@ -2768,7 +2768,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       p       <- Promise.makeManaged[E1, Z]
       handoff <- ZStream.Handoff.make[Signal].toManaged
     } yield {
-      val consumer: ZSink[R1, A1, E1, A1, Unit] = sink.exposeLeftover
+      val consumer: ZSink[R1, E1, A1, A1, Unit] = sink.exposeLeftover
         .foldSink(
           e => ZSink.fromZIO(p.fail(e)) *> ZSink.fail(e),
           { case (z1, leftovers) =>
@@ -2807,7 +2807,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @see
    *   [[transduce]]
    */
-  def pipeThrough[R1 <: R, E1 >: E, L, Z](sink: ZSink[R1, A, E1, L, Z])(implicit
+  def pipeThrough[R1 <: R, E1 >: E, L, Z](sink: ZSink[R1, E1, A, L, Z])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, L] =
     new ZStream(self.channel pipeToOrFail sink.channel)
@@ -3164,10 +3164,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Runs the sink on the stream to produce either the sink's result or an
    * error.
    */
-  def run[R1 <: R, E1 >: E, Z](sink: ZSink[R1, A, E1, Any, Z])(implicit trace: ZTraceElement): ZIO[R1, E1, Z] =
+  def run[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, A, Any, Z])(implicit trace: ZTraceElement): ZIO[R1, E1, Z] =
     (channel pipeToOrFail sink.channel).runDrain
 
-  def runManaged[R1 <: R, E1 >: E, B](sink: ZSink[R1, A, E1, Any, B])(implicit
+  def runManaged[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, A, Any, B])(implicit
     trace: ZTraceElement
   ): ZManaged[R1, E1, B] =
     (channel pipeToOrFail sink.channel).drain.runManaged
@@ -3944,7 +3944,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Applies the transducer to the stream and emits its outputs.
    */
   def transduce[R1 <: R, E1 >: E, A1 >: A, Z](
-    sink: ZSink[R1, A1, E1, A1, Z]
+    sink: ZSink[R1, E1, A1, A1, Z]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, Z] =
     new ZStream(
       ZChannel.effectSuspendTotal {

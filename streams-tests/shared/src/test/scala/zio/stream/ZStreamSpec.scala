@@ -2632,7 +2632,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ),
         test("peel") {
-          val sink: ZSink[Any, Int, Nothing, Int, Any] = ZSink.take(3)
+          val sink: ZSink[Any, Nothing, Int, Int, Any] = ZSink.take(3)
 
           ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6)).peel(sink).use { case (chunk, rest) =>
             rest.runCollect.map { rest =>
