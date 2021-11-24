@@ -6,7 +6,7 @@ import izumi.reflect.macrortti.LightTypeTag
 trait ZLogger[-Message, +Output] { self =>
   def apply(
     trace: ZTraceElement,
-    fiberId: FiberId.Runtime,
+    fiberId: FiberId,
     logLevel: LogLevel,
     message: () => Message,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -23,7 +23,7 @@ trait ZLogger[-Message, +Output] { self =>
     new ZLogger[M, zippable.Out] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => M,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -43,7 +43,7 @@ trait ZLogger[-Message, +Output] { self =>
     new ZLogger[Message1, Output] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => Message1,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -59,7 +59,7 @@ trait ZLogger[-Message, +Output] { self =>
     new ZLogger[Message, Option[Output]] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => Message,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -74,7 +74,7 @@ trait ZLogger[-Message, +Output] { self =>
     new ZLogger[Message, B] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => Message,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -83,7 +83,7 @@ trait ZLogger[-Message, +Output] { self =>
     }
 
   final def test(input: => Message): Output =
-    apply(ZTraceElement.empty, null, LogLevel.Info, () => input, Map(), Nil)
+    apply(ZTraceElement.empty, FiberId.None, LogLevel.Info, () => input, Map(), Nil)
 
   final def toSet[Message1 <: Message](implicit tag: Tag[Message1]): ZLogger.Set[Message1, Output] =
     ZLogger.Set(self: ZLogger[Message1, Output])
@@ -155,7 +155,7 @@ object ZLogger {
 
   val defaultString: ZLogger[String, String] = (
     trace: ZTraceElement,
-    fiberId: FiberId.Runtime,
+    fiberId: FiberId,
     logLevel: LogLevel,
     message0: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -174,7 +174,7 @@ object ZLogger {
       .append(" level=")
       .append(logLevel.label)
       .append(" thread=#")
-      .append(fiberId.id.toString)
+      .append(fiberId.threadName)
       .append(" message=\"")
       .append(message0())
       .append("\"")
@@ -223,7 +223,7 @@ object ZLogger {
   val none: ZLogger[Any, Unit] = new ZLogger[Any, Unit] {
     def apply(
       trace: ZTraceElement,
-      fiberId: FiberId.Runtime,
+      fiberId: FiberId,
       logLevel: LogLevel,
       message: () => Any,
       context: Map[FiberRef.Runtime[_], AnyRef],
@@ -236,7 +236,7 @@ object ZLogger {
     new ZLogger[A, B] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => A,
         context: Map[FiberRef.Runtime[_], AnyRef],
