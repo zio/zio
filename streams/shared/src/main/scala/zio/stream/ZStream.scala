@@ -3722,6 +3722,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def environment[R]: ZStream[R, Nothing, R] =
     fromEffect(ZIO.environment[R])
 
+  /**
+   * Creates a [[zio.stream.ZStream]] from the given effect and drains it
+   */
   def execute[R, E, A](zio: ZIO[R, E, A]): ZStream[R, E, Nothing] =
     ZStream.fromEffect(zio).drain
 
