@@ -4,7 +4,7 @@ import zio._
 import zio.test._
 import zio.test.Assertion._
 
-object ConcurrentMapSpec extends ZIOBaseSpec {
+object ConcurrentMapSpec extends DefaultRunnableSpec {
   def spec: ZSpec[Environment, Failure] =
     suite("ConcurrentMap")(
       suite("collectFirst")(

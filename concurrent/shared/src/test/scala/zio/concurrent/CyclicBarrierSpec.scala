@@ -6,7 +6,7 @@ import zio._
 import zio.duration._
 import zio.test.environment.TestClock
 
-object CyclicBarrierSpec extends ZIOBaseSpec {
+object CyclicBarrierSpec extends DefaultRunnableSpec {
   private val parties = 100
 
   val spec: ZSpec[Environment, Failure] =
