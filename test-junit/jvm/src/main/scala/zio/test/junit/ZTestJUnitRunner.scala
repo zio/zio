@@ -92,8 +92,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     description
   }
 
-  override def run(notifier: RunNotifier): Unit =
-    zio.Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRun {
+  override def run(notifier: RunNotifier): Unit = {
+    val _ = zio.Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRun {
       val emptyArgsLayer: ULayer[ZIOAppArgs] =
         ZLayer.succeed(
           ZIOAppArgs(Chunk.empty)
@@ -109,8 +109,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           emptyArgsLayer,
           spec.layer
         )
-//      spec.runner.run(instrumented).unit.provide(spec.runner.bootstrap)
     }
+  }
 
   private def reportRuntimeFailure[E](
     notifier: JUnitNotifier,
