@@ -149,8 +149,11 @@ object ZLogger {
 
     def apply[A, B](logger: ZLogger[A, B])(implicit tag: Tag[A]): Set[A, B] = empty[B].add[A, B](logger)
 
-    def apply[A, B](logger1: ZLogger[A, B], logger2: ZLogger[A, B])(implicit tag: Tag[A]): Set[A, B] =
-      empty[B].add[A, B](logger1).add[A, B](logger2)
+    def apply[A, B, Z](logger1: ZLogger[A, Z], logger2: ZLogger[B, Z])(implicit
+      tag1: Tag[A],
+      tag2: Tag[B]
+    ): Set[A & B, Z] =
+      empty[Z].add[A, Z](logger1).add[B, Z](logger2)
   }
 
   val defaultString: ZLogger[String, String] = (
