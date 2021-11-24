@@ -872,13 +872,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               l   <- ref.get
             } yield assert(l.reverse)(equalTo(Range(0, 10).toList))
           ),
-          testM("execute")(
-            for {
-              ref <- Ref.make[Option[Int]](None)
-              _   <- ZStream.execute(ref.set(Some(1))).runDrain
-              l   <- ref.get
-            } yield assert(l)(equalTo(Some(1)))
-          ),
           testM("isn't too eager") {
             (ZStream(1) ++ ZStream.fail("fail")).drain.process.use(pull => assertM(pull.run)(succeeds(isEmpty)))
           }
@@ -987,6 +980,13 @@ object ZStreamSpec extends ZIOBaseSpec {
                  } yield ()).ensuringFirst(log.update("Ensuring" :: _)).runDrain
             execution <- log.get
           } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
+        },
+        testM("execute") {
+          for {
+            ref <- Ref.make(List[Int]())
+            _   <- ZStream.execute(ref.set(List(1))).runDrain
+            l   <- ref.get
+          } yield assert(l)(equalTo(List(1)))
         },
         testM("filter")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
