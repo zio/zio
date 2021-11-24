@@ -41,6 +41,7 @@ import zio.test.render.LogLine.Message
  * Scala.JS is not supported, as JUnit TestFramework for SBT under Scala.JS
  * doesn't support custom runners.
  */
+// TODO What all needs to be done here for ZIOSpec support?
 class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   import zio.Runtime.default.unsafeRun
 

@@ -31,9 +31,9 @@ import zio.test.render.LogLine.Message
 
 /**
  * Custom JUnit 4 runner for ZIO Test Specs.<br/> Any instance of
- * [[zio.test.ZIOSpecAbstract]], that is a class (JUnit won't run objects),
- * if annotated with `@RunWith(classOf[ZTestJUnitRunner])` can be run by IDEs
- * and build tools that support JUnit.<br/> Your spec can also extend
+ * [[zio.test.ZIOSpecAbstract]], that is a class (JUnit won't run objects), if
+ * annotated with `@RunWith(classOf[ZTestJUnitRunner])` can be run by IDEs and
+ * build tools that support JUnit.<br/> Your spec can also extend
  * [[JUnitRunnableSpec]] to inherit the annotation. In order to expose the
  * structure of the test to JUnit (and the external tools), `getDescription` has
  * to execute Suite level effects. This means that these effects will be
@@ -74,7 +74,6 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           ZManaged.succeed(description.addChild(testDescription(path.lastOption.getOrElse(""), path)))
       }
 
-    
     unsafeRun(
       traverse(filteredSpec, description)
         .provide(spec.layer)
@@ -87,7 +86,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   override def run(notifier: RunNotifier): Unit =
     zio.Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRun {
 //      zio.Runtime(ZEnvironment.empty, spec.runtimeConfig).unsafeRun {
-      val instrumented: ZSpec[spec.Environment with TestEnvironment with ZIOAppArgs, Any] = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
+      val instrumented: ZSpec[spec.Environment with TestEnvironment with ZIOAppArgs, Any] =
+        instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec.runSpec(instrumented, TestArgs.empty).provide(spec.layer)
 //      spec.runner.run(instrumented).unit.provide(spec.runner.bootstrap)
     }
