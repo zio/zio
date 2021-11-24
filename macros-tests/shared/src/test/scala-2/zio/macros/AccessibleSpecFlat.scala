@@ -231,7 +231,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
               def overloadedManaged(arg1: Long)                 : UManaged[String]
 
               def function(arg1: Int)                    : String
-              def sink(arg1: Int)                        : ZSink[Any, Nothing, Int, Nothing, Int, List[Int]]
+              def sink(arg1: Int)                        : ZSink[Any, Nothing, Int, Int, List[Int]]
               def stream(arg1: Int)                      : ZStream[Any, Nothing, Int]
             }
 
@@ -260,7 +260,7 @@ object AccessibleSpecFlat extends DefaultRunnableSpec {
               def overloadedManaged(arg1: Long)                 : ZManaged[Module, Nothing, String] = Module.overloadedManaged(arg1)
 
               def function(arg1: Int)                    : ZIO[Module, Throwable, String] = Module.function(arg1)
-              def sink(arg1: Int)                        : ZSink[Module, Nothing, Int, Nothing, Int, List[Int]] = Module.sink(arg1)
+              def sink(arg1: Int)                        : ZSink[Module, Nothing, Int, Int, List[Int]] = Module.sink(arg1)
               def stream(arg1: Int)                      : ZStream[Module, Nothing, Int] = Module.stream(arg1)
             }
           """
