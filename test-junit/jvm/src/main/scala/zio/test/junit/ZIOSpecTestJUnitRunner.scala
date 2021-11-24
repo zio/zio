@@ -41,7 +41,7 @@ import zio.test.render.LogLine.Message
  * Scala.JS is not supported, as JUnit TestFramework for SBT under Scala.JS
  * doesn't support custom runners.
  */
-class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
+class ZIOSpecTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   import zio.Runtime.default.unsafeRun
 
   private val className = klass.getName.stripSuffix("$")
@@ -201,7 +201,3 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 
 private[junit] class TestFailed(message: String, cause: Throwable = null)
     extends Throwable(message, cause, false, false)
-
-// TODO What to do here? Are these being run as part of the normal CI process?
-@RunWith(classOf[ZTestJUnitRunner])
-abstract class JUnitRunnableSpec extends ZIOSpecDefault
