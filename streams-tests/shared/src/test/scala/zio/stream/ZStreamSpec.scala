@@ -981,6 +981,13 @@ object ZStreamSpec extends ZIOBaseSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Release", "Ensuring", "Use", "Acquire")))
         },
+        testM("execute") {
+          for {
+            ref <- Ref.make(List[Int]())
+            _   <- ZStream.execute(ref.set(List(1))).runDrain
+            l   <- ref.get
+          } yield assert(l)(equalTo(List(1)))
+        },
         testM("filter")(checkM(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
