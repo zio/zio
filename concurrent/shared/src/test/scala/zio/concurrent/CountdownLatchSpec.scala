@@ -4,7 +4,7 @@ import zio._
 import zio.test._
 import zio.test.Assertion._
 
-object CountdownLatchSpec extends ZIOBaseSpec {
+object CountdownLatchSpec extends DefaultRunnableSpec {
   val spec: ZSpec[Environment, Failure] =
     suite("CountdownLatchSpec")(
       suite("Construction")(
