@@ -15,9 +15,9 @@ import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import zio.Clock
-import zio.test.{ Gen, TestClock }
+import zio.test.{ Gen, TestClock, ZIOSpecDefault }
 
-object ZStreamSpec extends DefaultRunnableSpec {
+object ZStreamSpec extends ZIOSpecDefault {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
 
