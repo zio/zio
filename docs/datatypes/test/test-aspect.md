@@ -5,6 +5,41 @@ title: "TestAspect"
 
 A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another, possibly enlarging the environment or error type.
 
+## Before, After and Around
+
+1. We can run a test _before_, _after_, or _around_ every test:
+- `TestAspect.before`
+- `TestAspect.after`
+- `TestAspect.around`
+
+```scala mdoc:invisible
+import zio._
+def deleteDir(dir: Option[String]): Task[Unit] = Task{
+  val _ = dir
+}
+```
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+
+test("before and after") {
+  for {
+    tmp <- System.env("TEMP_DIR")
+  } yield assertTrue(tmp.contains("/tmp/test"))
+} @@ TestAspect.before(
+  TestSystem.putEnv("TEMP_DIR", s"/tmp/test")
+) @@ TestAspect.after(
+  System.env("TEMP_DIR").flatMap(deleteDir)
+)
+```
+
+2. The `TestAspect.aroundTest` takes a managed resource and evaluates every test within the context of the managed function.
+
+3. There are also `TestAspect.beforeAll`, `TestAspect.afterAll`, and `TestAspect.aroundAll` variants.
+
+4. Using `TestAspect.aroundWith` and `TestAspect.aroundAllWith` we can evaluate every test or all test between two given effects, `before` and `after`, where the result of the `before` effect can be used in the `after` effect.
+
 ## Timing Out with Safe Interruption
 
 We can easily time out a long-running test:
@@ -119,7 +154,7 @@ suite("clock suite")(
 
 This test fails in the second retry:
 
-```scala mdoc:compile-only
+```
 current time: 1
 current time: 2
 - some suite
@@ -133,6 +168,10 @@ current time: 2
 It failed because of the first run of the test changed the state of the `TestClock` service, so on the next run, the initial state of the test is not zero. In such a situation, when we are repeating a test, after each run we can restore the state of the test to its initial state, using `TestAspect.restore*` test aspects:
 
 ```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+import java.util.concurrent.TimeUnit
+
 suite("clock suite")(
   test("adjusting clock") {
     for {
