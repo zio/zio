@@ -9,7 +9,7 @@ import zio.{UIO, URLayer, ZIO}
  */
 object StreamModuleMock extends Mock[StreamModule] {
 
-  object Sink   extends Sink[Any, String, Int, String, Nothing, List[Int]]
+  object Sink   extends Sink[Any, String, Int, Nothing, List[Int]]
   object Stream extends Stream[Any, String, Int]
 
   val compose: URLayer[Proxy, StreamModule] =

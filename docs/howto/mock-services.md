@@ -99,7 +99,7 @@ object Example {
     def overloaded(arg1: Int)                  : UIO[String]
     def overloaded(arg1: Long)                 : UIO[String]
     def function(arg1: Int)                    : String
-    def sink(a: Int)                           : ZSink[Any, String, Int, String, Int, List[Int]]
+    def sink(a: Int)                           : ZSink[Any, String, Int, Int, List[Int]]
     def stream(a: Int)                         : ZStream[Any, String, Int]
   }
 }
@@ -121,7 +121,7 @@ object ExampleMock extends Mock[Example] {
     object _1 extends Effect[Long, Nothing, String]
   }
   object Function extends Method[Int, Throwable, String]
-  object Sink     extends Sink[Any, String, Int, String, Int, List[Int]]
+  object Sink     extends Sink[Any, String, Int, Int, List[Int]]
   object Stream   extends Stream[Any, String, Int]
 
   val compose: URLayer[Proxy, Example] = ???
