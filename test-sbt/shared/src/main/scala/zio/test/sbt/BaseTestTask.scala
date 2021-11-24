@@ -1,8 +1,29 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
-import zio.{Chunk, Clock, Console, Layer, Random, Runtime, System, UIO, ULayer, ZEnv, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.test.{
+  AbstractRunnableSpec,
+  FilteredSpec,
+  SummaryBuilder,
+  TestArgs,
+  TestEnvironment,
+  TestLogger,
+  ZIOSpecAbstract
+}
+import zio.{
+  Chunk,
+  Clock,
+  Layer,
+  Runtime,
+  UIO,
+  ULayer,
+  ZEnv,
+  ZEnvironment,
+  ZIO,
+  ZIOAppArgs,
+  ZLayer,
+  ZTraceElement
+}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -26,7 +47,7 @@ abstract class BaseTestTask(
 
   protected def run(
     eventHandler: EventHandler,
-    spec: ZIOSpecAbstract, 
+    spec: ZIOSpecAbstract,
     loggers: Array[Logger]
   )(implicit trace: ZTraceElement): ZIO[TestLogger with Clock, Throwable, Unit] = {
     val argslayer: ULayer[ZIOAppArgs] =
@@ -42,7 +63,7 @@ abstract class BaseTestTask(
 
     val fullLayer: Layer[Error, spec.Environment with ZIOAppArgs with TestEnvironment with ZEnv] =
       layer +!+ argslayer +!+ filledTestlayer
-      
+
     val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
 
     for {

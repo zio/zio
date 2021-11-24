@@ -102,7 +102,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   private[zio] def runSpec(
     spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any],
     testArgs: TestArgs
-  )(implicit trace: ZTraceElement): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, ExecutedSpec[Any]] = {
+  )(implicit
+    trace: ZTraceElement
+  ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, ExecutedSpec[Any]] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     val defaultRuntimeConfig = RuntimeConfig.makeDefault()

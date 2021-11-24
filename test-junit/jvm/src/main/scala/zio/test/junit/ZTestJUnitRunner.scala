@@ -107,7 +107,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           ZEnv.live,
           TestEnvironment.live,
           emptyArgsLayer,
-          spec.layer
+          spec.layer,
+          TestLogger.fromConsole // TODO Is this okay here?
         )
     }
   }
