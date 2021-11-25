@@ -102,7 +102,11 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       val instrumented: ZSpec[spec.Environment with TestEnvironment with ZIOAppArgs, Any] =
         instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec
-        .runSpec(instrumented, TestArgs.empty)
+        .runSpec(
+          instrumented,
+          TestArgs.empty,
+          ZIO.unit
+        ) // TODO Check if unit is okay for JUnit, or if we need a real value here.
         .provide(
           ZEnv.live,
           TestEnvironment.live,
