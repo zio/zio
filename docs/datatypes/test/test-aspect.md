@@ -44,10 +44,7 @@ test("before and after") {
 
 ZIO Test has two different strategies to run members of a test suite: _sequential_ and _parallel_. Accordingly, there are two test aspects for specifying the execution strategy:
 
-1. `TestAspect.sequential`
-2. `TestAspect.parallel`
-
-The default strategy is parallel:
+1.**`TestAspect.parallel`** — The default strategy is parallel. We can explicitly enable it:
 
 ```scala mdoc:compile-only
 import zio._
@@ -57,7 +54,7 @@ suite("Parallel")(
   test("A")(Live.live(ZIO("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
   test("B")(ZIO("Running Test B").debug.map(_ => assertTrue(true))),
   test("C")(Live.live(ZIO("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
-)
+) @@ TestAspect.parallel
 ```
 
 After running this suite, we have the following output:
@@ -74,7 +71,7 @@ Running Test A
 
 To change the degree of the parallelism, we can use the `parallelN` test aspect. It takes the number of fibers and executes the members of a suite in parallel up to the specified number of concurrent fibers.
 
-To execute them sequentially, we can use the `sequential` test aspect:
+2. **`TestAspect.sequential`** — To execute them sequentially, we can use the `sequential` test aspect:
 
 ```scala mdoc:compile-only
 import zio._
