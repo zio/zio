@@ -92,7 +92,7 @@ object ZLogger {
   private[zio] val stringTag: LightTypeTag = Tag[String].tag
   private[zio] val causeTag: LightTypeTag  = Tag[Cause[Any]].tag
 
-  import Predef.{Set => ScalaSet}
+  import Predef.{Set => ScalaSet, _}
 
   /**
    * Represents a set of loggers, which operate on different input types, but
@@ -111,7 +111,7 @@ object ZLogger {
     final def addAll[A2, B1 >: B](that: Set[A2, B1]): Set[A with A2, B1] = self.++[A2, B1](that)
 
     final def filterLogLevel(f: LogLevel => Boolean): Set[A, Option[B]] =
-      new Set(map.map { case (k, v) => k -> v.asInstanceOf[ZLogger[_, B]].filterLogLevel(f) }) {}
+      new Set[A, Option[B]](map.map { case (k, v) => k -> v.asInstanceOf[ZLogger[Any, B]].filterLogLevel(f) }) {}
 
     final def getAllDynamic(tag: LightTypeTag): ScalaSet[_ <: ZLogger[_, B]] = {
       val set = cache.get(tag)
@@ -134,7 +134,7 @@ object ZLogger {
       getAllDynamic(tag.tag).asInstanceOf[ScalaSet[ZLogger[C, B]]]
 
     final def map[C](f: B => C): Set[A, C] =
-      new Set(map.map { case (k, v) => k -> v.asInstanceOf[ZLogger[_, B]].map(f) }) {}
+      new Set[A, C](map.map { case (k, v) => k -> v.asInstanceOf[ZLogger[Any, B]].map(f) }) {}
 
     final def toLoggerWith[C, B1 >: B](b: B1)(f: (B1, B1) => B1)(implicit tag: Tag[C]): ZLogger[C, B1] =
       getAll[C].fold[ZLogger[C, B1]](ZLogger.succeed(b)) { case (acc, logger) =>
