@@ -16,7 +16,7 @@ Scala has a `try` / `finally` construct which helps us to make sure we don't lea
 
 Assume we want to read a file and return the number of its lines:
 
-```scala mdoc:invisible
+```scala mdoc
 import java.io._
 import zio.{Task, UIO, ZIO, ZManaged}
 ```
@@ -77,7 +77,7 @@ Every bracket requires three actions:
 2. **Using Resource**— An effect describing the actual process to produce a result. For example, counting the number of lines in a file.
 3. **Releasing Resource**— An effect describing the final step of releasing or cleaning up the resource. For example, closing a file.
 
-```scala mdoc:invisible
+```scala mdoc
 trait Resource
 ```
 

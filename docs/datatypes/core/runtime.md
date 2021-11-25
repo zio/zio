@@ -2,7 +2,7 @@
 id: runtime
 title: "Runtime"
 ---
-```scala mdoc:invisible
+```scala mdoc
 import zio.{Runtime, ZIO, UIO, URIO, Has, Task}
 import zio.internal.Platform
 ```

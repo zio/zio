@@ -153,7 +153,7 @@ trait ZStream[-R, +E, +O] {
 
 We would now like to have multiple downstream consumers process each of these transactions, for example to persist them and log them in addition to applying our business logic to them. With `Hub` this is easy because we can just use the `toQueue` operator to view any `Hub` as a `Queue` that can only be written to.
 
-```scala mdoc:invisible
+```scala mdoc
 type ??? = Nothing
 ```
 
@@ -203,7 +203,7 @@ The `map` operator allows us to transform the type of messages received from the
 
 The `mapM` operator works the same way except it allows us to perform an effect each time a value is taken from the hub. We could use this for example to log each time a message is taken from the hub.
 
-```scala mdoc:reset:invisible
+```scala mdoc:reset
 import zio._
 import zio.console._
 ```
@@ -244,7 +244,7 @@ The `contramapM` operator works the same way except it allows us to perform an e
 
 Using these operators, we could describe a hub that validates its inputs, allowing publishers to publish raw data and subscribers to receive validated data while signaling to publishers when data they attempt to publish is not valid.
 
-```scala mdoc:reset:invisible
+```scala mdoc:reset
 import zio._
 import zio.console._
 ```
@@ -345,7 +345,7 @@ The managed effect here describes subscribing to receive messages from the hub w
 
 Here is an example of using it:
 
-```scala mdoc:reset:invisible
+```scala mdoc:reset
 import zio._
 import zio.stream._
 ```

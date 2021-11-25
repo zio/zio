@@ -7,7 +7,7 @@ title: "Task"
 
 Let's see how the `Task` type alias is defined:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.ZIO
 ```
 

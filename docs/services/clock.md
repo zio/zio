@@ -7,7 +7,7 @@ Clock service contains some functionality related to time and scheduling.
 
 To get the current time in a specific time unit, the `currentTime` function takes a unit as `TimeUnit` and returns `UIO[Long]`:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.clock._
 import zio.console._
 import zio.duration._

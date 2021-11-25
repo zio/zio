@@ -5,7 +5,7 @@ title: "URManaged"
 
 `URManaged[R, A]` is a type alias for `ZManaged[R, Nothing, A]`, which represents a managed resource that requires an `R`, and cannot fail, but can succeed with an `A`.
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.ZManaged
 ```
 

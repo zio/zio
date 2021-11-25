@@ -7,10 +7,10 @@ To perform an effect without blocking the current process, we can use fibers, wh
 
 We can `fork` any `IO[E, A]` to immediately yield an `UIO[Fiber[E, A]]`. The provided `Fiber` can be used to `join` the fiber, which will resume on production of the fiber's value, or to `interrupt` the fiber, which immediately terminates the fiber and safely releases all resources acquired by the fiber.
 
-```scala mdoc:invisible
+```scala mdoc
 import zio._
 ```
-```scala mdoc:invisible
+```scala mdoc
 sealed trait Analysis
 case object Analyzed extends Analysis
 
@@ -110,7 +110,7 @@ The `await` is similar to join but lower level than join. When we call join if t
 ### Parallelism
 To execute actions in parallel, the `zipPar` method can be used:
 
-```scala mdoc:invisible
+```scala mdoc
 case class Matrix()
 def computeInverse(m: Matrix): UIO[Matrix] = IO.succeed(m)
 def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): UIO[Matrix] = IO.succeed(m1)

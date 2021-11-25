@@ -23,7 +23,7 @@ Assertion.hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]]
 
 I could start by writing:
 
-```scala mdoc:reset:invisible
+```scala mdoc:reset
 import zio.test._, zio.test.Assertion._
 ```
 
@@ -42,7 +42,7 @@ of the return type `Assertion[A]`.
 I could select `equalTo`, as it accepts an `A` as a parameter, allowing me to
 supply `5`:
 
-```scala mdoc:reset:invisible
+```scala mdoc:reset
 import zio.test._, zio.test.Assertion._
 ```
 
@@ -67,7 +67,7 @@ Assertion.approximatelyEquals[A: Numeric](reference: A, tolerance: A): Assertion
 
 Changing out `equalTo` with `approximatelyEquals` leaves us with:
 
-```scala mdoc:reset:invisible
+```scala mdoc:reset
 import zio.test._, zio.test.Assertion._
 ```
 

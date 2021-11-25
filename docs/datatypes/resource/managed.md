@@ -5,7 +5,7 @@ title: "Managed"
 
 `Managed[E, A]` is a type alias for `ZManaged[Any, E, A]`, which represents a managed resource that has no requirements, and may fail with an `E`, or succeed with an `A`.
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.ZManaged
 ```
 
@@ -67,7 +67,7 @@ It is possible to combine multiple `Managed` using `flatMap` to obtain a single 
 import zio._
 ```
 
-```scala mdoc:invisible:nest
+```scala mdoc:nest
 import java.io.{ File, IOException }
 
 def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]

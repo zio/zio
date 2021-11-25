@@ -16,7 +16,7 @@ ZIO Wrap services with `Has` data type to:
 ### Combining Services
 Two or more `Has[_]` elements can be combined _horizontally_ using their `++` operator:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio._
 
 trait Logging 
@@ -55,7 +55,7 @@ ZIO environment has a `ZIO#provide` which takes an `R` and returns a `ZIO` effec
 
 Assume we have two `Logging` and `RandomInt` services:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 ```
 
@@ -206,7 +206,7 @@ case class RandomIntLive() extends RandomInt {
 
 Now, we can lift these two implementations into the `ZLayer`. The `ZLayer` will wrap our services into the `Has[_]` data type:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 trait Logging {
   def log(line: String): UIO[Unit]

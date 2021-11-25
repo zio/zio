@@ -17,7 +17,7 @@ In this section, we explore some common ways to create managed resources.
 
 `ZManaged` has a `make` constructor which requires `acquire` and `release` actions:
 
-```scala mdoc:invisible
+```scala mdoc
 import java.io._
 import zio.blocking._
 import zio.console._
@@ -79,7 +79,7 @@ val managedHello_ = putStrLn("Hello, World!").toManaged_
 
 This is useful when we want to combine `ZManaged` effects with `ZIO` effects. Assume during creation of managed resource, we need to log some information, we can lift a `ZIO` effect to `ZManaged` world:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 import zio.blocking._
 import zio.console._
@@ -144,7 +144,7 @@ trait ZManaged[-R, +E, +A] {
 
 `Reservation` data type is defined as follows:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
 import zio.console._

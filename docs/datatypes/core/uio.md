@@ -11,7 +11,7 @@ title: "UIO"
 
 Let's see how the `UIO` type alias is defined:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.ZIO
 ```
 

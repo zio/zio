@@ -3,7 +3,7 @@ id: blocking
 title: "Blocking"
 ---
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.duration._
 import zio.{Schedule, RIO, UIO}
 ```
@@ -37,7 +37,7 @@ and continuously create new threads as necessary.
 
 The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
 
-```scala mdoc:invisible:nest
+```scala mdoc:nest
 val program = ZIO.foreachPar((1 to 100).toArray)(t => zio.blocking.blocking(blockingTask(t)))
 ```
 

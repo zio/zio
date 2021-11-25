@@ -11,7 +11,7 @@ A `Supervisor[A]` is allowed to supervise the launching and termination of fiber
 The `track` creates a new supervisor that tracks children in a set. It takes a boolean `weak` parameter as input, which indicates whether track children in a `Weakset` or not.
 
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.Supervisor
 ```
 
@@ -26,7 +26,7 @@ The `fibersIn` creates a new supervisor with an initial sorted set of fibers.
 
 In the following example we are creating a new supervisor from an initial set of fibers:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.{Ref, Fiber}
 import scala.collection.immutable.SortedSet
 def fibers: Seq[Fiber.Runtime[Any, Any]] = ???
@@ -43,7 +43,7 @@ def fiberListSupervisor = for {
 
 Whenever we need to supervise a ZIO effect, we can call `ZIO#supervised` function, `supervised` takes a supervisor and return another effect. The behavior of children fibers is reported to the provided supervisor:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio._
 import zio.console._
 import zio.clock._

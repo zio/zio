@@ -39,7 +39,7 @@ As the lock-oriented programming does not compose and has lots of drawbacks, ZIO
 
 Let's see how the `modify` function of `Ref` is implemented without any locking mechanism:
 
-```scala mdoc:invisible
+```scala mdoc
 import java.util.concurrent.atomic.AtomicReference
 import zio.UIO
 ```

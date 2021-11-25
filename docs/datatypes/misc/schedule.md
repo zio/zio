@@ -3,7 +3,7 @@ id: schedule
 title: "Schedule"
 ---
 
-```scala mdoc:invisible
+```scala mdoc
 import zio._
 import zio.duration._
 import zio.console._

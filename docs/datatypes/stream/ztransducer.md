@@ -3,7 +3,7 @@ id: ztransducer
 title: "ZTransducer"
 ---
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.stream.{UStream, ZStream, ZTransducer, ZSink}
 import zio.{Schedule, Chunk, IO, ZIO}
 import zio.console._

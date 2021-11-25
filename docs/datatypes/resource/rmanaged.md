@@ -5,7 +5,7 @@ title: "RManaged"
 
 `RManaged[R, A]` is a type alias for `ZManaged[R, Throwable, A]`, which represents a managed resource that requires an `R`, and may fail with a `Throwable` value, or succeed with an `A`.
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.ZManaged
 ```
 

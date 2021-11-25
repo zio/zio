@@ -3,7 +3,7 @@ id: with-cats-effect
 title: "How to Interop with Cats Effect?"
 ---
 
-```scala mdoc:invisible
+```scala mdoc
 // Contributor Note:
 // This page has some unchecked markdown documentation. They are related
 // to the zio-interop-cats module compatible with the Cats Effect 2.x
@@ -41,7 +41,7 @@ Due to the limitations of the Cats Effect, ZIO cannot provide instances for arbi
 
 For convenience, ZIO includes the `Task` and `RIO` type aliases, which fix the error type to `Throwable`, and may be useful for interop with Cats Effect:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.{ZIO, Task, RIO}
 ```
 
@@ -73,7 +73,7 @@ object ZioCatsEffectInterop extends scala.App {
 
 If we are working with Cats Effect 3.x, the `catsEffectApp[Task]` will be expanded as if we called the following code explicitly:
 
-```scala mdoc:invisible
+```scala mdoc
 import ZioCatsEffectInterop.catsEffectApp
 ```
 

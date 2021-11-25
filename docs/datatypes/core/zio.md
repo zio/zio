@@ -26,7 +26,7 @@ The `ZIO[R, E, A]` data type has three type parameters:
 
 In the following example, the `getStrLn` function requires the `Console` service, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.{ZIO, IO, URIO, UIO, Task, RIO, Schedule}
 import zio.console._
 import java.io.IOException
@@ -162,7 +162,7 @@ val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
 
 We can also readily compose it with other operators while preserving the optional nature of the result (similar to an `OptionT`)
 
-```scala mdoc:invisible
+```scala mdoc
 trait Team
 ```
 
@@ -260,7 +260,7 @@ The error type of the resulting effect will always be `Throwable`, because `Futu
 
 A `Promise` can be converted into a ZIO effect using `ZIO.fromPromiseScala`:
 
-```scala mdoc:invisible
+```scala mdoc
 import scala.util.{Success, Failure}
 import zio.Fiber
 ```
@@ -400,7 +400,7 @@ def safeDownload(url: String) =
 
 An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.effectAsync`:
 
-```scala mdoc:invisible
+```scala mdoc
 trait User { 
   def teamId: String
 }
@@ -621,7 +621,7 @@ def sqrt(io: UIO[Double]): IO[String, Double] =
 #### Catching All Errors 
 If we want to catch and recover from all types of errors and effectfully attempt recovery, we can use the `catchAll` method:
 
-```scala mdoc:invisible
+```scala mdoc
 import java.io.{ FileNotFoundException, IOException }
 def readFile(s: String): IO[IOException, Array[Byte]] = 
   ZIO.effect(???).refineToOrDie[IOException]
@@ -701,7 +701,7 @@ Nearly all error handling methods are defined in terms of `foldM`, because it is
 
 In the following example, `foldM` is used to handle both failure and success of the `readUrls` method:
 
-```scala mdoc:invisible
+```scala mdoc
 sealed trait Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
@@ -844,7 +844,7 @@ Brackets consist of an *acquire* action, a *utilize* action (which uses the acqu
 import zio.{ UIO, IO }
 ```
 
-```scala mdoc:invisible
+```scala mdoc
 import java.io.{ File, IOException }
 
 def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]

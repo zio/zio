@@ -28,7 +28,7 @@ We can pass in an effectful program into every single update. All of them will b
 
 In the following example, we are going to send `getAge` request to usersApi for each user and updating the state respectively:
 
-```scala mdoc:invisible
+```scala mdoc
 import scala.collection.mutable.HashMap
 
 val users: List[String] = List("a", "b")

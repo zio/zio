@@ -25,7 +25,7 @@ The ZIO STM API is inspired by Haskell's [STM library](http://hackage.haskell.or
 
 Let's start from a simple `inc` function, which takes a mutable reference of `Int` and increase it by `amount`:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.{Ref, ZIO}
 import zio.stm.{TRef, STM}
 ```
@@ -67,7 +67,7 @@ The `modify` function takes these three steps:
 
 Let's see how the `modify` function of `Ref` is implemented without any locking mechanism:
 
-```scala mdoc:invisible
+```scala mdoc
 import java.util.concurrent.atomic.AtomicReference
 import zio.UIO
 ```
@@ -92,7 +92,7 @@ As we see, the `modify` operation is implemented in terms of the `compare-and-sw
 
 Let's rename the `inc` function to the `deposit` as follows to try the classic problem of transferring money from one account to another:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio.{Ref, ZIO, IO}
 import zio.stm.{TRef, STM}
 ```

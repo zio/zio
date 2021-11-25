@@ -2,7 +2,7 @@
 id: zsink
 title: "ZSink"
 ---
-```scala mdoc:invisible
+```scala mdoc
 import zio.clock.Clock
 import zio.console.Console
 import zio.blocking.Blocking
@@ -383,7 +383,7 @@ val sum: ZIO[Any, Nothing, String] =
 
 Like `ZStream`, two `ZSink` can be zipped together. Both of them will be run in parallel, and their results will be combined in a tuple:
 
-```scala mdoc:invisible
+```scala mdoc
 case class Record()
 ```
 

@@ -10,7 +10,7 @@ title: "RIO"
 > In Scala, the _type alias_ is a way to give a name to another type, to avoid having to repeat the original type again and again. It doesn't affect the type-checking process. It just helps us to have an expressive API design.
 
 Let's see how `RIO` is defined:
-```scala mdoc:invisible
+```scala mdoc
 import zio.ZIO
 ```
 

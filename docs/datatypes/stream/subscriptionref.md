@@ -32,7 +32,7 @@ A `SubscriptionRef` can be extremely useful to model some shared state where one
 
 To see how this works, let's create a simple example where a "server" repeatedly updates a value that is observed by multiple "clients".
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 import zio.stream._
 ```

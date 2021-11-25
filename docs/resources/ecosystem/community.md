@@ -1333,7 +1333,7 @@ libraryDependencies += "com.vladkopanev" %% "zio-saga-core" % "0.4.0"
 
 In the following example, all API requests have a compensating action. We compose all them together and then run the whole as one transaction:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio.{IO, UIO, URIO, ZIO}
 def bookHotel: UIO[Unit] = IO.unit
 def cancelHotel: UIO[Unit] = IO.unit

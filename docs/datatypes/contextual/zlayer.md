@@ -62,7 +62,7 @@ def succeed[A: Tag](a: A): ULayer[Has[A]]
 
 In the following example, we are going to create a `nameLayer` that provides us the name of `Adam`.
 
-```scala mdoc:invisible
+```scala mdoc
 import zio._
 ```
 
@@ -110,7 +110,7 @@ Fortunately, the construction of ZIO layers can be effectful and resourceful, th
 
 We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZIO.fromManaged` constructor:
 
-```scala mdoc:invisible
+```scala mdoc
 import scala.io.BufferedSource
 ```
 
@@ -130,7 +130,7 @@ val fileLayer: ZLayer[Any, Throwable, Has[BufferedSource]] = managedFile.toLayer
 
 Let's see another real-world example of creating a layer from managed resources. Assume we have written a managed `UserRepository`:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 import zio.blocking._
 import zio.console._
@@ -185,7 +185,7 @@ val layer_ = ZIO.succeed("Hello, World!").toLayer
 
 Assume we have a `ZIO` effect that read the application config from a file, we can create a layer from that:
 
-```scala mdoc:invisible
+```scala mdoc
 trait AppConfig
 ```
 
@@ -220,7 +220,7 @@ object logging {
 
 We can create that by using `ZLayer.fromService` constructor, which depends on `Console` service:
 
-```scala mdoc:invisible
+```scala mdoc
 import logging.Logging
 import logging.Logging._
 ```
@@ -245,7 +245,7 @@ We said that we can think of the `ZLayer` as a more powerful _constructor_. Cons
 
 Let's get into an example, assume we have these services with their implementations:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio.blocking.Blocking
 import zio.console.Console
 import zio._
@@ -304,7 +304,7 @@ If we don't want to share a module, we should create a fresh, non-shared version
 
 ## Updating Local Dependencies
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
@@ -472,7 +472,7 @@ val layer: ZLayer[Any, Nothing, Has[Connection] with UserRepo] = connection >+> 
 
 Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
 
-```scala mdoc:invisible
+```scala mdoc
 type Baker = Has[Baker.Service]
 type Ingredients = Has[Ingredients.Service]
 type Oven = Has[Oven.Service]

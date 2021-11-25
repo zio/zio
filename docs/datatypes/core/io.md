@@ -11,7 +11,7 @@ title: "IO"
 
 Let's see how the `IO` type alias is defined:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.ZIO
 ```
 

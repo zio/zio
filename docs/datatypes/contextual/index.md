@@ -12,7 +12,7 @@ The input type is also known as _environment type_. This type-parameter indicate
 `R` represents dependencies; whatever services, config, or wiring a part of a ZIO program depends upon to work. We will explore what we can do with `R`, as it plays a crucial role in `ZIO`.
 
 For example, when we have `ZIO[Console, Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
-```scala mdoc:invisible
+```scala mdoc
 import zio.ZIO
 import zio.console._
 ```
@@ -203,12 +203,12 @@ Let's start learning this pattern by writing a `Logging` service:
 
 Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `log`, we don't need to pull out the `log` function from the ZIO Environment. The `accessM` method helps us to access the environment of effect and reduce the redundant operation, every time.
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 import zio.console._
 ```
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.{Has, UIO, Layer, ZLayer, ZIO, URIO}
 ```
 
@@ -238,7 +238,7 @@ object logging {
 
 We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZLayer.fromServices` constructor:
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.clock.Clock
 ```
 
@@ -296,7 +296,7 @@ _Module Pattern 2.0_ has more similarity with object-oriented way of defining se
 
 1. **Service Definition** — Defining service in this version has changed slightly compared to the previous version. We would take the service definition and pull it out into the top-level:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 ```
 
@@ -317,7 +317,7 @@ case class LoggingLive() extends Logging {
 
 3. **Define Service Dependencies** — We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we put its dependencies into its constructor. All the dependencies are just interfaces, not implementation. Just like what we did in object-oriented style:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import java.time._
 import zio._
 
@@ -412,7 +412,7 @@ trait ZIO[-R, +E, +A] {
 
 This is similar to dependency injection, and the `provide` function can be thought of as `inject`.
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 ```
 
@@ -502,7 +502,7 @@ Sometimes we have written a program that contains ZIO built-in services and some
 
 Let's write an effect that has some built-in services and also has a `Logging` service:
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio._
 import zio.console._
 import zio.clock._

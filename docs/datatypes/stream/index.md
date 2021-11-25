@@ -3,7 +3,7 @@ id: index
 title: "Introduction"
 ---
 
-```scala mdoc:invisible
+```scala mdoc
 import zio.{ZIO, Task}
 import zio.Queue
 import zio.stream.{ZStream, ZTransducer}
