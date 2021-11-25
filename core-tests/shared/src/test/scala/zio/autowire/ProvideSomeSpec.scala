@@ -60,9 +60,6 @@ object InjectSomeSpec extends ZIOSpecDefault {
       },
       test("makeSome") {
         testCase("makeSome").provideSome[Console](partialLayer)
-      },
-      test("blah") {
-        assertTrue(1 == 2)
       }
     ) @@ TestAspect.silent
 }
