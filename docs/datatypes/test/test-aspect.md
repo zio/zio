@@ -253,6 +253,30 @@ current time: 1
   Ran 1 test in 470 ms: 1 succeeded, 0 ignored, 0 failed
 ```
 
+## Test Configs
+
+To run cases, there are some [default configuration settings](environment/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
+
+1. `TestAspect.repeats(n: Int)` — Runs each test with the number of times to repeat tests to ensure they are stable set to the specified value.
+2. `TestAspect.retries(n: Int)` — Runs each test with the number of times to retry flaky tests set to the specified value.
+3. `TestAspect.samples(n: Int)` — Runs each test with the number of sufficient samples to check for a random variable set to the specified value.
+4. `TestAspect.shrinks(n: Int)` — Runs each test with the maximum number of shrinkings to minimize large failures set to the specified value.
+
+Let's change the number of default samples in the following example:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+
+test("customized number of samples") {
+  for {
+    ref <- Ref.make(0)
+    _ <- check(Gen.int)(_ => assertM(ref.update(_ + 1))(Assertion.anything))
+    value <- ref.get
+  } yield assertTrue(value == 50)
+} @@ TestAspect.samples(50)
+```
+
 ## Tagging
 
 ZIO Test allows us to define some arbitrary tags. By labeling tests with one or more tags, we can categorize them, and then, when running tests, we can filter tests according to their tags.
