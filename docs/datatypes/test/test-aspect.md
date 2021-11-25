@@ -40,6 +40,65 @@ test("before and after") {
 
 4. Using `TestAspect.aroundWith` and `TestAspect.aroundAllWith` we can evaluate every test or all test between two given effects, `before` and `after`, where the result of the `before` effect can be used in the `after` effect.
 
+## Execution Strategy
+
+ZIO Test has two different strategies to run members of a test suite: _sequential_ and _parallel_. Accordingly, there are two test aspects for specifying the execution strategy:
+
+1. `TestAspect.sequential`
+2. `TestAspect.parallel`
+
+The default strategy is parallel:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+
+suite("Parallel")(
+  test("A")(Live.live(ZIO("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
+  test("B")(ZIO("Running Test B").debug.map(_ => assertTrue(true))),
+  test("C")(Live.live(ZIO("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
+)
+```
+
+After running this suite, we have the following output:
+
+```
+Running Test B
+Running Test C
+Running Test A
++ Parallel
+  + A
+  + B
+  + C
+```
+
+To change the degree of the parallelism, we can use the `parallelN` test aspect. It takes the number of fibers and executes the members of a suite in parallel up to the specified number of concurrent fibers.
+
+To execute them sequentially, we can use the `sequential` test aspect:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+
+suite("Sequential")(
+  test("A")(Live.live(ZIO("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
+  test("B")(ZIO("Running Test B").debug.map(_ => assertTrue(true))),
+  test("C")(Live.live(ZIO("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
+) @@ TestAspect.sequential
+```
+
+And here is the output:
+
+```
+Running Test A
+Running Test B
+Running Test C
++ Sequential
+  + A
+  + B
+  + C
+```
+
 ## Timing Out with Safe Interruption
 
 We can easily time out a long-running test:
