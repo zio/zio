@@ -258,19 +258,19 @@ current time: 1
 To run cases, there are some [default configuration settings](environment/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
 
 1. **`TestAspect.repeats(n: Int)`** — Runs each test with the number of times to repeat tests to ensure they are stable set to the specified value.
-2. **`TestAspect.retries(n: Int)`** — Runs each test with the number of times to retry flaky tests set to the specified value.
 
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{ test, _ }
 
 test("repeating a test") {
-  ZIO("retry flaky test to ensure it is nonFlaky")
+  ZIO("Repeating a test to ensure its stability")
     .debug
     .map(_ => assertTrue(true))
 } @@ TestAspect.nonFlaky @@ TestAspect.repeats(5)
 ```
 
+2. **`TestAspect.retries(n: Int)`** — Runs each test with the number of times to retry flaky tests set to the specified value.
 3. **`TestAspect.samples(n: Int)`** — Runs each test with the number of sufficient samples to check for a random variable set to the specified value.
 4. **`TestAspect.shrinks(n: Int)`** — Runs each test with the maximum number of shrinkings to minimize large failures set to the specified value.
 
