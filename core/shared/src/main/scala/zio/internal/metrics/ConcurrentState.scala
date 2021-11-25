@@ -205,12 +205,21 @@ private[zio] class ConcurrentState {
         ZIO.succeed(unsafeObserve(word))
 
       def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]] =
-        ZIO.succeed(setCount.setCount.snapshot())
+        ZIO.succeed(unsafeOccurrences)
+
+      def occurrences(word: String)(implicit trace: ZTraceElement): UIO[Long] =
+        ZIO.succeed(unsafeOccurrences(word))
 
       def unsafeObserve(word: String): Unit = {
         setCount.observe(word)
         listener.unsafeSetChanged(key, setCount.toMetricState)
       }
+
+      private[zio] def unsafeOccurrences: Chunk[(String, Long)] =
+        setCount.setCount.snapshot()
+
+      private[zio] def unsafeOccurrences(word: String): Long =
+        setCount.setCount.getCount(word)
     }
   }
 }

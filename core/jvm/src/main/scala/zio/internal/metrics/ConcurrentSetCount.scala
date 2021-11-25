@@ -10,6 +10,8 @@ private[zio] sealed abstract class ConcurrentSetCount {
 
   def getCount(): Long
 
+  def getCount(word: String): Long
+
   def observe(word: String): Unit
 
   def snapshot(): Chunk[(String, Long)]
@@ -24,6 +26,11 @@ private[zio] object ConcurrentSetCount {
       private[this] val values = new ConcurrentHashMap[String, LongAdder]
 
       def getCount(): Long = count.longValue()
+
+      def getCount(word: String): Long = {
+        val count = values.get(word)
+        if (count eq null) 0L else count.longValue()
+      }
 
       def observe(word: String): Unit = {
         count.increment()
