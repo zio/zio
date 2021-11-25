@@ -18,7 +18,7 @@ package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.{Has, Random, ZTraceElement}
+import zio.{Random, ZTraceElement}
 
 /**
  * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and
@@ -31,10 +31,10 @@ trait GenFractionalPoly extends GenNumericPoly {
 object GenFractionalPoly {
 
   /**
-   * Constructs an instance of `GenFractionalPoly` using the specified `Gen`
-   * and `Fractional` instances, existentially hiding the underlying type.
+   * Constructs an instance of `GenFractionalPoly` using the specified `Gen` and
+   * `Fractional` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Has[Random] with Has[Sized], A], num: Fractional[A]): GenFractionalPoly =
+  def apply[A](gen: Gen[Random with Sized, A], num: Fractional[A]): GenFractionalPoly =
     new GenFractionalPoly {
       type T = A
       val genT = gen
@@ -59,6 +59,6 @@ object GenFractionalPoly {
    * A generator of polymorphic values constrainted to have a `Fractional`
    * instance.
    */
-  def genFractionalPoly(implicit trace: ZTraceElement): Gen[Has[Random], GenFractionalPoly] =
+  def genFractionalPoly(implicit trace: ZTraceElement): Gen[Random, GenFractionalPoly] =
     Gen.elements(double, float)
 }

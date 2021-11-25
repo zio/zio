@@ -10,7 +10,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       assertCompletes
     }
 
-  def spec: ZSpec[Environment, Failure] = suite("ZIOLazinessSpec")(
+  def spec = suite("ZIOLazinessSpec")(
     suite("IO")(
       test("die")(assertLazy(IO.die)),
       test("dieMessage")(assertLazy(IO.dieMessage)),
@@ -51,7 +51,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(RIO.interruptAs)),
       test("left")(assertLazy(RIO.left)),
       test("onExecutor")(assertLazy(RIO.onExecutor)),
-      test("provide")(assertLazy(RIO.provide)),
+      test("provide")(assertLazy(RIO.provideEnvironment)),
       test("right")(assertLazy(RIO.right)),
       test("sleep")(assertLazy(RIO.sleep)),
       test("some")(assertLazy(RIO.some)),
@@ -97,7 +97,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(URIO.interruptAs)),
       test("left")(assertLazy(URIO.left)),
       test("onExecutor")(assertLazy(URIO.onExecutor)),
-      test("provide")(assertLazy(URIO.provide)),
+      test("provide")(assertLazy(URIO.provideEnvironment)),
       test("right")(assertLazy(URIO.right)),
       test("sleep")(assertLazy(URIO.sleep)),
       test("some")(assertLazy(URIO.some)),
@@ -127,7 +127,7 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("interruptAs")(assertLazy(ZIO.interruptAs)),
       test("left")(assertLazy(ZIO.left)),
       test("onExecutor")(assertLazy(ZIO.onExecutor)),
-      test("provide")(assertLazy(ZIO.provide)),
+      test("provide")(assertLazy(ZIO.provideEnvironment)),
       test("right")(assertLazy(ZIO.right)),
       test("sleep")(assertLazy(ZIO.sleep)),
       test("some")(assertLazy(ZIO.some)),

@@ -16,11 +16,13 @@
 
 package zio.test.mock
 
-import zio.{Chunk, Has, Random, UIO, URLayer, ZIO, ZTraceElement}
+import zio.{Chunk, Random, UIO, URLayer, ZIO, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-object MockRandom extends Mock[Has[Random]] {
+import java.util.UUID
+
+object MockRandom extends Mock[Random] {
 
   object NextBoolean       extends Effect[Unit, Nothing, Boolean]
   object NextBytes         extends Effect[Int, Nothing, Chunk[Byte]]
@@ -37,10 +39,11 @@ object MockRandom extends Mock[Has[Random]] {
   object NextLongBounded   extends Effect[Long, Nothing, Long]
   object NextPrintableChar extends Effect[Unit, Nothing, Char]
   object NextString        extends Effect[Int, Nothing, String]
+  object NextUUID          extends Effect[Unit, Nothing, UUID]
   object SetSeed           extends Effect[Long, Nothing, Unit]
   object Shuffle           extends Effect[Iterable[Any], Nothing, Iterable[Any]]
 
-  val compose: URLayer[Has[Proxy], Has[Random]] = {
+  val compose: URLayer[Proxy, Random] = {
     implicit val trace = Tracer.newTrace
     ZIO
       .service[Proxy]
@@ -69,6 +72,7 @@ object MockRandom extends Mock[Has[Random]] {
           def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): UIO[Long]  = proxy(NextLongBounded, n)
           def nextPrintableChar(implicit trace: ZTraceElement): UIO[Char]            = proxy(NextPrintableChar)
           def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String] = proxy(NextString, length)
+          def nextUUID(implicit trace: ZTraceElement): UIO[UUID]                     = proxy(NextUUID)
           def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit]       = proxy(SetSeed, seed)
           def shuffle[A, Collection[+Element] <: Iterable[Element]](
             collection: => Collection[A]

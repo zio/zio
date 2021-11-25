@@ -57,7 +57,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val fatal = (_: Throwable) => false
 
-    val logger: ZLogger[Unit] =
+    val logger: ZLogger[String, Unit] =
       (
         trace: ZTraceElement,
         fiberId: FiberId.Runtime,
@@ -88,22 +88,14 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val supervisor = Supervisor.none
 
-    val enableCurrentFiber = false
-
-    val enableLogRuntime = false
-
-    val enableSuperviseOperations = false
-
     RuntimeConfig(
       blockingExecutor,
       executor,
       fatal,
       reportFatal,
       supervisor,
-      enableCurrentFiber,
       logger.filterLogLevel(_ >= LogLevel.Info),
-      enableLogRuntime,
-      enableSuperviseOperations
+      RuntimeConfigFlags.empty
     )
   }
 
@@ -114,8 +106,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
-   * Makes a new default runtime configuration. This is a side-effecting
-   * method.
+   * Makes a new default runtime configuration. This is a side-effecting method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): RuntimeConfig =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))

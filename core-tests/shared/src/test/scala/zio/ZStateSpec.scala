@@ -6,7 +6,7 @@ import zio.test._
 
 object ZStateSpec extends DefaultRunnableSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("StateSpec")(
       test("state can be updated") {
         final case class MyState(counter: Int)
@@ -14,7 +14,7 @@ object ZStateSpec extends DefaultRunnableSpec {
           _     <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 1))
           count <- ZIO.getStateWith[MyState](_.counter)
         } yield count
-        assertM(zio.provideLayer(ZState.make(MyState(0)).toLayer))(equalTo(1))
+        assertM(zio.provide(ZState.make(MyState(0)).toLayer))(equalTo(1))
       }
     ) @@ exceptDotty
 }

@@ -131,7 +131,7 @@ object ZIOAWSExample extends zio.App {
     val aws        = awsConfig >>> (ec2.live ++ elasticbeanstalk.live)
 
     program
-      .provideCustomLayer(aws)
+      .provideCustom(aws)
       .either
       .flatMap {
         case Left(error) =>

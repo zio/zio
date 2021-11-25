@@ -18,7 +18,7 @@ package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.{Has, Random, ZTraceElement}
+import zio.{Random, ZTraceElement}
 
 /**
  * `GenPoly` provides evidence that an instance of `Gen[T]` exists for some
@@ -40,33 +40,33 @@ import zio.{Has, Random, ZTraceElement}
  * }}}
  *
  * We would like to test that for any expression we can fuse two mappings. We
- * want to create instances of `Expr` that reflect the full range of values
- * that an `Expr` can take, including multiple layers of nested mappings and
- * mappings between different types.
+ * want to create instances of `Expr` that reflect the full range of values that
+ * an `Expr` can take, including multiple layers of nested mappings and mappings
+ * between different types.
  *
- * Since we do not need any constraints on the generated types we can simply
- * use `GenPoly`. `GenPoly` includes a convenient generator in its companion
- * object, `genPoly`, that generates instances of 40 different types including
- * primitive types and various collections.
+ * Since we do not need any constraints on the generated types we can simply use
+ * `GenPoly`. `GenPoly` includes a convenient generator in its companion object,
+ * `genPoly`, that generates instances of 40 different types including primitive
+ * types and various collections.
  *
  * Using it we can define polymorphic generators for expressions:
  *
  * {{{
- * def genValue(t: GenPoly): Gen[Has[Random] with Has[Sized], Expr[t.T]] =
+ * def genValue(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
  *   t.genT.map(Value(_))
  *
- * def genMapping(t: GenPoly): Gen[Has[Random] with Has[Sized], Expr[t.T]] =
+ * def genMapping(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
  *   Gen.suspend {
  *     GenPoly.genPoly.flatMap { t0 =>
  *       genExpr(t0).flatMap { expr =>
- *         val genFunction: Gen[Has[Random] with Has[Sized], t0.T => t.T] = Gen.function(t.genT)
- *         val genExpr1: Gen[Has[Random] with Has[Sized], Expr[t.T]]      = genFunction.map(f => Mapping(expr, f))
+ *         val genFunction: Gen[Random with Sized, t0.T => t.T] = Gen.function(t.genT)
+ *         val genExpr1: Gen[Random with Sized, Expr[t.T]]      = genFunction.map(f => Mapping(expr, f))
  *         genExpr1
  *       }
  *     }
  *   }
  *
- * def genExpr(t: GenPoly): Gen[Has[Random] with Has[Sized], Expr[t.T]] =
+ * def genExpr(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
  *   Gen.oneOf(genMapping(t), genValue(t))
  * }}}
  *
@@ -81,9 +81,9 @@ import zio.{Has, Random, ZTraceElement}
  * }}}
  *
  * This will generate expressions with multiple levels of nesting and
- * polymorphic mappings between different types, making sure that the types
- * line up for each mapping. This provides a higher level of confidence in
- * properties than testing with a monomorphic value.
+ * polymorphic mappings between different types, making sure that the types line
+ * up for each mapping. This provides a higher level of confidence in properties
+ * than testing with a monomorphic value.
  *
  * Inspired by Erik Osheim's presentation "Galaxy Brain: type-dependence and
  * state-dependence in property-based testing"
@@ -91,7 +91,7 @@ import zio.{Has, Random, ZTraceElement}
  */
 trait GenPoly {
   type T
-  val genT: Gen[Has[Random] with Has[Sized], T]
+  val genT: Gen[Random with Sized, T]
 }
 
 object GenPoly {
@@ -100,7 +100,7 @@ object GenPoly {
    * Constructs an instance of `TypeWith` using the specified value,
    * existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Has[Random] with Has[Sized], A]): GenPoly =
+  def apply[A](gen: Gen[Random with Sized, A]): GenPoly =
     new GenPoly {
       type T = A
       val genT = gen
@@ -138,7 +138,7 @@ object GenPoly {
   def float(implicit trace: ZTraceElement): GenPoly =
     GenFractionalPoly.float
 
-  def genPoly(implicit trace: ZTraceElement): Gen[Has[Random], GenPoly] =
+  def genPoly(implicit trace: ZTraceElement): Gen[Random, GenPoly] =
     GenOrderingPoly.genOrderingPoly
 
   /**
@@ -149,9 +149,8 @@ object GenPoly {
     GenIntegralPoly.int
 
   /**
-   * Provides evidence that instances of `Gen[List[T]]` and
-   * `Ordering[List[T]]` exist for any type for which `Gen[T]` and
-   * `Ordering[T]` exist.
+   * Provides evidence that instances of `Gen[List[T]]` and `Ordering[List[T]]`
+   * exist for any type for which `Gen[T]` and `Ordering[T]` exist.
    */
   def list(poly: GenPoly)(implicit trace: ZTraceElement): GenPoly =
     GenPoly(Gen.listOf(poly.genT))
@@ -177,15 +176,14 @@ object GenPoly {
     GenIntegralPoly.long
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * strings.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for strings.
    */
   def string(implicit trace: ZTraceElement): GenPoly =
     GenOrderingPoly(Gen.string, Ordering.String)
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * the unit value.
+   * Provides evidence that instances of `Gen` and `Ordering` exist for the unit
+   * value.
    */
   def unit(implicit trace: ZTraceElement): GenPoly =
     GenOrderingPoly(Gen.unit, Ordering.Unit)

@@ -21,11 +21,10 @@ object Macros {
       loop(c.internal.enclosingOwner).mkString(".")
     }
 
-    val pos    = c.enclosingPosition
-    val file   = pos.source.path
-    val line   = pos.line
-    val column = pos.column
-    createTrace(location, file, line, column)
+    val pos  = c.enclosingPosition
+    val file = pos.source.file.name
+    val line = pos.line
+    createTrace(location, file, line)
   }
 
   def newTraceImpl(c: blackbox.Context): c.Expr[Tracer.instance.Type with zio.internal.stacktracer.Tracer.Traced] =

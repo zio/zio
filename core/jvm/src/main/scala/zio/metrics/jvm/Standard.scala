@@ -117,7 +117,7 @@ trait Standard extends JvmMetrics {
         }
     }
 
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock] with Has[System], Throwable, Standard] =
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock with System, Throwable, Standard] =
     for {
       runtimeMXBean         <- Task(ManagementFactory.getRuntimeMXBean).toManaged
       operatingSystemMXBean <- Task(ManagementFactory.getOperatingSystemMXBean).toManaged

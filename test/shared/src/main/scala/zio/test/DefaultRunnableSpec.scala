@@ -18,26 +18,33 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.environment.TestEnvironment
 
 /**
- * A default runnable spec that provides testable versions of all of the
- * modules in ZIO (Clock, Has[Random], etc).
+ * A default runnable spec that provides testable versions of all of the modules
+ * in ZIO (Clock, Random, etc).
  */
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
-  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
+  override def aspects: List[TestAspect.WithOut[
+    Nothing,
+    TestEnvironment,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ]] =
     List(TestAspect.timeoutWarning(60.seconds))
 
   override def runner: TestRunner[TestEnvironment, Any] =
     defaultTestRunner
 
   /**
-   * Returns an effect that executes a given spec, producing the results of the execution.
+   * Returns an effect that executes a given spec, producing the results of the
+   * execution.
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]
-  )(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
+  )(implicit trace: ZTraceElement): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 
   /**
@@ -65,7 +72,6 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
     assertion: => In
   )(implicit
     testConstructor: TestConstructor[Nothing, In],
-    sourceLocation: SourceLocation,
     trace: ZTraceElement
   ): testConstructor.Out =
     zio.test.test(label)(assertion)
@@ -76,6 +82,6 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
   @deprecated("use test", "2.0.0")
   def testM[R, E](label: String)(
     assertion: => ZIO[R, E, TestResult]
-  )(implicit loc: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+  )(implicit trace: ZTraceElement): ZSpec[R, E] =
     test(label)(assertion)
 }

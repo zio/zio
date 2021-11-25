@@ -55,8 +55,8 @@ val managedFromValue: Managed[Nothing, Int] = Managed.succeed(3)
 import zio._
 import zio.Console._
 
-val zManagedResource: ZManaged[Has[Console], Nothing, Unit] = ZManaged.acquireReleaseWith(printLine("acquiring").orDie)(_ => printLine("releasing").orDie)
-val zUsedResource: URIO[Has[Console], Unit] = zManagedResource.use { _ => printLine("running").orDie }
+val zManagedResource: ZManaged[Console, Nothing, Unit] = ZManaged.acquireReleaseWith(printLine("acquiring").orDie)(_ => printLine("releasing").orDie)
+val zUsedResource: URIO[Console, Unit] = zManagedResource.use { _ => printLine("running").orDie }
 ```
 
 ## Combining Managed

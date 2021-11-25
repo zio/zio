@@ -6,7 +6,7 @@ import zio.test._
 
 object TSetSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("TSet")(
+  def spec = suite("TSet")(
     suite("factories")(
       test("apply") {
         val tx = TSet.make(1, 2, 2, 3).flatMap[Any, Nothing, List[Int]](_.toList)

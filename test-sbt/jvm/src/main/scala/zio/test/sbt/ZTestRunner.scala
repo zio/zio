@@ -103,7 +103,7 @@ object ZTestTask {
   def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
-    // Creating the class from magic ether
+
     try {
       val res = Reflect
         .lookupLoadableModuleClass(fqn, testClassLoader)
@@ -139,12 +139,13 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case Some(existingNewTestTask: ZTestTaskNew) =>
+                  println("Merging")
                   (
                     Some(
                       new ZTestTaskNew(
                         existingNewTestTask.taskDef,
                         existingNewTestTask.testClassLoader,
-                        existingNewTestTask.sendSummary,
+                        existingNewTestTask.sendSummary zip taskNew.sendSummary,
                         existingNewTestTask.args,
                         existingNewTestTask.newSpec <> (taskNew.newSpec)
                       )
@@ -157,6 +158,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
               throw new RuntimeException("Other case: " + other)
           }
       }
+
     (legacyTaskList ++ newTaskOpt.toList).toArray
   }
 

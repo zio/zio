@@ -24,10 +24,9 @@ object Macros {
     }
 
     val pos    = Position.ofMacroExpansion
-    val file   = pos.sourceFile.jpath.toString
-    val line   = pos.startLine
-    val column = pos.startColumn
-    createTrace(location, file, line, column)
+    val file   = pos.sourceFile.name
+    val line   = pos.startLine + 1
+    createTrace(location, file, line)
   }
 
   def newTraceImpl(using ctx: Quotes): Expr[Tracer.instance.Type] =
@@ -57,7 +56,7 @@ object Macros {
            |[${Console.RED}error${Console.RESET}]    
            |""".stripMargin
       )
-      report.throwError("Auto-generated traces are disabled")
+      report.errorAndAbort("Auto-generated traces are disabled")
     }
 
   }

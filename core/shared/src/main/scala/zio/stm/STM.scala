@@ -24,30 +24,36 @@ import scala.util.Try
 object STM {
 
   /**
-   * @see See [[zio.stm.ZSTM.absolve]]
+   * @see
+   *   See [[zio.stm.ZSTM.absolve]]
    */
   def absolve[E, A](e: STM[E, Either[E, A]]): STM[E, A] =
     ZSTM.absolve(e)
 
   /**
-   * @see See [[zio.stm.ZSTM.atomically]]
+   * @see
+   *   See [[zio.stm.ZSTM.atomically]]
    */
   def atomically[E, A](stm: STM[E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZSTM.atomically(stm)
 
   /**
-   * @see See [[zio.stm.ZSTM.partition]]
+   * @see
+   *   See [[zio.stm.ZSTM.partition]]
    */
   def attempt[A](a: => A): STM[Throwable, A] =
     ZSTM.attempt(a)
 
   /**
-   * @see See [[zio.stm.ZSTM.check]]
+   * @see
+   *   See [[zio.stm.ZSTM.check]]
    */
   def check(p: => Boolean): USTM[Unit] = ZSTM.check(p)
 
   /**
-   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A,Collection[+Element]<:Iterable[Element]]*]]]
+   * @see
+   *   See
+   *   [[[zio.stm.ZSTM.collectAll[R,E,A,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def collectAll[E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[STM[E, A]]
@@ -55,74 +61,86 @@ object STM {
     ZSTM.collectAll(in)
 
   /**
-   * @see See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Set*]]]
+   * @see
+   *   See [[[zio.stm.ZSTM.collectAll[R,E,A](in:Set*]]]
    */
   def collectAll[E, A](in: Set[STM[E, A]]): STM[E, Set[A]] =
     ZSTM.collectAll(in)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectAll_]]
+   * @see
+   *   See [[zio.stm.ZSTM.collectAll_]]
    */
   @deprecated("use collectAllDiscard", "2.0.0")
   def collectAll_[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
     ZSTM.collectAll_(in)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectAllDiscard]]
+   * @see
+   *   See [[zio.stm.ZSTM.collectAllDiscard]]
    */
   def collectAllDiscard[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
     ZSTM.collectAllDiscard(in)
 
   /**
-   * @see See [[zio.stm.ZSTM.collectFirst]]
+   * @see
+   *   See [[zio.stm.ZSTM.collectFirst]]
    */
   def collectFirst[E, A, B](as: Iterable[A])(f: A => STM[E, Option[B]]): STM[E, Option[B]] =
     ZSTM.collectFirst(as)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.cond]]
+   * @see
+   *   See [[zio.stm.ZSTM.cond]]
    */
   def cond[E, A](predicate: Boolean, result: => A, error: => E): STM[E, A] =
     ZSTM.cond(predicate, result, error)
 
   /**
-   * @see See [[zio.stm.ZSTM.die]]
+   * @see
+   *   See [[zio.stm.ZSTM.die]]
    */
   def die(t: => Throwable): USTM[Nothing] =
     ZSTM.die(t)
 
   /**
-   * @see See [[zio.stm.ZSTM.dieMessage]]
+   * @see
+   *   See [[zio.stm.ZSTM.dieMessage]]
    */
   def dieMessage(m: => String): USTM[Nothing] =
     ZSTM.dieMessage(m)
 
   /**
-   * @see See [[zio.stm.ZSTM.done]]
+   * @see
+   *   See [[zio.stm.ZSTM.done]]
    */
   def done[E, A](exit: => ZSTM.internal.TExit[E, A]): STM[E, A] =
     ZSTM.done(exit)
 
   /**
-   * @see See [[zio.stm.ZSTM.done]]
+   * @see
+   *   See [[zio.stm.ZSTM.done]]
    */
   def exists[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, Boolean] =
     ZSTM.exists(as)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.fail]]
+   * @see
+   *   See [[zio.stm.ZSTM.fail]]
    */
   def fail[E](e: => E): STM[E, Nothing] =
     ZSTM.fail(e)
 
   /**
-   * @see See [[zio.stm.ZSTM.fiberId]]
+   * @see
+   *   See [[zio.stm.ZSTM.fiberId]]
    */
   val fiberId: USTM[FiberId] =
     ZSTM.fiberId
 
   /**
-   * @see [[zio.stm.ZSTM.filter[R,E,A,Collection*]]
+   * @see
+   *   [[zio.stm.ZSTM.filter[R,E,A,Collection*]]
    */
   def filter[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -130,13 +148,15 @@ object STM {
     ZSTM.filter(as)(f)
 
   /**
-   * @see [[[zio.stm.ZSTM.filter[R,E,A](as:Set*]]]
+   * @see
+   *   [[[zio.stm.ZSTM.filter[R,E,A](as:Set*]]]
    */
   def filter[E, A](as: Set[A])(f: A => STM[E, Boolean]): STM[E, Set[A]] =
     ZSTM.filter(as)(f)
 
   /**
-   * @see [[zio.stm.ZSTM.filterNot[R,E,A,Collection*]]
+   * @see
+   *   [[zio.stm.ZSTM.filterNot[R,E,A,Collection*]]
    */
   def filterNot[E, A, Collection[+Element] <: Iterable[Element]](
     as: Collection[A]
@@ -144,37 +164,44 @@ object STM {
     ZSTM.filterNot(as)(f)
 
   /**
-   * @see [[[zio.stm.ZSTM.filterNot[R,E,A](as:Set*]]]
+   * @see
+   *   [[[zio.stm.ZSTM.filterNot[R,E,A](as:Set*]]]
    */
   def filterNot[E, A](as: Set[A])(f: A => STM[E, Boolean]): STM[E, Set[A]] =
     ZSTM.filterNot(as)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.flatten]]
+   * @see
+   *   See [[zio.stm.ZSTM.flatten]]
    */
   def flatten[E, A](task: STM[E, STM[E, A]]): STM[E, A] =
     ZSTM.flatten(task)
 
   /**
-   * @see See [[zio.stm.ZSTM.foldLeft]]
+   * @see
+   *   See [[zio.stm.ZSTM.foldLeft]]
    */
   def foldLeft[E, S, A](in: Iterable[A])(zero: S)(f: (S, A) => STM[E, S]): STM[E, S] =
     ZSTM.foldLeft(in)(zero)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foldRight]]
+   * @see
+   *   See [[zio.stm.ZSTM.foldRight]]
    */
   def foldRight[E, S, A](in: Iterable[A])(zero: S)(f: (A, S) => STM[E, S]): STM[E, S] =
     ZSTM.foldRight(in)(zero)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.forall]]
+   * @see
+   *   See [[zio.stm.ZSTM.forall]]
    */
   def forall[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Boolean] =
     ZSTM.forall(as)(f)
 
   /**
-   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
+   * @see
+   *   See
+   *   [[[zio.stm.ZSTM.foreach[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def foreach[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
@@ -182,109 +209,126 @@ object STM {
     ZSTM.foreach(in)(f)
 
   /**
-   * @see See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:Set*]]]
+   * @see
+   *   See [[[zio.stm.ZSTM.foreach[R,E,A,B](in:Set*]]]
    */
   def foreach[E, A, B](in: Set[A])(f: A => STM[E, B]): STM[E, Set[B]] =
     ZSTM.foreach(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foreach_]]
+   * @see
+   *   See [[zio.stm.ZSTM.foreach_]]
    */
   @deprecated("use foreachDiscard", "2.0.0")
   def foreach_[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
     ZSTM.foreach_(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.foreachDiscard]]
+   * @see
+   *   See [[zio.stm.ZSTM.foreachDiscard]]
    */
   def foreachDiscard[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
     ZSTM.foreachDiscard(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.fromEither]]
+   * @see
+   *   See [[zio.stm.ZSTM.fromEither]]
    */
   def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
     ZSTM.fromEither(e)
 
   /**
-   * @see See [[zio.stm.ZSTM.fromFunction]]
+   * @see
+   *   See [[zio.stm.ZSTM.fromFunction]]
    */
   @deprecated("use access", "2.0.0")
   def fromFunction[A](f: Any => A): USTM[A] =
     ZSTM.fromFunction(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.fromFunctionM]]
+   * @see
+   *   See [[zio.stm.ZSTM.fromFunctionM]]
    */
-  @deprecated("use accessSTM", "2.0.0")
+  @deprecated("use environmentWithZSTM", "2.0.0")
   def fromFunctionM[E, A](f: Any => STM[E, A]): STM[E, A] =
     ZSTM.fromFunctionM(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.fromOption]]
+   * @see
+   *   See [[zio.stm.ZSTM.fromOption]]
    */
   def fromOption[A](v: => Option[A]): STM[Option[Nothing], A] =
     ZSTM.fromOption(v)
 
   /**
-   * @see See [[zio.stm.ZSTM.fromTry]]
+   * @see
+   *   See [[zio.stm.ZSTM.fromTry]]
    */
   def fromTry[A](a: => Try[A]): TaskSTM[A] =
     ZSTM.fromTry(a)
 
   /**
-   * @see See [[zio.stm.ZSTM.ifM]]
+   * @see
+   *   See [[zio.stm.ZSTM.ifM]]
    */
   @deprecated("use ifSTM", "2.0.0")
   def ifM[E](b: STM[E, Boolean]): ZSTM.IfSTM[Any, E] =
     ZSTM.ifM(b)
 
   /**
-   * @see See [[zio.stm.ZSTM.ifSTM]]
+   * @see
+   *   See [[zio.stm.ZSTM.ifSTM]]
    */
   def ifSTM[E](b: STM[E, Boolean]): ZSTM.IfSTM[Any, E] =
     ZSTM.ifSTM(b)
 
   /**
-   * @see See [[zio.stm.ZSTM.iterate]]
+   * @see
+   *   See [[zio.stm.ZSTM.iterate]]
    */
   def iterate[E, S](initial: S)(cont: S => Boolean)(body: S => STM[E, S]): STM[E, S] =
     ZSTM.iterate(initial)(cont)(body)
 
   /**
-   * @see See [[zio.stm.ZSTM.left]]
+   * @see
+   *   See [[zio.stm.ZSTM.left]]
    */
   def left[A](a: => A): USTM[Either[A, Nothing]] =
     ZSTM.left(a)
 
   /**
-   * @see See [[zio.stm.ZSTM.loop]]
+   * @see
+   *   See [[zio.stm.ZSTM.loop]]
    */
   def loop[E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, A]): STM[E, List[A]] =
     ZSTM.loop(initial)(cont, inc)(body)
 
   /**
-   * @see See [[zio.stm.ZSTM.loop_]]
+   * @see
+   *   See [[zio.stm.ZSTM.loop_]]
    */
   @deprecated("use loopDiscard", "2.0.0")
   def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, Any]): STM[E, Unit] =
     ZSTM.loop_(initial)(cont, inc)(body)
 
   /**
-   * @see See [[zio.stm.ZSTM.loopDiscard]]
+   * @see
+   *   See [[zio.stm.ZSTM.loopDiscard]]
    */
   def loopDiscard[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, Any]): STM[E, Unit] =
     ZSTM.loopDiscard(initial)(cont, inc)(body)
 
   /**
-   * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C]*]]
+   * @see
+   *   See [[zio.stm.ZSTM.mapN[R,E,A,B,C]*]]
    */
   @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C](tx1: STM[E, A], tx2: STM[E, B])(f: (A, B) => C): STM[E, C] =
     ZSTM.mapN(tx1, tx2)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D]*]]
+   * @see
+   *   See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D]*]]
    */
   @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C, D](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C])(
@@ -293,7 +337,8 @@ object STM {
     ZSTM.mapN(tx1, tx2, tx3)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D,F]*]]
+   * @see
+   *   See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D,F]*]]
    */
   @deprecated("use zip", "2.0.0")
   def mapN[E, A, B, C, D, F](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C], tx4: STM[E, D])(
@@ -302,26 +347,30 @@ object STM {
     ZSTM.mapN(tx1, tx2, tx3, tx4)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.mergeAll]]
+   * @see
+   *   See [[zio.stm.ZSTM.mergeAll]]
    */
   def mergeAll[E, A, B](
     in: Iterable[STM[E, A]]
   )(zero: B)(f: (B, A) => B): STM[E, B] = ZSTM.mergeAll(in)(zero)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.none]]
+   * @see
+   *   See [[zio.stm.ZSTM.none]]
    */
   val none: USTM[Option[Nothing]] = ZSTM.none
 
   /**
-   * @see See [[zio.stm.ZSTM.partition]]
+   * @see
+   *   See [[zio.stm.ZSTM.partition]]
    */
   @deprecated("use attempt", "2.0.0")
   def partial[A](a: => A): STM[Throwable, A] =
     ZSTM.partial(a)
 
   /**
-   * @see See [[zio.stm.ZSTM.partition]]
+   * @see
+   *   See [[zio.stm.ZSTM.partition]]
    */
   def partition[E, A, B](
     in: Iterable[A]
@@ -329,108 +378,126 @@ object STM {
     ZSTM.partition(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.reduceAll]]
+   * @see
+   *   See [[zio.stm.ZSTM.reduceAll]]
    */
   def reduceAll[E, A](a: STM[E, A], as: Iterable[STM[E, A]])(
     f: (A, A) => A
   ): STM[E, A] = ZSTM.reduceAll(a, as)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.replicate]]
+   * @see
+   *   See [[zio.stm.ZSTM.replicate]]
    */
   def replicate[E, A](n: Int)(tx: STM[E, A]): Iterable[STM[E, A]] =
     ZSTM.replicate(n)(tx)
 
   /**
-   * @see See [[zio.stm.ZSTM.replicateM]]
+   * @see
+   *   See [[zio.stm.ZSTM.replicateM]]
    */
   @deprecated("use replicateSTM", "2.0.0")
   def replicateM[E, A](n: Int)(transaction: STM[E, A]): STM[E, Iterable[A]] =
     ZSTM.replicateM(n)(transaction)
 
   /**
-   * @see See [[zio.stm.ZSTM.replicateM_]]
+   * @see
+   *   See [[zio.stm.ZSTM.replicateM_]]
    */
   @deprecated("use replicateSTMDiscard", "2.0.0")
   def replicateM_[E, A](n: Int)(transaction: STM[E, A]): STM[E, Unit] =
     ZSTM.replicateM_(n)(transaction)
 
   /**
-   * @see See [[zio.stm.ZSTM.replicateSTM]]
+   * @see
+   *   See [[zio.stm.ZSTM.replicateSTM]]
    */
   def replicateSTM[E, A](n: Int)(transaction: STM[E, A]): STM[E, Iterable[A]] =
     ZSTM.replicateSTM(n)(transaction)
 
   /**
-   * @see See [[zio.stm.ZSTM.replicateSTMDiscard]]
+   * @see
+   *   See [[zio.stm.ZSTM.replicateSTMDiscard]]
    */
   def replicateSTMDiscard[E, A](n: Int)(transaction: STM[E, A]): STM[E, Unit] =
     ZSTM.replicateSTMDiscard(n)(transaction)
 
   /**
-   * @see See [[zio.stm.ZSTM.require]]
+   * @see
+   *   See [[zio.stm.ZSTM.require]]
    */
   @deprecated("use someOrFail", "2.0.0")
   def require[E, A](error: => E): STM[E, Option[A]] => STM[E, A] =
     ZSTM.require[Any, E, A](error)
 
   /**
-   * @see See [[zio.stm.ZSTM.retry]]
+   * @see
+   *   See [[zio.stm.ZSTM.retry]]
    */
   val retry: USTM[Nothing] =
     ZSTM.retry
 
   /**
-   * @see See [[zio.stm.ZSTM.right]]
+   * @see
+   *   See [[zio.stm.ZSTM.right]]
    */
   def right[A](a: => A): USTM[Either[Nothing, A]] =
     ZSTM.right(a)
 
   /**
-   * @see See [[zio.stm.ZSTM.some]]
+   * @see
+   *   See [[zio.stm.ZSTM.some]]
    */
   def some[A](a: => A): USTM[Option[A]] =
     ZSTM.some(a)
 
   /**
-   * @see See [[zio.stm.ZSTM.succeed]]
+   * @see
+   *   See [[zio.stm.ZSTM.succeed]]
    */
   def succeed[A](a: => A): USTM[A] =
     ZSTM.succeed(a)
 
   /**
-   * @see See [[zio.stm.ZSTM.suspend]]
+   * @see
+   *   See [[zio.stm.ZSTM.suspend]]
    */
   def suspend[E, A](stm: => STM[E, A]): STM[E, A] =
     ZSTM.suspend(stm)
 
   /**
-   * @see See [[zio.stm.ZSTM.unit]]
+   * @see
+   *   See [[zio.stm.ZSTM.unit]]
    */
   val unit: USTM[Unit] =
     ZSTM.unit
 
   /**
-   * @see See [[zio.stm.ZSTM.unless]]
+   * @see
+   *   See [[zio.stm.ZSTM.unless]]
    */
   def unless[E, A](b: => Boolean)(stm: => STM[E, A]): STM[E, Option[A]] =
     ZSTM.unless(b)(stm)
 
   /**
-   * @see See [[zio.stm.ZSTM.unlessM]]
+   * @see
+   *   See [[zio.stm.ZSTM.unlessM]]
    */
   @deprecated("use unlessSTM", "2.0.0")
   def unlessM[E](b: STM[E, Boolean]): ZSTM.UnlessSTM[Any, E] =
     ZSTM.unlessM(b)
 
   /**
-   * @see See [[zio.stm.ZSTM.unlessSTM]]
+   * @see
+   *   See [[zio.stm.ZSTM.unlessSTM]]
    */
   def unlessSTM[E](b: STM[E, Boolean]): ZSTM.UnlessSTM[Any, E] =
     ZSTM.unlessSTM(b)
 
   /**
-   * @see See [[[zio.stm.ZSTM.validate[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
+   * @see
+   *   See
+   *   [[[zio.stm.ZSTM.validate[R,E,A,B,Collection[+Element]<:Iterable[Element]]*]]]
    */
   def validate[E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => STM[E, B]
@@ -438,7 +505,8 @@ object STM {
     ZSTM.validate(in)(f)
 
   /**
-   * @see See [[[zio.stm.ZSTM.validate[R,E,A,B](in:zio\.NonEmptyChunk*]]]
+   * @see
+   *   See [[[zio.stm.ZSTM.validate[R,E,A,B](in:zio\.NonEmptyChunk*]]]
    */
   def validate[E, A, B](in: NonEmptyChunk[A])(
     f: A => STM[E, B]
@@ -446,7 +514,8 @@ object STM {
     ZSTM.validate(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.validateFirst]]
+   * @see
+   *   See [[zio.stm.ZSTM.validateFirst]]
    */
   def validateFirst[E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
@@ -454,39 +523,45 @@ object STM {
     ZSTM.validateFirst(in)(f)
 
   /**
-   * @see See [[zio.stm.ZSTM.when]]
+   * @see
+   *   See [[zio.stm.ZSTM.when]]
    */
   def when[E, A](b: => Boolean)(stm: => STM[E, A]): STM[E, Option[A]] =
     ZSTM.when(b)(stm)
 
   /**
-   * @see See [[zio.stm.ZSTM.whenCase]]
+   * @see
+   *   See [[zio.stm.ZSTM.whenCase]]
    */
   def whenCase[E, A, B](a: => A)(pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     ZSTM.whenCase(a)(pf)
 
   /**
-   * @see See [[zio.stm.ZSTM.whenCaseM]]
+   * @see
+   *   See [[zio.stm.ZSTM.whenCaseM]]
    */
   @deprecated("use whenCaseSTM", "2.0.0")
   def whenCaseM[E, A, B](a: STM[E, A])(pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     ZSTM.whenCaseM(a)(pf)
 
   /**
-   * @see See [[zio.stm.ZSTM.whenCaseSTM]]
+   * @see
+   *   See [[zio.stm.ZSTM.whenCaseSTM]]
    */
   def whenCaseSTM[E, A, B](a: STM[E, A])(pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     ZSTM.whenCaseSTM(a)(pf)
 
   /**
-   * @see See [[zio.stm.ZSTM.whenM]]
+   * @see
+   *   See [[zio.stm.ZSTM.whenM]]
    */
   @deprecated("use whenSTM", "2.0.0")
   def whenM[E](b: STM[E, Boolean]): ZSTM.WhenSTM[Any, E] =
     ZSTM.whenM(b)
 
   /**
-   * @see See [[zio.stm.ZSTM.whenSTM]]
+   * @see
+   *   See [[zio.stm.ZSTM.whenSTM]]
    */
   def whenSTM[E](b: STM[E, Boolean]): ZSTM.WhenSTM[Any, E] =
     ZSTM.whenSTM(b)

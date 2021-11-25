@@ -6,7 +6,7 @@ import zio.test._
 
 object SingleThreadedRingBufferSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("SingleThreadedRingBufferSpec")(
       test("use SingleThreadedRingBuffer as a sliding buffer") {
         check(Gen.chunkOf(Gen.int), Gen.size) { (as, n) =>

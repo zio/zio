@@ -3,7 +3,6 @@ package zio
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
-import zio.test.environment._
 
 object CancelableFutureSpec extends ZIOBaseSpec {
 
@@ -15,13 +14,13 @@ object CancelableFutureSpec extends ZIOBaseSpec {
       a      <- RIO.fromFuture(_ => future)
     } yield a
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("CancelableFutureSpec")(
       test("auto-kill regression") {
         val effect = ZIO.unit.delay(1.millisecond)
 
         val roundtrip = for {
-          rt <- ZIO.runtime[Has[Console] with Has[Clock]]
+          rt <- ZIO.runtime[Console with Clock]
           _  <- Task.fromFuture(_ => rt.unsafeRunToFuture(effect))
         } yield ()
 
@@ -33,7 +32,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val effect = Clock.nanoTime.map(_.toString()).delay(10.millisecond)
 
         val roundtrip = for {
-          rt <- ZIO.runtime[Has[Console] with Has[Clock]]
+          rt <- ZIO.runtime[Console with Clock]
           _  <- Task.fromFuture(_ => rt.unsafeRunToFuture(effect))
         } yield ()
 

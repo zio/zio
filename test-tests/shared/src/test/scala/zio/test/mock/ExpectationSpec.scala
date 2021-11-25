@@ -1,6 +1,5 @@
 package zio.test.mock
 
-import zio.Has
 import zio.test._
 import zio.test.mock.module.{PureModule, PureModuleMock}
 
@@ -14,7 +13,7 @@ object ExpectationSpec extends ZIOBaseSpec {
   lazy val B: Expectation[PureModule] = Static(value("bar"))
   lazy val C: Expectation[PureModule] = Looped(equalTo(1), never)
 
-  private def isAnd[R <: Has[_]](children: List[Expectation[_]]) =
+  private def isAnd[R](children: List[Expectation[_]]) =
     isSubtype[And[R]](
       hasField[And[R], List[Expectation[R]]](
         "children",
@@ -23,7 +22,7 @@ object ExpectationSpec extends ZIOBaseSpec {
       )
     )
 
-  private def isChain[R <: Has[_]](children: List[Expectation[_]]) =
+  private def isChain[R](children: List[Expectation[_]]) =
     isSubtype[Chain[R]](
       hasField[Chain[R], List[Expectation[R]]](
         "children",
@@ -32,7 +31,7 @@ object ExpectationSpec extends ZIOBaseSpec {
       )
     )
 
-  private def isOr[R <: Has[_]](children: List[Expectation[_]]) =
+  private def isOr[R](children: List[Expectation[_]]) =
     isSubtype[Or[R]](
       hasField[Or[R], List[Expectation[R]]](
         "children",
@@ -57,6 +56,14 @@ object ExpectationSpec extends ZIOBaseSpec {
     suite("repeats")(
       test("A repeats (2 to 5)")(assert(A repeats (2 to 5))(equalTo(Repeated(A, 2 to 5)))),
       test("nested repeats")(assert(A.repeats(2 to 3).repeats(1 to 2))(equalTo(Repeated(Repeated(A, 2 to 3), 1 to 2))))
+    ),
+    suite("optional")(
+      test("A optional")(assert(A.optional)(equalTo(Repeated(A, 0 to 1))))
+    ),
+    suite("exactly and derived")(
+      test("A exactly 5")(assert(A exactly 5)(equalTo(Exactly(A, 5)))),
+      test("A twice")(assert(A.twice)(equalTo(Exactly(A, 2)))),
+      test("A thrice")(assert(A.thrice)(equalTo(Exactly(A, 3))))
     )
   )
 }

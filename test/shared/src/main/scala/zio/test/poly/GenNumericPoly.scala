@@ -18,7 +18,7 @@ package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.{Has, Random, ZTraceElement}
+import zio.{Random, ZTraceElement}
 
 /**
  * `GenNumericPoly` provides evidence that instances of `Gen[T]` and
@@ -32,10 +32,10 @@ trait GenNumericPoly extends GenOrderingPoly {
 object GenNumericPoly {
 
   /**
-   * Constructs an instance of `GenIntegralPoly` using the specified `Gen`
-   * and `Numeric` instances, existentially hiding the underlying type.
+   * Constructs an instance of `GenIntegralPoly` using the specified `Gen` and
+   * `Numeric` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Has[Random] with Has[Sized], A], num: Numeric[A]): GenNumericPoly =
+  def apply[A](gen: Gen[Random with Sized, A], num: Numeric[A]): GenNumericPoly =
     new GenNumericPoly {
       type T = A
       val genT = gen
@@ -71,7 +71,7 @@ object GenNumericPoly {
    * A generator of polymorphic values constrainted to have a `Numeric`
    * instance.
    */
-  def genNumericPoly(implicit trace: ZTraceElement): Gen[Has[Random], GenNumericPoly] =
+  def genNumericPoly(implicit trace: ZTraceElement): Gen[Random, GenNumericPoly] =
     Gen.elements(
       byte,
       char,
@@ -83,8 +83,7 @@ object GenNumericPoly {
     )
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for
-   * integers.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for integers.
    */
   def int(implicit trace: ZTraceElement): GenNumericPoly =
     GenIntegralPoly.int

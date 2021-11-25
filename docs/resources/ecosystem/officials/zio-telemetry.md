@@ -81,7 +81,7 @@ lazy val openTracingExample = Seq(
 )
 ```
 
-Let's create a `ZLayer` for `OpenTracing` which provides us Jaeger tracer. Each microservice uses this layer to send its tracing data to the _Jaeger Backend_:
+Let's create a `ZLayer` for `OpenTracing` which provides us Jaeger tracer. Each microservice uses this dependency to send its tracing data to the _Jaeger Backend_:
 
 ```scala
 import io.jaegertracing.Configuration
@@ -157,7 +157,7 @@ object BackendServer extends CatsApp {
                   carrier = new TextMapAdapter(request.headers.toList.map(h => h.name.value -> h.value).toMap.asJava),
                   operation = "GET /"
                 )
-                .provideLayer(makeJaegerTracer(host = "0.0.0.0:9411", serviceName = "backend-service")) *> Ok("Ok!")
+                .provide(makeJaegerTracer(host = "0.0.0.0:9411", serviceName = "backend-service")) *> Ok("Ok!")
             }
           ).orNotFound
         )
@@ -226,7 +226,7 @@ object ProxyServer extends CatsApp {
                     }
               } yield res)
                 .root(operation = "GET /")
-                .provideLayer(
+                .provide(
                   makeJaegerTracer(host = "0.0.0.0:9411", serviceName = "proxy-server")
                 )
             }

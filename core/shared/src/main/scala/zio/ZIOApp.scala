@@ -18,35 +18,38 @@ package zio
 import zio.internal._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 /**
  * An entry point for a ZIO application that allows sharing layers between
- * applications. For a simpler version that uses the default ZIO environment
- * see `ZIOAppDefault`.
+ * applications. For a simpler version that uses the default ZIO environment see
+ * `ZIOAppDefault`.
  */
-trait ZIOApp extends ZIOAppPlatformSpecific { self =>
-  @volatile private[zio] var shuttingDown = false
+trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
+  private[zio] val shuttingDown = new AtomicBoolean(false)
 
   implicit def tag: Tag[Environment]
 
-  type Environment <: Has[_]
+  type Environment
 
   /**
    * A layer that manages the acquisition and release of services necessary for
    * the application to run.
    */
-  def layer: ZLayer[Has[ZIOAppArgs], Any, Environment]
+  def layer: ZLayer[ZIOAppArgs, Any, Environment]
 
   /**
-   * The main function of the application, which can access the command-line arguments through
-   * the `args` helper method of this class. If the provided effect fails for any reason, the
-   * cause will be logged, and the exit code of the application will be non-zero. Otherwise,
-   * the exit code of the application will be zero.
+   * The main function of the application, which can access the command-line
+   * arguments through the `args` helper method of this class. If the provided
+   * effect fails for any reason, the cause will be logged, and the exit code of
+   * the application will be non-zero. Otherwise, the exit code of the
+   * application will be zero.
    */
-  def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any]
+  def run: ZIO[Environment with ZEnv with ZIOAppArgs, Any, Any]
 
   /**
-   * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application that
-   * executes the logic of both applications.
+   * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
+   * that executes the logic of both applications.
    */
   final def <>(that: ZIOApp)(implicit trace: ZTraceElement): ZIOApp =
     ZIOApp(self.run.zipPar(that.run), self.layer +!+ that.layer, self.hook >>> that.hook)
@@ -55,7 +58,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    * A helper function to obtain access to the command-line arguments of the
    * application. You may use this helper function inside your `run` function.
    */
-  final def getArgs(implicit trace: ZTraceElement): ZIO[Has[ZIOAppArgs], Nothing, Chunk[String]] =
+  final def getArgs(implicit trace: ZTraceElement): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
     ZIOAppArgs.getArgs
 
   /**
@@ -63,8 +66,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
    */
   final def exit(code: ExitCode)(implicit trace: ZTraceElement): UIO[Unit] =
     UIO {
-      if (!shuttingDown) {
-        shuttingDown = true
+      if (!shuttingDown.getAndSet(true)) {
         try Platform.exit(code.code)
         catch { case _: SecurityException => }
       }
@@ -87,9 +89,9 @@ trait ZIOApp extends ZIOAppPlatformSpecific { self =>
 
       val newLayer =
         ZLayer.environment[ZEnv] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
-          layer +!+ ZLayer.environment[ZEnv with Has[ZIOAppArgs]]
+          layer +!+ ZLayer.environment[ZEnv with ZIOAppArgs]
 
-      newRuntime.run(run.provideLayer(newLayer))
+      newRuntime.run(run.provide(newLayer))
     }
 
   def runtime: Runtime[ZEnv] = Runtime.default
@@ -104,21 +106,21 @@ object ZIOApp {
     type Environment = app.Environment
     override final def hook: RuntimeConfigAspect =
       app.hook
-    final def layer: ZLayer[Has[ZIOAppArgs], Any, Environment] =
+    final def layer: ZLayer[ZIOAppArgs, Any, Environment] =
       app.layer
-    override final def run: ZIO[Environment with ZEnv with Has[ZIOAppArgs], Any, Any] =
+    override final def run: ZIO[Environment with ZEnv with ZIOAppArgs, Any, Any] =
       app.run
     implicit final def tag: Tag[Environment] =
       app.tag
   }
 
   /**
-   * Creates a [[ZIOApp]] from an effect, which can consume the arguments of the program, as well
-   * as a hook into the ZIO runtime configuration.
+   * Creates a [[ZIOApp]] from an effect, which can consume the arguments of the
+   * program, as well as a hook into the ZIO runtime configuration.
    */
-  def apply[R <: Has[_]](
-    run0: ZIO[R with ZEnv with Has[ZIOAppArgs], Any, Any],
-    layer0: ZLayer[Has[ZIOAppArgs], Any, R],
+  def apply[R](
+    run0: ZIO[R with ZEnv with ZIOAppArgs, Any, Any],
+    layer0: ZLayer[ZIOAppArgs, Any, R],
     hook0: RuntimeConfigAspect
   )(implicit tagged: Tag[R]): ZIOApp =
     new ZIOApp {
@@ -130,8 +132,9 @@ object ZIOApp {
     }
 
   /**
-   * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's configuration.
+   * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's
+   * configuration.
    */
-  def fromZIO(run0: ZIO[ZEnv with Has[ZIOAppArgs], Any, Any])(implicit trace: ZTraceElement): ZIOApp =
+  def fromZIO(run0: ZIO[ZEnv with ZIOAppArgs, Any, Any])(implicit trace: ZTraceElement): ZIOApp =
     ZIOApp(run0, ZLayer.environment, RuntimeConfigAspect.identity)
 }

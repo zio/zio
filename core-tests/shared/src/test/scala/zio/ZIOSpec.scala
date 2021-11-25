@@ -6,7 +6,6 @@ import zio.internal.Platform
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment.{Live, TestClock}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
@@ -15,7 +14,17 @@ object ZIOSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
+  def spec = suite("ZIOSpec")(
+    suite("heap")(
+      test("unit.forever is safe") {
+        for {
+          _     <- ZIO.debug("Press any line to stop...")
+          fiber <- ZIO.unit.forever.fork
+          _     <- ZIO.attempt(scala.io.StdIn.readLine())
+          _     <- fiber.interrupt
+        } yield assertCompletes
+      } @@ ignore
+    ),
     suite("&&")(
       test("true and true is true") {
         assertM(ZIO.succeed(true) && ZIO.succeed(true))(isTrue)
@@ -1032,27 +1041,6 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(value)(equalTo(0))
       }
     ),
-    suite("forkAs")(
-      test("child has specified name") {
-        for {
-          fiber <- Fiber.fiberName.get.forkAs("child")
-          name  <- fiber.join
-        } yield assert(name)(isSome(equalTo("child")))
-      },
-      test("parent name is unchanged") {
-        for {
-          _    <- ZIO.unit.forkAs("child")
-          name <- Fiber.fiberName.get
-        } yield assert(name)(isNone)
-      },
-      test("parent does not inherit child name on join") {
-        for {
-          fiber <- ZIO.unit.forkAs("child")
-          _     <- fiber.join
-          name  <- Fiber.fiberName.get
-        } yield assert(name)(isNone)
-      }
-    ),
     suite("forkIn") {
       test("fiber forked in a closed scope does not run") {
         for {
@@ -1384,7 +1372,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val thread = ZIO.succeed(Thread.currentThread())
 
         val global =
-          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+          Executor.fromExecutionContext(Int.MaxValue)(scala.concurrent.ExecutionContext.global)
         for {
           which   <- Ref.make[Option[Thread]](None)
           beforeL <- ZIO.descriptor.map(_.isLocked)
@@ -1845,19 +1833,19 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       } @@ zioTag(errors)
     ),
-    suite("provideCustomLayer")(
+    suite("provideCustom")(
       test("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomLayer(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustom(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSomeLayer")(
+    suite("provideSome")(
       test("can split environment into two parts") {
-        val clockLayer: ZLayer[Any, Nothing, Has[Clock]]         = Clock.live
-        val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Has[Random], Unit]                        = zio.provideSomeLayer[Has[Random]](clockLayer)
+        val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
+        val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
+        val zio2: URIO[Random, Unit]                   = zio.provideSome[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -2526,12 +2514,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(io)(equalTo(42))
       },
       test("deep asyncZIO doesn't block threads") {
-        def stackIOs(count: Int): URIO[Has[Clock], Int] =
+        def stackIOs(count: Int): URIO[Clock, Int] =
           if (count <= 0) IO.succeed(42)
           else asyncIO(stackIOs(count - 1))
 
-        def asyncIO(cont: URIO[Has[Clock], Int]): URIO[Has[Clock], Int] =
-          ZIO.asyncZIO[Has[Clock], Nothing, Int] { k =>
+        def asyncIO(cont: URIO[Clock, Int]): URIO[Clock, Int] =
+          ZIO.asyncZIO[Clock, Nothing, Int] { k =>
             Clock.sleep(5.millis) *> cont *> IO.succeed(k(IO.succeed(42)))
           }
 
@@ -2561,7 +2549,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           step            <- Promise.make[Nothing, Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
-          runtime         <- ZIO.runtime[Has[Live]]
+          runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                     .async[Any, Nothing, Unit] { k =>
                       runtime.unsafeRunAsync {
@@ -2587,7 +2575,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           step            <- Promise.make[Nothing, Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
-          runtime         <- ZIO.runtime[Has[Live]]
+          runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                     .asyncMaybe[Any, Nothing, Unit] { k =>
                       runtime.unsafeRunAsync {
@@ -2723,7 +2711,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res1)(isUnit) && assert(res2)(isUnit)
       },
       test("supervise fibers") {
-        def makeChild(n: Int): URIO[Has[Clock], Fiber[Nothing, Unit]] =
+        def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
           (Clock.sleep(20.millis * n.toDouble) *> ZIO.infinity).fork
 
         val io =
@@ -2827,7 +2815,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(Live.live(io).exit)(fails(equalTo("Uh oh")))
       },
       test("timeout of terminate") {
-        val io: ZIO[Has[Clock], Nothing, Option[Int]] = IO.die(ExampleError).timeout(1.hour)
+        val io: ZIO[Clock, Nothing, Option[Int]] = IO.die(ExampleError).timeout(1.hour)
         assertM(Live.live(io).exit)(dies(equalTo(ExampleError)))
       }
     ),
@@ -3223,7 +3211,7 @@ object ZIOSpec extends ZIOBaseSpec {
             ref    <- Ref.make(false)
             fiber1 <- latch1
                         .succeed(())
-                        .acquireReleaseExitWith[Has[Clock], Nothing, Unit](
+                        .acquireReleaseExitWith[Clock, Nothing, Unit](
                           (_: Boolean, _: Exit[Any, Any]) => ZIO.unit,
                           (_: Boolean) => latch2.await *> Clock.sleep(10.millis) *> ref.set(true).unit
                         )
@@ -3278,16 +3266,16 @@ object ZIOSpec extends ZIOBaseSpec {
       test("provide is modular") {
         val zio =
           for {
-            v1 <- ZIO.environment[Int]
-            v2 <- ZIO.environment[Int].provide(2)
-            v3 <- ZIO.environment[Int]
+            v1 <- ZIO.service[Int]
+            v2 <- ZIO.service[Int].provideEnvironment(ZEnvironment(2))
+            v3 <- ZIO.service[Int]
           } yield (v1, v2, v3)
 
-        assertM(zio.provide(4))(equalTo((4, 2, 4)))
+        assertM(zio.provideEnvironment(ZEnvironment(4)))(equalTo((4, 2, 4)))
       },
       test("async can use environment") {
-        val zio = ZIO.async[Int, Nothing, Int](cb => cb(ZIO.environment[Int]))
-        assertM(zio.provide(10))(equalTo(10))
+        val zio = ZIO.async[Int, Nothing, Int](cb => cb(ZIO.service[Int]))
+        assertM(zio.provideEnvironment(ZEnvironment(10)))(equalTo(10))
       }
     ),
     suite("RTS forking inheritability")(
@@ -3313,8 +3301,8 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("serviceWith")(
       test("effectfully accesses a service in the environment") {
-        val zio = ZIO.serviceWith[Int](int => UIO(int + 3))
-        assertM(zio.inject(ZLayer.succeed(0)))(equalTo(3))
+        val zio = ZIO.serviceWithZIO[Int](int => UIO(int + 3))
+        assertM(zio.provide(ZLayer.succeed(0)))(equalTo(3))
       }
     ),
     suite("schedule")(
@@ -3612,7 +3600,7 @@ object ZIOSpec extends ZIOBaseSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provide(ZLayer.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(
@@ -3981,10 +3969,10 @@ object ZIOSpec extends ZIOBaseSpec {
     )
   )
 
-  def functionIOGen: Gen[Has[Random] with Has[Sized], String => Task[Int]] =
-    Gen.function[Has[Random] with Has[Sized], String, Task[Int]](Gen.successes(Gen.int))
+  def functionIOGen: Gen[Random with Sized, String => Task[Int]] =
+    Gen.function[Random with Sized, String, Task[Int]](Gen.successes(Gen.int))
 
-  def listGen: Gen[Has[Random] with Has[Sized], List[String]] =
+  def listGen: Gen[Random with Sized, List[String]] =
     Gen.listOfN(100)(Gen.alphaNumericString)
 
   val exampleError = new Error("something went wrong")
@@ -4062,10 +4050,11 @@ object ZIOSpec extends ZIOBaseSpec {
 
   def AsyncUnit[E]: IO[E, Unit] = IO.async[E, Unit](_(IO.unit))
 
-  type Logging = Has[Logging.Service]
+  type Logging = Logging.Service
 
   object Logging {
     trait Service
     val live: ZLayer[Any, Nothing, Logging] = ZLayer.succeed(new Logging.Service {})
   }
+
 }

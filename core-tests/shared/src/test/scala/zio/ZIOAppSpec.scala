@@ -3,7 +3,7 @@ package zio
 import zio.test._
 
 object ZIOAppSpec extends ZIOBaseSpec {
-  def spec: ZSpec[Environment, Failure] = suite("ZIOAppSpec")(
+  def spec = suite("ZIOAppSpec")(
     test("fromZIO") {
       for {
         ref <- Ref.make(0)
@@ -33,7 +33,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
     test("hook update platform") {
       val counter = new java.util.concurrent.atomic.AtomicInteger(0)
 
-      val logger1 = new ZLogger[Unit] {
+      val logger1 = new ZLogger[String, Unit] {
         def apply(
           trace: ZTraceElement,
           fiberId: zio.FiberId.Runtime,

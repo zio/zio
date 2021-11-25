@@ -4,10 +4,10 @@ import zio.test.Assertion._
 import zio.test._
 object ZHubSpec extends ZIOBaseSpec {
 
-  val smallInt: Gen[Has[Random] with Has[Sized], Int] =
+  val smallInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_), 1)
 
-  def spec: ZSpec[Environment, Failure] = suite("ZHubSpec")(
+  def spec = suite("ZHubSpec")(
     suite("sequential publishers and subscribers")(
       test("with one publisher and one subscriber") {
         check(smallInt, Gen.listOf(smallInt)) { (n, as) =>

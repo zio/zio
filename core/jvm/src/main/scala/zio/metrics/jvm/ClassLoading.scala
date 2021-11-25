@@ -14,11 +14,17 @@ trait ClassLoading extends JvmMetrics {
   private val loadedClassCount: Gauge[Int] =
     ZIOMetric.setGaugeWith("jvm_classes_loaded")(_.toDouble)
 
-  /** The total number of classes that have been loaded since the JVM has started execution */
+  /**
+   * The total number of classes that have been loaded since the JVM has started
+   * execution
+   */
   private val totalLoadedClassCount: Gauge[Long] =
     ZIOMetric.setGaugeWith("jvm_classes_loaded_total")(_.toDouble)
 
-  /** The total number of classes that have been unloaded since the JVM has started execution */
+  /**
+   * The total number of classes that have been unloaded since the JVM has
+   * started execution
+   */
   private val unloadedClassCount: Gauge[Long] =
     ZIOMetric.setGaugeWith("jvm_classes_unloaded_total")(_.toDouble)
 
@@ -31,7 +37,7 @@ trait ClassLoading extends JvmMetrics {
       _ <- Task(classLoadingMXBean.getUnloadedClassCount) @@ unloadedClassCount
     } yield ()
 
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock], Throwable, ClassLoading] =
+  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, ClassLoading] =
     for {
       classLoadingMXBean <-
         Task(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean])).toManaged

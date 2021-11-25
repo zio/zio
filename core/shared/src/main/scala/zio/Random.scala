@@ -37,7 +37,7 @@ trait Random extends Serializable {
   def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): UIO[Long]
   def nextPrintableChar(implicit trace: ZTraceElement): UIO[Char]
   def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String]
-  def nextUUID(implicit trace: ZTraceElement): UIO[UUID] = Random.nextUUIDWith(nextLong)
+  def nextUUID(implicit trace: ZTraceElement): UIO[UUID]
   def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit]
   def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: => Collection[A])(implicit
     bf: BuildFrom[Collection[A], A, Collection[A]],
@@ -88,6 +88,8 @@ object Random extends Serializable {
       ZIO.succeed(random.nextPrintableChar())
     def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String] =
       ZIO.succeed(random.nextString(length))
+    def nextUUID(implicit trace: ZTraceElement): UIO[UUID] =
+      Random.nextUUIDWith(nextLong)
     def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.succeed(random.setSeed(seed))
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
@@ -96,22 +98,24 @@ object Random extends Serializable {
       Random.shuffleWith(nextIntBounded(_), collection)
   }
 
-  val any: ZLayer[Has[Random], Nothing, Has[Random]] = {
-    ZLayer.service[Random](Tracer.newTrace)
+  val any: ZLayer[Random, Nothing, Random] = {
+    ZLayer.service[Random](Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
   }
 
-  val live: Layer[Nothing, Has[Random]] = {
-    ZLayer.succeed[Random](RandomLive)(Tag[Random], Tracer.newTrace)
+  val live: Layer[Nothing, Random] = {
+    ZLayer.succeed[Random](RandomLive)(Tag[Random], IsNotIntersection[Random], Tracer.newTrace)
   }
 
   /**
    * Constructs a `Random` service from a `scala.util.Random`.
    */
-  val scalaRandom: ZLayer[Has[scala.util.Random], Nothing, Has[Random]] = {
+  val scalaRandom: ZLayer[scala.util.Random, Nothing, Random] = {
     implicit val trace = Tracer.newTrace
-    (for {
-      random <- ZIO.service[scala.util.Random]
-    } yield RandomScala(random)).toLayer
+    ZLayer {
+      for {
+        random <- ZIO.service[scala.util.Random]
+      } yield RandomScala(random)
+    }
   }
 
   private[zio] def nextDoubleBetweenWith(minInclusive0: => Double, maxExclusive0: => Double)(
@@ -243,120 +247,121 @@ object Random extends Serializable {
   /**
    * generates a pseudo-random boolean.
    */
-  def nextBoolean(implicit trace: ZTraceElement): URIO[Has[Random], Boolean] =
-    ZIO.serviceWith(_.nextBoolean)
+  def nextBoolean(implicit trace: ZTraceElement): URIO[Random, Boolean] =
+    ZIO.serviceWithZIO(_.nextBoolean)
 
   /**
    * Generates a pseudo-random chunk of bytes of the specified length.
    */
-  def nextBytes(length: => Int)(implicit trace: ZTraceElement): ZIO[Has[Random], Nothing, Chunk[Byte]] =
-    ZIO.serviceWith(_.nextBytes(length))
+  def nextBytes(length: => Int)(implicit trace: ZTraceElement): ZIO[Random, Nothing, Chunk[Byte]] =
+    ZIO.serviceWithZIO(_.nextBytes(length))
 
   /**
    * Generates a pseudo-random, uniformly distributed double between 0.0 and
    * 1.0.
    */
-  def nextDouble(implicit trace: ZTraceElement): URIO[Has[Random], Double] = ZIO.serviceWith(_.nextDouble)
+  def nextDouble(implicit trace: ZTraceElement): URIO[Random, Double] =
+    ZIO.serviceWithZIO(_.nextDouble)
 
   /**
    * Generates a pseudo-random double in the specified range.
    */
   def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double)(implicit
     trace: ZTraceElement
-  ): URIO[Has[Random], Double] =
-    ZIO.serviceWith(_.nextDoubleBetween(minInclusive, maxExclusive))
+  ): URIO[Random, Double] =
+    ZIO.serviceWithZIO(_.nextDoubleBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random, uniformly distributed float between 0.0 and
    * 1.0.
    */
-  def nextFloat(implicit trace: ZTraceElement): URIO[Has[Random], Float] =
-    ZIO.serviceWith(_.nextFloat)
+  def nextFloat(implicit trace: ZTraceElement): URIO[Random, Float] =
+    ZIO.serviceWithZIO(_.nextFloat)
 
   /**
    * Generates a pseudo-random float in the specified range.
    */
   def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit
     trace: ZTraceElement
-  ): URIO[Has[Random], Float] =
-    ZIO.serviceWith(_.nextFloatBetween(minInclusive, maxExclusive))
+  ): URIO[Random, Float] =
+    ZIO.serviceWithZIO(_.nextFloatBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random double from a normal distribution with mean 0.0
    * and standard deviation 1.0.
    */
-  def nextGaussian(implicit trace: ZTraceElement): URIO[Has[Random], Double] =
-    ZIO.serviceWith(_.nextGaussian)
+  def nextGaussian(implicit trace: ZTraceElement): URIO[Random, Double] =
+    ZIO.serviceWithZIO(_.nextGaussian)
 
   /**
    * Generates a pseudo-random integer.
    */
-  def nextInt(implicit trace: ZTraceElement): URIO[Has[Random], Int] =
-    ZIO.serviceWith(_.nextInt)
+  def nextInt(implicit trace: ZTraceElement): URIO[Random, Int] =
+    ZIO.serviceWithZIO(_.nextInt)
 
   /**
    * Generates a pseudo-random integer in the specified range.
    */
   def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit
     trace: ZTraceElement
-  ): URIO[Has[Random], Int] =
-    ZIO.serviceWith(_.nextIntBetween(minInclusive, maxExclusive))
+  ): URIO[Random, Int] =
+    ZIO.serviceWithZIO(_.nextIntBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random integer between 0 (inclusive) and the specified
    * value (exclusive).
    */
-  def nextIntBounded(n: => Int)(implicit trace: ZTraceElement): URIO[Has[Random], Int] =
-    ZIO.serviceWith(_.nextIntBounded(n))
+  def nextIntBounded(n: => Int)(implicit trace: ZTraceElement): URIO[Random, Int] =
+    ZIO.serviceWithZIO(_.nextIntBounded(n))
 
   /**
    * Generates a pseudo-random long.
    */
-  def nextLong(implicit trace: ZTraceElement): URIO[Has[Random], Long] =
-    ZIO.serviceWith(_.nextLong)
+  def nextLong(implicit trace: ZTraceElement): URIO[Random, Long] =
+    ZIO.serviceWithZIO(_.nextLong)
 
   /**
    * Generates a pseudo-random long in the specified range.
    */
   def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit
     trace: ZTraceElement
-  ): URIO[Has[Random], Long] =
-    ZIO.serviceWith(_.nextLongBetween(minInclusive, maxExclusive))
+  ): URIO[Random, Long] =
+    ZIO.serviceWithZIO(_.nextLongBetween(minInclusive, maxExclusive))
 
   /**
    * Generates a pseudo-random long between 0 (inclusive) and the specified
    * value (exclusive).
    */
-  def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): URIO[Has[Random], Long] =
-    ZIO.serviceWith(_.nextLongBounded(n))
+  def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): URIO[Random, Long] =
+    ZIO.serviceWithZIO(_.nextLongBounded(n))
 
   /**
    * Generates psuedo-random universally unique identifiers.
    */
-  def nextUUID(implicit trace: ZTraceElement): URIO[Has[Random], UUID] =
-    ZIO.serviceWith(_.nextUUID)
+  def nextUUID(implicit trace: ZTraceElement): URIO[Random, UUID] =
+    ZIO.serviceWithZIO(_.nextUUID)
 
   /**
    * Generates a pseudo-random character from the ASCII range 33-126.
    */
-  def nextPrintableChar(implicit trace: ZTraceElement): URIO[Has[Random], Char] =
-    ZIO.serviceWith(_.nextPrintableChar)
+  def nextPrintableChar(implicit trace: ZTraceElement): URIO[Random, Char] =
+    ZIO.serviceWithZIO(_.nextPrintableChar)
 
   /**
    * Generates a pseudo-random string of the specified length.
    */
-  def nextString(length: => Int)(implicit trace: ZTraceElement): URIO[Has[Random], String] =
-    ZIO.serviceWith(_.nextString(length))
+  def nextString(length: => Int)(implicit trace: ZTraceElement): URIO[Random, String] =
+    ZIO.serviceWithZIO(_.nextString(length))
 
   /**
    * Sets the seed of this random number generator.
    */
-  def setSeed(seed: => Long)(implicit trace: ZTraceElement): URIO[Has[Random], Unit] =
-    ZIO.serviceWith(_.setSeed(seed))
+  def setSeed(seed: => Long)(implicit trace: ZTraceElement): URIO[Random, Unit] =
+    ZIO.serviceWithZIO(_.setSeed(seed))
 
   /**
    * Randomly shuffles the specified list.
    */
-  def shuffle[A](list: => List[A])(implicit trace: ZTraceElement): ZIO[Has[Random], Nothing, List[A]] =
-    ZIO.serviceWith(_.shuffle(list))
+  def shuffle[A](list: => List[A])(implicit trace: ZTraceElement): ZIO[Random, Nothing, List[A]] =
+    ZIO.serviceWithZIO(_.shuffle(list))
 }

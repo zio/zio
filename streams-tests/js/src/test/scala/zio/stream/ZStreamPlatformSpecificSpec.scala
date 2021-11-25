@@ -1,15 +1,14 @@
 package zio.stream
 
-import zio._
-import zio.test.Assertion._
-import zio.test._
+import zio.test.Assertion.{containsCause, equalTo, failsCause, isFalse, isTrue}
+import zio.test.{Gen, assert, assertM, check}
+import zio.{Cause, Chunk, IO, Promise, Ref, Schedule, Task, UIO, ZIO, ZIOBaseSpec}
 
-import java.io._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
-  def spec: ZSpec[Environment, Failure] = suite("ZStream JS")(
+  def spec = suite("ZStream JS")(
     test("async")(check(Gen.chunkOf(Gen.int)) { chunk =>
       val s = ZStream.async[Any, Throwable, Int](k => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
 
@@ -54,7 +53,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      },
                      5
                    )
-          run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
+          run    <- stream.run(ZSink.take(1) *> ZSink.never).fork
           _      <- refCnt.get.repeat(Schedule.recurWhile(_ != 7))
           isDone <- refDone.get
           _      <- run.interrupt
@@ -103,7 +102,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      },
                      5
                    )
-          run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
+          run    <- stream.run(ZSink.take(1) *> ZSink.never).fork
           _      <- refCnt.get.repeatWhile(_ != 7)
           isDone <- refDone.get
           _      <- run.interrupt
@@ -121,7 +120,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                          Task.unit.toManaged
                      }
                      .take(chunk.size.toLong)
-                     .run(ZSink.collectAll[Int])
+                     .run(ZSink.collectAll)
                      .fork
           _ <- latch.await
           s <- fiber.join
@@ -152,7 +151,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      },
                      5
                    )
-          run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
+          run    <- stream.run(ZSink.take(1) *> ZSink.never).fork
           _      <- refCnt.get.repeatWhile(_ != 7)
           isDone <- refDone.get
           _      <- run.interrupt
@@ -208,37 +207,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                      },
                      5
                    )
-          run    <- stream.run(ZSink.fromZIO[Any, Throwable, Int, Nothing](ZIO.never)).fork
+          run    <- stream.run(ZSink.take(1) *> ZSink.never).fork
           _      <- refCnt.get.repeatWhile(_ != 7)
           isDone <- refDone.get
           exit   <- run.interrupt
         } yield assert(isDone)(isFalse) &&
           assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
-      }
-    ),
-    suite("from")(
-      test("InputStream") {
-        lazy val inputStream: InputStream                  = ???
-        lazy val actual                                    = ZStream.from(inputStream)
-        lazy val expected: ZStream[Any, IOException, Byte] = actual
-        lazy val _                                         = expected
-        assertCompletes
-      },
-      test("InputStreamManaged") {
-        trait R
-        lazy val inputStreamManaged: ZManaged[R, IOException, InputStream] = ???
-        lazy val actual                                                    = ZStream.from(inputStreamManaged)
-        lazy val expected: ZStream[R, IOException, Byte]                   = actual
-        lazy val _                                                         = expected
-        assertCompletes
-      },
-      test("InputStreamZIO") {
-        trait R
-        lazy val inputStreamZIO: ZIO[R, IOException, InputStream] = ???
-        lazy val actual                                           = ZStream.from(inputStreamZIO)
-        lazy val expected: ZStream[R, IOException, Byte]          = actual
-        lazy val _                                                = expected
-        assertCompletes
       }
     )
   )

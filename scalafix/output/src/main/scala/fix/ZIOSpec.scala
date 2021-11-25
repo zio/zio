@@ -2,18 +2,17 @@ package zio
 
 import zio.Cause._
 import zio.LatchOps._
+import zio.Clock
 
 import zio.internal.Platform
 import zio.test.Assertion._
 import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment.TestClock
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
-import zio.{ Clock, Clock, FiberId, Has, Random, Random, _ }
-import zio.test.{ Gen, Sized }
-import zio.test.environment.Live
+import zio.{ Clock, FiberId, Random, Random, _ }
+import zio.test.{ Gen, Live, Sized }
 
 object ZIOSpec extends DefaultRunnableSpec {
 
@@ -1646,9 +1645,9 @@ object ZIOSpec extends DefaultRunnableSpec {
     ),
     suite("provideSomeLayer")(
       test("can split environment into two parts") {
-        val clockLayer: ZLayer[Any, Nothing, Has[Clock]]    = Clock.live
-        val zio: ZIO[Has[Clock] with Has[Random], Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Has[Random], Unit]                   = zio.provideSomeLayer[Has[Random]](clockLayer)
+        val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
+        val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
+        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -2298,12 +2297,12 @@ object ZIOSpec extends DefaultRunnableSpec {
         assertM(io)(equalTo(42))
       },
       test("deep effectAsyncM doesn't block threads") {
-        def stackIOs(count: Int): URIO[Has[Clock], Int] =
+        def stackIOs(count: Int): URIO[Clock, Int] =
           if (count <= 0) IO.succeed(42)
           else asyncIO(stackIOs(count - 1))
 
-        def asyncIO(cont: URIO[Has[Clock], Int]): URIO[Has[Clock], Int] =
-          ZIO.asyncZIO[Has[Clock], Nothing, Int] { k =>
+        def asyncIO(cont: URIO[Clock, Int]): URIO[Clock, Int] =
+          ZIO.asyncZIO[Clock, Nothing, Int] { k =>
             Clock.sleep(5.millis) *> cont *> IO.succeed(k(IO.succeed(42)))
           }
 
@@ -2333,7 +2332,7 @@ object ZIOSpec extends DefaultRunnableSpec {
         for {
           step            <- Promise.make[Nothing, Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
-          runtime         <- ZIO.runtime[Has[Live]]
+          runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                     .async[Any, Nothing, Unit] { k =>
                       runtime.unsafeRunAsync {
@@ -2359,7 +2358,7 @@ object ZIOSpec extends DefaultRunnableSpec {
         for {
           step            <- Promise.make[Nothing, Unit]
           unexpectedPlace <- Ref.make(List.empty[Int])
-          runtime         <- ZIO.runtime[Has[Live]]
+          runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                     .asyncMaybe[Any, Nothing, Unit] { k =>
                       runtime.unsafeRunAsync {
@@ -2495,7 +2494,7 @@ object ZIOSpec extends DefaultRunnableSpec {
         } yield assert(res1)(isUnit) && assert(res2)(isUnit)
       },
       test("supervise fibers") {
-        def makeChild(n: Int): URIO[Has[Clock], Fiber[Nothing, Unit]] =
+        def makeChild(n: Int): URIO[Clock, Fiber[Nothing, Unit]] =
           (Clock.sleep(20.millis * n.toDouble) *> ZIO.infinity).fork
 
         val io =
@@ -2599,7 +2598,7 @@ object ZIOSpec extends DefaultRunnableSpec {
         assertM(Live.live(io).exit)(fails(equalTo("Uh oh")))
       },
       test("timeout of terminate") {
-        val io: ZIO[Has[Clock], Nothing, Option[Int]] = IO.die(ExampleError).timeout(1.hour)
+        val io: ZIO[Clock, Nothing, Option[Int]] = IO.die(ExampleError).timeout(1.hour)
         assertM(Live.live(io).exit)(dies(equalTo(ExampleError)))
       }
     ),
@@ -2986,7 +2985,7 @@ object ZIOSpec extends DefaultRunnableSpec {
             ref    <- Ref.make(false)
             fiber1 <- latch1
                         .succeed(())
-                        .acquireReleaseExitWith[Has[Clock], Nothing, Unit](
+                        .acquireReleaseExitWith[Clock, Nothing, Unit](
                           (_: Boolean, _: Exit[Any, Any]) => ZIO.unit,
                           (_: Boolean) => latch2.await *> Clock.sleep(10.millis) *> ref.set(true).unit
                         )
@@ -3711,10 +3710,10 @@ object ZIOSpec extends DefaultRunnableSpec {
     )
   )
 
-  def functionIOGen: Gen[Has[Random] with Has[Sized], String => Task[Int]] =
-    Gen.function[Has[Random] with Has[Sized], String, Task[Int]](Gen.successes(Gen.int))
+  def functionIOGen: Gen[Random with Sized, String => Task[Int]] =
+    Gen.function[Random with Sized, String, Task[Int]](Gen.successes(Gen.int))
 
-  def listGen: Gen[Has[Random] with Has[Sized], List[String]] =
+  def listGen: Gen[Random with Sized, List[String]] =
     Gen.listOfN(100)(Gen.alphaNumericString)
 
   val exampleError = new Error("something went wrong")
@@ -3792,7 +3791,7 @@ object ZIOSpec extends DefaultRunnableSpec {
 
   def AsyncUnit[E]: IO[E, Unit] = IO.async[E, Unit](_(IO.unit))
 
-  type Logging = Has[Logging.Service]
+  type Logging = Logging.Service
 
   object Logging {
     trait Service

@@ -2,7 +2,7 @@ package zio.test
 
 import zio.Chunk
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.Arrow.Span
+import zio.test.TestArrow.Span
 import zio.test.ConsoleUtils._
 import zio.test.render.LogLine.Message
 

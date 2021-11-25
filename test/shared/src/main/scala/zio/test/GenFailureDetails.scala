@@ -19,7 +19,8 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * `GenFailureDetails` keeps track of relevant information related to a failure in a generative test.
+ * `GenFailureDetails` keeps track of relevant information related to a failure
+ * in a generative test.
  */
 sealed abstract class GenFailureDetails {
   type Value

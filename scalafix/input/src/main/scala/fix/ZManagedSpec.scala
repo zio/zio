@@ -1,3 +1,4 @@
+//format: off
 /*
 rule = Zio2Upgrade
  */
@@ -1229,6 +1230,12 @@ object ZManagedSpec extends DefaultRunnableSpec {
           _   <- acquireLatch.succeed(())
           _   <- releaseLatch.await
         } yield assert(res)(isNone)
+      }
+    ),
+    suite("toLayer")(
+      test("converts a managed effect to a layer") {
+        ZEnv.live.build.toLayer
+        ???
       }
     ),
     suite("toLayerMany")(

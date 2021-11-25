@@ -2,8 +2,8 @@ package zio.stm
 
 import zio.stm.TRandom._
 import zio.test.Assertion.{isGreaterThanEqualTo, isLessThan}
-import zio.test.{Gen, ZSpec, assert, check}
-import zio.{Has, Random, ZIOBaseSpec}
+import zio.test._
+import zio.{Random, ZIOBaseSpec}
 
 object TRandomSpec extends ZIOBaseSpec {
 
@@ -13,7 +13,7 @@ object TRandomSpec extends ZIOBaseSpec {
   implicit val FloatOrdering: Ordering[Float] =
     (l, r) => java.lang.Float.compare(l, r)
 
-  def spec: ZSpec[Environment, Failure] = suite("TRandomSpec")(
+  def spec = suite("TRandomSpec")(
     test("nextDoubleBetween generates doubles in specified range") {
       check(genDoubles) { case (min, max) =>
         for {
@@ -46,27 +46,27 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     }
-  ).provideCustomLayer(TRandom.live)
+  ).provideCustom(TRandom.live)
 
-  val genDoubles: Gen[Has[Random], (Double, Double)] =
+  val genDoubles: Gen[Random, (Double, Double)] =
     for {
       a <- Gen.double
       b <- Gen.double if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genFloats: Gen[Has[Random], (Float, Float)] =
+  val genFloats: Gen[Random, (Float, Float)] =
     for {
       a <- Gen.float
       b <- Gen.float if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genInts: Gen[Has[Random], (Int, Int)] =
+  val genInts: Gen[Random, (Int, Int)] =
     for {
       a <- Gen.int
       b <- Gen.int if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genLongs: Gen[Has[Random], (Long, Long)] =
+  val genLongs: Gen[Random, (Long, Long)] =
     for {
       a <- Gen.long
       b <- Gen.long if a != b

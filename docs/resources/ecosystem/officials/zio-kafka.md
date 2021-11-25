@@ -90,7 +90,7 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
     producer
       .merge(consumer)
       .runDrain
-      .provideCustomLayer(appLayer)
+      .provideCustom(appLayer)
       .exitCode
 
   def producerLayer = ZLayer.fromManaged(

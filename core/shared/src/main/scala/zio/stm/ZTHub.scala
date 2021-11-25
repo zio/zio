@@ -23,9 +23,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A `ZTHub[RA, RB, EA, EB, A, B]` is a transactional message hub. Publishers
  * can publish messages of type `A` to the hub and subscribers can subscribe to
  * take messages of type `B` from the hub. Publishing messages can require an
- * environment of type `RA` and fail with an error of type `EA`. Taking
- * messages can require an environment of type `RB` and fail with an error of
- * type `EB`.
+ * environment of type `RA` and fail with an error of type `EA`. Taking messages
+ * can require an environment of type `RB` and fail with an error of type `EB`.
  */
 sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
 
@@ -40,14 +39,14 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
   def isShutdown: USTM[Boolean]
 
   /**
-   * Publishes a message to the hub, returning whether the message was
-   * published to the hub.
+   * Publishes a message to the hub, returning whether the message was published
+   * to the hub.
    */
   def publish(a: A): ZSTM[RA, EA, Boolean]
 
   /**
-   * Publishes all of the specified messages to the hub, returning whether
-   * they were published to the hub.
+   * Publishes all of the specified messages to the hub, returning whether they
+   * were published to the hub.
    */
   def publishAll(as: Iterable[A]): ZSTM[RA, EA, Boolean]
 
@@ -62,10 +61,10 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
   def size: USTM[Int]
 
   /**
-   * Subscribes to receive messages from the hub. The resulting subscription
-   * can be evaluated multiple times to take a message from the hub each time.
-   * The caller is responsible for unsubscribing from the hub by shutting down
-   * the queue.
+   * Subscribes to receive messages from the hub. The resulting subscription can
+   * be evaluated multiple times to take a message from the hub each time. The
+   * caller is responsible for unsubscribing from the hub by shutting down the
+   * queue.
    */
   def subscribe: USTM[ZTDequeue[RB, EB, B]]
 
@@ -89,15 +88,15 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
     dimapSTM(f, ZSTM.succeedNow)
 
   /**
-   * Transforms messages published to and taken from the hub using the
-   * specified functions.
+   * Transforms messages published to and taken from the hub using the specified
+   * functions.
    */
   final def dimap[C, D](f: C => A, g: B => D): ZTHub[RA, RB, EA, EB, C, D] =
     dimapSTM(c => ZSTM.succeedNow(f(c)), b => ZSTM.succeedNow(g(b)))
 
   /**
-   * Transforms messages published to and taken from the hub using the
-   * specified transactional functions.
+   * Transforms messages published to and taken from the hub using the specified
+   * transactional functions.
    */
   final def dimapSTM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
     f: C => ZSTM[RC, EC, A],
@@ -194,8 +193,8 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
     dimapSTM(ZSTM.succeedNow, f)
 
   /**
-   * Subscribes to receive messages from the hub. The resulting subscription
-   * can be evaluated multiple times within the scope of the managed to take a
+   * Subscribes to receive messages from the hub. The resulting subscription can
+   * be evaluated multiple times within the scope of the managed to take a
    * message from the hub each time.
    */
   final def subscribeManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZTDequeue[RB, EB, B]] =
@@ -330,15 +329,18 @@ object ZTHub {
                       var loop                 = true
                       while (loop) {
                         val node = currentPublisherHead.unsafeGet(journal)
-                        val head = node.head
-                        val tail = node.tail
-                        if (head != null) {
-                          val updatedNode = node.copy(head = null.asInstanceOf[A])
-                          currentPublisherHead.unsafeSet(journal, updatedNode)
-                          publisherHead.unsafeSet(journal, tail)
-                          loop = false
-                        } else {
-                          currentPublisherHead = tail
+                        if (node eq null) throw ZSTM.RetryException
+                        else {
+                          val head = node.head
+                          val tail = node.tail
+                          if (head != null) {
+                            val updatedNode = node.copy(head = null.asInstanceOf[A])
+                            currentPublisherHead.unsafeSet(journal, updatedNode)
+                            publisherHead.unsafeSet(journal, tail)
+                            loop = false
+                          } else {
+                            currentPublisherHead = tail
+                          }
                         }
                       }
                       val updatedPublisherTail = ZTRef.unsafeMake[Node[A]](null)

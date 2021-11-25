@@ -21,7 +21,7 @@ import eu.timepit.refined.generic.Equal
 import shapeless.Witness
 import zio.test.magnolia.DeriveGen
 import zio.test.{Gen, Sized}
-import zio.{Has, Random}
+import zio.Random
 
 object generic extends GenericInstances
 
@@ -29,7 +29,7 @@ trait GenericInstances {
 
   def equalArbitraryGen[T, U <: T](implicit
     wu: Witness.Aux[U]
-  ): Gen[Has[Random] with Has[Sized], Refined[T, Equal[U]]] =
+  ): Gen[Random with Sized, Refined[T, Equal[U]]] =
     Gen.const(wu.value).map(Refined.unsafeApply)
 
   implicit def equalArbitrary[T, U <: T](implicit

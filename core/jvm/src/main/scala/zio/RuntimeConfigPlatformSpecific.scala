@@ -27,9 +27,9 @@ private[zio] trait RuntimeConfigPlatformSpecific {
    * A Runtime with settings suitable for benchmarks, specifically with Tracing
    * and auto-yielding disabled.
    *
-   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an
-   * optional feature and it's not valid to compare the performance of ZIO with
-   * enabled Tracing with effect types _without_ a comparable feature.
+   * Tracing adds a constant ~2x overhead on FlatMaps, however, it's an optional
+   * feature and it's not valid to compare the performance of ZIO with enabled
+   * Tracing with effect types _without_ a comparable feature.
    */
   lazy val benchmark: RuntimeConfig = makeDefault(Int.MaxValue)
 
@@ -61,7 +61,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
 
-    val logger: ZLogger[Any] =
+    val logger: ZLogger[String, Any] =
       ZLogger.defaultFormatter.map(println(_)).filterLogLevel(_ >= LogLevel.Info)
 
     val reportFatal = (t: Throwable) => {
@@ -80,10 +80,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       fatal,
       reportFatal,
       supervisor,
-      false,
       logger,
-      false,
-      false
+      RuntimeConfigFlags.empty
     )
   }
 
@@ -94,8 +92,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
-   * Makes a new default runtime configuration. This is a side-effecting
-   * method.
+   * Makes a new default runtime configuration. This is a side-effecting method.
    */
   def makeDefault(yieldOpCount: Int = defaultYieldOpCount): RuntimeConfig =
     fromExecutor(Executor.makeDefault(yieldOpCount))

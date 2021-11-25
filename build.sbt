@@ -23,12 +23,12 @@ inThisBuild(
   )
 )
 
-addCommandAlias("build", "; prepare; testJVM")
+addCommandAlias("build", "; fmt; testJVM")
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "check",
-  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile"
+  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile; scalafixTests/test"
 )
 addCommandAlias(
   "compileJVM",
@@ -94,12 +94,17 @@ lazy val root = project
     coreTestsJS,
     coreTestsJVM,
     docs,
+    internalMacrosJS,
+    internalMacrosJVM,
+    internalMacrosNative,
     examplesJS,
     examplesJVM,
     macrosJS,
     macrosJVM,
+    macrosNative,
     macrosTestsJS,
     macrosTestsJVM,
+    scalafixTests,
     stacktracerJS,
     stacktracerJVM,
     stacktracerNative,
@@ -132,11 +137,11 @@ lazy val root = project
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))
-  .dependsOn(stacktracer)
+  .dependsOn(internalMacros, stacktracer)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.0")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.8")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(
@@ -187,7 +192,7 @@ lazy val coreTestsJVM = coreTests.jvm
 lazy val coreTestsJS = coreTests.js
   .settings(dottySettings)
 
-lazy val macros = crossProject(JSPlatform, JVMPlatform)
+lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
   .dependsOn(core)
   .settings(stdSettings("zio-macros"))
@@ -195,8 +200,9 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
 
-lazy val macrosJVM = macros.jvm
-lazy val macrosJS  = macros.js
+lazy val macrosJVM    = macros.jvm
+lazy val macrosJS     = macros.js
+lazy val macrosNative = macros.native.settings(nativeSettings)
 
 lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros-tests"))
@@ -213,6 +219,17 @@ lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
 
 lazy val macrosTestsJVM = macrosTests.jvm
 lazy val macrosTestsJS  = macrosTests.js
+
+lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("internal-macros"))
+  .settings(stdSettings("zio-internal-macros"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
+
+lazy val internalMacrosJVM    = internalMacros.jvm.settings(dottySettings)
+lazy val internalMacrosJS     = internalMacros.js.settings(dottySettings)
+lazy val internalMacrosNative = internalMacros.native.settings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -393,14 +410,15 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio-test-scalacheck"))
   .settings(crossProjectSettings)
   .settings(
+    crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++= Seq(
       ("org.scalacheck" %%% "scalacheck" % "1.15.4")
     )
   )
 
-lazy val testScalaCheckJVM    = test.jvm.settings(dottySettings)
-lazy val testScalaCheckJS     = test.js
-lazy val testScalaCheckNative = test.native.settings(nativeSettings)
+lazy val testScalaCheckJVM    = testScalaCheck.jvm.settings(dottySettings)
+lazy val testScalaCheckJS     = testScalaCheck.js.settings(dottySettings)
+lazy val testScalaCheckNative = testScalaCheck.native.settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -497,19 +515,10 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
         .value
   )
 
-lazy val profiling = crossProject(JVMPlatform)
-  .in(file("profiling"))
-  .settings(stdSettings("zio-profiling"))
-  .settings(crossProjectSettings)
-  .settings(macroDefinitionSettings)
-  .dependsOn(core)
-
-lazy val profilingJVM = profiling.jvm.settings(dottySettings)
-
 /**
  * Examples sub-project that is not included in the root project.
- * To run tests :
- * `sbt "examplesJVM/test"`
+ *
+ * To run tests: `sbt "examplesJVM/test"`
  */
 lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .in(file("examples"))
@@ -518,13 +527,15 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(macroExpansionSettings)
   .settings(scalacOptions += "-Xfatal-warnings")
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .settings(publish / skip := true)
   .dependsOn(macros, testRunner)
 
 lazy val examplesJS = examples.js
   .settings(dottySettings)
+
 lazy val examplesJVM = examples.jvm
   .settings(dottySettings)
-  .dependsOn(testJunitRunnerJVM, profilingJVM)
+  .dependsOn(testJunitRunnerJVM)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM, testJVM)
@@ -532,7 +543,7 @@ lazy val benchmarks = project.module
   .settings(replSettings)
   .settings(
     // skip 2.11 benchmarks because akka stop supporting scala 2.11 in 2.6.x
-    crossScalaVersions -= Scala211,
+    crossScalaVersions --= List(Scala211, Scala3),
     //
     publish / skip := true,
     libraryDependencies ++=
@@ -569,11 +580,7 @@ lazy val benchmarks = project.module
       "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
-    ),
-    resolvers += Resolver.url(
-      "bintray-scala-hedgehog",
-      url("https://dl.bintray.com/hedgehogqa/scala-hedgehog")
-    )(Resolver.ivyStylePatterns)
+    )
   )
 
 lazy val jsdocs = project
@@ -585,6 +592,62 @@ val doobieV     = "1.0.0-RC1"
 val catsEffectV = "3.2.9"
 val zioActorsV  = "0.0.9"
 
+lazy val scalafixSettings = List(
+  scalaVersion := "2.13.7",
+  addCompilerPlugin(scalafixSemanticdb),
+  crossScalaVersions --= List(Scala211, Scala212, Scala3),
+  scalacOptions ++= List(
+    "-Yrangepos",
+    "-P:semanticdb:synthetics:on"
+  )
+)
+
+lazy val scalafixRules = project.module
+  .in(file("scalafix/rules")) // TODO .in needed when name matches?
+  .settings(
+    scalafixSettings,
+    semanticdbEnabled                      := true, // enable SemanticDB
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.32"
+  )
+
+val zio1Version = "1.0.12"
+
+lazy val scalafixInput = project
+  .in(file("scalafix/input"))
+  .settings(
+    scalafixSettings,
+    publish / skip                   := true,
+    libraryDependencies += "dev.zio" %% "zio"         % zio1Version,
+    libraryDependencies += "dev.zio" %% "zio-streams" % zio1Version,
+    libraryDependencies += "dev.zio" %% "zio-test"    % zio1Version
+  )
+
+lazy val scalafixOutput = project
+  .in(file("scalafix/output"))
+  .settings(
+    scalafixSettings,
+    publish / skip := true
+  )
+  .dependsOn(coreJVM, testJVM, streamsJVM)
+
+lazy val scalafixTests = project
+  .in(file("scalafix/tests"))
+  .settings(
+    scalafixSettings,
+    publish / skip                        := true,
+    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.9.32" % Test cross CrossVersion.full,
+    Compile / compile :=
+      (Compile / compile).dependsOn(scalafixInput / Compile / compile).value,
+    scalafixTestkitOutputSourceDirectories :=
+      (scalafixOutput / Compile / sourceDirectories).value,
+    scalafixTestkitInputSourceDirectories :=
+      (scalafixInput / Compile / sourceDirectories).value,
+    scalafixTestkitInputClasspath :=
+      (scalafixInput / Compile / fullClasspath).value
+  )
+  .dependsOn(scalafixRules)
+  .enablePlugins(ScalafixTestkitPlugin)
+
 lazy val docs = project.module
   .in(file("zio-docs"))
   .settings(
@@ -595,7 +658,7 @@ lazy val docs = project.module
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
-    crossScalaVersions --= List(Scala211),
+    crossScalaVersions --= List(Scala211, Scala3),
     mdocIn  := (LocalRootProject / baseDirectory).value / "docs",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(

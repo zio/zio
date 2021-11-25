@@ -2,7 +2,6 @@ package zio
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.Live
 
 object RandomSpec extends ZIOBaseSpec {
 
@@ -12,7 +11,7 @@ object RandomSpec extends ZIOBaseSpec {
   implicit val FloatOrdering: Ordering[Float] =
     (l, r) => java.lang.Float.compare(l, r)
 
-  def spec: ZSpec[Environment, Failure] = suite("RandomSpec")(
+  def spec = suite("RandomSpec")(
     test("nextDoubleBetween generates doubles in specified range") {
       check(genDoubles) { case (min, max) =>
         for {
@@ -52,32 +51,32 @@ object RandomSpec extends ZIOBaseSpec {
     },
     test("scalaRandom") {
       val layer  = ZLayer.fromZIO(ZIO.succeed(new scala.util.Random)) >>> Random.scalaRandom
-      val sample = ZIO.replicateZIO(5)((Random.setSeed(91) *> Random.nextInt).provideSomeLayer(layer.fresh))
+      val sample = ZIO.replicateZIO(5)((Random.setSeed(91) *> Random.nextInt).provideSome(layer.fresh))
       for {
         values <- ZIO.collectAllPar(ZIO.replicate(5)(sample))
       } yield assertTrue(values.toSet.size == 1)
     }
   )
 
-  val genDoubles: Gen[Has[Random], (Double, Double)] =
+  val genDoubles: Gen[Random, (Double, Double)] =
     for {
       a <- Gen.double
       b <- Gen.double if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genFloats: Gen[Has[Random], (Float, Float)] =
+  val genFloats: Gen[Random, (Float, Float)] =
     for {
       a <- Gen.float
       b <- Gen.float if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genInts: Gen[Has[Random], (Int, Int)] =
+  val genInts: Gen[Random, (Int, Int)] =
     for {
       a <- Gen.int
       b <- Gen.int if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genLongs: Gen[Has[Random], (Long, Long)] =
+  val genLongs: Gen[Random, (Long, Long)] =
     for {
       a <- Gen.long
       b <- Gen.long if a != b

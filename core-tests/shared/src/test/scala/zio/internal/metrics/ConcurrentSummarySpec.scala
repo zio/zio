@@ -1,9 +1,7 @@
 package zio.internal.metrics
 
-import zio.ZIOBaseSpec
 import zio._
 import zio.test._
-import zio.test.environment.TestClock
 
 object ConcurrentSummarySpec extends ZIOBaseSpec {
   override def spec: ZSpec[Environment, Any] =
@@ -65,7 +63,7 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
                 sum == (f1Count + f2Count + 2) * 11.0
               )
 
-            test.provideLayer(Clock.live)
+            test.provide(Clock.live)
           }
         }: _*
       ),

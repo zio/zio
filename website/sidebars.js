@@ -38,11 +38,9 @@ module.exports = {
     ],
     "Contextual Types": [
         "datatypes/contextual/index",
-        "datatypes/contextual/has",
-        "datatypes/contextual/hasmany",
         {
             type: "category",
-            label: "ZIO Layers",
+            label: "ZIO Dependencies",
             items: [
                 "datatypes/contextual/zlayer",
                 "datatypes/contextual/rlayer",
@@ -150,10 +148,9 @@ module.exports = {
                 },
                 {
                     type: "category",
-                    label: "ZTransducer",
+                    label: "ZPipeline",
                     items: [
-                        "datatypes/stream/ztransducer",
-                        "datatypes/stream/transducer",
+                        "datatypes/stream/zpipeline",
                     ]
                 },
                 {
@@ -181,7 +178,8 @@ module.exports = {
                   "datatypes/metrics/setcount"
               ]
           },
-          "datatypes/metrics/metriclabel"
+          "datatypes/metrics/metriclabel",
+          "datatypes/metrics/jvm",
       ],
     "Miscellaneous": [
       "datatypes/misc/chunk",

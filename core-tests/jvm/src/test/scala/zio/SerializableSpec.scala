@@ -3,14 +3,13 @@ package zio
 import zio.SerializableSpecHelpers._
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.test.environment.Live
 import zio.test.{test => testSync, _}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
 object SerializableSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("SerializableSpec")(
+  def spec = suite("SerializableSpec")(
     test("Semaphore is serializable") {
       val n = 20L
       for {
@@ -69,12 +68,12 @@ object SerializableSpec extends ZIOBaseSpec {
       } yield assert(result)(equalTo(list))
     },
     test("ZIO is serializable") {
-      val v = ZIO.access[Int](_ + 1)
+      val v = ZIO.service[Int].map(_ + 1)
       for {
         returnZIO <- serializeAndBack(v)
-        computeV  <- returnZIO.provide(9)
+        computeV  <- returnZIO.provideEnvironment(ZEnvironment(9))
       } yield assert(computeV)(equalTo(10))
-    },
+    } @@ exceptScala212,
     test("FiberStatus is serializable") {
       val list = List("1", "2", "3")
       val io   = IO.succeed(list)

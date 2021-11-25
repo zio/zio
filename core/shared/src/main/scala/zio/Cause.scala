@@ -24,12 +24,14 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause._
 
   /**
-   * Returns a cause that fails for this cause and the specified cause, in parallel.
+   * Returns a cause that fails for this cause and the specified cause, in
+   * parallel.
    */
   final def &&[E1 >: E](that: Cause[E1]): Cause[E1] = Both(self, that)
 
   /**
-   * Returns a cause that fails for this cause and the specified cause, in sequence.
+   * Returns a cause that fails for this cause and the specified cause, in
+   * sequence.
    */
   final def ++[E1 >: E](that: Cause[E1]): Cause[E1] =
     if (self eq Empty) that else if (that eq Empty) self else Then(self, that)
@@ -88,9 +90,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     find { case Fail(e, trace) => (e, trace) }
 
   /**
-   * Retrieve the first checked error on the `Left` if available,
-   * if there are no checked errors return the rest of the `Cause`
-   * that is known to contain only `Die` or `Interrupt` causes.
+   * Retrieve the first checked error on the `Left` if available, if there are
+   * no checked errors return the rest of the `Cause` that is known to contain
+   * only `Die` or `Interrupt` causes.
    */
   final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
     case Some(error) => Left(error)
@@ -99,8 +101,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 
   /**
    * Retrieve the first checked error and its trace on the `Left` if available,
-   * if there are no checked errors return the rest of the `Cause`
-   * that is known to contain only `Die` or `Interrupt` causes.
+   * if there are no checked errors return the rest of the `Cause` that is known
+   * to contain only `Die` or `Interrupt` causes.
    */
   final def failureTraceOrCause: Either[(E, ZTrace), Cause[Nothing]] = failureTraceOption match {
     case Some(errorAndTrace) => Left(errorAndTrace)
@@ -141,14 +143,13 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   }
 
   /**
-   * Transforms each error value in this cause to a new cause with the
-   * specified function and then flattens the nested causes into a single
-   * cause.
+   * Transforms each error value in this cause to a new cause with the specified
+   * function and then flattens the nested causes into a single cause.
    */
   final def flatMap[E2](f: E => Cause[E2]): Cause[E2] =
     fold[Cause[E2]](
       Empty,
-      (e, trace) => f(e).mapTrace(trace ++ _),
+      (e, trace) => f(e).traced(trace),
       (t, trace) => Die(t, trace),
       (fiberId, trace) => Interrupt(fiberId, trace)
     )(
@@ -296,38 +297,34 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     }.isDefined
 
   /**
-   * Remove all `Fail` and `Interrupt` nodes from this `Cause`,
-   * return only `Die` cause/finalizer defects.
+   * Remove all `Fail` and `Interrupt` nodes from this `Cause`, return only
+   * `Die` cause/finalizer defects.
    */
   final def keepDefects: Option[Cause[Nothing]] =
-    self match {
-      case Empty           => None
-      case Interrupt(_, _) => None
-      case Fail(_, _)      => None
-      case d @ Die(_, _)   => Some(d)
-
-      case Both(l, r) =>
-        (l.keepDefects, r.keepDefects) match {
-          case (Some(l), Some(r)) => Some(Both(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-
-      case Then(l, r) =>
-        (l.keepDefects, r.keepDefects) match {
-          case (Some(l), Some(r)) => Some(Then(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-
-      case Stackless(c, data) => c.keepDefects.map(Stackless(_, data))
-    }
+    fold[Option[Cause[Nothing]]](
+      None,
+      (_, _) => None,
+      (t, trace) => Some(Die(t, trace)),
+      (_, _) => None
+    )(
+      {
+        case (Some(l), Some(r)) => Some(Then(l, r))
+        case (Some(l), None)    => Some(l)
+        case (None, Some(r))    => Some(r)
+        case (None, None)       => None
+      },
+      {
+        case (Some(l), Some(r)) => Some(Both(l, r))
+        case (Some(l), None)    => Some(l)
+        case (None, Some(r))    => Some(r)
+        case (None, None)       => None
+      },
+      (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
+    )
 
   /**
-   * Linearizes this cause to a set of parallel causes where each parallel
-   * cause contains a linear sequence of failures.
+   * Linearizes this cause to a set of parallel causes where each parallel cause
+   * contains a linear sequence of failures.
    */
   def linearize[E1 >: E]: Set[Cause[E1]] =
     fold[Set[Cause[E1]]](
@@ -366,50 +363,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Returns a `String` with the cause pretty-printed.
    */
   final def prettyPrint: String = {
-    final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement])
-
-    def renderFiberId(fiberId: FiberId): String = s"zio-fiber-${fiberId.ids.mkString(", ")}"
-
-    def unify(cause: Cause[E]): List[Unified] = {
-      @tailrec
-      def loop(
-        causes: List[Cause[E]],
-        fiberId: FiberId,
-        stackless: Boolean,
-        result: List[Unified]
-      ): List[Unified] = {
-        def unifyFail(fail: Cause.Fail[E]): Unified =
-          Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
-
-        def unifyDie(die: Cause.Die): Unified = {
-          val extra =
-            if (stackless) Chunk.empty else Chunk.fromArray(die.value.getStackTrace())
-
-          Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
-        }
-
-        def unifyInterrupt(interrupt: Cause.Interrupt): Unified = {
-          val message = "Interrupted by thread \"" + renderFiberId(fiberId) + "\""
-
-          Unified(interrupt.trace.fiberId, classOf[InterruptedException].getName(), message, interrupt.trace.toJava)
-        }
-
-        causes match {
-          case Nil => result
-
-          case Empty :: more                       => loop(more, fiberId, stackless, result)
-          case Both(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
-          case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
-          case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
-          case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) :: result)
-          case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) :: result)
-          case (cause @ Interrupt(_, _)) :: more =>
-            loop(more, fiberId, stackless, unifyInterrupt(cause) :: result)
-        }
-      }
-
-      loop(cause :: Nil, FiberId.None, false, Nil).reverse
-    }
+    import Cause.Unified
 
     def renderCause(cause: Cause[E]): String = {
       def renderUnified(indent: Int, prefix: String, unified: Unified) = {
@@ -420,9 +374,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
           unified.trace.map(trace => s"${traceIndent}at ${trace}").mkString("\n")
       }
 
-      unify(cause).zipWithIndex.map {
+      cause.unified.zipWithIndex.map {
         case (unified, 0) =>
-          renderUnified(0, "Exception in thread \"" + renderFiberId(unified.fiberId) + "\" ", unified)
+          renderUnified(0, "Exception in thread \"" + unified.fiberId.threadName + "\" ", unified)
         case (unified, n) => renderUnified(n, s"Suppressed: ", unified)
       }.mkString("\n")
     }
@@ -431,15 +385,15 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   }
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
+   * important" `Throwable`.
    */
   final def squash(implicit ev: E IsSubtypeOfError Throwable): Throwable =
     squashWith(ev)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
+   * important" `Throwable`.
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
@@ -462,10 +416,10 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     squashTraceWith(ev)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen to be the
-   * "most important" `Throwable`.
-   * In addition, appends a new element the to `Throwable`s "caused by" chain,
-   * with this `Cause` "pretty printed" (in stackless mode) as the message.
+   * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
+   * important" `Throwable`. In addition, appends a new element the to
+   * `Throwable`s "caused by" chain, with this `Cause` "pretty printed" (in
+   * stackless mode) as the message.
    */
   final def squashTraceWith(f: E => Throwable): Throwable =
     attachTrace(squashWith(f))
@@ -474,17 +428,16 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Discards all typed failures kept on this `Cause`.
    */
   final def stripFailures: Cause[Nothing] =
-    self match {
-      case Empty               => Empty
-      case c @ Interrupt(_, _) => c
-      case Fail(_, _)          => Empty
-      case c @ Die(_, _)       => c
-
-      case Both(l, r) => l.stripFailures && r.stripFailures
-      case Then(l, r) => l.stripFailures ++ r.stripFailures
-
-      case Stackless(c, data) => Stackless(c.stripFailures, data)
-    }
+    fold[Cause[Nothing]](
+      Empty,
+      (e, trace) => Empty,
+      (t, trace) => Die(t, trace),
+      (fiberId, trace) => Interrupt(fiberId, trace)
+    )(
+      (left, right) => Then(left, right),
+      (left, right) => Both(left, right),
+      (cause, stackless) => Stackless(cause, stackless)
+    )
 
   /**
    * Remove all `Die` causes that the specified partial function is defined at,
@@ -492,27 +445,32 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * remaining causes.
    */
   final def stripSomeDefects(pf: PartialFunction[Throwable, Any]): Option[Cause[E]] =
-    self match {
-      case Empty                     => None
-      case Interrupt(fiberId, trace) => Some(Interrupt(fiberId, trace))
-      case Fail(e, trace)            => Some(Fail(e, trace))
-      case Die(t, trace)             => if (pf.isDefinedAt(t)) None else Some(Die(t, trace))
-      case Both(l, r) =>
-        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
-          case (Some(l), Some(r)) => Some(Both(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-      case Then(l, r) =>
-        (l.stripSomeDefects(pf), r.stripSomeDefects(pf)) match {
-          case (Some(l), Some(r)) => Some(Then(l, r))
-          case (Some(l), None)    => Some(l)
-          case (None, Some(r))    => Some(r)
-          case (None, None)       => None
-        }
-      case Stackless(c, data) => c.stripSomeDefects(pf).map(Stackless(_, data))
-    }
+    fold[Option[Cause[E]]](
+      Some(Empty),
+      (e, trace) => Some(Fail(e, trace)),
+      (t, trace) => if (pf.isDefinedAt(t)) None else Some(Die(t, trace)),
+      (fiberId, trace) => Some(Interrupt(fiberId, trace))
+    )(
+      {
+        case (Some(l), Some(r)) => Some(Then(l, r))
+        case (Some(l), None)    => Some(l)
+        case (None, Some(r))    => Some(r)
+        case (None, None)       => None
+      },
+      {
+        case (Some(l), Some(r)) => Some(Both(l, r))
+        case (Some(l), None)    => Some(l)
+        case (None, Some(r))    => Some(r)
+        case (None, None)       => None
+      },
+      (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
+    )
+
+  /**
+   * Grabs a complete, linearized trace for the cause. Note: This linearization
+   * may be misleading in the presence of parallel errors.
+   */
+  def trace: ZTrace = traces.fold(ZTrace.none)(_ ++ _)
 
   /**
    * Grabs a list of execution traces from the cause.
@@ -528,16 +486,62 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       .reverse
 
   /**
-   * Replaces traces with the specified trace.
+   * Adds the specified execution trace to traces.
    */
   final def traced(trace: ZTrace): Cause[E] =
-    mapTrace(_ => trace)
+    mapTrace(_ ++ trace)
+
+  /**
+   * Returns a homogenized list of failures for the cause. This homogenization
+   * process throws away key information, but it is useful for interop with
+   * traditional stack traces.
+   */
+  final def unified: List[Unified] = {
+    @tailrec
+    def loop(
+      causes: List[Cause[E]],
+      fiberId: FiberId,
+      stackless: Boolean,
+      result: List[Unified]
+    ): List[Unified] = {
+      def unifyFail(fail: Cause.Fail[E]): Unified =
+        Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
+
+      def unifyDie(die: Cause.Die): Unified = {
+        val extra =
+          if (stackless) Chunk.empty else Chunk.fromArray(die.value.getStackTrace())
+
+        Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
+      }
+
+      def unifyInterrupt(interrupt: Cause.Interrupt): Unified = {
+        val message = "Interrupted by thread \"" + fiberId.threadName + "\""
+
+        Unified(interrupt.trace.fiberId, classOf[InterruptedException].getName(), message, interrupt.trace.toJava)
+      }
+
+      causes match {
+        case Nil => result
+
+        case Empty :: more                       => loop(more, fiberId, stackless, result)
+        case Both(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
+        case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
+        case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
+        case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) :: result)
+        case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) :: result)
+        case (cause @ Interrupt(_, _)) :: more =>
+          loop(more, fiberId, stackless, unifyInterrupt(cause) :: result)
+      }
+    }
+
+    loop(self :: Nil, FiberId.None, false, Nil).reverse
+  }
 
   /**
    * Returns a `Cause` that has been stripped of all tracing information.
    */
   final def untraced: Cause[E] =
-    traced(ZTrace.none)
+    mapTrace(_ => ZTrace.none)
 
   private def attachTrace(e: Throwable): Throwable = {
     val trace = Cause.FiberTrace(Cause.stackless(this).prettyPrint)
@@ -554,63 +558,42 @@ object Cause extends Serializable {
   def stack[E](cause: Cause[E]): Cause[E]                                      = Stackless(cause, false)
   def stackless[E](cause: Cause[E]): Cause[E]                                  = Stackless(cause, true)
 
+  final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement]) {
+    def toThrowable: Throwable =
+      new Throwable(null, null, false, false) {
+        override final def getMessage(): String = message
+
+        override final def getStackTrace(): Array[StackTraceElement] = trace.toArray
+      }
+  }
+
   /**
    * Converts the specified `Cause[Option[E]]` to an `Option[Cause[E]]` by
    * recursively stripping out any failures with the error `None`.
    */
-  def flipCauseOption[E](c: Cause[Option[E]]): Option[Cause[E]] =
-    c match {
-      case Empty                  => Some(Empty)
-      case Stackless(cause, data) => flipCauseOption(cause).map(Stackless(_, data))
-      case Interrupt(id, trace)   => Some(Interrupt(id, trace))
-      case d @ Die(_, _)          => Some(d)
-      case Fail(Some(e), trace)   => Some(Fail(e, trace))
-      case Fail(None, _)          => None
-      case Then(left, right) =>
-        (flipCauseOption(left), flipCauseOption(right)) match {
-          case (Some(cl), Some(cr)) => Some(Then(cl, cr))
-          case (None, Some(cr))     => Some(cr)
-          case (Some(cl), None)     => Some(cl)
-          case (None, None)         => None
-        }
+  def flipCauseOption[E](cause: Cause[Option[E]]): Option[Cause[E]] =
+    cause.fold[Option[Cause[E]]](
+      Some(Empty),
+      (failureOption, trace) => failureOption.map(Fail(_, trace)),
+      (t, trace) => Some(Die(t, trace)),
+      (fiberId, trace) => Some(Interrupt(fiberId, trace))
+    )(
+      {
+        case (Some(l), Some(r)) => Some(Then(l, r))
+        case (None, Some(r))    => Some(r)
+        case (Some(l), None)    => Some(l)
+        case (None, None)       => None
+      },
+      {
+        case (Some(l), Some(r)) => Some(Both(l, r))
+        case (None, Some(r))    => Some(r)
+        case (Some(l), None)    => Some(l)
+        case (None, None)       => None
+      },
+      (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
+    )
 
-      case Both(left, right) =>
-        (flipCauseOption(left), flipCauseOption(right)) match {
-          case (Some(cl), Some(cr)) => Some(Both(cl, cr))
-          case (None, Some(cr))     => Some(cr)
-          case (Some(cl), None)     => Some(cl)
-          case (None, None)         => None
-        }
-    }
-
-  /**
-   * Converts the specified `Cause[Either[E, A]]` to an `Either[Cause[E], A]` by
-   * recursively stripping out any failures with the error `None`.
-   */
-  def flipCauseEither[E, A](c: Cause[Either[E, A]]): Either[Cause[E], A] =
-    c match {
-      case Empty                  => Left(Empty)
-      case Stackless(cause, data) => flipCauseEither(cause).left.map(Stackless(_, data))
-      case Interrupt(id, trace)   => Left(Interrupt(id, trace))
-      case d @ Die(_, _)          => Left(d)
-      case Fail(Left(e), trace)   => Left(Fail(e, trace))
-      case Fail(Right(a), _)      => Right(a)
-      case Then(left, right) =>
-        (flipCauseEither(left), flipCauseEither(right)) match {
-          case (Left(cl), Left(cr)) => Left(Then(cl, cr))
-          case (Right(a), _)        => Right(a)
-          case (_, Right(a))        => Right(a)
-        }
-
-      case Both(left, right) =>
-        (flipCauseEither(left), flipCauseEither(right)) match {
-          case (Left(cl), Left(cr)) => Left(Both(cl, cr))
-          case (Right(a), _)        => Right(a)
-          case (_, Right(a))        => Right(a)
-        }
-    }
-
-  case object Empty extends Cause[Nothing] {
+  case object Empty extends Cause[Nothing] { self =>
     override def equals(that: Any): Boolean = that match {
       case _: Empty.type      => true
       case Then(left, right)  => this == left && this == right
@@ -620,7 +603,7 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Fail[+E](value: E, trace: ZTrace) extends Cause[E] {
+  final case class Fail[+E](value: E, override val trace: ZTrace) extends Cause[E] {
     override def equals(that: Any): Boolean = that match {
       case fail: Fail[_]      => value == fail.value
       case c @ Then(_, _)     => sym(empty)(this, c)
@@ -630,7 +613,7 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Die(value: Throwable, trace: ZTrace) extends Cause[Nothing] {
+  final case class Die(value: Throwable, override val trace: ZTrace) extends Cause[Nothing] {
     override def equals(that: Any): Boolean = that match {
       case die: Die           => value == die.value
       case c @ Then(_, _)     => sym(empty)(this, c)
@@ -640,7 +623,7 @@ object Cause extends Serializable {
     }
   }
 
-  final case class Interrupt(fiberId: FiberId, trace: ZTrace) extends Cause[Nothing] {
+  final case class Interrupt(fiberId: FiberId, override val trace: ZTrace) extends Cause[Nothing] {
     override def equals(that: Any): Boolean =
       (this eq that.asInstanceOf[AnyRef]) || (that match {
         case interrupt: Interrupt => fiberId == interrupt.fiberId
@@ -735,9 +718,9 @@ object Cause extends Serializable {
   }
 
   /**
-   * Flattens a cause to a sequence of sets of causes, where each set
-   * represents causes that fail in parallel and sequential sets represent
-   * causes that fail after each other.
+   * Flattens a cause to a sequence of sets of causes, where each set represents
+   * causes that fail in parallel and sequential sets represent causes that fail
+   * after each other.
    */
   private def flatten(c: Cause[_]): List[Set[Cause[_]]] = {
 

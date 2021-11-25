@@ -13,26 +13,34 @@ private[zio] trait LayerMacroUtils {
 
   type LayerExpr = c.Expr[ZLayer[_, _, _]]
 
-  def generateExprGraph(layers: Seq[LayerExpr]): ZLayerExprBuilder[c.Type, LayerExpr] =
-    generateExprGraph(layers.map(getNode).toList)
+  def generateExprGraph(
+    layer: Seq[LayerExpr]
+  ): ZLayerExprBuilder[c.Type, LayerExpr] =
+    generateExprGraph(layer.map(getNode).toList)
 
-  def generateExprGraph(nodes: List[Node[c.Type, LayerExpr]]): ZLayerExprBuilder[c.Type, LayerExpr] =
+  def generateExprGraph(
+    nodes: List[Node[c.Type, LayerExpr]]
+  ): ZLayerExprBuilder[c.Type, LayerExpr] =
     ZLayerExprBuilder[c.Type, LayerExpr](
       graph = Graph(
         nodes = nodes,
         // They must be `.toString`-ed as a backup in the case of refinement
         // types. Otherwise, [[examples.DumbExample]] will fail.
-        keyEquals = (t1, t2) => t1 =:= t2 || (t1.toString == t2.toString)
+        keyEquals = (t1, t2) => t1 <:< t2 || (t1.toString == t2.toString)
       ),
       showKey = tpe => tpe.toString,
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       abort = c.abort(c.enclosingPosition, _),
+      warn = c.warning(c.enclosingPosition, _),
       emptyExpr = reify(ZLayer.succeed(())),
       composeH = (lhs, rhs) => c.Expr(q"""$lhs ++ $rhs"""),
       composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
     )
 
-  def buildMemoizedLayer(exprGraph: ZLayerExprBuilder[c.Type, LayerExpr], requirements: List[c.Type]): LayerExpr = {
+  def buildMemoizedLayer(
+    exprGraph: ZLayerExprBuilder[c.Type, LayerExpr],
+    requirements: List[c.Type]
+  ): LayerExpr = {
     // This is run for its side effects: Reporting compile errors with the original source names.
     val _ = exprGraph.buildLayerFor(requirements)
 
@@ -58,19 +66,13 @@ private[zio] trait LayerMacroUtils {
 
   def getNode(layer: LayerExpr): Node[c.Type, LayerExpr] = {
     val typeArgs = layer.actualType.dealias.typeArgs
-    // ZIO[in, _, out]
+    // ZLayerZIO[in, _, out]
     val in  = typeArgs.head
     val out = typeArgs(2)
     Node(getRequirements(in), getRequirements(out), layer)
   }
 
-  def getRequirements[T: c.WeakTypeTag]: List[c.Type] =
-    getRequirements(weakTypeOf[T])
-
-  def isValidHasType(tpe: Type): Boolean =
-    tpe.isHas || tpe.isAny
-
-  def injectBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+  def provideBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layers: Seq[c.Expr[ZLayer[_, E, _]]],
     method: String
   ): c.Expr[F[R0, E, A]] = {
@@ -79,17 +81,17 @@ private[zio] trait LayerMacroUtils {
   }
 
   def constructLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
-    layers0: Seq[c.Expr[ZLayer[_, E, _]]]
+    layer0: Seq[c.Expr[ZLayer[_, E, _]]]
   ): c.Expr[ZLayer[Any, E, R]] = {
-    assertProperVarArgs(layers0)
+    assertProperVarArgs(layer0)
 
-    val debug = layers0.collectFirst {
+    val debug = layer0.collectFirst {
       _.tree match {
         case q"zio.ZLayer.Debug.tree"    => ZLayer.Debug.Tree
         case q"zio.ZLayer.Debug.mermaid" => ZLayer.Debug.Mermaid
       }
     }
-    val layers = layers0.filter {
+    val layer = layer0.filter {
       _.tree match {
         case q"zio.ZLayer.Debug.tree" | q"zio.ZLayer.Debug.mermaid" => false
         case _                                                      => true
@@ -102,18 +104,18 @@ private[zio] trait LayerMacroUtils {
     val remainderNode =
       if (weakTypeOf[R0] =:= weakTypeOf[Any]) List.empty
       else List(Node(List.empty, getRequirements[R0], remainderExpr))
-    val nodes = remainderNode ++ layers.map(getNode)
+    val nodes = remainderNode ++ layer.map(getNode)
 
     val graph        = generateExprGraph(nodes)
     val requirements = getRequirements[R]
     val expr         = buildMemoizedLayer(graph, requirements)
     debug.foreach { debug =>
-      debugLayers(debug, graph, requirements)
+      debugLayer(debug, graph, requirements)
     }
     expr.asInstanceOf[c.Expr[ZLayer[Any, E, R]]]
   }
 
-  private def debugLayers(
+  private def debugLayer(
     debug: ZLayer.Debug,
     graph: ZLayerExprBuilder[c.Type, LayerExpr],
     requirements: List[c.Type]
@@ -147,26 +149,20 @@ private[zio] trait LayerMacroUtils {
     case Right(value) => Some(value)
   }
 
+  def getRequirements[T: c.WeakTypeTag]: List[c.Type] =
+    getRequirements(weakTypeOf[T])
+
   def getRequirements(tpe: Type): List[c.Type] = {
     val intersectionTypes = tpe.dealias.map(_.dealias).intersectionTypes
 
-    intersectionTypes.filter(!isValidHasType(_)) match {
-      case Nil => ()
-      case nonHasTypes =>
-        c.abort(
-          c.enclosingPosition,
-          s"\nContains non-Has types:\n- ${nonHasTypes.map(_.toString.yellow).mkString("\n- ")}"
-        )
-    }
-
     intersectionTypes
-      .filter(_.isHas)
-      .map(_.dealias.typeArgs.head.dealias)
+      .map(_.dealias)
+      .filterNot(_.isAny)
       .distinct
   }
 
-  def assertProperVarArgs(layers: Seq[c.Expr[_]]): Unit = {
-    val _ = layers.map(_.tree) collect { case Typed(_, Ident(typeNames.WILDCARD_STAR)) =>
+  def assertProperVarArgs(layer: Seq[c.Expr[_]]): Unit = {
+    val _ = layer.map(_.tree) collect { case Typed(_, Ident(typeNames.WILDCARD_STAR)) =>
       c.abort(
         c.enclosingPosition,
         "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
@@ -175,8 +171,6 @@ private[zio] trait LayerMacroUtils {
   }
 
   implicit class TypeOps(self: Type) {
-    def isHas: Boolean = self.dealias.typeSymbol == typeOf[Has[_]].typeSymbol
-
     def isAny: Boolean = self.dealias.typeSymbol == typeOf[Any].typeSymbol
 
     /**
@@ -198,10 +192,10 @@ private[zio] trait LayerMacroUtils {
   }
 
   /**
-   * Generates a link of the Layer graph for the Mermaid.js graph viz
-   * library's live-editor (https://mermaid-js.github.io/mermaid-live-editor)
+   * Generates a link of the layer graph for the Mermaid.js graph viz library's
+   * live-editor (https://mermaid-js.github.io/mermaid-live-editor)
    */
-  private def generateMermaidJsLink[R <: Has[_]: c.WeakTypeTag, R0: c.WeakTypeTag, E](
+  private def generateMermaidJsLink[R: c.WeakTypeTag, R0: c.WeakTypeTag, E](
     requirements: List[c.Type],
     graph: ZLayerExprBuilder[c.Type, LayerExpr]
   ): String = {

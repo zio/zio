@@ -32,11 +32,11 @@ object ZIOAWSS3Example extends zio.App {
   val BUCKET = "<bucket name>"
 
   val awsEnv: ZLayer[S3AsyncClient, Throwable, AwsLink] =
-    AwsApp.ExtDeps.live >>> AwsApp.AwsLink.live
+    AwsApp.ExtLayer.live >>> AwsApp.AwsLink.live
 
   val app: ZIO[Any, Throwable, Unit] = for {
     s3 <- AwsAgent.createClient(Region.US_WEST_2, "<endpoint>")
-    response <- AwsApp.listBuckets().provideLayer(awsEnv).provide(s3)
+    response <- AwsApp.listBuckets().provide(awsEnv).provideEnvironment(s3)
     buckets <- Task(response.buckets.asScala.toList.map(_.name))
     _ = buckets.foreach(println)
   } yield ()

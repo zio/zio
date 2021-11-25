@@ -5,7 +5,6 @@ import zio.ZManaged.ReleaseMap
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment._
 
 import scala.concurrent.ExecutionContext
 
@@ -13,7 +12,7 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZManaged")(
+  def spec = suite("ZManaged")(
     suite("absorbWith")(
       test("on fail") {
         assertM(ZManagedExampleError.absorbWith(identity).use[Any, Throwable, Int](ZIO.succeed(_)).exit)(
@@ -504,7 +503,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val thread = ZIO.succeed(Thread.currentThread())
 
         val global =
-          Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+          Executor.fromExecutionContext(Int.MaxValue)(scala.concurrent.ExecutionContext.global)
         for {
           which   <- Ref.make[Option[Thread]](None)
           beforeL <- ZIO.descriptor.map(_.isLocked)
@@ -1278,9 +1277,9 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("toLayerMany")(
       test("converts a managed effect to a layer") {
         val managed = ZEnv.live.build
-        val layer   = managed.toLayerMany
+        val layer   = managed.toLayerEnvironment
         val zio1    = ZIO.environment[ZEnv]
-        val zio2    = zio1.provideLayer(layer)
+        val zio2    = zio1.provide(layer)
         assertM(zio2)(anything)
       }
     ),
@@ -1867,10 +1866,10 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   val ZManagedExampleDie: ZManaged[Any, Throwable, Int] = ZManaged.succeed(throw ExampleError)
 
-  def countDownLatch(n: Int): UIO[URIO[Has[Live], Unit]] =
+  def countDownLatch(n: Int): UIO[URIO[Live, Unit]] =
     Ref.make(n).map { counter =>
       counter.update(_ - 1) *> {
-        def await: URIO[Has[Live], Unit] = counter.get.flatMap { n =>
+        def await: URIO[Live, Unit] = counter.get.flatMap { n =>
           if (n <= 0) ZIO.unit
           else Live.live(ZIO.sleep(10.milliseconds)) *> await
         }
@@ -1881,7 +1880,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
     expected: FiberId => Option[Exit[Nothing, Unit]]
-  ): ZIO[Has[Live], Nothing, TestResult] =
+  ): ZIO[Live, Nothing, TestResult] =
     for {
       fiberId            <- ZIO.fiberId
       never              <- Promise.make[Nothing, Unit]
@@ -1913,8 +1912,8 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def testAcquirePar[R, E](
     n: Int,
-    f: ZManaged[Has[Live], Nothing, Unit] => ZManaged[R, E, Any]
-  ): ZIO[R with Has[Live], Nothing, TestResult] =
+    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, Any]
+  ): ZIO[R with Live, Nothing, TestResult] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)
@@ -1930,8 +1929,8 @@ object ZManagedSpec extends ZIOBaseSpec {
 
   def testReservePar[R, E, A](
     n: Int,
-    f: ZManaged[Has[Live], Nothing, Unit] => ZManaged[R, E, A]
-  ): ZIO[R with Has[Live], Nothing, TestResult] =
+    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, A]
+  ): ZIO[R with Live, Nothing, TestResult] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)

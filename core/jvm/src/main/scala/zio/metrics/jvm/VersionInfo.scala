@@ -17,7 +17,7 @@ trait VersionInfo extends JvmMetrics {
       MetricLabel("runtime", runtime)
     )(_ => 1.0)
 
-  private def reportVersions()(implicit trace: ZTraceElement): ZIO[Has[System], Throwable, Unit] =
+  private def reportVersions()(implicit trace: ZTraceElement): ZIO[System, Throwable, Unit] =
     for {
       version <- System.propertyOrElse("java.runtime.version", "unknown")
       vendor  <- System.propertyOrElse("java.vm.vendor", "unknown")
@@ -27,7 +27,7 @@ trait VersionInfo extends JvmMetrics {
 
   override def collectMetrics(implicit
     trace: ZTraceElement
-  ): ZManaged[Has[Clock] with Has[System], Throwable, VersionInfo] =
+  ): ZManaged[Clock with System, Throwable, VersionInfo] =
     reportVersions().repeat(collectionSchedule).interruptible.forkManaged.as(this)
 }
 

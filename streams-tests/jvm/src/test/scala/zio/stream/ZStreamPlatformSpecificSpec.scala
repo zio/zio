@@ -2,11 +2,12 @@ package zio.stream
 
 import zio._
 import zio.test.Assertion._
-import zio.test.TestAspect._
 import zio.test._
+import zio.test.TestAspect.flaky
 
-import java.io._
+import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
 import java.net.InetSocketAddress
+import java.nio.charset.StandardCharsets
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.{Files, NoSuchFileException, Paths}
 import java.nio.{Buffer, ByteBuffer}
@@ -14,7 +15,6 @@ import java.util.concurrent.CountDownLatch
 import scala.concurrent.ExecutionContext.global
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
-
   def socketClient(port: Int): ZManaged[Any, Throwable, AsynchronousSocketChannel] =
     ZManaged.acquireReleaseWith(ZIO.attemptBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
       ZIO
@@ -22,15 +22,8 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         .map(_ => client)
     })(c => ZIO.succeed(c.close()))
 
-  def spec: ZSpec[Environment, Failure] = suite("ZStream JVM")(
+  def spec = suite("ZStream JVM")(
     suite("Constructors")(
-      test("async")(check(Gen.chunkOf(Gen.int)) { chunk =>
-        val s = ZStream.async[Any, Throwable, Int] { k =>
-          global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
-        }
-
-        assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
-      }),
       suite("asyncMaybe")(
         test("asyncMaybe signal end stream") {
           for {
@@ -70,7 +63,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                        },
                        5
                      )
-            run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
+            run    <- stream.run(ZSink.take(1) *> ZSink.never).fork
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
@@ -119,7 +112,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                        },
                        5
                      )
-            run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
+            run    <- stream.run(ZSink.take(1) *> ZSink.never).fork
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
@@ -137,7 +130,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                            Task.unit.toManaged
                        }
                        .take(chunk.size.toLong)
-                       .run(ZSink.collectAll[Int])
+                       .run(ZSink.collectAll)
                        .fork
             _ <- latch.await
             s <- fiber.join
@@ -168,7 +161,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                        },
                        5
                      )
-            run    <- stream.run(ZSink.fromZIO[Any, Nothing, Int, Nothing](ZIO.never)).fork
+            run    <- stream.run(ZSink.take(1) *> ZSink.never).fork
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             _      <- run.interrupt
@@ -224,7 +217,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                        },
                        5
                      )
-            run    <- stream.run(ZSink.fromZIO[Any, Throwable, Int, Nothing](ZIO.never)).fork
+            run    <- stream.run(ZSink.take(1) *> ZSink.never).fork
             _      <- refCnt.get.repeatWhile(_ != 7)
             isDone <- refDone.get
             exit   <- run.interrupt
@@ -232,110 +225,19 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             assert(exit.untraced)(failsCause(containsCause(Cause.interrupt(selfId))))
         }
       ),
-      suite("from")(
-        test("InputStream") {
-          trait InputStreamLike extends InputStream
-          lazy val inputStream: InputStreamLike              = ???
-          lazy val actual                                    = ZStream.from(inputStream)
-          lazy val expected: ZStream[Any, IOException, Byte] = actual
-          lazy val _                                         = expected
-          assertCompletes
-        },
-        test("InputStreamManaged") {
-          trait R
-          trait E               extends IOException
-          trait InputStreamLike extends InputStream
-          lazy val inputStreamManaged: ZManaged[R, E, InputStreamLike] = ???
-          lazy val actual                                              = ZStream.from(inputStreamManaged)
-          lazy val expected: ZStream[R, IOException, Byte]             = actual
-          lazy val _                                                   = expected
-          assertCompletes
-        },
-        test("InputStreamZIO") {
-          trait R
-          trait E               extends IOException
-          trait InputStreamLike extends InputStream
-          lazy val inputStreamZIO: ZIO[R, E, InputStreamLike] = ???
-          lazy val actual                                     = ZStream.from(inputStreamZIO)
-          lazy val expected: ZStream[R, IOException, Byte]    = actual
-          lazy val _                                          = expected
-          assertCompletes
-        },
-        test("JavaStream") {
-          trait A
-          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
-          lazy val javaStream: JavaStreamLike[A]        = ???
-          lazy val actual                               = ZStream.from(javaStream)
-          lazy val expected: ZStream[Any, Throwable, A] = actual
-          lazy val _                                    = expected
-          assertCompletes
-        },
-        test("JavaStreamManaged") {
-          trait R
-          trait E extends Throwable
-          trait A
-          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
-          lazy val javaStreamManaged: ZManaged[R, E, JavaStreamLike[A]] = ???
-          lazy val actual                                               = ZStream.from(javaStreamManaged)
-          lazy val expected: ZStream[R, Throwable, A]                   = actual
-          lazy val _                                                    = expected
-          assertCompletes
-        },
-        test("JavaStreamZIO") {
-          trait R
-          trait E extends Throwable
-          trait A
-          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
-          lazy val javaStreamZIO: ZIO[R, E, JavaStreamLike[A]] = ???
-          lazy val actual                                      = ZStream.from(javaStreamZIO)
-          lazy val expected: ZStream[R, Throwable, A]          = actual
-          lazy val _                                           = expected
-          assertCompletes
-        },
-        test("Reader") {
-          trait ReaderLike extends Reader
-          lazy val reader: ReaderLike                        = ???
-          lazy val actual                                    = ZStream.from(reader)
-          lazy val expected: ZStream[Any, IOException, Char] = actual
-          lazy val _                                         = expected
-          assertCompletes
-        },
-        test("ReaderManaged") {
-          trait R
-          trait E          extends IOException
-          trait ReaderLike extends Reader
-          lazy val readerManaged: ZManaged[R, E, ReaderLike] = ???
-          lazy val actual                                    = ZStream.from(readerManaged)
-          lazy val expected: ZStream[R, IOException, Char]   = actual
-          lazy val _                                         = expected
-          assertCompletes
-        },
-        test("ReaderZIO") {
-          trait R
-          trait E          extends IOException
-          trait ReaderLike extends Reader
-          lazy val readerZIO: ZIO[R, E, ReaderLike]        = ???
-          lazy val actual                                  = ZStream.from(readerZIO)
-          lazy val expected: ZStream[R, IOException, Char] = actual
-          lazy val _                                       = expected
-          assertCompletes
-        }
-      ),
-      test("fromBlockingIterator") {
-        check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
-          assertM(ZStream.fromBlockingIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
-        }
-      },
       suite("fromFile")(
         test("reads from an existing file") {
           val data = (0 to 100).mkString
 
           Task(Files.createTempFile("stream", "fromFile")).acquireReleaseWith(path => Task(Files.delete(path)).orDie) {
             path =>
-              Task(Files.write(path, data.getBytes("UTF-8"))) *>
-                assertM(ZStream.fromFile(path, 24).transduce(ZTransducer.utf8Decode).runCollect.map(_.mkString))(
-                  equalTo(data)
-                )
+              Task(Files.write(path, data.getBytes(StandardCharsets.UTF_8))) *>
+                assertM(
+                  ZStream
+                    .fromFile(path, 24)
+                    .via(ZPipeline.utf8Decode)
+                    .mkString
+                )(equalTo(data))
           }
         },
         test("fails on a nonexistent file") {
@@ -382,9 +284,9 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         test("returns the content of the resource") {
           ZStream
             .fromResource("zio/stream/bom/quickbrown-UTF-8-with-BOM.txt")
-            .transduce(ZTransducer.utf8Decode)
-            .runCollect
-            .map(b => assert(b.mkString)(startsWithString("Sent")))
+            .via(ZPipeline.utf8Decode)
+            .mkString
+            .map(assert(_)(startsWithString("Sent")))
         },
         test("fails with FileNotFoundException if the stream does not exist") {
           assertM(ZStream.fromResource("does_not_exist").runDrain.exit)(
@@ -393,57 +295,60 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         }
       ),
       suite("fromSocketServer")(
-        test("read data")(check(Gen.string.filter(_.nonEmpty)) { message =>
+        test("read data") {
           for {
-            refOut <- Ref.make("")
+            messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
+            readMessages <- ZStream
+                              .fromSocketServer(8896)
+                              .zip(ZStream.managed(socketClient(8896)))
+                              .flatMap { case (serverChannel, clientChannel) =>
+                                ZStream
+                                  .fromIterable(messages)
+                                  .mapZIO(m =>
+                                    ZIO
+                                      .fromFutureJava(
+                                        clientChannel.write(ByteBuffer.wrap(m))
+                                      ) *> serverChannel.read
+                                      .take(m.size.toLong)
+                                      .runCollect
+                                  )
 
-            server <- ZStream
-                        .fromSocketServer(8886)
-                        .foreach { c =>
-                          c.read
-                            .transduce(ZTransducer.utf8Decode)
-                            .runCollect
-                            .map(_.mkString)
-                            .flatMap(s => refOut.update(_ + s))
-                        }
-                        .fork
+                              }
+                              .take(messages.size.toLong)
+                              .runCollect
+            expectedOutput = messages.map(Chunk.fromArray)
+          } yield assert(readMessages)(hasSameElementsDistinct(expectedOutput))
+        },
+        test("write data") {
+          for {
+            messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
+            writtenMessages <- ZStream
+                                 .fromSocketServer(8897)
+                                 .zip(ZStream.managed(socketClient(8897)))
+                                 .flatMap { case (serverChannel, clientChannel) =>
+                                   ZStream
+                                     .fromIterable(messages)
+                                     .mapZIO(m =>
+                                       ZStream.fromIterable(m).run(serverChannel.write) *> {
+                                         val buffer = ByteBuffer.allocate(m.length)
 
-            _ <- socketClient(8886)
-                   .use(c => ZIO.fromFutureJava(c.write(ByteBuffer.wrap(message.getBytes))))
-                   .retry(Schedule.forever)
+                                         ZIO
+                                           .fromFutureJava(clientChannel.read(buffer))
+                                           .repeatUntil(_ < 1)
+                                           .map { _ =>
+                                             (buffer: Buffer).flip()
+                                             Chunk.fromArray(buffer.array)
+                                           }
+                                       }
+                                     )
+                                 }
+                                 .take(messages.size.toLong)
+                                 .runCollect
+            expectedOutput = messages.map(Chunk.fromArray)
+          } yield assert(writtenMessages)(hasSameElementsDistinct(expectedOutput))
 
-            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
-
-            _ <- server.interrupt
-          } yield assert(receive)(equalTo(message))
-        }),
-        test("write data")(check(Gen.string.filter(_.nonEmpty)) { message =>
-          (for {
-            refOut <- Ref.make("")
-
-            server <- ZStream
-                        .fromSocketServer(8887)
-                        .foreach(c => ZStream.fromIterable(message.getBytes).run(c.write))
-                        .fork
-
-            _ <- socketClient(8887).use { c =>
-                   val buffer = ByteBuffer.allocate(message.getBytes.length)
-
-                   ZIO
-                     .fromFutureJava(c.read(buffer))
-                     .repeatUntil(_ < 1)
-                     .flatMap { _ =>
-                       (buffer: Buffer).flip()
-                       refOut.update(_ => new String(buffer.array))
-                     }
-                 }.retry(Schedule.forever)
-
-            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
-
-            _ <- server.interrupt
-          } yield assert(receive)(equalTo(message)))
-        })
-      ),
+        }
+      ) @@ flaky(20), // socket connections can be flaky some times
       suite("fromOutputStreamWriter")(
         test("reads what is written") {
           check(Gen.listOf(Gen.chunkOf(Gen.byte)), Gen.int(1, 10)) { (bytess, chunkSize) =>
@@ -451,7 +356,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             val expected = bytess.foldLeft[Chunk[Byte]](Chunk.empty)(_ ++ _)
             ZStream.fromOutputStreamWriter(write, chunkSize).runCollect.map(assert(_)(equalTo(expected)))
           }
-        } @@ TestAspect.ignore,
+        },
         test("captures errors") {
           val write = (_: OutputStream) => throw new Exception("boom")
           ZStream.fromOutputStreamWriter(write).runDrain.exit.map(assert(_)(fails(hasMessage(equalTo("boom")))))
@@ -460,11 +365,46 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           val data  = Array.tabulate[Byte](ZStream.DefaultChunkSize * 5 / 2)(_.toByte)
           val write = (out: OutputStream) => { out.write(data); out.close() }
           ZStream.fromOutputStreamWriter(write).runCollect.map(assert(_)(equalTo(Chunk.fromArray(data))))
-        } @@ timeout(10.seconds) @@ flaky,
+        },
         test("is interruptable") {
           val latch = new CountDownLatch(1)
           val write = (out: OutputStream) => { latch.await(); out.write(42); }
           ZStream.fromOutputStreamWriter(write).runDrain.fork.flatMap(_.interrupt).map(assert(_)(isInterrupted))
+        }
+      )
+    ),
+    suite("from")(
+      suite("java.util.stream.Stream")(
+        test("JavaStream") {
+          trait A
+          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
+          lazy val javaStream: JavaStreamLike[A]        = ???
+          lazy val actual                               = ZStream.from(javaStream)
+          lazy val expected: ZStream[Any, Throwable, A] = actual
+          lazy val _                                    = expected
+          assertCompletes
+        },
+        test("JavaStreamManaged") {
+          trait R
+          trait E extends Throwable
+          trait A
+          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
+          lazy val javaStreamManaged: ZManaged[R, E, JavaStreamLike[A]] = ???
+          lazy val actual                                               = ZStream.from(javaStreamManaged)
+          lazy val expected: ZStream[R, Throwable, A]                   = actual
+          lazy val _                                                    = expected
+          assertCompletes
+        },
+        test("JavaStreamZIO") {
+          trait R
+          trait E extends Throwable
+          trait A
+          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
+          lazy val javaStreamZIO: ZIO[R, E, JavaStreamLike[A]] = ???
+          lazy val actual                                      = ZStream.from(javaStreamZIO)
+          lazy val expected: ZStream[R, Throwable, A]          = actual
+          lazy val _                                           = expected
+          assertCompletes
         }
       )
     )

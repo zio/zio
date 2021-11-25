@@ -21,8 +21,8 @@ import zio.stream.ZStream
 import zio.{ZIO, Zippable, ZTraceElement}
 
 /**
- * A sample is a single observation from a random variable, together with a
- * tree of "shrinkings" used for minimization of "large" failures.
+ * A sample is a single observation from a random variable, together with a tree
+ * of "shrinkings" used for minimization of "large" failures.
  */
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Option[Sample[R, A]]]) { self =>
 
@@ -63,8 +63,7 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Option[Sam
 
   /**
    * Filters this sample by replacing it with its shrink tree if the value does
-   * not meet the specified predicate and recursively filtering the shrink
-   * tree.
+   * not meet the specified predicate and recursively filtering the shrink tree.
    */
   def filter(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, Nothing, Option[Sample[R, A]]] =
     if (f(value)) ZStream(Some(Sample(value, shrink.flatMap(_.map(_.filter(f)).getOrElse(ZStream.empty)))))
@@ -84,8 +83,8 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Option[Sam
   /**
    * Converts the shrink tree into a stream of shrinkings by recursively
    * searching the shrink tree, using the specified function to determine
-   * whether a value is a failure. The resulting stream will contain all
-   * values explored, regardless of whether they are successes or failures.
+   * whether a value is a failure. The resulting stream will contain all values
+   * explored, regardless of whether they are successes or failures.
    */
   def shrinkSearch(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, Nothing, A] =
     if (!f(value))

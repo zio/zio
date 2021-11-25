@@ -17,22 +17,30 @@
 package zio.test
 
 import zio._
-import zio.test.environment.Live
 
 trait TimeoutVariants {
 
   /**
-   * A test aspect that prints a warning to the console when a test takes
-   * longer than the specified duration.
+   * A test aspect that prints a warning to the console when a test takes longer
+   * than the specified duration.
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect[Nothing, Has[Live], Nothing, Any] =
-    new TestAspect[Nothing, Has[Live], Nothing, Any] {
-      def some[R <: Has[Live], E](
+  ): TestAspect.WithOut[
+    Nothing,
+    Live,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    new TestAspect[Nothing, Live, Nothing, Any] {
+      type OutEnv[Env] = Env
+      type OutErr[Err] = Err
+      def apply[R <: Live, E](
         spec: ZSpec[R, E]
       )(implicit trace: ZTraceElement): ZSpec[R, E] = {
-        def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Has[Live], E] =
+        def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Live, E] =
           spec.caseValue match {
             case Spec.ExecCase(exec, spec)     => Spec.exec(exec, loop(labels, spec))
             case Spec.LabeledCase(label, spec) => Spec.labeled(label, loop(label :: labels, spec))
@@ -51,7 +59,7 @@ trait TimeoutVariants {
     labels: List[String],
     test: ZTest[R, E],
     duration: Duration
-  ): ZTest[R with Has[Live], E] =
+  ): ZTest[R with Live, E] =
     test.raceWith(Live.withLive(showWarning(labels, duration))(_.delay(duration)))(
       (result, fiber) => fiber.interrupt *> ZIO.done(result),
       (_, fiber) => fiber.join
@@ -60,7 +68,7 @@ trait TimeoutVariants {
   private def showWarning(
     labels: List[String],
     duration: Duration
-  ): URIO[Has[Live], Unit] =
+  ): URIO[Live, Unit] =
     Live.live(Console.printLine(renderWarning(labels, duration)).orDie)
 
   private def renderWarning(labels: List[String], duration: Duration): String =

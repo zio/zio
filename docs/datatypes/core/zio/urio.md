@@ -31,7 +31,7 @@ import java.io.IOException
 ```
 
 ```scala mdoc:silent
-def printLine(line: => String): ZIO[Has[Console], IOException, Unit] =
+def printLine(line: => String): ZIO[Console, IOException, Unit] =
   ZIO.serviceWith(_.printLine(line))
 ```
 

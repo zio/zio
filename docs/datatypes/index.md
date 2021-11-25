@@ -28,13 +28,12 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  - **[Cause](core/cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
 
 ## Contextual Data Types
-- **[Has](contextual/has.md)** — The trait `Has[A]` is used with the [ZIO environment](contextual/index.md#zio-environment) to express an effect's dependency on a service of type `A`. 
 - **[ZLayer](contextual/zlayer.md)** — The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
     + **[RLayer](contextual/rlayer.md)** — `RLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Throwable, ROut]`, which represents a layer that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
     + **[ULayer](contextual/ulayer.md)** — ULayer[+ROut] is a type alias for ZLayer[Any, Nothing, ROut], which represents a layer that doesn't require any services as its input, it can't fail, and returns ROut as its output.
     + **[Layer](contextual/layer.md)** — Layer[+E, +ROut] is a type alias for ZLayer[Any, E, ROut], which represents a layer that doesn't require any services, it may fail with an error type of E, and returns ROut as its output.
-    + **[URLayer](contextual/urlayer.md)** — URLayer[-RIn, +ROut] is a type alias for ZLayer[RIn, Nothing, ROut], which represents a layer that requires RIn as its input, it can't fail, and returns ROut as its output.
-    + **[TaskLayer](contextual/task-layer.md)** — TaskLayer[+ROut] is a type alias for ZLayer[Any, Throwable, ROut], which represents a layer that doesn't require any services as its input, it may fail with Throwable value, and returns ROut as its output.
+    + **[URLayer](contextual/urlayer.md)** — URLayer[-RIn, +ROut] is a type alias for ZLayer[RIn, Nothing, ROut], which represents a set of services that requires RIn as its input, it can't fail, and returns ROut as its output.
+    + **[TaskLayer](contextual/task-layer.md)** — TaskLayer[+ROut] is a type alias for ZLayer[Any, Throwable, ROut], which represents a set of services that doesn't require any services as its input, it may fail with Throwable value, and returns ROut as its output.
 
 ## Concurrency
 
@@ -56,11 +55,11 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ### STM
  - **[STM](stm/stm.md)** - An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
- - **[TArray](stm/tarray.md)** - A `TArray[A]` is an array of mutable references that can participate in transactions.
+ - **[TArray](stm/tarray.md)** - A `TArray` is an array of mutable references that can participate in transactions.
  - **[TSet](stm/tset.md)** - A `TSet` is a mutable set that can participate in transactions.
- - **[TMap](stm/tmap.md)** - A `TMap[A]` is a mutable map that can participate in transactions.
+ - **[TMap](stm/tmap.md)** - A `TMap` is a mutable map that can participate in transactions.
  - **[TRef](stm/tref.md)** - A `TRef` is a mutable reference to an immutable value that can participate in transactions.
- - **[TPriorityQueue](stm/tpriorityqueue.md)** - A `TPriorityQueue[A]` is a mutable priority queue that can participate in transactions.
+ - **[TPriorityQueue](stm/tpriorityqueue.md)** - A `TPriorityQueue` is a mutable priority queue that can participate in transactions.
  - **[TPromise](stm/tpromise.md)** - A `TPromise` is a mutable reference that can be set exactly once and can participate in transactions.
  - **[TQueue](stm/tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
  - **[TReentrantLock](stm/treentrantlock.md)** - A `TReentrantLock` is a reentrant read / write lock that can be composed.
@@ -78,9 +77,9 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 ## Streaming
 - **[ZStream](stream/zstream.md)** — A `ZStream` is a lazy, concurrent, asynchronous source of values.
    + **[Stream](stream/stream.md)** — `Stream[E, A]` is a type alias for `ZStream[Any, E, A]`, which represents a ZIO stream that does not require any services, and may fail with an `E`, or produce elements with an `A`. 
-- **[ZTransducer](stream/transducer.md)** — A `ZTransducer[R, E, I, O]` is a stream transformer. Transducers accept a stream as input, and return the transformed stream as output.
 - **[ZSink](stream/zsink.md)** — A `ZSink` is a consumer of values from a `ZStream`, which may produces a value when it has consumed enough.
-   + **[Sink](stream/sink.md)** — `Sink[E, A, L, B]` is a type alias for `ZSink[Any, E, A, L, B]`.
+   + **[Sink](stream/sink.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
+- **[ZPipeline](stream/zpipeline.md)** - A `ZPipeline` is a polymorphic stream transformer
 - **[SubscriptionRef](stream/subscriptionref.md)** — A `SubscriptionRef[A]` contains a current value of type `A` and a stream that can be consumed to observe all changes to that value.
  
 ## Miscellaneous

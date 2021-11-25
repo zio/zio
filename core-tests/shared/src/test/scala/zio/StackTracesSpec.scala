@@ -1,20 +1,22 @@
 package zio
 
-import zio.test.{ZSpec, assertTrue}
+import zio.test.Assertion.{containsString, matchesRegex}
+import zio.test.{TestResult, assert, assertTrue}
+import zio.test.TestAspect.sequential
 
 object StackTracesSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("StackTracesSpec")(
+  def spec = suite("StackTracesSpec")(
     suite("captureSimpleCause")(
       test("captures a simple failure") {
         for {
-          _          <- ZIO.succeed(25)
-          value       = ZIO.fail("Oh no!")
-          stackTrace <- matchPrettyPrintCause(value)
+          _     <- ZIO.succeed(25)
+          value  = ZIO.fail("Oh no!")
+          trace <- matchPrettyPrintCause(value)
         } yield {
-          assertTrue(stackTrace.startsWith("Exception in thread")) &&
-          assertTrue(includesAll(Seq("zio-fiber", "java.lang.String: Oh no!"))(stackTrace))
-          assertTrue(excludesAll(Seq("Suppressed:"))(stackTrace))
+          assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+          assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
+          assertTrue(!trace.contains("Suppressed"))
         }
       }
     ),
@@ -37,18 +39,13 @@ object StackTracesSpec extends ZIOBaseSpec {
           value  = underlyingFailure
           trace <- matchPrettyPrintCause(value)
         } yield {
-          assertTrue(trace.startsWith("Exception in thread")) &&
-          assertTrue(numberOfOccurrences("Suppressed")(trace) == 2) &&
-          assertTrue(
-            includesAll(
-              Seq(
-                "zio-fiber",
-                "java.lang.String: Oh no!",
-                "Suppressed: java.lang.RuntimeException: deep failure",
-                "Suppressed: java.lang.RuntimeException: other failure"
-              )
-            )(trace)
-          )
+          assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+          assertHasStacktraceFor(trace)("spec.deepUnderlyingFailure") &&
+          assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
+          assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
+          assert(trace)(containsString("Suppressed: java.lang.RuntimeException: deep failure")) &&
+          assert(trace)(containsString("Suppressed: java.lang.RuntimeException: other failure")) &&
+          assertTrue(numberOfOccurrences("Suppressed")(trace) == 2)
         }
       },
       test("captures a deep embedded failure without suppressing the underlying cause") {
@@ -69,17 +66,12 @@ object StackTracesSpec extends ZIOBaseSpec {
           value  = underlyingFailure
           trace <- matchPrettyPrintCause(value)
         } yield {
-          assertTrue(trace.startsWith("Exception in thread")) &&
-          assertTrue(numberOfOccurrences("Suppressed")(trace) == 1) &&
-          assertTrue(
-            includesAll(
-              Seq(
-                "zio-fiber",
-                "java.lang.String: Oh no!",
-                "Suppressed: java.lang.RuntimeException: deep failure"
-              )
-            )(trace)
-          )
+          assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+          assertHasStacktraceFor(trace)("spec.deepUnderlyingFailure") &&
+          assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
+          assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
+          assert(trace)(containsString("Suppressed: java.lang.RuntimeException: deep failure")) &&
+          assertTrue(numberOfOccurrences("Suppressed")(trace) == 1)
         }
       },
       test("captures the embedded failure") {
@@ -94,36 +86,40 @@ object StackTracesSpec extends ZIOBaseSpec {
           value  = underlyingFailure
           trace <- matchPrettyPrintCause(value)
         } yield {
-          assertTrue(trace.startsWith("Exception in thread")) &&
-          assertTrue(numberOfOccurrences("Suppressed")(trace) == 1) &&
-          assertTrue(
-            includesAll(
-              Seq("zio-fiber", "java.lang.String: Oh no!", "Suppressed: java.lang.RuntimeException: other failure")
-            )(trace)
-          )
+          assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+          assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
+          assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
+          assert(trace)(containsString("Suppressed: java.lang.RuntimeException: other failure")) &&
+          assertTrue(numberOfOccurrences("Suppressed")(trace) == 1)
         }
       }
     )
-  )
+  ) @@ sequential
 
   // set to true to print traces
   private val debug = false
 
-  private def show(trace: => Cause[Any]): Unit = if (debug) println(trace.prettyPrint)
+  private def show(trace: => Cause[Any]): Unit =
+    if (debug) {
+      println("*****")
+      println(trace.prettyPrint)
+    }
 
-  private def includesAll(texts: Seq[String]): String => Boolean = stack => texts.map(stack.contains).forall(r => r)
+  private def assertHasExceptionInThreadZioFiber(trace: String): String => TestResult =
+    errorMessage => assert(trace)(matchesRegex(s"""(?s)^Exception in thread\\s"zio-fiber-\\d*"\\s$errorMessage.*"""))
+
+  private def assertHasStacktraceFor(trace: String): String => TestResult = subject =>
+    assert(trace)(matchesRegex(s"""(?s).*at zio\\.StackTracesSpec.?\\.$subject.*\\(.*:\\d*\\).*"""))
 
   private def numberOfOccurrences(text: String): String => Int = stack =>
     (stack.length - stack.replace(text, "").length) / text.length
-
-  private def excludesAll(texts: Seq[String]): String => Boolean = stack => texts.map(stack.contains).forall(!_)
 
   private val UnsupportedTestPath: Task[String] = ZIO("not considered scenario")
 
   private val matchPrettyPrintCause: ZIO[Any, String, Nothing] => ZIO[Any, Throwable, String] = {
     case fail: IO[String, Nothing] =>
       fail.catchAllCause {
-        case c: Cause[String] => show(c); ZIO(c.prettyPrint)
+        case c: Cause[String] => ZIO.succeed(show(c)) *> ZIO(c.prettyPrint)
         case _                => UnsupportedTestPath
       }
     case _ => UnsupportedTestPath

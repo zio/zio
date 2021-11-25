@@ -28,8 +28,8 @@ sealed trait ZIOMetric[-A] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing
 object ZIOMetric {
 
   /**
-   * A metric aspect that increments the specified counter each time the
-   * effect it is applied to succeeds.
+   * A metric aspect that increments the specified counter each time the effect
+   * it is applied to succeeds.
    */
   def count(name: String, tags: MetricLabel*): Counter[Any] =
     new Counter[Any](name, Chunk.fromIterable(tags)) { self =>
@@ -56,8 +56,8 @@ object ZIOMetric {
     }
 
   /**
-   * A metric aspect that increments the specified counter each time the
-   * effect it is applied to fails.
+   * A metric aspect that increments the specified counter each time the effect
+   * it is applied to fails.
    */
   def countErrors(name: String, tags: MetricLabel*): Counter[Any] =
     new Counter[Any](name, Chunk.fromIterable(tags)) {
@@ -87,8 +87,8 @@ object ZIOMetric {
     }
 
   /**
-   * A metric aspect that adjusts a gauge each time the effect it is applied
-   * to succeeds.
+   * A metric aspect that adjusts a gauge each time the effect it is applied to
+   * succeeds.
    */
   def adjustGauge(name: String, tags: MetricLabel*): Gauge[Double] =
     new Gauge[Double](name, Chunk.fromIterable(tags)) {
@@ -97,9 +97,9 @@ object ZIOMetric {
     }
 
   /**
-   * A metric aspect that adjusts a gauge each time the effect it is applied
-   * to succeeds, using the specified function to transform the value returned
-   * by the effect to the value to adjust the gauge with.
+   * A metric aspect that adjusts a gauge each time the effect it is applied to
+   * succeeds, using the specified function to transform the value returned by
+   * the effect to the value to adjust the gauge with.
    */
   def adjustGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A] =
     new Gauge[A](name, Chunk.fromIterable(tags)) {
@@ -122,8 +122,8 @@ object ZIOMetric {
     }
 
   /**
-   * A metric aspect that adds a value to a histogram each time the effect it
-   * is applied to succeeds.
+   * A metric aspect that adds a value to a histogram each time the effect it is
+   * applied to succeeds.
    */
   def observeHistogram(
     name: String,
@@ -136,9 +136,9 @@ object ZIOMetric {
     }
 
   /**
-   * A metric aspect that adds a value to a histogram each time the effect it
-   * is applied to succeeds, using the specified function to transform the
-   * value returned by the effect to the value to add to the histogram.
+   * A metric aspect that adds a value to a histogram each time the effect it is
+   * applied to succeeds, using the specified function to transform the value
+   * returned by the effect to the value to add to the histogram.
    */
   def observeHistogramWith[A](name: String, boundaries: Histogram.Boundaries, tags: MetricLabel*)(
     f: A => Double
@@ -195,9 +195,9 @@ object ZIOMetric {
 
   /**
    * A metric aspect that counts the number of occurrences of each distinct
-   * value returned by the effect it is applied to, using the specified
-   * function to transform the value returned by the effect to the value to
-   * count the occurrences of.
+   * value returned by the effect it is applied to, using the specified function
+   * to transform the value returned by the effect to the value to count the
+   * occurrences of.
    */
   def occurrencesWith[A](name: String, setTag: String, tags: MetricLabel*)(
     f: A => String
@@ -271,11 +271,11 @@ object ZIOMetric {
   }
 
   /**
-   * A `Gauge` is a metric representing a single numerical value that may be
-   * set or adjusted. A typical use of this metric would be to track the
-   * current memory usage. With a guage the quantity of interest is the current
-   * value, as opposed to a counter where the quantity of interest is the
-   * cumulative values over time.
+   * A `Gauge` is a metric representing a single numerical value that may be set
+   * or adjusted. A typical use of this metric would be to track the current
+   * memory usage. With a guage the quantity of interest is the current value,
+   * as opposed to a counter where the quantity of interest is the cumulative
+   * values over time.
    */
   abstract class Gauge[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
     private[this] val gauge = internal.metrics.Gauge(name, tags)
@@ -364,8 +364,8 @@ object ZIOMetric {
       histogram.count
 
     /**
-     * Returns a copy of this histogram with the specified name, boundaries,
-     * and tags.
+     * Returns a copy of this histogram with the specified name, boundaries, and
+     * tags.
      */
     final def copy(
       name: String = name,
@@ -424,13 +424,15 @@ object ZIOMetric {
       def fromChunk(chunk: Chunk[Double]): Boundaries = Boundaries((chunk ++ Chunk(Double.MaxValue)).distinct)
 
       /**
-       * A helper method to create histogram bucket boundaries for a histogram with linear increasing values
+       * A helper method to create histogram bucket boundaries for a histogram
+       * with linear increasing values
        */
       def linear(start: Double, width: Double, count: Int): Boundaries =
         fromChunk(Chunk.fromArray(0.until(count).map(i => start + i * width).toArray))
 
       /**
-       * A helper method to create histogram bucket boundaries for a histogram with exponentially increasing values
+       * A helper method to create histogram bucket boundaries for a histogram
+       * with exponentially increasing values
        */
       def exponential(start: Double, factor: Double, count: Int): Boundaries =
         fromChunk(Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray))
@@ -438,13 +440,13 @@ object ZIOMetric {
   }
 
   /**
-   * A `Summary` represents a sliding window of a time series along with
-   * metrics for certain percentiles of the time series, referred to as
-   * quantiles. Quantiles describe specified percentiles of the sliding window
-   * that are of interest. For example, if we were using a summary to track the
-   * response time for requests over the last hour then we might be interested
-   * in the 50th percentile, 90th percentile, 95th percentile, and 99th
-   * percentile for response times.
+   * A `Summary` represents a sliding window of a time series along with metrics
+   * for certain percentiles of the time series, referred to as quantiles.
+   * Quantiles describe specified percentiles of the sliding window that are of
+   * interest. For example, if we were using a summary to track the response
+   * time for requests over the last hour then we might be interested in the
+   * 50th percentile, 90th percentile, 95th percentile, and 99th percentile for
+   * response times.
    */
   abstract class Summary[A](
     final val name: String,
@@ -531,11 +533,11 @@ object ZIOMetric {
   }
 
   /**
-   * A `SetCount` represents the number of occurrences of specified values.
-   * You can think of a dry vpimy as like a set of counters associated with
-   * each value except that new counters will automatically be created when new
-   * values are observed. This could be used to track the frequency of
-   * different types of failures, for example.
+   * A `SetCount` represents the number of occurrences of specified values. You
+   * can think of a dry vpimy as like a set of counters associated with each
+   * value except that new counters will automatically be created when new
+   * values are observed. This could be used to track the frequency of different
+   * types of failures, for example.
    */
   abstract class SetCount[A](final val name: String, final val setTag: String, final val tags: Chunk[MetricLabel])
       extends ZIOMetric[A] { self =>
@@ -583,8 +585,8 @@ object ZIOMetric {
       setCount.observe(value)
 
     /**
-     * Returns the number of occurences of every value observed by this
-     * set count.
+     * Returns the number of occurences of every value observed by this set
+     * count.
      */
     def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]] =
       setCount.occurrences

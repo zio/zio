@@ -18,8 +18,8 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-trait FunctionToLayerOps {
-  implicit final class Function0ToLayerSyntax[A: Tag](self: () => A) {
+trait FunctionToLayerSyntax {
+  implicit final class Function0ToLayerOps[A: Tag: IsNotIntersection](self: () => A) {
 
     /**
      * Converts this function to a Layer.
@@ -27,15 +27,17 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive() extends Foo
      *
-     * val live: ULayer[Has[Foo]] =
+     * val live: ULayer[Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): URLayer[Any, Has[A1]] =
+    def toLayer[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URLayer[Any, A1] =
       UIO(self()).toLayer
   }
 
-  implicit final class Function1ToLayerSyntax[A: Tag, B: Tag](self: A => B) {
+  implicit final class Function1ToLayerOps[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](
+    self: A => B
+  ) {
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -43,15 +45,21 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config) extends Foo
      *
-     * val live: URLayer[Has[Config], Has[Foo]] =
+     * val live: URLayer[Config, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[B1 >: B: Tag](implicit trace: ZTraceElement): URLayer[Has[A], Has[B1]] =
-      ZIO.service[A].map(self).toLayer
+    def toLayer[B1 >: B: Tag: IsNotIntersection](implicit trace: ZTraceElement): URLayer[A, B1] =
+      ZIO.serviceWith[A](self).toLayer
   }
 
-  implicit final class Function2ToLayerSyntax[A: Tag, B: Tag, C: Tag](self: (A, B) => C) {
+  implicit final class Function2ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection
+  ](
+    self: (A, B) => C
+  ) {
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -59,11 +67,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[C1 >: C: Tag](implicit trace: ZTraceElement): URLayer[Has[A] with Has[B], Has[C1]] = {
+    def toLayer[C1 >: C: Tag: IsNotIntersection](implicit
+      trace: ZTraceElement
+    ): URLayer[A with B, C1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -71,7 +81,12 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function3ToLayerSyntax[A: Tag, B: Tag, C: Tag, D: Tag](self: (A, B, C) => D) {
+  implicit final class Function3ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection
+  ](self: (A, B, C) => D) {
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -79,11 +94,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[D1 >: D: Tag](implicit trace: ZTraceElement): URLayer[Has[A] with Has[B] with Has[C], Has[D1]] = {
+    def toLayer[D1 >: D: Tag: IsNotIntersection](implicit
+      trace: ZTraceElement
+    ): URLayer[A with B with C, D1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -92,7 +109,15 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function4ToLayerSyntax[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag](self: (A, B, C, D) => E) {
+  implicit final class Function4ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection
+  ](
+    self: (A, B, C, D) => E
+  ) {
 
     /**
      * Converts this function to a Layer that depends upon its inputs.
@@ -100,13 +125,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[E1 >: E: Tag](implicit
+    def toLayer[E1 >: E: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D], Has[E1]] = {
+    ): URLayer[A with B with C with D, E1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -116,7 +141,14 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function5ToLayerSyntax[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag](
+  implicit final class Function5ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection
+  ](
     self: (A, B, C, D, E) => F
   ) {
 
@@ -126,13 +158,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[F1 >: F: Tag](implicit
+    def toLayer[F1 >: F: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E], Has[F1]] = {
+    ): URLayer[A with B with C with D with E, F1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -143,7 +175,15 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function6ToLayerSyntax[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag](
+  implicit final class Function6ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection
+  ](
     self: (A, B, C, D, E, F) => G
   ) {
 
@@ -153,13 +193,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[G1 >: G: Tag](implicit
+    def toLayer[G1 >: G: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F], Has[G1]] = {
+    ): URLayer[A with B with C with D with E with F, G1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -171,7 +211,16 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function7ToLayerSyntax[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag](
+  implicit final class Function7ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection
+  ](
     self: (A, B, C, D, E, F, G) => H
   ) {
 
@@ -181,13 +230,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[H1 >: H: Tag](implicit
+    def toLayer[H1 >: H: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G], Has[H1]] = {
+    ): URLayer[A with B with C with D with E with F with G, H1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -200,7 +249,17 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function8ToLayerSyntax[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag](
+  implicit final class Function8ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection
+  ](
     self: (A, B, C, D, E, F, G, H) => I
   ) {
 
@@ -210,13 +269,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[I1 >: I: Tag](implicit
+    def toLayer[I1 >: I: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[G] with Has[H], Has[I1]] = {
+    ): URLayer[A with B with C with D with E with F with G with H, I1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -230,17 +289,17 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function9ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag
+  implicit final class Function9ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I) => J
   ) {
@@ -251,15 +310,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[J1 >: J: Tag](implicit
+    def toLayer[J1 >: J: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I], Has[J1]] = {
+    ): URLayer[A with B with C with D with E with F with G with H with I, J1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -274,18 +331,18 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function10ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag
+  implicit final class Function10ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J) => K
   ) {
@@ -296,15 +353,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[K1 >: K: Tag](implicit
+    def toLayer[K1 >: K: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J], Has[K1]] = {
+    ): URLayer[A with B with C with D with E with F with G with H with I with J, K1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -320,19 +375,19 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function11ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag
+  implicit final class Function11ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K) => L
   ) {
@@ -343,15 +398,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[L1 >: L: Tag](implicit
+    def toLayer[L1 >: L: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K], Has[L1]] = {
+    ): URLayer[A with B with C with D with E with F with G with H with I with J with K, L1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -368,20 +421,20 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function12ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag
+  implicit final class Function12ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L) => M
   ) {
@@ -392,15 +445,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[M1 >: M: Tag](implicit
+    def toLayer[M1 >: M: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L], Has[M1]] = {
+    ): URLayer[A with B with C with D with E with F with G with H with I with J with K with L, M1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -417,21 +468,21 @@ trait FunctionToLayerOps {
       } yield self(a, b, c, d, e, f, g, h, i, j, k, l)
     }.toLayer
   }
-  implicit final class Function13ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag
+  implicit final class Function13ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N
   ) {
@@ -442,15 +493,13 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[N1 >: N: Tag](implicit
+    def toLayer[N1 >: N: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M], Has[N1]] = {
+    ): URLayer[A with B with C with D with E with F with G with H with I with J with K with L with M, N1] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -469,22 +518,22 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function14ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag
+  implicit final class Function14ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O
   ) {
@@ -495,15 +544,16 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[O1 >: O: Tag](implicit
+    def toLayer[O1 >: O: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N], Has[O1]] = {
+    ): URLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N,
+      O1
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -523,23 +573,23 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function15ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag
+  implicit final class Function15ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P
   ) {
@@ -550,15 +600,16 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[P1 >: P: Tag](implicit
+    def toLayer[P1 >: P: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O], Has[P1]] = {
+    ): URLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
+      P1
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -579,24 +630,24 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function16ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag
+  implicit final class Function16ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q
   ) {
@@ -607,17 +658,16 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[Q1 >: Q: Tag](implicit
+    def toLayer[Q1 >: Q: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[P], Has[
+    ): URLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
       Q1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -639,25 +689,25 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function17ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag
+  implicit final class Function17ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R
   ) {
@@ -668,19 +718,16 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[R1 >: R: Tag](implicit
+    def toLayer[R1 >: R: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q], Has[
+    ): URLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
       R1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -703,26 +750,26 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function18ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag
+  implicit final class Function18ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection,
+    S: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S
   ) {
@@ -733,19 +780,16 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[S1 >: S: Tag](implicit
+    def toLayer[S1 >: S: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R], Has[
+    ): URLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
       S1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -769,27 +813,27 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function19ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
-    T: Tag
+  implicit final class Function19ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection,
+    S: Tag: IsNotIntersection,
+    T: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T
   ) {
@@ -800,19 +844,16 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[T1 >: T: Tag](implicit
+    def toLayer[T1 >: T: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S], Has[
+    ): URLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
       T1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -837,28 +878,28 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function20ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
-    T: Tag,
-    U: Tag
+  implicit final class Function20ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection,
+    S: Tag: IsNotIntersection,
+    T: Tag: IsNotIntersection,
+    U: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U
   ) {
@@ -869,19 +910,16 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[U1 >: U: Tag](implicit
+    def toLayer[U1 >: U: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S] with Has[T], Has[
+    ): URLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
       U1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]
@@ -907,29 +945,29 @@ trait FunctionToLayerOps {
     }.toLayer
   }
 
-  implicit final class Function21ToLayerSyntax[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
-    T: Tag,
-    U: Tag,
-    V: Tag
+  implicit final class Function21ToLayerOps[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection,
+    E: Tag: IsNotIntersection,
+    F: Tag: IsNotIntersection,
+    G: Tag: IsNotIntersection,
+    H: Tag: IsNotIntersection,
+    I: Tag: IsNotIntersection,
+    J: Tag: IsNotIntersection,
+    K: Tag: IsNotIntersection,
+    L: Tag: IsNotIntersection,
+    M: Tag: IsNotIntersection,
+    N: Tag: IsNotIntersection,
+    O: Tag: IsNotIntersection,
+    P: Tag: IsNotIntersection,
+    Q: Tag: IsNotIntersection,
+    R: Tag: IsNotIntersection,
+    S: Tag: IsNotIntersection,
+    T: Tag: IsNotIntersection,
+    U: Tag: IsNotIntersection,
+    V: Tag: IsNotIntersection
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V
   ) {
@@ -940,19 +978,16 @@ trait FunctionToLayerOps {
      * {{{
      * case class FooLive(config: Config, repo: Repo) extends Foo
      *
-     * val live: URLayer[Has[Config] with Has[Repo], Has[Foo]] =
+     * val live: URLayer[Config with Repo, Foo] =
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[V1 >: V: Tag](implicit
+    def toLayer[V1 >: V: Tag: IsNotIntersection](implicit
       trace: ZTraceElement
-    ): URLayer[Has[A] with Has[B] with Has[C] with Has[D] with Has[E] with Has[F] with Has[
-      G
-    ] with Has[H] with Has[I] with Has[J] with Has[K] with Has[L] with Has[M] with Has[N] with Has[O] with Has[
-      P
-    ] with Has[Q] with Has[R] with Has[S] with Has[T] with Has[U], Has[
+    ): URLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
       V1
-    ]] = {
+    ] = {
       for {
         a <- ZIO.service[A]
         b <- ZIO.service[B]

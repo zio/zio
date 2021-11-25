@@ -1,9 +1,8 @@
 package zio.internal.macros
 
 /**
- * DummyK is used to pull `WeakTypeTag` information into a Macro when
- * there is otherwise no value to extract it from.
- * See: [[WireMacros.wireImpl]]
+ * DummyK is used to pull `WeakTypeTag` information into a Macro when there is
+ * otherwise no value to extract it from. See: [[ZLayerMakeMacros.makeImpl]]
  */
 private[zio] final case class DummyK[A]()
 

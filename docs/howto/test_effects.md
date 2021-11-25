@@ -27,7 +27,6 @@ The most common and easy way to create suites is to use the `suite` function. Fo
 
 ```scala mdoc
 import zio.test._
-import zio.test.environment.Live
 import zio.Clock.nanoTime
 import Assertion.isGreaterThan
 
@@ -209,7 +208,6 @@ It is easy to accidentally use different test instances at the same time.
 
 ```scala
 import zio.test._
-import zio.test.environment.TestClock
 import Assertion._
 
 test("`acquire` doesn't leak permits upon cancellation") {
@@ -233,7 +231,7 @@ import zio.Clock
 sealed trait ZIO[-R, +E, +A] extends Serializable { self =>
     /* All other method declarations in this trait ignored to avoid clutter */
 
-    def timeout(d: Duration): ZIO[R with Has[Clock], E, Option[A]]
+    def timeout(d: Duration): ZIO[R with Clock, E, Option[A]]
 }
 ```
 
@@ -251,7 +249,6 @@ In the first mode it is a purely functional pseudo-random number generator. Duri
 
 ```scala mdoc
 import zio.test.assert
-import zio.test.environment.TestRandom
 import zio.test.Assertion.equalTo
 
 test("Use setSeed to generate stable values") {
@@ -272,7 +269,6 @@ test("Use setSeed to generate stable values") {
 In the second mode `TestRandom` maintains an internal buffer of values that can be "fed" upfront with methods such as `feedInts`. When random values are being generated, the first values from that buffer are being used.
 
 ```scala mdoc
-import zio.test.environment.TestRandom
 test("One can provide its own list of ints") {
   for {
     _  <- TestRandom.feedInts(1, 9, 2, 8, 3, 7, 4, 6, 5)
@@ -318,7 +314,6 @@ import java.util.concurrent.TimeUnit
 import zio.Clock.currentTime
 import zio.test.Assertion.isGreaterThanEqualTo
 import zio.test._
-import zio.test.environment.TestClock
 
 test("One can move time very fast") {
   for {
@@ -336,7 +331,6 @@ test("One can move time very fast") {
 ```scala mdoc
 import zio.test.Assertion.equalTo
 import zio.test._
-import zio.test.environment.TestClock
 
 test("One can control time as he see fit") {
   for {
@@ -356,12 +350,11 @@ This is a pattern that will very often be used when `sleep` and `TestClock` are 
 
 **Example 3**
 
-A more complex example leveraging layers and multiple services is shown below:
+A more complex example leveraging dependencies and multiple services is shown below:
 
 ```scala mdoc:reset
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{ TestClock, TestEnvironment }
 import zio.{test => _, _}
 
 trait SchedulingService {
@@ -372,13 +365,13 @@ trait LoggingService {
   def log(msg: String): ZIO[Any, Exception, Unit]
 }
 
-val schedulingLayer: ZLayer[Has[Clock] with Has[LoggingService], Nothing, Has[SchedulingService]] =
+val schedulingLayer: ZLayer[Clock with LoggingService, Nothing, SchedulingService] =
   ZLayer.fromFunction { env =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
         (ZIO.sleep(10.seconds) *> promise.succeed(1))
           .tap(b => ZIO.service[LoggingService].flatMap(_.log(b.toString)))
-          .provide(env)
+          .provideEnvironment(env)
     }
 }
 
@@ -397,13 +390,13 @@ test("One can control time for failing effects too") {
       readRef <- promise.await
       result  <- result.join
     } yield assert(1)(equalTo(readRef)) && assert(result)(fails(isSubtype[Exception](anything)))
-  testCase.provideSomeLayer[TestEnvironment](partialLayer)
+  testCase.provideSome[TestEnvironment](partialLayer)
 }
 ```
 
-In this case, we want to test a layered effect that can potentially fail with an error. To do this we need to run the effect and use assertions that expect an `Exit` value.
+In this case, we want to test an effect with dependencies that can potentially fail with an error. To do this we need to run the effect and use assertions that expect an `Exit` value.
 
-Because we are providing a layer to the test we need to provide everything expected by our test case and leave the test environment behind using `.provideSomeLayer[TestEnvironment]`.
+Because we are providing dependencies to the test we need to provide everything expected by our test case and leave the test environment behind using `.provideSome[TestEnvironment]`.
 
 Keep in mind we do not provide any implementation of the `Clock` because doing will make force `SchedulingService` to use it, while the clock we need here is the `TestClock` provided by the test environment.
 
@@ -414,7 +407,6 @@ Even if you have a non-trivial flow of data from multiple streams that can produ
 ```scala mdoc
 import zio.test.Assertion.equalTo
 import zio.test._
-import zio.test.environment.TestClock
 import zio.stream._
 
 test("zipWithLatest") {
@@ -437,7 +429,6 @@ test("zipWithLatest") {
 `TestConsole` allows testing of applications that interact with the console by modeling working with standard input and output as writing and reading to and from internal buffers:
 
 ```scala mdoc
-import zio.test.environment.TestConsole
 import zio.Console
 
 val consoleSuite = suite("ConsoleTest")(
@@ -472,8 +463,6 @@ With the increased usage of containers and runtimes like Kubernetes, more and mo
 For this purpose `zio-test` exposes `TestSystem` module. Additionally, to setting the environment variables it also allows for setting JVM system properties like in the code below:
 
 ```scala mdoc
-import zio.test.environment._
-
 for {
   _      <- TestSystem.putProperty("java.vm.name", "VM")
   result <- System.property("java.vm.name")

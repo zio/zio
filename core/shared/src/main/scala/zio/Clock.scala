@@ -172,21 +172,23 @@ trait Clock extends Serializable {
 
 object Clock extends ClockPlatformSpecific with Serializable {
 
-  val any: ZLayer[Has[Clock], Nothing, Has[Clock]] =
-    ZLayer.service[Clock](Tracer.newTrace)
+  val any: ZLayer[Clock, Nothing, Clock] =
+    ZLayer.service[Clock](Tag[Clock], IsNotIntersection[Clock], Tracer.newTrace)
 
   /**
    * Constructs a `Clock` service from a `java.time.Clock`.
    */
-  val javaClock: ZLayer[Has[java.time.Clock], Nothing, Has[Clock]] = {
+  val javaClock: ZLayer[java.time.Clock, Nothing, Clock] = {
     implicit val trace = Tracer.newTrace
-    (for {
-      clock <- ZIO.service[java.time.Clock]
-    } yield ClockJava(clock)).toLayer
+    ZLayer[java.time.Clock, Nothing, Clock] {
+      for {
+        clock <- ZIO.service[java.time.Clock]
+      } yield ClockJava(clock)
+    }
   }
 
-  val live: Layer[Nothing, Has[Clock]] =
-    ZLayer.succeed[Clock](ClockLive)(Tag[Clock], Tracer.newTrace)
+  val live: Layer[Nothing, Clock] =
+    ZLayer.succeed[Clock](ClockLive)(Tag[Clock], IsNotIntersection[Clock], Tracer.newTrace)
 
   /**
    * An implementation of the `Clock` service backed by a `java.time.Clock`.
@@ -268,88 +270,88 @@ object Clock extends ClockPlatformSpecific with Serializable {
   /**
    * Returns the current time, relative to the Unix epoch.
    */
-  def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): URIO[Has[Clock], Long] =
-    ZIO.serviceWith(_.currentTime(unit))
+  def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): URIO[Clock, Long] =
+    ZIO.serviceWithZIO(_.currentTime(unit))
 
   /**
    * Get the current time, represented in the current timezone.
    */
-  def currentDateTime(implicit trace: ZTraceElement): URIO[Has[Clock], OffsetDateTime] =
-    ZIO.serviceWith(_.currentDateTime)
+  def currentDateTime(implicit trace: ZTraceElement): URIO[Clock, OffsetDateTime] =
+    ZIO.serviceWithZIO(_.currentDateTime)
 
   def driver[Env, In, Out](
     schedule: Schedule[Env, In, Out]
-  )(implicit trace: ZTraceElement): URIO[Has[Clock], Schedule.Driver[schedule.State, Env, In, Out]] =
-    ZIO.serviceWith(_.driver(schedule))
+  )(implicit trace: ZTraceElement): URIO[Clock, Schedule.Driver[schedule.State, Env, In, Out]] =
+    ZIO.serviceWithZIO(_.driver(schedule))
 
-  def instant(implicit trace: ZTraceElement): ZIO[Has[Clock], Nothing, java.time.Instant] =
-    ZIO.serviceWith(_.instant)
+  def instant(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.Instant] =
+    ZIO.serviceWithZIO(_.instant)
 
-  def localDateTime(implicit trace: ZTraceElement): ZIO[Has[Clock], Nothing, java.time.LocalDateTime] =
-    ZIO.serviceWith(_.localDateTime)
+  def localDateTime(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.LocalDateTime] =
+    ZIO.serviceWithZIO(_.localDateTime)
 
   /**
    * Returns the system nano time, which is not relative to any date.
    */
-  def nanoTime(implicit trace: ZTraceElement): URIO[Has[Clock], Long] =
-    ZIO.serviceWith(_.nanoTime)
+  def nanoTime(implicit trace: ZTraceElement): URIO[Clock, Long] =
+    ZIO.serviceWithZIO(_.nanoTime)
 
   /**
    * Returns a new effect that repeats this effect according to the specified
    * schedule or until the first failure. Scheduled recurrences are in addition
-   * to the first execution, so that `io.repeat(Schedule.once)` yields an
-   * effect that executes `io`, and then if that succeeds, executes `io` an
-   * additional time.
+   * to the first execution, so that `io.repeat(Schedule.once)` yields an effect
+   * that executes `io`, and then if that succeeds, executes `io` an additional
+   * time.
    */
   def repeat[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, A, B]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Has[Clock], E, B] =
-    ZIO.accessZIO(_.get.repeat(zio)(schedule))
+  )(implicit trace: ZTraceElement): ZIO[R1 with Clock, E, B] =
+    ZIO.serviceWithZIO[Clock](_.repeat(zio)(schedule))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
-   * schedule or until the first failure, at which point, the failure value
-   * and schedule output are passed to the specified handler.
+   * schedule or until the first failure, at which point, the failure value and
+   * schedule output are passed to the specified handler.
    *
    * Scheduled recurrences are in addition to the first execution, so that
-   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then
-   * if that succeeds, executes `io` an additional time.
+   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then if
+   * that succeeds, executes `io` an additional time.
    */
   final def repeatOrElse[R, R1 <: R, E, E2, A, B](
     zio: => ZIO[R, E, A]
   )(schedule: => Schedule[R1, A, B], orElse: (E, Option[B]) => ZIO[R1, E2, B])(implicit
     trace: ZTraceElement
-  ): ZIO[R1 with Has[Clock], E2, B] =
-    ZIO.accessZIO(_.get.repeatOrElse(zio)(schedule, orElse))
+  ): ZIO[R1 with Clock, E2, B] =
+    ZIO.serviceWithZIO[Clock](_.repeatOrElse(zio)(schedule, orElse))
 
   /**
    * Returns a new effect that repeats this effect according to the specified
-   * schedule or until the first failure, at which point, the failure value
-   * and schedule output are passed to the specified handler.
+   * schedule or until the first failure, at which point, the failure value and
+   * schedule output are passed to the specified handler.
    *
    * Scheduled recurrences are in addition to the first execution, so that
-   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then
-   * if that succeeds, executes `io` an additional time.
+   * `io.repeat(Schedule.once)` yields an effect that executes `io`, and then if
+   * that succeeds, executes `io` an additional time.
    */
   final def repeatOrElseEither[R, R1 <: R, E, E2, A, B, C](
     zio: => ZIO[R, E, A]
   )(
     schedule: => Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Has[Clock], E2, Either[C, B]] =
-    ZIO.accessZIO(_.get.repeatOrElseEither(zio)(schedule, orElse))
+  )(implicit trace: ZTraceElement): ZIO[R1 with Clock, E2, Either[C, B]] =
+    ZIO.serviceWithZIO[Clock](_.repeatOrElseEither(zio)(schedule, orElse))
 
   /**
-   * Retries with the specified retry policy.
-   * Retries are done following the failure of the original `io` (up to a fixed maximum with
-   * `once` or `recurs` for example), so that that `io.retry(Schedule.once)` means
-   * "execute `io` and in case of failure, try again once".
+   * Retries with the specified retry policy. Retries are done following the
+   * failure of the original `io` (up to a fixed maximum with `once` or `recurs`
+   * for example), so that that `io.retry(Schedule.once)` means "execute `io`
+   * and in case of failure, try again once".
    */
   final def retry[R, R1 <: R, E, A, S](zio: => ZIO[R, E, A])(policy: => Schedule[R1, E, S])(implicit
     ev: CanFail[E],
     trace: ZTraceElement
-  ): ZIO[R1 with Has[Clock], E, A] =
-    ZIO.accessZIO(_.get.retry(zio)(policy))
+  ): ZIO[R1 with Clock, E, A] =
+    ZIO.serviceWithZIO[Clock](_.retry(zio)(policy))
 
   /**
    * Retries with the specified schedule, until it fails, and then both the
@@ -359,19 +361,20 @@ object Clock extends ClockPlatformSpecific with Serializable {
   final def retryOrElse[R, R1 <: R, E, E1, A, A1 >: A, S](zio: => ZIO[R, E, A])(
     policy: => Schedule[R1, E, S],
     orElse: (E, S) => ZIO[R1, E1, A1]
-  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1 with Has[Clock], E1, A1] =
-    ZIO.accessZIO(_.get.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1 with Clock, E1, A1] =
+    ZIO.serviceWithZIO[Clock](_.retryOrElse[R, R1, E, E1, A, A1, S](zio)(policy, orElse))
 
   /**
-   * Returns an effect that retries this effect with the specified schedule when it fails, until
-   * the schedule is done, then both the value produced by the schedule together with the last
-   * error are passed to the specified recovery function.
+   * Returns an effect that retries this effect with the specified schedule when
+   * it fails, until the schedule is done, then both the value produced by the
+   * schedule together with the last error are passed to the specified recovery
+   * function.
    */
   final def retryOrElseEither[R, R1 <: R, E, E1, A, B, Out](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, E, Out],
     orElse: (E, Out) => ZIO[R1, E1, B]
-  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1 with Has[Clock], E1, Either[B, A]] =
-    ZIO.accessZIO(_.get.retryOrElseEither(zio)(schedule, orElse))
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1 with Clock, E1, Either[B, A]] =
+    ZIO.serviceWithZIO[Clock](_.retryOrElseEither(zio)(schedule, orElse))
 
   /**
    * Runs this effect according to the specified schedule.
@@ -381,8 +384,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
    */
   final def schedule[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(
     schedule: => Schedule[R1, Any, B]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Has[Clock], E, B] =
-    ZIO.accessZIO(_.get.schedule(zio)(schedule))
+  )(implicit trace: ZTraceElement): ZIO[R1 with Clock, E, B] =
+    ZIO.serviceWithZIO[Clock](_.schedule(zio)(schedule))
 
   /**
    * Runs this effect according to the specified schedule starting from the
@@ -390,19 +393,19 @@ object Clock extends ClockPlatformSpecific with Serializable {
    */
   final def scheduleFrom[R, R1 <: R, E, A, A1 >: A, B](
     zio: => ZIO[R, E, A]
-  )(a: => A1)(schedule: => Schedule[R1, A1, B])(implicit trace: ZTraceElement): ZIO[R1 with Has[Clock], E, B] =
-    ZIO.accessZIO(_.get.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
+  )(a: => A1)(schedule: => Schedule[R1, A1, B])(implicit trace: ZTraceElement): ZIO[R1 with Clock, E, B] =
+    ZIO.serviceWithZIO[Clock](_.scheduleFrom[R, R1, E, A, A1, B](zio)(a)(schedule))
 
   /**
    * Returns the scheduler used for scheduling effects.
    */
-  def scheduler(implicit trace: ZTraceElement): URIO[Has[Clock], Scheduler] =
-    ZIO.serviceWith(_.scheduler)
+  def scheduler(implicit trace: ZTraceElement): URIO[Clock, Scheduler] =
+    ZIO.serviceWithZIO(_.scheduler)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  def sleep(duration: => Duration)(implicit trace: ZTraceElement): URIO[Has[Clock], Unit] =
-    ZIO.serviceWith(_.sleep(duration))
+  def sleep(duration: => Duration)(implicit trace: ZTraceElement): URIO[Clock, Unit] =
+    ZIO.serviceWithZIO(_.sleep(duration))
 
 }

@@ -4,14 +4,13 @@ import zio.ZQueueSpecUtil._
 import zio.test.Assertion._
 import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
-import zio.test.environment.Live
 
 import scala.collection.immutable.Range
 
 object ZQueueSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZQueueSpec")(
+  def spec = suite("ZQueueSpec")(
     test("sequential offer and take") {
       for {
         queue <- Queue.bounded[Int](100)
@@ -858,12 +857,12 @@ object ZQueueSpec extends ZIOBaseSpec {
 }
 
 object ZQueueSpecUtil {
-  def waitForValue[T](ref: UIO[T], value: T): URIO[Has[Live], T] =
+  def waitForValue[T](ref: UIO[T], value: T): URIO[Live, T] =
     Live.live((ref <* Clock.sleep(10.millis)).repeatUntil(_ == value))
 
-  def waitForSize[RA, EA, RB, EB, A, B](queue: ZQueue[RA, EA, RB, EB, A, B], size: Int): URIO[Has[Live], Int] =
+  def waitForSize[RA, EA, RB, EB, A, B](queue: ZQueue[RA, EA, RB, EB, A, B], size: Int): URIO[Live, Int] =
     waitForValue(queue.size, size)
 
-  val smallInt: Gen[Has[Random] with Has[Sized], Int] =
+  val smallInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_), 1)
 }

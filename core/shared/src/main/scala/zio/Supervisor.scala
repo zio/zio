@@ -36,16 +36,16 @@ abstract class Supervisor[+A] { self =>
     new Supervisor.ProxySupervisor(trace => value(trace).map(f)(trace), self)
 
   /**
-   * Returns an effect that succeeds with the value produced by this
-   * supervisor. This value may change over time, reflecting what the
-   * supervisor produces as it supervises fibers.
+   * Returns an effect that succeeds with the value produced by this supervisor.
+   * This value may change over time, reflecting what the supervisor produces as
+   * it supervises fibers.
    */
   def value(implicit trace: ZTraceElement): UIO[A]
 
   /**
-   * Returns a new supervisor that performs the function of this supervisor,
-   * and the function of the specified supervisor, producing a tuple of the
-   * outputs produced by both supervisors.
+   * Returns a new supervisor that performs the function of this supervisor, and
+   * the function of the specified supervisor, producing a tuple of the outputs
+   * produced by both supervisors.
    */
   final def ++[B](that0: Supervisor[B]): Supervisor[(A, B)] =
     new Supervisor[(A, B)] {
@@ -54,7 +54,7 @@ abstract class Supervisor[+A] { self =>
       def value(implicit trace: ZTraceElement) = self.value zip that.value
 
       def unsafeOnStart[R, E, A](
-        environment: R,
+        environment: ZEnvironment[R],
         effect: ZIO[R, E, A],
         parent: Option[Fiber.Runtime[Any, Any]],
         fiber: Fiber.Runtime[E, A]
@@ -84,7 +84,7 @@ abstract class Supervisor[+A] { self =>
     }
 
   private[zio] def unsafeOnStart[R, E, A](
-    environment: R,
+    environment: ZEnvironment[R],
     effect: ZIO[R, E, A],
     parent: Option[Fiber.Runtime[Any, Any]],
     fiber: Fiber.Runtime[E, A]
@@ -104,8 +104,9 @@ object Supervisor {
   /**
    * Creates a new supervisor that tracks children in a set.
    *
-   * @param weak Whether or not to track the children in a weak set, if
-   *             possible (platform-dependent).
+   * @param weak
+   *   Whether or not to track the children in a weak set, if possible
+   *   (platform-dependent).
    */
   def track(weak: Boolean)(implicit trace: ZTraceElement): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] =
     ZIO.succeed(unsafeTrack(weak))
@@ -128,7 +129,7 @@ object Supervisor {
           ZIO.succeed(ref.get)
 
         def unsafeOnStart[R, E, A](
-          environment: R,
+          environment: ZEnvironment[R],
           effect: ZIO[R, E, A],
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
@@ -159,7 +160,7 @@ object Supervisor {
     def value(implicit trace: ZTraceElement): UIO[A] = value0(trace)
 
     def unsafeOnStart[R, E, A](
-      environment: R,
+      environment: ZEnvironment[R],
       effect: ZIO[R, E, A],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, A]
@@ -180,7 +181,7 @@ object Supervisor {
         )
 
       def unsafeOnStart[R, E, A](
-        environment: R,
+        environment: ZEnvironment[R],
         effect: ZIO[R, E, A],
         parent: Option[Fiber.Runtime[Any, Any]],
         fiber: Fiber.Runtime[E, A]
@@ -200,7 +201,7 @@ object Supervisor {
     def value(implicit trace: ZTraceElement): UIO[A] = value0(trace)
 
     def unsafeOnStart[R, E, A](
-      environment: R,
+      environment: ZEnvironment[R],
       effect: ZIO[R, E, A],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, A]

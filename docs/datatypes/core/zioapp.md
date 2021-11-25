@@ -111,4 +111,4 @@ object MyApp2 extends ZIOAppDefault {
 object Main extends ZIOApp.Proxy(MyApp1 <> MyApp2)
 ```
 
-The `<>` operator combines the two layers of applications, composes their hooks, and then runs the two applications in parallel.
+The `<>` operator combines the layers of the two applications, composes their hooks, and then runs the two applications in parallel.

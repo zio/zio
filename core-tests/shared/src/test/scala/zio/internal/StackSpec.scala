@@ -3,11 +3,11 @@ package zio.internal
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.TestAspect._
-import zio.{Has, Random, ZIOBaseSpec}
+import zio.{Random, ZIOBaseSpec}
 
 object StackSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("StackSpec")(
+  def spec = suite("StackSpec")(
     test("Size tracking") {
       checkAll(gen)(list => assert(Stack.fromIterable(list).size)(equalTo(list.length)))
     },
@@ -72,6 +72,6 @@ object StackSpec extends ZIOBaseSpec {
   case object True  extends Boolean
   case object False extends Boolean
 
-  val gen: Gen[Has[Random] with Has[Sized], List[Boolean]] =
+  val gen: Gen[Random with Sized, List[Boolean]] =
     Gen.large(n => Gen.listOfN(n)(Gen.elements(True, False)))
 }

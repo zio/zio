@@ -28,11 +28,17 @@ trait Thread extends JvmMetrics {
       _.toDouble
     ) // NOTE: this is a counter in the prometheus hotspot library (but explicitly set to an actual value)
 
-  /** Cycles of JVM-threads that are in deadlock waiting to acquire object monitors or ownable synchronizers */
+  /**
+   * Cycles of JVM-threads that are in deadlock waiting to acquire object
+   * monitors or ownable synchronizers
+   */
   private val threadsDeadlocked: Gauge[Int] =
     ZIOMetric.setGaugeWith("jvm_threads_deadlocked")(_.toDouble)
 
-  /** Cycles of JVM-threads that are in deadlock waiting to acquire object monitors */
+  /**
+   * Cycles of JVM-threads that are in deadlock waiting to acquire object
+   * monitors
+   */
   private val threadsDeadlockedMonitor: Gauge[Int] =
     ZIOMetric.setGaugeWith("jvm_threads_deadlocked_monitor")(_.toDouble)
 
@@ -73,7 +79,7 @@ trait Thread extends JvmMetrics {
            }
     } yield ()
 
-  override def collectMetrics(implicit trace: ZTraceElement): ZManaged[Has[Clock] with Has[System], Throwable, Thread] =
+  override def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock with System, Throwable, Thread] =
     for {
       threadMXBean <- Task(ManagementFactory.getThreadMXBean).toManaged
       _ <-

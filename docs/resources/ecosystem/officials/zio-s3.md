@@ -52,7 +52,7 @@ object ZIOS3Example extends zio.App {
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
     myApp
-      .provideCustomLayer(
+      .provideCustom(
         live(
           Region.CA_CENTRAL_1,
           AwsBasicCredentials.create("MyKey", "MySecret"),

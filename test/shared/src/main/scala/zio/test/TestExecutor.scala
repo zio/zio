@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ExecutionStrategy, Has, Layer, UIO, ZIO, ZManaged, ZTraceElement}
+import zio.{ExecutionStrategy, Layer, UIO, ZIO, ZManaged, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -29,12 +29,12 @@ abstract class TestExecutor[+R, E] {
 }
 
 object TestExecutor {
-  def default[R <: Has[Annotations], E](
+  def default[R <: Annotations, E](
     env: Layer[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]] =
       spec.annotated
-        .provideLayer(environment)
+        .provide(environment)
         .foreachExec(defExec)(
           e =>
             e.failureOrCause.fold(
@@ -59,6 +59,7 @@ object TestExecutor {
               ExecutedSpec.test(result, staticAnnotations ++ dynamicAnnotations)
             }.toManaged
         }.useNow)
+
     val environment = env
   }
 }

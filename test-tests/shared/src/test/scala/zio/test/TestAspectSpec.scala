@@ -4,7 +4,6 @@ import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestUtils._
-import zio.test.environment.TestRandom
 
 import scala.reflect.ClassTag
 
@@ -230,6 +229,17 @@ object TestAspectSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("fail"))(anything)
       } @@ nonTermination(1.minute) @@ failing
     ),
+    test("provide provides a test with its required environment") {
+      for {
+        time <- Clock.nanoTime
+      } yield assert(time)(isGreaterThan(0L))
+    } @@ provide(Clock.live),
+    test("provideCustom provides a test with part of its required environment") {
+      for {
+        time <- Clock.nanoTime
+        _    <- Random.nextInt
+      } yield assert(time)(isGreaterThan(0L))
+    } @@ provideCustom(Clock.live),
     test("repeats sets the number of times to repeat a test to the specified value") {
       for {
         ref   <- Ref.make(0)

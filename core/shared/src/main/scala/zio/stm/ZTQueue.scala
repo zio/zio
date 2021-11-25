@@ -25,8 +25,8 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   def isShutdown: USTM[Boolean]
 
   /**
-   * Offers a value to the queue, returning whether the value was offered to
-   * the queue.
+   * Offers a value to the queue, returning whether the value was offered to the
+   * queue.
    */
   def offer(a: A): ZSTM[RA, EA, Boolean]
 
@@ -267,10 +267,9 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     take.flatMap(b => if (f(b)) ZSTM.succeedNow(b) else seek(f))
 
   /**
-   * Takes a number of elements from the queue between the specified minimum
-   * and maximum. If there are fewer than the minimum number of elements
-   * available, retries until at least the minimum number of elements have been
-   * collected.
+   * Takes a number of elements from the queue between the specified minimum and
+   * maximum. If there are fewer than the minimum number of elements available,
+   * retries until at least the minimum number of elements have been collected.
    */
   final def takeBetween(min: Int, max: Int): ZSTM[RB, EB, Chunk[B]] =
     ZSTM.suspend {
@@ -316,8 +315,8 @@ object ZTQueue {
     makeQueue(requestedCapacity, Strategy.BackPressure)
 
   /**
-   * Creates a bounded queue with the dropping strategy. The queue will drop
-   * new values if the queue is at capacity.
+   * Creates a bounded queue with the dropping strategy. The queue will drop new
+   * values if the queue is at capacity.
    *
    * For best performance use capacities that are powers of two.
    */
@@ -465,8 +464,8 @@ object ZTQueue {
     }
 
   /**
-   * A `Strategy` describes how the queue will handle values if the queue is
-   * at capacity.
+   * A `Strategy` describes how the queue will handle values if the queue is at
+   * capacity.
    */
   private sealed trait Strategy
 

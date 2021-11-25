@@ -24,7 +24,7 @@ object BuildHelper {
   val Scala213: String = versions("2.13")
   val Scala3: String   = versions("3")
 
-  val SilencerVersion = "1.7.6"
+  val SilencerVersion = "1.7.7"
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -102,7 +102,7 @@ object BuildHelper {
        |import zio.Console._
        |import 
        |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provideLayer(ZEnv.live)) }
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provide(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -113,7 +113,7 @@ object BuildHelper {
        |import 
        |import zio.stream._
        |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provideLayer(ZEnv.live)) }
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provide(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -137,7 +137,7 @@ object BuildHelper {
 
   def extraOptions(scalaVersion: String, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
-      case Some((3, 0)) =>
+      case Some((3, _)) =>
         Seq(
           "-language:implicitConversions",
           "-Xignore-scala2-macros"
@@ -226,7 +226,7 @@ object BuildHelper {
 
   def stdSettings(prjName: String) = Seq(
     name                     := s"$prjName",
-    crossScalaVersions       := Seq(Scala211, Scala212, Scala213),
+    crossScalaVersions       := Seq(Scala211, Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion := Scala213,
     scalacOptions ++= stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
     libraryDependencies ++= {
@@ -277,7 +277,8 @@ object BuildHelper {
   def nativeSettings = Seq(
     Test / test             := (Test / compile).value,
     doc / skip              := true,
-    Compile / doc / sources := Seq.empty
+    Compile / doc / sources := Seq.empty,
+    crossScalaVersions -= Scala3
   )
 
   def welcomeMessage = onLoadMessage := {

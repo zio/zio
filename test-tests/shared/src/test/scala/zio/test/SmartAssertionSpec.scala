@@ -1,8 +1,7 @@
 package zio.test
 
 import zio.test.SmartTestTypes._
-import zio.test.environment.TestClock
-import zio.{Chunk, NonEmptyChunk, durationInt}
+import zio._
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -14,7 +13,15 @@ object SmartAssertionSpec extends ZIOBaseSpec {
    * Switch TestAspect.failing to TestAspect.identity to easily preview
    * the error messages.
    */
-  val failing: TestAspectPoly = TestAspect.failing
+  val failing: TestAspect.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ] =
+    TestAspect.failing
 
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
@@ -356,6 +363,89 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         assertTrue(res.asInstanceOf[Red].foo > 10)
       } @@ failing
     ),
+    suite("is")(
+      test("Some") {
+        val option: Option[Option[Int]] = Some(None)
+        assertTrue(option.is(_.some.some) == 19)
+      },
+      test("Some Some") {
+        val option: Option[Option[Int]] = Some(Some(39))
+        assertTrue(option.is(_.some.some) == 19)
+      },
+      test("Some Right") {
+        val option: Option[Either[String, Int]] = Some(Right(34))
+        assertTrue(option.is(_.some.right) == 18)
+      },
+      test("Some Left") {
+        val option: Option[Either[String, Int]] = Some(Left("Howdy"))
+        assertTrue(option.is(_.some.right) == 18)
+      },
+      test("Some Left") {
+        val option: Option[Either[String, Int]] = Some(Left("Howdy"))
+        assertTrue(option.is(_.some.left) == "Howddy")
+      },
+      suite("Cause")(
+        test("die") {
+          val cause: Cause[Int] = Cause.die(new Error("OOPS"))
+          assertTrue(cause.is(_.die) == new Error("HI"))
+        },
+        test("fail") {
+          val cause: Cause[String] = Cause.fail("OOPS")
+          assertTrue(cause.is(_.failure) == "UH OH")
+        },
+        test("interrupted") {
+          val cause: Cause[Int] = Cause.interrupt(FiberId(123, 1))
+          assertTrue(!cause.is(_.interrupted))
+        }
+      ),
+      suite("Exit")(
+        test("die") {
+          val exit: Exit[Int, String] = Exit.die(new Error("OOPS"))
+          assertTrue(exit.is(_.die) == new Error("HI"))
+        },
+        test("fail") {
+          val exit: Exit[Int, String] = Exit.fail(123)
+          assertTrue(exit.is(_.failure) == 88)
+        },
+        test("interrupted") {
+          val exit: Exit[Int, String] = Exit.interrupt(FiberId(123, 1))
+          assertTrue(!exit.is(_.interrupted))
+        },
+        test("success") {
+          val exit: Exit[Int, String] = Exit.succeed("Yes")
+          assertTrue(exit.is(_.success) == "No")
+        }
+      ),
+      suite("subtype")(
+        test("success") {
+          val option: Option[Color] = Option(Blue("hello"))
+          assertTrue(option.is(_.some.subtype[Red]).foo == 188)
+        }
+      )
+    ) @@ failing,
+    suite("is anything")(
+      test("success") {
+        val opt: Option[Int] = Option(1)
+        assertTrue(opt.is(_.some.anything))
+      },
+      test("failure") {
+        val opt: Option[Int] = None
+        assertTrue(opt.is(_.some.anything))
+      } @@ failing
+    ),
+    suite("is custom assertions")(
+      test("success") {
+        val opt: Option[Either[Int, Color]] = Option(Right(Blue("hello")))
+
+        val colorAssertion: CustomAssertion[Color, Red] =
+          CustomAssertion.make[Color] {
+            case Red(foo) => Right(Red(foo))
+            case _        => Left("Cannot be Blue")
+          }
+
+        assertTrue(opt.is(_.some.right.custom(colorAssertion)).foo == 14)
+      }
+    ) @@ failing,
     suite("Map")(
       suite(".apply")(
         test("success") {
@@ -397,16 +487,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     )
   )
 
-  // The implicit SourceLocation will be used by assertTrue to report the
+  // The implicit trace will be used by assertTrue to report the
   // actual location.
-  def customAssertion(string: String)(implicit sourceLocation: SourceLocation): Assert =
+  def customAssertion(string: String)(implicit trace: ZTraceElement): Assert =
     assertTrue(string == "coool")
 
   // Test Types
-  private sealed trait Color
-  private final case class Red(foo: Int)     extends Color
-  private final case class Blue(bar: String) extends Color
+  sealed private trait Color
+  final private case class Red(foo: Int)     extends Color
+  final private case class Blue(bar: String) extends Color
 
-  private final case class MyClass(name: String)
-  private final case class OtherClass(name: String)
+  final private case class MyClass(name: String)
+  final private case class OtherClass(name: String)
 }

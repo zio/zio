@@ -16,10 +16,10 @@
 
 package zio
 
+import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
-import zio.test.environment._
 
 import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.language.implicitConversions
@@ -35,42 +35,80 @@ import scala.util.Try
  * combinators.
  *
  * {{{
- *  import zio.test._
- *  import zio.test.environment.Live
- *  import zio.Clock.nanoTime
- *  import Assertion.isGreaterThan
+ *   import zio.test._
+ *   import zio.Clock.nanoTime
+ *   import Assertion.isGreaterThan
  *
- *  object MyTest extends DefaultRunnableSpec {
- *    def spec = suite("clock")(
- *      test("time is non-zero") {
- *        for {
- *          time <- Live.live(nanoTime)
- *        } yield assertTrue(time >= 0)
- *      }
- *    )
- *  }
+ *   object MyTest extends DefaultRunnableSpec {
+ *     def spec = suite("clock")(
+ *       test("time is non-zero") {
+ *         for {
+ *           time <- Live.live(nanoTime)
+ *         } yield assertTrue(time >= 0)
+ *       }
+ *     )
+ *   }
  * }}}
  */
 package object test extends CompileVariants {
   type AssertResultM = BoolAlgebraM[Any, Nothing, AssertionValue]
   type AssertResult  = BoolAlgebra[AssertionValue]
 
-  /**
-   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in its environment.
-   */
-  type TestAspectAtLeastR[R] = TestAspect[Nothing, R, Nothing, Any]
+  type TestEnvironment =
+    Annotations with Live with Sized with TestClock with TestConfig with TestConsole with TestRandom with TestSystem
+
+  object TestEnvironment {
+    val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
+      ZLayer.environment[TestEnvironment](Tracer.newTrace)
+    val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
+      implicit val trace = Tracer.newTrace
+      Annotations.live ++
+        Live.default ++
+        Sized.live(100) ++
+        ((Live.default ++ Annotations.live) >>> TestClock.default) ++
+        TestConfig.live(100, 100, 200, 1000) ++
+        (Live.default >>> TestConsole.debug) ++
+        TestRandom.deterministic ++
+        TestSystem.default
+    }
+  }
+
+  val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
+
+  val testEnvironment: Layer[Nothing, TestEnvironment] = {
+    implicit val trace = Tracer.newTrace
+    ZEnv.live >>> TestEnvironment.live
+  }
 
   /**
-   * A `TestAspectPoly` is a `TestAspect` that is completely polymorphic,
-   * having no requirements on error or environment.
+   * Provides an effect with the "real" environment as opposed to the test
+   * environment. This is useful for performing effects such as timing out
+   * tests, accessing the real time, or printing to the real console.
    */
-  type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
+  def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Live, E, A] =
+    Live.live(zio)
+
+  /**
+   * Transforms this effect with the specified function. The test environment
+   * will be provided to this effect, but the live environment will be provided
+   * to the transformation function. This can be useful for applying
+   * transformations to an effect that require access to the "real" environment
+   * while ensuring that the effect itself uses the test environment.
+   *
+   * {{{
+   *   withLive(test)(_.timeout(duration))
+   * }}}
+   */
+  def withLive[R, E, E1, A, B](
+    zio: ZIO[R, E, A]
+  )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R with Live, E1, B] =
+    Live.withLive(zio)(f)
 
   type TestResult = BoolAlgebra[AssertionResult]
 
   object TestResult {
     implicit def trace2TestResult(assert: Assert): TestResult = {
-      val trace = Arrow.run(assert.arrow, Right(()))
+      val trace = TestArrow.run(assert.arrow, Right(()))
       if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
       else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
     }
@@ -80,7 +118,7 @@ package object test extends CompileVariants {
    * A `TestReporter[E]` is capable of reporting test results with error type
    * `E`.
    */
-  type TestReporter[-E] = (Duration, ExecutedSpec[E]) => URIO[Has[TestLogger], Unit]
+  type TestReporter[-E] = (Duration, ExecutedSpec[E]) => URIO[TestLogger, Unit]
 
   object TestReporter {
 
@@ -91,10 +129,11 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `ZRTestEnv` is an alias for all ZIO provided [[zio.test.environment.Restorable Restorable]]
-   * [[zio.test.environment.TestEnvironment TestEnvironment]] objects
+   * A `ZRTestEnv` is an alias for all ZIO provided
+   * [[zio.test.Restorable Restorable]]
+   * [[zio.test.TestEnvironment TestEnvironment]] objects
    */
-  type ZTestEnv = Has[TestClock] with Has[TestConsole] with Has[TestRandom] with Has[TestSystem]
+  type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
 
   /**
    * A `ZTest[R, E]` is an effectfully produced test that requires an `R` and
@@ -123,8 +162,13 @@ package object test extends CompileVariants {
                 "Make sure you are not forking a fiber in an " +
                 "uninterruptible region."
             for {
-              fiber <- ZIO.logWarning(warning).delay(10.seconds).provide(Has(Clock.ClockLive)).interruptible.forkDaemon
-              _     <- (child.interrupt *> fiber.interrupt).forkDaemon
+              fiber <- ZIO
+                         .logWarning(warning)
+                         .delay(10.seconds)
+                         .provideEnvironment(ZEnvironment(Clock.ClockLive))
+                         .interruptible
+                         .forkDaemon
+              _ <- (child.interrupt *> fiber.interrupt).forkDaemon
             } yield ()
           }
         }
@@ -144,8 +188,8 @@ package object test extends CompileVariants {
   type ZSpec[-R, +E] = Spec[R, TestFailure[E], TestSuccess]
 
   /**
-   * An `Annotated[A]` contains a value of type `A` along with zero or more
-   * test annotations.
+   * An `Annotated[A]` contains a value of type `A` along with zero or more test
+   * annotations.
    */
   type Annotated[+A] = (A, TestAnnotationMap)
 
@@ -153,9 +197,12 @@ package object test extends CompileVariants {
     value: => A,
     assertResult: AssertResult,
     assertion: AssertionM[A],
-    expression: Option[String],
-    sourceLocation: Option[String]
-  ): TestResult =
+    expression: Option[String]
+  )(implicit trace: ZTraceElement): TestResult = {
+    val sourceLocation = Option(trace).collect { case ZTraceElement(_, file, line) =>
+      s"$file:$line"
+    }
+
     assertResult.flatMap { fragment =>
       def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
         if (whole.sameAssertion(failureDetails.assertion.head))
@@ -173,19 +220,17 @@ package object test extends CompileVariants {
         FailureDetails(::(AssertionValue(assertion, value, assertResult, expression, sourceLocation), Nil))
       )
     }
+  }
 
   /**
    * Checks the assertion holds for the given value.
    */
   override private[test] def assertImpl[A](
     value: => A,
-    expression: Option[String] = None,
-    sourceLocation: Option[String] = None
-  )(
-    assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): TestResult = {
+    expression: Option[String] = None
+  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult = {
     lazy val tryValue = Try(value)
-    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression, sourceLocation)
+    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression)
   }
 
   /**
@@ -203,19 +248,19 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A], sourceLocation: Option[String] = None)(
+  override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
     assertion: AssertionM[A]
   )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
     for {
       value        <- effect
       assertResult <- assertion.runM(value).run
-    } yield traverseResult(value, assertResult, assertion, None, sourceLocation)
+    } yield traverseResult(value, assertResult, assertion, None)
 
   /**
-   * Checks the test passes for "sufficient" numbers of samples from the
-   * given random variable.
+   * Checks the test passes for "sufficient" numbers of samples from the given
+   * random variable.
    */
-  def check[R <: Has[TestConfig], A, In](rv: Gen[R, A])(test: A => In)(implicit
+  def check[R <: TestConfig, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
     trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
@@ -226,7 +271,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts two random variables.
    */
-  def check[R <: Has[TestConfig], A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
+  def check[R <: TestConfig, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -237,7 +282,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts three random variables.
    */
-  def check[R <: Has[TestConfig], A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+  def check[R <: TestConfig, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -248,7 +293,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts four random variables.
    */
-  def check[R <: Has[TestConfig], A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+  def check[R <: TestConfig, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -259,7 +304,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts five random variables.
    */
-  def check[R <: Has[TestConfig], A, B, C, D, F, In](
+  def check[R <: TestConfig, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -276,7 +321,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts six random variables.
    */
-  def check[R <: Has[TestConfig], A, B, C, D, F, G, In](
+  def check[R <: TestConfig, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -296,7 +341,7 @@ package object test extends CompileVariants {
    * the given random variable.
    */
   @deprecated("use check", "2.0.0")
-  def checkM[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A])(
+  def checkM[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A])(
     test: A => ZIO[R1, E, TestResult]
   )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     TestConfig.samples.flatMap(checkNM(_)(rv)(test))
@@ -305,7 +350,7 @@ package object test extends CompileVariants {
    * A version of `checkM` that accepts two random variables.
    */
   @deprecated("use check", "2.0.0")
-  def checkM[R <: Has[TestConfig], R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+  def checkM[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => ZIO[R1, E, TestResult]
   )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2)(test.tupled)
@@ -314,7 +359,7 @@ package object test extends CompileVariants {
    * A version of `checkM` that accepts three random variables.
    */
   @deprecated("use check", "2.0.0")
-  def checkM[R <: Has[TestConfig], R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+  def checkM[R <: TestConfig, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => ZIO[R1, E, TestResult]
   )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkM(rv1 <*> rv2 <*> rv3)(test.tupled)
@@ -323,7 +368,7 @@ package object test extends CompileVariants {
    * A version of `checkM` that accepts four random variables.
    */
   @deprecated("use check", "2.0.0")
-  def checkM[R <: Has[TestConfig], R1 <: R, E, A, B, C, D](
+  def checkM[R <: TestConfig, R1 <: R, E, A, B, C, D](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -337,7 +382,7 @@ package object test extends CompileVariants {
    * A version of `checkM` that accepts five random variables.
    */
   @deprecated("use check", "2.0.0")
-  def checkM[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F](
+  def checkM[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -352,7 +397,7 @@ package object test extends CompileVariants {
    * A version of `checkM` that accepts six random variables.
    */
   @deprecated("use check", "2.0.0")
-  def checkM[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F, G](
+  def checkM[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -369,7 +414,7 @@ package object test extends CompileVariants {
    * is useful for deterministic `Gen` that comprehensively explore all
    * possibilities in a given domain.
    */
-  def checkAll[R <: Has[TestConfig], A, In](rv: Gen[R, A])(test: A => In)(implicit
+  def checkAll[R <: TestConfig, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
     trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
@@ -378,7 +423,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts two random variables.
    */
-  def checkAll[R <: Has[TestConfig], A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
+  def checkAll[R <: TestConfig, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -389,7 +434,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts three random variables.
    */
-  def checkAll[R <: Has[TestConfig], A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+  def checkAll[R <: TestConfig, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -400,7 +445,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts four random variables.
    */
-  def checkAll[R <: Has[TestConfig], A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+  def checkAll[R <: TestConfig, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -411,7 +456,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts five random variables.
    */
-  def checkAll[R <: Has[TestConfig], A, B, C, D, F, In](
+  def checkAll[R <: TestConfig, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -428,7 +473,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts six random variables.
    */
-  def checkAll[R <: Has[TestConfig], A, B, C, D, F, G, In](
+  def checkAll[R <: TestConfig, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -449,7 +494,7 @@ package object test extends CompileVariants {
    * explore all possibilities in a given domain.
    */
   @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: Has[TestConfig], R1 <: R, E, A](
+  def checkAllM[R <: TestConfig, R1 <: R, E, A](
     rv: Gen[R, A]
   )(test: A => ZIO[R1, E, TestResult])(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkStream(rv.sample.collectSome)(test)
@@ -458,7 +503,7 @@ package object test extends CompileVariants {
    * A version of `checkAllM` that accepts two random variables.
    */
   @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: Has[TestConfig], R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+  def checkAllM[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => ZIO[R1, E, TestResult]
   )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2)(test.tupled)
@@ -467,7 +512,7 @@ package object test extends CompileVariants {
    * A version of `checkAllM` that accepts three random variables.
    */
   @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: Has[TestConfig], R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => ZIO[R1, E, TestResult]
   )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3)(test.tupled)
@@ -476,7 +521,7 @@ package object test extends CompileVariants {
    * A version of `checkAllM` that accepts four random variables.
    */
   @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: Has[TestConfig], R1 <: R, E, A, B, C, D](
+  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C, D](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -490,7 +535,7 @@ package object test extends CompileVariants {
    * A version of `checkAllM` that accepts five random variables.
    */
   @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F](
+  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -505,7 +550,7 @@ package object test extends CompileVariants {
    * A version of `checkAllM` that accepts six random variables.
    */
   @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F, G](
+  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -518,12 +563,12 @@ package object test extends CompileVariants {
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
-   * Checks in parallel the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
+   * Checks in parallel the effectual test passes for all values from the given
+   * random variable. This is useful for deterministic `Gen` that
+   * comprehensively explore all possibilities in a given domain.
    */
   @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
   )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkStreamPar(rv.sample.collectSome, parallelism)(test)
@@ -532,7 +577,7 @@ package object test extends CompileVariants {
    * A version of `checkAllMPar` that accepts two random variables.
    */
   @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
     test: (A, B) => ZIO[R1, E, TestResult]
   )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
     checkAllMPar(rv1 <*> rv2, parallelism)(test.tupled)
@@ -541,7 +586,7 @@ package object test extends CompileVariants {
    * A version of `checkAllMPar` that accepts three random variables.
    */
   @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A, B, C](
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -555,7 +600,7 @@ package object test extends CompileVariants {
    * A version of `checkAllMPar` that accepts four random variables.
    */
   @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A, B, C, D](
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C, D](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -570,7 +615,7 @@ package object test extends CompileVariants {
    * A version of `checkAllMPar` that accepts five random variables.
    */
   @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F](
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -586,7 +631,7 @@ package object test extends CompileVariants {
    * A version of `checkAllMPar` that accepts six random variables.
    */
   @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F, G](
+  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -600,11 +645,11 @@ package object test extends CompileVariants {
     checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(test.tupled)
 
   /**
-   * Checks in parallel the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
+   * Checks in parallel the effectual test passes for all values from the given
+   * random variable. This is useful for deterministic `Gen` that
+   * comprehensively explore all possibilities in a given domain.
    */
-  def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, In](rv: Gen[R, A], parallelism: Int)(
+  def checkAllPar[R <: TestConfig, R1 <: R, E, A, In](rv: Gen[R, A], parallelism: Int)(
     test: A => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -615,7 +660,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllMPar` that accepts two random variables.
    */
-  def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
+  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -626,7 +671,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllMPar` that accepts three random variables.
    */
-  def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, B, C, In](
+  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -642,7 +687,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllMPar` that accepts four random variables.
    */
-  def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, In](
+  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -659,7 +704,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllMPar` that accepts five random variables.
    */
-  def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F, In](
+  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -677,7 +722,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllMPar` that accepts six random variables.
    */
-  def checkAllPar[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F, G, In](
+  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -763,7 +808,6 @@ package object test extends CompileVariants {
    */
   def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[Nothing, In],
-    sourceLocation: SourceLocation,
     trace: ZTraceElement
   ): testConstructor.Out =
     testConstructor(label)(assertion)
@@ -774,7 +818,7 @@ package object test extends CompileVariants {
   @deprecated("use test", "2.0.0")
   def testM[R, E](label: String)(
     assertion: => ZIO[R, E, TestResult]
-  )(implicit loc: SourceLocation, trace: ZTraceElement): ZSpec[R, E] =
+  )(implicit trace: ZTraceElement): ZSpec[R, E] =
     test(label)(assertion)
 
   /**
@@ -790,33 +834,33 @@ package object test extends CompileVariants {
   object CheckVariants {
 
     final class CheckN(private val n: Int) extends AnyVal {
-      def apply[R <: Has[TestConfig], A, In](rv: Gen[R, A])(test: A => In)(implicit
+      def apply[R <: TestConfig, A, In](rv: Gen[R, A])(test: A => In)(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkStream(rv.sample.forever.collectSome.take(n.toLong))(a => checkConstructor(test(a)))
-      def apply[R <: Has[TestConfig], A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
+      def apply[R <: TestConfig, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => In
       )(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
-      def apply[R <: Has[TestConfig], A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+      def apply[R <: TestConfig, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => In
       )(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
-      def apply[R <: Has[TestConfig], A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+      def apply[R <: TestConfig, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => In
       )(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
-      def apply[R <: Has[TestConfig], A, B, C, D, F, In](
+      def apply[R <: TestConfig, A, B, C, D, F, In](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
@@ -829,7 +873,7 @@ package object test extends CompileVariants {
         trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
-      def apply[R <: Has[TestConfig], A, B, C, D, F, G, In](
+      def apply[R <: TestConfig, A, B, C, D, F, G, In](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
@@ -847,22 +891,22 @@ package object test extends CompileVariants {
 
     final class CheckNM(private val n: Int) extends AnyVal {
       @deprecated("use checkN", "2.0.0")
-      def apply[R <: Has[TestConfig], R1 <: R, E, A](rv: Gen[R, A])(
+      def apply[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A])(
         test: A => ZIO[R1, E, TestResult]
       )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkStream(rv.sample.forever.collectSome.take(n.toLong))(test)
       @deprecated("use checkN", "2.0.0")
-      def apply[R <: Has[TestConfig], R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
+      def apply[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => ZIO[R1, E, TestResult]
       )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2)(test.tupled)
       @deprecated("use checkN", "2.0.0")
-      def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+      def apply[R <: TestConfig, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => ZIO[R1, E, TestResult]
       )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
       @deprecated("use checkN", "2.0.0")
-      def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C, D](
+      def apply[R <: TestConfig, R1 <: R, E, A, B, C, D](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
@@ -872,7 +916,7 @@ package object test extends CompileVariants {
       )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
       @deprecated("use checkN", "2.0.0")
-      def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F](
+      def apply[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
@@ -883,7 +927,7 @@ package object test extends CompileVariants {
       )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
         checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
       @deprecated("use checkN", "2.0.0")
-      def apply[R <: Has[TestConfig], R1 <: R, E, A, B, C, D, F, G](
+      def apply[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
@@ -899,7 +943,7 @@ package object test extends CompileVariants {
 
   private def checkStream[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]])(
     test: A => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Has[TestConfig], E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1 with TestConfig, E, TestResult] =
     TestConfig.shrinks.flatMap {
       shrinkStream {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
@@ -914,7 +958,7 @@ package object test extends CompileVariants {
 
   private def shrinkStream[R, R1 <: R, E, A](
     stream: ZStream[R1, Nothing, Sample[R1, Either[E, TestResult]]]
-  )(maxShrinks: Int)(implicit trace: ZTraceElement): ZIO[R1 with Has[TestConfig], E, TestResult] =
+  )(maxShrinks: Int)(implicit trace: ZTraceElement): ZIO[R1 with TestConfig, E, TestResult] =
     stream
       .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
@@ -940,7 +984,7 @@ package object test extends CompileVariants {
 
   private def checkStreamPar[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Has[TestConfig], E, TestResult] =
+  )(implicit trace: ZTraceElement): ZIO[R1 with TestConfig, E, TestResult] =
     TestConfig.shrinks.flatMap {
       shrinkStream {
         stream.zipWithIndex
@@ -1000,7 +1044,7 @@ package object test extends CompileVariants {
         ZIO.uninterruptibleMask { restore =>
           for {
             releaseMap <- ZManaged.ReleaseMap.make
-            pull       <- restore(f(a).process.zio.provideSome[R1]((_, releaseMap)).map(_._2))
+            pull       <- restore(ZManaged.currentReleaseMap.locally(releaseMap)(f(a).toPull.zio).map(_._2))
             finalizer  <- innerFinalizers.add(releaseMap.releaseAll(_, ExecutionStrategy.Sequential))
           } yield (pull, finalizer)
         }
@@ -1114,10 +1158,10 @@ package object test extends CompileVariants {
       }
     }
 
-    ZStream {
+    ZStream.fromPull {
       for {
         outerDone          <- Ref.make(false).toManaged
-        outerStream        <- stream.process
+        outerStream        <- stream.toPull
         currentOuterChunk  <- Ref.make[(Chunk[Option[A]], Int)]((Chunk.empty, 0)).toManaged
         currentInnerStream <- Ref.make[Option[PullInner]](None).toManaged
         currentStreams     <- Ref.make[ScalaQueue[State]](ScalaQueue(PullOuter)).toManaged
@@ -1134,4 +1178,146 @@ package object test extends CompileVariants {
     right: ZStream[R, Nothing, Option[A]]
   )(implicit trace: ZTraceElement): ZStream[R, Nothing, Option[A]] =
     flatMapStream(ZStream(Some(left), Some(right)))(identity)
+
+  implicit final class TestLensOptionOps[A](private val self: TestLens[Option[A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[scala.Option]] to its `Some` value `A`, otherwise fails
+     * if it is a `None`.
+     */
+    def some: TestLens[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensEitherOps[E, A](private val self: TestLens[Either[E, A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[scala.Either]] to its [[scala.Left]] value `E`, otherwise
+     * fails if it is a [[scala.Right]].
+     */
+    def left: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[scala.Either]] to its [[scala.Right]] value `A`,
+     * otherwise fails if it is a [[scala.Left]].
+     */
+    def right: TestLens[A] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensExitOps[E, A](private val self: TestLens[Exit[E, A]]) extends AnyVal {
+
+    /**
+     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`,
+     * otherwise fails.
+     */
+    def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to its failure type (`E`) if it is a `fail`,
+     * otherwise fails.
+     */
+    def failure: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to its success type (`A`) if it is a `succeed`,
+     * otherwise fails.
+     */
+    def success: TestLens[A] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to its underlying [[Cause]] if it has one,
+     * otherwise fails.
+     */
+    def cause: TestLens[Cause[E]] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms an [[Exit]] to a boolean value representing whether or not it
+     * was interrupted.
+     */
+    def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensCauseOps[E](private val self: TestLens[Cause[E]]) extends AnyVal {
+
+    /**
+     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`,
+     * otherwise fails.
+     */
+    def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a [[Cause]] to its failure type (`E`) if it is a `fail`,
+     * otherwise fails.
+     */
+    def failure: TestLens[E] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a [[Cause]] to a boolean value representing whether or not it
+     * was interrupted.
+     */
+    def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
+  }
+
+  implicit final class TestLensAnyOps[A](private val self: TestLens[A]) extends AnyVal {
+
+    /**
+     * Always returns true as long the chain of preceding transformations has
+     * succeeded.
+     *
+     * {{{
+     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
+     *   assertTrue(option.is(_.right.some.anything)) // returns true
+     *   assertTrue(option.is(_.left.anything)) // will fail because of `.left`.
+     * }}}
+     */
+    def anything: TestLens[Boolean] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a value of some type into the given `Subtype` if possible,
+     * otherwise fails.
+     *
+     * {{{
+     *   sealed trait CustomError
+     *   case class Explosion(blastRadius: Int) extends CustomError
+     *   case class Melting(degrees: Double) extends CustomError
+     *   case class Fulminating(wow: Boolean) extends CustomError
+     *
+     *   val error: CustomError = Melting(100)
+     *   assertTrue(option.is(_.subtype[Melting]).degrees > 10) // succeeds
+     *   assertTrue(option.is(_.subtype[Explosion]).blastRadius == 12) // fails
+     * }}}
+     */
+    def subtype[Subtype <: A]: TestLens[Subtype] = throw SmartAssertionExtensionError()
+
+    /**
+     * Transforms a value with the given [[CustomAssertion]]
+     */
+    def custom[B](customAssertion: CustomAssertion[A, B]): TestLens[B] = {
+      val _ = customAssertion
+      throw SmartAssertionExtensionError()
+    }
+  }
+
+  implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
+
+    /**
+     * This extension method can only be called inside of the `assertTrue`
+     * method. It will transform the value using the given [[TestLens]].
+     *
+     * {{{
+     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
+     *   assertTrue(option.is(_.right.some) == "Cool") // returns true
+     *   assertTrue(option.is(_.left) < 100) // will fail because of `.left`.
+     * }}}
+     */
+    def is[B](f: TestLens[A] => TestLens[B]): B = {
+      val _ = f
+      throw SmartAssertionExtensionError()
+    }
+  }
+
+  implicit final class SpecSubtypeOps[R, R0](private val self: R0 <:< R) extends AnyVal {
+    @inline def liftEnvSpec[E, A](spec: Spec[R, E, A]): Spec[R0, E, A] =
+      spec.asInstanceOf[Spec[R0, E, A]]
+  }
+
 }

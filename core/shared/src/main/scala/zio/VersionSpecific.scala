@@ -63,19 +63,11 @@ private[zio] trait VersionSpecific {
     tagged.tag
 
   /**
-   * This method takes a tag for an intersection of [[zio.Has]]
-   * and returns a set of tags for parameters of each individual `Has`:
+   * This method takes a tag for an intersection type and returns a set of tags
+   * for each individual type:
    *
-   * `Tag[Has[A] with Has[B]]` should produce `Set(Tag[A], Tag[B])`
+   * `Tag[A with B]` should produce `Set(Tag[A], Tag[B])`
    */
-  private[zio] def taggedGetHasServices[A](t: LightTypeTag): Set[LightTypeTag] =
-    t.decompose.map { parent =>
-      parent.ref match {
-        case reference: LightTypeTagRef.AppliedNamedReference if reference.typeArgs.size == 1 =>
-          parent.typeArgs.head
-
-        case _ =>
-          parent
-      }
-    }
+  private[zio] def taggedGetServices[A](t: LightTypeTag): Set[LightTypeTag] =
+    t.decompose
 }

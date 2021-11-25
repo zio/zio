@@ -1,10 +1,8 @@
 package zio.test
 
-import org.scalacheck
 import org.scalacheck.rng.Seed
 import org.scalacheck.Gen.Parameters
 import zio._
-import zio.test.Sized
 
 /**
  * Provides functionality for converting legacy ScalaCheck generators to ZIO
@@ -25,12 +23,12 @@ import zio.test.Sized
  */
 package object scalacheck {
 
-  implicit final class ScalaCheckGenSyntax[A](private val self: scalacheck.Gen[A]) extends AnyVal {
+  implicit final class ScalaCheckGenSyntax[A](private val self: org.scalacheck.Gen[A]) extends AnyVal {
 
     /**
      * Converts a legacy ScalaCheck `Gen` to a ZIO Test `Gen`.
      */
-    def toGenZIO: Gen[Has[Random] with Has[Sized], A] =
+    def toGenZIO: Gen[Random with Sized, A] =
       Gen.fromZIO {
         for {
           long <- Random.nextLong

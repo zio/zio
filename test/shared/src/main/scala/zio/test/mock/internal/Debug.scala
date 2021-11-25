@@ -16,7 +16,6 @@
 
 package zio.test.mock.internal
 
-import zio.Has
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.mock.Expectation
 
@@ -30,7 +29,7 @@ private[mock] object Debug {
   def debug(message: => String): Unit =
     if (enabled) println(message)
 
-  def prettify[R <: Has[_]](expectation: Expectation[R], identSize: Int = 1): String = {
+  def prettify[R](expectation: Expectation[R], identSize: Int = 1): String = {
     val ident   = " " * 4 * identSize
     val state   = s"state = ${expectation.state}"
     val invoked = s"""invocations = [${expectation.invocations.mkString(", ")}]"""
@@ -62,10 +61,14 @@ private[mock] object Debug {
         val progress = s"progress = $started out of $completed,"
         ("Repeated(" :: state :: s"range = $range," :: progress :: invoked :: prettify(child, 1) :: ")" :: Nil)
           .mkString(s"\n$ident")
+      case Expectation.Exactly(child, times, _, _, completed) =>
+        val progress = s"progress = completed $completed iterations,"
+        ("Exactly(" :: state :: s"times = $times," :: progress :: invoked :: prettify(child, 1) :: ")" :: Nil)
+          .mkString(s"\n$ident")
     }
   }
 
-  def prettify[R <: Has[_]](scopes: List[Scope[R]]): String =
+  def prettify[R](scopes: List[Scope[R]]): String =
     scopes.map { case Scope(expectation, id, _) =>
       val rendered = prettify(expectation)
       s">>>\nInvocation ID: $id\n$rendered"

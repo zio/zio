@@ -59,10 +59,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         throw t
       },
       supervisor = Supervisor.none,
-      enableCurrentFiber = false,
       logger = ZLogger.defaultFormatter.map(println(_)).filterLogLevel(_ >= LogLevel.Info),
-      logRuntime = false,
-      superviseOperations = false
+      runtimeConfigFlags = RuntimeConfigFlags.empty
     )
 
   /**
@@ -72,8 +70,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ec))
 
   /**
-   * Makes a new default runtime configuration. This is a side-effecting
-   * method.
+   * Makes a new default runtime configuration. This is a side-effecting method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): RuntimeConfig =
     fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))

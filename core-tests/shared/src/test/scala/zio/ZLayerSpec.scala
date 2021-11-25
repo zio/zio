@@ -3,7 +3,6 @@ package zio
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.test.environment._
 
 object ZLayerSpec extends ZIOBaseSpec {
 
@@ -13,7 +12,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   trait Dog extends Animal
   trait Cat extends Animal
 
-  def testSize[R <: Has[_]](layer: Layer[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
+  def testSize[R](layer: Layer[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
     layer.build.use(env => ZIO.succeed(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
 
   val acquire1 = "Acquiring Module 1"
@@ -23,7 +22,7 @@ object ZLayerSpec extends ZIOBaseSpec {
   val release2 = "Releasing Module 2"
   val release3 = "Releasing Module 3"
 
-  type Module1 = Has[Module1.Service]
+  type Module1 = Module1.Service
 
   object Module1 {
     trait Service
@@ -31,12 +30,10 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module1] =
     ZLayer {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(Has(new Module1.Service {})))(_ =>
-        ref.update(_ :+ release1)
-      )
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(new Module1.Service {}))(_ => ref.update(_ :+ release1))
     }
 
-  type Module2 = Has[Module2.Service]
+  type Module2 = Module2.Service
 
   object Module2 {
     trait Service
@@ -44,12 +41,10 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module2] =
     ZLayer {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(Has(new Module2.Service {})))(_ =>
-        ref.update(_ :+ release2)
-      )
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(new Module2.Service {}))(_ => ref.update(_ :+ release2))
     }
 
-  type Module3 = Has[Module3.Service]
+  type Module3 = Module3.Service
 
   object Module3 {
     trait Service
@@ -57,15 +52,13 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module3] =
     ZLayer {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(Has(new Module3.Service {})))(_ =>
-        ref.update(_ :+ release3)
-      )
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(new Module3.Service {}))(_ => ref.update(_ :+ release3))
     }
 
   def makeRef: UIO[Ref[Vector[String]]] =
     Ref.make(Vector.empty)
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ZLayerSpec")(
       test("Size of >>> (1)") {
         val layer = ZLayer.succeed(1) >>> ((i: Int) => i.toString).toLayer
@@ -82,11 +75,11 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("Size of Test layers") {
         for {
           r1 <- testSize(Annotations.live, 1, "Annotations.live")
-          r2 <- testSize(ZEnv.live >>> Live.default >>> TestConsole.debug, 2, "TestConsole.default")
+          r2 <- testSize(ZEnv.live >>> Live.default >>> TestConsole.debug, 1, "TestConsole.default")
           r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
-          r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 2, "TestRandom.live")
+          r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 1, "TestRandom.live")
           r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
-          r6 <- testSize(TestSystem.default, 2, "TestSystem.default")
+          r6 <- testSize(TestSystem.default, 1, "TestSystem.default")
         } yield r1 && r2 && r3 && r4 && r5 && r6
       },
       test("Size of >>> (9)") {
@@ -95,7 +88,7 @@ object ZLayerSpec extends ZIOBaseSpec {
             Live.default ++ TestRandom.deterministic ++ Sized.live(100)
             ++ TestSystem.default)
 
-        testSize(layer, 9)
+        testSize(layer, 6)
       },
       test("sharing with ++") {
         val expected = Vector(acquire1, release1)
@@ -189,11 +182,12 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("mapError does not interfere with sharing") {
         implicit val canFail = CanFail
         for {
-          ref    <- makeRef
-          layer1  = makeLayer1(ref)
-          layer2  = makeLayer2(ref)
-          layer3  = makeLayer3(ref)
-          env     = ((layer1.mapError(identity) >>> layer2) ++ (layer1 >>> layer3)).build
+          ref   <- makeRef
+          layer1 = makeLayer1(ref)
+          layer2 = makeLayer2(ref)
+          layer3 = makeLayer3(ref)
+          env =
+            ((layer1.mapError(identity) >>> layer2) ++ (layer1 >>> layer3)).build
           _      <- env.useDiscard(ZIO.unit)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
@@ -258,19 +252,20 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           promise <- Promise.make[Nothing, Unit]
           layer1   = ZLayer(ZManaged.never)
-          layer2   = ZLayer(Managed.acquireReleaseWith(promise.succeed(()).map(Has(_)))(_ => ZIO.unit))
-          env      = (layer1 ++ layer2).build
-          _       <- env.useDiscard(ZIO.unit).forkDaemon
-          _       <- promise.await
+          layer2 =
+            ZLayer(Managed.acquireReleaseWith(promise.succeed(()).map(ZEnvironment(_)))(_ => ZIO.unit))
+          env = (layer1 ++ layer2).build
+          _  <- env.useDiscard(ZIO.unit).forkDaemon
+          _  <- promise.await
         } yield assertCompletes
       },
-      test("map can map the output of a layer to an unrelated type") {
+      test("map can map a layer to an unrelated type") {
         case class A(name: String, value: Int)
         case class B(name: String)
-        val l1: Layer[Nothing, Has[A]]               = ZLayer.succeed(A("name", 1))
-        val l2: ZLayer[Has[String], Nothing, Has[B]] = (B.apply _).toLayer
-        val live: Layer[Nothing, Has[B]]             = l1.map(a => Has(a.get[A].name)) >>> l2
-        assertM(ZIO.access[Has[B]](_.get).inject(live))(equalTo(B("name")))
+        val l1: Layer[Nothing, A]          = ZLayer.succeed(A("name", 1))
+        val l2: ZLayer[String, Nothing, B] = (B.apply _).toLayer
+        val live: Layer[Nothing, B]        = l1.map(a => ZEnvironment(a.get[A].name)) >>> l2
+        assertM(ZIO.service[B].provide(live))(equalTo(B("name")))
       },
       test("memoization") {
         val expected = Vector(acquire1, release1)
@@ -279,8 +274,8 @@ object ZLayerSpec extends ZIOBaseSpec {
           memoized = makeLayer1(ref).memoize
           _ <- memoized.use { layer =>
                  for {
-                   _ <- ZIO.environment[Module1].provideLayer(layer)
-                   _ <- ZIO.environment[Module1].provideLayer(layer)
+                   _ <- ZIO.environment[Module1].provide(layer)
+                   _ <- ZIO.environment[Module1].provide(layer)
                  } yield ()
                }
           actual <- ref.get
@@ -299,15 +294,15 @@ object ZLayerSpec extends ZIOBaseSpec {
           (assert(actual)(contains(acquire2)) ==> assert(actual)(contains(release2)))
       } @@ nonFlaky,
       test("passthrough") {
-        val layer: ZLayer[Has[Int], Nothing, Has[String]] =
+        val layer: ZLayer[Int, Nothing, String] =
           ((_: Int).toString).toLayer
-        val live: ZLayer[Any, Nothing, Has[Int] with Has[String]] =
+        val live: ZLayer[Any, Nothing, Int with String] =
           ZLayer.succeed(1) >>> layer.passthrough
         val zio = for {
-          i <- ZIO.environment[Has[Int]].map(_.get[Int])
-          s <- ZIO.environment[Has[String]].map(_.get[String])
+          i <- ZIO.service[Int]
+          s <- ZIO.service[String]
         } yield (i, s)
-        assertM(zio.inject(live))(equalTo((1, "1")))
+        assertM(zio.provide(live))(equalTo((1, "1")))
       },
       test("fresh with ++") {
         val expected = Vector(acquire1, acquire1, release1, release1)
@@ -355,11 +350,12 @@ object ZLayerSpec extends ZIOBaseSpec {
           testRef <- Ref.make(Vector[String]())
           layer = ZLayer {
                     for {
-                      ref <- Ref.make[Vector[String]](Vector()).toManagedWith(ref => ref.get.flatMap(testRef.set))
-                      _   <- ZManaged.unit
+                      ref <-
+                        Ref.make[Vector[String]](Vector()).toManagedWith(ref => ref.get.flatMap(testRef.set))
+                      _ <- ZManaged.unit
                     } yield ref
                   }
-          _      <- layer.build.use(ref => ref.update(_ :+ "test"))
+          _      <- layer.build.use(_.get.update(_ :+ "test"))
           result <- testRef.get
         } yield assert(result)(equalTo(Vector("test")))
       },
@@ -367,25 +363,25 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(0)
           effect  = ref.update(_ + 1) *> ZIO.fail("fail")
-          layer   = ZLayer.fromZIOMany(effect).retry(Schedule.recurs(3))
+          layer   = ZLayer.fromZIOEnvironment(effect).retry(Schedule.recurs(3))
           _      <- layer.build.useNow.ignore
           result <- ref.get
         } yield assert(result)(equalTo(4))
       },
       test("error handling") {
-        val sleep  = ZIO.sleep(100.milliseconds).inject(Clock.live)
-        val layer1 = ZLayer.fail("foo")
-        val layer2 = ZLayer.succeed("bar")
-        val layer3 = ZLayer.succeed("baz")
-        val layer4 = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toLayer
-        val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.unit.provideCustomLayer(env).exit)(fails(equalTo("foo")))
+        val sleep                                      = ZIO.sleep(100.milliseconds).provide(Clock.live)
+        val layer1                                     = ZLayer.fail("foo")
+        val layer2                                     = ZLayer.succeed("bar")
+        val layer3                                     = ZLayer.succeed("baz")
+        val layer4                                     = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toLayer
+        val env: ZLayer[Any, String, String with Unit] = layer1 ++ ((layer2 ++ layer3) >+> layer4)
+        assertM(ZIO.environment[Console with String with Unit].provideCustom(env).exit)(fails(equalTo("foo")))
       },
       test("project") {
         final case class Person(name: String, age: Int)
         val personLayer = ZLayer.succeed(Person("User", 42))
         val ageLayer    = personLayer.project(_.age)
-        assertM(ZIO.service[Int].inject(ageLayer))(equalTo(42))
+        assertM(ZIO.service[Int].provide(ageLayer))(equalTo(42))
       },
       test("tap") {
         for {
@@ -394,6 +390,88 @@ object ZLayerSpec extends ZIOBaseSpec {
           _     <- layer.build.useNow
           value <- ref.get
         } yield assert(value)(equalTo("bar"))
+      },
+      test("provides a partial environment to an effect") {
+        val needsIntAndString = ZIO.environment[Int & String]
+        val providesInt       = ZLayer.succeed(10)
+        val needsString       = ZIO.provide(providesInt)(needsIntAndString)
+        needsString
+          .provide(ZLayer.succeed("hi"))
+          .map { result =>
+            assertTrue(
+              result.get[Int] == 10,
+              result.get[String] == "hi"
+            )
+          }
+      },
+      test(">>> provides a partial environment to another layer") {
+        final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
+          def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
+        }
+        val fooBuilder    = (FooService.apply _).toLayer
+        val provideRefInt = Ref.make(10).toLayer
+
+        val needsStringAndBoolean = provideRefInt >>> fooBuilder
+
+        ZIO
+          .serviceWithZIO[FooService](_.get)
+          .provide(needsStringAndBoolean, ZLayer.succeed("hi"), ZLayer.succeed(true))
+          .map { case (int, string, boolean) =>
+            assertTrue(
+              int == 10,
+              string == "hi",
+              boolean == true
+            )
+          }
+      },
+      test(">+> provides a partial environment to another layer") {
+        final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
+          def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
+        }
+        val fooBuilder    = (FooService.apply _).toLayer
+        val provideRefInt = Ref.make(10).toLayer
+
+        val needsStringAndBoolean = provideRefInt >+> fooBuilder
+
+        ZIO
+          .serviceWithZIO[FooService](_.get)
+          .zip(ZIO.serviceWithZIO[Ref[Int]](_.get))
+          .provide(needsStringAndBoolean, ZLayer.succeed("hi"), ZLayer.succeed(true))
+          .map { case (int, string, boolean, int2) =>
+            assertTrue(
+              int == 10,
+              int2 == 10,
+              string == "hi",
+              boolean == true
+            )
+          }
+      },
+      test("apply provides an effect with part of its required environment") {
+        val needsIntAndString = ZIO.environment[Int & String]
+        val providesInt       = ZLayer.succeed(10)
+        val needsString       = providesInt(needsIntAndString)
+        needsString
+          .provide(ZLayer.succeed("hi"))
+          .map { result =>
+            assertTrue(
+              result.get[Int] == 10,
+              result.get[String] == "hi"
+            )
+          }
+      },
+      test("apply provides a managed effect with part of its required environment") {
+        val needsIntAndString = ZManaged.environment[Int & String]
+        val providesInt       = ZLayer.succeed(10)
+        val needsString       = providesInt(needsIntAndString)
+        needsString
+          .provide(ZLayer.succeed("hi"))
+          .useNow
+          .map { result =>
+            assertTrue(
+              result.get[Int] == 10,
+              result.get[String] == "hi"
+            )
+          }
       }
     )
 }

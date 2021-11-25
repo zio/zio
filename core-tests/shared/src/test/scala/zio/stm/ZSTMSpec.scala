@@ -4,13 +4,12 @@ package stm
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.test.environment.Live
 
 object ZSTMSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec: ZSpec[Environment, Failure] = suite("ZSTMSpec")(
+  def spec = suite("ZSTMSpec")(
     suite("Using `STM.atomically` to perform different computations and call:")(
       suite("absolve to convert")(
         test("A successful Right computation into the success channel") {
@@ -1132,19 +1131,19 @@ object ZSTMSpec extends ZIOBaseSpec {
         assertM(tx.commit)(equalTo(10000))
       } @@ zioTag(errors),
       test("long provide chains") {
-        assertM(chain(10000)(_.provide(0)))(equalTo(0))
+        assertM(chain(10000)(_.provideEnvironment(ZEnvironment(0))))(equalTo(0))
       }
     ),
     suite("STM environment")(
       test("access environment and provide it outside transaction") {
         STMEnv.make(0).flatMap { env =>
-          ZSTM.accessSTM[STMEnv](_.ref.update(_ + 1)).commit.provide(env) *>
+          ZSTM.serviceWithSTM[STMEnv](_.ref.update(_ + 1)).commit.provideEnvironment(ZEnvironment(env)) *>
             assertM(env.ref.get.commit)(equalTo(1))
         }
       },
       test("access environment and provide it inside transaction") {
         STMEnv.make(0).flatMap { env =>
-          ZSTM.accessSTM[STMEnv](_.ref.update(_ + 1)).provide(env).commit *>
+          ZSTM.serviceWithSTM[STMEnv](_.ref.update(_ + 1)).provideEnvironment(ZEnvironment(env)).commit *>
             assertM(env.ref.get.commit)(equalTo(1))
         }
       }
@@ -1239,9 +1238,9 @@ object ZSTMSpec extends ZIOBaseSpec {
         .eventually
   }
 
-  def liveClockSleep(d: Duration): ZIO[Has[Live], Nothing, Unit] = Live.live(ZIO.sleep(d))
+  def liveClockSleep(d: Duration): ZIO[Live, Nothing, Unit] = Live.live(ZIO.sleep(d))
 
-  def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[Has[Clock], Nothing, Int] =
+  def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[Clock, Nothing, Int] =
     STM
       .atomically(for {
         v <- tvar.get
@@ -1255,7 +1254,7 @@ object ZSTMSpec extends ZIOBaseSpec {
     tvar1: TRef[Int],
     tvar2: TRef[Int],
     tvar3: TRef[Int]
-  ): ZIO[Has[Clock], Nothing, Int] =
+  ): ZIO[Clock, Nothing, Int] =
     STM
       .atomically(for {
         v1 <- tvar1.get

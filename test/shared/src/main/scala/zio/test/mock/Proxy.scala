@@ -16,39 +16,39 @@
 
 package zio.test.mock
 
-import zio.{Has, ZIO}
+import zio.ZIO
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A `Proxy` provides the machinery to map mocked invocations to predefined results
- * and check some constraints on the way.
+ * A `Proxy` provides the machinery to map mocked invocations to predefined
+ * results and check some constraints on the way.
  */
 abstract class Proxy {
 
-  def invoke[RIn <: Has[_], ROut, Input, Error, Value](
+  def invoke[RIn, ROut, Input, Error, Value](
     capability: Capability[RIn, Input, Error, Value],
     input: Input
   ): ZIO[ROut, Error, Value]
 
-  final def apply[RIn <: Has[_], ROut, Error, Value](
+  final def apply[RIn, ROut, Error, Value](
     capability: Capability[RIn, Unit, Error, Value]
   ): ZIO[ROut, Error, Value] =
     invoke(capability, ())
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A](
+  final def apply[RIn, ROut, Error, Value, A](
     capability: Capability[RIn, A, Error, Value],
     a: A
   ): ZIO[ROut, Error, Value] =
     invoke(capability, a)
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B](
+  final def apply[RIn, ROut, Error, Value, A, B](
     capability: Capability[RIn, (A, B), Error, Value],
     a: A,
     b: B
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C](
+  final def apply[RIn, ROut, Error, Value, A, B, C](
     capability: Capability[RIn, (A, B, C), Error, Value],
     a: A,
     b: B,
@@ -56,7 +56,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D](
     capability: Capability[RIn, (A, B, C, D), Error, Value],
     a: A,
     b: B,
@@ -65,7 +65,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E](
     capability: Capability[RIn, (A, B, C, D, E), Error, Value],
     a: A,
     b: B,
@@ -75,7 +75,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F](
     capability: Capability[RIn, (A, B, C, D, E, F), Error, Value],
     a: A,
     b: B,
@@ -86,7 +86,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G](
     capability: Capability[RIn, (A, B, C, D, E, F, G), Error, Value],
     a: A,
     b: B,
@@ -98,7 +98,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H), Error, Value],
     a: A,
     b: B,
@@ -111,7 +111,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I), Error, Value],
     a: A,
     b: B,
@@ -125,7 +125,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J), Error, Value],
     a: A,
     b: B,
@@ -140,7 +140,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K), Error, Value],
     a: A,
     b: B,
@@ -156,7 +156,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L), Error, Value],
     a: A,
     b: B,
@@ -173,7 +173,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M), Error, Value],
     a: A,
     b: B,
@@ -191,7 +191,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N), Error, Value],
     a: A,
     b: B,
@@ -210,7 +210,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), Error, Value],
     a: A,
     b: B,
@@ -230,7 +230,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P), Error, Value],
     a: A,
     b: B,
@@ -251,7 +251,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q), Error, Value],
     a: A,
     b: B,
@@ -273,7 +273,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R), Error, Value],
     a: A,
     b: B,
@@ -296,7 +296,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S), Error, Value],
     a: A,
     b: B,
@@ -320,7 +320,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T), Error, Value],
     a: A,
     b: B,
@@ -345,7 +345,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U), Error, Value],
     a: A,
     b: B,
@@ -371,7 +371,7 @@ abstract class Proxy {
   ): ZIO[ROut, Error, Value] =
     invoke(capability, (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u))
 
-  final def apply[RIn <: Has[_], ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V](
+  final def apply[RIn, ROut, Error, Value, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V](
     capability: Capability[RIn, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V), Error, Value],
     a: A,
     b: B,

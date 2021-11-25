@@ -22,8 +22,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 trait ZBootstrapRuntime[R] extends Runtime[R] {
 
   /**
-   * The configuration of the runtime, which provides the essential
-   * capabilities necessary to bootstrap execution of tasks.
+   * The configuration of the runtime, which provides the essential capabilities
+   * necessary to bootstrap execution of tasks.
    */
   def runtimeConfig: RuntimeConfig = RuntimeConfig.default
 }

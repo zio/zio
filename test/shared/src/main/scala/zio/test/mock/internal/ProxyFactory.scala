@@ -19,8 +19,9 @@ package zio.test.mock.internal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
 import zio.test.mock.{Capability, Expectation, Proxy}
-import zio.{Has, IO, Tag, ULayer, ZIO, ZLayer, ZTraceElement}
+import zio.{IO, Tag, ULayer, ZIO, ZLayer, ZTraceElement}
 
+import scala.annotation.tailrec
 import scala.util.Try
 
 object ProxyFactory {
@@ -34,9 +35,9 @@ object ProxyFactory {
   /**
    * Given initial `MockState[R]`, constructs a `Proxy` running that state.
    */
-  def mockProxy[R <: Has[_]: Tag](state: MockState[R])(implicit trace: ZTraceElement): ULayer[Has[Proxy]] =
+  def mockProxy[R: Tag](state: MockState[R])(implicit trace: ZTraceElement): ULayer[Proxy] =
     ZLayer.succeed(new Proxy {
-      def invoke[RIn <: Has[_], ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
+      def invoke[RIn, ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
         sealed trait MatchResult
         object MatchResult {
           case object UnexpectedCall                      extends MatchResult
@@ -44,6 +45,7 @@ object ProxyFactory {
           case class Failure(failures: List[InvalidCall]) extends MatchResult
         }
 
+        @tailrec
         def findMatching(scopes: List[Scope[R]], failedMatches: List[InvalidCall]): MatchResult = {
           debug(s"::: invoked $invoked\n${prettify(scopes)}")
           scopes match {
@@ -61,6 +63,7 @@ object ProxyFactory {
 
                 case NoCalls(_) =>
                   findMatching(nextScopes, failedMatches)
+
                 case call @ Call(capability, assertion, returns, _, invocations) if invoked isEqual capability =>
                   debug(s"::: matched call $capability")
                   assertion.asInstanceOf[Assertion[I]].test(args) match {
@@ -92,13 +95,30 @@ object ProxyFactory {
                   handleLeafFailure(invalidCall, nextScopes, failedMatches)
 
                 case self @ Chain(children, _, invocations, _) =>
-                  val scope = children.zipWithIndex.collectFirst {
-                    case (child, index) if child.state < Saturated =>
-                      Scope[R](
-                        child,
+                  children.zipWithIndex.dropWhile(_._1.state == Saturated) match {
+
+                    case (child1 @ Repeated(_, _, state, _, _, _), idx1) :: (child2, idx2) :: _ if state == Satisfied =>
+                      val scope1 = Scope[R](
+                        child1,
                         id,
                         updatedChild => {
-                          val updatedChildren = children.updated(index, updatedChild)
+                          val updatedChildren = children.updated(idx1, updatedChild)
+                          update(
+                            self.copy(
+                              children = updatedChildren,
+                              state = minimumState(updatedChildren),
+                              invocations = id :: invocations
+                            )
+                          )
+                        }
+                      )
+                      val scope2 = Scope[R](
+                        child2,
+                        id,
+                        updatedChild => {
+                          val updatedChildren = children
+                            .updated(idx1, child1.copy(state = Saturated))
+                            .updated(idx2, updatedChild)
 
                           update(
                             self.copy(
@@ -109,9 +129,31 @@ object ProxyFactory {
                           )
                         }
                       )
-                  }
 
-                  findMatching(scope.get :: nextScopes, failedMatches)
+                      findMatching(scope1 :: scope2 :: Nil, failedMatches)
+
+                    case (child, idx) :: _ =>
+                      val scope = Scope[R](
+                        child,
+                        id,
+                        updatedChild => {
+                          val updatedChildren = children.updated(idx, updatedChild)
+
+                          update(
+                            self.copy(
+                              children = updatedChildren,
+                              state = minimumState(updatedChildren),
+                              invocations = id :: invocations
+                            )
+                          )
+                        }
+                      )
+
+                      findMatching(scope :: nextScopes, failedMatches)
+
+                    case Nil =>
+                      findMatching(nextScopes, failedMatches)
+                  }
 
                 case self @ And(children, _, invocations, _) =>
                   val scopes = children.zipWithIndex.collect {
@@ -177,11 +219,9 @@ object ProxyFactory {
                       findMatching(scopes ++ nextScopes, failedMatches)
                   }
 
-                case self @ Repeated(expectation, range, state, invocations, started, completed) =>
-                  val initialize = (state == Saturated) && completed < range.max
-                  val child      = if (initialize) resetTree(expectation) else expectation
+                case self @ Repeated(expectation, range, _, invocations, started, completed) =>
                   val scope = Scope[R](
-                    child,
+                    expectation,
                     id,
                     updatedChild => {
                       val updatedStarted =
@@ -219,6 +259,28 @@ object ProxyFactory {
                           },
                           invocations = id :: invocations,
                           started = updatedStarted,
+                          completed = updatedCompleted
+                        )
+                      )
+                    }
+                  )
+
+                  findMatching(scope :: nextScopes, failedMatches)
+
+                case self @ Exactly(expectation, times, _, invocations, completed) =>
+                  val scope = Scope[R](
+                    expectation,
+                    id,
+                    updatedChild => {
+                      val updatedCompleted =
+                        if (updatedChild.state == Saturated) completed + 1
+                        else completed
+
+                      update(
+                        self.copy(
+                          child = if (updatedChild.state == Saturated) resetTree(updatedChild) else updatedChild,
+                          state = if (times == updatedCompleted) Saturated else PartiallySatisfied,
+                          invocations = id :: invocations,
                           completed = updatedCompleted
                         )
                       )
@@ -274,6 +336,12 @@ object ProxyFactory {
               )
             case self: NoCalls[R] => self
             case self: Repeated[R] =>
+              self.copy(
+                child = resetTree(self.child),
+                state = Unsatisfied,
+                completed = 0
+              )
+            case self: Exactly[R] =>
               self.copy(
                 child = resetTree(self.child),
                 state = Unsatisfied,

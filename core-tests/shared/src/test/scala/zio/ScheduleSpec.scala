@@ -4,7 +4,6 @@ import zio.stream.ZStream
 import zio.test.Assertion._
 import zio.test.TestAspect.timeout
 import zio.test._
-import zio.test.environment.{TestClock, TestRandom}
 
 import java.time.temporal.{ChronoField, ChronoUnit}
 import java.time.{Instant, OffsetDateTime, ZoneId}
@@ -15,15 +14,16 @@ object ScheduleSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   /**
-   * Retry `once` means that we try to exec `io`, get and error,
-   * try again to exec `io`, and whatever the output is, we return that
-   * second result.
+   * Retry `once` means that we try to exec `io`, get and error, try again to
+   * exec `io`, and whatever the output is, we return that second result.
+   *
    * The three following tests test retry when:
-   * - the first time succeeds (no retry)
-   * - the first time fails and the second succeeds (one retry, result success)
-   * - both first time and retry fail (one retry, result failure)
+   *   - the first time succeeds (no retry)
+   *   - the first time fails and the second succeeds (one retry, result
+   *     success)
+   *   - both first time and retry fail (one retry, result failure)
    */
-  def spec: ZSpec[Environment, Failure] = suite("ScheduleSpec")(
+  def spec = suite("ScheduleSpec")(
     suite("Repeat on success according to a provided strategy")(
       test("for 'recurs(a negative number)' repeats 0 additional time") {
         // A repeat with a negative number of times should not repeat the action at all
@@ -91,7 +91,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       val failed = (for {
         ref <- Ref.make(0)
         _   <- alwaysFail(ref).repeat(Schedule.recurs(42))
-      } yield ()).foldZIO[Has[Clock], Int, String](
+      } yield ()).foldZIO[Clock, Int, String](
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
       )
@@ -156,7 +156,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retry(Schedule.recurs(0))
         } yield i)
-          .foldZIO[Has[Clock], Int, String](
+          .foldZIO[Clock, Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -175,7 +175,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val retried = (for {
           ref <- Ref.make(0)
           _   <- alwaysFail(ref).retry(Schedule.once)
-        } yield ()).foldZIO[Has[Clock], Int, String](
+        } yield ()).foldZIO[Clock, Int, String](
           err => IO.succeed(err),
           _ => IO.succeed("A failure was expected")
         )
@@ -280,7 +280,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
         } yield i)
-          .foldZIO[Has[Clock], Int, String](
+          .foldZIO[Clock, Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -298,7 +298,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
         } yield i)
-          .foldZIO[Has[Clock], Int, String](
+          .foldZIO[Clock, Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -493,7 +493,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     //   } yield result
     // },
     test("Retry type parameters should infer correctly") {
-      def foo[O](v: O): ZIO[Has[Clock], Error, Either[ScheduleFailure, ScheduleSuccess[O]]] =
+      def foo[O](v: O): ZIO[Clock, Error, Either[ScheduleFailure, ScheduleSuccess[O]]] =
         ZIO
           .fromFuture(_ => Future.successful(v))
           .foldZIO(
@@ -527,7 +527,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     },
     test("Reset after some inactivity") {
 
-      def io(ref: Ref[Int], latch: Promise[Nothing, Unit]): ZIO[Has[Clock], String, Unit] =
+      def io(ref: Ref[Int], latch: Promise[Nothing, Unit]): ZIO[Clock, String, Unit] =
         ref
           .updateAndGet(_ + 1)
           .flatMap(retries =>
@@ -620,7 +620,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   val ioSucceed: (String, Unit) => UIO[String]      = (_: String, _: Unit) => IO.succeed("OrElse")
   val ioFail: (String, Unit) => IO[String, Nothing] = (_: String, _: Unit) => IO.fail("OrElseFailed")
 
-  def repeat[B](schedule: Schedule[Any, Int, B]): ZIO[Has[Clock], Nothing, B] =
+  def repeat[B](schedule: Schedule[Any, Int, B]): ZIO[Clock, Nothing, B] =
     for {
       ref <- Ref.make(0)
       res <- ref.updateAndGet(_ + 1).repeat(schedule)
@@ -629,7 +629,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   /**
    * Run a schedule using the provided input and collect all outputs
    */
-  def run[R <: Has[Clock] with Has[TestClock], A, B](
+  def run[R <: TestClock, A, B](
     schedule: Schedule[R, A, B]
   )(input: Iterable[A]): ZIO[R, Nothing, Chunk[B]] =
     run {
@@ -650,7 +650,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       }
     }
 
-  def run[R <: Has[TestClock], E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
+  def run[R <: TestClock, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
     for {
       fiber  <- effect.fork
       _      <- TestClock.setTime(Duration.Infinity)
@@ -680,12 +680,12 @@ object ScheduleSpec extends ZIOBaseSpec {
     loop(schedule.initial, inputs, Nil)
   }
 
-  def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Has[Clock], Nothing, TestResult] =
+  def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Clock, Nothing, TestResult] =
     assertM(repeat(schedule))(equalTo(expected))
 
   /**
-   * A function that increments ref each time it is called.
-   * It always fails, with the incremented value in error
+   * A function that increments ref each time it is called. It always fails,
+   * with the incremented value in error
    */
   def alwaysFail(ref: Ref[Int]): IO[String, Int] =
     for {
@@ -694,9 +694,9 @@ object ScheduleSpec extends ZIOBaseSpec {
     } yield x
 
   /**
-   * A function that increments ref each time it is called.
-   * It returns either a failure if ref value is 0 or less
-   * before increment, and the value in other cases.
+   * A function that increments ref each time it is called. It returns either a
+   * failure if ref value is 0 or less before increment, and the value in other
+   * cases.
    */
   def failOn0(ref: Ref[Int]): IO[String, Int] =
     for {
@@ -718,7 +718,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   case class ScheduleFailure(message: String)
   case class ScheduleSuccess[O](content: O)
 
-  type Logging = Has[Logging.Service]
+  type Logging = Logging.Service
 
   object Logging {
     trait Service

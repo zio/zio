@@ -8,7 +8,7 @@ import zio.Duration
 import zio.internal.Platform
 import zio.stream.ZStream
 import zio.test.Gen
-import zio.{ Console, FiberId, Has, Random }
+import zio.{ Console, FiberId, Random }
 import zio.Console._
 import zio.ZIO.attemptBlockingIO
 import zio.test.Gen
@@ -81,7 +81,7 @@ object Zio2Renames {
 
   zio.Duration
   
-  val x: Layer[Nothing, Has[Random]] = zio.Random.live
+  val x: Layer[Nothing, Random] = zio.Random.live
 
   zio.Executor
 
