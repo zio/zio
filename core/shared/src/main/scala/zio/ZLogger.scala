@@ -1,11 +1,12 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import izumi.reflect.macrortti.LightTypeTag
 
 trait ZLogger[-Message, +Output] { self =>
   def apply(
     trace: ZTraceElement,
-    fiberId: FiberId.Runtime,
+    fiberId: FiberId,
     logLevel: LogLevel,
     message: () => Message,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -22,7 +23,7 @@ trait ZLogger[-Message, +Output] { self =>
     new ZLogger[M, zippable.Out] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => M,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -34,6 +35,22 @@ trait ZLogger[-Message, +Output] { self =>
         )
     }
 
+  def +>[M <: Message, O](that: ZLogger[M, O]): ZLogger[M, O] = (self ++ that).map(_._2)
+
+  def <+[M <: Message](that: ZLogger[M, Any]): ZLogger[M, Output] = (self ++ that).map(_._1)
+
+  final def contramap[Message1](f: Message1 => Message): ZLogger[Message1, Output] =
+    new ZLogger[Message1, Output] {
+      def apply(
+        trace: ZTraceElement,
+        fiberId: FiberId,
+        logLevel: LogLevel,
+        message: () => Message1,
+        context: Map[FiberRef.Runtime[_], AnyRef],
+        spans: List[LogSpan]
+      ): Output = self(trace, fiberId, logLevel, () => f(message()), context, spans)
+    }
+
   /**
    * Returns a version of this logger that only logs messages when the log level
    * satisfies the specified predicate.
@@ -42,7 +59,7 @@ trait ZLogger[-Message, +Output] { self =>
     new ZLogger[Message, Option[Output]] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => Message,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -57,18 +74,91 @@ trait ZLogger[-Message, +Output] { self =>
     new ZLogger[Message, B] {
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => Message,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan]
       ): B = f(self(trace, fiberId, logLevel, message, context, spans))
     }
+
+  final def test(input: => Message): Output =
+    apply(ZTraceElement.empty, FiberId.None, LogLevel.Info, () => input, Map(), Nil)
+
+  final def toSet[Message1 <: Message](implicit tag: Tag[Message1]): ZLogger.Set[Message1, Output] =
+    ZLogger.Set(self: ZLogger[Message1, Output])
 }
 object ZLogger {
-  val defaultFormatter: ZLogger[String, String] = (
+  private[zio] val stringTag: LightTypeTag = Tag[String].tag
+  private[zio] val causeTag: LightTypeTag  = Tag[Cause[Any]].tag
+
+  import Predef.{Set => ScalaSet, _}
+
+  /**
+   * Represents a set of loggers, which operate on different input types, but
+   * which all produce the same output type.
+   */
+  sealed abstract case class Set[+A, +B] private (map: Map[LightTypeTag, ZLogger[_, B]]) { self =>
+    private var cache: Map[LightTypeTag, ScalaSet[ZLogger[_, Any]]] = Map()
+
+    final def +[C, B1 >: B](that: ZLogger[C, B1])(implicit tag: Tag[C]): Set[A with C, B1] =
+      new Set(map + (tag.tag -> that)) {}
+
+    final def ++[A2, B1 >: B](that: Set[A2, B1]): Set[A with A2, B1] = new Set(self.map ++ that.map) {}
+
+    final def add[C, B1 >: B](that: ZLogger[C, B1])(implicit tag: Tag[C]): Set[A with C, B1] = self.+[C, B1](that)
+
+    final def addAll[A2, B1 >: B](that: Set[A2, B1]): Set[A with A2, B1] = self.++[A2, B1](that)
+
+    final def filterLogLevel(f: LogLevel => Boolean): Set[A, Option[B]] =
+      new Set[A, Option[B]](map.map { case (k, v) => k -> v.asInstanceOf[ZLogger[Any, B]].filterLogLevel(f) }) {}
+
+    final def getAllDynamic(tag: LightTypeTag): ScalaSet[_ <: ZLogger[_, B]] = {
+      val set = cache.get(tag)
+
+      set match {
+        case None =>
+          val set = map.collect {
+            case (t, logger) if tag <:< t => logger
+          }.toSet
+
+          cache = cache + (tag -> set.asInstanceOf[ScalaSet[ZLogger[_, Any]]])
+
+          set
+
+        case Some(set) => set.asInstanceOf[ScalaSet[ZLogger[_, B]]]
+      }
+    }
+
+    final def getAll[C](implicit tag: Tag[C]): ScalaSet[_ <: ZLogger[C, B]] =
+      getAllDynamic(tag.tag).asInstanceOf[ScalaSet[ZLogger[C, B]]]
+
+    final def map[C](f: B => C): Set[A, C] =
+      new Set[A, C](map.map { case (k, v) => k -> v.asInstanceOf[ZLogger[Any, B]].map(f) }) {}
+
+    final def toLoggerWith[C, B1 >: B](b: B1)(f: (B1, B1) => B1)(implicit tag: Tag[C]): ZLogger[C, B1] =
+      getAll[C].fold[ZLogger[C, B1]](ZLogger.succeed(b)) { case (acc, logger) =>
+        (acc ++ logger).map(f.tupled)
+      }
+  }
+  object Set {
+    val default: Set[String & Cause[Any], String] =
+      empty[String].add[String, String](defaultString).add[Cause[Any], String](defaultCause)
+
+    def empty[A]: Set[Any, A] = new Set(Map()) {}
+
+    def apply[A, B](logger: ZLogger[A, B])(implicit tag: Tag[A]): Set[A, B] = empty[B].add[A, B](logger)
+
+    def apply[A, B, Z](logger1: ZLogger[A, Z], logger2: ZLogger[B, Z])(implicit
+      tag1: Tag[A],
+      tag2: Tag[B]
+    ): Set[A & B, Z] =
+      empty[Z].add[A, Z](logger1).add[B, Z](logger2)
+  }
+
+  val defaultString: ZLogger[String, String] = (
     trace: ZTraceElement,
-    fiberId: FiberId.Runtime,
+    fiberId: FiberId,
     logLevel: LogLevel,
     message0: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -87,7 +177,7 @@ object ZLogger {
       .append(" level=")
       .append(logLevel.label)
       .append(" thread=#")
-      .append(fiberId.id.toString)
+      .append(fiberId.threadName)
       .append(" message=\"")
       .append(message0())
       .append("\"")
@@ -128,13 +218,15 @@ object ZLogger {
     sb.toString()
   }
 
+  val defaultCause: ZLogger[Cause[Any], String] = defaultString.contramap(_.prettyPrint)
+
   /**
    * A logger that does nothing in response to logging events.
    */
   val none: ZLogger[Any, Unit] = new ZLogger[Any, Unit] {
     def apply(
       trace: ZTraceElement,
-      fiberId: FiberId.Runtime,
+      fiberId: FiberId,
       logLevel: LogLevel,
       message: () => Any,
       context: Map[FiberRef.Runtime[_], AnyRef],
@@ -142,6 +234,21 @@ object ZLogger {
     ): Unit =
       ()
   }
+
+  def simple[A, B](log: A => B): ZLogger[A, B] =
+    new ZLogger[A, B] {
+      def apply(
+        trace: ZTraceElement,
+        fiberId: FiberId,
+        logLevel: LogLevel,
+        message: () => A,
+        context: Map[FiberRef.Runtime[_], AnyRef],
+        spans: List[LogSpan]
+      ): B =
+        log(message())
+    }
+
+  def succeed[A](a: => A): ZLogger[Any, A] = simple(_ => a)
 
   private def appendQuoted(label: String, sb: StringBuilder): StringBuilder = {
     if (label.indexOf(" ") < 0) sb.append(label)

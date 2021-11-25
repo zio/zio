@@ -26,6 +26,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.annotation.{switch, tailrec}
+import izumi.reflect.macrortti.LightTypeTag
 
 /**
  * An implementation of Fiber that maintains context necessary for evaluation.
@@ -135,7 +136,7 @@ private[zio] final class FiberContext[E, A](
             if (logRuntime) {
               val trace = curZio.trace
 
-              unsafeLog(curZio.unsafeLog)(trace)
+              unsafeLog(ZLogger.stringTag, curZio.unsafeLog)(trace)
             }
 
             // Check to see if the fiber should continue executing or not:
@@ -436,9 +437,16 @@ private[zio] final class FiberContext[E, A](
                     curZio = zio.zio
 
                   case ZIO.Tags.Logged =>
-                    val zio = curZio.asInstanceOf[ZIO.Logged]
+                    val zio = curZio.asInstanceOf[ZIO.Logged[Any]]
 
-                    unsafeLog(zio.message, zio.overrideLogLevel, zio.overrideRef1, zio.overrideValue1, zio.trace)
+                    unsafeLog(
+                      zio.typeTag,
+                      zio.message,
+                      zio.overrideLogLevel,
+                      zio.overrideRef1,
+                      zio.overrideValue1,
+                      zio.trace
+                    )
 
                     curZio = unsafeNextEffect(())
 
@@ -790,16 +798,24 @@ private[zio] final class FiberContext[E, A](
   @inline
   private def unsafeIsInterrupting(): Boolean = state.get().isInterrupting
 
-  private def unsafeLog(message: () => String)(implicit trace: ZTraceElement): Unit = {
+  private def unsafeLog(tag: LightTypeTag, message: () => Any)(implicit trace: ZTraceElement): Unit = {
     val logLevel = unsafeGetRef(FiberRef.currentLogLevel)
     val spans    = unsafeGetRef(FiberRef.currentLogSpan)
 
-    runtimeConfig.logger(trace, fiberId, logLevel, message, fiberRefLocals.get, spans)
-    ()
+    unsafeForEachLogger(tag) { logger =>
+      logger(trace, fiberId, logLevel, message, fiberRefLocals.get, spans)
+    }
+  }
+
+  private def unsafeForEachLogger(tag: LightTypeTag)(f: ZLogger[Any, Any] => Unit): Unit = {
+    val loggers = runtimeConfig.loggers.getAllDynamic(tag)
+
+    loggers.foreach(logger => f(logger.asInstanceOf[ZLogger[Any, Any]]))
   }
 
   private def unsafeLog(
-    message: () => String,
+    tag: LightTypeTag,
+    message: () => Any,
     overrideLogLevel: Option[LogLevel],
     overrideRef1: FiberRef.Runtime[_] = null,
     overrideValue1: AnyRef = null,
@@ -820,9 +836,9 @@ private[zio] final class FiberContext[E, A](
         else map.updated(overrideRef1, overrideValue1)
       } else fiberRefLocals.get
 
-    runtimeConfig.logger(trace, fiberId, logLevel, message, contextMap, spans)
-
-    ()
+    unsafeForEachLogger(tag) { logger =>
+      logger(trace, fiberId, logLevel, message, contextMap, spans)
+    }
   }
 
   @inline
@@ -920,7 +936,7 @@ private[zio] final class FiberContext[E, A](
   private def unsafeReportUnhandled(v: Exit[E, A], trace: ZTraceElement): Unit = v match {
     case Exit.Failure(cause) =>
       try {
-        unsafeLog(() => cause.prettyPrint, ZIO.someDebug, trace = trace)
+        unsafeLog(ZLogger.causeTag, () => cause, ZIO.someDebug, trace = trace)
       } catch {
         case t: Throwable =>
           if (runtimeConfig.fatal(t)) {

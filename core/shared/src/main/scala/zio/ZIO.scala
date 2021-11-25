@@ -26,6 +26,7 @@ import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
+import izumi.reflect.macrortti.LightTypeTag
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value that lazily describes a workflow
@@ -4640,37 +4641,38 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Logs the specified message at the current log level.
    */
-  def log(message: => String)(implicit trace: ZTraceElement): UIO[Unit] = new Logged(() => message, trace = trace)
+  def log(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+    new Logged(ZLogger.stringTag, () => message, trace = trace)
 
   /**
    * Logs the specified message at the debug log level.
    */
   def logDebug(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
-    new Logged(() => message, someDebug, trace = trace)
+    new Logged(ZLogger.stringTag, () => message, someDebug, trace = trace)
 
   /**
    * Logs the specified message at the error log level.
    */
   def logError(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
-    new Logged(() => message, someError, trace = trace)
+    new Logged(ZLogger.stringTag, () => message, someError, trace = trace)
 
   /**
    * Logs the specified cause as an error.
    */
   def logErrorCause(cause: => Cause[Any])(implicit trace: ZTraceElement): UIO[Unit] =
-    new Logged(() => cause.prettyPrint, someError, trace = trace)
+    new Logged(ZLogger.causeTag, () => cause, someError, trace = trace)
 
   /**
    * Logs the specified message at the fatal log level.
    */
   def logFatal(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
-    new Logged(() => message, someFatal, trace = trace)
+    new Logged(ZLogger.stringTag, () => message, someFatal, trace = trace)
 
   /**
    * Logs the specified message at the informational log level.
    */
   def logInfo(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
-    new Logged(() => message, someInfo, trace = trace)
+    new Logged(ZLogger.stringTag, () => message, someInfo, trace = trace)
 
   def logLevel(level: LogLevel): LogLevel = level
 
@@ -4686,7 +4688,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the warning log level.
    */
   def logWarning(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
-    new Logged(() => message, someWarning, trace = trace)
+    new Logged[String](ZLogger.stringTag, () => message, someWarning, trace = trace)
 
   /**
    * Sequentially zips the specified effects using the specified combiner
@@ -6485,8 +6487,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Ensuring
   }
 
-  private[zio] final class Logged(
-    val message: () => String,
+  private[zio] final class Logged[A](
+    val typeTag: LightTypeTag,
+    val message: () => A,
     val overrideLogLevel: Option[LogLevel] = None,
     val overrideRef1: FiberRef.Runtime[_] = null,
     val overrideValue1: AnyRef = null,

@@ -9,7 +9,7 @@ import scala.annotation.tailrec
 object LoggingSpec extends ZIOBaseSpec {
   final case class LogEntry(
     trace: ZTraceElement,
-    fiberId: FiberId.Runtime,
+    fiberId: FiberId,
     logLevel: LogLevel,
     message: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
@@ -25,12 +25,12 @@ object LoggingSpec extends ZIOBaseSpec {
 
   val clearOutput: UIO[Unit] = UIO(_logOutput.set(Vector.empty))
 
-  val testLogger: ZLogger[String, Unit] =
+  val stringLogger: ZLogger[String, Unit] =
     new ZLogger[String, Unit] {
       @tailrec
       def apply(
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         logLevel: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
@@ -46,7 +46,12 @@ object LoggingSpec extends ZIOBaseSpec {
       }
     }
 
-  override def runner: TestRunner[Environment, Any] = super.runner.withRuntimeConfig(_.copy(logger = testLogger))
+  val causeLogger: ZLogger[Cause[Any], Unit] = stringLogger.contramap((cause: Cause[Any]) => cause.prettyPrint)
+
+  val testLoggers: ZLogger.Set[String & Cause[Any], Unit] =
+    ZLogger.Set(stringLogger, causeLogger)
+
+  override def runner: TestRunner[Environment, Any] = super.runner.withRuntimeConfig(_.copy(loggers = testLoggers))
 
   def spec: ZSpec[Any, Any] =
     suite("LoggingSpec")(
@@ -93,7 +98,7 @@ object LoggingSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.logSpan("test span")(ZIO.log("It's alive!"))
           output <- logOutput
-          _      <- ZIO.debug(output(0).call(ZLogger.defaultFormatter))
+          _      <- ZIO.debug(output(0).call(ZLogger.defaultString))
         } yield assertTrue(true)
       },
       test("none") {
