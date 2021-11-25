@@ -72,7 +72,16 @@ object FiberId {
     fiberIds.foldLeft[FiberId](FiberId.None)(_ combine _)
 
   private[zio] def unsafeMake(): FiberId.Runtime =
-    FiberId.Runtime((java.lang.System.currentTimeMillis / 1000).toInt, _fiberCounter.getAndIncrement())
+    fromCompatId(compactId())
+    
+  private[zio] def compactId(): Long =
+    (_fiberCounter.getAndIncrement().toLong << 32) | (java.lang.System.currentTimeMillis / 1000)
+    
+  private[zio] def fromCompatId(fiberIdCompact: Long) = {
+    val fiberIdFromCompact: Int = (fiberIdCompact >> 32).toInt
+    val fiberStartTimeFromCompact: Int = fiberIdCompact.toInt
+    FiberId.Runtime(fiberIdFromCompact, fiberStartTimeFromCompact)
+  }
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 

@@ -365,7 +365,7 @@ trait Runtime[+R] {
   private final def unsafeRunWith[E, A](
     zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
-    val fiberId = FiberId.unsafeMake()
+    val fiberId = FiberId.compactId()
 
     val scope = ZScope.unsafeMake[Exit[E, A]]()
 

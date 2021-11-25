@@ -49,11 +49,7 @@ private[zio] final class FiberContext[E, A](
   private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
 
   protected def fiberId: FiberId.Runtime =
-    FiberId.Runtime(fiberIdFromCompact, fiberStartTimeFromCompact)
-
-  private def fiberIdFromCompact: Int = (fiberIdCompact >> 32).toInt
-
-  private def fiberStartTimeFromCompact: Int = fiberIdCompact.toInt
+    FiberId.fromCompatId(fiberIdCompact)
 
   @volatile
   private[this] var asyncEpoch: Long = 0L
@@ -642,7 +638,7 @@ private[zio] final class FiberContext[E, A](
 
     val parentScope = (forkScope orElse unsafeGetRef(forkScopeOverride)).getOrElse(scope)
 
-    val childId    = FiberId.unsafeMake()
+    val childId    = FiberId.compactId()
     val childScope = ZScope.unsafeMake[Exit[E, A]]()
 
     val childContext = new FiberContext[E, A](
