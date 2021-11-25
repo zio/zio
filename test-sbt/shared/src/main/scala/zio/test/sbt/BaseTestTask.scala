@@ -78,7 +78,6 @@ abstract class BaseTestTask(
       spec match {
         case NewSpecWrapper(zioSpec) =>
           Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
-//            Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig.copy(runtimeConfigFlags = zioSpec.runtime.runtimeConfig.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)).unsafeRun {
             run(eventHandler, zioSpec, loggers)
               .provide(sbtTestLayer(loggers))
               .onError(e => UIO(println(e.prettyPrint)))

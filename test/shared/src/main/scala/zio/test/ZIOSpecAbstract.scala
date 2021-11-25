@@ -109,9 +109,8 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
-      env   <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
+      env <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
       runner =
-        // TODO Experiment with enabling
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any](
             ZLayer.succeedMany(env) +!+ testEnvironment
@@ -123,9 +122,6 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
       summary = SummaryBuilder.buildSummary(results)
       _      <- sendSummary.provideEnvironment(ZEnvironment(summary))
-//      _ <- TestLogger
-//             .logLine(summary.summary)
-//             .when(testArgs.printSummary) // TODO Right way to activate this?
     } yield results
   }
 }

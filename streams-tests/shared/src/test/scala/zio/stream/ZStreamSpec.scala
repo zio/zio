@@ -11,7 +11,6 @@ import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 
-// TODO Confirm migration problems
 object ZStreamSpec extends ZIOBaseSpec {
   import ZIOTag._
 
@@ -256,7 +255,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 results <- fib.join.map(_.collect { case Some(ex) => ex })
               } yield assert(results)(equalTo(Chunk(2, 3)))
             }
-          } @@ zioTag(interruption) @@ TestAspect.jvmOnly @@ TestAspect.flaky,
+          } @@ zioTag(interruption) @@ TestAspect.jvmOnly,
           test("leftover handling") {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
@@ -3381,7 +3380,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               value <- ref.get
             } yield assert(value)(equalTo(true))
           }
-        ) @@ TestAspect.timeout(15.seconds) @@ TestAspect.flaky, // TODO Decide if flaky is appropriate
+        ) @@ TestAspect.timeout(15.seconds),
         suite("timeout")(
           test("succeed") {
             assertM(

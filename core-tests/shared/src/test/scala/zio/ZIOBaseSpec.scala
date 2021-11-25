@@ -58,21 +58,4 @@ trait ZIOBaseSpec extends ZIOSpecDefault {
     }
   }
 
-  // TODO Needed?
-  /**
-   * Builds a spec with a single test.
-   */
-  override def test[In](label: String)(
-    assertion: => In
-  )(implicit
-    testConstructor: TestConstructor[Nothing, In],
-    trace: ZTraceElement
-  ): testConstructor.Out =
-    zio.test.test(label)(assertion)
-
-  override def suite[In](label: String)(specs: In*)(implicit
-    suiteConstructor: SuiteConstructor[In],
-    trace: ZTraceElement
-  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
-    zio.test.suite(label)(specs: _*)
 }

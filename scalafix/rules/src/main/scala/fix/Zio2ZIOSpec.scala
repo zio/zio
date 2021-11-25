@@ -4,7 +4,6 @@ import scalafix.v1._
 
 import scala.meta._
 
-// TODO Confirm if this is worth trying to do for the users
 class Zio2ZIOSpec extends SemanticRule("ZIOSpecMigration"){
   val zio2UpgradeRule = new Zio2Upgrade()
   val AbstractRunnableSpecRenames = zio2UpgradeRule.Renames(

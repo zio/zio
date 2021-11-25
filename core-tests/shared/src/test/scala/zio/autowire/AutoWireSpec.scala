@@ -123,12 +123,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
               program.provideCustom(stringLayer)
 
-            for {
-              random <- ZManaged.service[Random]
-              _      <- ZIO.debug(random).toManaged
-              result <- provided.toManaged
-            } yield assert(result)(equalTo("Your Lucky Number is: -1295463240"))
-//            assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
+            assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
           }
         ),
         suite("provideSome")(
@@ -288,12 +283,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged *>
               program.provideCustom(stringLayer)
 
-//            assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
-            for {
-              random <- ZManaged.service[Random]
-              _      <- ZIO.debug(random).toManaged
-              result <- provided
-            } yield assert(result)(equalTo("Your Lucky Number is: -1295463240"))
+            assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
           }
         ),
         suite("provideSome")(

@@ -39,7 +39,6 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     val total  = allSummaries.map(_.total).sum
     val ignore = allSummaries.map(_.ignore).sum
 
-    // TODO Figure out why these are empty
     if (allSummaries.isEmpty || total == ignore)
       s"${Console.YELLOW}No tests were executed${Console.RESET}"
     else
@@ -129,7 +128,6 @@ abstract class ZTestTaskPolicy {
   def merge(zioTasks: Array[ZTestTask]): Array[Task]
 }
 
-// TODO Consider ways of smartly clustering merges, rather than random order
 case class MergedSpec(spec: ZTestTaskNew, merges: Int)
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
@@ -144,7 +142,6 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
               newTests match {
                 case existingNewTestTask :: otherTasks =>
                   if (existingNewTestTask.merges < 1) {
-                    println("Composing with previous Spec")
                     (
                       MergedSpec(
                         new ZTestTaskNew(
@@ -159,7 +156,6 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
                       legacyTests
                     )
                   } else {
-                    println("Constructing a new Spec")
                     (
                       MergedSpec(
                         taskNew,
@@ -170,7 +166,6 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
                   }
 
                 case _ =>
-                  println("First new spec. Nothing to combine with yet")
                   (List(MergedSpec(taskNew, 1)), legacyTests)
               }
             case other =>
@@ -179,40 +174,6 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
       }
 
     (legacyTaskList ++ newTaskOpt.map(_.spec)).toArray
-  }
-
-  def mergeSingle(zioTasks: Array[ZTestTask]): Array[Task] = {
-    val (newTaskOpt, legacyTaskList) =
-      zioTasks.foldLeft((None: Option[ZTestTaskNew], List[ZTestTaskLegacy]())) {
-        case ((newTests, legacyTests), nextSpec) =>
-          nextSpec match {
-            case legacy: ZTestTaskLegacy => (newTests, legacyTests :+ legacy)
-            case taskNew: ZTestTaskNew =>
-              newTests match {
-                case Some(existingNewTestTask: ZTestTaskNew) =>
-                  println("Merging")
-                  (
-                    Some(
-                      new ZTestTaskNew(
-                        existingNewTestTask.taskDef,
-                        existingNewTestTask.testClassLoader,
-                        existingNewTestTask.sendSummary zip taskNew.sendSummary,
-                        existingNewTestTask.args,
-                        existingNewTestTask.newSpec <> taskNew.newSpec
-                      )
-                    ),
-                    legacyTests
-                  )
-                case None =>
-                  println("First new spec. Nothing to combine with yet")
-                  (Some(taskNew), legacyTests)
-              }
-            case other =>
-              throw new RuntimeException("Other case: " + other)
-          }
-      }
-
-    (legacyTaskList ++ newTaskOpt.toList).toArray
   }
 
 }

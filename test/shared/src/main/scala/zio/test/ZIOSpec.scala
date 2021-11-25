@@ -24,7 +24,6 @@ abstract class ZIOSpec[R: Tag] extends ZIOSpecAbstract { self =>
 
   final val tag: Tag[R] = Tag[R]
 
-  // TODO Needed? Dedup at least.
   /**
    * Builds a spec with a single test.
    */

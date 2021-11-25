@@ -17,17 +17,15 @@ object ZTestFrameworkSpec {
     run(tests: _*)
 
   def tests: Seq[Try[Unit]] = Seq(
-    test("should return correct fingerprints")(testFingerprints()),                          // GOOD
-    test("should report events")(testReportEvents()),                                        // GOOD
-    test("should report durations")(testReportDurations()),                                  // GOOD
-    test("should log messages")(testLogMessages()),                                          // Good'ish. Had to change expectations
-    test("should correctly display colorized output for multi-line strings")(testColored()), // Good
+    test("should return correct fingerprints")(testFingerprints()),
+    test("should report events")(testReportEvents()),
+    test("should report durations")(testReportDurations()),
+    test("should log messages")(testLogMessages()),
+    test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
-    test("should return summary when done")(testSummary()),                          // GOOD
-    test("should use a shared layer without re-initializing it")(testSharedLayer()), // Good
-    test("should warn when no tests are executed")(
-      testNoTestsExecutedWarning()
-    ) // Bad, executes a test even when it shouldn't.
+    test("should return summary when done")(testSummary()),
+    test("should use a shared layer without re-initializing it")(testSharedLayer()),
+    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
   def testFingerprints(): Unit = {

@@ -208,7 +208,6 @@ object SerializableSpec extends ZIOBaseSpec {
       } yield assertTrue(chunk == result)
     }
   )
-
 }
 
 object SerializableSpecHelpers {
