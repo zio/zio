@@ -4099,7 +4099,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM((s1 ++ s2).runDrain.provideEnvironment(ZEnvironment(new R1 {})))(isUnit)
           }
         )
-      ),
+      ) @@ TestAspect.flaky,
       suite("Constructors")(
         test("rechunk") {
           check(tinyChunkOf(Gen.chunkOf(Gen.int)) <*> (Gen.int(1, 100))) { case (chunk, n) =>

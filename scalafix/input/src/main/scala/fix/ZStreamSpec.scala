@@ -296,7 +296,7 @@ object ZStreamSpec extends DefaultRunnableSpec {
                 results <- fib.join.map(_.collect { case Some(ex) => ex })
               } yield assert(results)(equalTo(Chunk(2, 3)))
             }
-          } @@ TestAspect.jvmOnly @@ TestAspect.flaky,
+          } @@ TestAspect.jvmOnly,
           testM("aggregateAsyncWithinEitherLeftoverHandling") {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
