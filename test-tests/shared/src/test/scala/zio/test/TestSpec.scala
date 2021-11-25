@@ -11,7 +11,7 @@ object TestSpec extends ZIOBaseSpec {
 
   override val runner: TestRunner[TestEnvironment, Any] =
     defaultTestRunner.withRuntimeConfig { runtimeConfig =>
-      runtimeConfig.copy(logger = runtimeConfig.logger.filterLogLevel(_ >= LogLevel.Error))
+      runtimeConfig.copy(loggers = runtimeConfig.loggers.filterLogLevel(_ >= LogLevel.Error))
     }
 
   def spec: Spec[Environment, TestFailure[Any], TestSuccess] = suite("TestSpec")(
