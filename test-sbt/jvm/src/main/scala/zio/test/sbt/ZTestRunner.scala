@@ -39,6 +39,7 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     val total  = allSummaries.map(_.total).sum
     val ignore = allSummaries.map(_.ignore).sum
 
+    // TODO Figure out why these are empty
     if (allSummaries.isEmpty || total == ignore)
       s"${Console.YELLOW}No tests were executed${Console.RESET}"
     else

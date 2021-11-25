@@ -64,9 +64,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] = {
     implicit val trace = Tracer.newTrace
     for {
-      args         <- ZIO.service[ZIOAppArgs]
-      testArgs      = TestArgs.parse(args.getArgs.toArray)
-      executedSpec <- runSpec(spec, testArgs)
+      args    <- ZIO.service[ZIOAppArgs]
+      testArgs = TestArgs.parse(args.getArgs.toArray)
+      executedSpec <- runSpec(spec, testArgs, ZIO.unit) // TODO check if this is okay here
       hasFailures = executedSpec.exists {
                       case ExecutedSpec.TestCase(test, _) => test.isLeft
                       case _                              => false
@@ -101,13 +101,13 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   private[zio] def runSpec(
     spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any],
-    testArgs: TestArgs
+    testArgs: TestArgs,
+    sendSummary: URIO[Summary, Unit]
   )(implicit
     trace: ZTraceElement
   ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, ExecutedSpec[Any]] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
-    val defaultRuntimeConfig = RuntimeConfig.makeDefault()
     for {
       env   <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
       runner =
@@ -116,16 +116,16 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any](
             ZLayer.succeedMany(env) +!+ testEnvironment
           )
-//          , defaultRuntimeConfig.copy(runtimeConfigFlags = defaultRuntimeConfig.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
-      // TODO Consider something that outputs Stream[ExecutedSpec[Any]] here?
       results <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provide(runner.bootstrap)
-      _ <- TestLogger
-             .logLine(SummaryBuilder.buildSummary(results).summary)
-             .when(testArgs.printSummary)
-//             .provide(runner.bootstrap)
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
+
+      summary = SummaryBuilder.buildSummary(results)
+      _      <- sendSummary.provideEnvironment(ZEnvironment(summary))
+//      _ <- TestLogger
+//             .logLine(summary.summary)
+//             .when(testArgs.printSummary) // TODO Right way to activate this?
     } yield results
   }
 }

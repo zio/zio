@@ -17,15 +17,17 @@ object ZTestFrameworkSpec {
     run(tests: _*)
 
   def tests: Seq[Try[Unit]] = Seq(
-    test("should return correct fingerprints")(testFingerprints()), // GOOD
-    test("should report events")(testReportEvents()),               // GOOD
-    test("should report durations")(testReportDurations()),         // GOOD
-    test("should log messages")(testLogMessages()),                 // Good'ish. Had to change expectations
-//    test("should correctly display colorized output for multi-line strings")(testColored()), // Doesn't include src location in log output :/
-//    test("should test only selected test")(testTestSelection()), // Bad. Only logs 1 blank line
-//    test("should return summary when done")(testSummary()), // Bad, nothing executes
-    test("should use a shared layer without re-initializing it")(testSharedLayer()) // Good
-//    test("should warn when no tests are executed")(testNoTestsExecutedWarning()) // Bad, executes a test even when it shouldn't.
+    test("should return correct fingerprints")(testFingerprints()),                          // GOOD
+    test("should report events")(testReportEvents()),                                        // GOOD
+    test("should report durations")(testReportDurations()),                                  // GOOD
+    test("should log messages")(testLogMessages()),                                          // Good'ish. Had to change expectations
+    test("should correctly display colorized output for multi-line strings")(testColored()), // Good
+    test("should test only selected test")(testTestSelection()),
+    test("should return summary when done")(testSummary()),                          // GOOD
+    test("should use a shared layer without re-initializing it")(testSharedLayer()), // Good
+    test("should warn when no tests are executed")(
+      testNoTestsExecutedWarning()
+    ) // Bad, executes a test even when it shouldn't.
   )
 
   def testFingerprints(): Unit = {
@@ -65,20 +67,14 @@ object ZTestFrameworkSpec {
       assertEquals(
         "logged messages",
         messages.mkString.split("\n").dropRight(1).mkString("\n").withNoLineNumbers,
-//        List(
-//          s"${reset("info:")} ${red("- some suite")} - ignored: 1",
-//          s"${reset("info:")}   ${red("- failing test")}",
-//          s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-//          s"${reset("info:")}     ${assertSourceLocation()}",
-//          reset("info: "),
-//          s"${reset("info:")}   ${green("+")} passing test",
-//          s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
-//        ).mkString("\n")
-
         List(
-          s"${reset("info:")} ${red("- some suite")}",
+          s"${reset("info:")} ${red("- some suite")} - ignored: 1",
           s"${reset("info:")}   ${red("- failing test")}",
-          s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}"
+          s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
+          s"${reset("info:")}     ${assertSourceLocation()}",
+          reset("info: "),
+          s"${reset("info:")}   ${green("+")} passing test",
+          s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
         ).mkString("\n")
       )
     )
@@ -183,6 +179,7 @@ object ZTestFrameworkSpec {
   def testSummary(): Unit = {
     val taskDef = new TaskDef(failingSpecFQN, ZioSpecFingerprint, false, Array())
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
+
     val task = runner
       .tasks(Array(taskDef))
       .map(task => task.asInstanceOf[ZTestTask])
@@ -259,10 +256,8 @@ object ZTestFrameworkSpec {
 
   lazy val failingSpecFQN = SimpleFailingSharedSpec.getClass.getName
   object SimpleFailingSharedSpec extends ZIOSpecDefault {
-//    override def layer = sharedLayer
     def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
       test("failing test") {
-//        assertTrue(1 == 2)
         zio.test.assert(1)(Assertion.equalTo(2))
       },
       test("passing test") {
