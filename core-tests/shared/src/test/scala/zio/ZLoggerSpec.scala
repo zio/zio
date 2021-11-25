@@ -1,6 +1,7 @@
 package zio
 
 import zio.test._
+import zio.test.TestAspect._
 
 object ZLoggerSpec extends ZIOBaseSpec {
   trait Animal
@@ -39,10 +40,12 @@ object ZLoggerSpec extends ZIOBaseSpec {
 
             val loggers = set.getAll[Int]
 
+            println(set)
+
             val test = loggers.exists(_ eq logger) // TODO: Fix assertTrue
 
             assertTrue(test)
-          } +
+          } @@ exceptDotty +
           test("supertype lookup 3") {
             val logger = ZLogger.simple[Cause[Any], Unit](_ => ())
 
