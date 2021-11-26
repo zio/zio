@@ -36,7 +36,8 @@ private[zio] final class FiberContext[E, A](
   var runtimeConfig: RuntimeConfig,
   val interruptStatus: StackBool,
   val fiberRefLocals: FiberRefLocals,
-  val openScope: ZScope.Open[Exit[E, A]]
+  val openScope: ZScope.Open[Exit[E, A]],
+  val location: ZTraceElement
 ) extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable { self =>
   import FiberContext.{erase, eraseK, eraseR, Erased, ErasedCont, ErasedTracedCont}
@@ -45,6 +46,7 @@ private[zio] final class FiberContext[E, A](
   import FiberState._
 
   fibersStarted.unsafeIncrement()
+  fiberForkLocations.unsafeObserve(location.toString)
 
   // Accessed from multiple threads:
   private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
@@ -651,7 +653,8 @@ private[zio] final class FiberContext[E, A](
       runtimeConfig,
       StackBool(interruptStatus.peekOrElse(true)),
       new AtomicReference(childFiberRefLocals),
-      childScope
+      childScope,
+      trace
     )
 
     if (runtimeConfig.supervisor ne Supervisor.none) {
@@ -803,7 +806,7 @@ private[zio] final class FiberContext[E, A](
     val spans    = unsafeGetRef(FiberRef.currentLogSpan)
 
     unsafeForEachLogger(tag) { logger =>
-      logger(trace, fiberId, logLevel, message, fiberRefLocals.get, spans)
+      logger(trace, fiberId, logLevel, message, fiberRefLocals.get, spans, location)
     }
   }
 
@@ -837,7 +840,7 @@ private[zio] final class FiberContext[E, A](
       } else fiberRefLocals.get
 
     unsafeForEachLogger(tag) { logger =>
-      logger(trace, fiberId, logLevel, message, contextMap, spans)
+      logger(trace, fiberId, logLevel, message, contextMap, spans, location)
     }
   }
 
@@ -1222,6 +1225,7 @@ private[zio] object FiberContext {
   import zio.ZIOMetric
 
   lazy val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failure-causes", "").setCount
+  lazy val fiberForkLocations = ZIOMetric.occurrences("zio-fiber-fork-locations", "").setCount
 
   lazy val fibersStarted  = ZIOMetric.count("zio-fiber-started").counter
   lazy val fiberSuccesses = ZIOMetric.count("zio-fiber-successes").counter

@@ -10,7 +10,8 @@ trait ZLogger[-Message, +Output] { self =>
     logLevel: LogLevel,
     message: () => Message,
     context: Map[FiberRef.Runtime[_], AnyRef],
-    spans: List[LogSpan]
+    spans: List[LogSpan],
+    location: ZTraceElement
   ): Output
 
   /**
@@ -27,11 +28,12 @@ trait ZLogger[-Message, +Output] { self =>
         logLevel: LogLevel,
         message: () => M,
         context: Map[FiberRef.Runtime[_], AnyRef],
-        spans: List[LogSpan]
+        spans: List[LogSpan],
+        location: ZTraceElement
       ): zippable.Out =
         zippable.zip(
-          self(trace, fiberId, logLevel, message, context, spans),
-          that(trace, fiberId, logLevel, message, context, spans)
+          self(trace, fiberId, logLevel, message, context, spans, location),
+          that(trace, fiberId, logLevel, message, context, spans, location)
         )
     }
 
@@ -47,8 +49,9 @@ trait ZLogger[-Message, +Output] { self =>
         logLevel: LogLevel,
         message: () => Message1,
         context: Map[FiberRef.Runtime[_], AnyRef],
-        spans: List[LogSpan]
-      ): Output = self(trace, fiberId, logLevel, () => f(message()), context, spans)
+        spans: List[LogSpan],
+        location: ZTraceElement
+      ): Output = self(trace, fiberId, logLevel, () => f(message()), context, spans, location)
     }
 
   /**
@@ -63,10 +66,11 @@ trait ZLogger[-Message, +Output] { self =>
         logLevel: LogLevel,
         message: () => Message,
         context: Map[FiberRef.Runtime[_], AnyRef],
-        spans: List[LogSpan]
+        spans: List[LogSpan],
+        location: ZTraceElement
       ): Option[Output] =
         if (f(logLevel)) {
-          Some(self(trace, fiberId, logLevel, message, context, spans))
+          Some(self(trace, fiberId, logLevel, message, context, spans, location))
         } else None
     }
 
@@ -78,12 +82,13 @@ trait ZLogger[-Message, +Output] { self =>
         logLevel: LogLevel,
         message: () => Message,
         context: Map[FiberRef.Runtime[_], AnyRef],
-        spans: List[LogSpan]
-      ): B = f(self(trace, fiberId, logLevel, message, context, spans))
+        spans: List[LogSpan],
+        location: ZTraceElement
+      ): B = f(self(trace, fiberId, logLevel, message, context, spans, location))
     }
 
   final def test(input: => Message): Output =
-    apply(ZTraceElement.empty, FiberId.None, LogLevel.Info, () => input, Map(), Nil)
+    apply(ZTraceElement.empty, FiberId.None, LogLevel.Info, () => input, Map(), Nil, ZTraceElement.empty)
 
   final def toSet[Message1 <: Message](implicit tag: Tag[Message1]): ZLogger.Set[Message1, Output] =
     ZLogger.Set(self: ZLogger[Message1, Output])
@@ -162,7 +167,8 @@ object ZLogger {
     logLevel: LogLevel,
     message0: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
-    spans0: List[LogSpan]
+    spans0: List[LogSpan],
+    location: ZTraceElement
   ) => {
     val sb = new StringBuilder()
 
@@ -230,7 +236,8 @@ object ZLogger {
       logLevel: LogLevel,
       message: () => Any,
       context: Map[FiberRef.Runtime[_], AnyRef],
-      spans: List[LogSpan]
+      spans: List[LogSpan],
+      location: ZTraceElement
     ): Unit =
       ()
   }
@@ -243,7 +250,8 @@ object ZLogger {
         logLevel: LogLevel,
         message: () => A,
         context: Map[FiberRef.Runtime[_], AnyRef],
-        spans: List[LogSpan]
+        spans: List[LogSpan],
+        location: ZTraceElement
       ): B =
         log(message())
     }

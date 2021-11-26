@@ -39,7 +39,16 @@ private[zio] trait SetCount {
    */
   def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]]
 
+  /**
+   * The number of occurences of the specified value observed by this set count.
+   */
+  def occurrences(word: String)(implicit trace: ZTraceElement): UIO[Long]
+
   private[zio] def unsafeObserve(word: String): Unit
+
+  private[zio] def unsafeOccurrences: Chunk[(String, Long)]
+
+  private[zio] def unsafeOccurrences(word: String): Long
 }
 
 private[zio] object SetCount {
