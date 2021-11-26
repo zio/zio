@@ -806,7 +806,7 @@ private[zio] final class FiberContext[E, A](
     val spans    = unsafeGetRef(FiberRef.currentLogSpan)
 
     unsafeForEachLogger(tag) { logger =>
-      logger(trace, fiberId, logLevel, message, fiberRefLocals.get, spans)
+      logger(trace, fiberId, logLevel, message, fiberRefLocals.get, spans, location)
     }
   }
 
@@ -840,7 +840,7 @@ private[zio] final class FiberContext[E, A](
       } else fiberRefLocals.get
 
     unsafeForEachLogger(tag) { logger =>
-      logger(trace, fiberId, logLevel, message, contextMap, spans)
+      logger(trace, fiberId, logLevel, message, contextMap, spans, location)
     }
   }
 
