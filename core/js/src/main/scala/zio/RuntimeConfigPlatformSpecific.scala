@@ -64,11 +64,12 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         level: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
-        spans: List[LogSpan]
+        spans: List[LogSpan],
+        location: ZTraceElement
       ) => {
         try {
           // TODO: Improve output & use console.group for spans, etc.
-          val line = ZLogger.defaultString(trace, fiberId, level, message, context, spans)
+          val line = ZLogger.defaultString(trace, fiberId, level, message, context, spans, location)
 
           if (level == LogLevel.Fatal) jsglobal.console.error(line)
           else if (level == LogLevel.Error) jsglobal.console.error(line)
