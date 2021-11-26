@@ -285,6 +285,33 @@ current time: 1
   Ran 1 test in 470 ms: 1 succeeded, 0 ignored, 0 failed
 ```
 
+## Sized Tests
+
+To change the default _size_ used by [sized generators](gen.md#sized-generators) we can use `sized` test aspect:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+
+test("generating small list of characters") {
+  check(Gen.small(Gen.listOfN(_)(Gen.alphaNumericChar))) { n =>
+    ZIO(n).debug *> Sized.size.map(s => assertTrue(s == 50))
+  }
+} @@ TestAspect.sized(50) @@ TestAspect.samples(5)
+```
+
+Sample output:
+
+```
+List(p, M)
+List()
+List(0, m, 5)
+List(Y)
+List(O, b, B, V)
++ generating small list of characters
+Ran 1 test in 676 ms: 1 succeeded, 0 ignored, 0 failed
+```
+
 ## Test Configs
 
 To run cases, there are some [default configuration settings](environment/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
