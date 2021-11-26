@@ -192,6 +192,18 @@ There are some situations where we need to repeat a test with a specific schedul
       .map(_ => assertTrue(true))
   } @@ TestAspect.retry(Schedule.recurs(5))
   ```
+3. **`TestAspect.eventually`** — This test aspect keeps retrying a test until it passes, regardless of how many times it fails:
+
+  ```scala mdoc:compile-only
+  import zio._
+  import zio.test.{ test, _ }
+  
+  test("retrying a failing test until it succeeds") {
+    ZIO("retrying a failing test")
+      .debug
+      .map(_ => assertTrue(true))
+  } @@ TestAspect.eventually
+  ```
 
 ## Restoring State of Test Services
 
