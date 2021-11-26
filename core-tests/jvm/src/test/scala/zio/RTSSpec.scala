@@ -108,7 +108,7 @@ object RTSSpec extends ZIOBaseSpec {
       }
 
       assertM(ZIO.attempt(e.shutdown()))(isUnit)
-    } @@ zioTag(regression) @@ TestAspect.ignore, // TODO Look into this failure
+    } @@ zioTag(regression) @@ TestAspect.flaky,
     test("second callback call is ignored") {
       for {
         _ <- IO.async[Throwable, Int] { k =>
@@ -141,5 +141,5 @@ object RTSSpec extends ZIOBaseSpec {
 
       assertM(Live.live(zio))(isGreaterThanEqualTo(1))
     } @@ zioTag(interruption, regression)
-  ) @@ TestAspect.flaky
+  )
 }
