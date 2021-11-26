@@ -25,7 +25,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 trait MetricListener { self =>
   def unsafeGaugeChanged(key: MetricKey.Gauge, value: Double, delta: Double): Unit
   def unsafeCounterChanged(key: MetricKey.Counter, absValue: Double, delta: Double): Unit
-  def unsafeHistogramChanged(key: MetricKey.Histogram, value: MetricState): Unit
-  def unsafeSummaryChanged(key: MetricKey.Summary, value: MetricState): Unit
-  def unsafeSetChanged(key: MetricKey.SetCount, value: MetricState): Unit
+  def unsafeHistogramChanged(key: MetricKey.Histogram, value: Double): Unit
+  def unsafeSummaryChanged(key: MetricKey.Summary, value: Double): Unit
+  def unsafeSetChanged(key: MetricKey.SetCount, word: String): Unit
 }
