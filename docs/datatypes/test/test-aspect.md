@@ -151,6 +151,7 @@ By default, the initial seed of the `TestRandom` is fixed. So repeating a genera
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{ test, _ }
+import zio.test.TestAspect._
 
 test("pseudo-random number generator with fixed initial seed") {
   check(Gen.int(0, 100)) { n =>
@@ -512,6 +513,19 @@ The output would be:
 [info]   + another slow test - tagged: "slow"
 [info] Ran 2 tests in 162 ms: 2 succeeded, 0 ignored, 0 failed
 [success] Total time: 1 s, completed Nov 2, 2021, 12:36:36 PM
+```
+
+## Timeout
+
+The `TestAspect.timeout` test aspect takes a duration and times out each test. If the test case runs longer than the time specified, it is immediately canceled and reported as a failure, with a message showing that the timeout was exceeded:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+
+test("long running test") {
+  Live.live(ZIO.sleep(5.seconds)).map(_ => assertTrue(true))
+} @@ timeout(2.seconds)
 ```
 
 ## Conditional Aspects
