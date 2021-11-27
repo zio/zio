@@ -558,12 +558,12 @@ test("long running test") {
 
 ## Conditional Aspects
 
-When we apply a conditional aspect, it will run the spec only if the specified predicate is satisfied:
+When we apply a conditional aspect, it will run the spec only if the specified predicate is satisfied.
 
-- **`ifEnv`** — An aspect that only runs a test if the specified environment variable satisfies the specified assertion.
-- **`ifEnvSet`** — An aspect that only runs a test if the specified environment variable is set.
-- **`ifProp`** An aspect that only runs a test if the specified Java property satisfies the specified assertion.
-- **`ifPropSet`** — An aspect that only runs a test if the specified Java property is set.
+- **`ifEnv`** — Only runs a test if the specified environment variable satisfies the specified assertion.
+- **`ifEnvSet`** — Only runs a test if the specified environment variable is set.
+- **`ifProp`** — Only runs a test if the specified Java property satisfies the specified assertion.
+- **`ifPropSet`** — Only runs a test if the specified Java property is set.
 
 ```scala mdoc:compile-only
 import zio._
