@@ -70,8 +70,8 @@ private[zio] final class FiberContext[E, A](
       fiberId
     )
 
-  final def evalOn(effect: zio.UIO[Any]): UIO[Unit] =
-    ???
+  final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+    UIO.suspendSucceed(unsafeEvalOn(effect, orElse))
 
   final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] =
     UIO(unsafeGetRef(ref))
@@ -136,19 +136,24 @@ private[zio] final class FiberContext[E, A](
           while ({
             val tag = curZio.tag
 
-            if (logRuntime) {
-              val trace = curZio.trace
-
-              unsafeLog(ZLogger.stringTag, curZio.unsafeLog)(trace)
-            }
-
             // Check to see if the fiber should continue executing or not:
             if (!unsafeShouldInterrupt()) {
               // Fiber does not need to be interrupted, but might need to yield:
-              if (opCount == maxOpCount) {
+              val message = unsafeDrainMailbox()
+
+              if (message ne null) {
+                val oldZio = curZio
+
+                curZio = message.flatMap(_ => oldZio)(oldZio.trace)
+              } else if (opCount == maxOpCount) {
                 unsafeRunLater(curZio)
                 curZio = null
               } else {
+                if (logRuntime) {
+                  val trace = curZio.trace
+
+                  unsafeLog(ZLogger.stringTag, curZio.unsafeLog)(trace)
+                }
                 if (superviseOps) runtimeConfig.supervisor.unsafeOnEffect(self, curZio)
 
                 // Fiber is neither being interrupted nor needs to yield. Execute
@@ -615,6 +620,36 @@ private[zio] final class FiberContext[E, A](
         if (!state.compareAndSet(oldState, newState)) unsafeEnterAsync(epoch, register, blockingOn)
 
       case _ =>
+    }
+  }
+
+  @tailrec
+  def unsafeDrainMailbox(): UIO[Any] = {
+    val oldState = state.get
+
+    oldState match {
+      case executing @ Executing(_, _, _, _, _, mailbox) =>
+        val newState = executing.copy(mailbox = null.asInstanceOf[UIO[Any]])
+
+        if (!state.compareAndSet(oldState, newState)) unsafeDrainMailbox()
+        else mailbox
+
+      case _ => null
+    }
+  }
+
+  @tailrec
+  def unsafeEvalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] = {
+    val oldState = state.get
+
+    oldState match {
+      case executing @ Executing(_, _, _, _, _, mailbox) =>
+        val newState = executing.copy(mailbox = if (mailbox eq null) effect else mailbox.flatMap(_ => mailbox))
+
+        if (!state.compareAndSet(oldState, newState)) unsafeEvalOn(effect, orElse)
+        else UIO.unit
+
+      case Done(_) => orElse.unit
     }
   }
 

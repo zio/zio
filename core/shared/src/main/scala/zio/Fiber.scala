@@ -488,7 +488,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * Evaluates the specified
      */
-    def evalOn(effect: UIO[Any]): UIO[Unit]
+    def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit]
 
     /**
      * The identity of the fiber.
