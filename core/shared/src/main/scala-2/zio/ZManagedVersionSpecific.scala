@@ -35,7 +35,7 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
    * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[ZEnv, E1, A] =
+  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): ZManaged[ZEnv, E1, A] =
     macro LayerMacros.provideCustomImpl[ZManaged, ZEnv, R, E1, A]
 
   /**
@@ -56,7 +56,7 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
   /**
    * Automatically assembles a layer for the ZManaged effect.
    */
-  def provide[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[Any, E1, A] =
+  def provide[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): ZManaged[Any, E1, A] =
     macro LayerMacros.provideImpl[ZManaged, R, E1, A]
 
 }
@@ -73,6 +73,6 @@ private final class ProvideSomeLayerManagedPartiallyApplied[R0, -R, +E, +A](
   def provideSomeLayer[R0]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
     new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
 
-  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
     macro LayerMacros.provideSomeImpl[ZManaged, R0, R, E1, A]
 }
