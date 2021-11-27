@@ -142,7 +142,39 @@ The `TestConsole` service has two modes debug and silent state. ZIO Test has two
 
 2. `TestAspect.silent` — This test aspect turns off the debug mode and turns on the silent mode. So the console output is only written to the output buffer and not rendered to the standard output.
 
-## Non-deterministic
+## Environment-specific Tests
+
+## OS-specific Tests
+
+To run a test on a specific operating system, we can use one of the `unix`, `mac` or `windows` test aspects or a combination of them. Additionally, we can use the `os` test aspect directly:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+suite("os")(
+  test("unix test") {
+    ZIO("running on unix/linux os")
+      .debug
+      .map(_ => assertTrue(true))
+  } @@ TestAspect.unix,
+  test("macos test") {
+    ZIO("running on macos")
+      .debug
+      .map(_ => assertTrue(true))
+  } @@ TestAspect.os(_.isMac)
+)
+```
+
+## Platform-specific Tests
+
+To run a test on a specific platform, we can use one of the `jvm`, `js`, or `native` test aspects or a combination of them. If we want to run our test only on one of these platforms, we can use one of the `jvmOnly`, `jsOnly`, or `nativeOnly` test aspects. To exclude one of these platforms, we can use the `exceptJs`, `exceptJVM`, or `exceptNative` test aspects. 
+
+### Version-specific Tests
+
+Various test aspects can be used to run tests for specific versions of Scala, including `scala2`, `scala211`, `scala212`, `scala213`, and `dotty`. As in the previous section, these test aspects have corresponding `*only` and `except*` versions.
+
+### Non-deterministic
 
 The random process of the `TestRandom` is said to be deterministic since, with the initial seed, we can generate a sequence of predictable numbers. So with the same initial seed, it will generate the same sequence of numbers.
 
@@ -219,7 +251,7 @@ Here is a sample output, which we have different sequences of numbers on each ru
 Ran 1 test in 733 ms: 1 succeeded, 0 ignored, 0 failed
 ```
 
-## Platform-specific Tests
+### Platform-specific Tests
 
 Sometimes we have platform-specific tests. Instead of creating separate sources for each platform to test those tests, we can use a proper aspect to run those tests on a specific platform.
 
