@@ -144,7 +144,7 @@ The `TestConsole` service has two modes debug and silent state. ZIO Test has two
 
 ## Environment-specific Tests
 
-## OS-specific Tests
+### OS-specific Tests
 
 To run a test on a specific operating system, we can use one of the `unix`, `mac` or `windows` test aspects or a combination of them. Additionally, we can use the `os` test aspect directly:
 
@@ -166,15 +166,30 @@ suite("os")(
 )
 ```
 
-## Platform-specific Tests
+### Platform-specific Tests
 
-To run a test on a specific platform, we can use one of the `jvm`, `js`, or `native` test aspects or a combination of them. If we want to run our test only on one of these platforms, we can use one of the `jvmOnly`, `jsOnly`, or `nativeOnly` test aspects. To exclude one of these platforms, we can use the `exceptJs`, `exceptJVM`, or `exceptNative` test aspects. 
+Sometimes we have platform-specific tests. Instead of creating separate sources for each platform to test those tests, we can use a proper aspect to run those tests on a specific platform.
+
+To run a test on a specific platform, we can use one of the `jvm`, `js`, or `native` test aspects or a combination of them. If we want to run our test only on one of these platforms, we can use one of the `jvmOnly`, `jsOnly`, or `nativeOnly` test aspects. To exclude one of these platforms, we can use the `exceptJs`, `exceptJVM`, or `exceptNative` test aspects:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.TestAspect._
+
+test("Java virtual machine name can be accessed") {
+  for {
+    vm <- live(System.property("java.vm.name"))
+  } yield
+    assert(vm)(Assertion.isSome(Assertion.containsString("VM")))
+} @@ jvmOnly
+```
 
 ### Version-specific Tests
 
 Various test aspects can be used to run tests for specific versions of Scala, including `scala2`, `scala211`, `scala212`, `scala213`, and `dotty`. As in the previous section, these test aspects have corresponding `*only` and `except*` versions.
 
-### Non-deterministic
+## Non-deterministic
 
 The random process of the `TestRandom` is said to be deterministic since, with the initial seed, we can generate a sequence of predictable numbers. So with the same initial seed, it will generate the same sequence of numbers.
 
@@ -182,7 +197,7 @@ By default, the initial seed of the `TestRandom` is fixed. So repeating a genera
 
 ```scala mdoc:compile-only
 import zio._
-import zio.test.{ test, _ }
+import zio.test.{test, _}
 import zio.test.TestAspect._
 
 test("pseudo-random number generator with fixed initial seed") {
@@ -249,25 +264,6 @@ Here is a sample output, which we have different sequences of numbers on each ru
 ----
 + pseudo-random number generator with random initial seed on each repetition - repeated: 2
 Ran 1 test in 733 ms: 1 succeeded, 0 ignored, 0 failed
-```
-
-### Platform-specific Tests
-
-Sometimes we have platform-specific tests. Instead of creating separate sources for each platform to test those tests, we can use a proper aspect to run those tests on a specific platform.
-
-To do that we can use `jvmOnly`, `jsOnly` or `nativeOnly` aspects:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-import zio.test.TestAspect._
-
-test("Java virtual machine name can be accessed") {
-  for {
-    vm <- live(System.property("java.vm.name"))
-  } yield
-    assert(vm)(Assertion.isSome(Assertion.containsString("VM")))
-} @@ jvmOnly
 ```
 
 ## Repeat and Retry
