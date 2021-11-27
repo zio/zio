@@ -18,7 +18,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private val id = debugId.getAndIncrement()
 
-  def debug(s: String): Unit = {}
+  def debug(s: String): Unit = { /* println(s"[$id] $s")  */ }
 
   private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env])(implicit trace: ZTraceElement) = {
     val currInput = input
@@ -738,31 +738,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     def handleSubexecFailure(cause: Cause[Any]): ChannelState[Env, Any] = {
       debug(s"handleSubexecFailure: $cause")
       val closeEffects: Seq[Exit[Any, Any] => URIO[Env, Any]] =
-        parentSubexecutor match {
-          case Subexecutor.PullFromUpstream(
-                upstreamExecutor,
-                createChild,
-                lastDone,
-                activeChildExecutors,
-                combineChildResults,
-                combineWithChildResult,
-                onPull,
-                onEmit
-              ) =>
-            Seq(upstreamExecutor.close, childExecutor.close)
-          case Subexecutor.PullFromChild(childExecutor, parentSubexecutor, onEmit, debugId) =>
-            Seq(childExecutor.close)
-          case Subexecutor.DrainChildExecutors(
-                upstreamExecutor,
-                lastDone,
-                activeChildExecutors,
-                upstreamDone,
-                combineChildResults,
-                combineWithChildResult,
-                onPull
-              ) =>
-            Seq(upstreamExecutor.close, childExecutor.close)
-        }
+        Seq(parentSubexecutor.close, childExecutor.close)
+
       finishSubexecutorWithCloseEffect(
         Exit.failCause(cause),
         closeEffects: _*

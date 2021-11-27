@@ -266,7 +266,10 @@ object ZChannelSpec extends ZIOBaseSpec {
               )(
                 (_, _) => (),
                 (_, _) => (),
-                _ => UpstreamPullStrategy.PullAfterNext(None),
+                {
+                  case UpstreamPullRequest.Pulled(_) => UpstreamPullStrategy.PullAfterNext(None)
+                  case UpstreamPullRequest.NoUpstream(_) => UpstreamPullStrategy.PullAfterAllEnqueued(None)
+                },
                 {
                   case None    => ChildExecutorDecision.Yield
                   case Some(_) => ChildExecutorDecision.Continue
@@ -306,7 +309,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               )(
                 (_, _) => (),
                 (_, _) => (),
-                _ => UpstreamPullStrategy.PullAfterAllEnqueued(None),
+                 _ => UpstreamPullStrategy.PullAfterAllEnqueued(None),
                 {
                   case None    => ChildExecutorDecision.Yield
                   case Some(_) => ChildExecutorDecision.Continue
@@ -320,18 +323,18 @@ object ZChannelSpec extends ZIOBaseSpec {
                 (1, 1),
                 (2, 1),
                 (1, 2),
-                (2, 2),
                 (3, 1),
+                (2, 2),
                 (1, 3),
-                (2, 3),
-                (3, 2),
                 (4, 1),
+                (3, 2),
+                (2, 3),
                 (1, 4),
-                (2, 4),
-                (3, 3),
                 (4, 2),
-                (3, 4),
+                (3, 3),
+                (2, 4),
                 (4, 3),
+                (3, 4),
                 (4, 4)
               )
             )
