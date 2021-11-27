@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio._
-import zio.stream.ZChannel.ChildExecutorDecision
+import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.test.Assertion._
 import zio.test._
 
@@ -266,6 +266,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               )(
                 (_, _) => (),
                 (_, _) => (),
+                _ => UpstreamPullStrategy.PullAfterNext(None),
                 {
                   case None    => ChildExecutorDecision.Yield
                   case Some(_) => ChildExecutorDecision.Continue
@@ -305,6 +306,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               )(
                 (_, _) => (),
                 (_, _) => (),
+                _ => UpstreamPullStrategy.PullAfterAllEnqueued(None),
                 {
                   case None    => ChildExecutorDecision.Yield
                   case Some(_) => ChildExecutorDecision.Continue

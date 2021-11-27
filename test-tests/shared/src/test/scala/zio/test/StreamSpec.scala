@@ -53,18 +53,11 @@ object StreamSpec extends ZIOBaseSpec {
           },
           test("right identity") {
             check(Gen.int, Gen.listOf(Gen.option(Gen.int))) { (a, lst) =>
-              val f = (_: Int) => ZStream.fromIterable(lst)
+              val f     = (_: Int) => ZStream.fromIterable(lst)
               val left  = flatMapStream(ZStream(Some(a)))(f)
               val right = f(a)
               assertEqualStream(left, right)
             }
-          },
-          test("right identity fix") {
-              val a = -1
-              val f = (_: Int) => ZStream(Some(1), Some(2), None, Some(3), None)
-              val left  = flatMapStream(ZStream(Some(a)))(f).tap(x => UIO(println(s"left -> $x")))
-              val right = f(a).tap(x => UIO(println(s"right -> $x")))
-              assertEqualStream(left, right)
           },
           test("associativity") {
             check(Gen.int, genIntStreamFunction, genIntStreamFunction) { (a, f, g) =>

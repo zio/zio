@@ -5,7 +5,7 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
 import ChannelExecutor.ChannelState
-import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullStrategy}
+import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 
 /**
  * A `ZChannel[In, Env, Err, Out, Z]` is a nexus of I/O operations, which
@@ -193,7 +193,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.ConcatAll(
       g,
       h,
-      (_: OutElem) => UpstreamPullStrategy.PullAfterNext,
+      (_: UpstreamPullRequest[OutElem]) => UpstreamPullStrategy.PullAfterNext(None),
       (_: OutElem2) => ChildExecutorDecision.Continue,
       self,
       f
@@ -221,7 +221,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   )(
     g: (OutDone2, OutDone2) => OutDone2,
     h: (OutDone2, OutDone) => OutDone3,
-    onPull: OutElem => UpstreamPullStrategy,
+    onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
     onEmit: OutElem2 => ChildExecutorDecision
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
     ZChannel.ConcatAll(g, h, onPull, onEmit, self, f)
@@ -1067,7 +1067,7 @@ object ZChannel {
   ](
     combineInners: (OutDone, OutDone) => OutDone,
     combineAll: (OutDone, OutDone2) => OutDone3,
-    onPull: OutElem => UpstreamPullStrategy,
+    onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
     onEmit: OutElem2 => ChildExecutorDecision,
     value: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone2],
     k: OutElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
@@ -1224,7 +1224,8 @@ object ZChannel {
     ConcatAll(
       f,
       g,
-      (_: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]) => UpstreamPullStrategy.PullAfterNext,
+      (_: UpstreamPullRequest[ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]) =>
+        UpstreamPullStrategy.PullAfterNext(None),
       (_: OutElem) => ChildExecutorDecision.Continue,
       channels,
       (channel: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]) => channel
@@ -1599,11 +1600,15 @@ object ZChannel {
     // TODO: control emitted value (emit, skip, map to multiple emitted values?)
   }
 
-  sealed trait UpstreamPullStrategy
-  object UpstreamPullStrategy {
-    case object PullAfterNext        extends UpstreamPullStrategy
-    case object PullAfterAllEnqueued extends UpstreamPullStrategy
+  sealed trait UpstreamPullRequest[+A]
+  object UpstreamPullRequest {
+    final case class Pulled[+A](value: A)                   extends UpstreamPullRequest[A]
+    final case class NoUpstream(activeDownstreamCount: Int) extends UpstreamPullRequest[Nothing]
+  }
 
-    // TODO: idea: onPull to be called also when upstream is done (with None) => UpstreamPullStrategy should be able to emit beside requeue
+  sealed trait UpstreamPullStrategy[+A]
+  object UpstreamPullStrategy {
+    final case class PullAfterNext[+A](emitSeparator: Option[A])        extends UpstreamPullStrategy[A]
+    final case class PullAfterAllEnqueued[+A](emitSeparator: Option[A]) extends UpstreamPullStrategy[A]
   }
 }

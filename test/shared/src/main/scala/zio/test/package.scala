@@ -18,7 +18,7 @@ package zio
 
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullStrategy}
+import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
 
@@ -1094,48 +1094,41 @@ package object test extends CompileVariants {
       currentStreams.get.flatMap { queue =>
         debug1(s"[$id] ${queue.map(_.getClass.getSimpleName).mkString(", ")}")
       } *>
-      currentInnerStream.get.flatMap {
-        case None =>
-          currentStreams.get.map(_.headOption).flatMap {
-            case None =>
-              ZIO.fail(None)
-            case Some(PullInner(innerStream, chunk, index, innerFinalizer)) =>
-              debug1(s"Switching to next inner") *>
-              currentInnerStream.set(Some(PullInner(innerStream, chunk, index, innerFinalizer))) *>
-                currentStreams.update(_.tail) *>
-                pull(id, outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers)
-            case Some(PullOuter) =>
-              outerDone.get.flatMap { done =>
-                if (done) {
-                  debug1(s"Outer is already done") *>
-                  currentStreams.get.flatMap { queue =>
-                    if (queue.size == 1)
-                      ZIO.fail(None)
-                    else
-                      currentStreams.update(_.tail.enqueue(PullOuter)) *>
-                        ZIO.succeedNow(Chunk(None))
-                  }
-                } else
-                  currentOuterChunk.get.flatMap { case (outerChunk, outerChunkIndex) =>
-                    debug1(s"Pulling outer") *>
-                    pullOuter(outerStream, outerChunk, outerChunkIndex).foldZIO(
-                      _ =>
-                        outerDone.set(true) *>
-                          pull(
-                            id,
-                            outerDone,
-                            outerStream,
-                            currentOuterChunk,
-                            currentInnerStream,
-                            currentStreams,
-                            innerFinalizers
-                          ),
-                      {
-                        case (Some(a), outerChunk, outerChunkIndex) =>
-                          debug1(s"Pulled Some, opening new") *>
-                          openInner(a).flatMap { case (innerStream, innerFinalizer) =>
-                            currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
-                              currentInnerStream.set(Some(PullInner(innerStream, Chunk.empty, 0, innerFinalizer))) *>
+        currentInnerStream.get.flatMap {
+          case None =>
+            currentStreams.get.map(_.headOption).flatMap {
+              case None =>
+                ZIO.fail(None)
+              case Some(PullInner(innerStream, chunk, index, innerFinalizer)) =>
+                debug1(s"Switching to next inner") *>
+                  currentInnerStream.set(Some(PullInner(innerStream, chunk, index, innerFinalizer))) *>
+                  currentStreams.update(_.tail) *>
+                  pull(
+                    id,
+                    outerDone,
+                    outerStream,
+                    currentOuterChunk,
+                    currentInnerStream,
+                    currentStreams,
+                    innerFinalizers
+                  )
+              case Some(PullOuter) =>
+                outerDone.get.flatMap { done =>
+                  if (done) {
+                    debug1(s"Outer is already done") *>
+                      currentStreams.get.flatMap { queue =>
+                        if (queue.size == 1)
+                          ZIO.fail(None)
+                        else
+                          currentStreams.update(_.tail.enqueue(PullOuter)) *>
+                            ZIO.succeedNow(Chunk(None))
+                      }
+                  } else
+                    currentOuterChunk.get.flatMap { case (outerChunk, outerChunkIndex) =>
+                      debug1(s"Pulling outer") *>
+                        pullOuter(outerStream, outerChunk, outerChunkIndex).foldZIO(
+                          _ =>
+                            outerDone.set(true) *>
                               pull(
                                 id,
                                 outerDone,
@@ -1144,44 +1137,76 @@ package object test extends CompileVariants {
                                 currentInnerStream,
                                 currentStreams,
                                 innerFinalizers
-                              )
+                              ),
+                          {
+                            case (Some(a), outerChunk, outerChunkIndex) =>
+                              debug1(s"Pulled Some, opening new") *>
+                                openInner(a).flatMap { case (innerStream, innerFinalizer) =>
+                                  currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
+                                    currentInnerStream
+                                      .set(Some(PullInner(innerStream, Chunk.empty, 0, innerFinalizer))) *>
+                                    pull(
+                                      id,
+                                      outerDone,
+                                      outerStream,
+                                      currentOuterChunk,
+                                      currentInnerStream,
+                                      currentStreams,
+                                      innerFinalizers
+                                    )
+                                }
+                            case (None, outerChunk, outerChunkIndex) =>
+                              debug1(s"Pulled None, enqueuing PullOuter again") *>
+                                currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
+                                currentStreams.update(_.tail.enqueue(PullOuter)) *>
+                                ZIO.succeedNow(Chunk(None))
                           }
-                        case (None, outerChunk, outerChunkIndex) =>
-                          debug1(s"Pulled None, enqueuing PullOuter again") *>
-                          currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
-                            currentStreams.update(_.tail.enqueue(PullOuter)) *>
-                            ZIO.succeedNow(Chunk(None))
-                      }
-                    )
-                  }
-              }
-          }
-        case Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer)) =>
-          pullInner(innerStream, innerChunk, innerChunkIndex).foldZIO(
-            _ =>
-              innerFinalizer(Exit.unit) *>
-                currentInnerStream.set(None) *>
-                pull(id, outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers),
-            {
-              case (None, innerChunk, innerChunkIndex) =>
-                debug1(s"Pulled None from inner, enqueuing self") *>
-                currentInnerStream.set(None) *>
-                  currentStreams.update(
-                    _.enqueue(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))
-                  ) *>
-                  pull(id, outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers)
-              case (Some(bs), innerChunk, innerChunkIndex) =>
-                debug1(s"Pulled Some from inner") *>
-                currentInnerStream.set(Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))) *>
-                  ZIO.succeedNow(bs)
+                        )
+                    }
+                }
             }
-          )
-      }
+          case Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer)) =>
+            pullInner(innerStream, innerChunk, innerChunkIndex).foldZIO(
+              _ =>
+                innerFinalizer(Exit.unit) *>
+                  currentInnerStream.set(None) *>
+                  pull(
+                    id,
+                    outerDone,
+                    outerStream,
+                    currentOuterChunk,
+                    currentInnerStream,
+                    currentStreams,
+                    innerFinalizers
+                  ),
+              {
+                case (None, innerChunk, innerChunkIndex) =>
+                  debug1(s"Pulled None from inner, enqueuing self") *>
+                    currentInnerStream.set(None) *>
+                    currentStreams.update(
+                      _.enqueue(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))
+                    ) *>
+                    pull(
+                      id,
+                      outerDone,
+                      outerStream,
+                      currentOuterChunk,
+                      currentInnerStream,
+                      currentStreams,
+                      innerFinalizers
+                    )
+                case (Some(bs), innerChunk, innerChunkIndex) =>
+                  debug1(s"Pulled Some from inner") *>
+                    currentInnerStream.set(Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))) *>
+                    ZIO.succeedNow(bs)
+              }
+            )
+        }
     }
 
     ZStream.fromPull {
       for {
-        id <- UIO(debugId.incrementAndGet()).toManaged
+        id                 <- UIO(debugId.incrementAndGet()).toManaged
         outerDone          <- Ref.make(false).toManaged
         outerStream        <- stream.toPull
         currentOuterChunk  <- Ref.make[(Chunk[Option[A]], Int)]((Chunk.empty, 0)).toManaged
@@ -1211,18 +1236,29 @@ package object test extends CompileVariants {
                   case Some(a) => Right(a)
                 }
                 .channel
-            case None => ZStream(Left(false)).channel
+            case None =>
+              ZStream(Left(false)).channel
           }.fold(ZChannel.unit)(_ *> _)
         )(
-          (_, _) => (),
-          (_, _) => (),
-          (chunk: Chunk[Option[A]]) => {
-            chunk.headOption.flatten match {
-              case Some(_) => UpstreamPullStrategy.PullAfterNext
-              case None => UpstreamPullStrategy.PullAfterAllEnqueued
-            }
-          },
-          (chunk: Chunk[Either[Boolean, B]]) => {
+          g = (_, _) => (),
+          h = (_, _) => (),
+          onPull = (request: UpstreamPullRequest[Chunk[Option[A]]]) =>
+            request match {
+              case UpstreamPullRequest.Pulled(chunk) =>
+                chunk.headOption.flatten match {
+                  case Some(_) => UpstreamPullStrategy.PullAfterNext(None)
+                  case None =>
+                    UpstreamPullStrategy.PullAfterAllEnqueued(None)
+                }
+              case UpstreamPullRequest.NoUpstream(activeDownstreamCount) =>
+                UpstreamPullStrategy.PullAfterAllEnqueued[Chunk[Either[Boolean, B]]](
+                  if (activeDownstreamCount > 0)
+                    Some(Chunk(Left(false)))
+                  else
+                    None
+                )
+            },
+          onEmit = (chunk: Chunk[Either[Boolean, B]]) => {
             chunk.headOption match {
               case Some(Left(true)) => ChildExecutorDecision.Yield
               case _                => ChildExecutorDecision.Continue
