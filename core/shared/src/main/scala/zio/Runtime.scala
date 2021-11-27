@@ -87,10 +87,7 @@ trait Runtime[+R] {
    * program.
    */
   final def unsafeRun[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): A =
-    try unsafeRunFast(zio, 50)
-    catch {
-      case failure: ZIO.ZioError[_] => throw FiberFailure(failure.cause)
-    }
+    unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
    * Executes the effect asynchronously, discarding the result of execution.
@@ -110,7 +107,7 @@ trait Runtime[+R] {
    * program.
    */
   final def unsafeRunSync[E, A](zio0: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
-    unsafeRunSyncFast(zio0)
+    defaultUnsafeRunSync(zio0)
 
   private[zio] final def defaultUnsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
@@ -378,7 +375,8 @@ trait Runtime[+R] {
       new java.util.concurrent.atomic.AtomicReference(
         Map(ZFiberRef.currentEnvironment -> environment.asInstanceOf[AnyRef])
       ),
-      scope
+      scope,
+      trace
     )
 
     if (supervisor ne Supervisor.none) {

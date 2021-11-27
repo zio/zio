@@ -5478,6 +5478,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   implicit final class ZLayerProvideSomeOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
     /**
+     * Provides an effect with part of its required environment, eliminating its
+     * dependency on the services output by this layer.
+     */
+    final def apply[R, E1 >: E, A](
+      zio: ZIO[ROut with R, E1, A]
+    )(implicit ev1: Tag[R], ev2: Tag[ROut], trace: ZTraceElement): ZIO[RIn with R, E1, A] =
+      ZIO.provide[RIn, E1, ROut, R, A](self)(zio)
+
+    /**
+     * Provides a managed effect with part of its required environment,
+     * eliminating its dependency on the services output by this layer.
+     */
+    final def apply[R, E1 >: E, A](
+      managed: ZManaged[ROut with R, E1, A]
+    )(implicit ev1: Tag[R], ev2: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with R, E1, A] =
+      ZManaged.provide[RIn, E1, ROut, R, A](self)(managed)
+
+    /**
      * Feeds the output services of this builder into the input of the specified
      * builder, resulting in a new builder with the inputs of this builder as
      * well as any leftover inputs, and the outputs of the specified builder.
@@ -5524,5 +5542,4 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     ): ZLayer[RIn, E1, ROut1 with ROut2] =
       self.zipWithPar(self >>> that)(_.union[ROut2](_))
   }
-
 }

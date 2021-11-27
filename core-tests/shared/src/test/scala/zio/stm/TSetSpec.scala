@@ -1,6 +1,6 @@
 package zio.stm
 
-import zio.ZIOBaseSpec
+import zio.{Chunk, ZIOBaseSpec}
 import zio.test.Assertion._
 import zio.test._
 
@@ -85,8 +85,20 @@ object TSetSpec extends ZIOBaseSpec {
       test("retainIf") {
         val tx =
           for {
+            tset    <- TSet.make("a", "aa", "aaa")
+            removed <- tset.retainIf(_ == "aa")
+            a       <- tset.contains("a")
+            aa      <- tset.contains("aa")
+            aaa     <- tset.contains("aaa")
+          } yield (removed, a, aa, aaa)
+
+        assertM(tx.commit)(equalTo((Chunk("aaa", "a"), false, true, false)))
+      },
+      test("retainIfDiscard") {
+        val tx =
+          for {
             tset <- TSet.make("a", "aa", "aaa")
-            _    <- tset.retainIf(_ == "aa")
+            _    <- tset.retainIfDiscard(_ == "aa")
             a    <- tset.contains("a")
             aa   <- tset.contains("aa")
             aaa  <- tset.contains("aaa")
@@ -97,8 +109,20 @@ object TSetSpec extends ZIOBaseSpec {
       test("removeIf") {
         val tx =
           for {
+            tset    <- TSet.make("a", "aa", "aaa")
+            removed <- tset.removeIf(_ == "aa")
+            a       <- tset.contains("a")
+            aa      <- tset.contains("aa")
+            aaa     <- tset.contains("aaa")
+          } yield (removed, a, aa, aaa)
+
+        assertM(tx.commit)(equalTo((Chunk("aa"), true, false, true)))
+      },
+      test("removeIfDiscard") {
+        val tx =
+          for {
             tset <- TSet.make("a", "aa", "aaa")
-            _    <- tset.removeIf(_ == "aa")
+            _    <- tset.removeIfDiscard(_ == "aa")
             a    <- tset.contains("a")
             aa   <- tset.contains("aa")
             aaa  <- tset.contains("aaa")

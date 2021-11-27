@@ -69,7 +69,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Symbolic alias for [[[zio.stream.ZStream!.run[R1<:R,E1>:E,B]*]]].
    */
-  def >>>[R1 <: R, E2, A2 >: A, Z](sink: ZSink[R1, E, A2, E2, Any, Z])(implicit trace: ZTraceElement): ZIO[R1, E2, Z] =
+  def >>>[R1 <: R, E1 >: E, A2 >: A, Z](sink: ZSink[R1, E1, A2, Any, Z])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E1, Z] =
     self.run(sink)
 
   /**
@@ -109,9 +111,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Any sink can be used here, but see [[ZSink.foldWeightedM]] and
    * [[ZSink.foldUntilM]] for sinks that cover the common usecases.
    */
-  final def aggregateAsync[R1 <: R, E1 >: E, E2, A1 >: A, B](
-    sink: ZSink[R1, E1, A1, E2, A1, B]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E2, B] =
+  final def aggregateAsync[R1 <: R, E1 >: E, A1 >: A, B](
+    sink: ZSink[R1, E1, A1, A1, B]
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
     aggregateAsyncWithin(sink, Schedule.forever)
 
   /**
@@ -124,10 +126,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @return
    *   `ZStream[R1 with Clock, E2, B]`
    */
-  final def aggregateAsyncWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
-    sink: ZSink[R1, E1, A1, E2, A1, B],
+  final def aggregateAsyncWithin[R1 <: R, E1 >: E, A1 >: A, B](
+    sink: ZSink[R1, E1, A1, A1, B],
     schedule: Schedule[R1, Option[B], Any]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E2, B] =
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
     aggregateAsyncWithinEither(sink, schedule).collect { case Right(v) =>
       v
     }
@@ -151,10 +153,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @return
    *   `ZStream[R1 with Clock, E2, Either[C, B]]`
    */
-  def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, E2, B, C](
-    sink: ZSink[R1, E1, A1, E2, A1, B],
+  def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
+    sink: ZSink[R1, E1, A1, A1, B],
     schedule: Schedule[R1, Option[B], C]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E2, Either[C, B]] = {
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, Either[C, B]] = {
     type HandoffSignal = ZStream.HandoffSignal[C, E1, A]
     import ZStream.HandoffSignal._
     type SinkEndReason = ZStream.SinkEndReason[C]
@@ -190,7 +192,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
       def scheduledAggregator(
         lastB: Option[B]
-      ): ZChannel[R1 with Clock, Any, Any, Any, E2, Chunk[Either[C, B]], Any] = {
+      ): ZChannel[R1 with Clock, Any, Any, Any, E1, Chunk[Either[C, B]], Any] = {
         val timeout =
           scheduleDriver
             .next(lastB)
@@ -204,7 +206,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
         ZChannel
           .managed(timeout.forkManaged) { fiber =>
-            (handoffConsumer >>> sink.channel).doneCollect.flatMap { case (leftovers, b) =>
+            (handoffConsumer pipeToOrFail sink.channel).doneCollect.flatMap { case (leftovers, b) =>
               ZChannel.fromZIO(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
                 ZChannel.unwrap {
                   sinkEndReason.modify {
@@ -1192,7 +1194,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * evaluates to `true`.
    */
   final def dropWhile(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    pipeThrough(ZSink.dropWhile[E, A](f))
+    pipeThrough(ZSink.dropWhile[A](f))
 
   /**
    * Drops all elements of the stream for as long as the specified predicate
@@ -1915,7 +1917,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   size of the chunk
    */
   def grouped(chunkSize: Int)(implicit trace: ZTraceElement): ZStream[R, E, Chunk[A]] =
-    transduce(ZSink.collectAllN[E, A](chunkSize))
+    transduce(ZSink.collectAllN[A](chunkSize))
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified
@@ -1924,7 +1926,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def groupedWithin(chunkSize: Int, within: Duration)(implicit
     trace: ZTraceElement
   ): ZStream[R with Clock, E, Chunk[A]] =
-    aggregateAsyncWithin(ZSink.collectAllN[E, A](chunkSize), Schedule.spaced(within))
+    aggregateAsyncWithin(ZSink.collectAllN[A](chunkSize), Schedule.spaced(within))
 
   /**
    * Halts the evaluation of this stream when the provided IO completes. The
@@ -2754,7 +2756,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * provided stream is valid only within the scope of [[ZManaged]].
    */
   def peel[R1 <: R, E1 >: E, A1 >: A, Z](
-    sink: ZSink[R1, E1, A1, E1, A1, Z]
+    sink: ZSink[R1, E1, A1, A1, Z]
   )(implicit trace: ZTraceElement): ZManaged[R1, E1, (Z, ZStream[Any, E, A1])] = {
     sealed trait Signal
     object Signal {
@@ -2767,7 +2769,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       p       <- Promise.makeManaged[E1, Z]
       handoff <- ZStream.Handoff.make[Signal].toManaged
     } yield {
-      val consumer: ZSink[R1, E, A1, E1, A1, Unit] = sink.exposeLeftover
+      val consumer: ZSink[R1, E1, A1, A1, Unit] = sink.exposeLeftover
         .foldSink(
           e => ZSink.fromZIO(p.fail(e)) *> ZSink.fail(e),
           { case (z1, leftovers) =>
@@ -2806,10 +2808,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @see
    *   [[transduce]]
    */
-  def pipeThrough[R1 <: R, E1 >: E, E2, L, Z](sink: ZSink[R1, E1, A, E2, L, Z])(implicit
+  def pipeThrough[R1 <: R, E1 >: E, L, Z](sink: ZSink[R1, E1, A, L, Z])(implicit
     trace: ZTraceElement
-  ): ZStream[R1, E2, L] =
-    new ZStream(self.channel >>> sink.channel)
+  ): ZStream[R1, E1, L] =
+    new ZStream(self.channel pipeToOrFail sink.channel)
 
   /**
    * Pipes all the values from this stream through the provided channel
@@ -3142,13 +3144,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Runs the sink on the stream to produce either the sink's result or an
    * error.
    */
-  def run[R1 <: R, E2, Z](sink: ZSink[R1, E, A, E2, Any, Z])(implicit trace: ZTraceElement): ZIO[R1, E2, Z] =
-    (channel pipeTo sink.channel).runDrain
+  def run[R1 <: R, E1 >: E, Z](sink: ZSink[R1, E1, A, Any, Z])(implicit trace: ZTraceElement): ZIO[R1, E1, Z] =
+    (channel pipeToOrFail sink.channel).runDrain
 
-  def runManaged[R1 <: R, E2, B](sink: ZSink[R1, E, A, E2, Any, B])(implicit
+  def runManaged[R1 <: R, E1 >: E, B](sink: ZSink[R1, E1, A, Any, B])(implicit
     trace: ZTraceElement
-  ): ZManaged[R1, E2, B] =
-    (channel pipeTo sink.channel).drain.runManaged
+  ): ZManaged[R1, E1, B] =
+    (channel pipeToOrFail sink.channel).drain.runManaged
 
   /**
    * Runs the stream and collects all of its elements to a chunk.
@@ -3190,7 +3192,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Equivalent to `run(Sink.sum[A])`
    */
   final def runSum[A1 >: A](implicit ev: Numeric[A1], trace: ZTraceElement): ZIO[R, E, A1] =
-    run(ZSink.sum[E, A1])
+    run(ZSink.sum[A1])
 
   /**
    * Statefully maps over the elements of this stream to produce all
@@ -3921,8 +3923,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Applies the transducer to the stream and emits its outputs.
    */
-  def transduce[R1 <: R, E1, A1 >: A, Z](
-    sink: ZSink[R1, E, A1, E1, A1, Z]
+  def transduce[R1 <: R, E1 >: E, A1 >: A, Z](
+    sink: ZSink[R1, E1, A1, A1, Z]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, Z] =
     new ZStream(
       ZChannel.effectSuspendTotal {
@@ -3956,23 +3958,27 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           ZChannel.readWith(
             (in: Chunk[A]) => ZChannel.write(in) *> upstreamMarker,
             (err: E) => ZChannel.fail(err),
-            (done: Any) => ZChannel.effectTotal(upstreamDone.set(true)) *> ZChannel.end(done)
+            (done: Any) =>
+              ZChannel.effectTotal(upstreamDone.set(true)) *> ZChannel
+                .end(done)
           )
 
-        lazy val transducer: ZChannel[R1, E, Chunk[A1], Any, E1, Chunk[Z], Unit] =
+        lazy val transducer: ZChannel[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit] =
           sink.channel.doneCollect.flatMap { case (leftover, z) =>
-            ZChannel.effectTotal((upstreamDone.get, concatAndGet(leftover))).flatMap { case (done, newLeftovers) =>
-              val nextChannel =
-                if (done && newLeftovers.isEmpty) ZChannel.end(())
-                else transducer
+            ZChannel
+              .effectTotal((upstreamDone.get, concatAndGet(leftover)))
+              .flatMap[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit] { case (done, newLeftovers) =>
+                val nextChannel =
+                  if (done && newLeftovers.isEmpty) ZChannel.end(())
+                  else transducer
 
-              ZChannel.write(Chunk.single(z)) *> nextChannel
-            }
+                ZChannel.write(Chunk.single(z)).zipRight[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit](nextChannel)
+              }
           }
 
         channel >>>
           upstreamMarker >>>
-          buffer >>>
+          buffer pipeToOrFail
           transducer
       }
     )

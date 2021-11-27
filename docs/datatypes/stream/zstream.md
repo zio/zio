@@ -1551,7 +1551,7 @@ Let's see an example of synchronous aggregation:
 
 ```scala mdoc:silent:nest
 val stream = ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-val s1 = stream.transduce(ZSink.collectAllN[Nothing, Int](3))
+val s1 = stream.transduce(ZSink.collectAllN[Int](3))
 // Output Chunk(1,2,3), Chunk(4,5,6), Chunk(7,8,9), Chunk(10)
 ```
 
@@ -1574,7 +1574,7 @@ val sink =
   )
   
 val myApp = 
-  source.transduce(ZSink.collectAllN[IOException, Int](5)).run(sink)
+  source.transduce(ZSink.collectAllN[Int](5)).run(sink)
 ```
 
 Let's see one output of running this program:
@@ -1608,7 +1608,7 @@ For example, consider `source.aggregateAsync(ZSink.collectAllN[Nothing, Int](5))
 
 ```scala mdoc:silent:nest
 val myApp = 
-  source.aggregateAsync(ZSink.collectAllN[IOException, Int](5)).run(sink)
+  source.aggregateAsync(ZSink.collectAllN[Int](5)).run(sink)
 ```
 
 Let's see one output of running this program:
@@ -1656,7 +1656,7 @@ val dataStream: ZStream[Any, Nothing, Record] = ZStream.repeat(Record())
 
 ```scala mdoc:silent:nest
 dataStream.aggregateAsyncWithin(
-   ZSink.collectAllN[Nothing, Record](2000),
+   ZSink.collectAllN[Record](2000),
    Schedule.fixed(30.seconds)
  )
 ```
@@ -1673,7 +1673,7 @@ val schedule: Schedule[Clock with Random, Option[Chunk[Record]], Long] =
     Schedule.fixed(5.seconds).jittered.whileInput[Option[Chunk[Record]]](_.getOrElse(Chunk.empty).length >= 1000)
     
 dataStream
-  .aggregateAsyncWithin(ZSink.collectAllN[Nothing, Record](2000), schedule)
+  .aggregateAsyncWithin(ZSink.collectAllN[Record](2000), schedule)
 ```
 
 ## Scheduling

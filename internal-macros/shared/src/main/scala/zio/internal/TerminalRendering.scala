@@ -97,7 +97,7 @@ object TerminalRendering {
         s"Your effect requires services that are not in the environment.\n".bold +
           s"Please provide layers for the following ${missingLayers.size.toString.underlined} types:"
       else
-        s"Your effect requires a that is not in the environment.\n".bold +
+        s"Your effect requires a service that is not in the environment.\n".bold +
           s"Please provide a layer for the following type:"
 
     s"""

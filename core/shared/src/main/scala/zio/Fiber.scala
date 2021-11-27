@@ -467,6 +467,11 @@ object Fiber extends FiberPlatformSpecific {
   sealed abstract class Runtime[+E, +A] extends Fiber[E, A] { self =>
 
     /**
+     * The location the fiber was forked from.
+     */
+    def location: ZTraceElement
+
+    /**
      * Generates a fiber dump.
      */
     final def dumpWith(withTrace: Boolean)(implicit trace: ZTraceElement): UIO[Fiber.Dump] =

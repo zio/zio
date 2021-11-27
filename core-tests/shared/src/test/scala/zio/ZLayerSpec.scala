@@ -445,6 +445,33 @@ object ZLayerSpec extends ZIOBaseSpec {
               boolean == true
             )
           }
+      },
+      test("apply provides an effect with part of its required environment") {
+        val needsIntAndString = ZIO.environment[Int & String]
+        val providesInt       = ZLayer.succeed(10)
+        val needsString       = providesInt(needsIntAndString)
+        needsString
+          .provide(ZLayer.succeed("hi"))
+          .map { result =>
+            assertTrue(
+              result.get[Int] == 10,
+              result.get[String] == "hi"
+            )
+          }
+      },
+      test("apply provides a managed effect with part of its required environment") {
+        val needsIntAndString = ZManaged.environment[Int & String]
+        val providesInt       = ZLayer.succeed(10)
+        val needsString       = providesInt(needsIntAndString)
+        needsString
+          .provide(ZLayer.succeed("hi"))
+          .useNow
+          .map { result =>
+            assertTrue(
+              result.get[Int] == 10,
+              result.get[String] == "hi"
+            )
+          }
       }
     )
 }
