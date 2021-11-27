@@ -597,6 +597,144 @@ object ZChannelSpec extends ZIOBaseSpec {
             } yield (v1, v2, v3)).runDrain.provideEnvironment(ZEnvironment(4))
           )(equalTo((4, 2, 4)))
         }
+      ),
+      suite("pipeToOrFail")(
+        test("preserves upstream failure when reading") {
+          assertM(
+            ZChannel
+              .fromZIO(ZIO.fail("test failure"))
+              .pipeToOrFail(
+                ZChannel.readWithCause(
+                  (in: Int) => ZChannel.end(in),
+                  (cause: Cause[String]) => ZChannel.failCause(cause),
+                  (_: Any) => ZChannel.end(-1)
+                )
+              )
+              .run
+              .exit
+          )(fails(equalTo("test failure")))
+        },
+        test("unifies upstream and downstream error types when reading") {
+          sealed trait Failure
+          object Failure {
+            case object A extends Failure
+            case object B extends Failure
+          }
+
+          assertM(
+            ZChannel
+              .fromZIO(ZIO.fail(Failure.A))
+              .pipeToOrFail(
+                ZChannel.readWithCause(
+                  (in: Int) => ZChannel.end(in),
+                  (cause: Cause[Failure.B.type]) => ZChannel.failCause(cause),
+                  (_: Any) => ZChannel.end(-1)
+                )
+              )
+              .run
+              .exit
+          )(fails[Failure](equalTo(Failure.A)))
+        },
+        test("upstream is not executed when not pulled") {
+          assertM(
+            ZChannel
+              .fromZIO(ZIO.fail("test failure"))
+              .pipeToOrFail(ZChannel.succeed(1))
+              .run
+          )(equalTo(1))
+        },
+        test("runs finalizers when upstream is failing") {
+          for {
+            queue <- ZQueue.unbounded[String]
+            result <-
+              ZChannel
+                .fromZIO(ZIO.fail("test failure"))
+                .ensuring(queue.offer("a"))
+                .pipeToOrFail(
+                  ZChannel
+                    .readWithCause(
+                      (in: Int) => ZChannel.end(in),
+                      (cause: Cause[String]) => ZChannel.failCause(cause),
+                      (_: Any) => ZChannel.end(-1)
+                    )
+                    .ensuring(queue.offer("b"))
+                )
+                .run
+                .exit
+            fins <- queue.takeAll
+          } yield assertTrue(
+            result.isFailure,
+            fins == Chunk("a", "b")
+          )
+        },
+        test("runs finalizers when downstream is failing") {
+          for {
+            queue <- ZQueue.unbounded[String]
+            result <-
+              ZChannel
+                .writeAll(1, 2, 3)
+                .ensuring(queue.offer("a"))
+                .pipeToOrFail(
+                  ZChannel
+                    .readWithCause(
+                      (_: Int) => ZChannel.fail("failure"),
+                      (cause: Cause[String]) => ZChannel.failCause(cause),
+                      (_: Any) => ZChannel.end(-1)
+                    )
+                    .ensuring(queue.offer("b"))
+                )
+                .run
+                .exit
+            fins <- queue.takeAll
+          } yield assertTrue(
+            result.isFailure,
+            fins == Chunk("b", "a")
+          )
+        },
+        test("defers finalizers properly") {
+          for {
+            queue <- ZQueue.unbounded[String]
+            fins1 <-
+              ZChannel
+                .writeAll(1, 2, 3)
+                .ensuring(queue.offer("a"))
+                .pipeToOrFail(
+                  ZChannel
+                    .readWithCause(
+                      (in: Int) => ZChannel.end(in),
+                      (cause: Cause[String]) => ZChannel.failCause(cause),
+                      (_: Any) => ZChannel.end(-1)
+                    )
+                    .ensuring(queue.offer("b"))
+                )
+                .runManaged
+                .use { _ =>
+                  queue.takeAll
+                }
+            fins2 <- queue.takeAll
+          } yield assertTrue(
+            fins1.isEmpty,
+            fins2 == Chunk("b", "a")
+          )
+        },
+        test("fold does not force finalizers") {
+          for {
+            queue <- ZQueue.unbounded[String]
+            fins1 <-
+              ZChannel
+                .end(1)
+                .ensuring(queue.offer("a"))
+                .catchAll(_ => ZChannel.end(2))
+                .runManaged
+                .use { _ =>
+                  queue.takeAll
+                }
+            fins2 <- queue.takeAll
+          } yield assertTrue(
+            fins1.isEmpty,
+            fins2 == Chunk("a")
+          )
+        }
       )
     )
   )

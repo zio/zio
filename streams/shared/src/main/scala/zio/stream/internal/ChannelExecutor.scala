@@ -4,6 +4,7 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.immutable.Queue
 
 class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
@@ -12,6 +13,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   executeCloseLastSubstream: URIO[Env, Any] => URIO[Env, Any]
 ) {
   import ChannelExecutor._
+
+  val id = ChannelExecutor.id.incrementAndGet()
 
   private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env])(implicit trace: ZTraceElement) = {
     val currInput = input
@@ -120,6 +123,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       } else if (subexecutorStack ne null) {
         result = drainSubexecutor()
       } else {
+        println(s"[$id] $currentChannel")
+
         currentChannel match {
           case null =>
             result = ChannelState.Done
@@ -301,11 +306,13 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private[this] def doneSucceed(z: Any)(implicit trace: ZTraceElement): ChannelState[Env, Any] =
     doneStack match {
       case Nil =>
+        println(s"[$id] doneSucceed($z), done stack is empty")
         done = Exit.succeed(z)
         currentChannel = null
         ChannelState.Done
 
       case ZChannel.Fold.K(onSuccess, _) :: rest =>
+        println(s"[$id] doneSucceed($z), applying fold")
         doneStack = rest
         currentChannel = onSuccess(z)
         null
@@ -314,11 +321,15 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         val finalizers = popNextFinalizers()
 
         if (doneStack.isEmpty) {
+          println(s"[$id] doneSucceed($z), got ${finalizers.size} finalizers, deferring")
+
           doneStack = finalizers
           done = Exit.succeed(z)
           currentChannel = null
           ChannelState.Done
         } else {
+          println(s"[$id] doneSucceed($z), done stack is not yet empty ($doneStack)")
+
           val finalizerEffect =
             runFinalizers(finalizers.map(_.finalizer), Exit.succeed(z))
           storeInProgressFinalizer(finalizerEffect)
@@ -383,11 +394,13 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         state match {
           case ChannelState.Emit =>
             UIO {
+              println(s"read/go/Emit")
               currentChannel = read.more(input.getEmit)
             }
 
           case ChannelState.Done =>
             UIO {
+              println(s"read/go/Done")
               currentChannel = read.done.onExit(input.getDone)
             }
 
@@ -395,6 +408,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             zio.foldCauseZIO(
               cause =>
                 UIO {
+                  println(s"read/go/Effect failed")
                   currentChannel = read.done.onHalt(cause)
                 },
               _ => go(input.run())
@@ -403,10 +417,12 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
       input.run() match {
         case ChannelState.Emit =>
+          println(s"read/Emit")
           currentChannel = read.more(input.getEmit)
           null
 
         case ChannelState.Done =>
+          println(s"read/Done")
           currentChannel = read.done.onExit(input.getDone)
           null
 
@@ -415,6 +431,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             zio.foldCauseZIO(
               cause =>
                 UIO {
+                  println(s"read/Effect failed")
                   currentChannel = read.done.onHalt(cause)
                 },
               _ => go(input.run())
@@ -601,6 +618,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 }
 
 object ChannelExecutor {
+  val id = new AtomicInteger(0)
+
   type Channel[R]            = ZChannel[R, Any, Any, Any, Any, Any, Any]
   type ErasedExecutor[Env]   = ChannelExecutor[Env, Any, Any, Any, Any, Any, Any]
   type ErasedContinuation[R] = ZChannel.Fold.Continuation[R, Any, Any, Any, Any, Any, Any, Any, Any]
