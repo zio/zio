@@ -1984,8 +1984,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
               equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk()))
             )
-          }
-        ) @@ TestAspect.flaky,
+          } @@ TestAspect.flaky // TODO Mark as non-flaky on series/2.x
+        ),
         test("interleave") {
           val s1 = ZStream(2, 3)
           val s2 = ZStream(5, 6, 7)
