@@ -38,7 +38,7 @@ private[zio] class ConcurrentState {
         }
       }
 
-      override def unsafeHistogramChanged(key: MetricKey.Histogram, value: MetricState): Unit = {
+      override def unsafeHistogramChanged(key: MetricKey.Histogram, value: Double): Unit = {
         val iterator = listeners.iterator
         while (iterator.hasNext) {
           val listener = iterator.next()
@@ -46,7 +46,7 @@ private[zio] class ConcurrentState {
         }
       }
 
-      override def unsafeSummaryChanged(key: MetricKey.Summary, value: MetricState): Unit = {
+      override def unsafeSummaryChanged(key: MetricKey.Summary, value: Double): Unit = {
         val iterator = listeners.iterator
         while (iterator.hasNext) {
           val listener = iterator.next()
@@ -54,7 +54,7 @@ private[zio] class ConcurrentState {
         }
       }
 
-      override def unsafeSetChanged(key: MetricKey.SetCount, value: MetricState): Unit = {
+      override def unsafeSetChanged(key: MetricKey.SetCount, value: String): Unit = {
         val iterator = listeners.iterator
         while (iterator.hasNext) {
           val listener = iterator.next()
@@ -154,7 +154,7 @@ private[zio] class ConcurrentState {
 
       def unsafeObserve(value: Double): Unit = {
         histogram.observe(value)
-        listener.unsafeHistogramChanged(key, histogram.toMetricState)
+        listener.unsafeHistogramChanged(key, value)
       }
     }
   }
@@ -179,7 +179,7 @@ private[zio] class ConcurrentState {
       def observe(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           summary.observe(value, Instant.now)
-          listener.unsafeSummaryChanged(key, summary.toMetricState)
+          listener.unsafeSummaryChanged(key, value)
         }
       def quantileValues(implicit trace: ZTraceElement): zio.UIO[zio.Chunk[(Double, Option[Double])]] =
         ZIO.succeed(summary.summary.snapshot(Instant.now))
@@ -212,7 +212,7 @@ private[zio] class ConcurrentState {
 
       def unsafeObserve(word: String): Unit = {
         setCount.observe(word)
-        listener.unsafeSetChanged(key, setCount.toMetricState)
+        listener.unsafeSetChanged(key, word)
       }
 
       private[zio] def unsafeOccurrences: Chunk[(String, Long)] =
