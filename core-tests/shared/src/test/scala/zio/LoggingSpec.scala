@@ -54,7 +54,6 @@ object LoggingSpec extends ZIOBaseSpec {
     ZLogger.Set(stringLogger, causeLogger)
 
 //  override def runner: TestRunner[Environment, Any] = super.runner.withRuntimeConfig(_.copy(loggers = testLoggers))
-  
 
   def spec: ZSpec[Any, Any] =
     suite("LoggingSpec")(
@@ -110,5 +109,7 @@ object LoggingSpec extends ZIOBaseSpec {
           output <- logOutput
         } yield assertTrue(output.length == 0)
       }
-    ) @@ sequential @@ after(clearOutput) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.addLogger(stringLogger)) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.addLogger(causeLogger)) 
+    ) @@ sequential @@ after(clearOutput) @@ TestAspect.runtimeConfig(
+      RuntimeConfigAspect.addLogger(stringLogger)
+    ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.addLogger(causeLogger))
 }
