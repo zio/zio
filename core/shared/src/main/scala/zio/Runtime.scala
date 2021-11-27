@@ -364,7 +364,7 @@ trait Runtime[+R] {
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
     val fiberId = FiberId.unsafeMake()
 
-    val scope = ZScope.unsafeMake[Exit[E, A]]()
+    val scope = ZScope.unsafeMake()
 
     val supervisor = runtimeConfig.supervisor
 
