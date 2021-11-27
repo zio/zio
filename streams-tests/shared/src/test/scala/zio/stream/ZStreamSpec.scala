@@ -1985,7 +1985,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk()))
             )
           }
-        ),
+        ) @@ TestAspect.flaky,
         test("interleave") {
           val s1 = ZStream(2, 3)
           val s2 = ZStream(5, 6, 7)
