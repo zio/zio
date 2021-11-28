@@ -10,7 +10,22 @@ import zio.test.{
   TestLogger,
   ZIOSpecAbstract
 }
-import zio.{Chunk, Clock, Layer, Runtime, UIO, ULayer, ZEnv, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{
+  Chunk,
+  Clock,
+  Console,
+  Layer,
+  Random,
+  Runtime,
+  System,
+  UIO,
+  ULayer,
+  ZEnvironment,
+  ZIO,
+  ZIOAppArgs,
+  ZLayer,
+  ZTraceElement
+}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -36,7 +51,7 @@ abstract class BaseTestTask(
     eventHandler: EventHandler,
     spec: ZIOSpecAbstract,
     loggers: Array[Logger]
-  )(implicit trace: ZTraceElement): ZIO[TestLogger with Clock, Throwable, Unit] = {
+  )(implicit trace: ZTraceElement): ZIO[TestLogger, Throwable, Unit] = {
     val argslayer: ULayer[ZIOAppArgs] =
       ZLayer.succeed(
         ZIOAppArgs(Chunk.empty)
@@ -48,10 +63,11 @@ abstract class BaseTestTask(
     val layer: Layer[Error, spec.Environment] =
       (argslayer +!+ filledTestlayer) >>> spec.layer.mapError(e => new Error(e.toString))
 
-    val fullLayer: Layer[Error, spec.Environment with ZIOAppArgs with TestEnvironment with ZEnv] =
+    val fullLayer
+      : Layer[Error, spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random] =
       layer +!+ argslayer +!+ filledTestlayer
 
-    val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
+    val testLoggers: Layer[Nothing, TestLogger with Clock] = sbtTestLayer(loggers)
 
     for {
       spec <- spec
