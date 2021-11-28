@@ -92,7 +92,6 @@ The library includes built-in _testable versions_ of all the standard ZIO servic
 import zio._
 import zio.test.{test, _}
 import zio.test.Assertion._
-import zio.test.environment._
 
 test("timeout") {
   for {
@@ -130,7 +129,7 @@ val test3 = test("kafkatest")(assertTrue(true))
 
 ```scala mdoc:compile-only
 suite("a test suite with shared kafka layer")(test1, test2, test3)
-  .provideCustomLayerShared(kafkaLayer)
+  .provideCustomShared(kafkaLayer)
 ```
 
 This layer going to get acquired once, then we have access to that service within all these three tests within the suite and then it is guaranteed to be released at the end of our tests.
