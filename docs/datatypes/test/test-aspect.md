@@ -342,6 +342,69 @@ Here is a sample output, which we have different sequences of numbers on each ru
 Ran 1 test in 733 ms: 1 succeeded, 0 ignored, 0 failed
 ```
 
+## Providing Layers
+
+### Shared Layers
+
+Through the `provideCustomShared` and `provideSomeShared` test aspects, we can provide layers that are shared between multiple tests within a suite.
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+suite("sharing a service between test cases") (
+  test("A")(ZIO.service[Int].map(i => assertTrue(i == 5))),
+  test("B")(ZIO.service[Int].map(i => assertTrue(i == 5)))
+) @@ TestAspect.provideCustomShared(ZLayer.succeed(5))
+```
+
+Let's try a practical example. Assume we have the following counter service:
+
+```scala mdoc:silent
+trait Counter {
+  def inc: UIO[Int]
+}
+
+object Counter {
+  def inc: ZIO[Counter, Nothing, Int] =
+    ZIO.serviceWithZIO[Counter](_.inc)
+}
+
+case class CounterLive(ref: Ref[Int]) extends Counter {
+  override def inc: ZIO[Any, Nothing, Int] = ref.updateAndGet(_ + 1)
+}
+
+object CounterLive {
+  val layer: ULayer[CounterLive] =
+    ZRef.make(0).map(CounterLive(_)).toLayer
+}
+```
+
+We can share this service among multiple tests:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+suite("a suite of two tests with shared counter service")(
+  test("A") {
+    for {
+      c <- Counter.inc
+      _ <- ZIO.debug(s"Running Test A (counter: $c)")
+    } yield assertTrue(c == 1)
+  },
+  test("B") {
+    for {
+      c <- Counter.inc
+      _ <- ZIO.debug(s"Running Test B (counter: $c)")
+    } yield assertTrue(c == 2)
+  }
+) @@ TestAspect.sequential @@ TestAspect.provideCustomShared(CounterLive.layer)
+```
+
+```scala mdoc:reset:invisible
+```
+
 ## Repeat and Retry
 
 There are some situations where we need to repeat a test with a specific schedule, or our tests might fail, and we need to retry them until we make sure that our tests pass. ZIO Test has the following test aspects for these scenarios:
