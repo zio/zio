@@ -123,9 +123,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       } else if (subexecutorStack ne null) {
         result = drainSubexecutor()
       } else {
-        println(s"[$id] $currentChannel")
 
-        currentChannel match {
+        currentChannel.asInstanceOf[Any] match {
           case null =>
             result = ChannelState.Done
 
@@ -133,31 +132,33 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             // PipeTo(left, Bridge(queue, channel))
             // In a fiber: repeatedly run left and push its outputs to the queue
             // Add a finalizer to interrupt the fiber and close the executor
-            currentChannel = channel
+            currentChannel = channel.asInstanceOf[Channel[Env]]
 
             if (input ne null) {
               val inputExecutor = input
               input = null
 
+              val bridgeIn = bridgeInput.asInstanceOf[SingleProducerAsyncInput[Any, Any, Any]]
+
               lazy val drainer: URIO[Env, Any] =
-                bridgeInput.awaitRead *> ZIO.suspendSucceed {
+                bridgeIn.awaitRead *> ZIO.suspendSucceed {
                   val state = inputExecutor.run()
 
                   state match {
                     case ChannelState.Done =>
                       val sendInput = inputExecutor.getDone match {
-                        case Exit.Failure(cause) => bridgeInput.error(cause)
-                        case Exit.Success(value) => bridgeInput.done(value)
+                        case Exit.Failure(cause) => bridgeIn.error(cause)
+                        case Exit.Success(value) => bridgeIn.done(value)
                       }
 
                       sendInput
 
                     case ChannelState.Emit =>
-                      bridgeInput.emit(inputExecutor.getEmit) *> drainer
+                      bridgeIn.emit(inputExecutor.getEmit) *> drainer
 
                     case ChannelState.Effect(zio) =>
                       zio.foldCauseZIO(
-                        cause => bridgeInput.error(cause),
+                        cause => bridgeIn.error(cause),
                         _ => drainer
                       )
                   }
@@ -181,7 +182,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           case ZChannel.PipeTo(left, right) =>
             val previousInput = input
 
-            val leftExec: ErasedExecutor[Env] = new ChannelExecutor(left, providedEnv, executeCloseLastSubstream)
+            val leftExec: ErasedExecutor[Env] =
+              new ChannelExecutor(left.asInstanceOf[() => Channel[Env]], providedEnv, executeCloseLastSubstream)
             leftExec.input = previousInput
             input = leftExec
 
@@ -193,6 +195,19 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             }
 
             currentChannel = right().asInstanceOf[Channel[Env]]
+
+          case union: ZChannel.Union[Env, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any] =>
+            val leftExec: ErasedExecutor[Env] = new ChannelExecutor(
+              union.left,
+              providedEnv,
+              executeCloseLastSubstream
+            )
+            val rightExec: ErasedExecutor[Env] = new ChannelExecutor(
+              union.right,
+              providedEnv,
+              executeCloseLastSubstream
+            )
+            subexecutorStack = SubexecutorStack.DrainInputForUnion(leftExec, rightExec)
 
           case read @ ZChannel.Read(_, _) =>
             result = runRead(read.asInstanceOf[ZChannel.Read[Env, Any, Any, Any, Any, Any, Any, Any, Any, Any]])
@@ -207,11 +222,13 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             result = doneSucceed(effect())
 
           case ZChannel.EffectSuspendTotal(effect) =>
-            currentChannel = effect()
+            currentChannel = effect().asInstanceOf[Channel[Env]]
 
           case ZChannel.Effect(zio) =>
             val pzio =
-              (if (providedEnv == null) zio else zio.provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]]))
+              (if (providedEnv == null) zio
+               else
+                 zio.asInstanceOf[ZIO[Env, Any, Any]].provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]]))
                 .asInstanceOf[ZIO[Env, OutErr, OutDone]]
 
             result = ChannelState.Effect(
@@ -246,7 +263,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                   closeLastSubstream = prevLastClose *> f
                 }
 
-            val exec: ErasedExecutor[Env] = new ChannelExecutor(() => value, providedEnv, innerExecuteLastClose)
+            val exec: ErasedExecutor[Env] =
+              new ChannelExecutor(() => value.asInstanceOf[Channel[Env]], providedEnv, innerExecuteLastClose)
             exec.input = input
 
             subexecutorStack = SubexecutorStack.Inner(
@@ -261,7 +279,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
           case ZChannel.Fold(value, k) =>
             doneStack = k.asInstanceOf[ErasedContinuation[Env]] :: doneStack
-            currentChannel = value
+            currentChannel = value.asInstanceOf[Channel[Env]]
 
           case bracketOut @ ZChannel.BracketOut(_, _) =>
             result = runBracketOut(bracketOut.asInstanceOf[ZChannel.BracketOut[Env, Any, Any]])
@@ -306,13 +324,11 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private[this] def doneSucceed(z: Any)(implicit trace: ZTraceElement): ChannelState[Env, Any] =
     doneStack match {
       case Nil =>
-        println(s"[$id] doneSucceed($z), done stack is empty")
         done = Exit.succeed(z)
         currentChannel = null
         ChannelState.Done
 
       case ZChannel.Fold.K(onSuccess, _) :: rest =>
-        println(s"[$id] doneSucceed($z), applying fold")
         doneStack = rest
         currentChannel = onSuccess(z)
         null
@@ -321,14 +337,12 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         val finalizers = popNextFinalizers()
 
         if (doneStack.isEmpty) {
-          println(s"[$id] doneSucceed($z), got ${finalizers.size} finalizers, deferring")
 
           doneStack = finalizers
           done = Exit.succeed(z)
           currentChannel = null
           ChannelState.Done
         } else {
-          println(s"[$id] doneSucceed($z), done stack is not yet empty ($doneStack)")
 
           val finalizerEffect =
             runFinalizers(finalizers.map(_.finalizer), Exit.succeed(z))
@@ -394,13 +408,11 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         state match {
           case ChannelState.Emit =>
             UIO {
-              println(s"read/go/Emit")
               currentChannel = read.more(input.getEmit)
             }
 
           case ChannelState.Done =>
             UIO {
-              println(s"read/go/Done")
               currentChannel = read.done.onExit(input.getDone)
             }
 
@@ -408,7 +420,6 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             zio.foldCauseZIO(
               cause =>
                 UIO {
-                  println(s"read/go/Effect failed")
                   currentChannel = read.done.onHalt(cause)
                 },
               _ => go(input.run())
@@ -417,12 +428,10 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
       input.run() match {
         case ChannelState.Emit =>
-          println(s"read/Emit")
           currentChannel = read.more(input.getEmit)
           null
 
         case ChannelState.Done =>
-          println(s"read/Done")
           currentChannel = read.done.onExit(input.getDone)
           null
 
@@ -431,7 +440,6 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             zio.foldCauseZIO(
               cause =>
                 UIO {
-                  println(s"read/Effect failed")
                   currentChannel = read.done.onHalt(cause)
                 },
               _ => go(input.run())
@@ -480,9 +488,15 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
       case SubexecutorStack.FromKAnd(exec, rest) =>
         drainFromKAndSubexecutor(exec.asInstanceOf[ErasedExecutor[Env]], rest.asInstanceOf[SubexecutorStack.Inner[Env]])
+
+      case inner @ SubexecutorStack.DrainInputForUnion(_, _) =>
+        drainInputForUnion(inner.asInstanceOf[SubexecutorStack.DrainInputForUnion[Env]])
+
+      case inner @ SubexecutorStack.DrainUnion(_, _, _) =>
+        drainUnion(inner.asInstanceOf[SubexecutorStack.DrainUnion[Env]])
     }
 
-  private def replaceSubexecutor(nextSubExec: SubexecutorStack.Inner[Env]): Unit = {
+  private def replaceSubexecutor(nextSubExec: SubexecutorStack[Env]): Unit = {
     currentChannel = null
     subexecutorStack = nextSubExec
   }
@@ -615,6 +629,84 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           )
         )
     }
+
+  private final def drainInputForUnion(
+    self: SubexecutorStack.DrainInputForUnion[Env]
+  )(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+    input.run() match {
+      case ChannelState.Emit =>
+        input.getEmit match {
+          case Left(emitted) =>
+            val subExec = self.drainLeft
+            subExec.exec.input =
+              new ChannelExecutor(() => ZChannel.write(emitted), providedEnv, executeCloseLastSubstream)
+            replaceSubexecutor(subExec)
+            null
+          case Right(emitted) =>
+            val subExec = self.drainRight
+            subExec.exec.input =
+              new ChannelExecutor(() => ZChannel.write(emitted), providedEnv, executeCloseLastSubstream)
+            replaceSubexecutor(subExec)
+            null
+
+        }
+      case ChannelState.Done =>
+        input.getDone.fold(
+          failed =>
+            failed.failureOrCause match {
+              case Left(Left(failure)) =>
+                val subExec = self.drainLeft
+                subExec.exec.input =
+                  new ChannelExecutor(() => ZChannel.fail(failure), providedEnv, executeCloseLastSubstream)
+                replaceSubexecutor(subExec)
+                null
+              case Left(Right(failure)) =>
+                val subExec = self.drainRight
+                subExec.exec.input =
+                  new ChannelExecutor(() => ZChannel.fail(failure), providedEnv, executeCloseLastSubstream)
+                replaceSubexecutor(subExec)
+                null
+              case Right(cause) =>
+                doneHalt(cause)
+            },
+          {
+            case Left(completed) =>
+              val subExec = self.drainLeft
+              subExec.exec.input =
+                new ChannelExecutor(() => ZChannel.end(completed), providedEnv, executeCloseLastSubstream)
+              replaceSubexecutor(subExec)
+              null
+            case Right(completed) =>
+              val subExec = self.drainRight
+              subExec.exec.input =
+                new ChannelExecutor(() => ZChannel.end(completed), providedEnv, executeCloseLastSubstream)
+              replaceSubexecutor(subExec)
+              null
+          }
+        )
+      case ChannelState.Effect(zio) =>
+        ChannelState.Effect(zio) // TODO: catch?
+    }
+
+  private final def drainUnion(
+    self: ChannelExecutor.SubexecutorStack.DrainUnion[Env]
+  )(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+    self.exec.run() match {
+      case ChannelState.Emit =>
+        emitted = self.wrap(self.exec.getEmit)
+        replaceSubexecutor(self.rest)
+        ChannelState.Emit
+      case ChannelState.Done =>
+        finishSubexecutorWithCloseEffect(
+          self.exec.getDone.mapBoth(
+            self.wrap,
+            self.wrap
+          ),
+          self.close
+        )
+      case ChannelState.Effect(zio) =>
+        ChannelState.Effect(zio)
+    }
 }
 
 object ChannelExecutor {
@@ -672,6 +764,26 @@ object ChannelExecutor {
         if (fin ne null) fin.exit
         else null
       }
+    }
+    final case class DrainInputForUnion[R](leftExec: ErasedExecutor[R], rightExec: ErasedExecutor[R])
+        extends SubexecutorStack[R] {
+      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] = {
+        val fin1 = leftExec.close(ex)
+        val fin2 = rightExec.close(ex)
+
+        if ((fin1 eq null) && (fin2 eq null)) null
+        else if ((fin1 ne null) && (fin2 ne null)) fin1.exit.zipWith(fin2.exit)(_ *> _)
+        else if (fin1 ne null) fin1.exit
+        else fin2.exit
+      }
+
+      val drainLeft: DrainUnion[R]  = DrainUnion(leftExec, Left.apply, this)
+      val drainRight: DrainUnion[R] = DrainUnion(rightExec, Right.apply, this)
+    }
+    final case class DrainUnion[R](exec: ErasedExecutor[R], wrap: Any => Either[Any, Any], rest: DrainInputForUnion[R])
+        extends SubexecutorStack[R] {
+      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] =
+        rest.close(ex)
     }
   }
 

@@ -716,25 +716,104 @@ object ZChannelSpec extends ZIOBaseSpec {
             fins1.isEmpty,
             fins2 == Chunk("b", "a")
           )
-        },
-        test("fold does not force finalizers") {
-          for {
-            queue <- ZQueue.unbounded[String]
-            fins1 <-
-              ZChannel
-                .end(1)
-                .ensuring(queue.offer("a"))
-                .catchAll(_ => ZChannel.end(2))
-                .runManaged
-                .use { _ =>
-                  queue.takeAll
-                }
-            fins2 <- queue.takeAll
-          } yield assertTrue(
-            fins1.isEmpty,
-            fins2 == Chunk("a")
-          )
         }
+      ),
+      suite("union")(
+        test("emit") {
+          val upstream: ZChannel[Any, Any, Any, Any, Nothing, Either[Int, String], Either[Unit, Double]] =
+            ZChannel.writeAll(Left(1), Right("2"), Left(3), Right("4"), Left(5), Right("6")) *> ZChannel.end(Right(1.2))
+
+          lazy val left: ZChannel[Any, Any, Int, Unit, Nothing, Int, Unit] =
+            ZChannel.readWith(
+              (in: Int) => ZChannel.write(in * in) *> left,
+              (_: Any) => ZChannel.end(()),
+              (_: Unit) => ZChannel.end(())
+            )
+
+          lazy val right: ZChannel[Any, Any, String, Double, Nothing, String, String] =
+            ZChannel.readWith(
+              (in: String) => ZChannel.write(in + in) *> right,
+              (_: Any) => ZChannel.end(""),
+              (result: Double) => ZChannel.end(result.toString)
+            )
+
+          val pipeline = upstream.pipeTo(left union right)
+
+          pipeline.runCollect.map { case (elems, result) =>
+            assertTrue(
+              elems == Chunk(
+                Left(1),
+                Right("22"),
+                Left(9),
+                Right("44"),
+                Left(25),
+                Right("66")
+              ),
+              result == Right("1.2")
+            )
+          }
+        },
+        test("multi emit") {
+          val upstream: ZChannel[Any, Any, Any, Any, Nothing, Either[Int, String], Either[Unit, Double]] =
+            ZChannel.writeAll(Left(1), Right("2"), Left(3), Right("4"), Left(5), Right("6")) *> ZChannel.end(Right(1.2))
+
+          lazy val left: ZChannel[Any, Any, Int, Unit, Nothing, Int, Unit] =
+            ZChannel.readWith(
+              (in: Int) => ZChannel.write(in * in) *> left,
+              (_: Any) => ZChannel.end(()),
+              (_: Unit) => ZChannel.end(())
+            )
+
+          lazy val right: ZChannel[Any, Any, String, Double, Nothing, String, String] =
+            ZChannel.readWith(
+              (in: String) => ZChannel.writeAll(in, in) *> right,
+              (_: Any) => ZChannel.end(""),
+              (result: Double) => ZChannel.end(result.toString)
+            )
+
+          val pipeline = upstream.pipeTo(left union right)
+
+          pipeline.runCollect.map { case (elems, result) =>
+            assertTrue(
+              elems == Chunk(
+                Left(1),
+                Right("2"),
+                Right("2"),
+                Left(9),
+                Right("4"),
+                Right("4"),
+                Left(25),
+                Right("6"),
+                Right("6")
+              ),
+              result == Right("1.2")
+            )
+          }
+        },
+        test("fail") {
+          val upstream: ZChannel[Any, Any, Any, Any, Either[Int, Nothing], Either[Int, String], Either[Unit, Double]] =
+            ZChannel.writeAll(Left(1), Right("2"), Left(3), Right("4"), Left(5), Right("6")) *> ZChannel.end(Right(1.2))
+
+          lazy val left: ZChannel[Any, Int, Int, Unit, Int, Int, Unit] =
+            ZChannel.readWith(
+              (in: Int) => ZChannel.write(in) *> left,
+              (error: Int) => ZChannel.fail(error),
+              (_: Unit) => ZChannel.end(())
+            )
+
+          lazy val right: ZChannel[Any, Any, String, Double, String, String, String] =
+            ZChannel.readWith(
+              (in: String) => if (in == "4") ZChannel.fail("test") else (ZChannel.write(in) *> right),
+              (_: Any) => ZChannel.end(""),
+              (result: Double) => ZChannel.end(result.toString)
+            )
+
+          val pipeline = upstream.pipeTo(left union right)
+
+          pipeline.runCollect.exit.map { exit =>
+            assert(exit)(fails(equalTo(Right("test"))))
+          }
+        },
       )
     )
   )

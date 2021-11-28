@@ -791,6 +791,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     }
   }
 
+  def union[Env1 <: Env, InErr2, InElem2, InDone2, OutErr2, OutElem2, OutDone2](
+    that: => ZChannel[Env1, InErr2, InElem2, InDone2, OutErr2, OutElem2, OutDone2]
+  )(implicit trace: ZTraceElement): ZChannel[Env1, Either[InErr, InErr2], Either[InElem, InElem2], Either[
+    InDone,
+    InDone2
+  ], Either[OutErr, OutErr2], Either[OutElem, OutElem2], Either[OutDone, OutDone2]] =
+    ZChannel.Union(() => self, () => that)
+
   /**
    * Provides the channel with its required environment, which eliminates its
    * dependency on `Env`.
@@ -1008,6 +1016,33 @@ object ZChannel {
     left: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     right: () => ZChannel[Env, OutErr, OutElem, OutDone, OutErr2, OutElem2, OutDone2]
   ) extends ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2]
+
+  private[zio] final case class Union[
+    Env,
+    InErr,
+    InErr2,
+    InElem,
+    InElem2,
+    InDone,
+    InDone2,
+    OutErr,
+    OutErr2,
+    OutElem,
+    OutElem2,
+    OutDone,
+    OutDone2
+  ](
+    left: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
+    right: () => ZChannel[Env, InErr2, InElem2, InDone2, OutErr2, OutElem2, OutDone2]
+  ) extends ZChannel[
+        Env,
+        Either[InErr, InErr2],
+        Either[InElem, InElem2],
+        Either[InDone, InDone2],
+        Either[OutErr, OutErr2],
+        Either[OutElem, OutElem2],
+        Either[OutDone, OutDone2]
+      ]
 
   private[zio] final case class Read[Env, InErr, InElem, InDone, OutErr, OutErr2, OutElem, OutElem2, OutDone, OutDone2](
     more: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2],
