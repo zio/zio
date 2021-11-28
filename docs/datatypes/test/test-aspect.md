@@ -344,9 +344,9 @@ Ran 1 test in 733 ms: 1 succeeded, 0 ignored, 0 failed
 
 ## Providing Layers
 
-### Shared Layers
+When we use some services in our tests, we need to provide the implementation layer of that service to our tests. ZIO Test has multiple test aspects for providing layers such as `provide`, `provideCustom`, `provideEnvironment`, `provideSome` and `provideSomeEnvironment`. We can choose one of them depending on our needs.
 
-Through the `provideCustomShared` and `provideSomeShared` test aspects, we can provide layers that are shared between multiple tests within a suite.
+Additionally, we can provide layers that are shared between multiple tests within a suite through the `provideCustomShared` and `provideSomeShared` test aspects.
 
 ```scala mdoc:compile-only
 import zio._
