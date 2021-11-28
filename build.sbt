@@ -182,11 +182,6 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
-  .settings(Test / fork := true)
-  .settings(
-    Test / javaOptions +=
-      "-XX:ActiveProcessorCount=1"
-  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
