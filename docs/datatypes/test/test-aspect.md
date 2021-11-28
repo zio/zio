@@ -194,6 +194,35 @@ test("Java virtual machine name can be accessed") {
 
 Various test aspects can be used to run tests for specific versions of Scala, including `scala2`, `scala211`, `scala212`, `scala213`, and `dotty`. As in the previous section, these test aspects have corresponding `*only` and `except*` versions.
 
+## Ignoring Tests
+
+To ignore running a test, we can use the `ignore` test aspect:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+test("an ignored test") {
+  assertTrue(false)
+} @@ TestAspect.ignore
+```
+
+To fail all ignored tests, we can use the `success` test aspect:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+suite("sample tests")(
+  test("an ignored test") {
+    assertTrue(false)
+  } @@ TestAspect.ignore,
+  test("another ignored test") {
+    assertTrue(true)
+  } @@ TestAspect.ignore
+) @@ TestAspect.success 
+```
+
 ## Non-deterministic
 
 The random process of the `TestRandom` is said to be deterministic since, with the initial seed, we can generate a sequence of predictable numbers. So with the same initial seed, it will generate the same sequence of numbers.
