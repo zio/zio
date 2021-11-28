@@ -40,99 +40,28 @@ test("before and after") {
 
 4. Using `TestAspect.aroundWith` and `TestAspect.aroundAllWith` we can evaluate every test or all test between two given effects, `before` and `after`, where the result of the `before` effect can be used in the `after` effect.
 
-## Execution Strategy
+## Conditional Aspects
 
-ZIO Test has two different strategies to run members of a test suite: _sequential_ and _parallel_. Accordingly, there are two test aspects for specifying the execution strategy:
+When we apply a conditional aspect, it will run the spec only if the specified predicate is satisfied.
 
-1.**`TestAspect.parallel`** — The default strategy is parallel. We can explicitly enable it:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{ test, _ }
-
-suite("Parallel")(
-  test("A")(Live.live(ZIO("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
-  test("B")(ZIO("Running Test B").debug.map(_ => assertTrue(true))),
-  test("C")(Live.live(ZIO("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
-) @@ TestAspect.parallel
-```
-
-After running this suite, we have the following output:
-
-```
-Running Test B
-Running Test C
-Running Test A
-+ Parallel
-  + A
-  + B
-  + C
-```
-
-To change the degree of the parallelism, we can use the `parallelN` test aspect. It takes the number of fibers and executes the members of a suite in parallel up to the specified number of concurrent fibers.
-
-2. **`TestAspect.sequential`** — To execute them sequentially, we can use the `sequential` test aspect:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{ test, _ }
-
-suite("Sequential")(
-  test("A")(Live.live(ZIO("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
-  test("B")(ZIO("Running Test B").debug.map(_ => assertTrue(true))),
-  test("C")(Live.live(ZIO("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
-) @@ TestAspect.sequential
-```
-
-And here is the output:
-
-```
-Running Test A
-Running Test B
-Running Test C
-+ Sequential
-  + A
-  + B
-  + C
-```
-
-## Timing Out with Safe Interruption
-
-We can easily time out a long-running test:
+- **`ifEnv`** — Only runs a test if the specified environment variable satisfies the specified assertion.
+- **`ifEnvSet`** — Only runs a test if the specified environment variable is set.
+- **`ifProp`** — Only runs a test if the specified Java property satisfies the specified assertion.
+- **`ifPropSet`** — Only runs a test if the specified Java property is set.
 
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{test, _}
 import zio.test.TestAspect._
 
-test("effects can be safely interrupted") {
-  for {
-    r <- ZIO.attempt(println("Still going ...")).forever
-  } yield assert(r)(Assertion.isSuccess)
-} @@ timeout(1.second)
+test("a test that will run if the product is deployed in the testing environment") {
+  ???
+} @@ ifEnv("ENV")(_ == "testing")
+
+test("a test that will run if the java.io.tmpdir property is available") {
+  ???
+} @@ ifEnvSet("java.io.tmpdir")
 ```
-
-By applying a `timeout(1.second)` test aspect, this will work with ZIO's interruption mechanism. So when we run this test, you can see a tone of print lines, and after a second, the `timeout` aspect will interrupt that.
-
-## Flaky and Non-flaky Tests
-
-Whenever we deal with concurrency issues or race conditions, we should ensure that our tests pass consistently. The `nonFlaky` is a test aspect to do that.
-
-It will run a test several times, by default 100 times, and if all those times pass, it will pass, otherwise, it will fail:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-import zio.test.TestAspect._
-
-test("random value is always greater than zero") {
-  for {
-    random <- Random.nextIntBounded(100)
-  } yield assert(random)(Assertion.isGreaterThan(0))
-} @@ nonFlaky
-```
-
-Additionally, there is a `TestAspect.flaky` test aspect which retries a test until it succeeds.
 
 ## Debugging and Diagnostics
 
@@ -194,6 +123,82 @@ test("Java virtual machine name can be accessed") {
 
 Various test aspects can be used to run tests for specific versions of Scala, including `scala2`, `scala211`, `scala212`, `scala213`, and `dotty`. As in the previous section, these test aspects have corresponding `*only` and `except*` versions.
 
+## Execution Strategy
+
+ZIO Test has two different strategies to run members of a test suite: _sequential_ and _parallel_. Accordingly, there are two test aspects for specifying the execution strategy:
+
+1.**`TestAspect.parallel`** — The default strategy is parallel. We can explicitly enable it:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+
+suite("Parallel")(
+  test("A")(Live.live(ZIO("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
+  test("B")(ZIO("Running Test B").debug.map(_ => assertTrue(true))),
+  test("C")(Live.live(ZIO("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
+) @@ TestAspect.parallel
+```
+
+After running this suite, we have the following output:
+
+```
+Running Test B
+Running Test C
+Running Test A
++ Parallel
+  + A
+  + B
+  + C
+```
+
+To change the degree of the parallelism, we can use the `parallelN` test aspect. It takes the number of fibers and executes the members of a suite in parallel up to the specified number of concurrent fibers.
+
+2. **`TestAspect.sequential`** — To execute them sequentially, we can use the `sequential` test aspect:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+
+suite("Sequential")(
+  test("A")(Live.live(ZIO("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
+  test("B")(ZIO("Running Test B").debug.map(_ => assertTrue(true))),
+  test("C")(Live.live(ZIO("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
+) @@ TestAspect.sequential
+```
+
+And here is the output:
+
+```
+Running Test A
+Running Test B
+Running Test C
++ Sequential
+  + A
+  + B
+  + C
+```
+
+## Flaky and Non-flaky Tests
+
+Whenever we deal with concurrency issues or race conditions, we should ensure that our tests pass consistently. The `nonFlaky` is a test aspect to do that.
+
+It will run a test several times, by default 100 times, and if all those times pass, it will pass, otherwise, it will fail:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.TestAspect._
+
+test("random value is always greater than zero") {
+  for {
+    random <- Random.nextIntBounded(100)
+  } yield assert(random)(Assertion.isGreaterThan(0))
+} @@ nonFlaky
+```
+
+Additionally, there is a `TestAspect.flaky` test aspect which retries a test until it succeeds.
+
 ## Ignoring Tests
 
 To ignore running a test, we can use the `ignore` test aspect:
@@ -221,48 +226,6 @@ suite("sample tests")(
     assertTrue(true)
   } @@ TestAspect.ignore
 ) @@ TestAspect.success 
-```
-
-## Passing Failed Tests
-
-The `failing` aspect makes a test that failed for any reason pass. 
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-
-test("failing a passing test") {
-  assertTrue(true)
-} @@ TestAspect.failing
-```
-
-If the test passes this aspect will make it fail:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-
-test("passing a failing test") {
-  assertTrue(false)
-} @@ TestAspect.failing
-```
-
-It is also possible to pass a failing test on a specified failure:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-
-test("a test that will only pass on a specified failure") {
-  ZIO.fail("Boom!").map(_ => assertTrue(true))
-} @@ TestAspect.failing[String] {
-  case TestFailure.Assertion(_) => true
-  case TestFailure.Runtime(cause: Cause[String]) => cause match {
-    case Cause.Fail(value, _)
-      if value == "Boom!" => true
-    case _ => false
-  }
-}
 ```
 
 ## Non-deterministic
@@ -340,6 +303,48 @@ Here is a sample output, which we have different sequences of numbers on each ru
 ----
 + pseudo-random number generator with random initial seed on each repetition - repeated: 2
 Ran 1 test in 733 ms: 1 succeeded, 0 ignored, 0 failed
+```
+
+## Passing Failed Tests
+
+The `failing` aspect makes a test that failed for any reason pass.
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+test("failing a passing test") {
+  assertTrue(true)
+} @@ TestAspect.failing
+```
+
+If the test passes this aspect will make it fail:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+test("passing a failing test") {
+  assertTrue(false)
+} @@ TestAspect.failing
+```
+
+It is also possible to pass a failing test on a specified failure:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+test("a test that will only pass on a specified failure") {
+  ZIO.fail("Boom!").map(_ => assertTrue(true))
+} @@ TestAspect.failing[String] {
+  case TestFailure.Assertion(_) => true
+  case TestFailure.Runtime(cause: Cause[String]) => cause match {
+    case Cause.Fail(value, _)
+      if value == "Boom!" => true
+    case _ => false
+  }
+}
 ```
 
 ## Providing Layers
@@ -568,42 +573,6 @@ List(O, b, B, V)
 Ran 1 test in 676 ms: 1 succeeded, 0 ignored, 0 failed
 ```
 
-## Test Configs
-
-To run cases, there are some [default configuration settings](environment/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
-
-1. **`TestAspect.repeats(n: Int)`** — Runs each test with the number of times to repeat tests to ensure they are stable set to the specified value.
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{ test, _ }
-
-test("repeating a test") {
-  ZIO("Repeating a test to ensure its stability")
-    .debug
-    .map(_ => assertTrue(true))
-} @@ TestAspect.nonFlaky @@ TestAspect.repeats(5)
-```
-
-2. **`TestAspect.retries(n: Int)`** — Runs each test with the number of times to retry flaky tests set to the specified value.
-3. **`TestAspect.samples(n: Int)`** — Runs each test with the number of sufficient samples to check for a random variable set to the specified value.
-4. **`TestAspect.shrinks(n: Int)`** — Runs each test with the maximum number of shrinkings to minimize large failures set to the specified value.
-
-Let's change the number of default samples in the following example:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{ test, _ }
-
-test("customized number of samples") {
-  for {
-    ref <- Ref.make(0)
-    _ <- check(Gen.int)(_ => assertM(ref.update(_ + 1))(Assertion.anything))
-    value <- ref.get
-  } yield assertTrue(value == 50)
-} @@ TestAspect.samples(50)
-```
-
 ## Test Annotation
 
 ### Measuring Execution Time
@@ -682,38 +651,56 @@ The output would be:
 [success] Total time: 1 s, completed Nov 2, 2021, 12:36:36 PM
 ```
 
-## Timeout
+## Test Configs
 
-The `TestAspect.timeout` test aspect takes a duration and times out each test. If the test case runs longer than the time specified, it is immediately canceled and reported as a failure, with a message showing that the timeout was exceeded:
+To run cases, there are some [default configuration settings](environment/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
+
+1. **`TestAspect.repeats(n: Int)`** — Runs each test with the number of times to repeat tests to ensure they are stable set to the specified value.
 
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{ test, _ }
 
-test("long running test") {
-  Live.live(ZIO.sleep(5.seconds)).map(_ => assertTrue(true))
-} @@ timeout(2.seconds)
+test("repeating a test") {
+  ZIO("Repeating a test to ensure its stability")
+    .debug
+    .map(_ => assertTrue(true))
+} @@ TestAspect.nonFlaky @@ TestAspect.repeats(5)
 ```
 
-## Conditional Aspects
+2. **`TestAspect.retries(n: Int)`** — Runs each test with the number of times to retry flaky tests set to the specified value.
+3. **`TestAspect.samples(n: Int)`** — Runs each test with the number of sufficient samples to check for a random variable set to the specified value.
+4. **`TestAspect.shrinks(n: Int)`** — Runs each test with the maximum number of shrinkings to minimize large failures set to the specified value.
 
-When we apply a conditional aspect, it will run the spec only if the specified predicate is satisfied.
+Let's change the number of default samples in the following example:
 
-- **`ifEnv`** — Only runs a test if the specified environment variable satisfies the specified assertion.
-- **`ifEnvSet`** — Only runs a test if the specified environment variable is set.
-- **`ifProp`** — Only runs a test if the specified Java property satisfies the specified assertion.
-- **`ifPropSet`** — Only runs a test if the specified Java property is set.
+```scala mdoc:compile-only
+import zio._
+import zio.test.{ test, _ }
+
+test("customized number of samples") {
+  for {
+    ref <- Ref.make(0)
+    _ <- check(Gen.int)(_ => assertM(ref.update(_ + 1))(Assertion.anything))
+    value <- ref.get
+  } yield assertTrue(value == 50)
+} @@ TestAspect.samples(50)
+```
+
+## Timing Out
+
+The `TestAspect.timeout` test aspect takes a duration and times out each test. If the test case runs longer than the time specified, it is immediately canceled and reported as a failure, with a message showing that the timeout was exceeded:
 
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{test, _}
 import zio.test.TestAspect._
 
-test("a test that will run if the product is deployed in the testing environment") {
-  ???
-} @@ ifEnv("ENV")(_ == "testing")
-
-test("a test that will run if the java.io.tmpdir property is available") {
-  ???
-} @@ ifEnvSet("java.io.tmpdir")
+test("effects can be safely interrupted") {
+  for {
+    r <- ZIO.attempt(println("Still going ...")).forever
+  } yield assert(r)(Assertion.isSuccess)
+} @@ timeout(1.second)
 ```
+
+By applying a `timeout(1.second)` test aspect, this will work with ZIO's interruption mechanism. So when we run this test, you can see a tone of print lines, and after a second, the `timeout` aspect will interrupt that.
