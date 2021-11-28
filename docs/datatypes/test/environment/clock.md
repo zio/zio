@@ -11,7 +11,7 @@ For example, here is how we can test `ZIO#timeout` using `TestClock`:
 
 ```scala mdoc:compile-only
 import zio._
-import zio.ZIO
+import zio.test._
 
 for {
   fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
@@ -27,7 +27,7 @@ For example, here is how we can test an effect that recurs with a fixed delay:
 ```scala mdoc:compile-only
 import zio._
 import zio.Queue
-import zio.test.environment.TestClock
+import zio.test._
 
 for {
   q <- Queue.unbounded[Unit]
