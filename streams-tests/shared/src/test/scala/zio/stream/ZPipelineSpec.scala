@@ -105,6 +105,16 @@ object ZPipelineSpec extends ZIOBaseSpec {
           testSplitLines(Seq(Chunk("abc\r", "\nabc")))
         }
       ),
+      suite("mapChunksZIO")(
+        test("maps chunks with effect") {
+          val pipeline = ZPipeline.mapChunksZIO { (chunk: Chunk[Int]) =>
+            ZIO.succeed(chunk.map(_.toString.reverse))
+          }
+          assertM(
+            pipeline(ZStream(12, 23, 34)).runCollect
+          )(equalTo(Chunk("21", "32", "43")))
+        }
+      ),
       suite("splitOn")(
         test("preserves data")(check(Gen.chunkOf(Gen.string.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
           val data     = lines.mkString("|")
