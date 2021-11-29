@@ -5,7 +5,7 @@ title: "TestAspect"
 
 A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another, possibly enlarging the environment or error type.
 
-We can think of a test aspect as a [Spec](spec.md) transformer. It takes one spec, transforms it, and produces another spec (`Spec => Spec`).
+We can think of a test aspect as a Spec transformer. It takes one spec, transforms it, and produces another spec (`Spec => Spec`).
 
 Test aspects encapsulate cross-cutting concerns and increase the modularity of our tests. So we can focus on the primary concerns of our tests and at the end of the day, we can apply required aspects to our tests.
 
