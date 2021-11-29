@@ -25,6 +25,7 @@ import zio.test.render._
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
+  // TODO Should anything other than Environment be exposed here?
   def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any]
 
   def aspects: Chunk[TestAspect.WithOut[
@@ -99,6 +100,13 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
     }
 
+  //  TODO Do we need a Failure type here?
+  type Failure = String
+  private[zio] def runSpecOld( // from AbstractRunnableSpec
+    spec: ZSpec[Environment, Failure]
+  )(implicit trace: ZTraceElement): URIO[TestLogger with Clock, ExecutedSpec[Failure]] = ???
+
+  // TODO Should this have the same signature as the above?
   private[zio] def runSpec(
     spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
     testArgs: TestArgs,
