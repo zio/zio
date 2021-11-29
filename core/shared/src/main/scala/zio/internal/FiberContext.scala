@@ -24,6 +24,7 @@ import zio.internal.FiberContext.FiberRefLocals
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.util.{Set => JavaSet}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.annotation.{switch, tailrec}
 import izumi.reflect.macrortti.LightTypeTag
@@ -37,7 +38,7 @@ private[zio] final class FiberContext[E, A](
   val interruptStatus: StackBool,
   val fiberRefLocals: FiberRefLocals,
   val location: ZTraceElement,
-  val openScope: ZScope
+  val children: JavaSet[FiberContext[_, _]]
 ) extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable { self =>
   import FiberContext.{erase, eraseK, eraseR, Erased, ErasedCont, ErasedTracedCont}
@@ -333,7 +334,7 @@ private[zio] final class FiberContext[E, A](
 
                     val k = zio.k
 
-                    curZio = k(unsafeGetDescriptor())
+                    curZio = k(unsafeGetDescriptor(zio.trace))
 
                   case ZIO.Tags.Shift =>
                     val zio      = curZio.asInstanceOf[ZIO.Shift]
@@ -520,11 +521,15 @@ private[zio] final class FiberContext[E, A](
   override def toString(): String =
     s"FiberContext($fiberId)"
 
-  final def scope: ZScope = openScope
+  final def scope: ZScope = ZScope.unsafeMake(self)
 
   final def status(implicit trace: ZTraceElement): UIO[Fiber.Status] = UIO(state.get.status)
 
   final def trace(implicit trace0: ZTraceElement): UIO[ZTrace] = UIO(unsafeCaptureTrace(Nil))
+
+  private[zio] def unsafeAddChild(child: FiberContext[_, _])(implicit trace: ZTraceElement): Unit =
+    children.add(child)
+  // FIXME: unsafeEvalOn(ZIO.succeed(children.add(child)), ZIO.unit)
 
   private def unsafeAddFinalizer(finalizer: UIO[Any]): Unit = stack.push(new Finalizer(finalizer))
 
@@ -682,16 +687,20 @@ private[zio] final class FiberContext[E, A](
 
     val parentScope = (forkScope orElse unsafeGetRef(forkScopeOverride)).getOrElse(scope)
 
-    val childId    = FiberId.unsafeMake()
-    val childScope = ZScope.unsafeMake()
+    val childId       = FiberId.unsafeMake()
+    val grandChildren = Platform.newWeakSet[FiberContext[_, _]]()
 
     val childContext = new FiberContext[E, A](
       childId,
       runtimeConfig,
       StackBool(interruptStatus.peekOrElse(true)),
       new AtomicReference(childFiberRefLocals),
+<<<<<<< HEAD
       childScope,
       trace
+=======
+      grandChildren
+>>>>>>> 237662dea (Add test suite for evalOn)
     )
 
     if (runtimeConfig.supervisor ne Supervisor.none) {
@@ -700,15 +709,7 @@ private[zio] final class FiberContext[E, A](
       childContext.unsafeOnDone(exit => runtimeConfig.supervisor.unsafeOnEnd(exit.flatten, childContext))
     }
 
-    val childZio = if (parentScope ne ZScope.global) {
-
-      // Ensure that when the fiber's parent scope ends, the child fiber is
-      // interrupted:
-      parentScope.weakSet.add(childContext)
-
-      // TODO: Deal with parent already being done
-      zio
-    } else zio
+    val childZio = if (!parentScope.unsafeAdd(childContext)) ZIO.interruptAs(parentScope.fiberId) else zio
 
     childContext.nextEffect = childZio
     if (stack.isEmpty) unsafeGetExecutor().unsafeSubmitAndYieldOrThrow(childContext)
@@ -717,7 +718,7 @@ private[zio] final class FiberContext[E, A](
     childContext
   }
 
-  private def unsafeGetDescriptor(): Fiber.Descriptor =
+  private def unsafeGetDescriptor(implicit trace: ZTraceElement): Fiber.Descriptor =
     Fiber.Descriptor(
       fiberId,
       state.get.status,
@@ -1045,7 +1046,7 @@ private[zio] final class FiberContext[E, A](
             _
           ) => // TODO: Dotty doesn't infer this properly
 
-        if (openScope.weakSet.isEmpty()) {
+        if (children.isEmpty()) {
           val interruptorsCause = oldState.interruptorsCause
 
           val newExit =
@@ -1098,13 +1099,13 @@ private[zio] final class FiberContext[E, A](
           unsafeSetInterrupting(true)
 
           var acc: UIO[Any] = UIO.unit
-          val iterator      = openScope.weakSet.iterator()
+          val iterator      = children.iterator()
           while (iterator.hasNext()) {
             val next = iterator.next()
 
             acc = if (next eq null) acc else acc *> next.interruptAs(fiberId)
           }
-          openScope.weakSet.clear()
+          children.clear()
 
           acc *> ZIO.done(exit)
         }

@@ -19,15 +19,16 @@ package zio
 import zio.internal.{FiberContext, Platform, Sync}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.{AbstractSet, Set}
+import java.lang.ref.WeakReference
 
 /**
  * A `ZScope` represents the scope of a fiber lifetime. The scope of a fiber can
  * be retrieved using [[ZIO.descriptor]], and when forking fibers, you can
  * specify a custom scope to fork them on by using the [[ZIO#forkIn]].
  */
-class ZScope(private[zio] val weakSet: Set[FiberContext[_, _]]) {
-  private[zio] def unsafeAdd(fiber: FiberContext[_, _]): Unit = weakSet.add(fiber)
+sealed trait ZScope {
+  def fiberId: FiberId
+  private[zio] def unsafeAdd(child: FiberContext[_, _])(implicit trace: ZTraceElement): Boolean
 }
 object ZScope {
 
@@ -36,12 +37,22 @@ object ZScope {
    * and will only terminate on its own accord (never from interruption of a
    * parent fiber, because there is no parent fiber).
    */
-  val global = new ZScope(new AbstractSet[FiberContext[_, _]] {
-    override def add(v: FiberContext[_, _]): Boolean       = false
-    def iterator(): java.util.Iterator[FiberContext[_, _]] = java.util.Collections.emptyIterator[FiberContext[_, _]]()
-    def size(): Int                                        = 0
-  })
+  object global extends ZScope {
+    def fiberId: FiberId = FiberId.None
 
-  private[zio] def unsafeMake(): ZScope =
-    new ZScope(Platform.newWeakSet[FiberContext[_, _]]())
+    private[zio] def unsafeAdd(child: FiberContext[_, _])(implicit trace: ZTraceElement): Boolean = true
+  }
+
+  final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends ZScope {
+    private[zio] def unsafeAdd(child: FiberContext[_, _])(implicit trace: ZTraceElement): Boolean = {
+      val parent = parentRef.get()
+
+      if (parent ne null) {
+        parent.unsafeAddChild(child)
+        true
+      } else false
+    }
+  }
+
+  private[zio] def unsafeMake(fiber: FiberContext[_, _]): ZScope = new Local(fiber.fiberId, new WeakReference(fiber))
 }

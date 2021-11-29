@@ -364,7 +364,7 @@ trait Runtime[+R] {
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
     val fiberId = FiberId.unsafeMake()
 
-    val scope = ZScope.unsafeMake()
+    val children = Platform.newWeakSet[FiberContext[_, _]]()
 
     val supervisor = runtimeConfig.supervisor
 
@@ -375,7 +375,7 @@ trait Runtime[+R] {
       new java.util.concurrent.atomic.AtomicReference(
         Map(ZFiberRef.currentEnvironment -> environment.asInstanceOf[AnyRef])
       ),
-      scope,
+      children,
       trace
     )
 
