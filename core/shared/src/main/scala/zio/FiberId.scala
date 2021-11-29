@@ -76,7 +76,7 @@ object FiberId {
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 
-  case object None                                           extends FiberId
+  final case object None                                     extends FiberId
   final case class Runtime(id: Int, startTimeSeconds: Int)   extends FiberId
   final case class Composite(fiberIds: Set[FiberId.Runtime]) extends FiberId
 }
