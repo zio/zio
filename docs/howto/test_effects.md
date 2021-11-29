@@ -423,35 +423,3 @@ test("zipWithLatest") {
   } yield assert(result)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
 }
 ```
-
-### Testing Console
-
-`TestConsole` allows testing of applications that interact with the console by modeling working with standard input and output as writing and reading to and from internal buffers:
-
-```scala mdoc
-import zio.Console
-
-val consoleSuite = suite("ConsoleTest")(
-  test("One can test output of console") {
-    for {
-      _              <- TestConsole.feedLines("Jimmy", "37")
-      _              <- Console.printLine("What is your name?")
-      name           <- Console.readLine
-      _              <- Console.printLine("What is your age?")
-      age            <- Console.readLine.map(_.toInt)
-      questionVector <- TestConsole.output
-      q1             = questionVector(0)
-      q2             = questionVector(1)
-    } yield {
-      assert(name)(equalTo("Jimmy")) &&
-      assert(age)(equalTo(37)) &&
-      assert(q1)(equalTo("What is your name?\n")) &&
-      assert(q2)(equalTo("What is your age?\n"))
-    }
-  }
-)
-```
-
-The above code simulates an application that will ask for the name and age of the user. To test it we prefill buffers with answers with the call to `TestConsole.feedLines` method. Calls to `Console.readLine` will get the value from the buffers instead of interacting with the users keyboard.
-
-Also, all output that our program produces by calling `Console.printLine` (and other printing methods) is being gathered and can be accessed with a call to `TestConsole.output`.
