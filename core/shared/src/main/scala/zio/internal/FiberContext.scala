@@ -1224,13 +1224,13 @@ private[zio] object FiberContext {
 
   import zio.ZIOMetric
 
-  lazy val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failure-causes", "").setCount
-  lazy val fiberForkLocations = ZIOMetric.occurrences("zio-fiber-fork-locations", "").setCount
+  lazy val fiberFailureCauses = ZIOMetric.occurrences("zio_fiber_failure_causes", "class").setCount
+  lazy val fiberForkLocations = ZIOMetric.occurrences("zio_fiber_fork", "location").setCount
 
-  lazy val fibersStarted  = ZIOMetric.count("zio-fiber-started").counter
-  lazy val fiberSuccesses = ZIOMetric.count("zio-fiber-successes").counter
-  lazy val fiberFailures  = ZIOMetric.count("zio-fiber-failures").counter
-  lazy val fiberLifetimes = ZIOMetric.observeHistogram("zio-fiber-lifetimes", fiberLifetimeBoundaries).histogram
+  lazy val fibersStarted  = ZIOMetric.count("zio_fiber_started").counter
+  lazy val fiberSuccesses = ZIOMetric.count("zio_fiber_successes").counter
+  lazy val fiberFailures  = ZIOMetric.count("zio_fiber_failures").counter
+  lazy val fiberLifetimes = ZIOMetric.observeHistogram("zio_fiber_lifetimes", fiberLifetimeBoundaries).histogram
 
   lazy val fiberLifetimeBoundaries = ZIOMetric.Histogram.Boundaries.exponential(1.0, 2.0, 100)
 
