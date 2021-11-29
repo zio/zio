@@ -455,18 +455,3 @@ val consoleSuite = suite("ConsoleTest")(
 The above code simulates an application that will ask for the name and age of the user. To test it we prefill buffers with answers with the call to `TestConsole.feedLines` method. Calls to `Console.readLine` will get the value from the buffers instead of interacting with the users keyboard.
 
 Also, all output that our program produces by calling `Console.printLine` (and other printing methods) is being gathered and can be accessed with a call to `TestConsole.output`.
-
-### Testing System
-
-With the increased usage of containers and runtimes like Kubernetes, more and more applications are being configured by means of environment variables. It is important to test this logic just like other parts of an application.
-
-For this purpose `zio-test` exposes `TestSystem` module. Additionally, to setting the environment variables it also allows for setting JVM system properties like in the code below:
-
-```scala mdoc
-for {
-  _      <- TestSystem.putProperty("java.vm.name", "VM")
-  result <- System.property("java.vm.name")
-} yield assert(result)(equalTo(Some("VM")))
-```
-
-It is worth noticing that no actual environment variables or properties will be set during testing so there will be no impact on other parts of the system.
