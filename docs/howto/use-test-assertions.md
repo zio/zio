@@ -25,9 +25,7 @@ I could start by writing:
 
 ```scala mdoc:reset
 import zio.test._, zio.test.Assertion._
-```
 
-```scala mdoc
 val xs = Vector(0, 1, 2, 3)
 
 test("Fourth value is equal to 5") {
@@ -44,9 +42,7 @@ supply `5`:
 
 ```scala mdoc:reset
 import zio.test._, zio.test.Assertion._
-```
 
-```scala mdoc
 val xs = Vector(0, 1, 2, 3)
 
 test("Fourth value is equal to 5") {
@@ -69,9 +65,7 @@ Changing out `equalTo` with `approximatelyEquals` leaves us with:
 
 ```scala mdoc:reset
 import zio.test._, zio.test.Assertion._
-```
 
-```scala mdoc
 val xs = Vector(0, 1, 2, 3)
 
 test("Fourth value is approximately equal to 5") {
