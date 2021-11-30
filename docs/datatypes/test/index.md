@@ -98,7 +98,7 @@ In the example above, our test involved the effect of printing to the console, b
 
 We can run ZIO Tests in two ways:
 
-1. If we [added `zio.test.sbt.ZTestFramework` to SBT's `testFrameworks`](#installation), our tests should be automatically picked up by SBT on invocation of `test`:
+1. If we [added](#installation) `zio.test.sbt.ZTestFramework` to SBT's `testFrameworks`, our tests should be automatically picked up by SBT on invocation of `test`:
 
   ```bash
   sbt Test/test                      // run all tests
