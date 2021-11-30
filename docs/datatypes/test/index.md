@@ -50,7 +50,7 @@ testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
 ## Our First Lines of ZIO Test
 
-The fastest way to start writing tests is to extend `DefaultRunnableSpec`, which creates a Spec that is also an executable program we can run from within SBT using `test:run` or by using `test` with the SBT test runner.
+The fastest way to start writing tests is to extend `DefaultRunnableSpec`, which requires a `Spec`. `DefaultRunnableSpec` is very similar in its logic of operations to `ZIOAppDefault`. Instead of providing one `ZIO` application at the end of the world, we provide a suite that can be a tree of other suites and tests. 
 
 ```scala mdoc:compile-only
 import zio._
@@ -78,9 +78,25 @@ object HelloWorldSpec extends DefaultRunnableSpec {
 }
 ```
 
-In the example above, our test involved the effect of printing to the console, but we didn't have to do anything differently in our test.
+In the example above, our test involved the effect of printing to the console, but we didn't have to do anything differently in our test. Also note that the `helloWorld` method in the above program does not actually print a string to the console instead writes it to a buffer for testing.
 
-When we tested our program above the `helloWorld` method didn't actually print a string to the console but instead wrote the string to a buffer that could access for testing purposes.
+## Running Tests
+
+We can run ZIO Tests in two ways:
+
+1. If we [added `zio.test.sbt.ZTestFramework` to SBT's `testFrameworks`](#installation), our tests should be automatically picked up by SBT on invocation of `test`:
+
+  ```bash
+  sbt Test/test                      // run all tests
+  sbt Test/testOnly HelloWorldSpec   // run a specific test
+  ```
+
+2. However, if we're not using SBT or have some other special needs, the `DefaultRunnableSpec` has a `main` method which can be invoked directly or with SBTs `Test/run` or `Test/runMain` commands:
+
+  ```bash
+  sbt Test/run                       // prompt to choose which test to run
+  sbt Test/runMain HelloWorldSpec    // run a specific test
+  ```
 
 ## Why ZIO Test?
 
