@@ -9,6 +9,14 @@ ZIO Test has out of the box test implementations for all standard ZIO environmen
 - [`TestRandom`](./random.md)
 - [`TestSystem`](./system.md)
 
+Stability is what we expect from tests, at least those we consider unit tests. Consecutive runs should yield the same results and take more or less the same amount of time.
+
+External services, such as payment APIs, object storages, HTTP APIs, are the biggest source of complexity during testing. It is normal to hide these kinds of services behind an interface and provide test instances to regain control and determinism.
+
+However, there is another source of complexity that comes from the local infrastructure that is also hard to control without building prior abstractions. Things like stdin/stdout, clocks, random generators, schedulers can make writing tests hard or even impossible.
+
+Fortunately, ZIO abstracted most of it in its runtime under `Environment` type. Thanks to this design ZIO Test could easily provide its own implementation named `TestEnvironment` which gives us test implementations of mentioned infrastructure.
+
 If we are using ZIO Test and extending `RunnableSpec` a `TestEnvironment` containing all of them will be automatically provided to each of our tests. Otherwise, the easiest way to use the test implementations in ZIO Test is by providing the `TestEnvironment` to our program:
 
 ```scala mdoc:invisible:nest
