@@ -184,6 +184,7 @@ module.exports = {
       "ZIO Test": [
         "datatypes/test/index",
         "datatypes/test/spec",
+        "datatypes/test/assertion",
         {
           type: "category",
           label: "Test Services",
@@ -225,7 +226,6 @@ module.exports = {
     "Overview": ["howto/index"],
     "How to": [
       "howto/use-test-assertions",
-      "howto/test-effects",
       "howto/mock-services",
       "howto/handle-errors",
       "howto/access-system-information",

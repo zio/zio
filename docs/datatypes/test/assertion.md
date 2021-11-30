@@ -1,18 +1,16 @@
 ---
-id: test-effects
-title:  "How to Test effects?"
+id: assertion
+title: "Assertion"
 ---
 
-### Assertions - creating TestResults
-
-As it was already mentioned, tests should return `TestResult`. The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertM`. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
+Tests should return `TestResult`. The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertM`. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
 
 To create `Assertion[A]` object one can use functions defined under `zio.test.Assertion`. There are already a number of useful assertions predefined like `equalTo`, `isFalse`, `isTrue`, `contains`, `throws` and more.
 
 What is really useful in assertions is that they behave like boolean values and can be composed with operators
 known from operating on boolean values like and (`&&`), or (`||`), negation (`negate`):
 
-```scala mdoc
+```scala mdoc:compile-only
 import zio.test.Assertion
 
 val assertionForString: Assertion[String] = 
@@ -21,7 +19,8 @@ val assertionForString: Assertion[String] =
 
 What's more, assertions also compose with each other allowing for doing rich diffs not only simple value to value comparison:
 
-```scala mdoc
+```scala mdoc:compile-only
+import zio.test._
 import zio.test.Assertion.{isRight, isSome,equalTo, hasField}
 
 test("Check assertions") {
@@ -33,7 +32,7 @@ Here we're checking deeply nested values inside an `Either` and `Option`. Becaus
 
 Here the expression `Right(Some(2))` is of type `Either[Any, Option[Int]]`and our assertion `isRight(isSome(equalTo(2)))` is of type `Assertion[Either[Any, Option[Int]]]`
 
-```scala mdoc:reset-object
+```scala mdoc:reset-object:silent
 import zio.test._
 import zio.test.Assertion.{isRight, isSome,equalTo, isGreaterThanEqualTo, not, hasField}
 
@@ -62,7 +61,7 @@ on the console will be a nice detailed text explaining what exactly went wrong:
 
 Having this all in mind, probably the most common and also most readable way of structuring tests is to pass a for-comprehension to `test` function and yield a call to `assert` function.
 
-```scala mdoc
+```scala mdoc:compile-only
 import zio.{test => _, _}
 import zio.test._
 import Assertion._
