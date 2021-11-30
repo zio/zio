@@ -77,6 +77,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Dream11](https://dream11.com)
 * [Deutsche Telekom IoT GmbH](https://iot.telekom.com/en)
 * [eBay](https://www.ebay.com)
+* [Eaglescience](https://www.eaglescience.nl)
 * [Electricité de France (EDF)](https://www.edf.fr/)
 * [EnelX](https://www.enelx.com)
 * [Evolution](https://evolution.engineering)
