@@ -68,11 +68,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list = List(10, 5, 8, 3, 4)
       assertTrue(list.forall(_ % 2 == 0))
     } @@ failing,
-    test("toOption.get") {
-      val myEither: Either[String, Int] = Left("string")
-      case class Cool(int: Int)
-      assertTrue(myEither.toOption.get + 1 > 18)
-    } @@ failing,
     test("string contains") {
       val myString = "something"
       assertTrue(myString.contains("aoseunoth") && myString == "coool")
@@ -96,12 +91,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     suite("contains")(
       test("Option") {
         assertTrue(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
-      }
-    ) @@ failing,
-    suite("Either")(
-      test("toOption.get") {
-        val myEither: Either[String, Int] = Left("string")
-        assertTrue(myEither.toOption.get + 1 > 11233)
       }
     ) @@ failing,
     suite("Exceptions")(
