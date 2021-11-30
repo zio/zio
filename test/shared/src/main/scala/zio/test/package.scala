@@ -823,11 +823,11 @@ package object test extends CompileVariants {
 
   /**
    * Passes version specific information to the specified function, which will
-   * use that information to create a test. If the version is neither Dotty nor
-   * Scala 2, an ignored test result will be returned.
+   * use that information to create a test. If the version is neither Scala 3
+   * nor Scala 2, an ignored test result will be returned.
    */
-  def versionSpecific[R, E, A](dotty: => A, scala2: => A)(f: A => ZTest[R, E]): ZTest[R, E] =
-    if (TestVersion.isDotty) f(dotty)
+  def versionSpecific[R, E, A](scala3: => A, scala2: => A)(f: A => ZTest[R, E]): ZTest[R, E] =
+    if (TestVersion.isScala3) f(scala3)
     else if (TestVersion.isScala2) f(scala2)
     else ignored
 
