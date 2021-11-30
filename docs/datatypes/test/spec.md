@@ -18,8 +18,10 @@ We can think of a spec as just a collection of tests. It is essentially a recurs
     assert(true)(Assertion.isTrue)
   }
   ```
+  
+  Real tests that run some logic and return testing result are created mostly with `test` function. It expects two arguments, first one will be the label of test which will be used for visual reporting back to the user, and an assertion which contains some testable logic specified about a target under the test.
 
-- **Collection of Multiple Tests** — The `suite` creates a suite which contains other specs (tests):
+- **Collection of Multiple Tests** — The `suite` creates a suite which contains other specs (tests or suites):
 
   ```scala mdoc:silent:nest
   val mySuite =
@@ -31,6 +33,23 @@ We can think of a spec as just a collection of tests. It is essentially a recurs
         assert(false)(Assertion.isFalse)
       }
     )
+  ```
+
+  Suites can contain other suites. We can have multiple suites and one big suite that will aggregate them all:
+
+  ```scala mdoc:compile-only
+  import zio.test._
+  
+  suite("int and string")(
+    suite("int suite")(
+      test("minus")(assertTrue(2 - 1 == 1)),
+      test("plus")(assertTrue(1 + 1 == 2))
+    ),
+    suite("string suite")(
+      test("concat")(assertTrue("a" + "b" == "ab")),
+      test("length")(assertTrue("abc".length == 3))
+    )
+  )
   ```
   
 ## Dependencies on Other Services
