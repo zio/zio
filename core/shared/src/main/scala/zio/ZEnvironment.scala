@@ -34,8 +34,9 @@ final class ZEnvironment[+R] private (
     new ZEnvironment(self.map + (taggedTagType(tagged) -> (a -> index)), index + 1)
 
   override def equals(that: Any): Boolean = that match {
-    case that: ZEnvironment[_] => map == that.map
-    case _                     => false
+    case that: AnyRef if self.eq(that) => true
+    case that: ZEnvironment[_]         => map == that.map
+    case _                             => false
   }
 
   /**

@@ -173,7 +173,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def map[ROut1](f: ZEnvironment[ROut] => ZEnvironment[ROut1])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E, ROut1] =
-    flatMap(environment => ZLayer.succeedMany(f(environment)))
+    flatMap(environment => ZLayer.succeedEnvironment(f(environment)))
 
   /**
    * Returns a layer with its error channel mapped using the specified function.
