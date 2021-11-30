@@ -35,6 +35,20 @@ assert(random >= 0)
 
 Testing effectful programs is difficult since we should use many `unsafeRun` methods. Also, we might need to make sure that the test is non-flaky. In these cases, running `unsafeRun` multiple times is not straightforward. We need a testing framework that treats effects as _first-class values_. So this is the primary motivation for creating the ZIO Test library.
 
+## How ZIO Test was designed
+
+We designed ZIO Test around the idea of _making tests first-class objects_. This means that tests (and other concepts, like assertions) become ordinary values that can be passed around, transformed, and composed.
+
+This approach allows for greater flexibility compared to some other testing frameworks, where tests and additional logic around tests had to be put into callbacks so that framework could make use of them.
+
+As a result, this approach is also better suited to other `ZIO` concepts like `ZManaged`, which can only be used within a scoped block of code. This also created a mismatch between `BeforeAll`, `AfterAll` callback-like methods when there were resources that should be opened and closed during test suite execution.
+
+Another thing worth pointing out is that tests being values are also effects. Implications of this design are far-reaching:
+
+1. First, the well-known problem of testing asynchronous value is gone. Whereas in other frameworks we have to somehow "run" our effects and at best wrap them in `scala.util.Future` because blocking would eliminate running on ScalaJS, ZIO Test expects us to create `ZIO` objects. There is no need for indirect transformations from one wrapping object to another.
+
+2. Second, because our tests are ordinary `ZIO` values, we don't need to turn to a testing framework for things like retries, timeouts, and resource management. We can solve all those problems with the full richness of functions that `ZIO` exposes.
+
 ## Installation
 
 In order to use ZIO Test, we need to add the required configuration in our SBT settings:

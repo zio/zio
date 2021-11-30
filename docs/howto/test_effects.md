@@ -3,20 +3,6 @@ id: test-effects
 title:  "How to Test effects?"
 ---
 
-## How zio-test was designed
-
-`zio-test` is designed around the idea of _making tests first-class objects_. What it means is that tests (and other accompanying concepts like assertions) become ordinary values that can be passed around, transformed, and composed together.
-
-This approach allows for greater flexibility compared to some other testing frameworks where tests and additional logic around tests had to be put into callbacks so that framework could make use of them.
-
-This approach also fits better with other `ZIO` concepts like `ZManaged` which can only be used within a scoped block of code. This also created a mismatch between `BeforeAll`, `AfterAll` callback-like methods when there were resources that should be opened and closed during test suite execution.
-
-Another thing worth pointing out is that tests being values are also effects. Implications of this design are far-reaching.
-
-- First, the well-known problem of testing asynchronous value is gone. Whereas in other frameworks you have to somehow "run" your effects and at best wrap them in `scala.util.Future` because blocking would eliminate running on ScalaJS, `zio-test` expects you to create `ZIO` objects. There is no need for indirect transformations from one wrapping object to another.
-
-- Second, because our tests are ordinary `ZIO` values we don't need to turn to a testing framework for things like retries, timeouts, and resource management. We can solve all those problems with the full richness of functions that `ZIO` exposes.
-
 ## Constructing tests
 
 All below code assumes that you have imported `zio.test._`
