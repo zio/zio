@@ -695,12 +695,8 @@ private[zio] final class FiberContext[E, A](
       runtimeConfig,
       StackBool(interruptStatus.peekOrElse(true)),
       new AtomicReference(childFiberRefLocals),
-<<<<<<< HEAD
-      childScope,
+      grandChildren,
       trace
-=======
-      grandChildren
->>>>>>> 237662dea (Add test suite for evalOn)
     )
 
     if (runtimeConfig.supervisor ne Supervisor.none) {
