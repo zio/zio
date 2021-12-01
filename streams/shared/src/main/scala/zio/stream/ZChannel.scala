@@ -1465,7 +1465,7 @@ object ZChannel {
     readOrFail(None)
 
   def succeed[Z](z: => Z)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
-    end(z)
+    effectTotal(z)
 
   val unit: ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] =
     succeed(())(ZTraceElement.empty)

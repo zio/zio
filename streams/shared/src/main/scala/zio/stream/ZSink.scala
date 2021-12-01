@@ -1445,7 +1445,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that immediately ends with the specified value.
    */
   def succeed[Z](z: => Z)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Z] = new ZSink(
-    ZChannel.effectTotal(z)
+    ZChannel.succeed(z)
   )
 
   /**
