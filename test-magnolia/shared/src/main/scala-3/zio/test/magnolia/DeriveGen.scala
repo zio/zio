@@ -79,7 +79,7 @@ object DeriveGen {
 
     given DeriveGen[EmptyTuple] = instance(Gen.const(EmptyTuple))
     given [A, T <: Tuple] (using a: DeriveGen[A], t: DeriveGen[T]): DeriveGen[A *: T] =
-        instance((a.derive <&> t.derive).map(_ *: _))
+        instance((a.derive <*> t.derive).map(_ *: _))
 
     inline def gen[T](using m: Mirror.Of[T]): DeriveGen[T] =
         new DeriveGen[T] {
@@ -100,7 +100,7 @@ object DeriveGen {
 
     def genProduct[T](p: Mirror.ProductOf[T], instances: => List[DeriveGen[_]]): Gen[Random with Sized, T] =
         Gen.suspend(
-            Gen.zipAll(instances.map(_.derive)).map(lst => Tuple.fromArray(lst.toArray)).map(p.fromProduct))
+            Gen.collectAll(instances.map(_.derive)).map(lst => Tuple.fromArray(lst.toArray)).map(p.fromProduct))
 
     inline def summonAll[T <: Tuple]: List[DeriveGen[_]] =
         inline erasedValue[T] match {

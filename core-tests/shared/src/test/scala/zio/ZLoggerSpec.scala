@@ -45,7 +45,7 @@ object ZLoggerSpec extends ZIOBaseSpec {
             val test = loggers.exists(_ eq logger) // TODO: Fix assertTrue
 
             assertTrue(test)
-          } @@ exceptDotty +
+          } @@ exceptScala3 +
           test("supertype lookup 3") {
             val logger = ZLogger.simple[Cause[Any], Unit](_ => ())
 

@@ -1531,7 +1531,7 @@ object ZSTM {
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag: IsNotIntersection]: ZSTM[A, Nothing, A] =
-    ZSTM.access(_.get[A])
+    ZSTM.environmentWith(_.get[A])
 
   /**
    * Accesses the service corresponding to the specified key in the environment.
@@ -1715,7 +1715,7 @@ object ZSTM {
     def apply[Key](
       key: => Key
     )(implicit tag: Tag[Map[Key, Service]]): ZSTM[Map[Key, Service], Nothing, Option[Service]] =
-      ZSTM.access(_.getAt(key))
+      ZSTM.environmentWith(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {

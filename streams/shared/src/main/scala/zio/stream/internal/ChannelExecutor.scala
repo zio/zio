@@ -74,8 +74,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       if (subexecutorStack eq null) null
       else
         subexecutorStack match {
-          case exec: SubexecutorStack.Inner[Env] =>
-            exec.close(ex)
+          case exec: SubexecutorStack.Inner[_] =>
+            exec.close(ex).asInstanceOf[ZIO[Env, Nothing, Exit[Any, Any]]]
 
           case SubexecutorStack.FromKAnd(fromK, rest) =>
             val fin1 = fromK.close(ex)

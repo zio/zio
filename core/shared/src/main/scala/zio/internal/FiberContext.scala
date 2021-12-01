@@ -1000,7 +1000,7 @@ private[zio] final class FiberContext[E, A](
     oldState match {
       case Executing(
             status,
-            observers: List[Callback[Nothing, Exit[E, A]]],
+            observers,
             interrupted,
             interruptors,
             asyncCanceler
@@ -1037,7 +1037,7 @@ private[zio] final class FiberContext[E, A](
     oldState match {
       case Executing(
             _,
-            observers: List[Callback[Nothing, Exit[E, A]]],
+            observers,
             _,
             _,
             _
@@ -1058,7 +1058,7 @@ private[zio] final class FiberContext[E, A](
           if (!state.compareAndSet(oldState, Done(newExit))) unsafeTryDone(exit)
           else {
             unsafeReportUnhandled(newExit, trace)
-            unsafeNotifyObservers(newExit, observers)
+            unsafeNotifyObservers(newExit, observers.asInstanceOf[List[Callback[Nothing, Exit[E, A]]]])
 
             val startTimeSeconds = fiberId.startTimeSeconds
             val endTimeSeconds   = java.lang.System.currentTimeMillis() / 1000
@@ -1074,7 +1074,7 @@ private[zio] final class FiberContext[E, A](
                 fiberFailures.unsafeIncrement()
 
                 cause.fold[Unit](
-                  "<empty>",
+                  fiberFailureCauses.unsafeObserve("<empty>"),
                   (failure, _) => {
                     fiberFailureCauses.unsafeObserve(failure.getClass.getName)
                   },

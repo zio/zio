@@ -32,12 +32,12 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
       new Scheduler {
         def unsafeSchedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {
           val canceler =
-            runtime.unsafeRunAsyncCancelable((sleep(duration) *> ZIO.effectTotal(runnable.run())))(_ => ())
-          () => canceler(zio.Fiber.Id.None).interrupted
+            runtime.unsafeRunAsyncCancelable((sleep(duration) *> ZIO.succeed(runnable.run())))(_ => ())
+          () => canceler(zio.FiberId.None).isInterrupted
         }
 
         def asScheduledExecutorService: ScheduledExecutorService = {
-          val executor = runtime.platform.executor
+          val executor = runtime.runtimeConfig.executor
 
           def compute[A](a: => A): Either[Throwable, A] =
             try {
@@ -75,7 +75,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
                 val interval = Duration.fromInterval(start, end)
                 val cancelToken = unsafeSchedule(
                   () =>
-                    executor.submitOrThrow { () =>
+                    executor.unsafeSubmitOrThrow { () =>
                       compute(a) match {
                         case Left(t) =>
                           state.set(Done(Left(t)))
@@ -157,7 +157,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
             def awaitTermination(timeout: Long, unit: TimeUnit): Boolean =
               false
             def execute(command: Runnable): Unit = {
-              executor.submit(command)
+              executor.unsafeSubmit(command)
               ()
             }
             def isShutdown(): Boolean =

@@ -1462,7 +1462,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tag: Tag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZManaged[Map[Key, Service], Nothing, Option[Service]] =
-      ZManaged.access(_.getAt(key))
+      ZManaged.environmentWith(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
@@ -2109,7 +2109,6 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Create a managed that accesses the environment.
    */
-  @deprecated("use serviceWith", "2.0.0")
   def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
     new EnvironmentWithPartiallyApplied
 
@@ -3169,7 +3168,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Accesses the specified service in the environment of the effect.
    */
   def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZManaged[A, Nothing, A] =
-    ZManaged.access(_.get[A])
+    ZManaged.environmentWith(_.get[A])
 
   /**
    * Accesses the service corresponding to the specified key in the environment.

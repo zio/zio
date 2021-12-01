@@ -40,11 +40,7 @@ private[zio] object ConcurrentSetCount {
           values.putIfAbsent(word, cnt)
           slot = values.get(word)
         }
-        slot match {
-          case la: LongAdder =>
-            la.increment()
-          case _ =>
-        }
+        slot.increment()
       }
 
       def snapshot(): Chunk[(String, Long)] = {
