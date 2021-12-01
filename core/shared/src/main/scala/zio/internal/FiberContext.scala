@@ -37,8 +37,8 @@ private[zio] final class FiberContext[E, A](
   var runtimeConfig: RuntimeConfig,
   val interruptStatus: StackBool,
   val fiberRefLocals: FiberRefLocals,
-  val location: ZTraceElement,
-  val children: JavaSet[FiberContext[_, _]]
+  val children: JavaSet[FiberContext[_, _]],
+  val location: ZTraceElement
 ) extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable { self =>
   import FiberContext.{erase, eraseK, eraseR, Erased, ErasedCont, ErasedTracedCont}
