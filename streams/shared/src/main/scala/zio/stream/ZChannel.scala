@@ -1207,8 +1207,8 @@ object ZChannel {
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     EffectSuspendTotal(() => effect)
 
-  def end[Z](result: => Z)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
-    effectTotal(result)
+  def end[Z](result: Z)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
+    Done(result)
 
   def endWith[R, Z](f: ZEnvironment[R] => Z)(implicit
     trace: ZTraceElement
