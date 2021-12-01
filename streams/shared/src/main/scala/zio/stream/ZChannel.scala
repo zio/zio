@@ -1468,7 +1468,7 @@ object ZChannel {
     effectTotal(z)
 
   val unit: ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] =
-    succeed(())(ZTraceElement.empty)
+    end(())(ZTraceElement.empty)
 
   def unwrap[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     channel: ZIO[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
