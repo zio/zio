@@ -3326,6 +3326,54 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self.mapZIO(ev(_).fold[IO[E1, A2]](ZIO.fail(e))(ZIO.succeedNow(_)))
 
   /**
+   * Emits a sliding window of n elements.
+   * {{{
+   *   Stream(1, 2, 3, 4).sliding(2).runCollect // Chunk(Chunk(1, 2), Chunk(2, 3), Chunk(3, 4))
+   * }}}
+   */
+  def sliding(chunkSize: Int, stepSize: Int = 1)(implicit trace: ZTraceElement): ZStream[R, E, Chunk[A]] =
+    if (chunkSize <= 0 || stepSize <= 0)
+      ZStream.die(new IllegalArgumentException("invalid bounds. `chunkSize` and `stepSize` must be greater than zero"))
+    else
+      new ZStream({
+        val queue = SingleThreadedRingBuffer[A](chunkSize)
+
+        def reader(queueSize: Int): ZChannel[Any, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
+          ZChannel.readWith(
+            (in: Chunk[A]) => {
+              ZChannel.write {
+                in.zipWithIndex.flatMap { case (i, idx) =>
+                  queue.put(i)
+                  val currentIndex = queueSize + idx + 1
+                  if (currentIndex < chunkSize || (currentIndex - chunkSize) % stepSize > 0) None
+                  else Some(queue.toChunk)
+                }
+              } *> reader(queueSize + in.length)
+            },
+            ZChannel.fail(_),
+            end => {
+              if (queueSize < chunkSize) {
+                val items  = queue.toChunk
+                val result = if (items.isEmpty) Chunk.empty else Chunk.single(items)
+                ZChannel.write(result) *> ZChannel.end(end)
+              } else {
+                val lastEmitIndex = queueSize - (queueSize - chunkSize) % stepSize
+
+                if (lastEmitIndex == queueSize) ZChannel.end(end)
+                else {
+                  val leftovers = queueSize - (lastEmitIndex - chunkSize + stepSize)
+                  val lastItems = queue.toChunk.takeRight(leftovers)
+                  val result    = if (lastItems.isEmpty) Chunk.empty else Chunk.single(lastItems)
+                  ZChannel.write(result) *> ZChannel.end(end)
+                }
+              }
+            }
+          )
+
+        self.channel >>> reader(0)
+      })
+
+  /**
    * Splits elements on a delimiter and transforms the splits into desired
    * output.
    */

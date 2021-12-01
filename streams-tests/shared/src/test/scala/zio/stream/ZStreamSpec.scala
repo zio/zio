@@ -2996,6 +2996,64 @@ object ZStreamSpec extends ZIOBaseSpec {
           val s1 = ZStream.succeed(Some(1)) ++ ZStream.succeed(None)
           s1.someOrFail(-1).runCollect.either.map(assert(_)(isLeft(equalTo(-1))))
         },
+        suite("sliding")(
+          test("returns a sliding window") {
+            val result  = Chunk(Chunk(1, 2), Chunk(2, 3), Chunk(3, 4), Chunk(4, 5))
+            val stream0 = ZStream.fromChunks(Chunk.empty, Chunk(1), Chunk.empty, Chunk(2, 3, 4, 5))
+            val stream1 = ZStream.empty ++ ZStream(1) ++ ZStream.empty ++ ZStream(2) ++ ZStream(3, 4, 5)
+            val stream2 = ZStream(1) ++ ZStream.empty ++ ZStream(2) ++ ZStream.empty ++ ZStream(3, 4, 5)
+            val stream3 = ZStream.fromChunk(Chunk(1)) ++ ZStream.fromChunk(Chunk(2)) ++ ZStream(3, 4, 5)
+
+            for {
+              result1 <- ZStream(1, 2, 3, 4, 5).sliding(2).runCollect
+              result2 <- stream0.sliding(2).runCollect
+              result3 <- stream1.sliding(2).runCollect
+              result4 <- stream2.sliding(2).runCollect
+              result5 <- stream3.sliding(2).runCollect
+            } yield assert(result1)(equalTo(result)) &&
+              assert(result2)(equalTo(result)) &&
+              assert(result3)(equalTo(result)) &&
+              assert(result4)(equalTo(result)) &&
+              assert(result5)(equalTo(result))
+          },
+          test("returns all elements if chunkSize is greater than the size of the stream") {
+            assertM(
+              ZStream(1, 2, 3, 4, 5).sliding(6).runCollect
+            )(equalTo(Chunk(Chunk(1, 2, 3, 4, 5))))
+          },
+          test("is equivalent to Vector#sliding") {
+            check(pureStreamOfInts, Gen.int(1, 100), Gen.int(1, 10)) { case (stream, chunkSize, stepSize) =>
+              for {
+                result1 <- stream.sliding(chunkSize, stepSize).runCollect
+                partial <- stream.runCollect
+                arrays   = partial.toArray.sliding(chunkSize, stepSize).toArray
+                result2  = Chunk.fromArray(arrays.map(Chunk.fromArray(_)))
+              } yield assert(result1)(equalTo(result2))
+            }
+          },
+          test("is mostly equivalent to ZStream#grouped when stepSize and chunkSize are equal") {
+            check(pureStreamGen(Gen.int, 100), Gen.int(1, 100)) { case (stream, chunkSize) =>
+              for {
+                result1 <- stream.sliding(chunkSize, chunkSize).runCollect
+                partial <- stream.grouped(chunkSize).runCollect
+                result2  = partial.filterNot(_.isEmpty)
+              } yield assert(result1)(equalTo(result2))
+            }
+          },
+          test("fails if upstream produces an error") {
+            assertM(
+              (ZStream(1, 2, 3) ++ ZStream.fail("Ouch") ++ ZStream(4, 5))
+                .sliding(2)
+                .runCollect
+                .either
+            )(isLeft(equalTo("Ouch")))
+          },
+          test("should return empty chunk when stream is empty") {
+            assertM(
+              ZStream().sliding(2).runCollect
+            )(equalTo(Chunk()))
+          }
+        ),
         suite("splitOnChunk")(
           test("consecutive delimiter yields empty Chunk") {
             val input         = ZStream.apply(Chunk(1, 2), Chunk(1), Chunk(2, 1, 2, 3, 1, 2), Chunk(1, 2))
