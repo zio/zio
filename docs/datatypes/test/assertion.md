@@ -3,6 +3,24 @@ id: assertion
 title: "Assertion"
 ---
 
+An `Assertion[A]` is capable of producing assertion results on an `A`. As a proposition, assertions compose using logical conjunction and disjunction and can be negated.
+
+Assertions are used to make sure that the assumptions on computations are exactly what we expect them to be.
+
+For example, if we have a function that is supposed to take two strings and returns the concatenation of them, one simple assertion is that the sum of the length of each input should be equal to the length of the output:
+
+```scala mdoc:compile-only
+import zio.test._
+
+test("The sum of the lengths of both inputs must equal the length of the output") {
+  check(Gen.string, Gen.string) { (a, b) =>
+    assertTrue(a.length + b.length == a.concat(b).length)
+  }
+}
+```
+
+Assertions are executable checks for a property that must be true in our code. Also, assertions can be seen as a specification of a program. They facilitate understanding of programs and are used as a basis for program verification. 
+
 Tests should return `TestResult`. The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertM`. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
 
 To create `Assertion[A]` object one can use functions defined under `zio.test.Assertion`. There are already a number of useful assertions predefined like `equalTo`, `isFalse`, `isTrue`, `contains`, `throws` and more.
