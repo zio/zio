@@ -257,7 +257,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def broadcast(n: Int, maximumLag: Int)(implicit
     trace: ZTraceElement
-  ): ZManaged[R, Nothing, List[ZStream[Any, E, A]]] =
+  ): ZManaged[R, Nothing, Chunk[ZStream[Any, E, A]]] =
     self
       .broadcastedQueues(n, maximumLag)
       .map(_.map(ZStream.fromQueueWithShutdown(_).flattenTake))
@@ -284,10 +284,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def broadcastedQueues(
     n: Int,
     maximumLag: Int
-  )(implicit trace: ZTraceElement): ZManaged[R, Nothing, List[Dequeue[Take[E, A]]]] =
+  )(implicit trace: ZTraceElement): ZManaged[R, Nothing, Chunk[Dequeue[Take[E, A]]]] =
     for {
       hub    <- Hub.bounded[Take[E, A]](maximumLag).toManaged
-      queues <- ZManaged.collectAll(List.fill(n)(hub.subscribe))
+      queues <- ZManaged.collectAll(Chunk.fill(n)(hub.subscribe))
       _      <- self.runIntoHubManaged(hub).fork
     } yield queues
 
@@ -3499,8 +3499,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     sink: ZSink[R1, E1, A, Any, Any],
     maximumLag: Int
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    ZStream.managed(broadcast(2, maximumLag)).flatMap { case left :: right :: Nil =>
-      left.drainFork(ZStream.fromZIO(right.run(sink)))
+    ZStream.managed(broadcast(2, maximumLag)).flatMap { streams =>
+      streams(0).drainFork(ZStream.fromZIO(streams(1).run(sink)))
     }
 
   /**

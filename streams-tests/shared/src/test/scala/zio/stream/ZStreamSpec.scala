@@ -427,27 +427,21 @@ object ZStreamSpec extends ZIOBaseSpec {
             ZStream
               .range(0, 5)
               .broadcast(2, 12)
-              .use {
-                case s1 :: s2 :: Nil =>
-                  for {
-                    out1    <- s1.runCollect
-                    out2    <- s2.runCollect
-                    expected = Chunk.fromIterable(Range(0, 5))
-                  } yield assert(out1)(equalTo(expected)) && assert(out2)(equalTo(expected))
-                case _ =>
-                  UIO(assert(())(Assertion.nothing))
+              .use { streams =>
+                for {
+                  out1    <- streams(0).runCollect
+                  out2    <- streams(1).runCollect
+                  expected = Chunk.fromIterable(Range(0, 5))
+                } yield assert(out1)(equalTo(expected)) && assert(out2)(equalTo(expected))
               }
           },
           test("Errors") {
-            (ZStream.range(0, 1) ++ ZStream.fail("Boom")).broadcast(2, 12).use {
-              case s1 :: s2 :: Nil =>
-                for {
-                  out1    <- s1.runCollect.either
-                  out2    <- s2.runCollect.either
-                  expected = Left("Boom")
-                } yield assert(out1)(equalTo(expected)) && assert(out2)(equalTo(expected))
-              case _ =>
-                UIO(assert(())(Assertion.nothing))
+            (ZStream.range(0, 1) ++ ZStream.fail("Boom")).broadcast(2, 12).use { streams =>
+              for {
+                out1    <- streams(0).runCollect.either
+                out2    <- streams(1).runCollect.either
+                expected = Left("Boom")
+              } yield assert(out1)(equalTo(expected)) && assert(out2)(equalTo(expected))
             }
           },
           test("BackPressure") {
@@ -455,36 +449,30 @@ object ZStreamSpec extends ZIOBaseSpec {
               .range(0, 5)
               .flatMap(ZStream.succeed(_))
               .broadcast(2, 2)
-              .use {
-                case s1 :: s2 :: Nil =>
-                  for {
-                    ref    <- Ref.make[List[Int]](Nil)
-                    latch1 <- Promise.make[Nothing, Unit]
-                    fib <- s1
-                             .tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 1))
-                             .runDrain
-                             .fork
-                    _         <- latch1.await
-                    snapshot1 <- ref.get
-                    _         <- s2.runDrain
-                    _         <- fib.await
-                    snapshot2 <- ref.get
-                  } yield assert(snapshot1)(equalTo(List(1, 0))) && assert(snapshot2)(
-                    equalTo(Range(0, 5).toList.reverse)
-                  )
-                case _ =>
-                  UIO(assert(())(Assertion.nothing))
+              .use { streams =>
+                for {
+                  ref    <- Ref.make[List[Int]](Nil)
+                  latch1 <- Promise.make[Nothing, Unit]
+                  fib <- streams(0)
+                           .tap(i => ref.update(i :: _) *> latch1.succeed(()).when(i == 1))
+                           .runDrain
+                           .fork
+                  _         <- latch1.await
+                  snapshot1 <- ref.get
+                  _         <- streams(1).runDrain
+                  _         <- fib.await
+                  snapshot2 <- ref.get
+                } yield assert(snapshot1)(equalTo(List(1, 0))) && assert(snapshot2)(
+                  equalTo(Range(0, 5).toList.reverse)
+                )
               }
           },
           test("Unsubscribe") {
-            ZStream.range(0, 5).broadcast(2, 2).use {
-              case s1 :: s2 :: Nil =>
-                for {
-                  _    <- s1.toPull.useDiscard(ZIO.unit).ignore
-                  out2 <- s2.runCollect
-                } yield assert(out2)(equalTo(Chunk.fromIterable(Range(0, 5))))
-              case _ =>
-                UIO(assert(())(Assertion.nothing))
+            ZStream.range(0, 5).broadcast(2, 2).use { streams =>
+              for {
+                _    <- streams(0).toPull.useDiscard(ZIO.unit).ignore
+                out2 <- streams(1).runCollect
+              } yield assert(out2)(equalTo(Chunk.fromIterable(Range(0, 5))))
             }
           }
         ),
