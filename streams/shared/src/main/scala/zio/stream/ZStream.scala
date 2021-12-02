@@ -3492,8 +3492,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     catchAll(e => ZStream.fromZIO(f(e) *> ZIO.fail(e)))
 
   /**
-   * Sends all elements emitted by this stream to the specified sink in
-   * addition to emitting them.
+   * Sends all elements emitted by this stream to the specified sink in addition
+   * to emitting them.
    */
   final def tapSink[R1 <: R, E1 >: E](
     sink: ZSink[R1, E1, A, Any, Any],
