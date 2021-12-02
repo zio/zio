@@ -3492,6 +3492,18 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     catchAll(e => ZStream.fromZIO(f(e) *> ZIO.fail(e)))
 
   /**
+   * Sends all elements emitted by this stream to the specified sink in
+   * addition to emitting them.
+   */
+  final def tapSink[R1 <: R, E1 >: E](
+    sink: ZSink[R1, E1, A, Any, Any],
+    maximumLag: Int
+  )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
+    ZStream.managed(broadcast(2, maximumLag)).flatMap { case left :: right :: Nil =>
+      left.drainFork(ZStream.fromZIO(right.run(sink)))
+    }
+
+  /**
    * Throttles the chunks of this stream according to the given bandwidth
    * parameters using the token bucket algorithm. Allows for burst in the
    * processing of elements by allowing the token bucket to accumulate tokens up

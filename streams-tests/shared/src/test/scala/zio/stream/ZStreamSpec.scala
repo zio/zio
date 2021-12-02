@@ -3179,6 +3179,34 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(res)(isLeft(equalTo("Ouch"))) && assert(err)(equalTo("Ouch"))
           }
         ),
+        suite("tapSink")(
+          test("sink that is done after stream") {
+            for {
+              ref <- Ref.make(0)
+              sink   = ZSink.foreach[Any, Nothing, Int](n => ref.update(_ + n))
+              stream = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink, 8)
+              elements <- stream.runCollect
+              done     <- ref.get
+            } yield assertTrue(elements == Chunk(1, 1, 2, 3, 5, 8) && done == 20)
+          },
+          test("sink that is done before stream") {
+            for {
+              ref <- Ref.make(0)
+              sink   = ZSink.take[Int](3).map(_.sum).mapZIO(n => ref.update(_ + n))
+              stream = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink, 8)
+              elements <- stream.runCollect
+              done     <- ref.get
+            } yield assertTrue(elements == Chunk(1, 1, 2, 3, 5, 8) && done == 4)
+          },
+          test("sink that fails before stream") {
+            for {
+              ref <- Ref.make(0)
+              sink   = ZSink.fail("error")
+              stream = ZStream.never.tapSink(sink, 8)
+              error <- stream.runCollect.flip
+            } yield assertTrue(error == "error")
+          }
+        ),
         suite("throttleEnforce")(
           test("free elements") {
             assertM(
