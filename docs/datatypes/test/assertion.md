@@ -31,22 +31,28 @@ val equalTo10      : Assertion[Int] = Assertion.equalTo[Int, Int](10)
 val assertion: Assertion[Int] = greaterThanZero && lessThanFive || equalTo10.negate
 ```
 
-Now, we can run the assertion on value and produce `AssertionResult`:
+After combining and composing assertions, we can render the result:
 
 ```scala mdoc
 import zio._
 
-// After combining composing assertions, we can render the assertion
 assertion.render
+```
 
-// Running an assertion produces the AssertResult 
-val result: AssertResult = assertion.run(3)
+Now, we can run the assertion on a value and produce `AssertionResult`. In case of failure, this assertion result contains the exact cause of the failure:
+
+```scala mdoc
+import zio._
+
+val result: AssertResult = assertion.run(10)
 ```
 
 ```scala mdoc:invisible:reset
 ```
 
-The `test` function has the following signature:
+## Applying Assertions to ZIO Tests
+
+In ZIO Test, each test comprises two sections: a _label_ and a _test result_. Let's see the signature of the `test` function:
 
 ```scala
 def test[In](label: String)(
@@ -56,14 +62,20 @@ def test[In](label: String)(
   zio.test.test(label)(assertion)
 ```
 
-The implicit test constructor will be chosen based on the type of assertion we pass to the `test` function.
+Its signature is a bit complicated and uses _path dependent types_, but it doesn't matter. We can think of a `test` as a function from `TestResult` (or its effectful versions such as `ZIO[R, E, TestResult]`, `ZManaged[R, E, TestResult]` or `ZSTM[R, E, TestResult]`) to the `ZSpec[R, E]` data type:
 
-1. **`TestResult`** or its effectful version can be any of `ZIO[R, E, TestResult]`, `ZManaged[R, E, TestResult]` or `ZSTM[R, E, TestResult]`.
-2. **`Assert`** or its effectful version can be any of `ZIO[R, E, Assert]`, `ZManaged[R, E, Assert]`, `ZSTM[R, E, Assert]`.
+```scala
+def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing]
+def test(label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E]
+```
 
-In most cases, we do not require creating a `TestResult` and `Assert` manually, but also we use helper methods that produce these values:
+Most of the time, we do not need to create a `TestResult`, but instead we use helper methods to produce these values:
+1. **`assert`** and **`assertM`**
+2. **`assertTrue`**
 
-1.**`assert`** and **`assertM`** — The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertM`. The former one is for creating ordinary `TestResult` values and the latter one is for producing effectful `TestResult` values. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
+### Classic Old-fashioned Assertions
+
+The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertM`. The former one is for creating ordinary `TestResult` values and the latter one is for producing effectful `TestResult` values. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
 
 In the following example, we use the `equalTo` assertion, which asserts the equality of two values:
 
@@ -75,7 +87,7 @@ val result:  TestResult                      = assert(1 + 1)(Assertion.equalTo(2
 val resultM: ZIO[Any, Throwable, TestResult] = assertM(ZIO(1 + 1))(Assertion.equalTo(2))
 ```
 
-This test can be written directly as follows:
+1. This test can be written directly as follows:
 
 ```scala mdoc:compile-only
 import zio._
@@ -86,7 +98,7 @@ test("sum") {
 }
 ```
 
-If we are testing an effect, we should use the `assertM` function:
+2. If we are testing an effect, we should use the `assertM` function:
 
 ```scala mdoc:compile-only
 import zio._
@@ -102,28 +114,7 @@ test("updating ref") {
 }
 ```
 
-2. **`assertTrue`** — We call this method the _smart assertion_. The smart assertion is a simpler way to assert both ordinary values and effectful values:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-
-// Testing ordinay values
-test("sum"){
-  assertTrue(1 + 1 == 2)
-}
-
-// Testing effectful values
-test("updating ref") {
-  for {
-    r <- Ref.make(0)
-    _ <- r.update(_ + 1)
-    v <- r.get
-  } yield assertTrue(v == 1)
-}
-```
-
-Having this all in mind, probably the most common and also most readable way of structuring tests is to pass a for-comprehension to `test` function and yield a call to `assert` function.
+3. Having this all in mind, probably the most common and also most readable way of structuring tests is to pass a for-comprehension to `test` function and yield a call to `assert` function.
 
 ```scala mdoc:compile-only
 import zio._
@@ -138,10 +129,41 @@ test("updating ref") {
 } 
 ```
 
+### Smart Assertions
+
+The smart assertion is a simpler way to assert both ordinary values and effectful values. It uses the `assertTrue` function, which uses macro under the hood.
+
+1. Testing ordinary values:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+test("sum"){
+  assertTrue(1 + 1 == 2)
+}
+```
+
+2. Testing effectful values:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+
+test("updating ref") {
+  for {
+    r <- Ref.make(0)
+    _ <- r.update(_ + 1)
+    v <- r.get
+  } yield assertTrue(v == 1)
+}
+```
+
+## Assertions
+
 To create `Assertion[A]` object one can use functions defined under `zio.test.Assertion`. There are already a number of useful assertions predefined like `equalTo`, `isFalse`, `isTrue`, `contains`, `throws` and more.
 
-What is really useful in assertions is that they behave like boolean values and can be composed with operators
-known from operating on boolean values like and (`&&`), or (`||`), negation (`negate`):
+What is really useful in assertions is that they behave like boolean values and can be composed with operators known from operating on boolean values like and (`&&`), or (`||`), negation (`negate`):
 
 ```scala mdoc:compile-only
 import zio.test.Assertion
