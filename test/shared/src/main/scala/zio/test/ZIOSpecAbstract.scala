@@ -36,7 +36,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     ({ type OutEnv[Env] = Env })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ]] =
-    Chunk.empty
+    Chunk(TestAspect.fibers)
 
   final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {
     implicit val trace = Tracer.newTrace
