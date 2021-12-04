@@ -121,7 +121,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       runner =
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any](
-            ZLayer.succeedMany(env) +!+ testEnvironment
+            ZLayer.succeedEnvironment(env) +!+ testEnvironment
           )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
