@@ -3,11 +3,9 @@ id: assertion
 title: "Assertion"
 ---
 
-An `Assertion[A]` is capable of producing assertion results on an `A`. As a proposition, assertions compose using logical conjunction and disjunction and can be negated.
+Assertions are used to make sure that the assumptions on computations are exactly what we expect them to be. An `Assertion[A]` is capable of producing _assertion results_ on an `A`. As a proposition, assertions compose using logical conjunction and disjunction and can be negated.
 
-Assertions are used to make sure that the assumptions on computations are exactly what we expect them to be.
-
-For example, if we have a function that is supposed to take two strings and returns the concatenation of them, one simple assertion is that the sum of the length of each input should be equal to the length of the output:
+Let's see an example of assertions in testing. If we have a function that is supposed to take two strings and returns the concatenation of them, one simple assertion is that the sum of the length of each input should be equal to the length of the output:
 
 ```scala mdoc:compile-only
 import zio.test._
@@ -20,6 +18,33 @@ test("The sum of the lengths of both inputs must equal the length of the output"
 ```
 
 Assertions are _executable checks_ for a property that must be true in our code. Also, assertions can be seen as a _specification of a program_. They facilitate understanding of programs and are used as a basis for program verification.
+
+Let's create some Assertion on type `Int`:
+
+```scala mdoc:silent
+import zio.test._
+
+val greaterThanZero: Assertion[Int] = Assertion.isPositive
+val lessThanFive   : Assertion[Int] = Assertion.isLessThan(5)
+val equalTo10      : Assertion[Int] = Assertion.equalTo[Int, Int](10)
+
+val assertion: Assertion[Int] = greaterThanZero && lessThanFive || equalTo10.negate
+```
+
+Now, we can run the assertion on value and produce `AssertionResult`:
+
+```scala mdoc
+import zio._
+
+// After combining composing assertions, we can render the assertion
+assertion.render
+
+// Running an assertion produces the AssertResult 
+val result: AssertResult = assertion.run(3)
+```
+
+```scala mdoc:invisible:reset
+```
 
 The `test` function has the following signature:
 
