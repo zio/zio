@@ -33,7 +33,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           val checked =
             typeCheck("""test("foo")(assertM(program)(anything)).provide(ZLayer.succeed(3))""")
           assertM(checked)(isLeft(containsStringWithoutAnsi("String")))
-        } @@ TestAspect.exceptDotty,
+        } @@ TestAspect.exceptScala3,
         test("reports multiple missing top-level dependencies") {
           val program: URIO[String with Int, String] = UIO("test")
           val _                                      = program
@@ -42,7 +42,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           assertM(checked)(
             isLeft(containsStringWithoutAnsi("String") && containsStringWithoutAnsi("Int"))
           )
-        } @@ TestAspect.exceptDotty,
+        } @@ TestAspect.exceptScala3,
         test("reports missing transitive dependencies") {
           import TestLayer._
           val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -56,7 +56,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                 containsStringWithoutAnsi("Required by TestLayer.OldLady.live")
             )
           )
-        } @@ TestAspect.exceptDotty,
+        } @@ TestAspect.exceptScala3,
         test("reports nested missing transitive dependencies") {
           import TestLayer._
           val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -70,7 +70,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                 containsStringWithoutAnsi("Required by TestLayer.Fly.live")
             )
           )
-        } @@ TestAspect.exceptDotty,
+        } @@ TestAspect.exceptScala3,
         test("reports circular dependencies") {
           import TestLayer._
           val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -89,7 +89,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                 )
             )
           )
-        } @@ TestAspect.exceptDotty
+        } @@ TestAspect.exceptScala3
       ),
       suite(".provideShared") {
         val addOne   = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
@@ -129,7 +129,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 4")(assertM(addOne)(equalTo(3)))
           )
         ).provideCustomShared(refLayer) @@ TestAspect.sequential
-      } @@ TestAspect.exceptDotty,
+      } @@ TestAspect.exceptScala3,
       suite(".provideSomeShared") {
         val addOne =
           ZIO.service[Ref[Int]].zip(Random.nextIntBounded(10)).flatMap { case (ref, int) => ref.getAndUpdate(_ + int) }
@@ -159,7 +159,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
           } yield assertTrue(result == "Your Lucky Number is -1295463240")
         }.provideCustom(ZLayer.succeed("Your Lucky Number is"))
-      } @@ TestAspect.exceptDotty
+      } @@ TestAspect.exceptScala3
     )
 
   object TestLayer {

@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.exceptDotty
+import zio.test.TestAspect.exceptScala3
 import zio.test._
 
 object TaggedSpec extends ZIOBaseSpec {
@@ -19,6 +19,6 @@ object TaggedSpec extends ZIOBaseSpec {
             """
       }
       assertM(result)(isRight(isUnit))
-    } @@ exceptDotty
+    } @@ exceptScala3
   )
 }

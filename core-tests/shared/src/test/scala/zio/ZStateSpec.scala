@@ -16,5 +16,5 @@ object ZStateSpec extends ZIOSpecDefault {
         } yield count
         assertM(zio.provide(ZState.make(MyState(0)).toLayer))(equalTo(1))
       }
-    ) @@ exceptDotty
+    ) @@ exceptScala3
 }

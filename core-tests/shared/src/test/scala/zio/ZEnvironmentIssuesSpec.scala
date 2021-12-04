@@ -27,6 +27,6 @@ object ZEnvironmentIssuesSpec extends ZIOSpecDefault {
         tag
       }
       assertTrue(tagForThing(Clock.ClockLive).tag <:< Tag[Clock].tag)
-    } @@ exceptDotty
+    } @@ exceptScala3
   )
 }

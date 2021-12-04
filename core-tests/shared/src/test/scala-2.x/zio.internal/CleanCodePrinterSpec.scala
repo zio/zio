@@ -33,7 +33,7 @@ object CleanCodePrinterSpec extends ZIOBaseSpec {
             .reduce(_ && _)
         }
       }
-    ) @@ TestAspect.exceptDotty
+    ) @@ TestAspect.exceptScala3
 
   object A {
     object B {

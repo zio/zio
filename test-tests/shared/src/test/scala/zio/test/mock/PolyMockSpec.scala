@@ -10,7 +10,7 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
   import Expectation._
   import InvalidCall._
   import MockException._
-  import TestAspect.exceptDotty
+  import TestAspect.exceptScala3
 
   def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("PolyMockSpec")(
     suite("polymorphic input")(
@@ -446,7 +446,7 @@ object PolyMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
           )
         }
       )
-    ) @@ exceptDotty,
+    ) @@ exceptScala3,
     suite("polymorphic bounded output <: AnyVal")(
       suite("expectations met")(
         testValue("Double")(

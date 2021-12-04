@@ -253,7 +253,7 @@ object SmartAssertions {
   def asCauseInterrupted[E]: TestArrow[Cause[E], Boolean] =
     TestArrow
       .make[Cause[E], Boolean] {
-        case cause if cause.interrupted =>
+        case cause if cause.isInterrupted =>
           Trace.succeed(true)
         case _ =>
           Trace.fail(M.value("Cause") + M.did + "contain a" + M.value("Interrupt"))
@@ -293,7 +293,7 @@ object SmartAssertions {
   def asExitInterrupted[E, A]: TestArrow[Exit[E, A], Boolean] =
     TestArrow
       .make[Exit[E, A], Boolean] {
-        case Exit.Failure(cause) if cause.interrupted =>
+        case Exit.Failure(cause) if cause.isInterrupted =>
           Trace.succeed(true)
         case Exit.Success(_) =>
           Trace.fail(M.value("Exit.Success") + M.was + "interrupted")

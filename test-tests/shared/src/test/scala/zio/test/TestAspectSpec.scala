@@ -75,22 +75,6 @@ object TestAspectSpec extends ZIOBaseSpec {
         assert(after)(equalTo(-1))
       }
     },
-    test("dotty applies test aspect only on Dotty") {
-      for {
-        ref    <- Ref.make(false)
-        spec    = test("test")(assert(true)(isTrue)) @@ dotty(after(ref.set(true)))
-        _      <- execute(spec)
-        result <- ref.get
-      } yield if (TestVersion.isDotty) assert(result)(isTrue) else assert(result)(isFalse)
-    },
-    test("dottyOnly runs tests only on Dotty") {
-      val spec   = test("Dotty-only")(assert(TestVersion.isDotty)(isTrue)) @@ dottyOnly
-      val result = if (TestVersion.isDotty) succeeded(spec) else isIgnored(spec)
-      assertM(result)(isTrue)
-    },
-    test("exceptDotty runs tests on all versions except Dotty") {
-      assert(TestVersion.isDotty)(isFalse)
-    } @@ exceptDotty,
     test("exceptJS runs tests on all platforms except ScalaJS") {
       assert(TestPlatform.isJS)(isFalse)
     } @@ exceptJS,
@@ -103,6 +87,9 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("exceptScala2 runs tests on all versions except Scala 2") {
       assert(TestVersion.isScala2)(isFalse)
     } @@ exceptScala2,
+    test("exceptScala3 runs tests on all versions except Scala3") {
+      assert(TestVersion.isScala3)(isFalse)
+    } @@ exceptScala3,
     test("failure makes a test pass if the result was a failure") {
       assert(throw new java.lang.Exception("boom"))(isFalse)
     } @@ failing,
@@ -271,9 +258,22 @@ object TestAspectSpec extends ZIOBaseSpec {
         result <- ref.get
       } yield if (TestVersion.isScala2) assert(result)(isTrue) else assert(result)(isFalse)
     },
+    test("scala3 applies test aspect only on Scala 3") {
+      for {
+        ref    <- Ref.make(false)
+        spec    = test("test")(assert(true)(isTrue)) @@ scala3(after(ref.set(true)))
+        _      <- execute(spec)
+        result <- ref.get
+      } yield if (TestVersion.isScala3) assert(result)(isTrue) else assert(result)(isFalse)
+    },
     test("scala2Only runs tests only on Scala 2") {
       val spec   = test("Scala2-only")(assert(TestVersion.isScala2)(isTrue)) @@ scala2Only
       val result = if (TestVersion.isScala2) succeeded(spec) else isIgnored(spec)
+      assertM(result)(isTrue)
+    },
+    test("scala3Only runs tests only on Scala 3") {
+      val spec   = test("Scala3-only")(assert(TestVersion.isScala3)(isTrue)) @@ scala3Only
+      val result = if (TestVersion.isScala3) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
     test("setSeed sets the random seed to the specified value before each test") {

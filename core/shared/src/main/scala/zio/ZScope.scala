@@ -306,7 +306,7 @@ object ZScope {
         that match {
           case ZScope.global => true
 
-          case child: ZScope.Local[Any] =>
+          case child: ZScope.Local[_] =>
             Sync(child) {
               Sync(self) {
                 if (!self.unsafeIsClosed() && !child.unsafeIsClosed()) {

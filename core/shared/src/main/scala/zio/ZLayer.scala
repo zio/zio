@@ -108,7 +108,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def catchAll[RIn1 <: RIn, E1, ROut1 >: ROut](
     handler: E => ZLayer[RIn1, E1, ROut1]
   )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
-    foldServices(handler, ZLayer.succeedMany(_))
+    foldServices(handler, ZLayer.succeedEnvironment(_))
 
   /**
    * Constructs a layer dynamically based on the output of this layer.
@@ -173,7 +173,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def map[ROut1](f: ZEnvironment[ROut] => ZEnvironment[ROut1])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E, ROut1] =
-    flatMap(environment => ZLayer.succeedMany(f(environment)))
+    flatMap(environment => ZLayer.succeedEnvironment(f(environment)))
 
   /**
    * Returns a layer with its error channel mapped using the specified function.
@@ -510,7 +510,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   )(release: ZEnvironment[A] => URIO[R, Any])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    fromManagedMany(ZManaged.acquireReleaseWith(acquire)(release))
+    fromManagedEnvironment(ZManaged.acquireReleaseWith(acquire)(release))
 
   /**
    * Constructs a layer from acquire and release actions, which must return one
@@ -594,7 +594,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromFunctionManaged[A, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => ZManaged[Any, E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, E, B] =
-    fromManaged(ZManaged.accessManaged(f))
+    fromManaged(ZManaged.environmentWithManaged(f))
 
   /**
    * Constructs a layer from the environment using the specified function, which

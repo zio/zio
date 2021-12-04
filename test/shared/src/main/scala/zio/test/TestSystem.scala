@@ -163,7 +163,7 @@ object TestSystem extends Serializable {
    */
   def live(data: Data): Layer[Nothing, TestSystem] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    Ref.make(data).map(Test).toLayer
+    Ref.make(data).map(Test(_)).toLayer
   }
 
   val any: ZLayer[TestSystem, Nothing, TestSystem] =

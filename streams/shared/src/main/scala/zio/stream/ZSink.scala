@@ -358,10 +358,10 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Runs both sinks in parallel on the input, returning the result or the error
    * from the one that finishes first.
    */
-  final def raceBoth[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z1 >: Z](
-    that: ZSink[R1, E1, In1, L1, Z1],
+  final def raceBoth[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z2](
+    that: ZSink[R1, E1, In1, L1, Z2],
     capacity: Int = 16
-  )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Either[Z, Z1]] =
+  )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Either[Z, Z2]] =
     self.raceWith(that, capacity)(
       selfDone => ZChannel.MergeDecision.done(ZIO.done(selfDone).map(Left(_))),
       thatDone => ZChannel.MergeDecision.done(ZIO.done(thatDone).map(Right(_)))
