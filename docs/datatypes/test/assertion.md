@@ -3,9 +3,9 @@ id: assertion
 title: "Assertion"
 ---
 
-Assertions are used to make sure that the assumptions on computations are exactly what we expect them to be. An `Assertion[A]` is capable of producing _assertion results_ on an `A`. As a proposition, assertions compose using logical conjunction and disjunction and can be negated.
+Assertions are used to make sure that the assumptions on computations are exactly what we expect them to be. They are _executable checks_ for a property that must be true in our code. Also, they can be seen as a _specification of a program_ and facilitate understanding of programs.
 
-Let's see an example of assertions in testing. If we have a function that is supposed to take two strings and returns the concatenation of them, one simple assertion is that the sum of the length of each input should be equal to the length of the output:
+Assume we have a function that concatenates two strings. One simple property of this function would be "the sum of the length of all inputs should be equal to the length of the output". Let's see an example of how we can make an assertion about this property:
 
 ```scala mdoc:compile-only
 import zio.test._
@@ -17,65 +17,19 @@ test("The sum of the lengths of both inputs must equal the length of the output"
 }
 ```
 
-Assertions are _executable checks_ for a property that must be true in our code. Also, assertions can be seen as a _specification of a program_. They facilitate understanding of programs and are used as a basis for program verification.
+The syntax of assertion in the above code, is `assert(expression)(assertion)`. The first section is an expression of type `A` which is _result_ of our computation and the second one is the expected assertion of type `Assertion[A]`.
 
-Let's create some Assertion on type `Int`:
+## Using Assertions with ZIO Tests
 
-```scala mdoc:silent
-import zio.test._
+We have two methods for writing test assertions:
 
-val greaterThanZero: Assertion[Int] = Assertion.isPositive
-val lessThanFive   : Assertion[Int] = Assertion.isLessThan(5)
-val equalTo10      : Assertion[Int] = Assertion.equalTo[Int, Int](10)
-
-val assertion: Assertion[Int] = greaterThanZero && lessThanFive || equalTo10.negate
-```
-
-After combining and composing assertions, we can render the result:
-
-```scala mdoc
-import zio._
-
-assertion.render
-```
-
-Now, we can run the assertion on a value and produce `AssertionResult`. In case of failure, this assertion result contains the exact cause of the failure:
-
-```scala mdoc
-import zio._
-
-val result: AssertResult = assertion.run(10)
-```
-
-```scala mdoc:invisible:reset
-```
-
-## Applying Assertions to ZIO Tests
-
-In ZIO Test, each test comprises two sections: a _label_ and a _test result_. Let's see the signature of the `test` function:
-
-```scala
-def test[In](label: String)(
-  assertion: => In
-)(implicit
-  testConstructor: TestConstructor[Nothing, In]): testConstructor.Out =
-  zio.test.test(label)(assertion)
-```
-
-Its signature is a bit complicated and uses _path dependent types_, but it doesn't matter. We can think of a `test` as a function from `TestResult` (or its effectful versions such as `ZIO[R, E, TestResult]`, `ZManaged[R, E, TestResult]` or `ZSTM[R, E, TestResult]`) to the `ZSpec[R, E]` data type:
-
-```scala
-def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing]
-def test(label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E]
-```
-
-Most of the time, we do not need to create a `TestResult`, but instead we use helper methods to produce these values:
 1. **`assert`** and **`assertM`**
 2. **`assertTrue`**
 
+The first one is the old way of asserting ordinary values and also ZIO effects. The second method, which is called _smart assertion_, has a unified logic for testing both ordinary values and ZIO effects. We encourage developers to use the smart assertion method, which is much simpler.
+
 ### Classic Old-fashioned Assertions
 
-The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertM`. The former one is for creating ordinary `TestResult` values and the latter one is for producing effectful `TestResult` values. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
 
 In the following example, we use the `equalTo` assertion, which asserts the equality of two values:
 
