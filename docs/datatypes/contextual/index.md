@@ -439,7 +439,7 @@ We can compose the live implementation of `Random`, `Console` and `Clock` servic
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
-  myApp.provide(Random.live ++ Console.live ++ Clock.live)
+  myApp.provide(Random.live, Console.live, Clock.live)
 ```
 
 As we see, the type of our effect converted from `ZIO[Random with Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
@@ -450,9 +450,9 @@ Sometimes we have written a program, and we don't want to provide all its requir
 
 In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSome`:
 
-```scala mdoc:silent:nest
+```scala
 val mainEffectSome: ZIO[Random with Clock, Nothing, Unit] = 
-  myApp.provideSomeLayer[Random with Clock](Console.live)
+  myApp.provideSome[Random with Clock](Console.live)
 ```
 
 > **Note:**
