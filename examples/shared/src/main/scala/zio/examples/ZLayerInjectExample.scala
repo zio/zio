@@ -19,7 +19,7 @@ object ZLayerInjectExample extends ZIOAppDefault {
   val thing: ULayer[Int] = ZLayer.succeed(12)
 
   val autoLayer: ZLayer[Any, Nothing, OldLady] =
-    ZLayer.wire[OldLady with Console](
+    ZLayer.make[OldLady with Console](
       OldLady.live,
       Spider.live,
       Fly.live,

@@ -26,7 +26,7 @@ object provideSomeSpec extends DefaultRunnableSpec {
     (Clock.live ++ ZLayer.service[Console]) >+> TestService.live
 
   val partialLayer: ZLayer[Console, Nothing, TestService with Clock] =
-    ZLayer.wireSome[Console, TestService with Clock](
+    ZLayer.makeSome[Console, TestService with Clock](
       Clock.live,
       TestService.live
     )

@@ -18,10 +18,10 @@ trait ZLayerCompanionVersionSpecific {
    * Automatically assembles a layer for the provided type.
    *
    * {{{
-   * val layer = ZLayer.wire[Car](carLayer, wheelsLayer, engineLayer)
+   * val layer = ZLayer.make[Car](carLayer, wheelsLayer, engineLayer)
    * }}}
    */
-  inline def wire[R]: WirePartiallyApplied[R] =
+  inline def make[R]: WirePartiallyApplied[R] =
     new WirePartiallyApplied[R]()
 
     /**
@@ -32,9 +32,9 @@ trait ZLayerCompanionVersionSpecific {
    * val carLayer: ZLayer[Engine with Wheels, Nothing, Car] = ???
    * val wheelsLayer: ZLayer[Any, Nothing, Wheels] = ???
    *
-   * val layer = ZLayer.wireSome[Engine, Car](carLayer, wheelsLayer)
+   * val layer = ZLayer.makeSome[Engine, Car](carLayer, wheelsLayer)
    * }}}
    */
-  def wireSome[R0, R] =
+  def makeSome[R0, R] =
     new WireSomePartiallyApplied[R0, R]
 }

@@ -136,7 +136,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
           }
         ),
-        suite("`ZLayer.wire`")(
+        suite("`ZLayer.make`")(
           test("automatically constructs a layer") {
             val doubleLayer = ZLayer.succeed(100.1)
             val stringLayer: ULayer[String] =
@@ -146,7 +146,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             }.toLayer
 
             val layer =
-              ZLayer.wire[Int](intLayer, stringLayer, doubleLayer)
+              ZLayer.make[Int](intLayer, stringLayer, doubleLayer)
             val provided = ZIO.service[Int].provideLayer(layer)
             assertM(provided)(equalTo(128))
           },
@@ -157,7 +157,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             type FinalAlias            = And2[Int, StringAlias] with HasBooleanDoubleAlias
             val _ = ZIO.environment[FinalAlias]
 
-            val checked = typeCheck("ZLayer.wire[FinalAlias]()")
+            val checked = typeCheck("ZLayer.make[FinalAlias]()")
             assertM(checked)(
               isLeft(
                 containsStringWithoutAnsi("Int") &&
@@ -168,7 +168,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             )
           } @@ TestAspect.exceptScala3
         ),
-        suite("`ZLayer.wireSome`")(
+        suite("`ZLayer.makeSome`")(
           test("automatically constructs a layer, leaving off some remainder") {
             val stringLayer = ZLayer.succeed("this string is 28 chars long")
             val intLayer = (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
@@ -177,7 +177,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val program = ZIO.service[Int]
 
             val layer =
-              ZLayer.wireSome[Double with Boolean, Int](intLayer, stringLayer)
+              ZLayer.makeSome[Double with Boolean, Int](intLayer, stringLayer)
             val provided =
               program.provideLayer(
                 ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer

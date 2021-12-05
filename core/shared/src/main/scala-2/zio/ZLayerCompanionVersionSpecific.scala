@@ -24,10 +24,10 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * Automatically assembles a layer for the provided type.
    *
    * {{{
-   * ZLayer.wire[Car](carLayer, wheelsLayer, engineLayer)
+   * ZLayer.make[Car](carLayer, wheelsLayer, engineLayer)
    * }}}
    */
-  def wire[R]: WirePartiallyApplied[R] =
+  def make[R]: WirePartiallyApplied[R] =
     new WirePartiallyApplied[R]
 
   /**
@@ -38,10 +38,10 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * val carLayer: ZLayer[Engine with Wheels, Nothing, Car] = ???
    * val wheelsLayer: ZLayer[Any, Nothing, Wheels] = ???
    *
-   * val layer = ZLayer.wireSome[Engine, Car](carLayer, wheelsLayer)
+   * val layer = ZLayer.makeSome[Engine, Car](carLayer, wheelsLayer)
    * }}}
    */
-  def wireSome[R0, R]: WireSomePartiallyApplied[R0, R] =
+  def makeSome[R0, R]: WireSomePartiallyApplied[R0, R] =
     new WireSomePartiallyApplied[R0, R]
 
   /**
@@ -54,10 +54,10 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val layer : ZLayer[ZEnv, Nothing, OldLady] = ZLayer.wireCustom[OldLady](oldLadyLayer, flyLayer)
+   * val layer : ZLayer[ZEnv, Nothing, OldLady] = ZLayer.makeCustom[OldLady](oldLadyLayer, flyLayer)
    * }}}
    */
-  def wireCustom[R]: WireSomePartiallyApplied[ZEnv, R] =
+  def makeCustom[R]: WireSomePartiallyApplied[ZEnv, R] =
     new WireSomePartiallyApplied[ZEnv, R]
 
 }
@@ -66,7 +66,7 @@ private[zio] final class WirePartiallyApplied[R](val dummy: Boolean = true) exte
   def apply[E](
     layer: ZLayer[_, E, _]*
   )(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZLayer[Any, E, R] =
-    macro WireMacros.wireImpl[E, Any, R]
+    macro WireMacros.makeImpl[E, Any, R]
 }
 
 private[zio] final class WireSomePartiallyApplied[R0, R](
@@ -75,5 +75,5 @@ private[zio] final class WireSomePartiallyApplied[R0, R](
   def apply[E](
     layer: ZLayer[_, E, _]*
   )(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZLayer[R0, E, R] =
-    macro WireMacros.wireImpl[E, R0, R]
+    macro WireMacros.makeImpl[E, R0, R]
 }

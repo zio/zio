@@ -8,7 +8,7 @@ import scala.reflect.macros.blackbox
 final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
   import c.universe._
 
-  def wireImpl[
+  def makeImpl[
     E,
     R0: c.WeakTypeTag,
     R: c.WeakTypeTag
@@ -33,7 +33,7 @@ final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
         s"""
 ${"  ZLayer Wiring Error  ".red.bold.inverted}
         
-You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.wire".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
+You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.make".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
 
 """
       c.abort(c.enclosingPosition, errorMessage)

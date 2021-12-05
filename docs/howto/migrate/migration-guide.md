@@ -766,10 +766,10 @@ val app: ZIO[Any, Nothing, Unit] =
 ❯     for UserRepo.live
 ```
 
-We can also directly construct a layer using `ZLayer.wire`:
+We can also directly construct a layer using `ZLayer.make`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.wire[DocRepo with UserRepo](
+val layer = ZLayer.make[DocRepo with UserRepo](
   Console.live,
   Logging.live,
   DocRepo.live,
@@ -779,10 +779,10 @@ val layer = ZLayer.wire[DocRepo with UserRepo](
 )
 ```
 
-And also the `ZLayer.wireSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.wireSome[In, Out]`:
+And also the `ZLayer.makeSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.makeSome[In, Out]`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.wireSome[Console, DocRepo with UserRepo](
+val layer = ZLayer.makeSome[Console, DocRepo with UserRepo](
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -854,7 +854,7 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.tree` and `ZLayer.Debug.mermaid`. For example, by including `ZLayer.Debug.mermaid` into our layer construction, the compiler generates the following debug information:
 
 ```scala
-val layer = ZLayer.wire[DocRepo with UserRepo](
+val layer = ZLayer.make[DocRepo with UserRepo](
   Console.live,
   Logging.live,
   DocRepo.live,
