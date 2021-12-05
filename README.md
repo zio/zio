@@ -94,6 +94,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Kamon APM](https://kamon.io/)
 * [Kodmagi](https://www.kodmagi.se)
 * [Kensu](https://kensu.io)
+* [LambdaWorks](https://www.lambdaworks.io/)
 * [LeadIQ](https://leadiq.com)
 * [LiveIntent Inc.](https://liveintent.com)
 * [MATECHS](https://matechs.com)
