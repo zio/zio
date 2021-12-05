@@ -1042,64 +1042,62 @@ private[zio] final class FiberContext[E, A](
             mailbox
           ) => // TODO: Dotty doesn't infer this properly
 
-        if (children.isEmpty()) {
-          if (mailbox eq null) {
-            // No children to shut down and the mailbox is empty:
-            val interruptorsCause = oldState.interruptorsCause
+        if (mailbox ne null) {
+          // Not done because the mailbox isn't empty:
+          val newState = executing.copy(mailbox = null)
 
-            val newExit =
-              if (interruptorsCause eq Cause.empty) exit
-              else
-                exit.mapErrorCause { cause =>
-                  if (cause.contains(interruptorsCause)) cause
-                  else cause ++ interruptorsCause
-                }
+          if (!state.compareAndSet(oldState, newState)) unsafeTryDone(exit)
+          else {
+            unsafeSetInterrupting(true)
 
-            //  We are truly "unsafeTryDone" because the scope has been closed.
-            if (!state.compareAndSet(oldState, Done(newExit))) unsafeTryDone(exit)
-            else {
-              unsafeReportUnhandled(newExit, trace)
-              unsafeNotifyObservers(newExit, observers)
+            mailbox *> ZIO.done(exit)
+          }
+        } else if (children.isEmpty()) {
+          // The mailbox is empty and the children are shut down:
+          val interruptorsCause = oldState.interruptorsCause
 
-              val startTimeSeconds = fiberId.startTimeSeconds
-              val endTimeSeconds   = java.lang.System.currentTimeMillis() / 1000
-
-              val lifetime = endTimeSeconds - startTimeSeconds
-
-              fiberLifetimes.unsafeObserve(lifetime.toDouble)
-
-              newExit match {
-                case Exit.Success(_) => fiberSuccesses.unsafeIncrement()
-
-                case Exit.Failure(cause) =>
-                  fiberFailures.unsafeIncrement()
-
-                  cause.fold[Unit](
-                    "<empty>",
-                    (failure, _) => {
-                      fiberFailureCauses.unsafeObserve(failure.getClass.getName)
-                    },
-                    (defect, _) => {
-                      fiberFailureCauses.unsafeObserve(defect.getClass.getName)
-                    },
-                    (fiberId, _) => {
-                      fiberFailureCauses.unsafeObserve(classOf[InterruptedException].getName)
-                    }
-                  )(combineUnit, combineUnit, leftUnit)
+          val newExit =
+            if (interruptorsCause eq Cause.empty) exit
+            else
+              exit.mapErrorCause { cause =>
+                if (cause.contains(interruptorsCause)) cause
+                else cause ++ interruptorsCause
               }
 
-              null
-            }
-          } else {
-            // Not done because the mailbox isn't empty:
-            val newState = executing.copy(mailbox = null)
+          //  We are truly "unsafeTryDone" because the scope has been closed.
+          if (!state.compareAndSet(oldState, Done(newExit))) unsafeTryDone(exit)
+          else {
+            unsafeReportUnhandled(newExit, trace)
+            unsafeNotifyObservers(newExit, observers)
 
-            if (!state.compareAndSet(oldState, newState)) unsafeTryDone(exit)
-            else {
-              unsafeSetInterrupting(true)
+            val startTimeSeconds = fiberId.startTimeSeconds
+            val endTimeSeconds   = java.lang.System.currentTimeMillis() / 1000
 
-              mailbox *> ZIO.done(exit)
+            val lifetime = endTimeSeconds - startTimeSeconds
+
+            fiberLifetimes.unsafeObserve(lifetime.toDouble)
+
+            newExit match {
+              case Exit.Success(_) => fiberSuccesses.unsafeIncrement()
+
+              case Exit.Failure(cause) =>
+                fiberFailures.unsafeIncrement()
+
+                cause.fold[Unit](
+                  "<empty>",
+                  (failure, _) => {
+                    fiberFailureCauses.unsafeObserve(failure.getClass.getName)
+                  },
+                  (defect, _) => {
+                    fiberFailureCauses.unsafeObserve(defect.getClass.getName)
+                  },
+                  (fiberId, _) => {
+                    fiberFailureCauses.unsafeObserve(classOf[InterruptedException].getName)
+                  }
+                )(combineUnit, combineUnit, leftUnit)
             }
+
+            null
           }
         } else {
           // Not done because there are children left to close:
