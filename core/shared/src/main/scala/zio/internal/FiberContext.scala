@@ -528,8 +528,7 @@ private[zio] final class FiberContext[E, A](
   final def trace(implicit trace0: ZTraceElement): UIO[ZTrace] = UIO(unsafeCaptureTrace(Nil))
 
   private[zio] def unsafeAddChild(child: FiberContext[_, _])(implicit trace: ZTraceElement): Unit =
-    children.add(child)
-  // FIXME: unsafeEvalOn(ZIO.succeed(children.add(child)), ZIO.unit)
+    unsafeEvalOn(ZIO.succeed(children.add(child)), ZIO.unit)
 
   private def unsafeAddFinalizer(finalizer: UIO[Any]): Unit = stack.push(new Finalizer(finalizer))
 
@@ -649,7 +648,8 @@ private[zio] final class FiberContext[E, A](
 
     oldState match {
       case executing @ Executing(_, _, _, _, _, mailbox) =>
-        val newState = executing.copy(mailbox = if (mailbox eq null) effect else mailbox.flatMap(_ => mailbox))
+        val newMailbox = if (mailbox eq null) effect else mailbox.flatMap(_ => effect)
+        val newState   = executing.copy(mailbox = newMailbox)
 
         if (!state.compareAndSet(oldState, newState)) unsafeEvalOn(effect, orElse)
         else UIO.unit
@@ -1033,77 +1033,92 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case Executing(
+      case executing @ Executing(
             _,
             observers: List[Callback[Nothing, Exit[E, A]]],
             _,
             _,
             _,
-            _
+            mailbox
           ) => // TODO: Dotty doesn't infer this properly
 
         if (children.isEmpty()) {
-          val interruptorsCause = oldState.interruptorsCause
+          if (mailbox eq null) {
+            // No children to shut down and the mailbox is empty:
+            val interruptorsCause = oldState.interruptorsCause
 
-          val newExit =
-            if (interruptorsCause eq Cause.empty) exit
-            else
-              exit.mapErrorCause { cause =>
-                if (cause.contains(interruptorsCause)) cause
-                else cause ++ interruptorsCause
+            val newExit =
+              if (interruptorsCause eq Cause.empty) exit
+              else
+                exit.mapErrorCause { cause =>
+                  if (cause.contains(interruptorsCause)) cause
+                  else cause ++ interruptorsCause
+                }
+
+            //  We are truly "unsafeTryDone" because the scope has been closed.
+            if (!state.compareAndSet(oldState, Done(newExit))) unsafeTryDone(exit)
+            else {
+              unsafeReportUnhandled(newExit, trace)
+              unsafeNotifyObservers(newExit, observers)
+
+              val startTimeSeconds = fiberId.startTimeSeconds
+              val endTimeSeconds   = java.lang.System.currentTimeMillis() / 1000
+
+              val lifetime = endTimeSeconds - startTimeSeconds
+
+              fiberLifetimes.unsafeObserve(lifetime.toDouble)
+
+              newExit match {
+                case Exit.Success(_) => fiberSuccesses.unsafeIncrement()
+
+                case Exit.Failure(cause) =>
+                  fiberFailures.unsafeIncrement()
+
+                  cause.fold[Unit](
+                    "<empty>",
+                    (failure, _) => {
+                      fiberFailureCauses.unsafeObserve(failure.getClass.getName)
+                    },
+                    (defect, _) => {
+                      fiberFailureCauses.unsafeObserve(defect.getClass.getName)
+                    },
+                    (fiberId, _) => {
+                      fiberFailureCauses.unsafeObserve(classOf[InterruptedException].getName)
+                    }
+                  )(combineUnit, combineUnit, leftUnit)
               }
 
-          //  We are truly "unsafeTryDone" because the scope has been closed.
-          if (!state.compareAndSet(oldState, Done(newExit))) unsafeTryDone(exit)
-          else {
-            unsafeReportUnhandled(newExit, trace)
-            unsafeNotifyObservers(newExit, observers)
-
-            val startTimeSeconds = fiberId.startTimeSeconds
-            val endTimeSeconds   = java.lang.System.currentTimeMillis() / 1000
-
-            val lifetime = endTimeSeconds - startTimeSeconds
-
-            fiberLifetimes.unsafeObserve(lifetime.toDouble)
-
-            newExit match {
-              case Exit.Success(_) => fiberSuccesses.unsafeIncrement()
-
-              case Exit.Failure(cause) =>
-                fiberFailures.unsafeIncrement()
-
-                cause.fold[Unit](
-                  "<empty>",
-                  (failure, _) => {
-                    fiberFailureCauses.unsafeObserve(failure.getClass.getName)
-                  },
-                  (defect, _) => {
-                    fiberFailureCauses.unsafeObserve(defect.getClass.getName)
-                  },
-                  (fiberId, _) => {
-                    fiberFailureCauses.unsafeObserve(classOf[InterruptedException].getName)
-                  }
-                )(combineUnit, combineUnit, leftUnit)
+              null
             }
+          } else {
+            // Not done because the mailbox isn't empty:
+            val newState = executing.copy(mailbox = null)
 
-            null
+            if (!state.compareAndSet(oldState, newState)) unsafeTryDone(exit)
+            else {
+              unsafeSetInterrupting(true)
+
+              mailbox *> ZIO.done(exit)
+            }
           }
         } else {
+          // Not done because there are children left to close:
           import collection.JavaConverters._
 
-          // We aren't quite unsafeTryDone yet, because we have to close the fiber's scope:
           unsafeSetInterrupting(true)
 
-          var acc: UIO[Any] = UIO.unit
-          val iterator      = children.iterator()
+          var interruptChildren: UIO[Any] = UIO.unit
+          val iterator                    = children.iterator()
           while (iterator.hasNext()) {
             val next = iterator.next()
 
-            acc = if (next eq null) acc else acc *> next.interruptAs(fiberId)
+            interruptChildren =
+              if (next eq null) interruptChildren
+              else interruptChildren *> next.interruptAs(fiberId)
           }
           children.clear()
 
-          acc *> ZIO.done(exit)
+          interruptChildren *> ZIO.done(exit)
         }
 
       case Done(_) => null // Already unsafeTryDone

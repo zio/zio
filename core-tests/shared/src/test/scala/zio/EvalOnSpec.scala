@@ -13,6 +13,19 @@ object EvalOnSpec extends ZIOBaseSpec {
         v       <- promise.await <* fiber.interrupt
       } yield assertTrue(v == 42)
     } @@ nonFlaky +
+      test("evalOn - stacked") {
+        for {
+          ref     <- Ref.make(0)
+          started <- Promise.make[Nothing, Unit]
+          promise <- Promise.make[Nothing, Unit]
+          fiber   <- (started.succeed(()) *> promise.await).fork
+          _       <- started.await
+          _       <- fiber.evalOn(ref.update(_ + 1), ZIO.unit).repeatN(4)
+          _       <- promise.succeed(())
+          _       <- fiber.await
+          v       <- ref.get
+        } yield assertTrue(v == 5)
+      } @@ nonFlaky +
       test("evalOn - fiberId") {
         for {
           promise <- Promise.make[Nothing, FiberId]
