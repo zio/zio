@@ -4761,7 +4761,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         )
       )
-    ) @@ TestAspect.timed
+    ) @@ TestAspect.timed @@ TestAspect.fibers
 
   trait ChunkCoordination[A] {
     def queue: Queue[Exit[Option[Nothing], Chunk[A]]]
