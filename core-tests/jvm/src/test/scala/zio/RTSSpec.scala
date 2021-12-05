@@ -1,11 +1,10 @@
 package zio
 
-import zio.internal.NamedThreadFactory
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, silent}
 import zio.test._
 
-import java.util.concurrent.{Callable, TimeUnit}
+import java.util.concurrent.Callable
 import java.util.concurrent.atomic.AtomicInteger
 
 object RTSSpec extends ZIOBaseSpec {
@@ -109,28 +108,7 @@ object RTSSpec extends ZIOBaseSpec {
       }
 
       assertM(ZIO.attempt(e.shutdown()))(isUnit)
-    } @@ zioTag(regression) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.setExecutor(fixedThreadPool)),
-    test("deadlock regression 2") {
-      import java.util.concurrent.Executors
-
-      val rts = Runtime.default
-      val e   = Executors.newSingleThreadExecutor()
-
-      println("Starting")
-      (0 until 1).foreach { _ =>
-        rts.unsafeRun {
-          IO.async[Nothing, Int] { k =>
-            val c: Callable[Unit] = () => k(IO.succeed(1))
-            val res               = e.submit(c)
-            res
-          }
-        }
-      }
-
-      assertM(ZIO.attempt {
-        e.shutdown()
-      })(isUnit)
-    } @@ zioTag(regression) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.setExecutor(fixedThreadPool)),
+    } @@ zioTag(regression),
     test("second callback call is ignored") {
       for {
         _ <- IO.async[Throwable, Int] { k =>
@@ -164,26 +142,4 @@ object RTSSpec extends ZIOBaseSpec {
       assertM(Live.live(zio))(isGreaterThanEqualTo(1))
     } @@ zioTag(interruption, regression)
   )
-
-  val fixedThreadPool: zio.Executor = fixedThreadPoolExecutor(RuntimeConfig.defaultYieldOpCount)
-  final def fixedThreadPoolExecutor(yieldOpCount: Int): zio.Executor =
-    zio.Executor.fromThreadPoolExecutor(_ => yieldOpCount) {
-      val corePoolSize  = 1
-      val maxPoolSize   = corePoolSize
-      val keepAliveTime = 60000L
-      val workQueue     = new java.util.concurrent.LinkedBlockingQueue[Runnable]()
-      val threadFactory = new NamedThreadFactory("zio-default-async", true)
-
-      val threadPool = new java.util.concurrent.ThreadPoolExecutor(
-        corePoolSize,
-        maxPoolSize,
-        keepAliveTime,
-        TimeUnit.MILLISECONDS,
-        workQueue,
-        threadFactory
-      )
-      threadPool.allowCoreThreadTimeOut(true)
-
-      threadPool
-    }
 }

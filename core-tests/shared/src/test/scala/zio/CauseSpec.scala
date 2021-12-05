@@ -5,16 +5,6 @@ import zio.test.Assertion._
 import zio.test._
 
 object CauseSpec extends ZIOBaseSpec {
-  override def aspects: Chunk[TestAspect.WithOut[
-    Nothing,
-    TestEnvironment,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ]] =
-    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(10.minutes))
-    else Chunk(TestAspect.sequential, TestAspect.timeout(10.minutes))
 
   def spec = suite("CauseSpec")(
     suite("Cause")(

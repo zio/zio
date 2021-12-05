@@ -17,6 +17,8 @@ class Zio2ZIOSpec extends SemanticRule("ZIOSpecMigration"){
     doc.tree.collect {
       case AbstractRunnableSpecRenames.Matcher(patch) => patch
 
+      // TODO Check if we really want to do this, or if we want to keep it now that we might have a
+      //    meaningful Failure type
       case t @ q"override def spec: $tpe = $body" if tpe.toString().contains("ZSpec[Environment, Failure]") =>
         Patch.replaceTree(t, s"override def spec = $body")
     }.asPatch + replaceSymbols
