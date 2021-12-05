@@ -153,7 +153,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     }
   )
   .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scalajs-weakreferences" % "1.0.0"
+    libraryDependencies += ("org.scala-js" %%% "scalajs-weakreferences" % "1.0.0").cross(CrossVersion.for3Use2_13)
   )
 
 lazy val coreJVM = core.jvm
