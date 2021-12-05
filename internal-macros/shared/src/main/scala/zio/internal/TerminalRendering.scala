@@ -138,12 +138,12 @@ object TerminalRendering {
        |""".stripMargin
   }
 
-  def injectSomeNothingEnvError: String = {
-    val message = s"You must provide a type to ${"injectSome".green}.".bold
+  def provideSomeNothingEnvError: String = {
+    val message = s"You must provide a type to ${"provideSome".green}.".bold
     val A       = "A".cyan
     val B       = "B".magenta
     val C       = "C".cyan
-    val example = s"effect" + s".injectSome[$B".green + "]".green + "(layer)"
+    val example = s"effect" + s".provideSome[$B".green + "]".green + "(layer)"
     s"""${title("ZLayer Error").red}
        |
        | $message
@@ -167,7 +167,7 @@ object TerminalRendering {
     )
     println(missingLayersError(List("java.lang.String", "List[Boolean]"), missing))
     println(unusedLayersError(List("java.lang.String", "List[Boolean]", "zio.Console")))
-    println(injectSomeNothingEnvError)
+    println(provideSomeNothingEnvError)
   }
 
   /**

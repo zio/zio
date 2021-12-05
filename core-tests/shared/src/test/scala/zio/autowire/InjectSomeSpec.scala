@@ -6,7 +6,7 @@ import zio.test._
 import java.io.IOException
 
 // https://github.com/kitlangton/zio-magic/issues/91
-object InjectSomeSpec extends DefaultRunnableSpec {
+object provideSomeSpec extends DefaultRunnableSpec {
 
   final case class TestService(console: Console, clock: Clock) {
     def somethingMagical(annotate: String): ZIO[Any, IOException, Unit] =
@@ -41,22 +41,22 @@ object InjectSomeSpec extends DefaultRunnableSpec {
     } yield assertCompletes
 
   def spec: ZSpec[Console with TestConsole with Annotations, Any] =
-    suite("InjectSomeSpec")(
+    suite("provideSomeSpec")(
       test("basic") {
         testCase("basic").provideSomeLayer[Console](partial)
       },
-      test("injectSome") {
-        testCase("injectSome").injectSome[Console](
+      test("provideSome") {
+        testCase("provideSome").provideSome[Console](
           Clock.live,
           TestService.live
         )
       },
-      test("double injectSome") {
-        testCase("double injectSome")
-          .injectSome[Console with Clock](
+      test("double provideSome") {
+        testCase("double provideSome")
+          .provideSome[Console with Clock](
             TestService.live
           )
-          .injectSome[Console](Clock.live)
+          .provideSome[Console](Clock.live)
       },
       test("wireSome") {
         testCase("wireSome").provideSomeLayer[Console](partialLayer)

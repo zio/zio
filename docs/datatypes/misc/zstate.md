@@ -37,7 +37,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _ <- Console.printLine(s"current state: $state")
   } yield ()
 
-  def run = myApp.injectCustom(ZState.makeLayer(0))
+  def run = myApp.provideCustom(ZState.makeLayer(0))
 }
 ```
 
@@ -60,7 +60,7 @@ object ZStateExample extends zio.ZIOAppDefault {
       _ <- Console.printLine(s"Current state: $state")
     } yield ()
 
-  def run = myApp.injectCustom(ZState.makeLayer(MyState(0)))
+  def run = myApp.provideCustom(ZState.makeLayer(MyState(0)))
 }
 ```
 
@@ -105,7 +105,7 @@ object ZStateExample extends ZIOAppDefault {
   } yield ()
 
   def run =
-    myApp.injectCustom(
+    myApp.provideCustom(
       ZState.makeLayer(MyState(0))
     )
 }

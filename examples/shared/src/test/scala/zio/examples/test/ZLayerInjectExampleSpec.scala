@@ -16,15 +16,15 @@
 //    suite("AutoLayerExampleSpec")(
 //      test("inject") {
 //        assertM(exampleZio)(anything)
-//      }.inject(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
-//      test("injectCustom") {
+//      }.provide(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
+//      test("provideCustom") {
 //        assertM(exampleZio)(anything)
-//      }.injectCustom(OldLady.live, Spider.live, Fly.live, Bear.live),
+//      }.provideCustom(OldLady.live, Spider.live, Fly.live, Bear.live),
 //      test("injectShared") {
 //        assertM(exampleZio)(anything)
-//      }.injectShared(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
-//      test("injectCustomShared") {
+//      }.provideShared(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
+//      test("provideCustomShared") {
 //        assertM(exampleZio)(anything)
-//      }.injectCustomShared(OldLady.live, Spider.live, Fly.live, Bear.live)
+//      }.provideCustomShared(OldLady.live, Spider.live, Fly.live, Bear.live)
 //    )
 //}

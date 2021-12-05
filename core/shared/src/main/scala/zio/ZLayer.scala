@@ -379,7 +379,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
-     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * as [[ZIO.provide]] or [[ZLayer.wire]], will display a tree visualization
      * of the constructed layer graph.
      *
      * {{{
@@ -410,7 +410,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
-     * as [[ZIO.inject]] or [[ZLayer.wire]], will display a tree visualization
+     * as [[ZIO.provide]] or [[ZLayer.wire]], will display a tree visualization
      * of the constructed layer graph as well as a link to Mermaid chart.
      *
      * {{{

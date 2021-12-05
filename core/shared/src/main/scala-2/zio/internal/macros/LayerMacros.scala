@@ -25,16 +25,16 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
     zio
   }
 
-  def injectImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
+  def provideImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[Any, E, A]] =
-    injectBaseImpl[F, Any, R, E, A](layer, "provideLayer")
+    provideBaseImpl[F, Any, R, E, A](layer, "provideLayer")
 
-  def injectSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+  def provideSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[R0, E, A]] = {
     assertEnvIsNotNothing[R0]()
-    injectBaseImpl[F, R0, R, E, A](layer, "provideLayer")
+    provideBaseImpl[F, R0, R, E, A](layer, "provideLayer")
   }
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
@@ -53,7 +53,7 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
     val outType     = weakTypeOf[R]
     val nothingType = weakTypeOf[Nothing]
     if (outType =:= nothingType) {
-      val message: String = TerminalRendering.injectSomeNothingEnvError
+      val message: String = TerminalRendering.provideSomeNothingEnvError
       c.abort(c.enclosingPosition, message)
     }
   }

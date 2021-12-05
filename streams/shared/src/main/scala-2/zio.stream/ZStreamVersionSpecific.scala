@@ -17,11 +17,11 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to stream
-   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.injectCustom(oldLadyLayer, flyLayer)
+   * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def injectCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[ZEnv, E1, O] =
-    macro LayerMacros.injectSomeImpl[ZStream, ZEnv, R, E1, O]
+  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[ZEnv, E1, O] =
+    macro LayerMacros.provideSomeImpl[ZStream, ZEnv, R, E1, O]
 
   /**
    * Splits the environment into two parts, assembling one part using the
@@ -32,17 +32,17 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
    *
    * val managed: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val managed2 = managed.injectSome[Random](clockLayer)
+   * val managed2 = managed.provideSome[Random](clockLayer)
    * }}}
    */
-  def injectSome[R0]: ProvideSomeLayerStreamPartiallyApplied[R0, R, E, O] =
+  def provideSome[R0]: ProvideSomeLayerStreamPartiallyApplied[R0, R, E, O] =
     new ProvideSomeLayerStreamPartiallyApplied[R0, R, E, O](self)
 
   /**
    * Automatically assembles a layer for the ZStream effect.
    */
-  def inject[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[Any, E1, O] =
-    macro LayerMacros.injectImpl[ZStream, R, E1, O]
+  def provide[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[Any, E1, O] =
+    macro LayerMacros.provideImpl[ZStream, R, E1, O]
 
 }
 
@@ -55,5 +55,5 @@ private final class ProvideSomeLayerStreamPartiallyApplied[R0, -R, +E, +O](
     self.provideLayer(layer)
 
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[R0, E1, O] =
-    macro LayerMacros.injectSomeImpl[ZStream, R0, R, E1, O]
+    macro LayerMacros.provideSomeImpl[ZStream, R0, R, E1, O]
 }

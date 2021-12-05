@@ -29,6 +29,6 @@ object ZLayerInjectExample extends ZIOAppDefault {
 
   def run: ZIO[Any, IOException, Unit] =
     program
-      .inject(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
+      .provide(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
 
 }
