@@ -152,6 +152,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
     }
   )
+  .jsSettings(
+    libraryDependencies += "org.scala-js" %%% "scalajs-weakreferences" % "1.0.0"
+  )
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
