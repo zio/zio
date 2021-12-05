@@ -834,6 +834,51 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
               case ChannelState.Done =>
                 ZIO.done(exec.getDone)
+              case r @ ChannelState.Read(upstream, onEmit, onDone) =>
+                val readStack = scala.collection.mutable.Stack
+                  .apply[ChannelState.Read[Any, Any]](r.asInstanceOf[ChannelState.Read[Any, Any]])
+
+                def read(): ZIO[Env, OutErr, OutDone] = {
+                  val current = readStack.pop()
+                  current.upstream.run() match {
+                    case ChannelState.Emit =>
+                      val emitEffect = current.onEmit(current.upstream.getEmit)
+                      if (readStack.isEmpty) {
+                        if (emitEffect eq null) interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+                        else
+                          emitEffect.asInstanceOf[ZIO[Env, Nothing, Unit]] *> interpret(
+                            exec.run().asInstanceOf[ChannelState[Env, OutErr]]
+                          )
+                      } else {
+                        if (emitEffect eq null) read() else (emitEffect.asInstanceOf[ZIO[Env, Nothing, Unit]] *> read())
+                      }
+                    case ChannelState.Done =>
+                      val doneEffect = current.onDone(current.upstream.getDone)
+                      if (readStack.isEmpty) {
+                        if (doneEffect eq null) interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+                        else
+                          doneEffect.asInstanceOf[ZIO[Env, Nothing, Unit]] *> interpret(
+                            exec.run().asInstanceOf[ChannelState[Env, OutErr]]
+                          )
+                      } else {
+                        if (doneEffect eq null) read() else (doneEffect.asInstanceOf[ZIO[Env, Nothing, Unit]] *> read())
+                      }
+                    case ChannelState.Effect(zio) =>
+                      readStack.push(current)
+                      zio.catchAllCause { cause =>
+                        ZIO.suspendSucceed {
+                          val doneEffect = current.onDone(Exit.failCause(cause))
+                          if (doneEffect eq null) ZIO.unit else doneEffect
+                        }
+                      } *> read()
+                    case r2 @ ChannelState.Read(upstream2, onEmit2, onDone2) =>
+                      readStack.push(current.asInstanceOf[ChannelState.Read[Any, Any]])
+                      readStack.push(r2.asInstanceOf[ChannelState.Read[Any, Any]])
+                      read()
+                  }
+                }
+
+                read()
             }
 
           interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
@@ -881,6 +926,53 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               ZIO.succeed(Right(exec.getEmit))
             case ChannelState.Effect(zio) =>
               zio *> interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+            case r @ ChannelState.Read(upstream, onEmit, onDone) =>
+              // TODO: remove this redundant implementation
+
+              val readStack = scala.collection.mutable.Stack
+                .apply[ChannelState.Read[Any, Any]](r.asInstanceOf[ChannelState.Read[Any, Any]])
+
+              def read(): ZIO[Env, OutErr, Either[OutDone, OutElem]] = {
+                val current = readStack.pop()
+                current.upstream.run() match {
+                  case ChannelState.Emit =>
+                    val emitEffect = current.onEmit(current.upstream.getEmit)
+                    if (readStack.isEmpty) {
+                      if (emitEffect eq null) interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+                      else
+                        emitEffect.asInstanceOf[ZIO[Env, Nothing, Unit]] *> interpret(
+                          exec.run().asInstanceOf[ChannelState[Env, OutErr]]
+                        )
+                    } else {
+                      if (emitEffect eq null) read() else (emitEffect.asInstanceOf[ZIO[Env, Nothing, Unit]] *> read())
+                    }
+                  case ChannelState.Done =>
+                    val doneEffect = current.onDone(current.upstream.getDone)
+                    if (readStack.isEmpty) {
+                      if (doneEffect eq null) interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+                      else
+                        doneEffect.asInstanceOf[ZIO[Env, Nothing, Unit]] *> interpret(
+                          exec.run().asInstanceOf[ChannelState[Env, OutErr]]
+                        )
+                    } else {
+                      if (doneEffect eq null) read() else (doneEffect.asInstanceOf[ZIO[Env, Nothing, Unit]] *> read())
+                    }
+                  case ChannelState.Effect(zio) =>
+                    readStack.push(current)
+                    zio.catchAllCause { cause =>
+                      ZIO.suspendSucceed {
+                        val doneEffect = current.onDone(Exit.failCause(cause))
+                        if (doneEffect eq null) ZIO.unit else doneEffect
+                      }
+                    } *> read()
+                  case r2 @ ChannelState.Read(upstream2, onEmit2, onDone2) =>
+                    readStack.push(current.asInstanceOf[ChannelState.Read[Any, Any]])
+                    readStack.push(r2.asInstanceOf[ChannelState.Read[Any, Any]])
+                    read()
+                }
+              }
+
+              read()
           }
 
         ZIO.suspendSucceed(interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]))
