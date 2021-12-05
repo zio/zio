@@ -133,8 +133,8 @@ sealed abstract class Fiber[+E, +A] { self =>
     synthetic: Fiber.Synthetic[E, A] => Z
   ): Z =
     self match {
-      case fiber: Fiber.Runtime[E, A]   => runtime(fiber)
-      case fiber: Fiber.Synthetic[E, A] => synthetic(fiber)
+      case fiber: Fiber.Runtime[_, _]   => runtime(fiber.asInstanceOf[Fiber.Runtime[E, A]])
+      case fiber: Fiber.Synthetic[_, _] => synthetic(fiber.asInstanceOf[Fiber.Synthetic[E, A]])
     }
 
   /**

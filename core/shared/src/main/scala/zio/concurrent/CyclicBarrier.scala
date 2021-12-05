@@ -52,7 +52,7 @@ final class CyclicBarrier private (
 
   /** Resets the barrier to its initial state. Breaks any waiting party. */
   val reset: UIO[Unit] =
-    (fail.whenM(waiting.map(_ > 0)) *>
+    (fail.whenZIO(waiting.map(_ > 0)) *>
       Promise.make[Unit, Unit].flatMap(_lock.set) *>
       _waiting.set(0) *>
       _broken.set(false)).uninterruptible

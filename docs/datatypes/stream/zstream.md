@@ -1451,19 +1451,16 @@ val stream: ZIO[Console with Random with Clock, IOException, Unit] =
     .map(_ % 100)
     .tap(e => printLine(s"Emit $e element before broadcasting"))
     .broadcast(2, 5)
-    .use {
-      case s1 :: s2 :: Nil =>
+    .use { streams =>
         for {
-          out1 <- s1.runFold(0)((acc, e) => Math.max(acc, e))
+          out1 <- streams(0).runFold(0)((acc, e) => Math.max(acc, e))
                     .flatMap(x => printLine(s"Maximum: $x"))
                     .fork
-          out2 <- s2.schedule(Schedule.spaced(1.second))
+          out2 <- streams(1).schedule(Schedule.spaced(1.second))
                     .foreach(x => printLine(s"Logging to the Console: $x"))
                     .fork
           _    <- out1.join.zipPar(out2.join)
         } yield ()
-
-      case _ => ZIO.dieMessage("unhandled case")
     }
 ```
 ### Distribution

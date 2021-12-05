@@ -24,7 +24,7 @@ object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
     test("compile using the type directly if not using wire macro") {
       ParameterizedService.something[String].as(assertCompletes)
     }.provide(ParameterizedServiceWithTypeAlias.live)
-  ) @@ TestAspect.exceptDotty
+  ) @@ TestAspect.exceptScala3
 
   trait ParameterizedService[A] {
     def something: UIO[Unit]
