@@ -3,7 +3,7 @@ id: zlayer
 title: "ZLayer"
 ---
 
-A `ZLayer[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`. 
+A `ZLayer[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`.
 
 Layers are:
 
@@ -11,19 +11,19 @@ Layers are:
 
 2. **An Alternative to Constructors** — We can think of `ZLayer` as a more powerful version of a constructor, it is an alternative way to represent a constructor. Like a constructor, it allows us to build the `ROut` service in terms of its dependencies (`RIn`).
 
-3. **Composable** — Because of their excellent **composition properties**, layers are the idiomatic way in ZIO to create services that depend on other services. We can define layers that are relying on each other. 
+3. **Composable** — Because of their excellent **composition properties**, layers are the idiomatic way in ZIO to create services that depend on other services. We can define layers that are relying on each other.
 
 4. **Effectful and Resourceful** — The construction of ZIO layers can be effectful and resourceful, they can be acquired and safely released when the services are done being utilized.
 
 5. **Asynchronous** — Unlike class constructors which are blocking, ZLayer is fully asynchronous and non-blocking.
 
-For example, a `ZLayer[Blocking with Logging, Throwable, Database]` can be thought of as a function that map `Blocking` and `Logging` services into `Database` service: 
+For example, a `ZLayer[Clock with Logging, Throwable, Database]` can be thought of as a function that map `Clock` and `Logging` services into `Database` service:
 
 ```scala
-(Blocking, Logging) => Database
+(Clock, Logging) => Database
 ```
 
-So we can say that the `Database` service has two dependencies: `Blocking` and `Logging` services.
+So we can say that the `Database` service has two dependencies: `Clock` and `Logging` services.
 
 Let's see how we can create a layer:
 
@@ -31,22 +31,22 @@ Let's see how we can create a layer:
 
 `ZLayer` is an **alternative to a class constructor**, a recipe to create a service. This recipe may contain the following information:
 
-1. **Dependencies** — To create a service, we need to indicate what other service we are depending on. For example, a `Database` service might need `Socket` and `Blocking` services to perform its operations.
+1. **Dependencies** — To create a service, we need to indicate what other service we are depending on. For example, a `Database` service might need `Socket` and `Clock` services to perform its operations.
 
 2. **Acquisition/Release Action** — It may contain how to initialize a service. For example, if we are creating a recipe for a `Database` service, we should provide how the `Database` will be initialized, via acquisition action. Also, it may contain how to release a service. For example, how the `Database` releases its connection pools.
 
 In some cases, a `ZLayer` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The `Layer` type alias provided by ZIO is a convenient way to define a layer without requirements.
 
 There are many ways to create a ZLayer. Here's an incomplete list:
- - `ZLayer.succeed` to create a layer from an existing service
- - `ZLayer.succeedMany` to create a layer from a value that's one or more services
- - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
- - `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
- - `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `ZManaged`.
- - `ZLayer.fromService` to build a layer from a service
- - `ZLayer.fromServices` to build a layer from a number of required services
- - `ZLayer.identity` to express the requirement for a dependency
- - `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
+- `ZLayer.succeed` to create a layer from an existing service
+- `ZLayer.succeedMany` to create a layer from a value that's one or more services
+- `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
+- `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
+- `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `ZManaged`.
+- `ZLayer.fromService` to build a layer from a service
+- `ZLayer.fromServices` to build a layer from a number of required services
+- `ZLayer.identity` to express the requirement for a dependency
+- `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
 
 Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `ZIO`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
 
@@ -102,7 +102,7 @@ val live: ZLayer[Any, Nothing, Terminal] = ZLayer.succeed(Terminal.Service.live)
 
 ### From Managed Resources
 
-Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). 
+Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down).
 
 Fortunately, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
@@ -238,7 +238,7 @@ We said that we can think of the `ZLayer` as a more powerful _constructor_. Cons
 
 `ZLayer`s can be composed together horizontally or vertically:
 
-1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose layers horizontally, the new layer requires all the services that both of them require and produces all services that both of them produce. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that they don't have any relationship with each other. 
+1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose layers horizontally, the new layer requires all the services that both of them require and produces all services that both of them produce. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that they don't have any relationship with each other.
 
 2. **Vertical Composition** — If we have a layer that requires `A` and produces `B`, we can compose this with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another.
 
@@ -293,9 +293,9 @@ val myLayer: ZLayer[Console, Throwable, UserRepo] = newLayer >>> userRepo
 
 ## Service Builder Memoization
 
-One important feature of `ZIO` layers is that **they are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time. 
+One important feature of `ZIO` layers is that **they are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time.
 
-For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it. 
+For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it.
 
 If we don't want to share a module, we should create a fresh, non-shared version of it through `ZLayer#fresh`.
 
@@ -395,7 +395,7 @@ val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = Logging.consol
 val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizontal
 
 // provide the services to the program
-makeUser.provideSome(fullLayer)
+makeUser.provideSomeLayer(fullLayer)
 ```
 
 Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
@@ -526,7 +526,7 @@ Another important note about `ZLayer` is that, unlike constructors which are syn
 
 For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to blocking inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
 
-Well, with ZIO ZLayer, our constructor could be asynchronous, and they also can block definitely. And that is because `ZLayer` has the full power of ZIO. And as a result, we have strictly more power on our constructors with ZLayer. 
+Well, with ZIO ZLayer, our constructor could be asynchronous, and they also can block definitely. And that is because `ZLayer` has the full power of ZIO. And as a result, we have strictly more power on our constructors with ZLayer.
 
 We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO.
 
@@ -552,17 +552,17 @@ object Example extends ZIOAppDefault {
   val nameLayer: ULayer[String] = ZLayer.succeed("Adam")
 
   // Run the program, providing the `nameLayer`
-  def run = zio.provideSome(nameLayer)
+  def run = zio.provide(nameLayer)
 }
 
 ```
 
-### ZLayer application with dependencies 
+### ZLayer application with dependencies
 
 In the following example, our ZIO application has several dependencies:
- - `zio.Clock`
- - `zio.Console`
- - `ModuleB`
+- `zio.Clock`
+- `zio.Console`
+- `ModuleB`
 
 `ModuleB` in turn depends upon `ModuleA`:
 
@@ -633,7 +633,7 @@ object ZLayerApp0 extends zio.App {
     } yield ()
 
   def run(args: List[String]) =
-    program.provideSome(env).exitCode
+    program.provide(env).exitCode
 
 }
 

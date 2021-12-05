@@ -791,11 +791,11 @@ val layer = ZLayer.wireSome[Console, DocRepo with UserRepo](
 )
 ```
 
-In ZIO 1.x, the `ZIO#provideSome` provides environment partially:
+In ZIO 1.x, the `ZIO#provideSomeLayer` provides environment partially:
 
 ```scala mdoc:silent:nest
 val app: ZIO[Console, Nothing, Unit] =
-  myApp.provideSome[Console](
+  myApp.provideSomeLayer[Console](
     ((Logging.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
   )
@@ -844,10 +844,10 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 | ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
 |--------------------------------------------------------|----------------------------|
 | `ZIO#provide`                                          | `ZIO#inject`               |
-| `ZIO#provideSome`                                      | `ZIO#provideSome`           |
-| `ZIO#provideCustom`                                    | `ZIO#provideCustom`         |
-| Composing manually using `ZLayer` combinators | `ZLayer#wire`     |
-| Composing manually using `ZLayer` combinators | `ZLayer#wireSome` |
+| `ZIO#provideSomeLayer`                                 | `ZIO#provideSome`          |
+| `ZIO#provideCustom`                                    | `ZIO#provideCustom`        |
+| Composing manually using `ZLayer` combinators          | `ZLayer#wire`              |
+| Composing manually using `ZLayer` combinators          | `ZLayer#wireSome`          |
 
 ### ZLayer Debugging
 
