@@ -35,6 +35,6 @@ object ZStreamProvideMacro {
 
   def injectImpl[R0: Type, R: Type, E: Type, A: Type](zstream: Expr[ZStream[R,E,A]], layer: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZStream[R0,E,A]] = {
     val layerExpr = LayerMacros.fromAutoImpl[R0, R, E](layer)
-    '{$zstream.provide($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
+    '{$zstream.provideLayer($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
   }
 }

@@ -407,7 +407,19 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   final def provideLayerShared[E1 >: E, R0](
     layer: ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): Spec[R0, E1, T] =
-    provideLayerShared(layer)
+    caseValue match {
+      case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideLayerShared(layer))
+      case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
+      case ManagedCase(managed) =>
+        Spec.managed(
+          layer.build.flatMap(r => managed.map(_.provideEnvironment(r)).provideEnvironment(r))
+        )
+      case MultipleCase(specs) =>
+        Spec.managed(
+          layer.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r))))
+        )
+       case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
+     }
 
   /**
    * Splits the environment into two parts, providing each test with one part
@@ -623,13 +635,13 @@ object Spec extends SpecLowPriority {
           Spec.managed(
             layer.build.flatMap { r =>
               managed
-                .map(_.provideSomeLayer[R0](ZLayer.succeedMany(r)))
-                .provideSomeLayer[R0](ZLayer.succeedMany(r))
+                .map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))
+                .provideSomeLayer[R0](ZLayer.succeedEnvironment(r))
             }
           )
         case MultipleCase(specs) =>
           Spec.managed(
-            layer.build.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedMany(r)))))
+            layer.build.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))))
           )
         case TestCase(test, annotations) =>
           Spec.test(test.provideSomeLayer(layer), annotations)

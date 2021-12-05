@@ -41,7 +41,7 @@ private [zio] object LayerMacroUtils {
         getNodes(layer)
 
       case other =>
-        report.throwError(
+        report.errorAndAbort(
           "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
           "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
         )

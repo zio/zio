@@ -1169,7 +1169,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ev: A <:< ZEnvironment[B],
     trace: ZTraceElement
   ): ZLayer[R, E, B] =
-    ZLayer.fromManagedMany(self.map(ev))
+    ZLayer.fromManagedEnvironment(self.map(ev))
 
   /**
    * Constructs a layer from this managed resource, which must return one or
