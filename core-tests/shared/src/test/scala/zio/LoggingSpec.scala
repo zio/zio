@@ -53,7 +53,7 @@ object LoggingSpec extends ZIOBaseSpec {
   val testLoggers: ZLogger.Set[String & Cause[Any], Unit] =
     ZLogger.Set(stringLogger, causeLogger)
 
-  def spec: ZSpec[Any, Any] = {
+  def spec: ZSpec[Any, Any] =
     suite("LoggingSpec")(
       test("simple log message") {
         for {
@@ -110,6 +110,5 @@ object LoggingSpec extends ZIOBaseSpec {
     ) @@ sequential @@ after(clearOutput) @@ TestAspect.runtimeConfig(
       RuntimeConfigAspect.addLogger(stringLogger)
     ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.addLogger(causeLogger))
-    // TODO Check if this indicates we want a `RuntimeConfigAspect.addLoggers` function, or if this is just an oddball case
-  }
+  // TODO Check if this indicates we want a `RuntimeConfigAspect.addLoggers` function, or if this is just an oddball case
 }

@@ -152,7 +152,7 @@ object ClockSpec extends ZIOBaseSpec {
           _        <- TestClock.adjust(5.seconds)
           _        <- latch.await
         } yield assertCompletes
-      }, // TODO Is this acceptable, or does it indicate an underlying problem?
+      },
       test("adjustments to time are visible on other fibers") {
         for {
           promise <- Promise.make[Nothing, Unit]
@@ -173,5 +173,5 @@ object ClockSpec extends ZIOBaseSpec {
           result <- fiber.join
         } yield assert(result)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
       }
-    )
+    ) @@ TestAspect.fibers
 }
