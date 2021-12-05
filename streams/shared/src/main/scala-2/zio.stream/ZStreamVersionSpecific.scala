@@ -35,8 +35,8 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
    * val managed2 = managed.injectSome[Random](clockLayer)
    * }}}
    */
-  def injectSome[R0]: ProvideSomeStreamPartiallyApplied[R0, R, E, O] =
-    new ProvideSomeStreamPartiallyApplied[R0, R, E, O](self)
+  def injectSome[R0]: ProvideSomeLayerStreamPartiallyApplied[R0, R, E, O] =
+    new ProvideSomeLayerStreamPartiallyApplied[R0, R, E, O](self)
 
   /**
    * Automatically assembles a layer for the ZStream effect.
@@ -46,13 +46,13 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
 
 }
 
-private final class ProvideSomeStreamPartiallyApplied[R0, -R, +E, +O](
+private final class ProvideSomeLayerStreamPartiallyApplied[R0, -R, +E, +O](
   val self: ZStream[R, E, O]
 ) extends AnyVal {
-  def provide[E1 >: E](
+  def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
   )(implicit ev: NeedsEnv[R]): ZStream[R0, E1, O] =
-    self.provide(layer)
+    self.provideLayer(layer)
 
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[R0, E1, O] =
     macro LayerMacros.injectSomeImpl[ZStream, R0, R, E1, O]

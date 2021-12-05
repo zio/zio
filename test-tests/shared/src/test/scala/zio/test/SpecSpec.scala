@@ -11,28 +11,28 @@ object SpecSpec extends ZIOBaseSpec {
     ZLayer.succeed(())
 
   def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
-    suite("provideCustom")(
+    suite("provideCustomLayer")(
       test("provides the part of the environment that is not part of the `TestEnvironment`") {
         for {
           _ <- ZIO.environment[TestEnvironment]
           _ <- ZIO.service[Unit]
         } yield assertCompletes
-      }.provideCustom(layer)
+      }.provideCustomLayer(layer)
     ),
-    suite("provide")(
+    suite("provideLayer")(
       test("does not have early initialization issues") {
         for {
           _ <- ZIO.service[Unit]
         } yield assertCompletes
-      }.provide(layer)
+      }.provideLayer(layer)
     ),
-    suite("provideShared")(
+    suite("provideLayerShared")(
       test("gracefully handles fiber death") {
         val spec = suite("suite")(
           test("test") {
             assert(true)(isTrue)
           }
-        ).provideShared(ZLayer.fromZIOEnvironment(ZIO.dieMessage("everybody dies")))
+        ).provideLayerShared(ZLayer.fromZIOEnvironment(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes
@@ -49,7 +49,7 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(true)
           layer   = ZLayer.fromZIO(ref.set(false).as(ref))
-          _      <- execute(spec.provideCustomShared(layer) @@ ifEnvSet("foo"))
+          _      <- execute(spec.provideCustomLayerShared(layer) @@ ifEnvSet("foo"))
           result <- ref.get
         } yield assert(result)(isTrue)
       },
@@ -64,7 +64,7 @@ object SpecSpec extends ZIOBaseSpec {
           test("test3") {
             assertM(ZIO.service[Int])(Assertion.equalTo(42))
           }
-        ).provideShared(ZLayer.succeed(43))
+        ).provideLayerShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
           successes = executedSpec.fold[Int] { c =>
@@ -84,7 +84,7 @@ object SpecSpec extends ZIOBaseSpec {
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),
-    suite("provideSomeShared")(
+    suite("provideSomeLayerShared")(
       test("leaves the remainder of the environment") {
         for {
           ref <- Ref.make[Set[Int]](Set.empty)
@@ -107,7 +107,7 @@ object SpecSpec extends ZIOBaseSpec {
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    }
-                 ).provideSomeShared[TestEnvironment](layer) @@ nondeterministic
+                 ).provideSomeLayerShared[TestEnvironment](layer) @@ nondeterministic
           _      <- execute(spec)
           result <- ref.get
         } yield assert(result)(hasSize(isGreaterThan(1)))
@@ -126,7 +126,7 @@ object SpecSpec extends ZIOBaseSpec {
               output <- TestConsole.output
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           }
-        ).provideSomeShared[TestEnvironment](layer) @@ silent
+        ).provideSomeLayerShared[TestEnvironment](layer) @@ silent
         assertM(succeeded(spec))(isTrue)
       },
       test("releases resources as soon as possible") {
@@ -144,7 +144,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomShared(layer),
+                   ).provideCustomLayerShared(layer),
                    suite("suite2")(
                      test("test1") {
                        assertM(update)(equalTo(1))
@@ -152,7 +152,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomShared(layer)
+                   ).provideCustomLayerShared(layer)
                  ) @@ sequential
           succeeded <- succeeded(spec)
           log       <- ref.get.map(_.reverse)
@@ -173,7 +173,7 @@ object SpecSpec extends ZIOBaseSpec {
                 }
               )
             )
-          ).provideCustomShared(ZManaged.acquireReleaseWith(Ref.make(0))(_.set(-1)).toLayer)
+          ).provideCustomLayerShared(ZManaged.acquireReleaseWith(Ref.make(0))(_.set(-1)).toLayer)
         assertM(succeeded(spec))(isTrue)
       }
     )

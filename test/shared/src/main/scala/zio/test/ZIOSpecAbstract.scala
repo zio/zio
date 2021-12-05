@@ -39,7 +39,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {
     implicit val trace = Tracer.newTrace
-    runSpec.provideSome[ZEnv with ZIOAppArgs](TestEnvironment.live ++ layer)
+    runSpec.provideSomeLayer[ZEnv with ZIOAppArgs](TestEnvironment.live ++ layer)
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
@@ -109,11 +109,11 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       results <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provide(runner.bootstrap)
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)
       _ <- TestLogger
              .logLine(SummaryBuilder.buildSummary(results).summary)
              .when(testArgs.printSummary)
-             .provide(runner.bootstrap)
+             .provideLayer(runner.bootstrap)
     } yield results
   }
 }

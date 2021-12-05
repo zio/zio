@@ -2949,7 +2949,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             ZStream
               .serviceWithZIO[A](_.live)
-              .provideCustom(ZLayer.succeed(new A {
+              .provideCustomLayer(ZLayer.succeed(new A {
                 override def live: UIO[Int] = UIO(10)
               }))
               .runCollect
@@ -2964,7 +2964,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             ZStream
               .serviceWithStream[A](_.live)
-              .provideCustom(ZLayer.succeed(new A {
+              .provideCustomLayer(ZLayer.succeed(new A {
                 override def live: ZStream[Any, Nothing, Int] =
                   ZStream.fromIterable(numbers)
               }))

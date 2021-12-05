@@ -147,7 +147,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
             val layer =
               ZLayer.wire[Int](intLayer, stringLayer, doubleLayer)
-            val provided = ZIO.service[Int].provide(layer)
+            val provided = ZIO.service[Int].provideLayer(layer)
             assertM(provided)(equalTo(128))
           },
           test("correctly decomposes nested, aliased intersection types") {
@@ -179,7 +179,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val layer =
               ZLayer.wireSome[Double with Boolean, Int](intLayer, stringLayer)
             val provided =
-              program.provide(
+              program.provideLayer(
                 ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer
               )
             assertM(provided)(equalTo(128))

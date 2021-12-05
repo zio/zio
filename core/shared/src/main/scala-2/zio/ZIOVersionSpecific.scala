@@ -50,8 +50,8 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * val zio2 = zio.injectSome[Random](clockLayer)
    * }}}
    */
-  def injectSome[R0]: ProvideSomePartiallyApplied[R0, R, E, A] =
-    new ProvideSomePartiallyApplied[R0, R, E, A](self)
+  def injectSome[R0]: ProvideSomeLayerPartiallyApplied[R0, R, E, A] =
+    new ProvideSomeLayerPartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a layer for the ZIO effect.
@@ -61,25 +61,15 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 }
 
-private final class ProvideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
+private final class ProvideSomeLayerPartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
 
-  def provide[E1 >: E](
-    layer: ZLayer[R0, E1, R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
-    self.provide(layer)
-
-  @deprecated("use provide", "2.0.0")
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
-    provide(layer)
+    self.provideLayer(layer)
 
-  def provideSome[R0]: ZIO.ProvideSome[R0, R, E, A] =
-    new ZIO.ProvideSome[R0, R, E, A](self)
-
-  @deprecated("use provideSome", "2.0.0")
-  def provideSomeLayer[R0]: ZIO.ProvideSome[R0, R, E, A] =
-    provideSome
+  def provideSomeLayer[R0]: ZIO.ProvideSomeLayer[R0, R, E, A] =
+    new ZIO.ProvideSomeLayer[R0, R, E, A](self)
 
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
     macro LayerMacros.injectSomeImpl[ZIO, R0, R, E1, A]

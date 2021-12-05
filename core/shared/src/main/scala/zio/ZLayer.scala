@@ -5484,7 +5484,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     final def apply[R, E1 >: E, A](
       zio: ZIO[ROut with R, E1, A]
     )(implicit ev1: Tag[R], ev2: Tag[ROut], trace: ZTraceElement): ZIO[RIn with R, E1, A] =
-      ZIO.provide[RIn, E1, ROut, R, A](self)(zio)
+      ZIO.provideLayer[RIn, E1, ROut, R, A](self)(zio)
 
     /**
      * Provides a managed effect with part of its required environment,
@@ -5493,7 +5493,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     final def apply[R, E1 >: E, A](
       managed: ZManaged[ROut with R, E1, A]
     )(implicit ev1: Tag[R], ev2: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with R, E1, A] =
-      ZManaged.provide[RIn, E1, ROut, R, A](self)(managed)
+      ZManaged.provideLayer[RIn, E1, ROut, R, A](self)(managed)
 
     /**
      * Feeds the output services of this builder into the input of the specified

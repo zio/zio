@@ -274,8 +274,8 @@ object ZLayerSpec extends ZIOBaseSpec {
           memoized = makeLayer1(ref).memoize
           _ <- memoized.use { layer =>
                  for {
-                   _ <- ZIO.environment[Module1].provide(layer)
-                   _ <- ZIO.environment[Module1].provide(layer)
+                   _ <- ZIO.environment[Module1].provideLayer(layer)
+                   _ <- ZIO.environment[Module1].provideLayer(layer)
                  } yield ()
                }
           actual <- ref.get
@@ -375,7 +375,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer3 = ZLayer.succeed("baz")
         val layer4 = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toLayer
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.unit.provideCustom(env).exit)(fails(equalTo("foo")))
+        assertM(ZIO.unit.provideCustomLayer(env).exit)(fails(equalTo("foo")))
       },
       test("project") {
         final case class Person(name: String, age: Int)
@@ -394,7 +394,7 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("provides a partial environment to an effect") {
         val needsIntAndString = ZIO.environment[Int & String]
         val providesInt       = ZLayer.succeed(10)
-        val needsString       = ZIO.provide(providesInt)(needsIntAndString)
+        val needsString       = ZIO.provideLayer(providesInt)(needsIntAndString)
         needsString
           .inject(ZLayer.succeed("hi"))
           .map { result =>
@@ -451,7 +451,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val providesInt       = ZLayer.succeed(10)
         val needsString       = providesInt(needsIntAndString)
         needsString
-          .provide(ZLayer.succeed("hi"))
+          .provideLayer(ZLayer.succeed("hi"))
           .map { result =>
             assertTrue(
               result.get[Int] == 10,
@@ -464,7 +464,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val providesInt       = ZLayer.succeed(10)
         val needsString       = providesInt(needsIntAndString)
         needsString
-          .provide(ZLayer.succeed("hi"))
+          .provideLayer(ZLayer.succeed("hi"))
           .useNow
           .map { result =>
             assertTrue(

@@ -65,23 +65,13 @@ private final class ProvideSomeLayerManagedPartiallyApplied[R0, -R, +E, +A](
   val self: ZManaged[R, E, A]
 ) extends AnyVal {
 
-  def provide[E1 >: E, R1](
-    layer: ZLayer[R0, E1, R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    self.provide(layer)
-
-  @deprecated("use provide", "2.0.0")
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    provide(layer)
+    self.provideLayer(layer)
 
-  def provideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
-    new ZManaged.ProvideSome[R0, R, E, A](self)
-
-  @deprecated("use provideSome", "2.0.0")
-  def provideSomeLayer[R0]: ZManaged.ProvideSome[R0, R, E, A] =
-    provideSome
+  def provideSomeLayer[R0]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
+    new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
 
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
     macro LayerMacros.injectSomeImpl[ZManaged, R0, R, E1, A]
