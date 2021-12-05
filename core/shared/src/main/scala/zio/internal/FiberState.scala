@@ -63,16 +63,15 @@ object FiberState extends Serializable {
     startExec: zio.Executor,
     supervisor0: Supervisor[Any]
   ) {
-    val stack: Stack[Any => IO[Any, Any]]                        = Stack()
-    var status: Fiber.Status                                     = Status.Running(false)
-    var observers: List[Callback[Nothing, Exit[E, A]]]           = Nil
-    var interrupted: Cause[Nothing]                              = Cause.empty
-    @volatile var asyncEpoch: Long                               = 0L
-    val interruptStatus: StackBool                               = StackBool(startIStatus.toBoolean)
-    var currentEnvironment: Any                                  = startEnv
-    var currentExecutor: zio.Executor                            = startExec
-    var currentSupervisor: Supervisor[Any]                       = supervisor0
-    var currentForkScopeOverride: Option[ZScope[Exit[Any, Any]]] = None
-    var scopeKey: ZScope.Key                                     = null
+    val stack: Stack[Any => IO[Any, Any]]              = Stack()
+    var status: Fiber.Status                           = Status.Running(false)
+    var observers: List[Callback[Nothing, Exit[E, A]]] = Nil
+    var interrupted: Cause[Nothing]                    = Cause.empty
+    @volatile var asyncEpoch: Long                     = 0L
+    val interruptStatus: StackBool                     = StackBool(startIStatus.toBoolean)
+    var currentEnvironment: Any                        = startEnv
+    var currentExecutor: zio.Executor                  = startExec
+    var currentSupervisor: Supervisor[Any]             = supervisor0
+    var currentForkScopeOverride: Option[ZScope]       = None
   }
 }
