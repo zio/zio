@@ -30,18 +30,9 @@ The first one is the old way of asserting ordinary values and also ZIO effects. 
 
 ### Classic Old-fashioned Assertions
 
+The `assert` and its effectful counterpart `assertM` are the old way of asserting ordinary values and ZIO effects.
 
-In the following example, we use the `equalTo` assertion, which asserts the equality of two values:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-
-val result:  TestResult                      = assert(1 + 1)(Assertion.equalTo(2))
-val resultM: ZIO[Any, Throwable, TestResult] = assertM(ZIO(1 + 1))(Assertion.equalTo(2))
-```
-
-1. This test can be written directly as follows:
+1. In order to test ordinary values, we should use `assert`, like the example below:
 
 ```scala mdoc:compile-only
 import zio._
