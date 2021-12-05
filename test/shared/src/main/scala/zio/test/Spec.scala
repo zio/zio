@@ -418,8 +418,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
         Spec.managed(
           layer.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r))))
         )
-       case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
-     }
+      case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
+    }
 
   /**
    * Splits the environment into two parts, providing each test with one part
