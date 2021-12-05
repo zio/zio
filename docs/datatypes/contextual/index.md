@@ -335,11 +335,11 @@ That's it! Very simple! ZIO encourages us to follow some of the best practices i
 
 Finally, we provide required layers to our `app` effect:
 
-```scala mdoc:silent:nest
+```scala
  val app = Logging.log("Application Started")
 
  zio.Runtime.default.unsafeRun(
-   app.provideLayer(LoggingLive.layer)
+   app.provide(LoggingLive.layer)
  )
 ```
 

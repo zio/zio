@@ -395,7 +395,7 @@ val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = Logging.consol
 val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizontal
 
 // provide the services to the program
-makeUser.provideSomeLayer(fullLayer)
+makeUser.provide(fullLayer)
 ```
 
 Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
