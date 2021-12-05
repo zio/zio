@@ -54,7 +54,7 @@ object ZStreamGen extends GenZIO {
   val pureStreamOfInts: Gen[Random with Sized, ZStream[Any, Nothing, Int]] =
     Gen.bounded(0, 5)(pureStreamGen(Gen.int, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
 
-  def provideEmptyChunks[R, E, A](stream: ZStream[R, E, A], predicate: Chunk[A] => Boolean): ZStream[R, E, A] =
+  def injectEmptyChunks[R, E, A](stream: ZStream[R, E, A], predicate: Chunk[A] => Boolean): ZStream[R, E, A] =
     stream.mapChunks { chunk =>
       if (predicate(chunk)) chunk
       else Chunk.empty
