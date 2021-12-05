@@ -15,6 +15,7 @@
  */
 
 import zio.internal.stacktracer.Tracer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 package object zio
     extends BuildFromCompat
@@ -90,18 +91,6 @@ package object zio
   trait IsNotIntersection[A] extends Serializable
 
   object IsNotIntersection extends IsNotIntersectionVersionSpecific {
-    def apply[A](implicit isNotIntersection: IsNotIntersection[A]): IsNotIntersection[A] = isNotIntersection
+    def apply[A: IsNotIntersection]: IsNotIntersection[A] = implicitly[IsNotIntersection[A]]
   }
-
-  implicit final class SubtypeOps[R, R0](private val self: R0 <:< R) extends AnyVal {
-    @inline def liftEnv[E, A](zio: ZIO[R, E, A]): ZIO[R0, E, A] =
-      zio.asInstanceOf[ZIO[R0, E, A]]
-
-    @inline def liftEnv[E, A](managed: ZManaged[R, E, A]): ZManaged[R0, E, A] =
-      managed.asInstanceOf[ZManaged[R0, E, A]]
-
-    @inline def liftEnv[E, A](layer: ZLayer[R, E, A]): ZLayer[R0, E, A] =
-      layer.asInstanceOf[ZLayer[R0, E, A]]
-  }
-
 }

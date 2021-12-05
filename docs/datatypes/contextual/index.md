@@ -216,7 +216,7 @@ object logging {
 
   // Accessor Methods
   def log(line: => String): URIO[Logging, Unit] =
-    ZIO.serviceWithZIO(_.log(line))
+    ZIO.accessZIO(_.get.log(line))
 }
 ```
 
@@ -247,7 +247,7 @@ object logging {
 
   // Accessor Methods
   def log(line: => String): URIO[Logging, Unit] =
-    ZIO.serviceWithZIO(_.log(line))
+    ZIO.accessZIO(_.get.log(line))
 }
 ```
 

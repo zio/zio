@@ -138,12 +138,12 @@ object TerminalRendering {
        |""".stripMargin
   }
 
-  def provideSomeNothingEnvError: String = {
-    val message = s"You must provide a type to ${"provideSome".green}.".bold
+  def injectSomeNothingEnvError: String = {
+    val message = s"You must provide a type to ${"injectSome".green}.".bold
     val A       = "A".cyan
     val B       = "B".magenta
     val C       = "C".cyan
-    val example = s"effect" + s".provideSome[$B".green + "]".green + "(layer)"
+    val example = s"effect" + s".injectSome[$B".green + "]".green + "(layer)"
     s"""${title("ZLayer Error").red}
        |
        | $message
@@ -159,28 +159,7 @@ object TerminalRendering {
        |""".stripMargin
   }
 
-  def makeSomeNothingEnvError: String = {
-    val message = s"You must provide a type to ${"makeSome".green}.".bold
-    val A       = "A".cyan
-    val B       = "B".magenta
-    val C       = "C".cyan
-    val example =
-      s"ZLayer" + s".makeSome".green + "[".green + B + ", ".green + A + " & ".green + C + "]".green + "(aLayer, cLayer)"
-    s"""${title("ZLayer Error").red}
-       |
-       | $message
-       | Specify the types of the leftover services, e.g.:
-       |   
-       |   val aLayer: URLayer[$B, $A] = ???
-       |   val cLayer: URLayer[$B, $C] = ???
-       |   
-       |   $example 
-       |       
-       |${line.red}
-       |""".stripMargin
-  }
-
-  def main(args: Array[String]): Unit = {
+  def example(): Unit = {
     val missing = Map(
       "UserService.live" -> List("zio.Clock", "example.UserService"),
       "Database.live"    -> List("java.sql.Connection"),
@@ -188,8 +167,7 @@ object TerminalRendering {
     )
     println(missingLayersError(List("java.lang.String", "List[Boolean]"), missing))
     println(unusedLayersError(List("java.lang.String", "List[Boolean]", "zio.Console")))
-    println(provideSomeNothingEnvError)
-    println(makeSomeNothingEnvError)
+    println(injectSomeNothingEnvError)
   }
 
   /**

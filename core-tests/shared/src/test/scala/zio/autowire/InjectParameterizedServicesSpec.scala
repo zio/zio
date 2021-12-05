@@ -10,17 +10,17 @@ object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
   def spec: ZSpec[Environment, Failure] = suite("Samples")(
     test("compiles with ParameterisedServiceImpl1 direct usage") {
       ParameterizedService.something[String].as(assertCompletes)
-    }.provide(ParameterisedServiceWithoutTypeAlias.live),
+    }.inject(ParameterisedServiceWithoutTypeAlias.live),
     test("compiles using the type alias directly") {
       val huh: ZIO[ParameterizedService[ParameterizedServiceWithTypeAlias.Alias], Nothing, TestResult] =
         ParameterizedService.something[ParameterizedServiceWithTypeAlias.Alias].as(assertCompletes)
       huh
-    }.provide(ParameterizedServiceWithTypeAlias.live),
+    }.inject(ParameterizedServiceWithTypeAlias.live),
     test("fails to compile using the type directly") {
       val huh: ZIO[ParameterizedService[String], Nothing, TestResult] =
         ParameterizedService.something[String].as(assertCompletes)
       huh
-    }.provide(ParameterizedServiceWithTypeAlias.live),
+    }.inject(ParameterizedServiceWithTypeAlias.live),
     test("compile using the type directly if not using wire macro") {
       ParameterizedService.something[String].as(assertCompletes)
     }.provide(ParameterizedServiceWithTypeAlias.live)

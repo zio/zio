@@ -41,7 +41,7 @@ private [zio] object LayerMacroUtils {
         getNodes(layer)
 
       case other =>
-        report.errorAndAbort(
+        report.throwError(
           "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
           "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
         )
@@ -71,7 +71,7 @@ private [zio] object LayerMacroUtils {
     import ctx.reflect._
 
     def go(tpe: TypeRepr): List[TypeRepr] =
-      tpe.dealias.widen match {
+      tpe.dealias.simplified match {
         case AndType(lhs, rhs) =>
           go(lhs) ++ go(rhs)
 

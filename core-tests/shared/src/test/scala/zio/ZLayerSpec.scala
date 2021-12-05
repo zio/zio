@@ -265,7 +265,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val l1: Layer[Nothing, A]          = ZLayer.succeed(A("name", 1))
         val l2: ZLayer[String, Nothing, B] = (B.apply _).toLayer
         val live: Layer[Nothing, B]        = l1.map(a => ZEnvironment(a.get[A].name)) >>> l2
-        assertM(ZIO.service[B].provide(live))(equalTo(B("name")))
+        assertM(ZIO.service[B].inject(live))(equalTo(B("name")))
       },
       test("memoization") {
         val expected = Vector(acquire1, release1)
@@ -302,7 +302,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           i <- ZIO.service[Int]
           s <- ZIO.service[String]
         } yield (i, s)
-        assertM(zio.provide(live))(equalTo((1, "1")))
+        assertM(zio.inject(live))(equalTo((1, "1")))
       },
       test("fresh with ++") {
         val expected = Vector(acquire1, acquire1, release1, release1)
@@ -369,19 +369,19 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo(4))
       },
       test("error handling") {
-        val sleep                                      = ZIO.sleep(100.milliseconds).provide(Clock.live)
-        val layer1                                     = ZLayer.fail("foo")
-        val layer2                                     = ZLayer.succeed("bar")
-        val layer3                                     = ZLayer.succeed("baz")
-        val layer4                                     = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toLayer
-        val env: ZLayer[Any, String, String with Unit] = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.environment[Console with String with Unit].provideCustom(env).exit)(fails(equalTo("foo")))
+        val sleep  = ZIO.sleep(100.milliseconds).inject(Clock.live)
+        val layer1 = ZLayer.fail("foo")
+        val layer2 = ZLayer.succeed("bar")
+        val layer3 = ZLayer.succeed("baz")
+        val layer4 = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toLayer
+        val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
+        assertM(ZIO.unit.provideCustom(env).exit)(fails(equalTo("foo")))
       },
       test("project") {
         final case class Person(name: String, age: Int)
         val personLayer = ZLayer.succeed(Person("User", 42))
         val ageLayer    = personLayer.project(_.age)
-        assertM(ZIO.service[Int].provide(ageLayer))(equalTo(42))
+        assertM(ZIO.service[Int].inject(ageLayer))(equalTo(42))
       },
       test("tap") {
         for {
@@ -396,7 +396,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val providesInt       = ZLayer.succeed(10)
         val needsString       = ZIO.provide(providesInt)(needsIntAndString)
         needsString
-          .provide(ZLayer.succeed("hi"))
+          .inject(ZLayer.succeed("hi"))
           .map { result =>
             assertTrue(
               result.get[Int] == 10,
@@ -415,7 +415,7 @@ object ZLayerSpec extends ZIOBaseSpec {
 
         ZIO
           .serviceWithZIO[FooService](_.get)
-          .provide(needsStringAndBoolean, ZLayer.succeed("hi"), ZLayer.succeed(true))
+          .inject(needsStringAndBoolean, ZLayer.succeed("hi"), ZLayer.succeed(true))
           .map { case (int, string, boolean) =>
             assertTrue(
               int == 10,
@@ -436,7 +436,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         ZIO
           .serviceWithZIO[FooService](_.get)
           .zip(ZIO.serviceWithZIO[Ref[Int]](_.get))
-          .provide(needsStringAndBoolean, ZLayer.succeed("hi"), ZLayer.succeed(true))
+          .inject(needsStringAndBoolean, ZLayer.succeed("hi"), ZLayer.succeed(true))
           .map { case (int, string, boolean, int2) =>
             assertTrue(
               int == 10,

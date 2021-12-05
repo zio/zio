@@ -817,6 +817,49 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ZManaged.suspend(layer.build.flatMap(r => self.provideEnvironment(r)))
 
   /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a managed effect that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideCustom(loggingLayer)
+   * }}}
+   */
+  final def provideCustom[E1 >: E, R1](
+    layer: => ZLayer[ZEnv, E1, R1]
+  )(implicit
+    ev: ZEnv with R1 <:< R,
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZManaged[ZEnv, E1, A] =
+    provideSome[ZEnv](layer)
+
+  /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a managed effect that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  @deprecated("use provideCustom", "2.0.0")
+  final def provideCustomLayer[E1 >: E, R1](
+    layer: => ZLayer[ZEnv, E1, R1]
+  )(implicit
+    ev: ZEnv with R1 <:< R,
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZManaged[ZEnv, E1, A] =
+    provideCustom(layer)
+
+  /**
    * Provides the `ZManaged` effect with its required environment, which
    * eliminates its dependency on `R`.
    */
@@ -834,7 +877,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
 
   /**
    * Splits the environment into two parts, providing one part using the
-   * specified layers and leaving the remainder `R0`.
+   * specified layer and leaving the remainder `R0`.
    *
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
@@ -844,8 +887,8 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * val managed2 = managed.provideSome[Random](clockLayer)
    * }}}
    */
-  final def provideSome[R0]: ProvideSomeManagedPartiallyApplied[R0, R, E, A] =
-    new ProvideSomeManagedPartiallyApplied[R0, R, E, A](self)
+  final def provideSome[R0]: ZManaged.ProvideSome[R0, R, E, A] =
+    new ZManaged.ProvideSome[R0, R, E, A](self)
 
   /**
    * Transforms the environment being provided to this effect with the specified
@@ -855,6 +898,22 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     f: ZEnvironment[R0] => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
     ZManaged(zio.provideSomeEnvironment(f))
+
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideSomeLayer[Random](clockLayer)
+   * }}}
+   */
+  @deprecated("use provideSome", "2.0.0")
+  final def provideSomeLayer[R0]: ZManaged.ProvideSome[R0, R, E, A] =
+    provideSome
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest.
@@ -1157,7 +1216,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ev: A <:< ZEnvironment[B],
     trace: ZTraceElement
   ): ZLayer[R, E, B] =
-    ZLayer.fromManagedEnvironment(self.map(ev))
+    ZLayer.fromManagedMany(self.map(ev))
 
   /**
    * Constructs a layer from this managed resource, which must return one or
@@ -1506,6 +1565,17 @@ object ZManaged extends ZManagedPlatformSpecific {
       onFalse: => ZManaged[R1, E1, A]
     )(implicit trace: ZTraceElement): ZManaged[R1, E1, A] =
       ZManaged.suspend(b().flatMap(b => if (b) onTrue else onFalse))
+  }
+
+  final class ProvideSome[R0, -R, +E, +A](private val self: ZManaged[R, E, A]) extends AnyVal {
+    def apply[E1 >: E, R1](
+      layer: => ZLayer[R0, E1, R1]
+    )(implicit
+      ev: R0 with R1 <:< R,
+      tagged: Tag[R1],
+      trace: ZTraceElement
+    ): ZManaged[R0, E1, A] =
+      self.asInstanceOf[ZManaged[R0 with R1, E, A]].provide(ZLayer.environment[R0] ++ layer)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
@@ -3052,7 +3122,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def provide[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
     managed: ZManaged[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with RIn2, E, ROut2] =
-    managed.provide[E, RIn with RIn2](ZLayer.environment[RIn with RIn2] ++ builder)
+    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.

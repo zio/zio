@@ -12,8 +12,7 @@ import java.io.{IOException, InputStream}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.reflect.ClassTag
 
-class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any])
-    extends ZStreamVersionSpecific[R, E, A] { self =>
+class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
   import ZStream.TerminationStrategy
 
@@ -2830,28 +2829,49 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(ZChannel.managed(layer.build) { r =>
       self.channel.provideEnvironment(r)
     })
-//
-//  /**
-//   * Provides the part of the environment that is not part of the `ZEnv`,
-//   * leaving a stream that only depends on the `ZEnv`.
-//   *
-//   * {{{
-//   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-//   *
-//   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
-//   *
-//   * val stream2 = stream.provideCustomLayer(loggingLayer)
-//   * }}}
-//   */
-//  @deprecated("use provideCustom", "2.0.0")
-//  def provideCustomLayer[E1 >: E, R1](
-//    layer: ZLayer[ZEnv, E1, R1]
-//  )(implicit
-//    ev: ZEnv with R1 <:< R,
-//    tagged: Tag[R1],
-//    trace: ZTraceElement
-//  ): ZStream[ZEnv, E1, A] =
-//    provide[ZEnv](layer)
+
+  /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a stream that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideCustom(loggingLayer)
+   * }}}
+   */
+  def provideCustom[E1 >: E, R1](
+    layer: ZLayer[ZEnv, E1, R1]
+  )(implicit
+    ev: ZEnv with R1 <:< R,
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZStream[ZEnv, E1, A] =
+    provideSome[ZEnv](layer)
+
+  /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a stream that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideCustomLayer(loggingLayer)
+   * }}}
+   */
+  @deprecated("use provideCustom", "2.0.0")
+  def provideCustomLayer[E1 >: E, R1](
+    layer: ZLayer[ZEnv, E1, R1]
+  )(implicit
+    ev: ZEnv with R1 <:< R,
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZStream[ZEnv, E1, A] =
+    provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides the stream with its required environment, which eliminates its
@@ -2881,8 +2901,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideSome[Random](clockLayer)
    * }}}
    */
-  final def provideSome[R0]: ProvideSomeStreamPartiallyApplied[R0, R, E, A] =
-    new ProvideSomeStreamPartiallyApplied[R0, R, E, A](self)
+  final def provideSome[R0]: ZStream.ProvideSome[R0, R, E, A] =
+    new ZStream.ProvideSome[R0, R, E, A](self)
 
   /**
    * Transforms the environment being provided to the stream with the specified
@@ -2908,7 +2928,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * }}}
    */
   @deprecated("use provideSome", "2.0.0")
-  final def provideSomeLayer[R0]: ProvideSomeStreamPartiallyApplied[R0, R, E, A] =
+  final def provideSomeLayer[R0]: ZStream.ProvideSome[R0, R, E, A] =
     provideSome
 
   /**
@@ -5209,7 +5229,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def provide[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
     stream: ZStream[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZStream[RIn with RIn2, E, ROut2] =
-    stream.provide[E, RIn with RIn2](ZLayer.environment[RIn with RIn2] ++ builder)
+    stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
 
   /**
    * Like [[unfoldZIO]], but allows the emission of values to end one step

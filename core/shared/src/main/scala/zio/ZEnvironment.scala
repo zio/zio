@@ -145,9 +145,6 @@ final class ZEnvironment[+R] private (
     map.foldLeft[Map[K, V]](Map.empty) { case (acc, (key, value)) =>
       if (f(key)) acc + (key -> value) else acc
     }
-
-  def toLayer: ULayer[R] =
-    ZLayer.succeedEnvironment(self)
 }
 
 object ZEnvironment {

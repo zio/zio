@@ -718,7 +718,7 @@ In ZIO 2.x, we can automatically construct dependencies with friendly compile-ti
 
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
-  myApp.provide(
+  myApp.inject(
     Console.live,
     Logging.live,
     Database.live,
@@ -732,7 +732,7 @@ The order of dependencies doesn't matter:
 
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
-  myApp.provide(
+  myApp.inject(
     DocRepo.live,
     BlobStorage.live,
     Logging.live,
@@ -746,7 +746,7 @@ If we miss some dependencies, it doesn't compile, and the compiler gives us the 
 
 ```scala
 val app: ZIO[Any, Nothing, Unit] =
-  myApp.provide(
+  myApp.inject(
     DocRepo.live,
     BlobStorage.live,
 //    Logging.live,
@@ -766,10 +766,10 @@ val app: ZIO[Any, Nothing, Unit] =
 ❯     for UserRepo.live
 ```
 
-We can also directly construct a layer using `ZLayer.make`:
+We can also directly construct a layer using `ZLayer.wire`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.make[DocRepo with UserRepo](
+val layer = ZLayer.wire[DocRepo with UserRepo](
   Console.live,
   Logging.live,
   DocRepo.live,
@@ -779,10 +779,10 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 )
 ```
 
-And also the `ZLayer.makeSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.makeSome[In, Out]`:
+And also the `ZLayer.wireSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.wireSome[In, Out]`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.makeSome[Console, DocRepo with UserRepo](
+val layer = ZLayer.wireSome[Console, DocRepo with UserRepo](
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -801,11 +801,11 @@ val app: ZIO[Console, Nothing, Unit] =
   )
 ```
 
-In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#provideSome[Rest](l1, l2, ...)` operator:
+In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#injectSome[Rest](l1, l2, ...)` operator:
 
 ```scala mdoc:silent:nest:warn
 val app: ZIO[Console, Nothing, Unit] =
-  myApp.provideSome[Console](
+  myApp.injectSome[Console](
     Logging.live,
     DocRepo.live,
     Database.live,
@@ -824,11 +824,11 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
   )
 ```
 
-In ZIO 2.x, the `ZIO#provideCustom` does the similar but for the injection:
+In ZIO 2.x, the `ZIO#injectCustom` does the similar but for the injection:
 
 ```scala mdoc:silent:nest
 val app: ZIO[zio.ZEnv, Nothing, Unit] =
-  myApp.provideCustom(
+  myApp.injectCustom(
     Logging.live,
     DocRepo.live,
     Database.live,
@@ -838,23 +838,23 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 ```
 
 > Note:
-> All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `provide`/`make` methods.
+> All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `inject`/`wire` methods.
 
 
-| ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically) |
-|--------------------------------------------------------|-------------------------|
-| `ZIO#provide`                                          | `ZIO#provide`           |
-| `ZIO#provideSome`                                      | `ZIO#provideSome`       |
-| `ZIO#provideCustom`                                    | `ZIO#provideCustom`     |
-| Composing manually using `ZLayer` combinators | `ZLayer#make`           |
-| Composing manually using `ZLayer` combinators | `ZLayer#makeSome`       |
+| ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
+|--------------------------------------------------------|----------------------------|
+| `ZIO#provide`                                          | `ZIO#inject`               |
+| `ZIO#provideSome`                                      | `ZIO#injectSome`           |
+| `ZIO#provideCustom`                                    | `ZIO#injectCustom`         |
+| Composing manually using `ZLayer` combinators | `ZLayer#wire`     |
+| Composing manually using `ZLayer` combinators | `ZLayer#wireSome` |
 
 ### ZLayer Debugging
 
 To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.tree` and `ZLayer.Debug.mermaid`. For example, by including `ZLayer.Debug.mermaid` into our layer construction, the compiler generates the following debug information:
 
 ```scala
-val layer = ZLayer.make[DocRepo with UserRepo](
+val layer = ZLayer.wire[DocRepo with UserRepo](
   Console.live,
   Logging.live,
   DocRepo.live,
@@ -1540,7 +1540,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _     <- Console.printLine(count)
   } yield count
 
-  def run = app.provideCustom(ZState.makeLayer(MyState(0)))
+  def run = app.injectCustom(ZState.makeLayer(MyState(0)))
 }
 ```
 
