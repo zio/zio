@@ -225,7 +225,6 @@ module.exports = {
   "howto-sidebar": {
     "Overview": ["howto/index"],
     "How to": [
-      "howto/use-test-assertions",
       "howto/mock-services",
       "howto/handle-errors",
       "howto/access-system-information",
