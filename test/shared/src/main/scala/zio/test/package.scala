@@ -55,14 +55,7 @@ package object test extends CompileVariants {
   type AssertResult  = BoolAlgebra[AssertionValue]
 
   type TestEnvironment =
-    Annotations
-      with Live
-      with Sized
-      with TestClock
-      with TestConfig
-      with TestConsole
-      with TestRandom
-      with TestSystem
+    Annotations with Live with Sized with TestClock with TestConfig with TestConsole with TestRandom with TestSystem
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
