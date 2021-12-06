@@ -3,22 +3,17 @@ id: mock-services
 title: "How to Mock Services?"
 ---
 
-## How to test interactions between services?
+## How to Test Interactions Between Services?
 
-Whenever possible, we should strive to make our functions pure, which makes testing such function easy - you just need to assert on the return value.
-However in larger applications there is a need for intermediate layers that delegate the work to specialized services.
+Whenever possible, we should strive to make our functions pure, which makes testing such function easy - so we just need to assert on the return value. However, in larger applications there is a need for intermediate layers that delegate the work to specialized services.
 
-For example, in a HTTP server the first layer of indirection are so called _routes_, whose job is to match the request and delegate the processing to
-downstream layers. Often below there is a second layer of indirection, so called _controllers_, which consist of several business logic units grouped
-by their domain. In a RESTful API that would be all operations on a certain model. The _controller_ to perform its job might call on further
-specialized services for communicating with the database, sending email, logging, et cetera.
+For example, in an HTTP server, the first layers of indirection are so-called _routes_, whose job is to match the request and delegate the processing to downstream layers. Below this layer, there is often a second layer of indirection, so-called _controllers_, which comprises several business logic units grouped by their domain. In a RESTful API, that would be all operations on a certain model. The _controller_ to perform its job might call on further specialized services for communicating with the database, sending email, logging, etc.
 
 If the job of the _capability_ is to call on another _capability_, how should we test it?
 
 ## Hidden outputs
 
-A pure function is such a function which operates only on its inputs and produces only its output. Command-like methods, by definition are impure, as
-their job is to change state of the collaborating object (performing a _side effect_). For example:
+A pure function is such a function which operates only on its inputs and produces only its output. Command-like methods, by definition are impure, as their job is to change state of the collaborating object (performing a _side effect_). For example:
 
 ```scala mdoc:invisible
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -32,19 +27,19 @@ import scala.concurrent.Future
 def processEvent(event: Event): Future[Unit] = Future(println(s"Got $event"))
 ```
 
-The signature of this method `Event => Future[Unit]` hints us we're dealing with a command. It returns `Unit` (well, wrapped in future, but it does
-not matter here), you can't do anything useful with `Unit` and it does not contain any information. It is the equivalent of returning nothing. It is
-also an unreliable return type, as when Scala expects the return type to be `Unit` it will discard whatever value it had (for details see
-[Section 6.26.1][link-sls-6.26.1] of the Scala Language Specification), which may shadow the fact that the final value produced (and discarded) was
-not the one you expected.
+The signature of this method `Event => Future[Unit]` hints us we're dealing with a command. It returns `Unit` (well, wrapped in the `Future`, but it does not matter here). We can't do anything useful with `Unit`, and it does not contain any information. It is the equivalent of returning nothing. 
 
-Inside the future there may be happening any side effects. It may open a file, print to console, connect to databases. We simply don't know. Let's have a look how this problem would be solved using ZIO's effect system:
+It is also an unreliable return type, as when Scala expects the return type to be `Unit` it will discard whatever value it had (for details see [Section 6.26.1][link-sls-6.26.1] of the Scala Language Specification), which may shadow the fact that the final value produced (and discarded) was not the one we expected.
+
+Inside the `Future` there may be happening any side effects. It may open a file, print to the console or connect to databases. We simply don't know. 
+
+Let's have a look how this problem would be solved using ZIO's effect system:
 
 ```scala mdoc:invisible:reset
 trait Event
 ```
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
 
 def processEvent(event: Event): URIO[Console, Unit] =
@@ -53,37 +48,39 @@ def processEvent(event: Event): URIO[Console, Unit] =
 
 With ZIO, we've regained to ability to reason about the effects called. We know that `processEvent` can only call on _capabilities_ of `Console`, so even though we still have `Unit` as the result, we have narrowed the possible effects space to a few.
 
-> **Note:** this is true assuming the programmer disciplines themselves to only perform effects expressed in the type signature.
-> There is no way (at the moment) to enforce this by the compiler. There is some research done in this space, perhaps future programming languages
-> will enable us to further constrain side effects.
+> **Note:** 
+> 
+> This is true assuming the programmer disciplines themselves to only perform effects expressed in the type signature. There is no way (at the moment) to enforce this by the compiler. 
+> 
+> There is some research done in this space, perhaps future programming languages will enable us to further constrain side effects.
 
 However, the same method could be implemented as:
 
-```scala mdoc:silent
-def processEvent2(event: Event): URIO[Console, Unit] =
-  ZIO.unit
+```scala mdoc:compile-only
+import zio._
+
+def processEvent2(event: Event): URIO[Console, Unit] = ZIO.unit
 ```
 
 How can we test it did exactly what we expected it to do?
 
 ## Mocking
 
-In this sort of situations we need mock implementations of our collaborator service. As _Martin Fowler_ puts it in his excellent article
-[Mocks Aren't Stubs][link-test-doubles]:
+In this sort of situations we need mock implementations of our _collaborator service_. As _Martin Fowler_ puts it in his excellent article [Mocks Aren't Stubs][link-test-doubles]:
 
 > **Mocks** are (...) objects pre-programmed with expectations which form a specification of the calls they are expected to receive.
 
-ZIO Test provides a framework for mocking your modules.
+ZIO Test provides a framework for mocking our modules.
 
-## Creating a mock service
+## Creating a Mock Service
 
-We'll be assuming you've read about modules and layers in the [contextual types][doc-contextual-types] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose layer_.
+This article assumes the reader has read about modules and layers in the [contextual types][doc-contextual-types] guide. In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose layer_:
 
 ```scala mdoc:silent
 // main sources
 
+import zio._
 import zio.stream.{ ZSink, ZStream }
-import zio.test.mock._
 
 type Example = Example.Service
 
@@ -108,6 +105,9 @@ object Example {
 ```scala mdoc:silent
 // test sources
 
+import zio._
+import zio.test.mock._
+
 object ExampleMock extends Mock[Example] {
   object Static             extends Effect[Unit, Nothing, String]
   object ZeroArgs           extends Effect[Unit, Nothing, Int]
@@ -129,29 +129,34 @@ object ExampleMock extends Mock[Example] {
 ```
 
 A _capability tag_ is just a value which extends the `zio.test.mock.Capability[R, I, E, A]` type constructor, where:
-- `R` is the type of environment the method belongs to
-- `I` is the type of methods input arguments
-- `E` is the type of error it can fail with
-- `A` is the type of return value it can produce
+- `R` is the type of _environment_ the method belongs to
+- `I` is the type of _methods input arguments_
+- `E` is the type of _error_ it can fail with
+- `A` is the type of _return value_ it can produce
 
-The `Capability` type is not publicly available, instead you have to extend `Mock` dependent types `Effect`, `Method`, `Sink` or `Stream`.
+The `Capability` type is not publicly available, instead we have to extend `Mock` dependent types `Effect`, `Method`, `Sink` or `Stream`.
+
+### Modeling Input Arguments
 
 We model input arguments according to following scheme:
-- for zero arguments the type is `Unit`
-- for one or more arguments, regardless in how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
+- For zero arguments the type is `Unit`
+- For one or more arguments, regardless in how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
 
 > **Note:** we're using tuples to represent multiple argument methods, which follows with a limit to max 22 arguments, as is Scala itself limited.
 
 For overloaded methods we nest a list of numbered objects, each representing subsequent overloads.
 
-Finally we need to define a _compose layer_ that can create our environment from a `Proxy`.
-A `Proxy` holds the mock state and serves predefined responses to calls.
+### Defining Compose Layer
+
+Finally, we need to define a _compose layer_ that can create our environment from a `Proxy`. A `Proxy` holds the mock state and serves predefined responses to calls:
 
 ```scala mdoc:invisible
 def withRuntime[R]: URIO[R, Runtime[R]] = ???
 ```
 
 ```scala mdoc:silent
+import zio._
+import zio.test.mock._
 import ExampleMock._
 
 val compose: URLayer[Proxy, Example] =
@@ -177,12 +182,13 @@ val compose: URLayer[Proxy, Example] =
 
 > **Note:** The `withRuntime` helper is defined in `Mock`. It accesses the Runtime via `ZIO.runtime` and if you're on JS platform, it will replace the executor to an unyielding one.
 
-A reference to this layer is passed to _capability tags_ so it can be used to automatically build environment for composed expectations on
-multiple services.
+A reference to this layer is passed to _capability tags_, so it can be used to automatically build environment for composed expectations on multiple services.
 
-> **Note:** for non-effectful capabilities you need to unsafely run the final effect to satisfy the required interface. For `ZSink` you also need to map the error into a failed sink as demonstrated above.
+> **Note:** 
+> 
+> For non-effectful capabilities we need to unsafely run the final effect to satisfy the required interface. For `ZSink` we also need to map the error into a failed sink as demonstrated above.
 
-## Complete example
+### The Complete Example
 
 ```scala mdoc:invisible:reset
 trait AccountEvent
@@ -245,15 +251,17 @@ object AccountObserverMock extends Mock[AccountObserver] {
 
 > **Note:** ZIO provides some useful macros to help you generate repetitive code, see [Scrapping the boilerplate with macros][doc-macros].
 
-## Provided ZIO services
+## Built-in Mock Services
 
-For each built-in ZIO service you will find their mockable counterparts in `zio.test.mock` package:
+For each built-in ZIO service, we will find their mockable counterparts in `zio.test.mock` package:
 - `MockClock` for `zio.Clock`
 - `MockConsole` for `zio.Console`
 - `MockRandom` for `zio.Random`
 - `MockSystem` for `zio.System`
 
-## Setting up expectations
+## Mocking Collaborators
+
+### Setting up Expectations
 
 To create expectations we use the previously defined _capability tags_:
 
@@ -290,8 +298,7 @@ val exp01 = ExampleMock.SingleArg( // capability to build an expectation for
 
 For methods that take input, the first argument will be an assertion on input, and the second the predefined result.
 
-In the most robust example, the result can be either a successful value or a failure. To construct either we must use
-one of following combinators from `zio.test.mock.Expectation` companion object:
+In the most robust example, the result can be either a successful value or a failure. To construct either we must use one of following combinators from `zio.test.mock.Expectation` companion object:
 
 - `failure[E](failure: E)` Expectation result failing with `E`
 - `failureF[I, E](f: I => E)` Maps the input arguments `I` to expectation result failing with `E`.
@@ -302,13 +309,13 @@ one of following combinators from `zio.test.mock.Expectation` companion object:
 - `valueF[I, A](f: I => A)` Maps the input arguments `I` to expectation result succeeding with `A`.
 - `valueM[I, A](f: I => IO[Nothing, A])` Effectfully maps the input arguments `I` expectation result succeeding with `A`.
 
-For methods that take no input, we only define the expected output.
+For methods that take no input, we only define the expected output:
 
 ```scala mdoc:silent
 val exp02 = ExampleMock.ZeroArgs(value(42))
 ```
 
-For methods that may return `Unit`, we may skip the predefined result (it will default to successful value) or use `unit` helper.
+For methods that may return `Unit`, we may skip the predefined result (it will default to successful value) or use `unit` helper:
 
 ```scala mdoc:silent
 import zio.test.mock.MockConsole
@@ -322,7 +329,7 @@ For methods that may return `Unit` and take no input we can skip both:
 val exp04 = AccountObserverMock.RunCommand()
 ```
 
-Finally we're all set and can create ad-hoc mock environments with our services.
+Finally, we're all set and can create ad-hoc mock environments with our services:
 
 ```scala mdoc:silent
 import zio.test._
@@ -346,7 +353,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 - `atMost` Upper-bounded variant of `repeated`, produces a new expectation to satisfy **itself sequentially at most given number of times**.
 - `optional` Alias for `atMost(1)`, produces a new expectation to satisfy **itself at most once**.
 
-## Providing mocked environment
+### Providing Mocked Environment
 
 ```scala mdoc:silent
 object AccountObserverSpec extends DefaultRunnableSpec {
@@ -359,9 +366,9 @@ object AccountObserverSpec extends DefaultRunnableSpec {
 }
 ```
 
-## Mocking unused collaborators
+### Mocking Unused Collaborators
 
-Often the dependency on a collaborator is only in some branches of the code. To test the correct behaviour of branches without depedencies, we still have to provide it to the environment, but we would like to assert it was never called. With the `Mock.empty` method you can obtain a `ZLayer` with an empty service (no calls expected).
+Often the dependency on a collaborator is only in some branches of the code. To test the correct behaviour of branches without dependencies, we still have to provide it to the environment, but we would like to assert it was never called. With the `Mock.empty` method we can obtain a `ZLayer` with an empty service (no calls expected):
 
 ```scala mdoc:silent
 object MaybeConsoleSpec extends DefaultRunnableSpec {
@@ -378,9 +385,9 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
 }
 ```
 
-## Mocking multiple collaborators
+### Mocking Multiple Collaborators
 
-In some cases we have more than one collaborating service being called. You can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlying mocked layer will be updated.
+In some cases we have more than one collaborating service being called. We can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlying mocked layer will be updated.
 
 ```scala mdoc:silent
 import zio.test.mock.MockRandom
@@ -404,7 +411,7 @@ val result = combinedApp.provideLayer(combinedEnv)
 assertM(result)(isUnit)
 ```
 
-## Polymorphic capabilities
+### Polymorphic capabilities
 
 Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter.
 
@@ -464,7 +471,7 @@ val exp10 = PolyAll.of[Int, Throwable, String](equalTo(42), failure(new Exceptio
 
 ## More examples
 
-You can find more examples in the `examples` and `test-tests` subproject:
+We can find more examples in the `examples` and `test-tests` subproject:
 
 - [MockExampleSpec][link-gh-mock-example-spec]
 - [EmptyMockSpec][link-gh-empty-mock-spec]
