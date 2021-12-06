@@ -460,7 +460,7 @@ import zio.test.{test, _}
 suite("sharing a service between test cases") (
   test("A")(ZIO.service[Int].map(i => assertTrue(i == 5))),
   test("B")(ZIO.service[Int].map(i => assertTrue(i == 5)))
-) @@ TestAspect.provideCustomShared(ZLayer.succeed(5))
+) @@ TestAspect.provideCustomLayerShared(ZLayer.succeed(5))
 ```
 
 Let's try a practical example. Assume we have the following counter service:
@@ -504,7 +504,7 @@ suite("a suite of two tests with shared counter service")(
       _ <- ZIO.debug(s"Running Test B (counter: $c)")
     } yield assertTrue(c == 2)
   }
-) @@ TestAspect.sequential @@ TestAspect.provideCustomShared(CounterLive.layer)
+) @@ TestAspect.sequential @@ TestAspect.provideCustomLayerShared(CounterLive.layer)
 ```
 
 ```scala mdoc:reset:invisible
