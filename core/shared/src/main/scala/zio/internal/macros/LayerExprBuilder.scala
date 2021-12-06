@@ -15,7 +15,6 @@ final case class ZLayerExprBuilder[Key, A](
   composeH: (A, A) => A,
   composeV: (A, A) => A
 ) {
-
   def buildLayerFor(output: List[Key]): A =
     output match {
       case Nil => emptyExpr

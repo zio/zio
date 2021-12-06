@@ -214,7 +214,7 @@ object ProxyServer extends CatsApp {
                 _ <- OpenTracing.tag(Tags.HTTP_METHOD.getKey, GET.name)
                 _ <- OpenTracing.setBaggageItem("proxy-baggage-item-key", "proxy-baggage-item-value")
                 buffer = new TextMapAdapter(mutable.Map.empty[String, String].asJava)
-                _ <- OpenTracing.inject(HttpHeadersFormat, buffer)
+                _ <- OpenTracing.provide(HttpHeadersFormat, buffer)
                 headers <- extractHeaders(buffer)
                 res <-
                   backend.flatMap { implicit backend =>

@@ -66,7 +66,7 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
           }
 
         val layer = testBaseLayer[Any, String] >>> testSecondLayer[String]
-        ZIO.unit.provideCustom(layer).as(assertTrue(true))
+        ZIO.unit.provideCustomLayer(layer).as(assertTrue(true))
       },
       // https://github.com/zio/zio/issues/3816
       test("Issue #3816") {
@@ -162,7 +162,7 @@ object HigherKindedTagCorrectness extends ZIOSpecDefault {
           !(a.tag <:< c.tag),
           !(c.tag <:< a.tag),
           !(a.tag <:< d.tag)
-        )).provide(myCache)
+        )).provideLayer(myCache)
       }
     )
 

@@ -10,6 +10,6 @@ trait ZIOAppVersionSpecific { self: ZIOApp =>
    * Otherwise, the effect will be returned unmodified.
    */
   implicit def validateEnv[R, E, A](zio: ZIO[R, E, A]): ZIO[Environment with ZEnv with ZIOAppArgs, E, A] =
-    macro internal.macros.InternalMacros.validate[Environment with ZEnv with ZIOAppArgs, R]
+    macro internal.macros.LayerMacros.validate[Environment with ZEnv with ZIOAppArgs, R]
 
 }

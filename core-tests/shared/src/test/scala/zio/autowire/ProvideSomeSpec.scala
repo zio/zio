@@ -6,7 +6,7 @@ import zio.test._
 import java.io.IOException
 
 // https://github.com/kitlangton/zio-magic/issues/91
-object InjectSomeSpec extends ZIOSpecDefault {
+object ProvideSomeSpec extends ZIOSpecDefault {
 
   final case class TestService(console: Console, clock: Clock) {
     def somethingMagical(annotate: String): ZIO[Any, IOException, Unit] =
@@ -22,7 +22,7 @@ object InjectSomeSpec extends ZIOSpecDefault {
       (TestService.apply _).toLayer
   }
 
-  val partial: ZLayer[Console, Nothing, Clock with TestService] =
+  val partial: ZLayer[Console, Nothing, Clock with Console with TestService] =
     (Clock.live ++ ZLayer.service[Console]) >+> TestService.live
 
   val partialLayer: ZLayer[Console, Nothing, TestService with Clock] =
@@ -41,9 +41,9 @@ object InjectSomeSpec extends ZIOSpecDefault {
     } yield assertCompletes
 
   def spec: ZSpec[Console with TestConsole with Annotations, Any] =
-    suite("ProvideSomeSpec")(
+    suite("provideSomeSpec")(
       test("basic") {
-        testCase("basic").provideSome[Console](partial)
+        testCase("basic").provideSomeLayer[Console](partial)
       },
       test("provideSome") {
         testCase("provideSome").provideSome[Console](
@@ -58,8 +58,8 @@ object InjectSomeSpec extends ZIOSpecDefault {
           )
           .provideSome[Console](Clock.live)
       },
-      test("makeSome") {
-        testCase("makeSome").provideSome[Console](partialLayer)
+      test("wireSome") {
+        testCase("wireSome").provideSomeLayer[Console](partialLayer)
       }
     ) @@ TestAspect.silent
 }

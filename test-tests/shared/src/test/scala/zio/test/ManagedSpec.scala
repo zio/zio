@@ -45,7 +45,7 @@ object ManagedSpec extends ZIOBaseSpec {
           assertM(Counter.incrementAndGet)(equalTo(5))
         }
       )
-    ).provideShared(Counter.live) @@ sequential,
+    ).provideLayerShared(Counter.live) @@ sequential,
     suite("managed per test")(
       suite("first suite")(
         test("first test") {
@@ -63,6 +63,6 @@ object ManagedSpec extends ZIOBaseSpec {
           assertM(Counter.incrementAndGet)(equalTo(2))
         }
       )
-    ).provide(Counter.live)
+    ).provideLayer(Counter.live)
   )
 }

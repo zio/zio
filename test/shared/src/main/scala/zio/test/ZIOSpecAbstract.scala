@@ -41,9 +41,19 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {
     implicit val trace = Tracer.newTrace
-    runSpec.provide[Any, ZEnv with ZIOAppArgs](
+
+    runSpec.provideSomeLayer[ZEnv with ZIOAppArgs](
       ZLayer.environment[ZEnv with ZIOAppArgs] ++ (TestEnvironment.live ++ layer ++ TestLogger.fromConsole)
     )
+
+    // TODO Cleanup
+//<<<<<<< HEAD
+//    runSpec.provide[Any, ZEnv with ZIOAppArgs](
+//      ZLayer.environment[ZEnv with ZIOAppArgs] ++ (TestEnvironment.live ++ layer ++ TestLogger.fromConsole)
+//    )
+//=======
+//    runSpec.provideSomeLayer[ZEnv with ZIOAppArgs](TestEnvironment.live ++ layer)
+//>>>>>>> series/2.x
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
@@ -120,11 +130,20 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
           )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
-      results <-
+      results     <-
+//<<<<<<< HEAD
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
 
       summary = SummaryBuilder.buildSummary(results)
       _      <- sendSummary.provideEnvironment(ZEnvironment(summary))
+      // TODO Validate merge changes
+//=======
+//        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)
+//      _ <- TestLogger
+//             .logLine(SummaryBuilder.buildSummary(results).summary)
+//             .when(testArgs.printSummary)
+//             .provideLayer(runner.bootstrap)
+//>>>>>>> series/2.x
     } yield results
   }
 }

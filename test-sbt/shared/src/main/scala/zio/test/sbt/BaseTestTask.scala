@@ -45,16 +45,24 @@ abstract class BaseTestTask(
     val filledTestlayer: Layer[Nothing, TestEnvironment] =
       zio.ZEnv.live >>> TestEnvironment.live
 
-    val testLoggers: Layer[Nothing, TestLogger with Clock] = sbtTestLayer(loggers)
+    // TODO Investigate if removing Clock here is valid
+    val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
 
     for {
       spec <- spec
+//<<<<<<< HEAD
                 .runSpec(FilteredSpec(spec.spec, args), args, sendSummary)
                 .provide(
                   testLoggers,
                   argslayer,
                   filledTestlayer,
                   spec.layer.mapError(e => new Error(e.toString))
+                  // TODOO cleanup
+//=======
+//                .runSpec(FilteredSpec(spec.spec, args), args)
+//                .provideLayer(
+//                  fullLayer
+//>>>>>>> series/2.x
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
@@ -81,7 +89,7 @@ abstract class BaseTestTask(
         case LegacySpecWrapper(abstractRunnableSpec) =>
           Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
             run(eventHandler, abstractRunnableSpec)
-              .provide(sbtTestLayer(loggers))
+              .provideLayer(sbtTestLayer(loggers))
               .onError(e => UIO(println(e.prettyPrint)))
           }
       }

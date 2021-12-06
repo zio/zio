@@ -13,7 +13,7 @@ object StreamREPLSpec extends ZIOSpecDefault {
       @silent("never used")
       implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]) {
         def unsafeRun: A =
-          Runtime.default.unsafeRun(io.provide(ZEnv.live))
+          Runtime.default.unsafeRun(io.provideLayer(ZEnv.live))
       }
       assertCompletes
     }

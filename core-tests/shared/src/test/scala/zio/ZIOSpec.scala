@@ -1041,18 +1041,6 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(value)(equalTo(0))
       }
     ),
-    suite("forkIn") {
-      test("fiber forked in a closed scope does not run") {
-        for {
-          ref   <- Ref.make(false)
-          open  <- ZScope.make[Exit[Any, Any]]
-          _     <- open.close(Exit.unit)
-          fiber <- ref.set(true).forkIn(open.scope)
-          exit  <- fiber.await
-          value <- ref.get
-        } yield assert(exit)(isInterrupted) && assert(value)(isFalse)
-      }
-    },
     suite("forkWithErrorHandler")(
       test("calls provided function when task fails") {
         for {
@@ -1833,19 +1821,19 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       } @@ zioTag(errors)
     ),
-    suite("provideCustom")(
+    suite("provideCustomLayer")(
       test("provides the part of the environment that is not part of the `ZEnv`") {
         val loggingLayer: ZLayer[Any, Nothing, Logging] = Logging.live
         val zio: ZIO[ZEnv with Logging, Nothing, Unit]  = ZIO.unit
-        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustom(loggingLayer)
+        val zio2: URIO[ZEnv, Unit]                      = zio.provideCustomLayer(loggingLayer)
         assertM(zio2)(anything)
       }
     ),
-    suite("provideSome")(
+    suite("provideSomeLayer")(
       test("can split environment into two parts") {
         val clockLayer: ZLayer[Any, Nothing, Clock]    = Clock.live
         val zio: ZIO[Clock with Random, Nothing, Unit] = ZIO.unit
-        val zio2: URIO[Random, Unit]                   = zio.provideSome[Random](clockLayer)
+        val zio2: URIO[Random, Unit]                   = zio.provideSomeLayer[Random](clockLayer)
         assertM(zio2)(anything)
       }
     ),
@@ -3249,7 +3237,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assert(value)(isTrue)
-      } @@ nonFlaky,
+      } @@ nonFlaky @@ TestAspect.fibers,
       test("effectAsyncInterrupt cancelation") {
         for {
           ref <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
@@ -3600,7 +3588,7 @@ object ZIOSpec extends ZIOBaseSpec {
           a <- ZIO.service[Int].updateService[Int](_ + 1)
           b <- ZIO.service[Int]
         } yield (a, b)
-        assertM(zio.provide(ZLayer.succeed(0)))(equalTo((1, 0)))
+        assertM(zio.provideLayer(ZLayer.succeed(0)))(equalTo((1, 0)))
       }
     ),
     suite("validate")(
