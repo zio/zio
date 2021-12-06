@@ -30,7 +30,7 @@ val myProgram: ZSpec[TestConsole, Nothing] = test("my suite")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only
-myProgram.provide(TestConsole.make(TestConsole.Data()))
+myProgram.provideLayer(TestConsole.make(TestConsole.Data()))
 ```
 
 Finally, we can create a `Test` object that implements the test interface directly using the `makeTest` method. This can be useful when we want to access some testing functionality without using the environment type:
