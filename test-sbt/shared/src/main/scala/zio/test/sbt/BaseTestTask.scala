@@ -10,7 +10,22 @@ import zio.test.{
   TestLogger,
   ZIOSpecAbstract
 }
-import zio.{Chunk, Clock, Layer, Runtime, UIO, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{
+  Chunk,
+  Clock,
+  Console,
+  Layer,
+  Random,
+  Runtime,
+  System,
+  UIO,
+  ULayer,
+  ZEnvironment,
+  ZIO,
+  ZIOAppArgs,
+  ZLayer,
+  ZTraceElement
+}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -37,6 +52,7 @@ abstract class BaseTestTask(
     spec: ZIOSpecAbstract,
     loggers: Array[Logger]
   )(implicit trace: ZTraceElement): ZIO[TestLogger, Throwable, Unit] = {
+    // TODO Is all this layer construction inappropriate here? the old style handled everything via the `runner` field, and didn't need to .provide here
     val argslayer: ULayer[ZIOAppArgs] =
       ZLayer.succeed(
         ZIOAppArgs(Chunk.empty)
@@ -45,24 +61,22 @@ abstract class BaseTestTask(
     val filledTestlayer: Layer[Nothing, TestEnvironment] =
       zio.ZEnv.live >>> TestEnvironment.live
 
-    // TODO Investigate if removing Clock here is valid
-    val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
+    val layer: Layer[Error, spec.Environment] =
+      (argslayer +!+ filledTestlayer) >>> spec.layer.mapError(e => new Error(e.toString))
+
+    val fullLayer
+    // TODO This type annotation in particular just feels like it _can't_ be part of the correct solution
+      : Layer[Error, spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random] =
+      layer +!+ argslayer +!+ filledTestlayer
+
+    val testLoggers: Layer[Nothing, TestLogger with Clock] = sbtTestLayer(loggers)
 
     for {
       spec <- spec
-//<<<<<<< HEAD
                 .runSpec(FilteredSpec(spec.spec, args), args, sendSummary)
                 .provide(
                   testLoggers,
-                  argslayer,
-                  filledTestlayer,
-                  spec.layer.mapError(e => new Error(e.toString))
-                  // TODOO cleanup
-//=======
-//                .runSpec(FilteredSpec(spec.spec, args), args)
-//                .provideLayer(
-//                  fullLayer
-//>>>>>>> series/2.x
+                  fullLayer
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
