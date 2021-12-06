@@ -390,7 +390,7 @@ test("One can control time for failing effects too") {
       readRef <- promise.await
       result  <- result.join
     } yield assert(1)(equalTo(readRef)) && assert(result)(fails(isSubtype[Exception](anything)))
-  testCase.provideSome[TestEnvironment](partialLayer)
+  testCase.provideSomeLayer[TestEnvironment](partialLayer)
 }
 ```
 

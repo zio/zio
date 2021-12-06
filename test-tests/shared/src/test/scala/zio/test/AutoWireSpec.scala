@@ -11,7 +11,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
   def spec: ZSpec[Environment, Failure] =
     suite("AutoWireSpec")(
-      suite("provide")(
+      suite("inject")(
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
           val stringLayer = ZLayer.succeed("this string is 28 chars long")
@@ -48,8 +48,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
           val _                               = program
 
-          val checked =
-            typeCheck("""test("foo")(assertM(program)(anything)).provide[TestFailure[Nothing]](OldLady.live)""")
+          val checked = typeCheck("""test("foo")(assertM(program)(anything)).provide(OldLady.live)""")
           assertM(checked)(
             isLeft(
               containsStringWithoutAnsi("zio.test.AutoWireSpec.TestLayer.Fly") &&
@@ -132,17 +131,17 @@ object AutoWireSpec extends ZIOBaseSpec {
       } @@ TestAspect.exceptScala3,
       suite(".provideSomeShared") {
         val addOne =
-          ZIO.service[Ref[Int]].zip(Random.nextIntBounded(10)).flatMap { case (ref, int) => ref.getAndUpdate(_ + int) }
+          ZIO.service[Ref[Int]].zip(Random.nextIntBounded(2)).flatMap { case (ref, int) => ref.getAndUpdate(_ + int) }
         val refLayer = Ref.make(1).toLayer
 
         suite("layers are shared between tests and suites")(
           suite("suite 1")(
             test("test 1")(assertM(addOne)(equalTo(1))),
-            test("test 2")(assertM(addOne)(equalTo(9)))
+            test("test 2")(assertM(addOne)(equalTo(2)))
           ),
           suite("suite 2")(
-            test("test 3")(assertM(addOne)(equalTo(17))),
-            test("test 4")(assertM(addOne)(equalTo(25)))
+            test("test 3")(assertM(addOne)(equalTo(2))),
+            test("test 4")(assertM(addOne)(equalTo(3)))
           )
         ).provideSomeShared[Random](refLayer) @@ TestAspect.sequential
       },

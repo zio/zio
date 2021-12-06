@@ -12,8 +12,7 @@ import java.io.{IOException, InputStream}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.reflect.ClassTag
 
-class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any])
-    extends ZStreamVersionSpecific[R, E, A] { self =>
+class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
   import ZStream.TerminationStrategy
 
@@ -2822,36 +2821,25 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(self.channel >>> channel)
 
   /**
-   * Provides a layer to the stream, which translates it to another level.
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a stream that only depends on the `ZEnv`.
+   *
+   * {{{
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   *
+   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
+   *
+   * val stream2 = stream.provideCustomLayer(loggingLayer)
+   * }}}
    */
-  final def provide[E1 >: E, R0](
-    layer: ZLayer[R0, E1, R]
-  )(implicit trace: ZTraceElement): ZStream[R0, E1, A] =
-    new ZStream(ZChannel.managed(layer.build) { r =>
-      self.channel.provideEnvironment(r)
-    })
-//
-//  /**
-//   * Provides the part of the environment that is not part of the `ZEnv`,
-//   * leaving a stream that only depends on the `ZEnv`.
-//   *
-//   * {{{
-//   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-//   *
-//   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
-//   *
-//   * val stream2 = stream.provideCustomLayer(loggingLayer)
-//   * }}}
-//   */
-//  @deprecated("use provideCustom", "2.0.0")
-//  def provideCustomLayer[E1 >: E, R1](
-//    layer: ZLayer[ZEnv, E1, R1]
-//  )(implicit
-//    ev: ZEnv with R1 <:< R,
-//    tagged: Tag[R1],
-//    trace: ZTraceElement
-//  ): ZStream[ZEnv, E1, A] =
-//    provide[ZEnv](layer)
+  def provideCustomLayer[E1 >: E, R1](
+    layer: ZLayer[ZEnv, E1, R1]
+  )(implicit
+    ev: ZEnv with R1 <:< R,
+    tagged: Tag[R1],
+    trace: ZTraceElement
+  ): ZStream[ZEnv, E1, A] =
+    provideSomeLayer[ZEnv](layer)
 
   /**
    * Provides the stream with its required environment, which eliminates its
@@ -2863,26 +2851,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Provides a layer to the stream, which translates it to another level.
    */
-  @deprecated("use provide", "2.0.0")
   final def provideLayer[E1 >: E, R0](
     layer: ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZStream[R0, E1, A] =
-    provide(layer)
-
-  /**
-   * Splits the environment into two parts, providing one part using the
-   * specified layer and leaving the remainder `R0`.
-   *
-   * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
-   *
-   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
-   *
-   * val stream2 = stream.provideSome[Random](clockLayer)
-   * }}}
-   */
-  final def provideSome[R0]: ProvideSomeStreamPartiallyApplied[R0, R, E, A] =
-    new ProvideSomeStreamPartiallyApplied[R0, R, E, A](self)
+    new ZStream(ZChannel.managed(layer.build) { r =>
+      self.channel.provideEnvironment(r)
+    })
 
   /**
    * Transforms the environment being provided to the stream with the specified
@@ -2907,9 +2881,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * val stream2 = stream.provideSomeLayer[Random](clockLayer)
    * }}}
    */
-  @deprecated("use provideSome", "2.0.0")
-  final def provideSomeLayer[R0]: ProvideSomeStreamPartiallyApplied[R0, R, E, A] =
-    provideSome
+  final def provideSomeLayer[R0]: ZStream.ProvideSomeLayer[R0, R, E, A] =
+    new ZStream.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
    * Re-chunks the elements of the stream into chunks of `n` elements each. The
@@ -5206,10 +5179,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def paginateM[R, E, A, S](s: S)(f: S => ZIO[R, E, (A, Option[S])])(implicit trace: ZTraceElement): ZStream[R, E, A] =
     paginateZIO(s)(f)
 
-  def provide[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
+  def provideLayer[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
     stream: ZStream[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZStream[RIn with RIn2, E, ROut2] =
-    stream.provide[E, RIn with RIn2](ZLayer.environment[RIn with RIn2] ++ builder)
+    stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
 
   /**
    * Like [[unfoldZIO]], but allows the emission of values to end one step
@@ -5729,7 +5702,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
-  final class ProvideSome[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
+  final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit
@@ -5737,7 +5710,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tagged: Tag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
-      self.asInstanceOf[ZStream[R0 with R1, E, A]].provide(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZStream[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {

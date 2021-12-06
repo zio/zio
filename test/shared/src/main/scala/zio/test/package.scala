@@ -55,7 +55,15 @@ package object test extends CompileVariants {
   type AssertResult  = BoolAlgebra[AssertionValue]
 
   type TestEnvironment =
-    Annotations with Live with Sized with TestClock with TestConfig with TestConsole with TestRandom with TestSystem
+    Annotations
+      with Live
+      with Sized
+      with TestClock
+      with TestConfig
+      with TestConsole
+      with TestRandom
+      with TestSystem
+      with ZEnv
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
@@ -1313,11 +1321,6 @@ package object test extends CompileVariants {
       val _ = f
       throw SmartAssertionExtensionError()
     }
-  }
-
-  implicit final class SpecSubtypeOps[R, R0](private val self: R0 <:< R) extends AnyVal {
-    @inline def liftEnvSpec[E, A](spec: Spec[R, E, A]): Spec[R0, E, A] =
-      spec.asInstanceOf[Spec[R0, E, A]]
   }
 
 }

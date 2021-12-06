@@ -14,7 +14,7 @@ import LayerMacroUtils._
 object LayerMacros {
   def provideImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layer: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
     val layerExpr = fromAutoImpl[R0, R, E](layer)
-    '{$zio.provide($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
+    '{$zio.provideLayer($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
   }
 
   def fromAutoImpl[R0: Type, R: Type, E: Type](layer0: Expr[Seq[ZLayer[_,E,_]]])(using ctx: Quotes): Expr[ZLayer[R0,E,R]] = {

@@ -34,7 +34,7 @@ object TestExecutor {
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]] =
       spec.annotated
-        .provide(environment)
+        .provideLayer(environment)
         .foreachExec(defExec)(
           e =>
             e.failureOrCause.fold(
@@ -59,7 +59,6 @@ object TestExecutor {
               ExecutedSpec.test(result, staticAnnotations ++ dynamicAnnotations)
             }.toManaged
         }.useNow)
-
     val environment = env
   }
 }
