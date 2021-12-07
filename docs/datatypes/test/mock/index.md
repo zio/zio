@@ -83,23 +83,19 @@ This article assumes the reader has read about modules and layers in the [contex
 import zio._
 import zio.stream.{ ZSink, ZStream }
 
-type Example = Example.Service
-
-object Example {
-  trait Service {
-    val static                                 : UIO[String]
-    def zeroArgs                               : UIO[Int]
-    def zeroArgsWithParens()                   : UIO[Long]
-    def singleArg(arg1: Int)                   : UIO[String]
-    def multiArgs(arg1: Int, arg2: Long)       : UIO[String]
-    def multiParamLists(arg1: Int)(arg2: Long) : UIO[String]
-    def command(arg1: Int)                     : UIO[Unit]
-    def overloaded(arg1: Int)                  : UIO[String]
-    def overloaded(arg1: Long)                 : UIO[String]
-    def function(arg1: Int)                    : String
-    def sink(a: Int)                           : ZSink[Any, String, Int, Int, List[Int]]
-    def stream(a: Int)                         : ZStream[Any, String, Int]
-  }
+trait Example {
+  val static                                 : UIO[String]
+  def zeroArgs                               : UIO[Int]
+  def zeroArgsWithParens()                   : UIO[Long]
+  def singleArg(arg1: Int)                   : UIO[String]
+  def multiArgs(arg1: Int, arg2: Long)       : UIO[String]
+  def multiParamLists(arg1: Int)(arg2: Long) : UIO[String]
+  def command(arg1: Int)                     : UIO[Unit]
+  def overloaded(arg1: Int)                  : UIO[String]
+  def overloaded(arg1: Long)                 : UIO[String]
+  def function(arg1: Int)                    : String
+  def sink(a: Int)                           : ZSink[Any, String, Int, Int, List[Int]]
+  def stream(a: Int)                         : ZStream[Any, String, Int]
 }
 ```
 
@@ -163,7 +159,7 @@ import ExampleMock._
 val compose: URLayer[Proxy, Example] =
   ZIO.serviceWithZIO[Proxy] { proxy =>
     withRuntime[Any].map { rts =>
-      new Example.Service {
+      new Example {
         val static                                 = proxy(Static)
         def zeroArgs                               = proxy(ZeroArgs)
         def zeroArgsWithParens()                   = proxy(ZeroArgsWithParens)
@@ -201,34 +197,33 @@ trait AccountEvent
 import zio._
 import zio.test.mock._
 
-type AccountObserver = AccountObserver.Service
+trait AccountObserver {
+  def processEvent(event: AccountEvent): UIO[Unit]
+  def runCommand(): UIO[Unit]
+}
 
 object AccountObserver {
-  trait Service {
-    def processEvent(event: AccountEvent): UIO[Unit]
-    def runCommand(): UIO[Unit]
-  }
-
   def processEvent(event: AccountEvent) =
     ZIO.serviceWithZIO[AccountObserver](_.processEvent(event))
 
   def runCommand() =
     ZIO.serviceWithZIO[AccountObserver](_.runCommand())
+}
 
-  val live: ZLayer[Console, Nothing, AccountObserver] =
-    { (console: Console) =>
-      new Service {
-        def processEvent(event: AccountEvent): UIO[Unit] =
-          for {
-            _    <- console.printLine(s"Got $event").orDie
-            line <- console.readLine.orDie
-            _    <- console.printLine(s"You entered: $line").orDie
-          } yield ()
+case class AccountObserverLive(console: Console) extends AccountObserver {
+  def processEvent(event: AccountEvent): UIO[Unit] =
+    for {
+      _    <- console.printLine(s"Got $event").orDie
+      line <- console.readLine.orDie
+      _    <- console.printLine(s"You entered: $line").orDie
+    } yield ()
 
-        def runCommand(): UIO[Unit] =
-          console.printLine("Done!").orDie
-      }
-    }.toLayer
+  def runCommand(): UIO[Unit] =
+    console.printLine("Done!").orDie
+}
+
+object AccountObserverLive {
+  val layer = (AccountObserverLive.apply _).toLayer[AccountObserver]
 }
 ```
 
@@ -242,7 +237,7 @@ object AccountObserverMock extends Mock[AccountObserver] {
 
   val compose: URLayer[Proxy, AccountObserver] =
     ZIO.service[Proxy].map { proxy =>
-      new AccountObserver.Service {
+      new AccountObserver {
         def processEvent(event: AccountEvent) = proxy(ProcessEvent, event)
         def runCommand(): UIO[Unit]           = proxy(RunCommand)
       }
@@ -360,7 +355,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     test("calls printLine > readLine > printLine and returns unit") {
-      val result = app.provideLayer(mockEnv >>> AccountObserver.live)
+      val result = app.provideLayer(mockEnv >>> AccountObserverLive.layer)
       assertM(result)(isUnit)
     }
   )
@@ -418,15 +413,12 @@ Mocking polymorphic methods is also supported, but the interface must require `z
 
 ```scala mdoc:silent
 // main sources
-type PolyExample = PolyExample.Service
 
-object PolyExample {
-  trait Service {
-    def polyInput[I: Tag](input: I): Task[String]
-    def polyError[E: Tag](input: Int): IO[E, String]
-    def polyOutput[A: Tag](input: Int): Task[A]
-    def polyAll[I: Tag, E: Tag, A: Tag](input: I): IO[E, A]
-  }
+trait PolyExample {
+  def polyInput[I: Tag](input: I): Task[String]
+  def polyError[E: Tag](input: Int): IO[E, String]
+  def polyOutput[A: Tag](input: Int): Task[A]
+  def polyAll[I: Tag, E: Tag, A: Tag](input: I): IO[E, A]
 }
 ```
 
@@ -446,7 +438,7 @@ object PolyExampleMock extends Mock[PolyExample] {
   val compose: URLayer[Proxy, PolyExample] =
     ZIO.serviceWithZIO[Proxy] { proxy =>
       withRuntime[Any].map { rts =>
-        new PolyExample.Service {
+        new PolyExample {
           def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)
           def polyError[E: Tag](input: Int)                   = proxy(PolyError.of[E], input)
           def polyOutput[A: Tag](input: Int)                  = proxy(PolyOutput.of[A], input)
