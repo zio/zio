@@ -1916,7 +1916,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   size of the chunk
    */
   def grouped(chunkSize: Int)(implicit trace: ZTraceElement): ZStream[R, E, Chunk[A]] =
-    transduce(ZSink.collectAllN[A](chunkSize))
+    rechunk(chunkSize).chunks
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified
@@ -2892,6 +2892,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     ZStream.unwrap {
       ZIO.succeed {
         val rechunker = new ZStream.Rechunker[A](n)
+
         lazy val process: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
           ZChannel.readWithCause(
             (chunk: Chunk[A]) =>
@@ -3297,6 +3298,55 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def someOrFail[A2, E1 >: E](e: => E1)(implicit ev: A <:< Option[A2], trace: ZTraceElement): ZStream[R, E1, A2] =
     self.mapZIO(ev(_).fold[IO[E1, A2]](ZIO.fail(e))(ZIO.succeedNow(_)))
+
+  /**
+   * Emits a sliding window of n elements.
+   * {{{
+   *   Stream(1, 2, 3, 4).sliding(2).runCollect // Chunk(Chunk(1, 2), Chunk(2, 3), Chunk(3, 4))
+   * }}}
+   */
+  def sliding(chunkSize: Int, stepSize: Int = 1)(implicit trace: ZTraceElement): ZStream[R, E, Chunk[A]] =
+    if (chunkSize <= 0 || stepSize <= 0)
+      ZStream.die(new IllegalArgumentException("invalid bounds. `chunkSize` and `stepSize` must be greater than zero"))
+    else
+      new ZStream({
+        val queue = SingleThreadedRingBuffer[A](chunkSize)
+
+        def emitOnStreamEnd(queueSize: Int)(channelEnd: ZChannel[Any, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any]) =
+          if (queueSize < chunkSize) {
+            val items  = queue.toChunk
+            val result = if (items.isEmpty) Chunk.empty else Chunk.single(items)
+            ZChannel.write(result) *> channelEnd
+          } else {
+            val lastEmitIndex = queueSize - (queueSize - chunkSize) % stepSize
+
+            if (lastEmitIndex == queueSize) channelEnd
+            else {
+              val leftovers = queueSize - (lastEmitIndex - chunkSize + stepSize)
+              val lastItems = queue.toChunk.takeRight(leftovers)
+              val result    = if (lastItems.isEmpty) Chunk.empty else Chunk.single(lastItems)
+              ZChannel.write(result) *> channelEnd
+            }
+          }
+
+        def reader(queueSize: Int): ZChannel[Any, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
+          ZChannel.readWithCause(
+            (in: Chunk[A]) => {
+              ZChannel.write {
+                in.zipWithIndex.flatMap { case (i, idx) =>
+                  queue.put(i)
+                  val currentIndex = queueSize + idx + 1
+                  if (currentIndex < chunkSize || (currentIndex - chunkSize) % stepSize > 0) None
+                  else Some(queue.toChunk)
+                }
+              } *> reader(queueSize + in.length)
+            },
+            (cause: Cause[E]) => emitOnStreamEnd(queueSize)(ZChannel.failCause(cause)),
+            (_: Any) => emitOnStreamEnd(queueSize)(ZChannel.unit)
+          )
+
+        self.channel >>> reader(0)
+      })
 
   /**
    * Splits elements on a delimiter and transforms the splits into desired
