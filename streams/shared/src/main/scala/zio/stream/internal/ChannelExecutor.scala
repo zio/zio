@@ -14,7 +14,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 ) {
   import ChannelExecutor._
 
-  private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env])(implicit trace: ZTraceElement) = {
+  private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env])(implicit trace: ZTraceElement): ZIO[Env, Nothing, Any] = {
     val currInput = input
     input = prev
 
@@ -24,6 +24,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private[this] final def popAllFinalizers(
     exit: Exit[Any, Any]
   )(implicit trace: ZTraceElement): URIO[Env, Exit[Any, Any]] = {
+
     def unwind(acc: Exit[Any, Any], conts: List[ErasedContinuation[Env]]): ZIO[Env, Any, Any] =
       conts match {
         case Nil                                => ZIO.done(acc)
