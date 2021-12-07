@@ -240,16 +240,19 @@ private[zio] final class FiberContext[E, A](
                       else cause.traced(unsafeCaptureTrace(zio.trace :: fastPathTrace))
 
                     val discardedFolds = unsafeUnwindStack()
+                    val strippedCause =
+                      if (discardedFolds)
+                        // We threw away some error handlers while unwinding the stack because
+                        // we got interrupted during this instruction. So it's not safe to return
+                        // typed failures from cause0, because they might not be typed correctly.
+                        // Instead, we strip the typed failures, and return the remainders and
+                        // the interruption.
+                        tracedCause.stripFailures
+                      else
+                        tracedCause
+                    val suppressed = unsafeClearSuppressed()
                     val fullCause =
-                      (if (discardedFolds)
-                         // We threw away some error handlers while unwinding the stack because
-                         // we got interrupted during this instruction. So it's not safe to return
-                         // typed failures from cause0, because they might not be typed correctly.
-                         // Instead, we strip the typed failures, and return the remainders and
-                         // the interruption.
-                         tracedCause.stripFailures
-                       else
-                         tracedCause) ++ unsafeClearSuppressed()
+                      if (strippedCause.contains(suppressed)) strippedCause else strippedCause ++ suppressed
 
                     curZio = if (stack.isEmpty) {
                       // Error not caught, stack is empty:
@@ -581,7 +584,11 @@ private[zio] final class FiberContext[E, A](
         val newState = executing.copy(suppressed = Cause.empty)
 
         if (!state.compareAndSet(oldState, newState)) unsafeClearSuppressed()
-        else suppressed ++ oldState.interruptorsCause
+        else {
+          val interruptorsCause = oldState.interruptorsCause
+          if (suppressed.contains(interruptorsCause)) suppressed
+          else suppressed ++ interruptorsCause
+        }
 
       case _ => oldState.interruptorsCause
     }
