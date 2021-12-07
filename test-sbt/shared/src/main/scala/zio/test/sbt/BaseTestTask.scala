@@ -76,9 +76,8 @@ abstract class BaseTestTask(
     for {
       spec <- spec
                 .runSpec(FilteredSpec(spec.spec, args), args, sendSummary)
-                .provide(
-                  testLoggers,
-                  fullLayer
+                .provideLayer(
+                  testLoggers +!+ fullLayer
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
@@ -99,7 +98,7 @@ abstract class BaseTestTask(
         case NewSpecWrapper(zioSpec) =>
           Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
             run(eventHandler, zioSpec, loggers)
-//              .provide(sbtTestLayer(loggers))
+              .provideLayer(sbtTestLayer(loggers))
               .onError(e => UIO(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>

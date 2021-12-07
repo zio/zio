@@ -24,7 +24,7 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           _ <- ZIO.service[Unit]
         } yield assertCompletes
-      }.provide(specLayer)
+      }.provideLayer(specLayer)
     ),
     suite("provideLayerShared")(
       test("gracefully handles fiber death") {
