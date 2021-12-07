@@ -51,7 +51,7 @@ abstract class BaseTestTask(
     eventHandler: EventHandler,
     spec: ZIOSpecAbstract,
     loggers: Array[Logger]
-  )(implicit trace: ZTraceElement): ZIO[TestLogger, Throwable, Unit] = {
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
     val argslayer: ULayer[ZIOAppArgs] =
       ZLayer.succeed(
         ZIOAppArgs(Chunk.empty)
@@ -65,10 +65,13 @@ abstract class BaseTestTask(
 
     val fullLayer
     // TODO This type annotation in particular just feels like it _can't_ be part of the correct solution
-      : Layer[Error, spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random] =
+      : Layer[
+        Error,
+        spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock
+      ] =
       layer +!+ argslayer +!+ filledTestlayer
 
-    val testLoggers: Layer[Nothing, TestLogger with Clock] = sbtTestLayer(loggers)
+    val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
 
     for {
       spec <- spec
@@ -96,7 +99,7 @@ abstract class BaseTestTask(
         case NewSpecWrapper(zioSpec) =>
           Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
             run(eventHandler, zioSpec, loggers)
-              .provide(sbtTestLayer(loggers))
+//              .provide(sbtTestLayer(loggers))
               .onError(e => UIO(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>
