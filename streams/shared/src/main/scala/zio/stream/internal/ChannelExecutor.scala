@@ -506,7 +506,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private final def drainInnerSubexecutor(
     inner: ChannelExecutor.SubexecutorStack.Inner[Env]
-  )(implicit trace: ZTraceElement): ChannelState[Env, Any] = {
+  )(implicit trace: ZTraceElement): ChannelState[Env, Any] =
     ChannelState.Read(
       inner.exec,
       onEmit = { (emitted: Any) =>
@@ -563,7 +563,6 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         }
       }
     )
-  }
 }
 
 object ChannelExecutor {
