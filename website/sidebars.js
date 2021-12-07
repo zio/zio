@@ -199,6 +199,13 @@ module.exports = {
             "datatypes/test/environment/sized",
           ]
         },
+        {
+          type: "category",
+          label: "Mock Services",
+          items: [
+            "datatypes/test/mock/index"
+          ]
+        },
         "datatypes/test/test-aspect",
         "datatypes/test/gen",
       ],
@@ -225,7 +232,6 @@ module.exports = {
   "howto-sidebar": {
     "Overview": ["howto/index"],
     "How to": [
-      "howto/mock-services",
       "howto/handle-errors",
       "howto/access-system-information",
       "howto/use-zio-macros"

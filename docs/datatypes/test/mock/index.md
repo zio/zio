@@ -1,6 +1,7 @@
 ---
-id: mock-services
-title: "How to Mock Services?"
+id: index
+title: Introduction to ZIO Mock
+sidebar_label: Introduction
 ---
 
 ## How to Test Interactions Between Services?
@@ -11,7 +12,7 @@ For example, in an HTTP server, the first layers of indirection are so-called _r
 
 If the job of the _capability_ is to call on another _capability_, how should we test it?
 
-## Hidden outputs
+## Hidden Outputs
 
 A pure function is such a function which operates only on its inputs and produces only its output. Command-like methods, by definition are impure, as their job is to change state of the collaborating object (performing a _side effect_). For example:
 
@@ -27,11 +28,11 @@ import scala.concurrent.Future
 def processEvent(event: Event): Future[Unit] = Future(println(s"Got $event"))
 ```
 
-The signature of this method `Event => Future[Unit]` hints us we're dealing with a command. It returns `Unit` (well, wrapped in the `Future`, but it does not matter here). We can't do anything useful with `Unit`, and it does not contain any information. It is the equivalent of returning nothing. 
+The signature of this method `Event => Future[Unit]` hints us we're dealing with a command. It returns `Unit` (well, wrapped in the `Future`, but it does not matter here). We can't do anything useful with `Unit`, and it does not contain any information. It is the equivalent of returning nothing.
 
 It is also an unreliable return type, as when Scala expects the return type to be `Unit` it will discard whatever value it had (for details see [Section 6.26.1][link-sls-6.26.1] of the Scala Language Specification), which may shadow the fact that the final value produced (and discarded) was not the one we expected.
 
-Inside the `Future` there may be happening any side effects. It may open a file, print to the console or connect to databases. We simply don't know. 
+Inside the `Future` there may be happening any side effects. It may open a file, print to the console or connect to databases. We simply don't know.
 
 Let's have a look how this problem would be solved using ZIO's effect system:
 
@@ -48,10 +49,10 @@ def processEvent(event: Event): URIO[Console, Unit] =
 
 With ZIO, we've regained to ability to reason about the effects called. We know that `processEvent` can only call on _capabilities_ of `Console`, so even though we still have `Unit` as the result, we have narrowed the possible effects space to a few.
 
-> **Note:** 
-> 
-> This is true assuming the programmer disciplines themselves to only perform effects expressed in the type signature. There is no way (at the moment) to enforce this by the compiler. 
-> 
+> **Note:**
+>
+> This is true assuming the programmer disciplines themselves to only perform effects expressed in the type signature. There is no way (at the moment) to enforce this by the compiler.
+>
 > There is some research done in this space, perhaps future programming languages will enable us to further constrain side effects.
 
 However, the same method could be implemented as:
@@ -184,8 +185,8 @@ val compose: URLayer[Proxy, Example] =
 
 A reference to this layer is passed to _capability tags_, so it can be used to automatically build environment for composed expectations on multiple services.
 
-> **Note:** 
-> 
+> **Note:**
+>
 > For non-effectful capabilities we need to unsafely run the final effect to satisfy the required interface. For `ZSink` we also need to map the error into a failed sink as demonstrated above.
 
 ### The Complete Example
