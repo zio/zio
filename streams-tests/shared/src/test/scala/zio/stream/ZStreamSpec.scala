@@ -1906,10 +1906,30 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream(1, 2, 3, 4, 5).grouped(2).runCollect)(equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5))))
           },
           test("group size is correct") {
-            assertM(ZStream.range(0, 100).grouped(10).map(_.size).runCollect)(equalTo(Chunk.fill(10)(10) :+ 0))
+            assertM(ZStream.range(0, 100).grouped(10).map(_.size).runCollect)(equalTo(Chunk.fill(10)(10)))
           },
           test("doesn't emit empty chunks") {
-            assertM(ZStream.fromIterable(List.empty[Int]).grouped(5).runCollect)(equalTo(Chunk(Chunk.empty)))
+            assertM(ZStream.fromIterable(List.empty[Int]).grouped(5).runCollect)(equalTo(Chunk.empty))
+          },
+          test("is equivalent to Array#grouped") {
+            check(pureStreamOfInts, Gen.int(1, 10)) { case (stream, chunkSize) =>
+              for {
+                result1 <- stream.grouped(chunkSize).runCollect
+                partial <- stream.runCollect
+                arrays   = partial.toArray.grouped(chunkSize).toArray
+                result2  = Chunk.fromArray(arrays.map(Chunk.fromArray(_)))
+              } yield assert(result1)(equalTo(result2))
+            }
+          },
+          test("emits elements properly when a failure occurs") {
+            for {
+              ref         <- Ref.make[Chunk[Chunk[Int]]](Chunk.empty)
+              streamChunks = ZStream.fromChunks(Chunk(1, 2, 3, 4), Chunk(5, 6, 7), Chunk(8))
+              stream       = (streamChunks ++ ZStream.fail("Ouch")).grouped(3)
+              expected     = Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6), Chunk(7, 8))
+              either      <- stream.mapZIO(chunk => ref.update(_ :+ chunk)).runCollect.either
+              result      <- ref.get
+            } yield assert(either)(isLeft(equalTo("Ouch"))) && assert(result)(equalTo(expected))
           }
         ),
         suite("groupedWithin")(
@@ -3021,7 +3041,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream(1, 2, 3, 4, 5).sliding(6).runCollect
             )(equalTo(Chunk(Chunk(1, 2, 3, 4, 5))))
           },
-          test("is equivalent to Vector#sliding") {
+          test("is equivalent to Array#sliding") {
             check(pureStreamOfInts, Gen.int(1, 100), Gen.int(1, 10)) { case (stream, chunkSize, stepSize) =>
               for {
                 result1 <- stream.sliding(chunkSize, stepSize).runCollect
@@ -3035,8 +3055,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             check(pureStreamGen(Gen.int, 100), Gen.int(1, 100)) { case (stream, chunkSize) =>
               for {
                 result1 <- stream.sliding(chunkSize, chunkSize).runCollect
-                partial <- stream.grouped(chunkSize).runCollect
-                result2  = partial.filterNot(_.isEmpty)
+                result2 <- stream.grouped(chunkSize).runCollect
               } yield assert(result1)(equalTo(result2))
             }
           },
@@ -3052,6 +3071,16 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream().sliding(2).runCollect
             )(equalTo(Chunk()))
+          },
+          test("emits elements properly when a failure occurs") {
+            for {
+              ref         <- Ref.make[Chunk[Chunk[Int]]](Chunk.empty)
+              streamChunks = ZStream.fromChunks(Chunk(1, 2, 3, 4), Chunk(5, 6, 7), Chunk(8))
+              stream       = (streamChunks ++ ZStream.fail("Ouch")).sliding(3, 3)
+              expected     = Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6), Chunk(7, 8))
+              either      <- stream.mapZIO(chunk => ref.update(_ :+ chunk)).runCollect.either
+              result      <- ref.get
+            } yield assert(either)(isLeft(equalTo("Ouch"))) && assert(result)(equalTo(expected))
           }
         ),
         suite("splitOnChunk")(

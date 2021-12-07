@@ -1917,7 +1917,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   size of the chunk
    */
   def grouped(chunkSize: Int)(implicit trace: ZTraceElement): ZStream[R, E, Chunk[A]] =
-    transduce(ZSink.collectAllN[A](chunkSize))
+    rechunk(chunkSize).chunks
 
   /**
    * Partitions the stream with the specified chunkSize or until the specified
@@ -2919,6 +2919,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     ZStream.unwrap {
       ZIO.succeed {
         val rechunker = new ZStream.Rechunker[A](n)
+
         lazy val process: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
           ZChannel.readWithCause(
             (chunk: Chunk[A]) =>
@@ -3338,8 +3339,25 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       new ZStream({
         val queue = SingleThreadedRingBuffer[A](chunkSize)
 
+        def emitOnStreamEnd(queueSize: Int)(channelEnd: ZChannel[Any, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any]) =
+          if (queueSize < chunkSize) {
+            val items  = queue.toChunk
+            val result = if (items.isEmpty) Chunk.empty else Chunk.single(items)
+            ZChannel.write(result) *> channelEnd
+          } else {
+            val lastEmitIndex = queueSize - (queueSize - chunkSize) % stepSize
+
+            if (lastEmitIndex == queueSize) channelEnd
+            else {
+              val leftovers = queueSize - (lastEmitIndex - chunkSize + stepSize)
+              val lastItems = queue.toChunk.takeRight(leftovers)
+              val result    = if (lastItems.isEmpty) Chunk.empty else Chunk.single(lastItems)
+              ZChannel.write(result) *> channelEnd
+            }
+          }
+
         def reader(queueSize: Int): ZChannel[Any, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
-          ZChannel.readWith(
+          ZChannel.readWithCause(
             (in: Chunk[A]) => {
               ZChannel.write {
                 in.zipWithIndex.flatMap { case (i, idx) =>
@@ -3350,24 +3368,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                 }
               } *> reader(queueSize + in.length)
             },
-            ZChannel.fail(_),
-            end => {
-              if (queueSize < chunkSize) {
-                val items  = queue.toChunk
-                val result = if (items.isEmpty) Chunk.empty else Chunk.single(items)
-                ZChannel.write(result) *> ZChannel.end(end)
-              } else {
-                val lastEmitIndex = queueSize - (queueSize - chunkSize) % stepSize
-
-                if (lastEmitIndex == queueSize) ZChannel.end(end)
-                else {
-                  val leftovers = queueSize - (lastEmitIndex - chunkSize + stepSize)
-                  val lastItems = queue.toChunk.takeRight(leftovers)
-                  val result    = if (lastItems.isEmpty) Chunk.empty else Chunk.single(lastItems)
-                  ZChannel.write(result) *> ZChannel.end(end)
-                }
-              }
-            }
+            (cause: Cause[E]) => emitOnStreamEnd(queueSize)(ZChannel.failCause(cause)),
+            (_: Any) => emitOnStreamEnd(queueSize)(ZChannel.unit)
           )
 
         self.channel >>> reader(0)
