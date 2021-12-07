@@ -597,7 +597,19 @@ object ZChannelSpec extends ZIOBaseSpec {
             } yield (v1, v2, v3)).runDrain.provideEnvironment(ZEnvironment(4))
           )(equalTo((4, 2, 4)))
         }
-      )
+      ),
+      test("cause is propagated on channel interruption") {
+        for {
+          promise <- Promise.make[Nothing, Unit]
+          ref     <- Ref.make[Exit[Any, Any]](Exit.unit)
+          _ <- ZChannel
+                 .fromZIO(promise.succeed(()) *> ZIO.never)
+                 .runDrain
+                 .onExit(ref.set)
+                 .raceEither(promise.await)
+          exit <- ref.get
+        } yield assertTrue(exit.isInterrupted)
+      }
     )
   )
 

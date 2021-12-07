@@ -581,9 +581,9 @@ private[zio] final class FiberContext[E, A](
         val newState = executing.copy(suppressed = Cause.empty)
 
         if (!state.compareAndSet(oldState, newState)) unsafeClearSuppressed()
-        else suppressed
+        else suppressed ++ oldState.interruptorsCause
 
-      case _ => Cause.empty
+      case _ => oldState.interruptorsCause
     }
   }
 
