@@ -863,6 +863,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             n
           }.runCollect)(equalTo(Chunk(2)))
         },
+        test("collectFirst") {
+          assertM(ZStream(Left(1), Right(2), Left(3), Right(4)).collectFirst { case Right(n) =>
+            n
+          }.runCollect)(equalTo(Chunk(2)))
+        },
         test("changes") {
           check(pureStreamOfInts) { stream =>
             for {
@@ -4216,6 +4221,51 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(expected))
           }
         },
+        suite("rechunkMin")(
+          test("handle rechunking properly") {
+            val chunks   = Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6, 7, 8), Chunk(9), Chunk(10, 11), Chunk(12, 13))
+            val expected = Chunk(Chunk(1, 2, 3, 4), Chunk(5, 6, 7, 8), Chunk(9, 10, 11), Chunk(12, 13))
+            assertM(
+              ZStream
+                .fromChunks(chunks: _*)
+                .rechunkMin(3)
+                .chunks
+                .runCollect
+            )(equalTo(expected))
+          },
+          test("returns chunks with at least size equals n") {
+            val chunks   = Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6, 7), Chunk(8), Chunk(9, 10, 11), Chunk(12))
+            val expected = Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6, 7), Chunk(8, 9, 10, 11), Chunk(12))
+            assertM(
+              ZStream
+                .fromChunks(chunks: _*)
+                .rechunkMin(3)
+                .chunks
+                .runCollect
+            )(equalTo(expected))
+          },
+          test("returns chunks with at least size equals n including last chunk") {
+            val chunks   = Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6, 7), Chunk(8), Chunk(9, 10, 11, 12), Chunk(13, 14))
+            val expected = Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6, 7), Chunk(8, 9, 10, 11, 12))
+            assertM(
+              ZStream
+                .fromChunks(chunks: _*)
+                .rechunkMin(3, false)
+                .chunks
+                .runCollect
+            )(equalTo(expected))
+          },
+          test("emits elements properly when a failure occurs") {
+            for {
+              ref         <- Ref.make[Chunk[Chunk[Int]]](Chunk.empty)
+              streamChunks = ZStream.fromChunks(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6, 7), Chunk(8), Chunk(9))
+              stream       = (streamChunks ++ ZStream.fail("Ouch")).rechunkMin(3, false)
+              expected     = Chunk(Chunk(1, 2, 3, 4), Chunk(5, 6, 7))
+              either      <- stream.chunks.mapZIO(chunk => ref.update(_ :+ chunk)).runCollect.either
+              result      <- ref.get
+            } yield assert(either)(isLeft(equalTo("Ouch"))) && assert(result)(equalTo(expected))
+          }
+        ),
         test("concatAll") {
           check(tinyListOf(Gen.chunkOf(Gen.int))) { chunks =>
             assertM(

@@ -621,6 +621,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     mapChunks(_.collect(f))
 
   /**
+   * Performs a find and map in a single step. Emits the first element of the
+   * stream that satisfies the predicate.
+   */
+  final def collectFirst[B](f: PartialFunction[A, B])(implicit trace: ZTraceElement): ZStream[R, E, B] =
+    find(f.isDefinedAt).map(f)
+
+  /**
    * Filters any `Right` values.
    */
   final def collectLeft[L1, A1](implicit ev: A <:< Either[L1, A1], trace: ZTraceElement): ZStream[R, E, L1] = {
@@ -2922,6 +2929,49 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         new ZStream(channel >>> process)
       }
     }
+
+  /**
+   * Re-chunks the elements of the stream into at least chunks of `n` elements
+   * each. The last chunk might contain less than `n` elements unless specified
+   * otherwise.
+   */
+  def rechunkMin(n: Int, smallerLastChunk: Boolean = true)(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    new ZStream({
+      var builder: ChunkBuilder[A] = ChunkBuilder.make(n)
+      var pos: Int                 = 0
+
+      def streamOnEnd(channelEnd: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit]) =
+        if (pos == 0) channelEnd
+        else {
+          val result = builder.result()
+          if (!smallerLastChunk && result.length < n) channelEnd
+          else ZChannel.write(result) *> channelEnd
+        }
+
+      lazy val process: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
+        ZChannel.readWithCause(
+          (chunk: Chunk[A]) => {
+            if (chunk.isEmpty) process
+            else if (pos == 0 && chunk.size >= n) ZChannel.write(chunk) *> process
+            else {
+              builder ++= chunk
+              pos += chunk.size
+
+              if (pos < n) process
+              else {
+                val result = builder.result()
+                builder = ChunkBuilder.make(n)
+                pos = 0
+                ZChannel.write(result) *> process
+              }
+            }
+          },
+          (cause: Cause[E]) => streamOnEnd(ZChannel.failCause(cause)),
+          (_: Any) => streamOnEnd(ZChannel.unit)
+        )
+
+      channel >>> process
+    })
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
