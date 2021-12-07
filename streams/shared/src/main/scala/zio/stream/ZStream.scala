@@ -3349,6 +3349,33 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       })
 
   /**
+   * Splits elements based on a predicate.
+   * {{{
+   *   ZStream.range(1, 10).split(_ % 4 == 0).runCollect // Chunk(Chunk(1, 2, 3), Chunk(5, 6, 7), Chunk(9))
+   * }}}
+   */
+  final def split(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, Chunk[A]] = {
+    def split(leftovers: Chunk[A])(in: Chunk[A]): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] = {
+      val (chunk, remaining) = (leftovers ++ in).splitWhere(f)
+      if (chunk.isEmpty || remaining.isEmpty) loop(chunk ++ remaining.drop(1))
+      else ZChannel.write(Chunk.single(chunk)) *> split(Chunk.empty)(remaining.drop(1))
+    }
+
+    def loop(leftovers: Chunk[A]): ZChannel[R, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
+      ZChannel.readWith(
+        (in: Chunk[A]) => split(leftovers)(in),
+        (e: E) => ZChannel.fail(e),
+        (_: Any) => {
+          if (leftovers.isEmpty) ZChannel.unit
+          else if (leftovers.find(f).isEmpty) ZChannel.write(Chunk.single(leftovers)) *> ZChannel.unit
+          else split(Chunk.empty)(leftovers) *> ZChannel.unit
+        }
+      )
+
+    new ZStream(self.channel >>> loop(Chunk.empty))
+  }
+
+  /**
    * Splits elements on a delimiter and transforms the splits into desired
    * output.
    */

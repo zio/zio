@@ -3071,6 +3071,30 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(either)(isLeft(equalTo("Ouch"))) && assert(result)(equalTo(expected))
           }
         ),
+        suite("split")(
+          test("should split properly") {
+            val expected0 = Chunk(Chunk(1, 2, 3), Chunk(5, 6, 7), Chunk(9))
+            val chunks    = Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6), Chunk(7, 8, 9), Chunk(10))
+            val expected1 = Chunk(Chunk(1, 2), Chunk(4, 5), Chunk(7, 8), Chunk(10))
+
+            for {
+              result0 <- ZStream.range(0, 10).split(_ % 4 == 0).runCollect
+              result1 <- ZStream.fromChunks(chunks: _*).split(_ % 3 == 0).runCollect
+            } yield assert(result0)(equalTo(expected0)) && assert(result1)(equalTo(expected1))
+          },
+          test("is equivalent to identity when predicate isn't satisfied") {
+            check(pureStreamGen(Gen.int(1, 10), 10)) { stream =>
+              for {
+                result1 <- stream.split(_ % 11 == 0).runCollect
+                partial <- stream.runCollect
+                result2  = Chunk.single(partial).filter(_.nonEmpty)
+              } yield assert(result1)(equalTo(result2))
+            }
+          },
+          test("should output empty chunk when stream is empty") {
+            assertM(ZStream[Int]().split(_ % 11 == 0).runCollect)(equalTo(Chunk()))
+          }
+        ),
         suite("splitOnChunk")(
           test("consecutive delimiter yields empty Chunk") {
             val input         = ZStream.apply(Chunk(1, 2), Chunk(1), Chunk(2, 1, 2, 3, 1, 2), Chunk(1, 2))
