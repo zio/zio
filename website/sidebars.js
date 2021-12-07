@@ -203,7 +203,17 @@ module.exports = {
           type: "category",
           label: "Mock Services",
           items: [
-            "datatypes/test/mock/index"
+            "datatypes/test/mock/index",
+            {
+              type: "category",
+              label: "Built-in Mock Services",
+              items: [
+                "datatypes/test/mock/console",
+                "datatypes/test/mock/clock",
+                "datatypes/test/mock/random",
+                "datatypes/test/mock/system",
+              ]
+            }
           ]
         },
         "datatypes/test/test-aspect",
