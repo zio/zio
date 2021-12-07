@@ -52,7 +52,6 @@ abstract class BaseTestTask(
     spec: ZIOSpecAbstract,
     loggers: Array[Logger]
   )(implicit trace: ZTraceElement): ZIO[TestLogger, Throwable, Unit] = {
-    // TODO Is all this layer construction inappropriate here? the old style handled everything via the `runner` field, and didn't need to .provide here
     val argslayer: ULayer[ZIOAppArgs] =
       ZLayer.succeed(
         ZIOAppArgs(Chunk.empty)
