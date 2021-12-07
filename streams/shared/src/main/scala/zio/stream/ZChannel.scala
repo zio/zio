@@ -836,7 +836,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 ZIO.done(exec.getDone)
             }
 
-          interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+          interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]).uninterruptible
         }
       }
 

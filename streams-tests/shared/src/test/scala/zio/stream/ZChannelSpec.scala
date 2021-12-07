@@ -597,6 +597,22 @@ object ZChannelSpec extends ZIOBaseSpec {
             } yield (v1, v2, v3)).runDrain.provideEnvironment(ZEnvironment(4))
           )(equalTo((4, 2, 4)))
         }
+      ),
+      suite("interruption")(
+        test("propagates cause #6125") {
+          for {
+            promise <- Promise.make[Nothing, Nothing]
+            fiber <- ZChannel
+                       .fromZIO(ZIO.never)
+                       .runDrain
+                       .onExit(promise.done)
+                       .raceEither(ZIO.sleep(250.millis))
+                       .provide(Clock.live)
+                       .fork
+            _      <- fiber.join
+            result <- promise.await.exit
+          } yield assertTrue(result.isInterrupted)
+        } @@ zioTag(interruption)
       )
     )
   )

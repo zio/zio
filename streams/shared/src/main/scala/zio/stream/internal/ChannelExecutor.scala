@@ -4,6 +4,7 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.immutable.Queue
 
 class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
@@ -206,17 +207,19 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
           case ZChannel.Effect(zio) =>
             val pzio =
-              (if (providedEnv == null) zio else zio.provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]]))
+              (if (providedEnv == null) zio
+               else zio.provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]])).interruptible
                 .asInstanceOf[ZIO[Env, OutErr, OutDone]]
 
             result = ChannelState.Effect(
               pzio
                 .foldCauseZIO(
-                  cause =>
+                  cause => {
                     doneHalt(cause) match {
                       case ChannelState.Effect(zio) => zio
                       case _                        => ZIO.unit
-                    },
+                    }
+                  },
                   z =>
                     doneSucceed(z) match {
                       case ChannelState.Effect(zio) => zio
@@ -358,9 +361,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           storeInProgressFinalizer(finalizerEffect)
 
           ChannelState.Effect(
-            finalizerEffect
-              .ensuring(UIO(clearInProgressFinalizer()))
-              .uninterruptible *> UIO(doneHalt(cause))
+            (finalizerEffect
+              .ensuring(UIO(clearInProgressFinalizer())) *> UIO(doneHalt(cause))).uninterruptible
           )
         }
     }
@@ -413,10 +415,17 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         case ChannelState.Effect(zio) =>
           ChannelState.Effect(
             zio.foldCauseZIO(
-              cause =>
-                UIO {
-                  currentChannel = read.done.onHalt(cause)
-                },
+              cause => {
+                if (cause.isEmpty) {
+                  UIO {
+                    currentChannel = read.done.onExit(input.getDone)
+                  }
+                } else {
+                  UIO {
+                    currentChannel = read.done.onHalt(cause)
+                  }
+                }
+              },
               _ => go(input.run())
             )
           )
