@@ -658,7 +658,7 @@ object ZFiberRef {
       }
   }
 
-  private[zio] val forkScopeOverride: FiberRef.Runtime[Option[ZScope]] =
+  private[zio] val forkScopeOverride: FiberRef.Runtime[Option[ZScope[Exit[Any, Any]]]] =
     ZFiberRef.unsafeMake(None, _ => None, (a, _) => a)
 
   private[zio] val currentExecutor: FiberRef.Runtime[Option[zio.Executor]] =

@@ -486,32 +486,11 @@ object Fiber extends FiberPlatformSpecific {
     final def dump(implicit trace: ZTraceElement): UIO[Fiber.Dump] = dumpWith(true)
 
     /**
-     * Evaluates the specified effect on the fiber. If this is not possible,
-     * because the fiber has already ended life, then the specified alternate
-     * effect will be executed instead.
-     */
-    def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit]
-
-    /**
-     * A fully-featured, but much slower version of `evalOn`, which is useful
-     * when environment and error are required.
-     */
-    def evalOnZIO[R, E2, A2](effect: ZIO[R, E2, A2], orElse: ZIO[R, E2, A2])(implicit
-      trace: ZTraceElement
-    ): ZIO[R, E2, A2] =
-      for {
-        r <- ZIO.environment[R]
-        p <- Promise.make[E2, A2]
-        _ <- evalOn(effect.provideEnvironment(r).intoPromise(p), orElse.provideEnvironment(r).intoPromise(p))
-        a <- p.await
-      } yield a
-
-    /**
      * The identity of the fiber.
      */
     def id: FiberId.Runtime
 
-    def scope: ZScope
+    def scope: ZScope[Exit[E, A]]
 
     /**
      * The status of the fiber.
@@ -549,7 +528,7 @@ object Fiber extends FiberPlatformSpecific {
     def interruptStatus: InterruptStatus
     def executor: Executor
     def isLocked: Boolean
-    def scope: ZScope
+    def scope: ZScope[Exit[Any, Any]]
   }
 
   object Descriptor {
@@ -573,7 +552,7 @@ object Fiber extends FiberPlatformSpecific {
       interruptStatus0: InterruptStatus,
       executor0: Executor,
       locked0: Boolean,
-      scope0: ZScope
+      scope0: ZScope[Exit[Any, Any]]
     ): Descriptor =
       new Descriptor {
         def id: FiberId                      = id0
@@ -582,7 +561,7 @@ object Fiber extends FiberPlatformSpecific {
         def interruptStatus: InterruptStatus = interruptStatus0
         def executor: Executor               = executor0
         def isLocked: Boolean                = locked0
-        def scope: ZScope                    = scope0
+        def scope: ZScope[Exit[Any, Any]]    = scope0
       }
   }
 

@@ -994,7 +994,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def fork(implicit trace: ZTraceElement): URIO[R, Fiber.Runtime[E, A]] =
     new ZIO.Fork(self, () => None, trace)
 
-  final def forkIn(scope: => ZScope)(implicit trace: ZTraceElement): URIO[R, Fiber.Runtime[E, A]] =
+  final def forkIn(scope: => ZScope[Exit[Any, Any]])(implicit trace: ZTraceElement): URIO[R, Fiber.Runtime[E, A]] =
     new ZIO.Fork(self, () => Some(scope), trace)
 
   /**
@@ -1071,6 +1071,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def ignore(implicit trace: ZTraceElement): URIO[R, Unit] =
     self.fold(ZIO.unitFn, ZIO.unitFn)
+
+  /**
+   * Returns a new effect whose scope will be extended by the specified scope.
+   * This means any finalizers associated with the effect will not be executed
+   * until the specified scope is closed.
+   */
+  final def in(scope: => ZScope[Any])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).forkDaemon.flatMap { fiber =>
+        scope.extend(fiber.scope) *> restore(fiber.join).onInterrupt(ids =>
+          ids.headOption.fold(fiber.interrupt)(id => fiber.interruptAs(id))
+        )
+      }
+    }
 
   /**
    * Returns a new effect that will not succeed with its value before first
@@ -1430,7 +1444,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Returns a new effect that will utilize the specified scope to supervise any
    * fibers forked within the original effect.
    */
-  final def overrideForkScope(scope: => ZScope)(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  final def overrideForkScope(scope: => ZScope[Exit[Any, Any]])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     new ZIO.OverrideForkScope(self, () => Some(scope), trace)
 
   /**
@@ -1634,7 +1648,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def raceWith[R1 <: R, E1, E2, B, C](that: => ZIO[R1, E1, B])(
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
     rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C],
-    scope: => Option[ZScope] = None
+    scope: => Option[ZScope[Exit[Any, Any]]] = None
   )(implicit trace: ZTraceElement): ZIO[R1, E2, C] =
     new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
       () => self,
@@ -4296,7 +4310,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Retrieves the scope that will be used to supervise forked effects.
    */
-  def forkScope(implicit trace: ZTraceElement): UIO[ZScope] =
+  def forkScope(implicit trace: ZTraceElement): UIO[ZScope[Exit[Any, Any]]] =
     new ZIO.GetForkScope(ZIO.succeed(_), trace)
 
   /**
@@ -4304,7 +4318,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * passing a function that allows restoring the fork scope to what it was
    * originally.
    */
-  def forkScopeMask[R, E, A](newScope: => ZScope)(f: ForkScopeRestore => ZIO[R, E, A])(implicit
+  def forkScopeMask[R, E, A](newScope: => ZScope[Exit[Any, Any]])(f: ForkScopeRestore => ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZIO[R, E, A] =
     ZIO.forkScopeWith(scope => f(new ForkScopeRestore(scope)).overrideForkScope(newScope))
@@ -4312,7 +4326,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Retrieves the scope that will be used to supervise forked effects.
    */
-  def forkScopeWith[R, E, A](f: ZScope => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  def forkScopeWith[R, E, A](f: ZScope[Exit[Any, Any]] => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     new ZIO.GetForkScope(f, trace)
 
   /**
@@ -5044,7 +5058,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Passes the fiber's scope to the specified function, which creates an effect
    * that will be returned from this method.
    */
-  def scopeWith[R, E, A](f: ZScope => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  def scopeWith[R, E, A](f: ZScope[Exit[Any, Any]] => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     descriptorWith(d => f(d.scope))
 
   /**
@@ -5653,7 +5667,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
   }
 
-  final class Grafter(private val scope: ZScope) extends AnyVal {
+  final class Grafter(private val scope: ZScope[Exit[Any, Any]]) extends AnyVal {
     def apply[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       new ZIO.OverrideForkScope(zio, () => Some(scope), trace)
   }
@@ -5806,7 +5820,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private val _succeedRight: Any => IO[Any, Either[Any, Any]] =
     a => succeedNow[Either[Any, Any]](Right(a))
 
-  final class ForkScopeRestore(private val scope: ZScope) extends AnyVal {
+  final class ForkScopeRestore(private val scope: ZScope[Exit[Any, Any]]) extends AnyVal {
     def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       zio.overrideForkScope(scope)
   }
@@ -6275,7 +6289,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class Fork[R, E, A](
     val zio: ZIO[R, E, A],
-    val scope: () => Option[ZScope],
+    val scope: () => Option[ZScope[Exit[Any, Any]]],
     val trace: ZTraceElement
   ) extends URIO[R, Fiber.Runtime[E, A]] {
     def unsafeLog: () => String =
@@ -6406,7 +6420,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val right: () => ZIO[R, ER, B],
     val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
     val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
-    val scope: () => Option[ZScope],
+    val scope: () => Option[ZScope[Exit[Any, Any]]],
     val trace: ZTraceElement
   ) extends ZIO[R, E, C] {
     def unsafeLog: () => String =
@@ -6427,7 +6441,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class GetForkScope[R, E, A](
-    val f: ZScope => ZIO[R, E, A],
+    val f: ZScope[Exit[Any, Any]] => ZIO[R, E, A],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
@@ -6438,7 +6452,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class OverrideForkScope[R, E, A](
     val zio: ZIO[R, E, A],
-    val forkScope: () => Option[ZScope],
+    val forkScope: () => Option[ZScope[Exit[Any, Any]]],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =

@@ -634,7 +634,7 @@ object Cause extends Serializable {
       })
   }
 
-  // Stackless is excluded completely from equals & hashCode
+  // Meta is excluded completely from equals & hashCode
   final case class Stackless[+E](cause: Cause[E], stackless: Boolean) extends Cause[E] {
     override def hashCode: Int = cause.hashCode
     override def equals(obj: Any): Boolean = obj match {
