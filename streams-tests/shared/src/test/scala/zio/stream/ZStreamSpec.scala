@@ -1152,6 +1152,24 @@ object ZStreamSpec extends ZIOBaseSpec {
             execution <- log.get
           } yield assert(execution)(equalTo(List("Ensuring", "Release", "Use", "Acquire")))
         },
+        test("exists") {
+          for {
+            ref    <- Ref.make(0)
+            chunks  = Chunk(Chunk(false, true), Chunk(false, true))
+            stream  = ZStream.fromChunks(chunks: _*).mapZIO(b => ref.update(_ + 1).as(b)).exists(identity)
+            result <- stream.runCollect
+            count  <- ref.get
+          } yield assert(result)(equalTo(Chunk(true))) && assert(count)(equalTo(2))
+        },
+        test("existsZIO") {
+          for {
+            ref    <- Ref.make(0)
+            chunks  = Chunk(Chunk(false, true), Chunk(true, false))
+            stream  = ZStream.fromChunks(chunks: _*).mapZIO(b => ref.update(_ + 1).as(b)).existsZIO(ZIO.succeedNow)
+            result <- stream.runCollect
+            count  <- ref.get
+          } yield assert(result)(equalTo(Chunk(true))) && assert(count)(equalTo(2))
+        },
         test("environmentWith") {
           for {
             result <- ZStream.service[String].provideEnvironment(ZEnvironment("test")).runHead.some
@@ -1239,6 +1257,24 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(Chunk(Left("boom"))))
           }
         ),
+        test("forall") {
+          for {
+            ref    <- Ref.make(0)
+            chunks  = Chunk(Chunk(false, true), Chunk(false, true))
+            stream  = ZStream.fromChunks(chunks: _*).mapZIO(b => ref.update(_ + 1).as(b)).forall(identity)
+            result <- stream.runCollect
+            count  <- ref.get
+          } yield assert(result)(equalTo(Chunk(false))) && assert(count)(equalTo(2))
+        },
+        test("forallZIO") {
+          for {
+            ref    <- Ref.make(0)
+            chunks  = Chunk(Chunk(true, true), Chunk(true, true))
+            stream  = ZStream.fromChunks(chunks: _*).mapZIO(b => ref.update(_ + 1).as(b)).forallZIO(ZIO.succeedNow)
+            result <- stream.runCollect
+            count  <- ref.get
+          } yield assert(result)(equalTo(Chunk(true))) && assert(count)(equalTo(4))
+        },
         suite("flatMap")(
           test("deep flatMap stack safety") {
             def fib(n: Int): ZStream[Any, Nothing, Int] =

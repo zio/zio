@@ -1245,6 +1245,37 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(channel.ensuring(fin))
 
   /**
+   * Emits true as soon as the predicate is satisfied. Otherwise false.
+   */
+  final def exists(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, Boolean] = {
+    lazy val loop: ZChannel[R, E, Chunk[A], Any, E, Chunk[Boolean], Any] =
+      ZChannel.readWith(
+        (in: Chunk[A]) => if (in.exists(f)) ZChannel.write(Chunk.single(true)) else loop,
+        (e: E) => ZChannel.fail(e),
+        (_: Any) => ZChannel.write(Chunk.single(false)) *> ZChannel.unit
+      )
+
+    new ZStream(self.channel >>> loop)
+  }
+
+  /**
+   * Emits true as soon as the predicate is satisfied. Otherwise false.
+   */
+  final def existsZIO[R1 <: R, E1 >: E](
+    f: A => ZIO[R1, E1, Boolean]
+  )(implicit trace: ZTraceElement): ZStream[R1, E1, Boolean] = {
+    lazy val loop: ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[Boolean], Any] =
+      ZChannel.readWith(
+        (in: Chunk[A]) =>
+          ZChannel.fromZIO(in.existsZIO(f)).flatMap(if (_) ZChannel.write(Chunk.single(true)) else loop),
+        (e: E1) => ZChannel.fail(e),
+        (_: Any) => ZChannel.write(Chunk.single(false)) *> ZChannel.unit
+      )
+
+    new ZStream(self.channel >>> loop)
+  }
+
+  /**
    * Filters the elements emitted by this stream using the provided function.
    */
   final def filter(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
@@ -1299,6 +1330,20 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   @deprecated("use runFold", "2.0.0")
   final def fold[S](s: S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
     runFold(s)(f)
+
+  /**
+   * Emits false as soon as the predicate isn't satisfied. Otherwise true.
+   */
+  final def forall(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, Boolean] =
+    exists(element => !f(element)).map(!_)
+
+  /**
+   * Emits false as soon as the predicate isn't satisfied. Otherwise true
+   */
+  final def forallZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZStream[R1, E1, Boolean] =
+    existsZIO(element => f(element).map(!_)).map(!_)
 
   /**
    * Executes a pure fold over the stream of values - reduces all elements in

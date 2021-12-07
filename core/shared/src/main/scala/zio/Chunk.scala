@@ -276,6 +276,28 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
+   * Determines whether the effectful predicate is satisfied for at least one
+   * element of this chunk.
+   */
+  def existsZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Boolean] =
+    ZIO.suspendSucceed {
+      var exists: ZIO[R, E, Boolean] = UIO.succeedNow(false)
+      val iterator                   = self.chunkIterator
+      var index                      = 0
+      while (iterator.hasNextAt(index)) {
+        val a = iterator.nextAt(index)
+        index += 1
+        exists = exists.flatMap {
+          case true =>
+            ZIO.succeedNow(true)
+          case false =>
+            f(a)
+        }
+      }
+      exists
+    }
+
+  /**
    * Returns a filtered subset of this chunk.
    */
   override def filter(f: A => Boolean): Chunk[A] = {
