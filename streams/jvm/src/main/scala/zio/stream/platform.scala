@@ -26,12 +26,38 @@ import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketCha
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{OpenOption, Path}
 import java.nio.{Buffer, ByteBuffer}
+import java.security.MessageDigest
 import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
 import scala.annotation.tailrec
 
 trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
+
+  /**
+   * Creates a sink which digests incoming bytes using Java's MessageDigest
+   * class, returning in a single byte chunk with the digest value once the
+   * stream completes.
+   *
+   * @param createDigest
+   *   A block that creates an empty MessageDirect, typically by invoking
+   *   MessageDigest.getInstance with e.g. "SHA-1" or "SHA-256".
+   */
+  def digest(createDigest: => MessageDigest): ZSink[Any, Nothing, Byte, Nothing, Chunk[Byte]] =
+    ZSink {
+      for {
+        digest <- ZManaged.succeed(createDigest)
+      } yield { (optChunk: Option[Chunk[Byte]]) =>
+        optChunk match {
+          case None =>
+            ZIO.fail((Right(Chunk.fromArray(digest.digest())), Chunk.empty))
+          case Some(chunk) =>
+            ZIO.succeed {
+              digest.update(chunk.toArray)
+            }
+        }
+      }
+    }
 
   /**
    * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte
