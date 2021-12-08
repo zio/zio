@@ -13,8 +13,8 @@ trait ZIOBaseSpec extends ZIOSpecDefault {
     ({ type OutEnv[Env] = Env })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ]] =
-    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(120.seconds))
-    else Chunk(TestAspect.sequential, TestAspect.timeout(120.seconds))
+    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(180.seconds))
+    else Chunk(TestAspect.sequential, TestAspect.timeout(180.seconds))
 
   sealed trait ZIOTag {
     val value: String
