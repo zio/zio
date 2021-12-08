@@ -204,6 +204,7 @@ module.exports = {
           label: "Mock Services",
           items: [
             "datatypes/test/mock/index",
+            "datatypes/test/mock/expectation",
             {
               type: "category",
               label: "Built-in Mock Services",

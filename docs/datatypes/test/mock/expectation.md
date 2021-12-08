@@ -1,0 +1,212 @@
+---
+id: expectation
+title: Expectation
+---
+
+An `Expectation[R]` is an immutable tree structure that represents expectations on environment `R`.
+
+## Expectations
+
+ZIO Test has a variety of expectations, such as `value`, `unit`, `failure`, and `never`. In this section we are going to learn each of these expectations and their variant, by mocking the `UserService` service. So let's assume we have the following service:
+
+```scala mdoc:silent
+import zio._
+import zio.test._
+import zio.test.mock._
+
+case class User(id: String, name: String)
+
+trait UserService {
+  def totalUsers: IO[String, Int]
+
+  def getUserById(id: String): IO[String, User]
+
+  def recentUsers(n: Int): IO[String, List[User]]
+
+  def remove(id: String): IO[String, Unit]
+}
+
+object UserService {
+  def totalUsers: ZIO[UserService, String, Int] =
+    ZIO.serviceWithZIO(_.totalUsers)
+
+  def getUserById(id: String): ZIO[UserService, String, User] =
+    ZIO.serviceWithZIO(_.getUserById(id))
+
+  def recentUsers(n: Int): ZIO[UserService, String, List[User]] =
+    ZIO.serviceWithZIO(_.recentUsers(n))
+
+  def remove(id: String): ZIO[UserService, String, Unit] =
+    ZIO.serviceWithZIO(_.remove(id))
+}
+```
+
+We can write the mock version of this class as below:
+
+```scala mdoc:silent
+
+object MockUserService extends Mock[UserService] {
+
+  object TotalUsers  extends Effect[Unit, String, Int]
+  object GetUserById extends Effect[String, String, User]
+  object RecentUsers extends Effect[Int, String, List[User]]
+  object Remove      extends Effect[String, String, Unit]
+
+  val compose: URLayer[mock.Proxy, UserService] =
+    ZIO.service[mock.Proxy]
+      .map { proxy =>
+        new UserService {
+          override def totalUsers:          IO[String, Int]        = proxy(TotalUsers)
+          def getUserById(id: String):      IO[String, User]       = proxy(GetUserById, id)
+          override def recentUsers(n: Int): IO[String, List[User]] = proxy(RecentUsers, n)
+          override def remove(id: String):  IO[String, Unit]       = proxy(Remove, id)
+        }
+      }.toLayer
+      
+}
+```
+
+Now, let's look at each expectation:
+
+### `value`
+
+Expecting a simple value:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("expecting simple value") {
+  for {
+    total <- UserService.totalUsers.provideLayer(
+      MockUserService.TotalUsers(Expectation.value(14)))
+  } yield assertTrue(total == 14)
+} 
+```
+
+### `valueF`
+
+Expecting a value based on input arguments:
+
+```scala mdoc:silent
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("an expectation based on input arguments") {
+  for {
+    users <- UserService.recentUsers(3).provideLayer(
+      MockUserService.RecentUsers(
+        Assertion.isPositive,
+        Expectation.valueF(n =>
+          (1 to n).map(id => User(id.toString, "name")).toList
+        )
+      )
+    )
+  } yield assertTrue(users.map(_.id) == List("1", "2", "3"))
+}
+```
+
+### `valueM`
+
+Expecting a value based on the input arguments and also the result of an effectful operation:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("effectful expectation") {
+  for {
+    users <- UserService.recentUsers(3).provideLayer(
+      MockUserService.RecentUsers(
+        Assertion.isPositive,
+        Expectation.valueM(n =>
+          ZIO.foreach(1 to n) { n =>
+            Random
+              .nextUUID
+              .map(id => User(id.toString, s"name-$n"))
+              .provideLayer(Random.live)
+          }.map(_.toList)
+        )
+      )
+    )
+  } yield assertTrue(List("name-1", "name-2", "name-3") == users.map(_.name))
+} 
+```
+
+### `unit`
+
+Expecting simple unit value:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("expecting unit") {
+  for {
+    res <- UserService.remove("1").provideLayer(
+      MockUserService.Remove(
+        Assertion.isNonEmptyString,
+        Expectation.unit
+      )
+    ).exit
+  } yield assertTrue(
+    res match {
+      case Exit.Success(()) => true
+      case _ => false
+    }
+  )
+}
+```
+
+### `failure`
+
+Expecting a failure:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("failure expectation") {
+  for {
+    total <- UserService.totalUsers.provideLayer(
+      MockUserService.TotalUsers(Expectation.failure("connection failed"))
+    ).exit
+  } yield assertTrue(
+    total match {
+      case Exit.Success(_) =>
+        false
+      case Exit.Failure(cause) =>
+        cause.contains(Cause.fail("connection failed"))
+    }
+  )
+}
+```
+
+There are also `failureF` and `failureM` variants like what we described for `value` expectation.
+
+### `never`
+
+This expectation simulates a never-ending loop:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("never ending expectation") {
+  for {
+    r <- Live.live(
+      UserService.totalUsers.provideLayer(
+        MockUserService.TotalUsers(
+          Expectation.never
+        )
+      ).timeout(500.millis)
+    )
+  } yield assertTrue(r.isEmpty)
+}
+```
