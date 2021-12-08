@@ -600,19 +600,25 @@ object ZChannelSpec extends ZIOBaseSpec {
       ),
       suite("stack safety")(
         test("mapOut is stack safe") {
-          val N = 100000
+          val N = 50000
           assertM(
-          (1 to N).foldLeft(ZChannel.write(1L)) { case (channel, n) =>
-            channel.mapOut(_ + n)
-          }.runCollect.map(_._1.head)
+            (1 to N)
+              .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
+                channel.mapOut(_ + n)
+              }
+              .runCollect
+              .map(_._1.head)
           )(equalTo((1 to N).foldLeft(1L)(_ + _)))
         },
         test("concatMap is stack safe") {
           val N = 100000L
           assertM(
-            (1L to N).foldLeft(ZChannel.write(1L)) { case (channel, n) =>
-              channel.concatMap(_ => ZChannel.write(n)).unit
-            }.runCollect.map(_._1.head)
+            (1L to N)
+              .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
+                channel.concatMap(_ => ZChannel.write(n)).unit
+              }
+              .runCollect
+              .map(_._1.head)
           )(equalTo(N))
         }
       )

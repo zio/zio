@@ -5,6 +5,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel
 
 import java.util.concurrent.atomic.AtomicInteger
+import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
 class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
@@ -14,7 +15,9 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 ) {
   import ChannelExecutor._
 
-  private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env])(implicit trace: ZTraceElement): ZIO[Env, Nothing, Any] = {
+  private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env])(implicit
+    trace: ZTraceElement
+  ): ZIO[Env, Nothing, Any] = {
     val currInput = input
     input = prev
 
@@ -25,14 +28,15 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     exit: Exit[Any, Any]
   )(implicit trace: ZTraceElement): URIO[Env, Exit[Any, Any]] = {
 
-    def unwind(acc: Exit[Any, Any], conts: List[ErasedContinuation[Env]]): ZIO[Env, Any, Any] =
+    @tailrec
+    def unwind(acc: ZIO[Env, Any, Any], conts: List[ErasedContinuation[Env]]): ZIO[Env, Any, Any] =
       conts match {
-        case Nil                                => ZIO.done(acc)
+        case Nil                                => acc
         case ZChannel.Fold.K(_, _) :: rest      => unwind(acc, rest)
-        case ZChannel.Fold.Finalizer(f) :: rest => f(exit).exit.flatMap(finExit => unwind(acc *> finExit, rest))
+        case ZChannel.Fold.Finalizer(f) :: rest => unwind(acc *> f(exit).exit, rest)
       }
 
-    val effect = unwind(Exit.unit, doneStack).exit
+    val effect = unwind(ZIO.unit, doneStack).exit
     doneStack = Nil
     storeInProgressFinalizer(effect)
     effect
