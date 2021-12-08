@@ -98,7 +98,7 @@ object RTSSpec extends ZIOBaseSpec {
       val rts = Runtime.default
       val e   = Executors.newSingleThreadExecutor()
 
-      (0 until 10000).foreach { _ =>
+      (0 until 1000).foreach { _ =>
         rts.unsafeRun {
           IO.async[Nothing, Int] { k =>
             val c: Callable[Unit] = () => k(IO.succeed(1))
