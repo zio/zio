@@ -210,3 +210,27 @@ test("never ending expectation") {
   } yield assertTrue(r.isEmpty)
 }
 ```
+
+## Composing Expectations
+
+### `and`
+
+Whenever there are two expectations to satisfy, we can compose them with the `and` operator:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("satisfy both expectations with a logical `and` operator") {
+  for {
+    total <- (UserService.recentUsers(5) *> UserService.totalUsers).provideLayer(
+      MockUserService.TotalUsers(Expectation.value(1)).and(
+        MockUserService.RecentUsers(
+          Assertion.isPositive,
+          Expectation.value(List(User("1", "user"))))
+      )
+    )
+  } yield assertTrue(total == 1)
+}
+```
