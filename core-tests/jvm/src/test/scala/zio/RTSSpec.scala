@@ -141,5 +141,5 @@ object RTSSpec extends ZIOBaseSpec {
 
       assertM(Live.live(zio))(isGreaterThanEqualTo(1))
     } @@ zioTag(interruption, regression)
-  ) @@ TestAspect.fibers @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
+  )
 }

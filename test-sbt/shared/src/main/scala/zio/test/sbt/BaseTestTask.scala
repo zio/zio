@@ -63,12 +63,10 @@ abstract class BaseTestTask(
     val layer: Layer[Error, spec.Environment] =
       (argslayer +!+ filledTestlayer) >>> spec.layer.mapError(e => new Error(e.toString))
 
-    val fullLayer
-    // TODO This type annotation in particular just feels like it _can't_ be part of the correct solution
-      : Layer[
-        Error,
-        spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock
-      ] =
+    val fullLayer: Layer[
+      Error,
+      spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock
+    ] =
       layer +!+ argslayer +!+ filledTestlayer
 
     val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)

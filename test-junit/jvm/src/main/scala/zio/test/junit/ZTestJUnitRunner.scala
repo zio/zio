@@ -81,22 +81,16 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 
     unsafeRun(
       traverse(filteredSpec, description)
-//<<<<<<< HEAD
         .provide(
           ZEnv.live >>> TestEnvironment.live,
           emptyArgsLayer,
           spec.layer
         )
-        // TODO Cleanup
-//=======
-//        .provideLayer(spec.runner.executor.environment)
-//>>>>>>> series/2.x
         .useNow
     )
     description
   }
 
-//<<<<<<< HEAD
   override def run(notifier: RunNotifier): Unit = {
     val _ = zio.Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRun {
       val emptyArgsLayer: ULayer[ZIOAppArgs] =
@@ -111,21 +105,13 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           instrumented,
           TestArgs.empty,
           ZIO.unit
-        ) // TODO Check if unit is okay for JUnit, or if we need a real value here.
-        // TODO DOes this need to use a provide variant?
+        )
         .provide(
           ZEnv.live >>> TestEnvironment.live,
           emptyArgsLayer,
           spec.layer,
-          TestLogger.fromConsole // TODO Is this okay here?
+          TestLogger.fromConsole
         )
-      // TODO Cleanup
-//=======
-//  override def run(notifier: RunNotifier): Unit =
-//    zio.Runtime(ZEnvironment.empty, spec.runner.runtimeConfig).unsafeRun {
-//      val instrumented = instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
-//      spec.runner.run(instrumented).unit.provideLayer(spec.runner.bootstrap)
-//>>>>>>> series/2.x
     }
   }
 

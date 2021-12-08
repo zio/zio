@@ -141,7 +141,6 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case existingNewTestTask :: otherTasks =>
-                  // TODO Experiment with this again now that other issues have all been resolved
                   if (existingNewTestTask.merges < 1) {
                     (
                       MergedSpec(

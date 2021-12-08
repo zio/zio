@@ -45,15 +45,6 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     runSpec.provideSomeLayer[ZEnv with ZIOAppArgs](
       ZLayer.environment[ZEnv with ZIOAppArgs] ++ (TestEnvironment.live ++ layer ++ TestLogger.fromConsole)
     )
-
-    // TODO Cleanup
-//<<<<<<< HEAD
-//    runSpec.provide[Any, ZEnv with ZIOAppArgs](
-//      ZLayer.environment[ZEnv with ZIOAppArgs] ++ (TestEnvironment.live ++ layer ++ TestLogger.fromConsole)
-//    )
-//=======
-//    runSpec.provideSomeLayer[ZEnv with ZIOAppArgs](TestEnvironment.live ++ layer)
-//>>>>>>> series/2.x
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
@@ -76,9 +67,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] = {
     implicit val trace = Tracer.newTrace
     for {
-      args    <- ZIO.service[ZIOAppArgs]
-      testArgs = TestArgs.parse(args.getArgs.toArray)
-      executedSpec <- runSpec(spec, testArgs, ZIO.unit) // TODO check if this is okay here
+      args         <- ZIO.service[ZIOAppArgs]
+      testArgs      = TestArgs.parse(args.getArgs.toArray)
+      executedSpec <- runSpec(spec, testArgs, ZIO.unit)
       hasFailures = executedSpec.exists {
                       case ExecutedSpec.TestCase(test, _) => test.isLeft
                       case _                              => false
@@ -111,7 +102,6 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
     }
 
-  // TODO Should this have the same signature as the above?
   private[zio] def runSpec(
     spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
     testArgs: TestArgs,
@@ -130,20 +120,11 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
           )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
-      results     <-
-//<<<<<<< HEAD
+      results <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
 
       summary = SummaryBuilder.buildSummary(results)
       _      <- sendSummary.provideEnvironment(ZEnvironment(summary))
-      // TODO Validate merge changes
-//=======
-//        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _)).provideLayer(runner.bootstrap)
-//      _ <- TestLogger
-//             .logLine(SummaryBuilder.buildSummary(results).summary)
-//             .when(testArgs.printSummary)
-//             .provideLayer(runner.bootstrap)
-//>>>>>>> series/2.x
     } yield results
   }
 }
