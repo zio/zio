@@ -108,7 +108,7 @@ object RTSSpec extends ZIOBaseSpec {
       }
 
       assertM(ZIO.attempt(e.shutdown()))(isUnit)
-    } @@ zioTag(regression) @@ TestAspect.nonFlaky(200),
+    } @@ zioTag(regression),
     test("second callback call is ignored") {
       for {
         _ <- IO.async[Throwable, Int] { k =>
