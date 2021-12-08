@@ -1315,9 +1315,4 @@ package object test extends CompileVariants {
     }
   }
 
-  implicit final class SpecSubtypeOps[R, R0](private val self: R0 <:< R) extends AnyVal {
-    @inline def liftEnvSpec[E, A](spec: Spec[R, E, A]): Spec[R0, E, A] =
-      spec.asInstanceOf[Spec[R0, E, A]]
-  }
-
 }

@@ -52,7 +52,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provide(
+             .provideLayer(
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
@@ -62,7 +62,7 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provide(
+                   .provideLayer(
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
@@ -257,7 +257,7 @@ object ReportingTestUtils {
                promise.succeed(())
              }
       f       = ZIO.serviceWithZIO[PureModule.Service](_.zeroParams) <* ZIO.service[String]
-      result <- f.provide(failingLayer ++ mock)
+      result <- f.provideLayer(failingLayer ++ mock)
     } yield assert(result)(equalTo("mocked"))
   }
 

@@ -71,7 +71,7 @@ private [zio] object LayerMacroUtils {
     import ctx.reflect._
 
     def go(tpe: TypeRepr): List[TypeRepr] =
-      tpe.dealias.widen match {
+      tpe.dealias.simplified match {
         case AndType(lhs, rhs) =>
           go(lhs) ++ go(rhs)
 

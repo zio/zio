@@ -24,7 +24,7 @@ import scala.collection.mutable.Builder
 
 /**
  * A `ZLayer[E, A, B]` describes how to build one or more services in your
- * application. Services can be provided into effects via ZIO#provide. Effects
+ * application. Services can be injected into effects via ZIO#inject. Effects
  * can require services via ZIO.service."
  *
  * Layer can be thought of as recipes for producing bundles of services, given
@@ -266,7 +266,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def toRuntime(
     runtimeConfig: RuntimeConfig
   )(implicit ev: Any <:< RIn, trace: ZTraceElement): Managed[E, Runtime[ROut]] =
-    ev.liftEnv(self).build.map(Runtime(_, runtimeConfig))
+    build.provideEnvironment(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
 
   /**
    * Updates one of the services output by this layer.
@@ -390,7 +390,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      *       Fly.live,
      *       Bear.live,
      *       Console.live,
-     *       ZLayer.Debug.tree // <- Include it like this
+     *       ZLayer.Debug.tree
      *     )
      *
      * // Including `ZLayer.Debug.tree` will generate the following compilation error:
@@ -5484,7 +5484,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     final def apply[R, E1 >: E, A](
       zio: ZIO[ROut with R, E1, A]
     )(implicit ev1: Tag[R], ev2: Tag[ROut], trace: ZTraceElement): ZIO[RIn with R, E1, A] =
-      ZIO.provide[RIn, E1, ROut, R, A](self)(zio)
+      ZIO.provideLayer[RIn, E1, ROut, R, A](self)(zio)
 
     /**
      * Provides a managed effect with part of its required environment,
@@ -5493,7 +5493,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     final def apply[R, E1 >: E, A](
       managed: ZManaged[ROut with R, E1, A]
     )(implicit ev1: Tag[R], ev2: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with R, E1, A] =
-      ZManaged.provide[RIn, E1, ROut, R, A](self)(managed)
+      ZManaged.provideLayer[RIn, E1, ROut, R, A](self)(managed)
 
     /**
      * Feeds the output services of this builder into the input of the specified

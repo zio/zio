@@ -600,7 +600,7 @@ object ZChannelSpec extends ZIOBaseSpec {
       ),
       suite("stack safety")(
         test("mapOut is stack safe") {
-          val N = 50000
+          val N = 100000
           assertM(
             (1 to N)
               .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
@@ -621,7 +621,19 @@ object ZChannelSpec extends ZIOBaseSpec {
               .map(_._1.head)
           )(equalTo(N))
         }
-      )
+      ),
+      test("cause is propagated on channel interruption") {
+        for {
+          promise <- Promise.make[Nothing, Unit]
+          ref     <- Ref.make[Exit[Any, Any]](Exit.unit)
+          _ <- ZChannel
+                 .fromZIO(promise.succeed(()) *> ZIO.never)
+                 .runDrain
+                 .onExit(ref.set)
+                 .raceEither(promise.await)
+          exit <- ref.get
+        } yield assertTrue(exit.isInterrupted)
+      }
     )
   )
 

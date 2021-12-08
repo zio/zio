@@ -21,6 +21,21 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
     ${LayerMacros.provideImpl[ZEnv, R, E1,A]('self, 'layer)}
 
   /**
+   * Splits the environment into two parts, assembling one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
+   *
+   * val zio2 = zio.provideSome[Random](clockLayer)
+   * }}}
+   */
+  def provideSome[R0] =
+    new provideSomePartiallyApplied[R0, R, E, A](self)
+
+  /**
    * Automatically assembles a layer for the ZIO effect, which
    * translates it to another level.
    */
@@ -29,7 +44,7 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 }
 
-private final class ProvideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
+private final class provideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
   ${LayerMacros.provideImpl[R0, R, E1, A]('self, 'layer)}
 }

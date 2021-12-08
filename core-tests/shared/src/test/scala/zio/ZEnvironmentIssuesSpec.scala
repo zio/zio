@@ -17,7 +17,7 @@ object ZEnvironmentIssuesSpec extends DefaultRunnableSpec {
       val dog: Dog                = new Dog {}
       val dogService: ULayer[Dog] = ZLayer.succeed(dog)
 
-      zio.provide(dogService).map { result =>
+      zio.provideLayer(dogService).map { result =>
         assertTrue(result == dog)
       }
     } @@ ignore,
