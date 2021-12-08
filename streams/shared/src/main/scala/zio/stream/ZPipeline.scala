@@ -258,7 +258,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that sends all the elements through the given channel
    */
   def fromChannel[InEnv, OutEnv0, InErr, OutErr0, In, Out](
-    channel: ZChannel[OutEnv0, InErr, Chunk[In], Any, OutErr0, Chunk[Out], Any]
+    channel: => ZChannel[OutEnv0, InErr, Chunk[In], Any, OutErr0, Chunk[Out], Any]
   ): ZPipeline.WithOut[
     OutEnv0,
     InEnv,
@@ -304,7 +304,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
         stream
     }
 
-  def iso_8859_1Decode: ZPipeline.WithOut[
+  val iso_8859_1Decode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -317,7 +317,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     textDecodeUsing(StandardCharsets.ISO_8859_1)
 
-  def iso_8859_1Encode: ZPipeline.WithOut[
+  val iso_8859_1Encode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -464,7 +464,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Emits the provided chunk before emitting any other value.
    */
-  def prepend[In](values: Chunk[In]): ZPipeline.WithOut[
+  def prepend[In](values: => Chunk[In]): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -489,7 +489,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that provides the specified environment.
    */
   def provideEnvironment[Env](
-    env: ZEnvironment[Env]
+    env: => ZEnvironment[Env]
   ): ZPipeline.WithOut[
     Env,
     Any,
@@ -514,7 +514,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * A pipeline that rechunks the stream into chunks of the specified size.
    */
-  def rechunk(n: Int): ZPipeline.WithOut[
+  def rechunk(n: => Int): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -539,7 +539,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that scans elements with the specified function.
    */
   def scan[In, Out](
-    s: Out
+    s: => Out
   )(
     f: (Out, In) => Out
   ): ZPipeline.WithOut[
@@ -559,7 +559,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that scans elements with the specified function.
    */
   def scanZIO[Env, Err, In, Out](
-    s: Out
+    s: => Out
   )(
     f: (Out, In) => ZIO[Env, Err, Out]
   ): ZPipeline.WithOut[
@@ -586,7 +586,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Splits strings on a delimiter.
    */
-  def splitOn(delimiter: String): ZPipeline.WithOut[
+  def splitOn(delimiter: => String): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -614,7 +614,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Splits strings on a delimiter.
    */
-  def splitOnChunk[A](delimiter: Chunk[A]): ZPipeline.WithOut[
+  def splitOnChunk[A](delimiter: => Chunk[A]): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -641,7 +641,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX
    * newlines (`\n`).
    */
-  def splitLines: ZPipeline.WithOut[
+  val splitLines: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -730,7 +730,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Creates a pipeline that takes n elements.
    */
-  def take(n: Long): ZPipeline.WithOut[
+  def take(n: => Long): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -805,7 +805,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
         stream.takeWhile(f)
     }
 
-  def usASCIIDecode: ZPipeline.WithOut[
+  val usASCIIDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -824,7 +824,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * utf16 and utf32 without BOM, `utf16Decode` and `utf32Decode` should be used
    * instead as both default to their own default decoder respectively.
    */
-  def utfDecode: ZPipeline.WithOut[
+  val utfDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -853,7 +853,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf8Decode: ZPipeline.WithOut[
+  val utf8Decode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -874,7 +874,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf16Decode: ZPipeline.WithOut[
+  val utf16Decode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -897,7 +897,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf16BEDecode: ZPipeline.WithOut[
+  val utf16BEDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -910,7 +910,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfDecodeFixedLength(StandardCharsets.UTF_16BE, fixedLength = 2)
 
-  def utf16LEDecode: ZPipeline.WithOut[
+  val utf16LEDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -923,7 +923,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfDecodeFixedLength(StandardCharsets.UTF_16LE, fixedLength = 2)
 
-  def utf32Decode: ZPipeline.WithOut[
+  val utf32Decode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -944,7 +944,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf32BEDecode: ZPipeline.WithOut[
+  val utf32BEDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -957,7 +957,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfDecodeFixedLength(CharsetUtf32BE, fixedLength = 4)
 
-  def utf32LEDecode: ZPipeline.WithOut[
+  val utf32LEDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -970,7 +970,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfDecodeFixedLength(CharsetUtf32LE, fixedLength = 4)
 
-  def usASCIIEncode: ZPipeline.WithOut[
+  val usASCIIEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -996,7 +996,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * `getBytes("UTF-16")` in Java. In fact, it is an alias to both
    * `utf16BEWithBomEncode` and `utf16WithBomEncode`.
    */
-  def utf8Encode: ZPipeline.WithOut[
+  val utf8Encode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1009,7 +1009,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.UTF_8)
 
-  def utf8WithBomEncode: ZPipeline.WithOut[
+  val utf8WithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1022,7 +1022,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.UTF_8, bom = BOM.Utf8)
 
-  def utf16BEEncode: ZPipeline.WithOut[
+  val utf16BEEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1035,7 +1035,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.UTF_16BE)
 
-  def utf16BEWithBomEncode: ZPipeline.WithOut[
+  val utf16BEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1048,7 +1048,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.UTF_16BE, bom = BOM.Utf16BE)
 
-  def utf16LEEncode: ZPipeline.WithOut[
+  val utf16LEEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1061,7 +1061,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.UTF_16LE)
 
-  def utf16LEWithBomEncode: ZPipeline.WithOut[
+  val utf16LEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1074,7 +1074,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.UTF_16LE, bom = BOM.Utf16LE)
 
-  def utf16Encode: ZPipeline.WithOut[
+  val utf16Encode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1087,7 +1087,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utf16BEWithBomEncode
 
-  def utf16WithBomEncode: ZPipeline.WithOut[
+  val utf16WithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1100,7 +1100,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utf16BEWithBomEncode
 
-  def utf32BEEncode: ZPipeline.WithOut[
+  val utf32BEEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1113,7 +1113,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(CharsetUtf32BE)
 
-  def utf32BEWithBomEncode: ZPipeline.WithOut[
+  val utf32BEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1126,7 +1126,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(CharsetUtf32BE, bom = BOM.Utf32BE)
 
-  def utf32LEEncode: ZPipeline.WithOut[
+  val utf32LEEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1139,7 +1139,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(CharsetUtf32LE)
 
-  def utf32LEWithBomEncode: ZPipeline.WithOut[
+  val utf32LEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1165,7 +1165,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utf32BEEncode
 
-  def utf32WithBomEncode: ZPipeline.WithOut[
+  val utf32WithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,

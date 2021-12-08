@@ -14,7 +14,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Operator alias for [[race]].
    */
   final def |[R1 <: R, E1 >: E, In1 <: In, L1 >: L, Z1 >: Z](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z1] =
     race(that)
 
@@ -22,7 +22,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Operator alias for [[zip]].
    */
   final def <*>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit
     zippable: Zippable[Z, Z1],
     ev: L <:< In1,
@@ -34,7 +34,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Operator alias for [[zipPar]].
    */
   final def <&>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit zippable: Zippable[Z, Z1], trace: ZTraceElement): ZSink[R1, E1, In1, L1, zippable.Out] =
     zipPar(that)
 
@@ -42,7 +42,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Operator alias for [[zipRight]].
    */
   final def *>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z1] =
     zipRight(that)
 
@@ -50,7 +50,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Operator alias for [[zipParRight]].
    */
   final def &>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z1] =
     zipParRight(that)
 
@@ -58,7 +58,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Operator alias for [[zipLeft]].
    */
   final def <*[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z] =
     zipLeft(that)
 
@@ -66,7 +66,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Operator alias for [[zipParLeft]].
    */
   final def <&[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z] =
     zipParLeft(that)
 
@@ -81,7 +81,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * `p`. The sink's results will be accumulated using the stepping function
    * `f`.
    */
-  def collectAllWhileWith[S](z: S)(p: Z => Boolean)(f: (S, Z) => S)(implicit
+  def collectAllWhileWith[S](z: => S)(p: Z => Boolean)(f: (S, Z) => S)(implicit
     ev: L <:< In,
     trace: ZTraceElement
   ): ZSink[R, E, In, L, S] =
@@ -350,7 +350,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * error from the one that finishes first.
    */
   final def race[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z1 >: Z](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z1] =
     self.raceBoth(that).map(_.merge)
 
@@ -359,8 +359,8 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * from the one that finishes first.
    */
   final def raceBoth[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z2](
-    that: ZSink[R1, E1, In1, L1, Z2],
-    capacity: Int = 16
+    that: => ZSink[R1, E1, In1, L1, Z2],
+    capacity: => Int = 16
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Either[Z, Z2]] =
     self.raceWith(that, capacity)(
       selfDone => ZChannel.MergeDecision.done(ZIO.done(selfDone).map(Left(_))),
@@ -372,8 +372,8 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * function as soon as one result or the other has been computed.
    */
   final def raceWith[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z1, Z2](
-    that: ZSink[R1, E1, In1, L1, Z1],
-    capacity: Int = 16
+    that: => ZSink[R1, E1, In1, L1, Z1],
+    capacity: => Int = 16
   )(
     leftDone: Exit[E, Z] => ZChannel.MergeDecision[R1, E1, Z1, E1, Z2],
     rightDone: Exit[E1, Z1] => ZChannel.MergeDecision[R1, E, Z, E1, Z2]
@@ -410,13 +410,17 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * it completes
    */
   final def summarized[R1 <: R, E1 >: E, B, C](
-    summary: ZIO[R1, E1, B]
+    summary0: => ZIO[R1, E1, B]
   )(f: (B, B) => C)(implicit trace: ZTraceElement) =
     new ZSink[R1, E1, In, L, (Z, C)](
-      ZChannel.fromZIO(summary).flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], (Z, C)] { start =>
-        self.channel.flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], (Z, C)] { done =>
-          ZChannel.fromZIO(summary).map { end =>
-            (done, f(start, end))
+      ZChannel.effectSuspendTotal {
+        val summary = summary0
+
+        ZChannel.fromZIO(summary).flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], (Z, C)] { start =>
+          self.channel.flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], (Z, C)] { done =>
+            ZChannel.fromZIO(summary).map { end =>
+              (done, f(start, end))
+            }
           }
         }
       }
@@ -428,7 +432,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     new ZSink[R1, E2, In1, L1, Z1](self.channel.orElse(that.channel))
 
   def zip[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit
     zippable: Zippable[Z, Z1],
     ev: L <:< In1,
@@ -440,7 +444,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Like [[zip]], but keeps only the result from the `that` sink.
    */
   final def zipLeft[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z] =
     zipWith[R1, E1, In1, L1, Z1, Z](that)((z, _) => z)
 
@@ -449,7 +453,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * tuple.
    */
   final def zipPar[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit zippable: Zippable[Z, Z1], trace: ZTraceElement): ZSink[R1, E1, In1, L1, zippable.Out] =
     zipWithPar[R1, E1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
@@ -457,7 +461,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Like [[zipPar]], but keeps only the result from this sink.
    */
   final def zipParLeft[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z] =
     zipWithPar[R1, E1, In1, L1, Z1, Z](that)((b, _) => b)
 
@@ -465,7 +469,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Like [[zipPar]], but keeps only the result from the `that` sink.
    */
   final def zipParRight[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z1] =
     zipWithPar[R1, E1, In1, L1, Z1, Z1](that)((_, c) => c)
 
@@ -473,7 +477,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * Like [[zip]], but keeps only the result from this sink.
    */
   final def zipRight[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z1] =
     zipWith[R1, E1, In1, L1, Z1, Z1](that)((_, z1) => z1)
 
@@ -483,7 +487,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * results with `f`.
    */
   final def zipWith[R1 <: R, E1 >: E, In1 <: In, L1 >: L <: In1, Z1, Z2](
-    that: ZSink[R1, E1, In1, L1, Z1]
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(f: (Z, Z1) => Z2)(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z2] =
     flatMap(z => that.map(f(z, _)))
 
@@ -492,8 +496,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * provided function.
    */
   final def zipWithPar[R1 <: R, E1 >: E, In1 <: In, L1 >: L <: In1, Z1, Z2](
-    that: ZSink[R1, E1, In1, L1, Z1],
-    capacity: Int = 16
+    that: => ZSink[R1, E1, In1, L1, Z1]
   )(f: (Z, Z1) => Z2)(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z2] =
     self.raceWith(that)(
       {
@@ -579,7 +582,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    * dependency on `R`.
    */
   def provideEnvironment(
-    r: ZEnvironment[R]
+    r: => ZEnvironment[R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZSink[Any, E, In, L, Z] =
     new ZSink(channel.provideEnvironment(r))
 }
@@ -606,7 +609,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that collects first `n` elements into a chunk. Note that the chunk
    * is preallocated and must fit in memory.
    */
-  def collectAllN[In](n: Int)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Chunk[In]] =
+  def collectAllN[In](n: => Int)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Chunk[In]] =
     fromZIO(UIO(ChunkBuilder.make[In](n)))
       .flatMap(cb => foldUntil[In, ChunkBuilder[In]](cb, n.toLong)(_ += _))
       .map(_.result())
@@ -638,7 +641,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * same key, they are merged using the `f` function.
    */
   def collectAllToMapN[Err, In, K](
-    n: Long
+    n: => Long
   )(key: In => K)(f: (In, In) => In)(implicit trace: ZTraceElement): ZSink[Any, Err, In, In, Map[K, In]] =
     foldWeighted[In, Map[K, In]](Map())((acc, in) => if (acc.contains(key(in))) 0 else 1, n) { (acc, in) =>
       val k = key(in)
@@ -656,7 +659,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that collects first `n` distinct inputs into a set.
    */
-  def collectAllToSetN[In](n: Long)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Set[In]] =
+  def collectAllToSetN[In](n: => Long)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Set[In]] =
     foldWeighted[In, Set[In]](Set())((acc, in) => if (acc.contains(in)) 0 else 1, n)(_ + _)
 
   /**
@@ -775,8 +778,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Returns a sink that executes a total effect and ends with its result.
    */
+  @deprecated("use succeed")
   def effectTotal[A](a: => A)(implicit trace: ZTraceElement): ZSink[Any, Any, Nothing, Nothing, A] =
-    new ZSink(ZChannel.effectTotal(a))
+    succeed(a)
 
   /**
    * A sink that always fails with the specified error.
@@ -796,7 +800,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * predicate and initial state.
    */
   def fold[In, S](
-    z: S
+    z: => S
   )(contFn: S => Boolean)(f: (S, In) => S)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, S] = {
     def foldChunkSplit(z: S, chunk: Chunk[In])(
       contFn: S => Boolean
@@ -830,7 +834,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           (x: Any) => ZChannel.end(s)
         )
 
-    new ZSink(reader(z))
+    suspend(new ZSink(reader(z)))
   }
 
   /**
@@ -840,27 +844,30 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * must preserve chunking-invariance.
    */
   def foldChunks[In, S](
-    z: S
+    z0: => S
   )(
     contFn: S => Boolean
-  )(f: (S, Chunk[In]) => S)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, Nothing, S] = {
-    def reader(s: S): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Nothing, S] =
-      ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Nothing, S](
-        (in: Chunk[In]) => {
-          val nextS = f(s, in)
+  )(f: (S, Chunk[In]) => S)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, Nothing, S] =
+    ZSink.suspend {
+      val z = z0
 
-          if (contFn(nextS)) reader(nextS)
-          else ZChannel.end(nextS)
-        },
-        (err: Nothing) => ZChannel.fail(err),
-        (_: Any) => ZChannel.end(s)
+      def reader(s: S): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Nothing, S] =
+        ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Nothing, S](
+          (in: Chunk[In]) => {
+            val nextS = f(s, in)
+
+            if (contFn(nextS)) reader(nextS)
+            else ZChannel.end(nextS)
+          },
+          (err: Nothing) => ZChannel.fail(err),
+          (_: Any) => ZChannel.end(s)
+        )
+
+      new ZSink(
+        if (contFn(z)) reader(z)
+        else ZChannel.end(z)
       )
-
-    new ZSink(
-      if (contFn(z)) reader(z)
-      else ZChannel.end(z)
-    )
-  }
+    }
 
   /**
    * A sink that effectfully folds its input chunks with the provided function,
@@ -870,7 +877,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   @deprecated("use foldChunksZIO", "2.0.0")
   def foldChunksM[Env, Err, In, S](
-    z: S
+    z: => S
   )(contFn: S => Boolean)(f: (S, Chunk[In]) => ZIO[Env, Err, S])(implicit
     trace: ZTraceElement
   ): ZSink[Env, Err, In, In, S] =
@@ -883,38 +890,41 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * `contFn` must preserve chunking-invariance.
    */
   def foldChunksZIO[Env, Err, In, S](
-    z: S
+    z0: => S
   )(
     contFn: S => Boolean
-  )(f: (S, Chunk[In]) => ZIO[Env, Err, S])(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] = {
-    def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Nothing, S] =
-      ZChannel.readWith(
-        (in: Chunk[In]) =>
-          ZChannel.fromZIO(f(s, in)).flatMap { nextS =>
-            if (contFn(nextS)) reader(nextS)
-            else ZChannel.end(nextS)
-          },
-        (err: Err) => ZChannel.fail(err),
-        (_: Any) => ZChannel.end(s)
-      )
+  )(f: (S, Chunk[In]) => ZIO[Env, Err, S])(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
+    ZSink.suspend {
+      val z = z0
 
-    new ZSink(
-      if (contFn(z)) reader(z)
-      else ZChannel.end(z)
-    )
-  }
+      def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Nothing, S] =
+        ZChannel.readWith(
+          (in: Chunk[In]) =>
+            ZChannel.fromZIO(f(s, in)).flatMap { nextS =>
+              if (contFn(nextS)) reader(nextS)
+              else ZChannel.end(nextS)
+            },
+          (err: Err) => ZChannel.fail(err),
+          (_: Any) => ZChannel.end(s)
+        )
+
+      new ZSink(
+        if (contFn(z)) reader(z)
+        else ZChannel.end(z)
+      )
+    }
 
   /**
    * A sink that folds its inputs with the provided function and initial state.
    */
-  def foldLeft[In, S](z: S)(f: (S, In) => S)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, Nothing, S] =
+  def foldLeft[In, S](z: => S)(f: (S, In) => S)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, Nothing, S] =
     fold(z)(_ => true)(f).dropLeftover
 
   /**
    * A sink that folds its input chunks with the provided function and initial
    * state. `f` must preserve chunking-invariance.
    */
-  def foldLeftChunks[In, S](z: S)(f: (S, Chunk[In]) => S)(implicit
+  def foldLeftChunks[In, S](z: => S)(f: (S, Chunk[In]) => S)(implicit
     trace: ZTraceElement
   ): ZSink[Any, Nothing, In, Nothing, S] =
     foldChunks[In, S](z)(_ => true)(f)
@@ -924,7 +934,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * and initial state. `f` must preserve chunking-invariance.
    */
   @deprecated("use foldLeftChunksZIO", "2.0.0")
-  def foldLeftChunksM[R, Err, In, S](z: S)(
+  def foldLeftChunksM[R, Err, In, S](z: => S)(
     f: (S, Chunk[In]) => ZIO[R, Err, S]
   )(implicit trace: ZTraceElement): ZSink[R, Err, In, Nothing, S] =
     foldLeftChunksZIO[R, Err, In, S](z)(f)
@@ -933,7 +943,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that effectfully folds its input chunks with the provided function
    * and initial state. `f` must preserve chunking-invariance.
    */
-  def foldLeftChunksZIO[R, Err, In, S](z: S)(
+  def foldLeftChunksZIO[R, Err, In, S](z: => S)(
     f: (S, Chunk[In]) => ZIO[R, Err, S]
   )(implicit trace: ZTraceElement): ZSink[R, Err, In, Nothing, S] =
     foldChunksZIO[R, Err, In, S](z)(_ => true)(f).dropLeftover
@@ -943,7 +953,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * initial state.
    */
   @deprecated("use foldLeftZIO", "2.0.0")
-  def foldLeftM[R, Err, In, S](z: S)(
+  def foldLeftM[R, Err, In, S](z: => S)(
     f: (S, In) => ZIO[R, Err, S]
   )(implicit trace: ZTraceElement): ZSink[R, Err, In, In, S] =
     foldLeftZIO(z)(f)
@@ -952,7 +962,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that effectfully folds its inputs with the provided function and
    * initial state.
    */
-  def foldLeftZIO[R, Err, In, S](z: S)(
+  def foldLeftZIO[R, Err, In, S](z: => S)(
     f: (S, In) => ZIO[R, Err, S]
   )(implicit trace: ZTraceElement): ZSink[R, Err, In, In, S] =
     foldZIO[R, Err, In, S](z)(_ => true)(f)
@@ -962,7 +972,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * termination predicate and initial state.
    */
   @deprecated("use foldZIO", "2.0.0")
-  def foldM[Env, Err, In, S](z: S)(contFn: S => Boolean)(
+  def foldM[Env, Err, In, S](z: => S)(contFn: S => Boolean)(
     f: (S, In) => ZIO[Env, Err, S]
   )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
     foldZIO(z)(contFn)(f)
@@ -973,12 +983,15 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    *
    * Like [[foldWeighted]], but with a constant cost function of 1.
    */
-  def foldUntil[In, S](z: S, max: Long)(f: (S, In) => S)(implicit
+  def foldUntil[In, S](z: => S, max0: => Long)(f: (S, In) => S)(implicit
     trace: ZTraceElement
   ): ZSink[Any, Nothing, In, In, S] =
-    fold[In, (S, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
-      (f(o, i), count + 1)
-    }.map(_._1)
+    ZSink.suspend {
+      val max = max0
+      fold[In, (S, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
+        (f(o, i), count + 1)
+      }.map(_._1)
+    }
 
   /**
    * Creates a sink that effectfully folds elements of type `In` into a
@@ -987,7 +1000,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
   @deprecated("use foldUntilZIO", "2.0.0")
-  def foldUntilM[Env, Err, In, S](z: S, max: Long)(
+  def foldUntilM[Env, Err, In, S](z: => S, max: => Long)(
     f: (S, In) => ZIO[Env, Err, S]
   )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
     foldUntilZIO(z, max)(f)
@@ -998,7 +1011,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    *
    * Like [[foldWeightedM]], but with a constant cost function of 1.
    */
-  def foldUntilZIO[Env, Err, In, S](z: S, max: Long)(
+  def foldUntilZIO[Env, Err, In, S](z: => S, max: => Long)(
     f: (S, In) => ZIO[Env, Err, S]
   )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
     foldZIO[Env, Err, In, (S, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
@@ -1015,7 +1028,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    *   sink to cross the `max` cost. See [[foldWeightedDecompose]] for a variant
    *   that can handle these cases.
    */
-  def foldWeighted[In, S](z: S)(costFn: (S, In) => Long, max: Long)(
+  def foldWeighted[In, S](z: => S)(costFn: (S, In) => Long, max: => Long)(
     f: (S, In) => S
   )(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, S] =
     foldWeightedDecompose[In, S](z)(costFn, max, Chunk.single(_))(f)
@@ -1051,51 +1064,54 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * `ZIO` value, and consequently it allows the sink to fail.
    */
   def foldWeightedDecompose[In, S](
-    z: S
-  )(costFn: (S, In) => Long, max: Long, decompose: In => Chunk[In])(
+    z0: => S
+  )(costFn: (S, In) => Long, max0: => Long, decompose: In => Chunk[In])(
     f: (S, In) => S
-  )(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, S] = {
-    def go(s: S, cost: Long, dirty: Boolean): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], S] =
-      ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], S](
-        (in: Chunk[In]) => {
-          def fold(in: Chunk[In], s: S, dirty: Boolean, cost: Long, idx: Int): (S, Long, Boolean, Chunk[In]) =
-            if (idx == in.length) (s, cost, dirty, Chunk.empty)
-            else {
-              val elem  = in(idx)
-              val total = cost + costFn(s, elem)
-
-              if (total <= max) fold(in, f(s, elem), true, total, idx + 1)
+  )(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, S] =
+    ZSink.suspend {
+      val z   = z0
+      val max = max0
+      def go(s: S, cost: Long, dirty: Boolean): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], S] =
+        ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], S](
+          (in: Chunk[In]) => {
+            def fold(in: Chunk[In], s: S, dirty: Boolean, cost: Long, idx: Int): (S, Long, Boolean, Chunk[In]) =
+              if (idx == in.length) (s, cost, dirty, Chunk.empty)
               else {
-                val decomposed = decompose(elem)
+                val elem  = in(idx)
+                val total = cost + costFn(s, elem)
 
-                if (decomposed.length <= 1 && !dirty)
-                  // If `elem` cannot be decomposed, we need to cross the `max` threshold. To
-                  // minimize "injury", we only allow this when we haven't added anything else
-                  // to the aggregate (dirty = false).
-                  (f(s, elem), total, true, in.drop(idx + 1))
-                else if (decomposed.length <= 1 && dirty)
-                  // If the state is dirty and `elem` cannot be decomposed, we stop folding
-                  // and include `elem` in th leftovers.
-                  (s, cost, dirty, in.drop(idx))
-                else
-                  // `elem` got decomposed, so we will recurse with the decomposed elements pushed
-                  // into the chunk we're processing and see if we can aggregate further.
-                  fold(decomposed ++ in.drop(idx + 1), s, dirty, cost, 0)
+                if (total <= max) fold(in, f(s, elem), true, total, idx + 1)
+                else {
+                  val decomposed = decompose(elem)
+
+                  if (decomposed.length <= 1 && !dirty)
+                    // If `elem` cannot be decomposed, we need to cross the `max` threshold. To
+                    // minimize "injury", we only allow this when we haven't added anything else
+                    // to the aggregate (dirty = false).
+                    (f(s, elem), total, true, in.drop(idx + 1))
+                  else if (decomposed.length <= 1 && dirty)
+                    // If the state is dirty and `elem` cannot be decomposed, we stop folding
+                    // and include `elem` in th leftovers.
+                    (s, cost, dirty, in.drop(idx))
+                  else
+                    // `elem` got decomposed, so we will recurse with the decomposed elements pushed
+                    // into the chunk we're processing and see if we can aggregate further.
+                    fold(decomposed ++ in.drop(idx + 1), s, dirty, cost, 0)
+                }
               }
-            }
 
-          val (nextS, nextCost, nextDirty, leftovers) = fold(in, s, dirty, cost, 0)
+            val (nextS, nextCost, nextDirty, leftovers) = fold(in, s, dirty, cost, 0)
 
-          if (leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-          else if (cost > max) ZChannel.end(nextS)
-          else go(nextS, nextCost, nextDirty)
-        },
-        (err: Nothing) => ZChannel.fail(err),
-        (_: Any) => ZChannel.end(s)
-      )
+            if (leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
+            else if (cost > max) ZChannel.end(nextS)
+            else go(nextS, nextCost, nextDirty)
+          },
+          (err: Nothing) => ZChannel.fail(err),
+          (_: Any) => ZChannel.end(s)
+        )
 
-    new ZSink(go(z, 0, false))
-  }
+      new ZSink(go(z, 0, false))
+    }
 
   /**
    * Creates a sink that effectfully folds elements of type `In` into a
@@ -1114,7 +1130,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   @deprecated("use foldWeightedDecomposeZIO", "2.0.0")
   def foldWeightedDecomposeM[Env, Err, In, S](z: S)(
     costFn: (S, In) => ZIO[Env, Err, Long],
-    max: Long,
+    max: => Long,
     decompose: In => ZIO[Env, Err, Chunk[In]]
   )(f: (S, In) => ZIO[Env, Err, S])(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
     foldWeightedDecomposeZIO(z)(costFn, max, decompose)(f)
@@ -1135,55 +1151,57 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def foldWeightedDecomposeZIO[Env, Err, In, S](z: S)(
     costFn: (S, In) => ZIO[Env, Err, Long],
-    max: Long,
+    max0: => Long,
     decompose: In => ZIO[Env, Err, Chunk[In]]
-  )(f: (S, In) => ZIO[Env, Err, S])(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] = {
-    def go(s: S, cost: Long, dirty: Boolean): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], S] =
-      ZChannel.readWith(
-        (in: Chunk[In]) => {
-          def fold(
-            in: Chunk[In],
-            s: S,
-            dirty: Boolean,
-            cost: Long,
-            idx: Int
-          ): ZIO[Env, Err, (S, Long, Boolean, Chunk[In])] =
-            if (idx == in.length) UIO.succeed((s, cost, dirty, Chunk.empty))
-            else {
-              val elem = in(idx)
-              costFn(s, elem).map(cost + _).flatMap { total =>
-                if (total <= max) f(s, elem).flatMap(fold(in, _, true, total, idx + 1))
-                else
-                  decompose(elem).flatMap { decomposed =>
-                    if (decomposed.length <= 1 && !dirty)
-                      // If `elem` cannot be decomposed, we need to cross the `max` threshold. To
-                      // minimize "injury", we only allow this when we haven't added anything else
-                      // to the aggregate (dirty = false).
-                      f(s, elem).map((_, total, true, in.drop(idx + 1)))
-                    else if (decomposed.length <= 1 && dirty)
-                      // If the state is dirty and `elem` cannot be decomposed, we stop folding
-                      // and include `elem` in th leftovers.
-                      UIO.succeed((s, cost, dirty, in.drop(idx)))
-                    else
-                      // `elem` got decomposed, so we will recurse with the decomposed elements pushed
-                      // into the chunk we're processing and see if we can aggregate further.
-                      fold(decomposed ++ in.drop(idx + 1), s, dirty, cost, 0)
-                  }
+  )(f: (S, In) => ZIO[Env, Err, S])(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
+    ZSink.suspend {
+      val max = max0
+      def go(s: S, cost: Long, dirty: Boolean): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], S] =
+        ZChannel.readWith(
+          (in: Chunk[In]) => {
+            def fold(
+              in: Chunk[In],
+              s: S,
+              dirty: Boolean,
+              cost: Long,
+              idx: Int
+            ): ZIO[Env, Err, (S, Long, Boolean, Chunk[In])] =
+              if (idx == in.length) UIO.succeed((s, cost, dirty, Chunk.empty))
+              else {
+                val elem = in(idx)
+                costFn(s, elem).map(cost + _).flatMap { total =>
+                  if (total <= max) f(s, elem).flatMap(fold(in, _, true, total, idx + 1))
+                  else
+                    decompose(elem).flatMap { decomposed =>
+                      if (decomposed.length <= 1 && !dirty)
+                        // If `elem` cannot be decomposed, we need to cross the `max` threshold. To
+                        // minimize "injury", we only allow this when we haven't added anything else
+                        // to the aggregate (dirty = false).
+                        f(s, elem).map((_, total, true, in.drop(idx + 1)))
+                      else if (decomposed.length <= 1 && dirty)
+                        // If the state is dirty and `elem` cannot be decomposed, we stop folding
+                        // and include `elem` in th leftovers.
+                        UIO.succeed((s, cost, dirty, in.drop(idx)))
+                      else
+                        // `elem` got decomposed, so we will recurse with the decomposed elements pushed
+                        // into the chunk we're processing and see if we can aggregate further.
+                        fold(decomposed ++ in.drop(idx + 1), s, dirty, cost, 0)
+                    }
+                }
               }
+
+            ZChannel.fromZIO(fold(in, s, dirty, cost, 0)).flatMap { case (nextS, nextCost, nextDirty, leftovers) =>
+              if (leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
+              else if (cost > max) ZChannel.end(nextS)
+              else go(nextS, nextCost, nextDirty)
             }
+          },
+          (err: Err) => ZChannel.fail(err),
+          (_: Any) => ZChannel.end(s)
+        )
 
-          ZChannel.fromZIO(fold(in, s, dirty, cost, 0)).flatMap { case (nextS, nextCost, nextDirty, leftovers) =>
-            if (leftovers.nonEmpty) ZChannel.write(leftovers) *> ZChannel.end(nextS)
-            else if (cost > max) ZChannel.end(nextS)
-            else go(nextS, nextCost, nextDirty)
-          }
-        },
-        (err: Err) => ZChannel.fail(err),
-        (_: Any) => ZChannel.end(s)
-      )
-
-    new ZSink(go(z, 0, false))
-  }
+      new ZSink(go(z, 0, false))
+    }
 
   /**
    * Creates a sink that effectfully folds elements of type `In` into a
@@ -1197,7 +1215,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   @deprecated("use foldWeightedZIO", "2.0.0-")
   def foldWeightedM[Env, Err, In, S](
-    z: S
+    z: => S
   )(costFn: (S, In) => ZIO[Env, Err, Long], max: Long)(
     f: (S, In) => ZIO[Env, Err, S]
   )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
@@ -1214,7 +1232,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    *   variant that can handle these cases.
    */
   def foldWeightedZIO[Env, Err, In, S](
-    z: S
+    z: => S
   )(costFn: (S, In) => ZIO[Env, Err, Long], max: Long)(
     f: (S, In) => ZIO[Env, Err, S]
   )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
@@ -1224,7 +1242,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that effectfully folds its inputs with the provided function,
    * termination predicate and initial state.
    */
-  def foldZIO[Env, Err, In, S](z: S)(contFn: S => Boolean)(
+  def foldZIO[Env, Err, In, S](z: => S)(contFn: S => Boolean)(
     f: (S, In) => ZIO[Env, Err, S]
   )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] = {
     def foldChunkSplitM(z: S, chunk: Chunk[In])(
@@ -1366,24 +1384,27 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Create a sink which enqueues each element into the specified queue.
    */
-  def fromQueue[R, E, I](queue: ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, Nothing, Unit] =
-    foreachChunk(queue.offerAll)
+  def fromQueue[R, E, I](queue: => ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, Nothing, Unit] =
+    ZSink.suspend {
+      val queue = queue0
+      foreachChunk(queue.offerAll)
+    }
 
   /**
    * Create a sink which enqueues each element into the specified queue. The
    * queue will be shutdown once the stream is closed.
    */
-  def fromQueueWithShutdown[R, E, I](queue: ZQueue[R, Nothing, E, Any, I, Any])(implicit
+  def fromQueueWithShutdown[R, E, I](queue: => ZQueue[R, Nothing, E, Any, I, Any])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, I, Nothing, Unit] =
     ZSink.unwrapManaged(
-      ZManaged.acquireReleaseWith(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I])
+      ZManaged.acquireReleaseWith(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I](_))
     )
 
   /**
    * Create a sink which publishes each element to the specified hub.
    */
-  def fromHub[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any])(implicit
+  def fromHub[R, E, I](hub: => ZHub[R, Nothing, E, Any, I, Any])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, I, Nothing, Unit] =
     fromQueue(hub.toQueue)
@@ -1392,7 +1413,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Create a sink which publishes each element to the specified hub. The hub
    * will be shutdown once the stream is closed.
    */
-  def fromHubWithShutdown[R, E, I](hub: ZHub[R, Nothing, E, Any, I, Any])(implicit
+  def fromHubWithShutdown[R, E, I](hub: => ZHub[R, Nothing, E, Any, I, Any])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, I, Nothing, Unit] =
     fromQueueWithShutdown(hub.toQueue)
@@ -1419,7 +1440,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def last[In](implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Option[In]] =
     foldLeft(None: Option[In])((_, in) => Some(in))
 
-  def leftover[L](c: Chunk[L])(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, L, Unit] =
+  def leftover[L](c: => Chunk[L])(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, L, Unit] =
     new ZSink(ZChannel.write(c))
 
   def mkString(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, String] =
@@ -1432,7 +1453,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   @deprecated("use unwrapManaged", "2.0.0")
-  def managed[R, E, In, A, L <: In, Z](resource: ZManaged[R, E, A])(
+  def managed[R, E, In, A, L <: In, Z](resource: => ZManaged[R, E, A])(
     fn: A => ZSink[R, E, In, L, Z]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, In, Z] =
     new ZSink(ZChannel.managed[R, Nothing, Chunk[In], Any, E, Chunk[L], Z, A](resource)(fn(_).channel))
@@ -1444,9 +1465,17 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that immediately ends with the specified value.
    */
-  def succeed[Z](z: => Z)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Z] = new ZSink(
-    ZChannel.succeed(z)
-  )
+  def succeed[Z](z: => Z)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Z] =
+    new ZSink(ZChannel.succeed(z))
+
+  /**
+   * Returns a lazily constructed sink that may require effects for its
+   * creation.
+   */
+  def suspend[Env, E, In, Leftover, Done](
+    sink: => ZSink[Env, E, In, Leftover, Done]
+  )(implicit trace: ZTraceElement): ZSink[Env, E, In, Leftover, Done] =
+    new ZSink(ZChannel.effectSuspendTotal[Env, Nothing, Chunk[In], Any, E, Chunk[Leftover], Done](sink.channel))
 
   /**
    * A sink that sums incoming numeric values.
@@ -1457,12 +1486,15 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that takes the specified number of values.
    */
-  def take[In](n: Int)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Chunk[In]] =
-    ZSink.foldChunks[In, Chunk[In]](Chunk.empty)(_.length < n)(_ ++ _).flatMap { acc =>
-      val (taken, leftover) = acc.splitAt(n)
-      new ZSink(
-        ZChannel.write(leftover) *> ZChannel.end(taken)
-      )
+  def take[In](n0: Int)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Chunk[In]] =
+    ZSink.suspend {
+      val n = n0
+      ZSink.foldChunks[In, Chunk[In]](Chunk.empty)(_.length < n)(_ ++ _).flatMap { acc =>
+        val (taken, leftover) = acc.splitAt(n)
+        new ZSink(
+          ZChannel.write(leftover) *> ZChannel.end(taken)
+        )
+      }
     }
 
   def timed(implicit trace: ZTraceElement): ZSink[Clock, Nothing, Any, Nothing, Duration] =
@@ -1472,7 +1504,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink produced from an effect.
    */
   def unwrap[R, E, In, L, Z](
-    zio: ZIO[R, E, ZSink[R, E, In, L, Z]]
+    zio: => ZIO[R, E, ZSink[R, E, In, L, Z]]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
     new ZSink(ZChannel.unwrap[R, Nothing, Chunk[In], Any, E, Chunk[L], Z](zio.map(_.channel)))
 
@@ -1480,7 +1512,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink produced from a managed effect.
    */
   def unwrapManaged[R, E, In, L, Z](
-    managed: ZManaged[R, E, ZSink[R, E, In, L, Z]]
+    managed: => ZManaged[R, E, ZSink[R, E, In, L, Z]]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
     new ZSink(ZChannel.unwrapManaged[R, Nothing, Chunk[In], Any, E, Chunk[L], Z](managed.map(_.channel)))
 

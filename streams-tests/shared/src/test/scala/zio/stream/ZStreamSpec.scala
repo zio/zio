@@ -416,7 +416,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               val test =
                 ZStream
                   .fromChunk(data)
-                  .branchAfter(n)(ZPipeline.prepend)
+                  .branchAfter(n)(ZPipeline.prepend(_))
                   .runCollect
               assertM(test.exit)(succeeds(equalTo(data)))
             }
