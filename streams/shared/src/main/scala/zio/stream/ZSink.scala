@@ -413,7 +413,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     summary0: => ZIO[R1, E1, B]
   )(f: (B, B) => C)(implicit trace: ZTraceElement) =
     new ZSink[R1, E1, In, L, (Z, C)](
-      ZChannel.effectSuspendTotal {
+      ZChannel.effectSuspendTotal[R1, Nothing, Chunk[In], Any, E1, Chunk[L], (Z, C)] {
         val summary = summary0
 
         ZChannel.fromZIO(summary).flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], (Z, C)] { start =>
@@ -1384,7 +1384,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Create a sink which enqueues each element into the specified queue.
    */
-  def fromQueue[R, E, I](queue: => ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, Nothing, Unit] =
+  def fromQueue[R, E, I](queue0: => ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, Nothing, Unit] =
     ZSink.suspend {
       val queue = queue0
       foreachChunk(queue.offerAll)
