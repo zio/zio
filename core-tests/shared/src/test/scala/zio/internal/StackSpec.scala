@@ -60,7 +60,22 @@ object StackSpec extends ZIOBaseSpec {
         readers <- ZIO.forkAll(List.fill(100)(ZIO.succeed(stack.toList.forall(_ != null))))
         noNulls <- readers.join.map(_.forall(a => a)) <* fiber.interrupt
       } yield assertTrue(noNulls)
-    } @@ nonFlaky
+    } @@ nonFlaky,
+    test("stack safety") {
+      val stack = Stack[String]()
+      val n     = 1000000
+      var i     = 0
+      while (i <= n) {
+        stack.push("1")
+        i += 1
+      }
+      i = n
+      while (i >= 0) {
+        stack.pop()
+        i -= 1
+      }
+      assertCompletes
+    }
   )
 
   sealed trait Boolean {

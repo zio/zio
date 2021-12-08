@@ -25,11 +25,11 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
   private[this] var array  = new Array[AnyRef](13)
   private[this] var packed = 0
 
-  private def getUsed: Int          = packed & 0xffff
-  private def setUsed(n: Int): Unit = packed = (packed & 0xffff0000) + (n & 0xffff)
+  private def getUsed: Int          = packed & 0xf
+  private def setUsed(n: Int): Unit = packed = (packed & 0xfffffff0) + (n & 0xf)
 
-  private def getNesting: Int          = (packed >> 16)
-  private def setNesting(n: Int): Unit = packed = (packed & 0x0000ffff) + (n << 16)
+  private def getNesting: Int          = (packed >>> 4)
+  private def setNesting(n: Int): Unit = packed = (packed & 0xf) + (n << 4)
 
   override def size: Int = getUsed + (12 * getNesting)
 
