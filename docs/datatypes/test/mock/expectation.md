@@ -256,3 +256,24 @@ test("satisfy one of expectations with a logical `or` operator") {
   } yield assertTrue(total == 1)
 }
 ```
+
+### `andThen`
+
+The `andThen` operator composes two expectations and produces a new expectation that satisfies both of them sequentially:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("satisfy sequence of two expectations with `andThen` operator") {
+  for {
+    total <- (UserService.remove("1") *> UserService.totalUsers).provideLayer(
+      MockUserService.RecentUsers(
+        Assertion.isPositive,
+        Expectation.value(List(User("1", "user")))
+      ) andThen MockUserService.TotalUsers(Expectation.value(1))
+    )
+  } yield assertTrue(total == 1)
+}
+```
