@@ -234,3 +234,25 @@ test("satisfy both expectations with a logical `and` operator") {
   } yield assertTrue(total == 1)
 }
 ```
+
+### `or`
+
+In order to satisfy one of the two expectations, we can use the `or` operator:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("satisfy one of expectations with a logical `or` operator") {
+  for {
+    total <- UserService.totalUsers.provideLayer(
+      MockUserService.TotalUsers(Expectation.value(1)).or(
+        MockUserService.RecentUsers(
+          Assertion.isPositive,
+          Expectation.value(List(User("1", "user"))))
+      )
+    )
+  } yield assertTrue(total == 1)
+}
+```
