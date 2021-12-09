@@ -1238,41 +1238,42 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    */
   def foldZIO[Env, Err, In, S](z: => S)(contFn: S => Boolean)(
     f: (S, In) => ZIO[Env, Err, S]
-  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] = {
-    def foldChunkSplitM(z: S, chunk: Chunk[In])(
-      contFn: S => Boolean
-    )(f: (S, In) => ZIO[Env, Err, S]): ZIO[Env, Err, (S, Option[Chunk[In]])] = {
-      def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): ZIO[Env, Err, (S, Option[Chunk[In]])] =
-        if (idx == len) UIO.succeed((s, None))
-        else
-          f(s, chunk(idx)).flatMap { s1 =>
-            if (contFn(s1)) {
-              fold(s1, chunk, idx + 1, len)
-            } else {
-              UIO.succeed((s1, Some(chunk.drop(idx + 1))))
-            }
-          }
-
-      fold(z, chunk, 0, chunk.length)
-    }
-
-    def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], S] =
-      if (!contFn(s)) ZChannel.end(s)
-      else
-        ZChannel.readWith(
-          (in: Chunk[In]) =>
-            ZChannel.fromZIO(foldChunkSplitM(s, in)(contFn)(f)).flatMap { case (nextS, leftovers) =>
-              leftovers match {
-                case Some(l) => ZChannel.write(l).as(nextS)
-                case None    => reader(nextS)
+  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
+    ZSink.suspend {
+      def foldChunkSplitM(z: S, chunk: Chunk[In])(
+        contFn: S => Boolean
+      )(f: (S, In) => ZIO[Env, Err, S]): ZIO[Env, Err, (S, Option[Chunk[In]])] = {
+        def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): ZIO[Env, Err, (S, Option[Chunk[In]])] =
+          if (idx == len) UIO.succeed((s, None))
+          else
+            f(s, chunk(idx)).flatMap { s1 =>
+              if (contFn(s1)) {
+                fold(s1, chunk, idx + 1, len)
+              } else {
+                UIO.succeed((s1, Some(chunk.drop(idx + 1))))
               }
-            },
-          (err: Err) => ZChannel.fail(err),
-          (_: Any) => ZChannel.end(s)
-        )
+            }
 
-    new ZSink(reader(z))
-  }
+        fold(z, chunk, 0, chunk.length)
+      }
+
+      def reader(s: S): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], S] =
+        if (!contFn(s)) ZChannel.end(s)
+        else
+          ZChannel.readWith(
+            (in: Chunk[In]) =>
+              ZChannel.fromZIO(foldChunkSplitM(s, in)(contFn)(f)).flatMap { case (nextS, leftovers) =>
+                leftovers match {
+                  case Some(l) => ZChannel.write(l).as(nextS)
+                  case None    => reader(nextS)
+                }
+              },
+            (err: Err) => ZChannel.fail(err),
+            (_: Any) => ZChannel.end(s)
+          )
+
+      new ZSink(reader(z))
+    }
 
   /**
    * A sink that executes the provided effectful function for every element fed
@@ -1431,7 +1432,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     foldLeft(None: Option[In])((_, in) => Some(in))
 
   def leftover[L](c: => Chunk[L])(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, L, Unit] =
-    ZSink.suspend(new ZSink(ZChannel.write(c)))
+    new ZSink(ZChannel.suspend(ZChannel.write(c)))
 
   def mkString(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, String] =
     ZSink.suspend {
