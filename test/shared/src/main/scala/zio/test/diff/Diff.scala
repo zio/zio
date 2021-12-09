@@ -103,7 +103,7 @@ trait DiffInstances extends LowPriDiff {
 }
 
 trait LowPriDiff {
-  
+
   implicit def anyDiff[A]: Diff[A] = new Diff[A] {
 
     override def diff(x: A, y: A): DiffResult =
