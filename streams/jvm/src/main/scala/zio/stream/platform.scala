@@ -246,11 +246,13 @@ trait ZStreamPlatformSpecificConstructors {
   )(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
     ZStream.managed {
       ZManaged.fromAutoCloseable {
-        ZIO.attemptBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
-          if (x == null)
-            ZIO.fail(new FileNotFoundException(s"No such resource: '$path'"))
-          else
-            ZIO.succeedNow(x)
+        ZIO.succeed(path).flatMap { path =>
+          ZIO.attemptBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
+            if (x == null)
+              ZIO.fail(new FileNotFoundException(s"No such resource: '$path'"))
+            else
+              ZIO.succeedNow(x)
+          }
         }
       }
     }.flatMap(is => fromInputStream(is, chunkSize = chunkSize))
