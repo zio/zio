@@ -4018,12 +4018,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     sink: => ZSink[R1, E1, A1, A1, Z]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, Z] =
     new ZStream(
-      ZChannel.effectSuspendTotal {
+      ZChannel.suspend {
         val leftovers: AtomicReference[Chunk[Chunk[A1]]] = new AtomicReference(Chunk.empty)
         val upstreamDone: AtomicBoolean                  = new AtomicBoolean(false)
 
         lazy val buffer: ZChannel[Any, E, Chunk[A1], Any, E, Chunk[A1], Any] =
-          ZChannel.effectSuspendTotal {
+          ZChannel.suspend {
             val l = leftovers.get
 
             if (l.isEmpty)
@@ -4050,14 +4050,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             (in: Chunk[A]) => ZChannel.write(in) *> upstreamMarker,
             (err: E) => ZChannel.fail(err),
             (done: Any) =>
-              ZChannel.effectTotal(upstreamDone.set(true)) *> ZChannel
+              ZChannel.succeed(upstreamDone.set(true)) *> ZChannel
                 .end(done)
           )
 
         lazy val transducer: ZChannel[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit] =
           sink.channel.doneCollect.flatMap { case (leftover, z) =>
             ZChannel
-              .effectTotal((upstreamDone.get, concatAndGet(leftover)))
+              .succeed((upstreamDone.get, concatAndGet(leftover)))
               .flatMap[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit] { case (done, newLeftovers) =>
                 val nextChannel =
                   if (done && newLeftovers.isEmpty) ZChannel.end(())
@@ -4704,7 +4704,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def fromChunk[O](c0: => Chunk[O])(implicit trace: ZTraceElement): ZStream[Any, Nothing, O] =
     new ZStream(
-      ZChannel.effectSuspendTotal {
+      ZChannel.suspend {
         val c = c0
         if (c.isEmpty) ZChannel.unit else ZChannel.write(c)
       }
