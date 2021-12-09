@@ -4220,14 +4220,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def zipAllWithExec[R1 <: R, E1 >: E, A2, A3](
     that: => ZStream[R1, E1, A2]
   )(
-    exec: ExecutionStrategy
+    exec: => ExecutionStrategy
   )(left: A => A3, right: A2 => A3)(both: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
     sealed trait Status
     case object Running   extends Status
     case object LeftDone  extends Status
     case object RightDone extends Status
     case object End       extends Status
-    type State = (Status, Either[Chunk[A], Chunk[A2]])
+    type State = (Status, Either[Chunk[A], Chunk[A2]], ExecutionStrategy)
 
     def handleSuccess(
       maybeO: Option[Chunk[A]],
@@ -4246,11 +4246,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         case (false, true) => (emit, LeftDone)
         case (true, false) => (emit, RightDone)
       }
-      Exit.succeed((fullEmit, (status, newExcess)))
+      Exit.succeed((fullEmit, (status, newExcess, exec)))
     }
 
-    combineChunks(that)((Running, Left(Chunk())): State) {
-      case ((Running, excess), pullL, pullR) =>
+    combineChunks(that)((Running, Left(Chunk()), exec): State) {
+      case ((Running, excess, exec), pullL, pullR) =>
         exec match {
           case ExecutionStrategy.Sequential =>
             pullL.unsome
@@ -4261,15 +4261,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
               .zipWithPar(pullR.unsome)(handleSuccess(_, _, excess))
               .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
         }
-      case ((LeftDone, excess), _, pullR) =>
+      case ((LeftDone, excess, _), _, pullR) =>
         pullR.unsome
           .map(handleSuccess(None, _, excess))
           .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
-      case ((RightDone, excess), pullL, _) =>
+      case ((RightDone, excess, _), pullL, _) =>
         pullL.unsome
           .map(handleSuccess(_, None, excess))
           .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
-      case ((End, _), _, _) => UIO.succeedNow(Exit.fail(None))
+      case ((End, _, _), _, _) => UIO.succeedNow(Exit.fail(None))
     }
   }
 
