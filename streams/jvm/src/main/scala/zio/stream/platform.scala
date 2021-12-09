@@ -263,22 +263,20 @@ trait ZStreamPlatformSpecificConstructors {
   def fromReader(reader: => Reader, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, IOException, Char] =
-    ZStream.fromZIO(ZIO.succeed(reader)).flatMap { reader =>
-      ZStream.fromZIO(ZIO.succeed(chunkSize)).flatMap { chunkSize =>
-        ZStream.repeatZIOChunkOption {
-          for {
-            bufArray  <- UIO(Array.ofDim[Char](chunkSize))
-            bytesRead <- ZIO.attemptBlockingIO(reader.read(bufArray)).asSomeError
-            chars <- if (bytesRead < 0)
-                       ZIO.fail(None)
-                     else if (bytesRead == 0)
-                       UIO(Chunk.empty)
-                     else if (bytesRead < chunkSize)
-                       UIO(Chunk.fromArray(bufArray).take(bytesRead))
-                     else
-                       UIO(Chunk.fromArray(bufArray))
-          } yield chars
-        }
+    ZStream.succeed((reader, chunkSize)).flatMap { case (reader, chunkSize) =>
+      ZStream.repeatZIOChunkOption {
+        for {
+          bufArray  <- UIO(Array.ofDim[Char](chunkSize))
+          bytesRead <- ZIO.attemptBlockingIO(reader.read(bufArray)).asSomeError
+          chars <- if (bytesRead < 0)
+                     ZIO.fail(None)
+                   else if (bytesRead == 0)
+                     UIO(Chunk.empty)
+                   else if (bytesRead < chunkSize)
+                     UIO(Chunk.fromArray(bufArray).take(bytesRead))
+                   else
+                     UIO(Chunk.fromArray(bufArray))
+        } yield chars
       }
     }
 
