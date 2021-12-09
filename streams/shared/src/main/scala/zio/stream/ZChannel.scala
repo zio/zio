@@ -1451,6 +1451,14 @@ object ZChannel {
   def succeed[Z](z: => Z)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
     effectTotal(z)
 
+  /**
+   * Returns a lazily constructed channel.
+   */
+  def suspend[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+    channel: => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+    EffectSuspendTotal(() => channel)
+
   val unit: ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] =
     end(())(ZTraceElement.empty)
 

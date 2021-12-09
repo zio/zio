@@ -5522,6 +5522,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromChunk(Chunk.single(a))
 
   /**
+   * Returns a lazily constructed stream.
+   */
+  def suspend[R, E, A](stream: => ZStream[R, E, A]): ZStream[R, E, A] =
+    new ZStream(ZChannel.suspend(stream.channel))
+
+  /**
    * A stream that emits Unit values spaced by the specified duration.
    */
   def tick(interval: => Duration)(implicit trace: ZTraceElement): ZStream[Clock, Nothing, Unit] =
