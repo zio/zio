@@ -781,7 +781,7 @@ object ZRef extends Serializable {
      * `RefM`.
      */
     @deprecated("use SubscriptionRef", "2.0.0")
-    def dequeueRef[A](a: A)(implicit trace: ZTraceElement): UIO[(RefM[A], Dequeue[A])] =
+    def dequeueRef[A](a: => A)(implicit trace: ZTraceElement): UIO[(RefM[A], Dequeue[A])] =
       for {
         ref   <- make(a)
         queue <- Queue.unbounded[A]

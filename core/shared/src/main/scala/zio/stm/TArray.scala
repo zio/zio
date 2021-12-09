@@ -514,6 +514,6 @@ object TArray {
   /**
    * Makes a new `TArray` initialized with provided iterable.
    */
-  def fromIterable[A](data: Iterable[A]): USTM[TArray[A]] =
-    STM.foreach(data)(TRef.make(_)).map(list => new TArray(list.toArray))
+  def fromIterable[A](data: => Iterable[A]): USTM[TArray[A]] =
+    STM.suspend(STM.foreach(data)(TRef.make(_)).map(list => new TArray(list.toArray)))
 }
