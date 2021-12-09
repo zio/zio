@@ -103,9 +103,8 @@ trait DiffInstances extends LowPriDiff {
 }
 
 trait LowPriDiff {
-  implicit val anyValDiff: Diff[AnyVal] = anyDiff[AnyVal]
-
-  def anyDiff[A]: Diff[A] = new Diff[A] {
+  
+  implicit def anyDiff[A]: Diff[A] = new Diff[A] {
 
     override def diff(x: A, y: A): DiffResult =
       if (x == y) DiffResult.Identical(x)
