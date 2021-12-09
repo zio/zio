@@ -3554,7 +3554,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
     ZStream.succeed(sink).flatMap { sink =>
       ZStream.managed(broadcast(2, maximumLag)).flatMap { streams =>
-        streams(0).drainFork(ZStream.fromZIO(streams(1).run(sink)))
+        streams(0).mergeEither(ZStream.fromZIO(streams(1).run(sink))).collectLeft
       }
     }
 
