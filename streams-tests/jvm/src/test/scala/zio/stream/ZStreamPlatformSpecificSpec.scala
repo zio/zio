@@ -234,14 +234,14 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
               Task(Files.write(path, data.getBytes(StandardCharsets.UTF_8))) *>
                 assertM(
                   ZStream
-                    .fromFile(path, 24)
+                    .fromPath(path, 24)
                     .via(ZPipeline.utf8Decode)
                     .mkString
                 )(equalTo(data))
           }
         },
         test("fails on a nonexistent file") {
-          assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.exit)(
+          assertM(ZStream.fromPath(Paths.get("nonexistent"), 24).runDrain.exit)(
             fails(isSubtype[NoSuchFileException](anything))
           )
         }
