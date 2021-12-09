@@ -988,7 +988,7 @@ object ZChannel {
       extends ZChannel[Any, Any, Any, Any, Nothing, Nothing, OutDone]
   private[zio] final case class Halt[OutErr](error: () => Cause[OutErr])
       extends ZChannel[Any, Any, Any, Any, OutErr, Nothing, Nothing]
-  private[zio] final case class Effect[Env, OutErr, OutDone](zio: ZIO[Env, OutErr, OutDone])
+  private[zio] final case class Effect[Env, OutErr, OutDone](zio: () => ZIO[Env, OutErr, OutDone])
       extends ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone]
   private[zio] final case class Emit[OutElem](out: OutElem) extends ZChannel[Any, Any, Any, Any, Nothing, OutElem, Unit]
   private[zio] final case class EffectTotal[OutDone](effect: () => OutDone)
@@ -1222,7 +1222,7 @@ object ZChannel {
     )
 
   def fromZIO[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, Nothing, A] =
-    ZChannel.suspend(Effect(zio))
+    Effect(() => zio)
 
   def failCause[E](cause: => Cause[E])(implicit
     trace: ZTraceElement
