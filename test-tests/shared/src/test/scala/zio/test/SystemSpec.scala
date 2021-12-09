@@ -7,7 +7,7 @@ import zio.test.TestSystem._
 
 object SystemSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("SystemSpec")(
+  def spec = suite("SystemSpec")(
     test("check set values are cleared at the start of repeating tests") {
       for {
         env <- System.env("k1")

@@ -23,6 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A default runnable spec that provides testable versions of all of the modules
  * in ZIO (Clock, Random, etc).
  */
+@deprecated("Use ZIOSpecDefault")
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
   override def aspects: List[TestAspect.WithOut[

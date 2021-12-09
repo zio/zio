@@ -2,7 +2,7 @@ package zio.test
 
 object PrettyPrintSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("PrettyPrint")(
+  def spec = suite("PrettyPrint")(
     test("String") {
       assertTrue(PrettyPrint("A String") == "\"A String\"")
     },

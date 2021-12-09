@@ -8,7 +8,7 @@ import zio.{Console, ZIO}
 
 object ConsoleSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ConsoleSpec")(
       test("outputs nothing") {
         for {

@@ -4,8 +4,8 @@ import zio.stream.compression.TestData._
 import zio.test.Assertion._
 import zio.test._
 
-object GzipSpec extends DefaultRunnableSpec {
-  override def spec: ZSpec[Environment, Failure] =
+object GzipSpec extends ZIOSpecDefault {
+  override def spec =
     suite("GzipSpec")(
       test("JDK gunzips what was gzipped")(
         check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {

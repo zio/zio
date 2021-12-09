@@ -1,7 +1,7 @@
 package zio.test.mock
 
 import zio.test.mock.internal.MockException
-import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
+import zio.test.{Assertion, ZIOBaseSpec}
 import zio.{Clock, Console, ZIO}
 
 import java.io.IOException
@@ -21,7 +21,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
       }
       .unit
 
-  def spec: ZSpec[Environment, Failure] = suite("ComposedEmptyMockSpec")(
+  def spec = suite("ComposedEmptyMockSpec")(
     suite("expect no calls on empty mocks")(
       testValue("should succeed when no calls on Console")(
         MockConsole.empty ++ MockClock.NanoTime(value(42L)),

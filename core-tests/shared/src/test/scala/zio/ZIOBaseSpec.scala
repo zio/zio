@@ -4,8 +4,8 @@ import zio.test._
 
 import scala.annotation.tailrec
 
-trait ZIOBaseSpec extends DefaultRunnableSpec {
-  override def aspects: List[TestAspect.WithOut[
+trait ZIOBaseSpec extends ZIOSpecDefault {
+  override def aspects: Chunk[TestAspect.WithOut[
     Nothing,
     TestEnvironment,
     Nothing,
@@ -13,13 +13,8 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
     ({ type OutEnv[Env] = Env })#OutEnv,
     ({ type OutErr[Err] = Err })#OutErr
   ]] =
-    if (TestPlatform.isJVM) List(TestAspect.timeout(120.seconds))
-    else List(TestAspect.sequential, TestAspect.timeout(120.seconds))
-
-  override def runner: TestRunner[Environment, Any] =
-    defaultTestRunner.withRuntimeConfig(self =>
-      self.copy(runtimeConfigFlags = self.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
-    )
+    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(120.seconds))
+    else Chunk(TestAspect.sequential, TestAspect.timeout(120.seconds))
 
   sealed trait ZIOTag {
     val value: String
@@ -62,4 +57,5 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
       case Nil     => Nil
     }
   }
+
 }

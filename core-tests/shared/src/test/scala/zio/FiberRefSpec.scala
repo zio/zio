@@ -374,7 +374,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         } yield assert(person)(equalTo(Person("Jane Doe", 43)))
       }
     )
-  )
+  ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
 }
 
 object FiberRefSpecUtil {

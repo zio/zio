@@ -4,7 +4,7 @@ import zio.test.Assertion._
 
 object CompileSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("CompileSpec")(
+  def spec = suite("CompileSpec")(
     test("typeCheck must return Right if the specified string is valid Scala code") {
       assertM(typeCheck("1 + 1"))(isRight(anything))
     },
