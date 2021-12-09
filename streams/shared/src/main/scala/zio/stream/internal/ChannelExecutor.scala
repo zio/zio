@@ -192,19 +192,19 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           case read @ ZChannel.Read(_, _) =>
             result = runRead(read.asInstanceOf[ZChannel.Read[Env, Any, Any, Any, Any, Any, Any, Any, Any, Any]])
 
-          case ZChannel.Done(terminal) =>
+          case ZChannel.SucceedNow(terminal) =>
             result = doneSucceed(terminal)
 
-          case ZChannel.Halt(error) =>
+          case ZChannel.Fail(error) =>
             result = doneHalt(error())
 
-          case ZChannel.EffectTotal(effect) =>
+          case ZChannel.Succeed(effect) =>
             result = doneSucceed(effect())
 
-          case ZChannel.EffectSuspendTotal(effect) =>
+          case ZChannel.Suspend(effect) =>
             currentChannel = effect()
 
-          case ZChannel.Effect(zio) =>
+          case ZChannel.FromZIO(zio) =>
             val pzio =
               (if (providedEnv eq null) zio()
                else zio().provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]]))
@@ -228,7 +228,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
           case ZChannel.Emit(out) =>
             emitted = out
-            currentChannel = ZChannel.end(())
+            currentChannel = ZChannel.unit
             result = ChannelState.Emit
 
           case ensuring @ ZChannel.Ensuring(_, _) =>

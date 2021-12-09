@@ -60,7 +60,7 @@ trait ZStreamPlatformSpecificConstructors {
                   maybeError =>
                     ZChannel.fromZIO(output.shutdown) *>
                       maybeError
-                        .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.end(()))(ZChannel.fail(_)),
+                        .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.fail(_)),
                   a => ZChannel.write(a) *> loop
                 )
             )
@@ -129,7 +129,7 @@ trait ZStreamPlatformSpecificConstructors {
           .fold(
             maybeError =>
               ZChannel.fromZIO(output.shutdown) *>
-                maybeError.fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.end(()))(ZChannel.fail(_)),
+                maybeError.fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.fail(_)),
             a => ZChannel.write(a) *> loop
           )
       )
