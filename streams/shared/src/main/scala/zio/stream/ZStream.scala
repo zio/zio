@@ -4113,7 +4113,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * The new stream will end when one of the sides ends.
    */
-  def zipLeft[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
+  def zipLeft[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
     zipWith(that)((o, _) => o)
 
   /**
@@ -4122,7 +4122,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * The new stream will end when one of the sides ends.
    */
-  def zipRight[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A2] =
+  def zipRight[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A2] =
     zipWith(that)((_, A2) => A2)
 
   /**
@@ -4131,7 +4131,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *
    * The new stream will end when one of the sides ends.
    */
-  def zip[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2])(implicit
+  def zip[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit
     zippable: Zippable[A, A2],
     trace: ZTraceElement
   ): ZStream[R1, E1, zippable.Out] =
@@ -4145,8 +4145,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * have different lengths and one of the streams has ended before the other.
    */
   def zipAll[R1 <: R, E1 >: E, A1 >: A, A2](
-    that: ZStream[R1, E1, A2]
-  )(defaultLeft: A1, defaultRight: A2)(implicit trace: ZTraceElement): ZStream[R1, E1, (A1, A2)] =
+    that: => ZStream[R1, E1, A2]
+  )(defaultLeft: => A1, defaultRight: => A2)(implicit trace: ZTraceElement): ZStream[R1, E1, (A1, A2)] =
     zipAllWith(that)((_, defaultRight), (defaultLeft, _))((_, _))
 
   /**
@@ -4156,7 +4156,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The provided default value will be used if the other stream ends before
    * this one.
    */
-  def zipAllLeft[R1 <: R, E1 >: E, A1 >: A, A2](that: ZStream[R1, E1, A2])(default: A1)(implicit
+  def zipAllLeft[R1 <: R, E1 >: E, A1 >: A, A2](that: => ZStream[R1, E1, A2])(default: => A1)(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A1] =
     zipAllWith(that)(identity, _ => default)((o, _) => o)
@@ -4168,7 +4168,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The provided default value will be used if this stream ends before the
    * other one.
    */
-  def zipAllRight[R1 <: R, E1 >: E, A2](that: ZStream[R1, E1, A2])(default: A2)(implicit
+  def zipAllRight[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(default: => A2)(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
     zipAllWith(that)(_ => default, identity)((_, A2) => A2)
@@ -4181,7 +4181,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * lengths and one of the streams has ended before the other.
    */
   def zipAllWith[R1 <: R, E1 >: E, A2, A3](
-    that: ZStream[R1, E1, A2]
+    that: => ZStream[R1, E1, A2]
   )(left: A => A3, right: A2 => A3)(both: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] =
     zipAllWithExec(that)(ExecutionStrategy.Parallel)(left, right)(both)
 
@@ -4196,7 +4196,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * from the streams sequentially or in parallel.
    */
   def zipAllWithExec[R1 <: R, E1 >: E, A2, A3](
-    that: ZStream[R1, E1, A2]
+    that: => ZStream[R1, E1, A2]
   )(
     exec: ExecutionStrategy
   )(left: A => A3, right: A2 => A3)(both: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
@@ -4258,7 +4258,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The new stream will end when one of the sides ends.
    */
   def zipWith[R1 <: R, E1 >: E, A2, A3](
-    that: ZStream[R1, E1, A2]
+    that: => ZStream[R1, E1, A2]
   )(f: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
     sealed trait State[+W1, +W2]
     case class Running[W1, W2](excess: Either[Chunk[W1], Chunk[W2]]) extends State[W1, W2]
@@ -4331,7 +4331,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * used for zipping.
    */
   final def zipWithLatest[R1 <: R, E1 >: E, A2, A3](
-    that: ZStream[R1, E1, A2]
+    that: => ZStream[R1, E1, A2]
   )(f: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
     def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
       pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else UIO.succeedNow(chunk))
@@ -4823,7 +4823,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => InputStream,
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
-    ZStream((is, chunkSize)).flatMap { case (is, chunkSize) =>
+    ZStream.succeed((is, chunkSize)).flatMap { case (is, chunkSize) =>
       ZStream.repeatZIOChunkOption {
         for {
           bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
@@ -6404,7 +6404,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      */
     final def zipAllSortedByKey[R1 <: R, E1 >: E, B](
       that: => ZStream[R1, E1, (K, B)]
-    )(defaultLeft: A, defaultRight: B)(implicit ord: Ordering[K], trace: ZTraceElement): ZStream[R1, E1, (K, (A, B))] =
+    )(defaultLeft: => A, defaultRight: => B)(implicit ord: Ordering[K], trace: ZTraceElement): ZStream[R1, E1, (K, (A, B))] =
       zipAllSortedByKeyWith(that)((_, defaultRight), (defaultLeft, _))((_, _))
 
     /**
@@ -6419,7 +6419,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      */
     final def zipAllSortedByKeyLeft[R1 <: R, E1 >: E, B](
       that: => ZStream[R1, E1, (K, B)]
-    )(default: A)(implicit ord: Ordering[K], trace: ZTraceElement): ZStream[R1, E1, (K, A)] =
+    )(default: => A)(implicit ord: Ordering[K], trace: ZTraceElement): ZStream[R1, E1, (K, A)] =
       zipAllSortedByKeyWith(that)(identity, _ => default)((a, _) => a)
 
     /**
@@ -6434,7 +6434,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      */
     final def zipAllSortedByKeyRight[R1 <: R, E1 >: E, B](
       that: => ZStream[R1, E1, (K, B)]
-    )(default: B)(implicit ord: Ordering[K], trace: ZTraceElement): ZStream[R1, E1, (K, B)] =
+    )(default: => B)(implicit ord: Ordering[K], trace: ZTraceElement): ZStream[R1, E1, (K, B)] =
       zipAllSortedByKeyWith(that)(_ => default, identity)((_, b) => b)
 
     /**
