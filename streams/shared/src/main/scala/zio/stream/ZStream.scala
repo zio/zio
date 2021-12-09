@@ -2620,6 +2620,25 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self.mergeWith(that)(Left(_), Right(_))
 
   /**
+   * Merges this stream and the specified stream together, discarding the values
+   * from the right stream.
+   */
+  final def mergeLeft[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2], strategy: TerminationStrategy = TerminationStrategy.Both)(implicit
+    trace: ZTraceElement
+  ): ZStream[R1, E1, A] =
+    self.mergeEither(that).collectLeft
+
+  /**
+   * Merges this stream and the specified stream together, discarding the values
+   * from the left stream.
+   */
+  final def mergeRight[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2], strategy: TerminationStrategy = TerminationStrategy.Both)(implicit
+    trace: ZTraceElement
+  ): ZStream[R1, E1, A2] =
+    self.mergeEither(that).collectRight
+
+
+  /**
    * Merges this stream and the specified stream together to a common element
    * type with the specified mapping functions.
    *
@@ -3552,10 +3571,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     sink: => ZSink[R1, E1, A, Any, Any],
     maximumLag: => Int
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    ZStream.succeed(sink).flatMap { sink =>
-      ZStream.managed(broadcast(2, maximumLag)).flatMap { streams =>
-        streams(0).mergeEither(ZStream.fromZIO(streams(1).run(sink))).collectLeft
-      }
+    ZStream.managed(broadcast(2, maximumLag)).flatMap { streams =>
+      streams(0).mergeLeft(ZStream.fromZIO(streams(1).run(sink)))
     }
 
   /**
