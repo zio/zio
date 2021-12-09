@@ -2623,7 +2623,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Merges this stream and the specified stream together, discarding the values
    * from the right stream.
    */
-  final def mergeLeft[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2], strategy: TerminationStrategy = TerminationStrategy.Both)(implicit
+  final def mergeLeft[R1 <: R, E1 >: E, A2](
+    that: => ZStream[R1, E1, A2],
+    strategy: TerminationStrategy = TerminationStrategy.Both
+  )(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A] =
     self.mergeEither(that).collectLeft
@@ -2632,11 +2635,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Merges this stream and the specified stream together, discarding the values
    * from the left stream.
    */
-  final def mergeRight[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2], strategy: TerminationStrategy = TerminationStrategy.Both)(implicit
+  final def mergeRight[R1 <: R, E1 >: E, A2](
+    that: => ZStream[R1, E1, A2],
+    strategy: TerminationStrategy = TerminationStrategy.Both
+  )(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
     self.mergeEither(that).collectRight
-
 
   /**
    * Merges this stream and the specified stream together to a common element
