@@ -6404,7 +6404,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      */
     final def zipAllSortedByKey[R1 <: R, E1 >: E, B](
       that: => ZStream[R1, E1, (K, B)]
-    )(defaultLeft: => A, defaultRight: => B)(implicit ord: Ordering[K], trace: ZTraceElement): ZStream[R1, E1, (K, (A, B))] =
+    )(defaultLeft: => A, defaultRight: => B)(implicit
+      ord: Ordering[K],
+      trace: ZTraceElement
+    ): ZStream[R1, E1, (K, (A, B))] =
       zipAllSortedByKeyWith(that)((_, defaultRight), (defaultLeft, _))((_, _))
 
     /**
