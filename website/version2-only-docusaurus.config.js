@@ -27,9 +27,9 @@ module.exports = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { to: 'overview/overview_index', label: 'Overview', position: 'right' },
+        { to: 'overview/index', label: 'Overview', position: 'right' },
         { to: 'datatypes/index', label: 'Data Types', position: 'right' },
-        { to: 'usecases/usecases_index', label: 'Use Cases', position: 'right' },
+        { to: 'usecases/index', label: 'Use Cases', position: 'right' },
         { to: 'howto/index', label: 'How to', position: 'right' },
         { to: 'resources/index', label: 'Resources', position: 'right' },
         { to: 'about/index', label: 'About', position: 'right' },
