@@ -26,18 +26,9 @@ trait TimeoutVariants {
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect.WithOut[
-    Nothing,
-    Live,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ] =
+  ): TestAspectAtLeastR[Live] =
     new TestAspect[Nothing, Live, Nothing, Any] {
-      type OutEnv[Env] = Env
-      type OutErr[Err] = Err
-      def apply[R <: Live, E](
+      def some[R <: Live, E](
         spec: ZSpec[R, E]
       )(implicit trace: ZTraceElement): ZSpec[R, E] = {
         def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Live, E] =
