@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 
 object TestAspectSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("TestAspectSpec")(
+  def spec = suite("TestAspectSpec")(
     test("around evaluates tests inside context of Managed") {
       for {
         ref <- Ref.make(0)

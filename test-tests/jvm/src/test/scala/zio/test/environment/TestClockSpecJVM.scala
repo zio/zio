@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit
 
 object TestClockSpecJVM extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("TestClockSpecJVM")(
       suite("asScheduledExecutorService")(
         test("schedules tasks at fixed rate correctly") {

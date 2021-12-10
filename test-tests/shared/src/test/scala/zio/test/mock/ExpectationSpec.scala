@@ -40,7 +40,7 @@ object ExpectationSpec extends ZIOBaseSpec {
       )
     )
 
-  def spec: ZSpec[Environment, Failure] = suite("ExpectationSpec")(
+  def spec = suite("ExpectationSpec")(
     suite("and")(
       test("A and B")(assert(A and B)(isAnd(A :: B :: Nil))),
       test("A && B")(assert(A && B)(isAnd(A :: B :: Nil)))

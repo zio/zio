@@ -9,9 +9,9 @@ import zio.test.mock.modules._
  *
  * We can't typecheck @mockable with typeCheck
  */
-object MockableSpec extends DefaultRunnableSpec {
+object MockableSpec extends ZIOSpecDefault {
 
-  def spec: ZSpec[Environment, Failure] = suite("MockableSpec")(
+  def spec = suite("MockableSpec")(
     suite("Mockable macro")(
       test("compiles when applied to object with empty Service") {
         assert({

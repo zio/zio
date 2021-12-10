@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 object EnvironmentSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("EnvironmentSpec")(
+  def spec = suite("EnvironmentSpec")(
     test("Clock returns time when it is set") {
       for {
         _    <- TestClock.setTime(1.millis)

@@ -6,7 +6,7 @@ import zio.test._
 import java.io.IOException
 
 // https://github.com/kitlangton/zio-magic/issues/91
-object provideSomeSpec extends DefaultRunnableSpec {
+object ProvideSomeSpec extends ZIOSpecDefault {
 
   final case class TestService(console: Console, clock: Clock) {
     def somethingMagical(annotate: String): ZIO[Any, IOException, Unit] =

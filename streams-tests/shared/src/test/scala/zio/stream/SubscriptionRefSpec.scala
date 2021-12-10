@@ -4,9 +4,9 @@ import zio._
 import zio.test.Assertion._
 import zio.test._
 
-object SubscriptionRefSpec extends DefaultRunnableSpec {
+object SubscriptionRefSpec extends ZIOSpecDefault {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("SubscriptionRefSpec")(
       test("multiple subscribers can receive changes") {
         for {

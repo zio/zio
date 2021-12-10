@@ -8,9 +8,9 @@ import zio.{Chunk, ZIO}
 import java.nio.charset.StandardCharsets
 import java.util.zip.CRC32
 
-object GunzipSpec extends DefaultRunnableSpec {
+object GunzipSpec extends ZIOSpecDefault {
 
-  override def spec: ZSpec[Environment, Failure] =
+  override def spec =
     suite("Gunzip")(
       test("short stream")(
         assertM(

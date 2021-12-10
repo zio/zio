@@ -7,8 +7,8 @@ import zio.test._
 
 import java.util.zip.Deflater
 
-object DeflateSpec extends DefaultRunnableSpec {
-  override def spec: ZSpec[Environment, Failure] =
+object DeflateSpec extends ZIOSpecDefault {
+  override def spec =
     suite("DeflateSpec")(
       test("JDK inflates what was deflated")(
         check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
