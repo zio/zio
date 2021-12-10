@@ -27,12 +27,12 @@ module.exports = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { to: 'version-1.x/overview/overview_index', label: 'Overview', position: 'right' },
-        { to: 'version-1.x/datatypes/index', label: 'Data Types', position: 'right' },
-        { to: 'version-1.x/usecases/usecases_index', label: 'Use Cases', position: 'right' },
-        { to: 'version-1.x/howto/index', label: 'How to', position: 'right' },
-        { to: 'version-1.x/resources/index', label: 'Resources', position: 'right' },
-        { to: 'version-1.x/about/about_index', label: 'About', position: 'right' },
+        { to: 'version-1.x/overview/', label: 'Overview', position: 'right' },
+        { to: 'version-1.x/datatypes/', label: 'Data Types', position: 'right' },
+        { to: 'version-1.x/usecases/', label: 'Use Cases', position: 'right' },
+        { to: 'version-1.x/howto/', label: 'How to', position: 'right' },
+        { to: 'version-1.x/resources/', label: 'Resources', position: 'right' },
+        { to: 'version-1.x/about/', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
