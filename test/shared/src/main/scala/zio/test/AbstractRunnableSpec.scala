@@ -26,7 +26,7 @@ abstract class AbstractRunnableSpec {
   type Environment
   type Failure
 
-  def aspects: List[TestAspect[Nothing, Environment, Nothing, Any]]
+  def aspects: List[TestAspectAtLeastR[Environment]]
   def runner: TestRunner[Environment, Failure]
   def spec: ZSpec[Environment, Failure]
 

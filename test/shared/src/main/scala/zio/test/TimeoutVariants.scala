@@ -26,7 +26,7 @@ trait TimeoutVariants {
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspect[Nothing, Live, Nothing, Any] =
+  ): TestAspectAtLeastR[Live] =
     new TestAspect[Nothing, Live, Nothing, Any] {
       def some[R <: Live, E](
         spec: ZSpec[R, E]

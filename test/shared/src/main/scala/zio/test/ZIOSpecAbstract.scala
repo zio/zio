@@ -29,7 +29,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   type Failure
 
-  def aspects: Chunk[TestAspect[Nothing, Environment with TestEnvironment with ZIOAppArgs, Nothing, Any]] =
+  def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
     Chunk(TestAspect.fibers)
 
   final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {

@@ -153,7 +153,7 @@ class MutableRunnableSpec[R: Tag](
     (stack.head @@ aspect).toSpec.provideCustomLayerShared(layer.mapError(TestFailure.fail))
   }
 
-  override def aspects: List[TestAspect[Nothing, TestEnvironment, Nothing, Any]] =
+  override def aspects: List[TestAspectAtLeastR[TestEnvironment]] =
     List(TestAspect.timeoutWarning(60.seconds))
 
   override def runner: TestRunner[TestEnvironment, Any] =
