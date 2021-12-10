@@ -1292,7 +1292,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- effects.get
             } yield assert(result)(equalTo(List(3, 3, 2, 1, 1)))
           },
-          test("finalizer ordering") {
+          test("finalizer ordering !") {
             for {
               effects <- Ref.make(List[String]())
               push     = (i: String) => effects.update(i :: _)
@@ -1300,9 +1300,11 @@ object ZStreamSpec extends ZIOBaseSpec {
                          _ <- ZStream.acquireReleaseWith(push("open1"))(_ => push("close1"))
                          _ <- ZStream
                                 .fromChunks(Chunk(()), Chunk(()))
-                                .tap(_ => push("use2"))
+                                .tap(_ => ZIO.debug("use2") *> push("use2"))
                                 .ensuring(push("close2"))
-                         _ <- ZStream.acquireReleaseWith(push("open3"))(_ => push("close3"))
+                         _ <- ZStream.acquireReleaseWith(ZIO.debug("open3") *> push("open3"))(_ =>
+                                ZIO.debug("close3") *> push("close3")
+                              )
                          _ <- ZStream
                                 .fromChunks(Chunk(()), Chunk(()))
                                 .tap(_ => push("use4"))
@@ -1328,6 +1330,33 @@ object ZStreamSpec extends ZIOBaseSpec {
                   "close3",
                   "close2",
                   "close1"
+                )
+              )
+            )
+          },
+          test("finalizer ordering 2") {
+            for {
+              effects <- Ref.make(List[String]())
+              push     = (i: String) => effects.update(i :: _)
+              stream = for {
+                         _ <- ZStream
+                                .fromChunks(Chunk(1), Chunk(2))
+                                .tap(n => ZIO.debug(s">>> use2 $n") *> push("use2"))
+                         _ <- ZStream.acquireReleaseWith(ZIO.debug("open3") *> push("open3"))(_ =>
+                                ZIO.debug("close3") *> push("close3")
+                              )
+                       } yield ()
+              _      <- stream.runDrain
+              result <- effects.get
+            } yield assert(result.reverse)(
+              equalTo(
+                List(
+                  "use2",
+                  "open3",
+                  "close3",
+                  "use2",
+                  "open3",
+                  "close3"
                 )
               )
             )
