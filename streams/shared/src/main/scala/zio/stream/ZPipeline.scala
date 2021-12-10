@@ -134,9 +134,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def collect[In, Out](f: PartialFunction[In, Out]): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline[Any, Nothing, In, Out] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env1, Err1, Out] =
+      ): ZStream[Env, Err, Out] =
         stream.collect(f)
     }
 
@@ -150,9 +150,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def dropUntil[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env1, Err1, In] =
+      ): ZStream[Env, Err, In] =
         stream.dropUntil(f)
     }
 
@@ -166,9 +166,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def dropWhile[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env1, Err1, In] =
+      ): ZStream[Env, Err, In] =
         stream.dropWhile(f)
     }
 
@@ -178,9 +178,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def filter[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env1, Err1, In] =
+      ): ZStream[Env, Err, In] =
         stream.filter(f)
     }
 
@@ -190,9 +190,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def fold[I, O](out0: O)(contFn: O => Boolean)(f: (O, I) => O): ZPipeline[Any, Nothing, I, O] =
     new ZPipeline[Any, Nothing, I, O] {
-      def apply[Env1 <: Any, Err1 >: Nothing](
-        stream: ZStream[Env1, Err1, I]
-      )(implicit trace: ZTraceElement): ZStream[Env1, Err1, O] =
+      def apply[Env, Err](
+        stream: ZStream[Env, Err, I]
+      )(implicit trace: ZTraceElement): ZStream[Env, Err, O] =
         stream
           .mapAccum(out0) { case (o0, i) =>
             val o = f(o0, i)
@@ -305,9 +305,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def identity[A]: ZPipeline[Any, Nothing, A, A] =
     new ZPipeline[Any, Nothing, A, A] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, A])(implicit
+      def apply[Env, Err](stream: ZStream[Env, Err, A])(implicit
         trace: ZTraceElement
-      ): ZStream[Env1, Err1, A] =
+      ): ZStream[Env, Err, A] =
         stream
     }
 
@@ -322,9 +322,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def map[In, Out](f: In => Out): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline[Any, Nothing, In, Out] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env1, Err1, Out] =
+      ): ZStream[Env, Err, Out] =
         stream.map(f)
     }
 
@@ -532,9 +532,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def takeUntil[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env1, Err1, In] =
+      ): ZStream[Env, Err, In] =
         stream.takeUntil(f)
     }
 
@@ -544,9 +544,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def takeWhile[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline[Any, Nothing, In, In] {
-      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env1, Err1, In] =
+      ): ZStream[Env, Err, In] =
         stream.takeWhile(f)
     }
 
