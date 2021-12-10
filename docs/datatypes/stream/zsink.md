@@ -302,12 +302,12 @@ val sink = ZSink.fromZIO(ZIO.succeed(1))
 
 ### From File
 
-The `ZSink.fromFile` creates a file sink that consumes byte chunks and writes them to the specified file:
+The `ZSink.fromPath` creates a file sink that consumes byte chunks and writes them to the specified file:
 
 ```scala mdoc:silent:nest
 def fileSink(path: Path): ZSink[Any, Throwable, String, Byte, Long] =
   ZSink
-    .fromFile(path)
+    .fromPath(path)
     .contramapChunks[String](_.flatMap(_.getBytes))
 
 val result = ZStream("Hello", "ZIO", "World!")
