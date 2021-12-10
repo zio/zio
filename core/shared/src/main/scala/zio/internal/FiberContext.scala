@@ -46,8 +46,8 @@ private[zio] final class FiberContext[E, A](
   import FiberContext._
   import FiberState._
 
-  if (!suppressMetrics) fibersStarted.unsafeIncrement()
-  if (!suppressMetrics) fiberForkLocations.unsafeObserve(location.toString)
+  if (trackMetrics) fibersStarted.unsafeIncrement()
+  if (trackMetrics) fiberForkLocations.unsafeObserve(location.toString)
 
   // Accessed from multiple threads:
   private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
@@ -1082,13 +1082,13 @@ private[zio] final class FiberContext[E, A](
 
             val lifetime = endTimeSeconds - startTimeSeconds
 
-            if (!suppressMetrics) fiberLifetimes.unsafeObserve(lifetime.toDouble)
+            if (trackMetrics) fiberLifetimes.unsafeObserve(lifetime.toDouble)
 
             newExit match {
-              case Exit.Success(_) => if (!suppressMetrics) fiberSuccesses.unsafeIncrement()
+              case Exit.Success(_) => if (trackMetrics) fiberSuccesses.unsafeIncrement()
 
               case Exit.Failure(cause) =>
-                if (!suppressMetrics) fiberFailures.unsafeIncrement()
+                if (trackMetrics) fiberFailures.unsafeIncrement()
 
                 cause.fold[Unit](
                   fiberFailureCauses.unsafeObserve("<empty>"),
@@ -1191,12 +1191,13 @@ private[zio] final class FiberContext[E, A](
     discardedFolds
   }
 
-  @inline def suppressMetrics: Boolean =
-    runtimeConfig.runtimeConfigFlags.isEnabled(RuntimeConfigFlag.SuppressMetricNotification)
+  @inline
+  private def trackMetrics: Boolean =
+    runtimeConfig.runtimeConfigFlags.isEnabled(RuntimeConfigFlag.TrackRuntimeMetrics)
 
   @inline
   private def observeFailure(clzz: Class[_]): Unit =
-    if (!suppressMetrics) fiberFailureCauses.unsafeObserve(clzz.getName)
+    if (trackMetrics) fiberFailureCauses.unsafeObserve(clzz.getName)
 
   private[this] class Finalizer(val finalizer: UIO[Any]) extends ErasedTracedCont {
     def apply(v: Any): Erased = {
