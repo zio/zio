@@ -132,13 +132,13 @@ object TSemaphore {
   /**
    * Constructs a new `TSemaphore` with the specified number of permits.
    */
-  def make(permits: Long)(implicit trace: ZTraceElement): USTM[TSemaphore] =
+  def make(permits: => Long)(implicit trace: ZTraceElement): USTM[TSemaphore] =
     TRef.make(permits).map(v => new TSemaphore(v))
 
   /**
    * Constructs a new `TSemaphore` with the specified number of permits,
    * immediately committing the transaction.
    */
-  def makeCommit(permits: Long)(implicit trace: ZTraceElement): UIO[TSemaphore] =
+  def makeCommit(permits: => Long)(implicit trace: ZTraceElement): UIO[TSemaphore] =
     make(permits).commit
 }

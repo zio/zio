@@ -346,7 +346,7 @@ object ZQueue {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def bounded[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
+  def bounded[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.BackPressure()))
 
   /**
@@ -365,7 +365,7 @@ object ZQueue {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def dropping[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
+  def dropping[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Dropping()))
 
   /**
@@ -385,7 +385,7 @@ object ZQueue {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def sliding[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
+  def sliding[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Sliding()))
 
   /**

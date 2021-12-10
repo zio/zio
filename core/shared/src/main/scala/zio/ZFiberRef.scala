@@ -217,7 +217,7 @@ object ZFiberRef {
    * Creates a new `FiberRef` with given initial value.
    */
   def make[A](
-    initial: A,
+    initial: => A,
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
   )(implicit trace: ZTraceElement): UIO[FiberRef.Runtime[A]] =

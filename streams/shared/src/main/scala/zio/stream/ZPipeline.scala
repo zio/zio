@@ -258,7 +258,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that sends all the elements through the given channel
    */
   def fromChannel[InEnv, OutEnv0, InErr, OutErr0, In, Out](
-    channel: ZChannel[OutEnv0, InErr, Chunk[In], Any, OutErr0, Chunk[Out], Any]
+    channel: => ZChannel[OutEnv0, InErr, Chunk[In], Any, OutErr0, Chunk[Out], Any]
   ): ZPipeline.WithOut[
     OutEnv0,
     InEnv,
@@ -304,7 +304,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
         stream
     }
 
-  def iso_8859_1Decode: ZPipeline.WithOut[
+  val iso_8859_1Decode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -317,7 +317,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     textDecodeUsing(StandardCharsets.ISO_8859_1)
 
-  def iso_8859_1Encode: ZPipeline.WithOut[
+  val iso_8859_1Encode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -464,7 +464,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Emits the provided chunk before emitting any other value.
    */
-  def prepend[In](values: Chunk[In]): ZPipeline.WithOut[
+  def prepend[In](values: => Chunk[In]): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -489,7 +489,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that provides the specified environment.
    */
   def provideEnvironment[Env](
-    env: ZEnvironment[Env]
+    env: => ZEnvironment[Env]
   ): ZPipeline.WithOut[
     Env,
     Any,
@@ -514,7 +514,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * A pipeline that rechunks the stream into chunks of the specified size.
    */
-  def rechunk(n: Int): ZPipeline.WithOut[
+  def rechunk(n: => Int): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -539,7 +539,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that scans elements with the specified function.
    */
   def scan[In, Out](
-    s: Out
+    s: => Out
   )(
     f: (Out, In) => Out
   ): ZPipeline.WithOut[
@@ -559,7 +559,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that scans elements with the specified function.
    */
   def scanZIO[Env, Err, In, Out](
-    s: Out
+    s: => Out
   )(
     f: (Out, In) => ZIO[Env, Err, Out]
   ): ZPipeline.WithOut[
@@ -586,7 +586,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Splits strings on a delimiter.
    */
-  def splitOn(delimiter: String): ZPipeline.WithOut[
+  def splitOn(delimiter: => String): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -614,7 +614,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Splits strings on a delimiter.
    */
-  def splitOnChunk[A](delimiter: Chunk[A]): ZPipeline.WithOut[
+  def splitOnChunk[A](delimiter: => Chunk[A]): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -641,7 +641,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX
    * newlines (`\n`).
    */
-  def splitLines: ZPipeline.WithOut[
+  val splitLines: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -730,7 +730,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Creates a pipeline that takes n elements.
    */
-  def take(n: Long): ZPipeline.WithOut[
+  def take(n: => Long): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -805,7 +805,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
         stream.takeWhile(f)
     }
 
-  def usASCIIDecode: ZPipeline.WithOut[
+  val usASCIIDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -824,7 +824,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * utf16 and utf32 without BOM, `utf16Decode` and `utf32Decode` should be used
    * instead as both default to their own default decoder respectively.
    */
-  def utfDecode: ZPipeline.WithOut[
+  val utfDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -836,7 +836,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutElem[Elem] = String })#OutElem
   ] =
     utfDecodeDetectingBom(
-      bomSize = 4,
+      4,
       {
         case bytes @ BOM.Utf32BE if Charset.isSupported(CharsetUtf32BE.name) =>
           bytes -> utf32BEDecode
@@ -853,7 +853,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf8Decode: ZPipeline.WithOut[
+  val utf8Decode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -865,7 +865,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutElem[Elem] = String })#OutElem
   ] =
     utfDecodeDetectingBom(
-      bomSize = 3,
+      3,
       {
         case BOM.Utf8 =>
           Chunk.empty -> utf8DecodeNoBom
@@ -874,7 +874,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf16Decode: ZPipeline.WithOut[
+  val utf16Decode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -886,7 +886,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutElem[Elem] = String })#OutElem
   ] =
     utfDecodeDetectingBom(
-      bomSize = 2,
+      2,
       {
         case BOM.Utf16BE =>
           Chunk.empty -> utf16BEDecode
@@ -897,7 +897,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf16BEDecode: ZPipeline.WithOut[
+  val utf16BEDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -908,9 +908,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = String })#OutElem
   ] =
-    utfDecodeFixedLength(StandardCharsets.UTF_16BE, fixedLength = 2)
+    utfDecodeFixedLength(StandardCharsets.UTF_16BE, 2)
 
-  def utf16LEDecode: ZPipeline.WithOut[
+  val utf16LEDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -921,9 +921,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = String })#OutElem
   ] =
-    utfDecodeFixedLength(StandardCharsets.UTF_16LE, fixedLength = 2)
+    utfDecodeFixedLength(StandardCharsets.UTF_16LE, 2)
 
-  def utf32Decode: ZPipeline.WithOut[
+  val utf32Decode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -935,7 +935,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutElem[Elem] = String })#OutElem
   ] =
     utfDecodeDetectingBom(
-      bomSize = 4,
+      4,
       {
         case bytes @ BOM.Utf32LE =>
           bytes -> utf32LEDecode
@@ -944,7 +944,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf32BEDecode: ZPipeline.WithOut[
+  val utf32BEDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -955,9 +955,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = String })#OutElem
   ] =
-    utfDecodeFixedLength(CharsetUtf32BE, fixedLength = 4)
+    utfDecodeFixedLength(CharsetUtf32BE, 4)
 
-  def utf32LEDecode: ZPipeline.WithOut[
+  val utf32LEDecode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -968,9 +968,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = String })#OutElem
   ] =
-    utfDecodeFixedLength(CharsetUtf32LE, fixedLength = 4)
+    utfDecodeFixedLength(CharsetUtf32LE, 4)
 
-  def usASCIIEncode: ZPipeline.WithOut[
+  val usASCIIEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -996,7 +996,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * `getBytes("UTF-16")` in Java. In fact, it is an alias to both
    * `utf16BEWithBomEncode` and `utf16WithBomEncode`.
    */
-  def utf8Encode: ZPipeline.WithOut[
+  val utf8Encode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1009,7 +1009,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.UTF_8)
 
-  def utf8WithBomEncode: ZPipeline.WithOut[
+  val utf8WithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1020,9 +1020,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Byte })#OutElem
   ] =
-    utfEncodeFor(StandardCharsets.UTF_8, bom = BOM.Utf8)
+    utfEncodeFor(StandardCharsets.UTF_8, BOM.Utf8)
 
-  def utf16BEEncode: ZPipeline.WithOut[
+  val utf16BEEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1035,7 +1035,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.UTF_16BE)
 
-  def utf16BEWithBomEncode: ZPipeline.WithOut[
+  val utf16BEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1046,9 +1046,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Byte })#OutElem
   ] =
-    utfEncodeFor(StandardCharsets.UTF_16BE, bom = BOM.Utf16BE)
+    utfEncodeFor(StandardCharsets.UTF_16BE, BOM.Utf16BE)
 
-  def utf16LEEncode: ZPipeline.WithOut[
+  val utf16LEEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1061,7 +1061,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(StandardCharsets.UTF_16LE)
 
-  def utf16LEWithBomEncode: ZPipeline.WithOut[
+  val utf16LEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1072,22 +1072,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Byte })#OutElem
   ] =
-    utfEncodeFor(StandardCharsets.UTF_16LE, bom = BOM.Utf16LE)
+    utfEncodeFor(StandardCharsets.UTF_16LE, BOM.Utf16LE)
 
-  def utf16Encode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
-    utf16BEWithBomEncode
-
-  def utf16WithBomEncode: ZPipeline.WithOut[
+  val utf16Encode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1100,7 +1087,20 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utf16BEWithBomEncode
 
-  def utf32BEEncode: ZPipeline.WithOut[
+  val utf16WithBomEncode: ZPipeline.WithOut[
+    Nothing,
+    Any,
+    Nothing,
+    Any,
+    Nothing,
+    String,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Byte })#OutElem
+  ] =
+    utf16BEWithBomEncode
+
+  val utf32BEEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1113,7 +1113,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(CharsetUtf32BE)
 
-  def utf32BEWithBomEncode: ZPipeline.WithOut[
+  val utf32BEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1124,9 +1124,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Byte })#OutElem
   ] =
-    utfEncodeFor(CharsetUtf32BE, bom = BOM.Utf32BE)
+    utfEncodeFor(CharsetUtf32BE, BOM.Utf32BE)
 
-  def utf32LEEncode: ZPipeline.WithOut[
+  val utf32LEEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1139,7 +1139,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utfEncodeFor(CharsetUtf32LE)
 
-  def utf32LEWithBomEncode: ZPipeline.WithOut[
+  val utf32LEWithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1150,9 +1150,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     ({ type OutErr[Err] = Err })#OutErr,
     ({ type OutElem[Elem] = Byte })#OutElem
   ] =
-    utfEncodeFor(CharsetUtf32LE, bom = BOM.Utf32LE)
+    utfEncodeFor(CharsetUtf32LE, BOM.Utf32LE)
 
-  def utf32Encode: ZPipeline.WithOut[
+  val utf32Encode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1165,7 +1165,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utf32BEEncode
 
-  def utf32WithBomEncode: ZPipeline.WithOut[
+  val utf32WithBomEncode: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1178,7 +1178,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   ] =
     utf32BEWithBomEncode
 
-  private def textDecodeUsing(charset: Charset): ZPipeline.WithOut[
+  private def textDecodeUsing(charset0: => Charset): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1196,33 +1196,35 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
 
       override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, String] = {
+      ): ZStream[Env, Err, String] =
+        ZStream.suspend {
+          val charset = charset0
 
-        def stringChunkFrom(bytes: Chunk[Byte]) =
-          Chunk.single(
-            new String(bytes.toArray, charset)
+          def stringChunkFrom(bytes: Chunk[Byte]) =
+            Chunk.single(
+              new String(bytes.toArray, charset)
+            )
+
+          def transform: ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any] =
+            ZChannel.readWith(
+              received => {
+                if (received.isEmpty)
+                  transform
+                else
+                  ZChannel.write(stringChunkFrom(received))
+              },
+              error = ZChannel.fail(_),
+              done = _ => ZChannel.unit
+            )
+
+          new ZStream(
+            sourceStream.channel >>> transform
           )
-
-        def transform: ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any] =
-          ZChannel.readWith(
-            received => {
-              if (received.isEmpty)
-                transform
-              else
-                ZChannel.write(stringChunkFrom(received))
-            },
-            error = ZChannel.fail(_),
-            done = _ => ZChannel.unit
-          )
-
-        new ZStream(
-          sourceStream.channel >>> transform
-        )
-      }
+        }
     }
 
   private def utfDecodeDetectingBom(
-    bomSize: Int,
+    bomSize0: => Int,
     processBom: Chunk[Byte] => (
       Chunk[Byte],
       ZPipeline.WithOut[
@@ -1255,69 +1257,71 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
 
       override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, String] = {
+      ): ZStream[Env, Err, String] =
+        ZStream.suspend {
+          val bomSize = bomSize0
 
-        type DecodingChannel = ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any]
+          type DecodingChannel = ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any]
 
-        def passThrough(
-          decodingPipeline: ZPipeline.WithOut[
-            Nothing,
-            Any,
-            Nothing,
-            Any,
-            Nothing,
-            Byte,
-            ({ type OutEnv[Env] = Env })#OutEnv,
-            ({ type OutErr[Err] = Err })#OutErr,
-            ({ type OutElem[Elem] = String })#OutElem
-          ]
-        ): DecodingChannel =
-          ZChannel.readWith(
-            received =>
-              decodingPipeline(
-                ZStream.fromChunk(received)
-              ).channel *>
-                passThrough(decodingPipeline),
-            error = ZChannel.fail(_),
-            done = _ => ZChannel.unit
-          )
-
-        def lookingForBom(buffer: Chunk[Byte]): DecodingChannel =
-          ZChannel.readWith(
-            received => {
-              val data = buffer ++ received
-
-              if (data.length >= bomSize) {
-                val (bom, rest)                        = data.splitAt(bomSize)
-                val (dataWithoutBom, decodingPipeline) = processBom(bom)
-
+          def passThrough(
+            decodingPipeline: ZPipeline.WithOut[
+              Nothing,
+              Any,
+              Nothing,
+              Any,
+              Nothing,
+              Byte,
+              ({ type OutEnv[Env] = Env })#OutEnv,
+              ({ type OutErr[Err] = Err })#OutErr,
+              ({ type OutElem[Elem] = String })#OutElem
+            ]
+          ): DecodingChannel =
+            ZChannel.readWith(
+              received =>
                 decodingPipeline(
-                  ZStream.fromChunk(dataWithoutBom ++ rest)
+                  ZStream.fromChunk(received)
                 ).channel *>
-                  passThrough(decodingPipeline)
-              } else {
-                lookingForBom(data)
-              }
-            },
-            error = ZChannel.fail(_),
-            done = _ =>
-              if (buffer.isEmpty) ZChannel.unit
-              else {
-                val (dataWithoutBom, decodingPipeline) = processBom(buffer)
-                decodingPipeline(
-                  ZStream.fromChunk(dataWithoutBom)
-                ).channel *>
-                  passThrough(decodingPipeline)
-              }
-          )
+                  passThrough(decodingPipeline),
+              error = ZChannel.fail(_),
+              done = _ => ZChannel.unit
+            )
 
-        new ZStream(
-          sourceStream.channel >>> lookingForBom(Chunk.empty)
-        )
-      }
+          def lookingForBom(buffer: Chunk[Byte]): DecodingChannel =
+            ZChannel.readWith(
+              received => {
+                val data = buffer ++ received
+
+                if (data.length >= bomSize) {
+                  val (bom, rest)                        = data.splitAt(bomSize)
+                  val (dataWithoutBom, decodingPipeline) = processBom(bom)
+
+                  decodingPipeline(
+                    ZStream.fromChunk(dataWithoutBom ++ rest)
+                  ).channel *>
+                    passThrough(decodingPipeline)
+                } else {
+                  lookingForBom(data)
+                }
+              },
+              error = ZChannel.fail(_),
+              done = _ =>
+                if (buffer.isEmpty) ZChannel.unit
+                else {
+                  val (dataWithoutBom, decodingPipeline) = processBom(buffer)
+                  decodingPipeline(
+                    ZStream.fromChunk(dataWithoutBom)
+                  ).channel *>
+                    passThrough(decodingPipeline)
+                }
+            )
+
+          new ZStream(
+            sourceStream.channel >>> lookingForBom(Chunk.empty)
+          )
+        }
     }
 
-  private def utf8DecodeNoBom: ZPipeline.WithOut[
+  private val utf8DecodeNoBom: ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1414,7 +1418,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     }
 
-  private def utfDecodeFixedLength(charset: Charset, fixedLength: Int): ZPipeline.WithOut[
+  private def utfDecodeFixedLength(charset0: => Charset, fixedLength0: => Int): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1432,55 +1436,58 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
 
       override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, String] = {
+      ): ZStream[Env, Err, String] =
+        ZStream.suspend {
+          val charset     = charset0
+          val fixedLength = fixedLength0
 
-        val emptyByteChunk: Chunk[Byte] =
-          Chunk.empty
-        val emptyStringChunk =
-          Chunk.single("")
+          val emptyByteChunk: Chunk[Byte] =
+            Chunk.empty
+          val emptyStringChunk =
+            Chunk.single("")
 
-        def stringChunkFrom(bytes: Chunk[Byte]) =
-          Chunk.single(
-            new String(bytes.toArray, charset)
-          )
+          def stringChunkFrom(bytes: Chunk[Byte]) =
+            Chunk.single(
+              new String(bytes.toArray, charset)
+            )
 
-        def process(buffered: Chunk[Byte], received: Chunk[Byte]): (Chunk[String], Chunk[Byte]) = {
-          val bytes     = buffered ++ received
-          val remainder = bytes.length % fixedLength
+          def process(buffered: Chunk[Byte], received: Chunk[Byte]): (Chunk[String], Chunk[Byte]) = {
+            val bytes     = buffered ++ received
+            val remainder = bytes.length % fixedLength
 
-          if (remainder == 0) {
-            stringChunkFrom(bytes) -> emptyByteChunk
-          } else if (bytes.length > fixedLength) {
-            val (fullChunk, rest) = bytes.splitAt(bytes.length - remainder)
+            if (remainder == 0) {
+              stringChunkFrom(bytes) -> emptyByteChunk
+            } else if (bytes.length > fixedLength) {
+              val (fullChunk, rest) = bytes.splitAt(bytes.length - remainder)
 
-            stringChunkFrom(fullChunk) -> rest
-          } else {
-            emptyStringChunk -> bytes.materialize
+              stringChunkFrom(fullChunk) -> rest
+            } else {
+              emptyStringChunk -> bytes.materialize
+            }
           }
-        }
 
-        def readThenTransduce(buffer: Chunk[Byte]): ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any] =
-          ZChannel.readWith(
-            received => {
-              val (string, buffered) = process(buffer, received)
+          def readThenTransduce(buffer: Chunk[Byte]): ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any] =
+            ZChannel.readWith(
+              received => {
+                val (string, buffered) = process(buffer, received)
 
-              ZChannel.write(string) *> readThenTransduce(buffered)
-            },
-            error = ZChannel.fail(_),
-            done = _ =>
-              if (buffer.isEmpty)
-                ZChannel.unit
-              else
-                ZChannel.write(stringChunkFrom(buffer))
+                ZChannel.write(string) *> readThenTransduce(buffered)
+              },
+              error = ZChannel.fail(_),
+              done = _ =>
+                if (buffer.isEmpty)
+                  ZChannel.unit
+                else
+                  ZChannel.write(stringChunkFrom(buffer))
+            )
+
+          new ZStream(
+            sourceStream.channel >>> readThenTransduce(emptyByteChunk)
           )
-
-        new ZStream(
-          sourceStream.channel >>> readThenTransduce(emptyByteChunk)
-        )
-      }
+        }
     }
 
-  private def utfEncodeFor(charset: Charset, bom: Chunk[Byte] = Chunk.empty): ZPipeline.WithOut[
+  private def utfEncodeFor(charset0: => Charset, bom0: => Chunk[Byte] = Chunk.empty): ZPipeline.WithOut[
     Nothing,
     Any,
     Nothing,
@@ -1498,30 +1505,34 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
 
       override def apply[Env, Err, Elem <: String](sourceStream: ZStream[Env, Err, Elem])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Byte] = {
-        def transform: ZChannel[Env, Err, Chunk[String], Any, Err, Chunk[Byte], Any] =
-          ZChannel.readWith(
-            received =>
-              if (received.isEmpty)
-                transform
-              else {
-                val bytes = received.foldLeft[Chunk[Byte]](
-                  Chunk.empty
-                ) { (acc, string) =>
-                  val bytes = string.getBytes(charset)
-                  acc ++ Chunk.fromArray(bytes)
-                }
+      ): ZStream[Env, Err, Byte] =
+        ZStream.suspend {
+          val charset = charset0
+          val bom     = bom0
 
-                ZChannel.write(bytes)
-              },
-            error = ZChannel.fail(_),
-            done = _ => ZChannel.unit
-          )
+          def transform: ZChannel[Env, Err, Chunk[String], Any, Err, Chunk[Byte], Any] =
+            ZChannel.readWith(
+              received =>
+                if (received.isEmpty)
+                  transform
+                else {
+                  val bytes = received.foldLeft[Chunk[Byte]](
+                    Chunk.empty
+                  ) { (acc, string) =>
+                    val bytes = string.getBytes(charset)
+                    acc ++ Chunk.fromArray(bytes)
+                  }
 
-        ZStream.fromChunk(bom) ++
-          new ZStream(
-            sourceStream.channel >>> transform
-          )
-      }
+                  ZChannel.write(bytes)
+                },
+              error = ZChannel.fail(_),
+              done = _ => ZChannel.unit
+            )
+
+          ZStream.fromChunk(bom) ++
+            new ZStream(
+              sourceStream.channel >>> transform
+            )
+        }
     }
 }

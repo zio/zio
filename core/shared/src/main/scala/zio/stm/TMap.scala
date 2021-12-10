@@ -638,11 +638,13 @@ object TMap {
   /**
    * Makes a new `TMap` initialized with provided iterable.
    */
-  def fromIterable[K, V](data: Iterable[(K, V)]): USTM[TMap[K, V]] = {
-    val size     = data.size
-    val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
-    allocate(capacity, data.toList)
-  }
+  def fromIterable[K, V](data0: => Iterable[(K, V)]): USTM[TMap[K, V]] =
+    ZSTM.suspend {
+      val data     = data0
+      val size     = data.size
+      val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
+      allocate(capacity, data.toList)
+    }
 
   /**
    * Makes a new `TMap` that is initialized with specified values.
