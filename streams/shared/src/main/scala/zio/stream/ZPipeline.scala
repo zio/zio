@@ -115,12 +115,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * ZPipeline[Int] >>> ZPipeline.filter(_ % 2 != 0)
    * }}}
    */
-  def apply[I]: ZPipeline[Any, Nothing, I, I] =
-    identity[I]
+  def apply[In]: ZPipeline[Any, Nothing, In, In] =
+    identity[In]
 
-  def branchAfter[R, E, I](n: Int)(f: Chunk[I] => ZPipeline[R, E, I, I]): ZPipeline[R, E, I, I] =
-    new ZPipeline[R, E, I, I] {
-      def apply[R1 <: R, E1 >: E](stream: ZStream[R1, E1, I])(implicit trace: ZTraceElement): ZStream[R1, E1, I] =
+  def branchAfter[Env, Err, In](n: Int)(f: Chunk[In] => ZPipeline[Env, Err, In, In]): ZPipeline[Env, Err, In, In] =
+    new ZPipeline[Env, Err, In, In] {
+      def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In])(implicit trace: ZTraceElement): ZStream[Env1, Err1, In] =
         stream.branchAfter(n)(f)
     }
 
@@ -185,105 +185,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
-   * A stateful fold that will emit the state and reset to the starting state
-   * every time the specified predicate returns false.
-   */
-  def fold[I, O](out0: O)(contFn: O => Boolean)(f: (O, I) => O): ZPipeline[Any, Nothing, I, O] =
-    new ZPipeline[Any, Nothing, I, O] {
-      def apply[Env, Err](
-        stream: ZStream[Env, Err, I]
-      )(implicit trace: ZTraceElement): ZStream[Env, Err, O] =
-        stream
-          .mapAccum(out0) { case (o0, i) =>
-            val o = f(o0, i)
-
-            if (contFn(o)) (o, Some(o))
-            else (out0, None)
-          }
-          .collect { case Some(v) => v }
-    }
-
-  /**
-   * Creates a pipeline from the provided fold function, which operates on the
-   * state and the elements of the source stream.
-   *
-   * {{{
-   * val counter = ZPipeline.foldLeft(0)((count, _) => count + 1)
-   * }}}
-   */
-  def foldLeft[In, Out](z: Out)(f: (Out, In) => Out): ZPipeline[Any, Nothing, In, Out] =
-    fold(z)(_ => true)(f)
-
-  /**
-   * Creates a transducer by effectfully folding over a structure of type `O`.
-   * The transducer will fold the inputs until the stream ends, resulting in a
-   * stream with one element.
-   */
-  def foldLeftZIO[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
-    foldZIO(z)(_ => true)(f)
-
-  /**
-   * Creates a transducer that folds elements of type `I` into a structure of
-   * type `O` until `max` elements have been folded.
-   *
-   * Like foldWeighted, but with a constant cost function of 1.
-   */
-  def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZPipeline[Any, Nothing, I, O] =
-    fold[I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
-      (f(o, i), count + 1)
-    } >>> ZPipeline.map(_._1)
-
-  /**
-   * Creates a transducer that effectfully folds elements of type `I` into a
-   * structure of type `O` until `max` elements have been folded.
-   *
-   * Like foldWeightedM, but with a constant cost function of 1.
-   */
-  def foldUntilZIO[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O])(implicit
-    trace: ZTraceElement
-  ): ZPipeline[R, E, I, O] =
-    foldZIO[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
-      f(o, i).map((_, count + 1))
-    } >>> ZPipeline.map(_._1)
-
-  /**
-   * A stateful fold that will emit the state and reset to the starting state
-   * every time the specified predicate returns false.
-   */
-  def foldZIO[R, E, I, O](out0: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
-    new ZPipeline[R, E, I, O] {
-      def apply[Env1 <: R, Err1 >: E](
-        stream: ZStream[Env1, Err1, I]
-      )(implicit trace: ZTraceElement): ZStream[Env1, Err1, O] =
-        stream
-          .mapAccumZIO(out0) { case (o, i) =>
-            f(o, i).map { o =>
-              if (contFn(o)) (o, Some(o))
-              else (out0, None)
-            }
-          }
-          .collect { case Some(v) => v }
-    }
-
-  /**
-   * Creates a pipeline that effectfully maps elements to the specified
-   * effectfully-computed value.
-   */
-  def fromZIO[R, E, A](zio: ZIO[R, E, A]): ZPipeline[R, E, Any, A] =
-    new ZPipeline[R, E, Any, A] {
-      def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, Any])(implicit
-        trace: ZTraceElement
-      ): ZStream[Env1, Err1, A] =
-        stream.mapZIO(_ => zio)
-    }
-
-  /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
    */
-  def groupAdjacentBy[I, K](f: I => K): ZPipeline[Any, Nothing, I, (K, NonEmptyChunk[I])] =
-    new ZPipeline[Any, Nothing, I, (K, NonEmptyChunk[I])] {
-      type O = (K, NonEmptyChunk[I])
-      def apply[R, E](stream: ZStream[R, E, I])(implicit trace: ZTraceElement): ZStream[R, E, O] =
+  def groupAdjacentBy[In, Key](f: In => Key): ZPipeline[Any, Nothing, In, (Key, NonEmptyChunk[In])] =
+    new ZPipeline[Any, Nothing, In, (Key, NonEmptyChunk[In])] {
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit trace: ZTraceElement): ZStream[Env, Err, (Key, NonEmptyChunk[In])] =
         stream.groupAdjacentBy(f)
     }
 
@@ -303,11 +209,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * The identity pipeline, which does not modify streams in any way.
    */
-  def identity[A]: ZPipeline[Any, Nothing, A, A] =
-    new ZPipeline[Any, Nothing, A, A] {
-      def apply[Env, Err](stream: ZStream[Env, Err, A])(implicit
+  def identity[In]: ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, A] =
+      ): ZStream[Env, Err, In] =
         stream
     }
 
@@ -359,9 +265,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that maps elements with the specified effectful
    * function.
    */
-  def mapZIO[Env0, Err0, In, Out](f: In => ZIO[Env0, Err0, Out]): ZPipeline[Env0, Err0, In, Out] =
-    new ZPipeline[Env0, Err0, In, Out] {
-      def apply[Env1 <: Env0, Err1 >: Err0](stream: ZStream[Env1, Err1, In])(implicit
+  def mapZIO[Env, Err, In, Out](f: In => ZIO[Env, Err, Out]): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline[Env, Err, In, Out] {
+      def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
       ): ZStream[Env1, Err1, Out] =
         stream.mapZIO(f)
@@ -370,9 +276,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Emits the provided chunk before emitting any other value.
    */
-  def prepend[A](values: Chunk[A]): ZPipeline[Any, Nothing, A, A] =
-    new ZPipeline[Any, Nothing, A, A] {
-      def apply[R, E](stream: ZStream[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+  def prepend[In](values: Chunk[In]): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit trace: ZTraceElement): ZStream[Env, Err, In] =
         ZStream.fromChunk(values) ++ stream
     }
 
@@ -430,11 +336,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Splits strings on a delimiter.
    */
-  def splitOnChunk[A](delimiter: Chunk[A]): ZPipeline[Any, Nothing, A, A] =
-    new ZPipeline[Any, Nothing, A, A] {
+  def splitOnChunk[In](delimiter: Chunk[In]): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
       override def apply[Env, Err](
-        stream: ZStream[Env, Err, A]
-      )(implicit trace: ZTraceElement): ZStream[Env, Err, A] =
+        stream: ZStream[Env, Err, In]
+      )(implicit trace: ZTraceElement): ZStream[Env, Err, In] =
         stream
           .splitOnChunk(delimiter)
           .flattenChunks
