@@ -32,5 +32,6 @@ website/static/api*
 website/versioned_docs
 website/i18n/en.json
 website/yarn.lock
+website/package-lock.json
 website/static/api
 .bsp/

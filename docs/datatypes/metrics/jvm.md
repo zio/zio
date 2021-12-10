@@ -78,7 +78,7 @@ object JvmMetricsExample extends ZIOAppDefault {
       _ <- Console.printLine("Collecting JVM Threads metrics ...")
       _ <- ZIO.service[Thread].flatMap(_.collectMetrics.useNow)
       _ <- Console.printLine(s"Current thread count of the JVM: " +
-        MetricClient.unsafeSnapshot(MetricKey.Gauge("jvm_threads_current")))
+        MetricClient.unsafeState(MetricKey.Gauge("jvm_threads_current")))
     } yield ()
 
   def run =
@@ -108,7 +108,7 @@ object MainApp extends ZIOAppDefault {
     } yield ()
 
   val printMetrics =
-    Console.printLine(MetricClient.unsafeSnapshot)
+    Console.printLine(MetricClient.unsafeStates)
             .schedule(Schedule.fixed(10.seconds))
 
   def run =
