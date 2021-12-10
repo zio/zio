@@ -9,8 +9,8 @@ import java.util.zip.Deflater
 
 import Inflate._
 
-object InflateSpec extends DefaultRunnableSpec {
-  override def spec: ZSpec[Environment, Failure] =
+object InflateSpec extends ZIOSpecDefault {
+  override def spec =
     suite("CompressionSpec")(
       test("short stream")(
         assertM(

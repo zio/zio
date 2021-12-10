@@ -6,7 +6,7 @@ import zio.test.Assertion._
 
 object StreamSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("StreamSpec")(
       suite("flatMapStream")(
         test("implements breadth first search") {

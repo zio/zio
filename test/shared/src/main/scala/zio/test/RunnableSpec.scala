@@ -22,6 +22,7 @@ import zio.test.render._
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
+@deprecated("ZIOSpec extends ZIOApp now, making this redundant")
 abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E
@@ -50,10 +51,10 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
     val testArgs = TestArgs.parse(args)
     val runtime  = runner.runtime
     if (TestPlatform.isJVM) {
-      val exitCode = runtime.unsafeRun(run(spec, testArgs).provide(runner.bootstrap))
+      val exitCode = runtime.unsafeRun(run(spec, testArgs).provideLayer(runner.bootstrap))
       doExit(exitCode)
     } else if (TestPlatform.isJS) {
-      runtime.unsafeRunAsyncWith[Nothing, Int](run(spec, testArgs).provide(runner.bootstrap)) { exit =>
+      runtime.unsafeRunAsyncWith[Nothing, Int](run(spec, testArgs).provideLayer(runner.bootstrap)) { exit =>
         val exitCode = exit.getOrElse(_ => 1)
         doExit(exitCode)
       }

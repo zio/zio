@@ -39,7 +39,7 @@ object Live {
   def default: ZLayer[ZEnv, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
     ZManaged
-      .access[ZEnv] { zenv =>
+      .environmentWith[ZEnv] { zenv =>
         new Live {
           def provide[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): IO[E, A] =
             zio.provideEnvironment(zenv)

@@ -6,7 +6,7 @@ import zio.test.internal.myers.{DiffResult, MyersDiff}
 
 object MyersDiffSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("MyersDiffSpec")(
+  def spec = suite("MyersDiffSpec")(
     test("diffing works for only additions both ways") {
       val original = ""
       val modified = "ADDITIONS"

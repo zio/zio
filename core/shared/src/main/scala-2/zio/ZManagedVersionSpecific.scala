@@ -35,26 +35,44 @@ private[zio] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A]
    * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustom[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[ZEnv, E1, A] =
+  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[ZEnv, E1, A] =
     macro LayerMacros.provideSomeImpl[ZManaged, ZEnv, R, E1, A]
+
+  /**
+   * Splits the environment into two parts, assembling one part using the
+   * specified layer and leaving the remainder `R0`.
+   *
+   * {{{
+   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   *
+   * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
+   *
+   * val managed2 = managed.provideSome[Random](clockLayer)
+   * }}}
+   */
+  def provideSome[R0]: ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A] =
+    new ProvideSomeLayerManagedPartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a layer for the ZManaged effect.
    */
-  def provide[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[Any, E1, A] =
+  def provide[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[Any, E1, A] =
     macro LayerMacros.provideImpl[ZManaged, R, E1, A]
 
 }
 
-final class ProvideSomeManagedPartiallyApplied[R0, -R, +E, +A](
+private final class ProvideSomeLayerManagedPartiallyApplied[R0, -R, +E, +A](
   val self: ZManaged[R, E, A]
 ) extends AnyVal {
 
-  def provide[E1 >: E, R1](
+  def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
   )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
-    self.provide(layer)
+    self.provideLayer(layer)
 
-  def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
+  def provideSomeLayer[R0]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
+    new ZManaged.ProvideSomeLayer[R0, R, E, A](self)
+
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
     macro LayerMacros.provideSomeImpl[ZManaged, R0, R, E1, A]
 }

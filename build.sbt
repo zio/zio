@@ -152,6 +152,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
     }
   )
+  .jsSettings(
+    libraryDependencies += ("org.scala-js" %%% "scalajs-weakreferences" % "1.0.0").cross(CrossVersion.for3Use2_13)
+  )
 
 lazy val coreJVM = core.jvm
   .settings(dottySettings)
@@ -525,7 +528,6 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("examples"))
   .settings(crossProjectSettings)
   .settings(macroExpansionSettings)
-  .settings(scalacOptions += "-Xfatal-warnings")
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(publish / skip := true)
   .dependsOn(macros, testRunner)

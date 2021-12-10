@@ -279,7 +279,7 @@ object ZFiberRef {
 
       }
 
-    def get(implicit trace: ZTraceElement): UIO[A] =
+    def get(implicit trace: ZTraceElement): IO[Nothing, A] =
       modify(v => (v, v))
 
     def getAndSet(a: A)(implicit trace: ZTraceElement): UIO[A] =
@@ -658,7 +658,7 @@ object ZFiberRef {
       }
   }
 
-  private[zio] val forkScopeOverride: FiberRef.Runtime[Option[ZScope[Exit[Any, Any]]]] =
+  private[zio] val forkScopeOverride: FiberRef.Runtime[Option[ZScope]] =
     ZFiberRef.unsafeMake(None, _ => None, (a, _) => a)
 
   private[zio] val currentExecutor: FiberRef.Runtime[Option[zio.Executor]] =

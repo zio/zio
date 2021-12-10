@@ -3,7 +3,7 @@ package zio
 import zio.test._
 import zio.test.TestAspect._
 
-object ZEnvironmentIssuesSpec extends DefaultRunnableSpec {
+object ZEnvironmentIssuesSpec extends ZIOSpecDefault {
 
   def spec = suite("ZEnvironmentIssuesSpec")(
     test("Providing a subtype") {
@@ -17,7 +17,7 @@ object ZEnvironmentIssuesSpec extends DefaultRunnableSpec {
       val dog: Dog                = new Dog {}
       val dogService: ULayer[Dog] = ZLayer.succeed(dog)
 
-      zio.provide(dogService).map { result =>
+      zio.provideLayer(dogService).map { result =>
         assertTrue(result == dog)
       }
     } @@ ignore,
@@ -27,6 +27,6 @@ object ZEnvironmentIssuesSpec extends DefaultRunnableSpec {
         tag
       }
       assertTrue(tagForThing(Clock.ClockLive).tag <:< Tag[Clock].tag)
-    } @@ exceptDotty
+    } @@ exceptScala3
   )
 }

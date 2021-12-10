@@ -114,14 +114,10 @@ object StackTracesSpec extends ZIOBaseSpec {
   private def numberOfOccurrences(text: String): String => Int = stack =>
     (stack.length - stack.replace(text, "").length) / text.length
 
-  private val UnsupportedTestPath: Task[String] = ZIO("not considered scenario")
-
   private val matchPrettyPrintCause: ZIO[Any, String, Nothing] => ZIO[Any, Throwable, String] = {
     case fail: IO[String, Nothing] =>
-      fail.catchAllCause {
-        case c: Cause[String] => ZIO.succeed(show(c)) *> ZIO(c.prettyPrint)
-        case _                => UnsupportedTestPath
+      fail.catchAllCause { cause =>
+        ZIO.succeed(show(cause)) *> ZIO(cause.prettyPrint)
       }
-    case _ => UnsupportedTestPath
   }
 }

@@ -384,6 +384,32 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     }
 
   /**
+   * Creates a pipeline that maps chunks of elements with the specified effect.
+   */
+  def mapChunksZIO[Env, Err, In, Out](
+    f: Chunk[In] => ZIO[Env, Err, Chunk[Out]]
+  ): ZPipeline.WithOut[
+    Nothing,
+    Env,
+    Err,
+    Any,
+    Nothing,
+    In,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr,
+    ({ type OutElem[Elem] = Out })#OutElem
+  ] =
+    new ZPipeline[Nothing, Env, Err, Any, Nothing, In] {
+      type OutEnv[Env]   = Env
+      type OutErr[Err]   = Err
+      type OutElem[Elem] = Out
+      def apply[Env1 <: Env, Err1 >: Err, Elem <: In](stream: ZStream[Env1, Err1, Elem])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, Out] =
+        stream.mapChunksZIO(f)
+    }
+
+  /**
    * Creates a pipeline that maps elements with the specified function.
    */
   def mapError[InError, OutError](

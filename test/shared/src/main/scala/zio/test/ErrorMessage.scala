@@ -38,13 +38,13 @@ sealed trait ErrorMessage { self =>
   private[test] def render(isSuccess: Boolean): Message =
     self match {
       case ErrorMessage.Custom(custom) =>
-        Message(custom.split("\n").map(error(_).toLine))
+        Message(custom.split("\n").toIndexedSeq.map(error(_).toLine))
 
       case ErrorMessage.Choice(success, failure) =>
         (if (isSuccess) fr(success).ansi(AnsiColor.MAGENTA) else error(failure)).toLine.toMessage
 
       case ErrorMessage.Value(value) =>
-        Message(value.toString.split("\n").map(primary(_).bold.toLine))
+        Message(value.toString.split("\n").toIndexedSeq.map(primary(_).bold.toLine))
 
       case ErrorMessage.Combine(lhs, rhs, spacing) =>
         (lhs.render(isSuccess) + (sp * spacing)) +++ rhs.render(isSuccess)

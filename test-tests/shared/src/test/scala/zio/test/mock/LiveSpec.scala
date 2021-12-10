@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit
 
 object LiveSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("LiveSpec")(
+  def spec = suite("LiveSpec")(
     test("live can access real environment") {
       for {
         test <- Clock.currentTime(TimeUnit.MILLISECONDS)

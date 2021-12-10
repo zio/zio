@@ -27,10 +27,10 @@ object AutoWireSpec extends ZIOBaseSpec {
               }
 
             val program: URIO[Int, Int] = ZIO.service[Int]
-            val provided: ZIO[Any, Nothing, Int] =
+            val injected: ZIO[Any, Nothing, Int] =
               program.provide(intLayer, stringLayer, doubleLayer)
 
-            provided.map(result => assertTrue(result == 128))
+            injected.map(result => assertTrue(result == 128))
           },
           test("automatically memoizes non-val layers") {
             def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, String] =
@@ -56,14 +56,14 @@ object AutoWireSpec extends ZIOBaseSpec {
                   containsStringWithoutAnsi("ZLayer.succeed(13)")
               )
             )
-          } @@ TestAspect.exceptDotty,
+          } @@ TestAspect.exceptScala3,
           test("reports missing top-level layers") {
             val program: URIO[String with Int, String] = UIO("test")
             val _                                      = program
 
             val checked = typeCheck("program.provide(ZLayer.succeed(3))")
             assertM(checked)(isLeft(containsStringWithoutAnsi("String")))
-          } @@ TestAspect.exceptDotty,
+          } @@ TestAspect.exceptScala3,
           test("reports multiple missing top-level layers") {
             val program: URIO[String with Int, String] = UIO("test")
             val _                                      = program
@@ -72,20 +72,20 @@ object AutoWireSpec extends ZIOBaseSpec {
             assertM(checked)(
               isLeft(containsStringWithoutAnsi("String") && containsStringWithoutAnsi("Int"))
             )
-          } @@ TestAspect.exceptDotty,
+          } @@ TestAspect.exceptScala3,
           test("reports missing transitive dependencies") {
             import TestLayer._
             val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
             val _                               = program
 
-            val checked = typeCheck("val provided: UIO[Boolean] = program.provide(OldLady.live)")
+            val checked = typeCheck("program.provide(OldLady.live)")
             assertM(checked)(
               isLeft(
                 containsStringWithoutAnsi("zio.autowire.AutoWireSpec.TestLayer.Fly") &&
                   containsStringWithoutAnsi("Required by TestLayer.OldLady.live")
               )
             )
-          } @@ TestAspect.exceptDotty,
+          } @@ TestAspect.exceptScala3,
           test("reports nested missing transitive dependencies") {
             import TestLayer._
             val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -98,7 +98,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                   containsStringWithoutAnsi("Required by TestLayer.Fly.live")
               )
             )
-          } @@ TestAspect.exceptDotty,
+          } @@ TestAspect.exceptScala3,
           test("reports circular dependencies") {
             import TestLayer._
             val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
@@ -114,7 +114,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                   )
               )
             )
-          } @@ TestAspect.exceptDotty
+          } @@ TestAspect.exceptScala3
         ),
         suite("provideCustom")(
           test("automatically constructs a layer, leaving off ZEnv") {
@@ -147,7 +147,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
             val layer =
               ZLayer.make[Int](intLayer, stringLayer, doubleLayer)
-            val provided = ZIO.service[Int].provide(layer)
+            val provided = ZIO.service[Int].provideLayer(layer)
             assertM(provided)(equalTo(128))
           },
           test("correctly decomposes nested, aliased intersection types") {
@@ -166,7 +166,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                   containsStringWithoutAnsi("Double")
               )
             )
-          } @@ TestAspect.exceptDotty
+          } @@ TestAspect.exceptScala3
         ),
         suite("`ZLayer.makeSome`")(
           test("automatically constructs a layer, leaving off some remainder") {
@@ -179,7 +179,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val layer =
               ZLayer.makeSome[Double with Boolean, Int](intLayer, stringLayer)
             val provided =
-              program.provide(
+              program.provideLayer(
                 ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer
               )
             assertM(provided)(equalTo(128))
@@ -223,7 +223,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
             val checked = typeCheck("program.provide(ZLayer.succeed(3))")
             assertM(checked)(isLeft(containsStringWithoutAnsi("String")))
-          } @@ TestAspect.exceptDotty,
+          } @@ TestAspect.exceptScala3,
           test("reports multiple missing top-level layers") {
             val program: ZManaged[String with Int, Nothing, String] = ZManaged.succeed("test")
             val _                                                   = program
@@ -232,20 +232,20 @@ object AutoWireSpec extends ZIOBaseSpec {
             assertM(checked)(
               isLeft(containsStringWithoutAnsi("String") && containsStringWithoutAnsi("Int"))
             )
-          } @@ TestAspect.exceptDotty,
+          } @@ TestAspect.exceptScala3,
           test("reports missing transitive dependencies") {
             import TestLayer._
             val program: URManaged[OldLady, Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged)
             val _                                    = program
 
-            val checked = typeCheck("val result: UManaged[Boolean] = program.provide(OldLady.live)")
+            val checked = typeCheck("program.provide(OldLady.live)")
             assertM(checked)(
               isLeft(
                 containsStringWithoutAnsi("zio.autowire.AutoWireSpec.TestLayer.Fly") &&
                   containsStringWithoutAnsi("Required by TestLayer.OldLady.live")
               )
             )
-          } @@ TestAspect.exceptDotty,
+          } @@ TestAspect.exceptScala3,
           test("reports nested missing transitive dependencies") {
             import TestLayer._
             val program: URManaged[OldLady, Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged)
@@ -258,7 +258,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                   containsStringWithoutAnsi("Required by TestLayer.Fly.live")
               )
             )
-          } @@ TestAspect.exceptDotty,
+          } @@ TestAspect.exceptScala3,
           test("reports circular dependencies") {
             import TestLayer._
             val program: URManaged[OldLady, Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged)
@@ -274,7 +274,7 @@ object AutoWireSpec extends ZIOBaseSpec {
                   )
               )
             )
-          } @@ TestAspect.exceptDotty
+          } @@ TestAspect.exceptScala3
         ),
         suite("provideCustom")(
           test("automatically constructs a layer, leaving off ZEnv") {

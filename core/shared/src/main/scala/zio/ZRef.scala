@@ -1177,16 +1177,16 @@ object ZRef extends Serializable {
     }
 
     def update(f: A => A)(implicit trace: ZTraceElement): UIO[Unit] =
-      ZIO.effectTotal(unsafeUpdate(f))
+      ZIO.succeed(unsafeUpdate(f))
 
     def updateAndGet(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
-      ZIO.effectTotal(unsafeUpdateAndGet(f))
+      ZIO.succeed(unsafeUpdateAndGet(f))
 
     def updateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[Unit] =
-      ZIO.effectTotal(unsafeUpdateSome(pf))
+      ZIO.succeed(unsafeUpdateSome(pf))
 
     def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
-      ZIO.effectTotal(unsafeUpdateSomeAndGet(pf))
+      ZIO.succeed(unsafeUpdateSomeAndGet(pf))
   }
 
   private abstract class Derived[+EA, +EB, -A, +B] extends ZRef[Any, Any, EA, EB, A, B] { self =>

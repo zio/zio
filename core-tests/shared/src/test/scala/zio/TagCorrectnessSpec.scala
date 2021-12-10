@@ -2,7 +2,7 @@ package zio
 
 import zio.test._
 
-object TagCorrectnessSpec extends DefaultRunnableSpec {
+object TagCorrectnessSpec extends ZIOSpecDefault {
 
   def spec =
     suite("TagCorrectnessSpec")(
@@ -66,7 +66,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
           }
 
         val layer = testBaseLayer[Any, String] >>> testSecondLayer[String]
-        ZIO.unit.provideCustom(layer).as(assertTrue(true))
+        ZIO.unit.provideCustomLayer(layer).as(assertTrue(true))
       },
       // https://github.com/zio/zio/issues/3816
       test("Issue #3816") {
@@ -106,7 +106,7 @@ object TagCorrectnessSpec extends DefaultRunnableSpec {
 /**
  * Higher-Kinded Tag Correctness Example
  */
-object HigherKindedTagCorrectness extends DefaultRunnableSpec {
+object HigherKindedTagCorrectness extends ZIOSpecDefault {
 
   trait Cache[F[_], K, V] {
     def get(key: K): ZIO[Any, Nothing, F[V]]
@@ -162,7 +162,7 @@ object HigherKindedTagCorrectness extends DefaultRunnableSpec {
           !(a.tag <:< c.tag),
           !(c.tag <:< a.tag),
           !(a.tag <:< d.tag)
-        )).provide(myCache)
+        )).provideLayer(myCache)
       }
     )
 

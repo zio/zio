@@ -7,32 +7,32 @@ import zio.test.TestUtils._
 
 object SpecSpec extends ZIOBaseSpec {
 
-  val layer: ZLayer[Any, Nothing, Unit] =
+  val specLayer: ZLayer[Any, Nothing, Unit] =
     ZLayer.succeed(())
 
   def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
-    suite("provideCustom")(
+    suite("provideCustomLayer")(
       test("provides the part of the environment that is not part of the `TestEnvironment`") {
         for {
           _ <- ZIO.environment[TestEnvironment]
           _ <- ZIO.service[Unit]
         } yield assertCompletes
-      }.provideCustom(layer)
+      }.provideCustomLayer(specLayer)
     ),
-    suite("provide")(
+    suite("provideLayer")(
       test("does not have early initialization issues") {
         for {
           _ <- ZIO.service[Unit]
         } yield assertCompletes
-      }.provide(layer)
+      }.provideLayer(specLayer)
     ),
-    suite("provideShared")(
+    suite("provideLayerShared")(
       test("gracefully handles fiber death") {
         val spec = suite("suite")(
           test("test") {
             assert(true)(isTrue)
           }
-        ).provideShared(ZLayer.fromZIOEnvironment(ZIO.dieMessage("everybody dies")))
+        ).provideLayerShared(ZLayer.fromZIOEnvironment(ZIO.dieMessage("everybody dies")))
         for {
           _ <- execute(spec)
         } yield assertCompletes
@@ -40,18 +40,17 @@ object SpecSpec extends ZIOBaseSpec {
       test("does not acquire the environment if the suite is ignored") {
         val spec = suite("suite")(
           test("test1") {
-            ZIO.service[Console] *>
-              assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
+            assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
           },
           test("test2") {
             assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
           }
         )
         for {
-          ref    <- Ref.make(true)
-          layer   = ZLayer.fromZIO(ref.set(false).as(ref))
-          _      <- execute(spec.provideCustomShared(layer) @@ ifEnvSet("foo"))
-          result <- ref.get
+          ref      <- Ref.make(true)
+          specLayer = ZLayer.fromZIO(ref.set(false).as(ref))
+          _        <- execute(spec.provideCustomLayerShared(specLayer) @@ ifEnvSet("foo"))
+          result   <- ref.get
         } yield assert(result)(isTrue)
       },
       test("is not interfered with by test level failures") {
@@ -65,23 +64,27 @@ object SpecSpec extends ZIOBaseSpec {
           test("test3") {
             assertM(ZIO.service[Int])(Assertion.equalTo(42))
           }
-        ).provideShared(ZLayer.succeed(43))
+        ).provideLayerShared(ZLayer.succeed(43))
         for {
           executedSpec <- execute(spec)
-          successes = executedSpec.fold[Int] {
-                        case ExecutedSpec.LabeledCase(_, count) => count
-                        case ExecutedSpec.MultipleCase(counts)  => counts.sum
-                        case ExecutedSpec.TestCase(test, _)     => if (test.isRight) 1 else 0
+          successes = executedSpec.fold[Int] { c =>
+                        c match {
+                          case ExecutedSpec.LabeledCase(_, count) => count
+                          case ExecutedSpec.MultipleCase(counts)  => counts.sum
+                          case ExecutedSpec.TestCase(test, _)     => if (test.isRight) 1 else 0
+                        }
                       }
-          failures = executedSpec.fold[Int] {
-                       case ExecutedSpec.LabeledCase(_, count) => count
-                       case ExecutedSpec.MultipleCase(counts)  => counts.sum
-                       case ExecutedSpec.TestCase(test, _)     => if (test.isLeft) 1 else 0
+          failures = executedSpec.fold[Int] { c =>
+                       c match {
+                         case ExecutedSpec.LabeledCase(_, count) => count
+                         case ExecutedSpec.MultipleCase(counts)  => counts.sum
+                         case ExecutedSpec.TestCase(test, _)     => if (test.isLeft) 1 else 0
+                       }
                      }
         } yield assert(successes)(equalTo(1)) && assert(failures)(equalTo(2))
       }
     ),
-    suite("provideSomeShared")(
+    suite("provideSomeLayerShared")(
       test("leaves the remainder of the environment") {
         for {
           ref <- Ref.make[Set[Int]](Set.empty)
@@ -100,12 +103,11 @@ object SpecSpec extends ZIOBaseSpec {
                    },
                    test("test3") {
                      for {
-                       _ <- ZIO.service[Unit]
                        n <- Random.nextInt
                        _ <- ref.update(_ + n)
                      } yield assertCompletes
                    }
-                 ).provideSomeShared[TestEnvironment](layer) @@ nondeterministic
+                 ).provideSomeLayerShared[TestEnvironment](specLayer) @@ nondeterministic
           _      <- execute(spec)
           result <- ref.get
         } yield assert(result)(hasSize(isGreaterThan(1)))
@@ -120,40 +122,37 @@ object SpecSpec extends ZIOBaseSpec {
           },
           test("test2") {
             for {
-              _      <- ZIO.service[Unit]
-              _      <- Console.printLine("Hi Everybody!")
+              _      <- Console.printLine("Hello, World!")
               output <- TestConsole.output
-            } yield assert(output)(equalTo(Vector("Hi Everybody!\n")))
+            } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           }
-        ).provideSomeShared[TestEnvironment](layer) @@ silent
+        ).provideSomeLayerShared[TestEnvironment](specLayer) @@ silent
         assertM(succeeded(spec))(isTrue)
       },
       test("releases resources as soon as possible") {
         for {
-          ref    <- Ref.make[List[String]](List.empty)
-          acquire = ref.update("Acquiring" :: _)
-          release = ref.update("Releasing" :: _)
-          update  = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
-          layer   = ZManaged.acquireReleaseWith(acquire *> Ref.make(0))(_ => release).toLayer
+          ref      <- Ref.make[List[String]](List.empty)
+          acquire   = ref.update("Acquiring" :: _)
+          release   = ref.update("Releasing" :: _)
+          update    = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
+          specLayer = ZManaged.acquireReleaseWith(acquire *> Ref.make(0))(_ => release).toLayer
           spec = suite("spec")(
                    suite("suite1")(
                      test("test1") {
                        assertM(update)(equalTo(1))
                      },
                      test("test2") {
-                       ZIO.service[Console] *>
-                         assertM(update)(equalTo(2))
+                       assertM(update)(equalTo(2))
                      }
-                   ).provideCustomShared(layer),
+                   ).provideCustomLayerShared(specLayer),
                    suite("suite2")(
                      test("test1") {
                        assertM(update)(equalTo(1))
                      },
                      test("test2") {
-                       ZIO.service[Console] *>
-                         assertM(update)(equalTo(2))
+                       assertM(update)(equalTo(2))
                      }
-                   ).provideCustomShared(layer)
+                   ).provideCustomLayerShared(specLayer)
                  ) @@ sequential
           succeeded <- succeeded(spec)
           log       <- ref.get.map(_.reverse)
@@ -168,14 +167,13 @@ object SpecSpec extends ZIOBaseSpec {
                 suite("d") {
                   test("test") {
                     for {
-                      _ <- ZIO.service[Console]
                       n <- ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
                     } yield assert(n)(equalTo(1))
                   }
                 }
               )
             )
-          ).provideCustomShared(ZManaged.acquireReleaseWith(Ref.make(0))(_.set(-1)).toLayer)
+          ).provideCustomLayerShared(ZManaged.acquireReleaseWith(Ref.make(0))(_.set(-1)).toLayer)
         assertM(succeeded(spec))(isTrue)
       }
     )

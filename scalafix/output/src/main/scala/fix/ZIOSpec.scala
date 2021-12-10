@@ -12,9 +12,9 @@ import zio.test._
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 import zio.{ Clock, FiberId, Random, Random, _ }
-import zio.test.{ Gen, Live, Sized }
+import zio.test.{ Gen, Live, Sized, ZIOSpecDefault }
 
-object ZIOSpec extends DefaultRunnableSpec {
+object ZIOSpec extends ZIOSpecDefault {
 
   def spec: ZSpec[Environment, Failure] = suite("ZIOSpec")(
     suite("&&")(

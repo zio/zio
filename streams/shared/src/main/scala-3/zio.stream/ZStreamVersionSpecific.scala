@@ -30,17 +30,11 @@ trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
 
 }
 
-private final class ProvideSomeStreamPartiallyApplied[R0, -R, +E, +A](val self: ZStream[R, E, A]) extends AnyVal {
-  inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZStream[R0, E1, A] =
-  ${ZStreamProvideMacro.provideImpl[R0, R, E1, A]('self, 'layer)}
-}
-
-
 object ZStreamProvideMacro {
   import scala.quoted._
 
   def provideImpl[R0: Type, R: Type, E: Type, A: Type](zstream: Expr[ZStream[R,E,A]], layer: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZStream[R0,E,A]] = {
     val layerExpr = LayerMacros.fromAutoImpl[R0, R, E](layer)
-    '{$zstream.provide($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
+    '{$zstream.provideLayer($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
   }
 }

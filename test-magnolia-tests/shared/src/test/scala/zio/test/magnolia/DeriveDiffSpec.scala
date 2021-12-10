@@ -5,7 +5,7 @@ import zio.test.magnolia.diff._
 
 import java.time.Instant
 
-object DeriveDiffSpec extends DefaultRunnableSpec {
+object DeriveDiffSpec extends ZIOSpecDefault {
   final case class Pet(name: String, hasBone: Boolean, favoriteFoods: List[String], birthday: Instant)
   final case class Person(name: String, nickname: Option[String], age: Int, pet: Pet)
 

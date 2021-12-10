@@ -12,8 +12,18 @@ import java.time.{OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
 object ClockSpec extends ZIOBaseSpec {
+  override def aspects: Chunk[TestAspect.WithOut[
+    Nothing,
+    TestEnvironment,
+    Nothing,
+    Any,
+    ({ type OutEnv[Env] = Env })#OutEnv,
+    ({ type OutErr[Err] = Err })#OutErr
+  ]] =
+    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(180.seconds))
+    else Chunk(TestAspect.sequential, TestAspect.timeout(180.seconds))
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("ClockSpec")(
       test("sleep does not require passage of clock time") {
         for {
@@ -173,5 +183,5 @@ object ClockSpec extends ZIOBaseSpec {
           result <- fiber.join
         } yield assert(result)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
       }
-    )
+    ) @@ TestAspect.fibers
 }

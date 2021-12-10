@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 object EnvironmentSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("EnvironmentSpec")(
+  def spec = suite("EnvironmentSpec")(
     test("Clock returns time when it is set") {
       for {
         _    <- TestClock.setTime(1.millis)
@@ -47,8 +47,8 @@ object EnvironmentSpec extends ZIOBaseSpec {
     },
     test("Random is deterministic") {
       for {
-        i <- Random.nextInt.provide(testEnvironment)
-        j <- Random.nextInt.provide(testEnvironment)
+        i <- Random.nextInt.provideLayer(testEnvironment)
+        j <- Random.nextInt.provideLayer(testEnvironment)
       } yield assert(i)(equalTo(j))
     },
     test("System returns an environment variable when it is set") {
@@ -71,7 +71,7 @@ object EnvironmentSpec extends ZIOBaseSpec {
     },
     test("clock service can be overwritten") {
       val withLiveClock = TestEnvironment.live ++ Clock.live
-      val time          = Clock.nanoTime.provide(withLiveClock)
+      val time          = Clock.nanoTime.provideLayer(withLiveClock)
       assertM(time)(isGreaterThan(0L))
     } @@ nonFlaky
   )

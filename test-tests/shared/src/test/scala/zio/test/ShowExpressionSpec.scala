@@ -53,7 +53,7 @@ object ShowExpressionSpec extends ZIOBaseSpec {
       showExpression(List(1, 2, 3).reduce((a, b) => a + b)),
       "List(1, 2, 3).reduce(((a, b) => a.+(b)))"
     )
-  ) @@ TestAspect.exceptDotty
+  ) @@ TestAspect.exceptScala3
 
   def methodWithDefaultArgs(arg: String = "") = arg
 

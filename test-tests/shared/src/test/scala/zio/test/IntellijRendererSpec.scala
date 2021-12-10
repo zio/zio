@@ -9,7 +9,7 @@ import zio.{Layer, ZIO, ZTraceElement}
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("IntelliJ Renderer")(
       test("correctly reports a successful test") {
         assertM(runLog(test1))(equalTo(test1Expected.mkString))
@@ -259,7 +259,7 @@ object IntelliJRenderUtils {
     for {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
-             .provide[Nothing, TestEnvironment](
+             .provideLayer[Nothing, TestEnvironment](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output

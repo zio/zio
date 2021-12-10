@@ -34,7 +34,7 @@ final class ZEnvironment[+R] private (
     new ZEnvironment(self.map + (taggedTagType(tagged) -> (a -> index)), index + 1)
 
   override def equals(that: Any): Boolean = that match {
-    case that: ZEnvironment[_] => map == that.map
+    case that: ZEnvironment[_] => self.map == that.map
     case _                     => false
   }
 
@@ -145,9 +145,6 @@ final class ZEnvironment[+R] private (
     map.foldLeft[Map[K, V]](Map.empty) { case (acc, (key, value)) =>
       if (f(key)) acc + (key -> value) else acc
     }
-
-  def toLayer: ULayer[R] =
-    ZLayer.succeedEnvironment(self)
 }
 
 object ZEnvironment {
