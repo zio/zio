@@ -22,7 +22,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
                   ZStream
                     .fromIterable(input)
                     .rechunk(n)
-                    .via(ZPipeline.deflate[Any, Nothing](bufferSize))
+                    .via(ZPipeline.deflate(bufferSize))
                     .runCollect
                 inflated <- jdkInflate(deflated, noWrap = false)
               } yield inflated)(equalTo(input))
@@ -38,7 +38,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
                   ZStream
                     .fromIterable(jdkDeflate(chunk.toArray, new Deflater()))
                     .rechunk(n)
-                    .via(ZPipeline.inflate[Any](bufferSize))
+                    .via(ZPipeline.inflate(bufferSize))
                     .runCollect
               } yield out.toList)(equalTo(chunk))
           }
@@ -52,7 +52,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
                 out <- ZStream
                          .fromIterable(jdkGzip(chunk.toArray))
                          .rechunk(n)
-                         .via(ZPipeline.gunzip[Any](bufferSize))
+                         .via(ZPipeline.gunzip(bufferSize))
                          .runCollect
               } yield out.toList)(equalTo(chunk))
           }
@@ -66,7 +66,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
                 gzipped <- ZStream
                              .fromIterable(input)
                              .rechunk(n)
-                             .via(ZPipeline.gzip[Any, Nothing](bufferSize))
+                             .via(ZPipeline.gzip(bufferSize))
                              .runCollect
                 inflated <- jdkGunzip(gzipped)
               } yield inflated)(equalTo(input))

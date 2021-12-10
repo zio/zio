@@ -9,29 +9,9 @@ import java.nio.charset.{Charset, StandardCharsets}
 
 object TextCodecPipelineSpec extends ZIOBaseSpec {
 
-  type UtfDecodingPipeline = ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ]
+  type UtfDecodingPipeline = ZPipeline[Any, Nothing, Byte, String]
 
-  type UtfEncodingPipeline = ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ]
+  type UtfEncodingPipeline = ZPipeline[Any, Nothing, String, Byte]
 
   private def stringToByteChunkOf(charset: Charset, source: String): Chunk[Byte] =
     Chunk.fromArray(source.getBytes(charset))

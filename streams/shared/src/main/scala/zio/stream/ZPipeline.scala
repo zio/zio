@@ -23,16 +23,16 @@ import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 import java.nio.charset.{Charset, StandardCharsets}
 
 /**
- * A `ZPipeline` is a polymorphic stream transformer. Pipelines accept a stream
- * as input, and return the transformed stream as output.
+ * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer.
+ * Pipelines accept a stream as input, and return the transformed stream as
+ * output.
  *
  * Pipelines can be thought of as a recipe for calling a bunch of methods on a
  * source stream, to yield a new (transformed) stream. A nice mental model is
  * the following type alias:
  *
  * {{{
- * type ZPipeline[Env, Err, In, Out] =
- *   ZStream[Env, Err, In] => ZStream[Env, Err, Out]
+ * type ZPipeline[Env, Err, In, Out] = ZStream[Env, Err, In] => ZStream[Env, Err, Out]
  * }}}
  *
  * This encoding of a pipeline with a type alias is not used because it does not
@@ -52,62 +52,75 @@ import java.nio.charset.{Charset, StandardCharsets}
  * However, the companion object has lots of other pipeline constructors based
  * on the methods of stream.
  */
-trait ZPipeline[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem]
-    extends ZPipelineVersionSpecific[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem] { self =>
-  type OutEnv[Env]
-  type OutErr[Err]
-  type OutElem[Elem]
+trait ZPipeline[-Env, +Err, -In, +Out] { self =>
 
-  def apply[Env >: LowerEnv <: UpperEnv, Err >: LowerErr <: UpperErr, Elem >: LowerElem <: UpperElem](
-    stream: ZStream[Env, Err, Elem]
-  )(implicit
+  def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In])(implicit
     trace: ZTraceElement
-  ): ZStream[OutEnv[Env], OutErr[Err], OutElem[Elem]]
-}
+  ): ZStream[Env1, Err1, Out]
 
-object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatformSpecificConstructors {
-
-  type WithOut[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem, OutEnv0[Env], OutErr0[Err], Out0[
-    Elem
-  ]] =
-    ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem] {
-      type OutEnv[Env]   = OutEnv0[Env]
-      type OutErr[Err]   = OutErr0[Err]
-      type OutElem[Elem] = Out0[Elem]
+  /**
+   * Composes two pipelines into one pipeline, by first applying the
+   * transformation of this pipeline, and then applying the transformation of
+   * the specified pipeline.
+   */
+  final def >>>[Env1 <: Env, Err1 >: Err, Out2](
+    that: ZPipeline[Env1, Err1, Out, Out2]
+  ): ZPipeline[Env1, Err1, In, Out2] =
+    new ZPipeline[Env1, Err1, In, Out2] {
+      def apply[Env0 <: Env1, Err0 >: Err1](stream: ZStream[Env0, Err0, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env0, Err0, Out2] =
+        that(self(stream))
     }
 
-  type Identity[A] = A
+  /**
+   * Composes two pipelines into one pipeline, by first applying the
+   * transformation of the specified pipeline, and then applying the
+   * transformation of this pipeline.
+   */
+  final def <<<[Env1 <: Env, Err1 >: Err, In2](
+    that: ZPipeline[Env1, Err1, In2, In]
+  ): ZPipeline[Env1, Err1, In2, Out] =
+    new ZPipeline[Env1, Err1, In2, Out] {
+      def apply[Env0 <: Env1, Err0 >: Err1](stream: ZStream[Env0, Err0, In2])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env0, Err0, Out] =
+        self(that(stream))
+    }
 
-  def branchAfter[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem, OutElem[Elem]](n: Int)(
-    f: Chunk[UpperElem] => ZPipeline.WithOut[
-      LowerEnv,
-      UpperEnv,
-      LowerErr,
-      UpperErr,
-      LowerElem,
-      UpperElem,
-      ({ type OutEnv[Env] = Env })#OutEnv,
-      ({ type OutErr[Err] = Err })#OutErr,
-      ({ type OutElem[Elem] = Elem })#OutElem
-    ]
-  ): ZPipeline.WithOut[
-    LowerEnv,
-    UpperEnv,
-    LowerErr,
-    UpperErr,
-    LowerElem,
-    UpperElem,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[LowerEnv, UpperEnv, LowerErr, UpperErr, LowerElem, UpperElem] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env >: LowerEnv <: UpperEnv, Err >: LowerErr <: UpperErr, Elem >: LowerElem <: UpperElem](
-        stream: ZStream[Env, Err, Elem]
-      )(implicit trace: ZTraceElement): ZStream[Env, Err, Elem] =
+  /**
+   * A named version of the `>>>` operator.
+   */
+  final def andThen[Env1 <: Env, Err1 >: Err, Out2](
+    that: ZPipeline[Env1, Err1, Out, Out2]
+  ): ZPipeline[Env1, Err1, In, Out2] =
+    self >>> that
+
+  /**
+   * A named version of the `<<<` operator.
+   */
+  final def compose[Env1 <: Env, Err1 >: Err, In2](
+    that: ZPipeline[Env1, Err1, In2, In]
+  ): ZPipeline[Env1, Err1, In2, Out] =
+    self <<< that
+}
+
+object ZPipeline extends ZPipelinePlatformSpecificConstructors {
+
+  /**
+   * A shorter version of [[ZPipeline.identity]], which can facilitate more
+   * compact definition of pipelines.
+   *
+   * {{{
+   * ZPipeline[Int] >>> ZPipeline.filter(_ % 2 != 0)
+   * }}}
+   */
+  def apply[I]: ZPipeline[Any, Nothing, I, I] =
+    identity[I]
+
+  def branchAfter[R, E, I](n: Int)(f: Chunk[I] => ZPipeline[R, E, I, I]): ZPipeline[R, E, I, I] =
+    new ZPipeline[R, E, I, I] {
+      def apply[R1 <: R, E1 >: E](stream: ZStream[R1, E1, I])(implicit trace: ZTraceElement): ZStream[R1, E1, I] =
         stream.branchAfter(n)(f)
     }
 
@@ -119,26 +132,11 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * ZPipeline.collect[Option[Int], Int] { case Some(v) => v }
    * }}}
    */
-  def collect[In, Out](
-    f: PartialFunction[In, Out]
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Out })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Out
-      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+  def collect[In, Out](f: PartialFunction[In, Out]): ZPipeline[Any, Nothing, In, Out] =
+    new ZPipeline[Any, Nothing, In, Out] {
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Out] =
+      ): ZStream[Env1, Err1, Out] =
         stream.collect(f)
     }
 
@@ -150,26 +148,11 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * ZPipeline.dropUntil[Int](_ > 100)
    * }}}
    */
-  def dropUntil[In](
-    f: In => Boolean
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+  def dropUntil[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Elem] =
+      ): ZStream[Env1, Err1, In] =
         stream.dropUntil(f)
     }
 
@@ -181,26 +164,11 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * ZPipeline.dropWhile[Int](_ <= 100)
    * }}}
    */
-  def dropWhile[In](
-    f: In => Boolean
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+  def dropWhile[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Elem] =
+      ): ZStream[Env1, Err1, In] =
         stream.dropWhile(f)
     }
 
@@ -208,153 +176,155 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that filters elements according to the specified
    * predicate.
    */
-  def filter[In](
-    f: In => Boolean
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+  def filter[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Elem] =
+      ): ZStream[Env1, Err1, In] =
         stream.filter(f)
     }
 
   /**
-   * Creates a pipeline that groups on adjacent keys, calculated by the
-   * specified keying function.
+   * A stateful fold that will emit the state and reset to the starting state
+   * every time the specified predicate returns false.
    */
-  def groupAdjacentBy[In, Key](f: In => Key): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = (Key, NonEmptyChunk[Elem]) })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = (Key, NonEmptyChunk[Elem])
-      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+  def fold[I, O](out0: O)(contFn: O => Boolean)(f: (O, I) => O): ZPipeline[Any, Nothing, I, O] =
+    new ZPipeline[Any, Nothing, I, O] {
+      def apply[Env1 <: Any, Err1 >: Nothing](
+        stream: ZStream[Env1, Err1, I]
+      )(implicit trace: ZTraceElement): ZStream[Env1, Err1, O] =
+        stream
+          .mapAccum(out0) { case (o0, i) =>
+            val o = f(o0, i)
+
+            if (contFn(o)) (o, Some(o))
+            else (out0, None)
+          }
+          .collect { case Some(v) => v }
+    }
+
+  /**
+   * Creates a pipeline from the provided fold function, which operates on the
+   * state and the elements of the source stream.
+   *
+   * {{{
+   * val counter = ZPipeline.foldLeft(0)((count, _) => count + 1)
+   * }}}
+   */
+  def foldLeft[In, Out](z: Out)(f: (Out, In) => Out): ZPipeline[Any, Nothing, In, Out] =
+    fold(z)(_ => true)(f)
+
+  /**
+   * Creates a transducer by effectfully folding over a structure of type `O`.
+   * The transducer will fold the inputs until the stream ends, resulting in a
+   * stream with one element.
+   */
+  def foldLeftZIO[R, E, I, O](z: O)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
+    foldZIO(z)(_ => true)(f)
+
+  /**
+   * Creates a transducer that folds elements of type `I` into a structure of
+   * type `O` until `max` elements have been folded.
+   *
+   * Like foldWeighted, but with a constant cost function of 1.
+   */
+  def foldUntil[I, O](z: O, max: Long)(f: (O, I) => O): ZPipeline[Any, Nothing, I, O] =
+    fold[I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
+      (f(o, i), count + 1)
+    } >>> ZPipeline.map(_._1)
+
+  /**
+   * Creates a transducer that effectfully folds elements of type `I` into a
+   * structure of type `O` until `max` elements have been folded.
+   *
+   * Like foldWeightedM, but with a constant cost function of 1.
+   */
+  def foldUntilZIO[R, E, I, O](z: O, max: Long)(f: (O, I) => ZIO[R, E, O])(implicit
+    trace: ZTraceElement
+  ): ZPipeline[R, E, I, O] =
+    foldZIO[R, E, I, (O, Long)]((z, 0))(_._2 < max) { case ((o, count), i) =>
+      f(o, i).map((_, count + 1))
+    } >>> ZPipeline.map(_._1)
+
+  /**
+   * A stateful fold that will emit the state and reset to the starting state
+   * every time the specified predicate returns false.
+   */
+  def foldZIO[R, E, I, O](out0: O)(contFn: O => Boolean)(f: (O, I) => ZIO[R, E, O]): ZPipeline[R, E, I, O] =
+    new ZPipeline[R, E, I, O] {
+      def apply[Env1 <: R, Err1 >: E](
+        stream: ZStream[Env1, Err1, I]
+      )(implicit trace: ZTraceElement): ZStream[Env1, Err1, O] =
+        stream
+          .mapAccumZIO(out0) { case (o, i) =>
+            f(o, i).map { o =>
+              if (contFn(o)) (o, Some(o))
+              else (out0, None)
+            }
+          }
+          .collect { case Some(v) => v }
+    }
+
+  /**
+   * Creates a pipeline that effectfully maps elements to the specified
+   * effectfully-computed value.
+   */
+  def fromZIO[R, E, A](zio: ZIO[R, E, A]): ZPipeline[R, E, Any, A] =
+    new ZPipeline[R, E, Any, A] {
+      def apply[Env1 <: R, Err1 >: E](stream: ZStream[Env1, Err1, Any])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, (Key, NonEmptyChunk[Elem])] =
+      ): ZStream[Env1, Err1, A] =
+        stream.mapZIO(_ => zio)
+    }
+
+  /**
+   * Creates a pipeline that groups on adjacent keys, calculated by function f.
+   */
+  def groupAdjacentBy[I, K](f: I => K): ZPipeline[Any, Nothing, I, (K, NonEmptyChunk[I])] =
+    new ZPipeline[Any, Nothing, I, (K, NonEmptyChunk[I])] {
+      type O = (K, NonEmptyChunk[I])
+      def apply[R, E](stream: ZStream[R, E, I])(implicit trace: ZTraceElement): ZStream[R, E, O] =
         stream.groupAdjacentBy(f)
     }
 
   /**
-   * Creates a pipeline that sends all the elements through the given channel
+   * Creates a pipeline that sends all the elements through the given channel.
    */
-  def fromChannel[InEnv, OutEnv0, InErr, OutErr0, In, Out](
-    channel: ZChannel[OutEnv0, InErr, Chunk[In], Any, OutErr0, Chunk[Out], Any]
-  ): ZPipeline.WithOut[
-    OutEnv0,
-    InEnv,
-    InErr,
-    InErr,
-    In,
-    In,
-    ({ type OutEnv[Env] = OutEnv0 })#OutEnv,
-    ({ type OutErr[Err] = OutErr0 })#OutErr,
-    ({ type OutElem[Elem] = Out })#OutElem
-  ] = new ZPipeline[OutEnv0, InEnv, InErr, InErr, In, In] {
-    override type OutEnv[Env]   = OutEnv0
-    override type OutErr[Err]   = OutErr0
-    override type OutElem[Elem] = Out
-
-    override def apply[Env >: OutEnv0 <: InEnv, Err >: InErr <: InErr, Elem >: In <: In](
-      stream: ZStream[Env, Err, Elem]
-    )(implicit trace: ZTraceElement): ZStream[OutEnv0, OutErr0, Out] =
-      stream.pipeThroughChannel(channel)
-  }
+  def fromChannel[Env, Err, In, Out](
+    channel: ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any]
+  ): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline[Env, Err, In, Out] {
+      def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, Out] =
+        stream.pipeThroughChannelOrFail(channel)
+    }
 
   /**
    * The identity pipeline, which does not modify streams in any way.
    */
-  val identity: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Any] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env, Err, Elem](stream: ZStream[Env, Err, Elem])(implicit
+  def identity[A]: ZPipeline[Any, Nothing, A, A] =
+    new ZPipeline[Any, Nothing, A, A] {
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, A])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Elem] =
+      ): ZStream[Env1, Err1, A] =
         stream
     }
 
-  def iso_8859_1Decode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def iso_8859_1Decode: ZPipeline[Any, Nothing, Byte, String] =
     textDecodeUsing(StandardCharsets.ISO_8859_1)
 
-  def iso_8859_1Encode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def iso_8859_1Encode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(StandardCharsets.ISO_8859_1)
 
   /**
    * Creates a pipeline that maps elements with the specified function.
    */
-  def map[In, Out](
-    f: In => Out
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Out })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Out
-      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+  def map[In, Out](f: In => Out): ZPipeline[Any, Nothing, In, Out] =
+    new ZPipeline[Any, Nothing, In, Out] {
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Out] =
+      ): ZStream[Env1, Err1, Out] =
         stream.map(f)
     }
 
@@ -364,22 +334,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    */
   def mapChunks[In, Out](
     f: Chunk[In] => Chunk[Out]
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Out })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Out
-      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+  ): ZPipeline[Any, Nothing, In, Out] =
+    new ZPipeline[Any, Nothing, In, Out] {
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
       ): ZStream[Env, Err, Out] =
         stream.mapChunks(f)
@@ -390,74 +347,21 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    */
   def mapChunksZIO[Env, Err, In, Out](
     f: Chunk[In] => ZIO[Env, Err, Chunk[Out]]
-  ): ZPipeline.WithOut[
-    Nothing,
-    Env,
-    Err,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Out })#OutElem
-  ] =
-    new ZPipeline[Nothing, Env, Err, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Out
-      def apply[Env1 <: Env, Err1 >: Err, Elem <: In](stream: ZStream[Env1, Err1, Elem])(implicit
+  ): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline[Env, Err, In, Out] {
+      def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
       ): ZStream[Env1, Err1, Out] =
         stream.mapChunksZIO(f)
     }
 
   /**
-   * Creates a pipeline that maps elements with the specified function.
+   * Creates a pipeline that maps elements with the specified effectful
+   * function.
    */
-  def mapError[InError, OutError](
-    f: InError => OutError
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    InError,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = OutError })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, InError, Nothing, Any] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = OutError
-      type OutElem[Elem] = Elem
-      def apply[Env, Err <: InError, Elem](stream: ZStream[Env, Err, Elem])(implicit
-        trace: ZTraceElement
-      ): ZStream[Env, OutError, Elem] =
-        stream.mapError(f)
-    }
-
-  /**
-   * Creates a pipeline that maps elements with the specified effect.
-   */
-  def mapZIO[Env, Err, In, Out](
-    f: In => ZIO[Env, Err, Out]
-  ): ZPipeline.WithOut[
-    Nothing,
-    Env,
-    Err,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Out })#OutElem
-  ] =
-    new ZPipeline[Nothing, Env, Err, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Out
-      def apply[Env1 <: Env, Err1 >: Err, Elem <: In](stream: ZStream[Env1, Err1, Elem])(implicit
+  def mapZIO[Env0, Err0, In, Out](f: In => ZIO[Env0, Err0, Out]): ZPipeline[Env0, Err0, In, Out] =
+    new ZPipeline[Env0, Err0, In, Out] {
+      def apply[Env1 <: Env0, Err1 >: Err0](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
       ): ZStream[Env1, Err1, Out] =
         stream.mapZIO(f)
@@ -466,74 +370,20 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Emits the provided chunk before emitting any other value.
    */
-  def prepend[In](values: Chunk[In]): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    In,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, In, Any] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env, Err, Elem >: In](stream: ZStream[Env, Err, Elem])(implicit
-        trace: ZTraceElement
-      ): ZStream[Env, Err, Elem] =
+  def prepend[A](values: Chunk[A]): ZPipeline[Any, Nothing, A, A] =
+    new ZPipeline[Any, Nothing, A, A] {
+      def apply[R, E](stream: ZStream[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
         ZStream.fromChunk(values) ++ stream
-    }
-
-  /**
-   * Creates a pipeline that provides the specified environment.
-   */
-  def provideEnvironment[Env](
-    env: ZEnvironment[Env]
-  ): ZPipeline.WithOut[
-    Env,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Any })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Env, Any, Nothing, Any, Nothing, Any] {
-      type OutEnv[Env]   = Any
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env1 >: Env, Err, In](stream: ZStream[Env1, Err, In])(implicit
-        trace: ZTraceElement
-      ): ZStream[Any, Err, In] =
-        stream.provideEnvironment(env)
     }
 
   /**
    * A pipeline that rechunks the stream into chunks of the specified size.
    */
-  def rechunk(n: Int): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Any] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env, Err, Elem](stream: ZStream[Env, Err, Elem])(implicit
+  def rechunk[In](n: Int): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Elem] =
+      ): ZStream[Env, Err, In] =
         stream.rechunk(n)
     }
 
@@ -544,17 +394,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     s: Out
   )(
     f: (Out, In) => Out
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Out })#OutElem
-  ] =
+  ): ZPipeline[Any, Nothing, In, Out] =
     scanZIO(s)((out, in) => ZIO.succeedNow(f(out, in)))
 
   /**
@@ -564,22 +404,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     s: Out
   )(
     f: (Out, In) => ZIO[Env, Err, Out]
-  ): ZPipeline.WithOut[
-    Nothing,
-    Env,
-    Err,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Out })#OutElem
-  ] =
-    new ZPipeline[Nothing, Env, Err, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Out
-      def apply[Env1 <: Env, Err1 >: Err, Elem <: In](stream: ZStream[Env1, Err1, Elem])(implicit
+  ): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline[Env, Err, In, Out] {
+      def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
       ): ZStream[Env1, Err1, Out] =
         stream.scanZIO(s)(f)
@@ -588,23 +415,10 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Splits strings on a delimiter.
    */
-  def splitOn(delimiter: String): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, String] {
-      override type OutEnv[Env]   = Env
-      override type OutErr[Err]   = Err
-      override type OutElem[Elem] = String
-      override def apply[Env, Err, Elem <: String](
-        stream: ZStream[Env, Err, Elem]
+  def splitOn(delimiter: String): ZPipeline[Any, Nothing, String, String] =
+    new ZPipeline[Any, Nothing, String, String] {
+      override def apply[Env, Err](
+        stream: ZStream[Env, Err, String]
       )(implicit trace: ZTraceElement): ZStream[Env, Err, String] =
         stream
           .map(str => Chunk.fromArray(str.toArray))
@@ -616,23 +430,10 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Splits strings on a delimiter.
    */
-  def splitOnChunk[A](delimiter: Chunk[A]): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    A,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = A })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, A] {
-      override type OutEnv[Env]   = Env
-      override type OutErr[Err]   = Err
-      override type OutElem[Elem] = A
-      override def apply[Env, Err, Elem <: A](
-        stream: ZStream[Env, Err, Elem]
+  def splitOnChunk[A](delimiter: Chunk[A]): ZPipeline[Any, Nothing, A, A] =
+    new ZPipeline[Any, Nothing, A, A] {
+      override def apply[Env, Err](
+        stream: ZStream[Env, Err, A]
       )(implicit trace: ZTraceElement): ZStream[Env, Err, A] =
         stream
           .splitOnChunk(delimiter)
@@ -643,23 +444,10 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX
    * newlines (`\n`).
    */
-  def splitLines: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, String] {
-      override type OutEnv[Env]   = Env
-      override type OutErr[Err]   = Err
-      override type OutElem[Elem] = String
-      override def apply[Env, Err, Elem <: String](
-        stream: ZStream[Env, Err, Elem]
+  def splitLines: ZPipeline[Any, Nothing, String, String] =
+    new ZPipeline[Any, Nothing, String, String] {
+      override def apply[Env, Err](
+        stream: ZStream[Env, Err, String]
       )(implicit
         trace: ZTraceElement
       ): ZStream[Env, Err, String] = {
@@ -732,24 +520,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
   /**
    * Creates a pipeline that takes n elements.
    */
-  def take(n: Long): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Any] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env, Err, Elem](stream: ZStream[Env, Err, Elem])(implicit
-        trace: ZTraceElement
-      ): ZStream[Env, Err, Elem] =
+  def take[In](n: Long): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
+      def apply[Env, Err](stream: ZStream[Env, Err, In])(implicit trace: ZTraceElement): ZStream[Env, Err, In] =
         stream.take(n)
     }
 
@@ -757,26 +530,11 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that takes elements until the specified predicate
    * evaluates to true.
    */
-  def takeUntil[In](
-    f: In => Boolean
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+  def takeUntil[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Elem] =
+      ): ZStream[Env1, Err1, In] =
         stream.takeUntil(f)
     }
 
@@ -784,40 +542,15 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * Creates a pipeline that takes elements while the specified predicate
    * evaluates to true.
    */
-  def takeWhile[In](
-    f: In => Boolean
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    In,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Elem })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, In] {
-      type OutEnv[Env]   = Env
-      type OutErr[Err]   = Err
-      type OutElem[Elem] = Elem
-      def apply[Env, Err, Elem <: In](stream: ZStream[Env, Err, Elem])(implicit
+  def takeWhile[In](f: In => Boolean): ZPipeline[Any, Nothing, In, In] =
+    new ZPipeline[Any, Nothing, In, In] {
+      def apply[Env1 <: Any, Err1 >: Nothing](stream: ZStream[Env1, Err1, In])(implicit
         trace: ZTraceElement
-      ): ZStream[Env, Err, Elem] =
+      ): ZStream[Env1, Err1, In] =
         stream.takeWhile(f)
     }
 
-  def usASCIIDecode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def usASCIIDecode: ZPipeline[Any, Nothing, Byte, String] =
     textDecodeUsing(StandardCharsets.US_ASCII)
 
   /**
@@ -826,17 +559,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * utf16 and utf32 without BOM, `utf16Decode` and `utf32Decode` should be used
    * instead as both default to their own default decoder respectively.
    */
-  def utfDecode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def utfDecode: ZPipeline[Any, Nothing, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 4,
       {
@@ -855,17 +578,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf8Decode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def utf8Decode: ZPipeline[Any, Nothing, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 3,
       {
@@ -876,17 +589,7 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf16Decode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def utf16Decode: ZPipeline[Any, Nothing, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 2,
       {
@@ -899,43 +602,13 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf16BEDecode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def utf16BEDecode: ZPipeline[Any, Nothing, Byte, String] =
     utfDecodeFixedLength(StandardCharsets.UTF_16BE, fixedLength = 2)
 
-  def utf16LEDecode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def utf16LEDecode: ZPipeline[Any, Nothing, Byte, String] =
     utfDecodeFixedLength(StandardCharsets.UTF_16LE, fixedLength = 2)
 
-  def utf32Decode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def utf32Decode: ZPipeline[Any, Nothing, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 4,
       {
@@ -946,43 +619,13 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     )
 
-  def utf32BEDecode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def utf32BEDecode: ZPipeline[Any, Nothing, Byte, String] =
     utfDecodeFixedLength(CharsetUtf32BE, fixedLength = 4)
 
-  def utf32LEDecode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
+  def utf32LEDecode: ZPipeline[Any, Nothing, Byte, String] =
     utfDecodeFixedLength(CharsetUtf32LE, fixedLength = 4)
 
-  def usASCIIEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def usASCIIEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(StandardCharsets.US_ASCII)
 
   /**
@@ -998,379 +641,53 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
    * `getBytes("UTF-16")` in Java. In fact, it is an alias to both
    * `utf16BEWithBomEncode` and `utf16WithBomEncode`.
    */
-  def utf8Encode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf8Encode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(StandardCharsets.UTF_8)
 
-  def utf8WithBomEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf8WithBomEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(StandardCharsets.UTF_8, bom = BOM.Utf8)
 
-  def utf16BEEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf16BEEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(StandardCharsets.UTF_16BE)
 
-  def utf16BEWithBomEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf16BEWithBomEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(StandardCharsets.UTF_16BE, bom = BOM.Utf16BE)
 
-  def utf16LEEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf16LEEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(StandardCharsets.UTF_16LE)
 
-  def utf16LEWithBomEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf16LEWithBomEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(StandardCharsets.UTF_16LE, bom = BOM.Utf16LE)
 
-  def utf16Encode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf16Encode: ZPipeline[Any, Nothing, String, Byte] =
     utf16BEWithBomEncode
 
-  def utf16WithBomEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf16WithBomEncode: ZPipeline[Any, Nothing, String, Byte] =
     utf16BEWithBomEncode
 
-  def utf32BEEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf32BEEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(CharsetUtf32BE)
 
-  def utf32BEWithBomEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf32BEWithBomEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(CharsetUtf32BE, bom = BOM.Utf32BE)
 
-  def utf32LEEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf32LEEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(CharsetUtf32LE)
 
-  def utf32LEWithBomEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf32LEWithBomEncode: ZPipeline[Any, Nothing, String, Byte] =
     utfEncodeFor(CharsetUtf32LE, bom = BOM.Utf32LE)
 
-  def utf32Encode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf32Encode: ZPipeline[Any, Nothing, String, Byte] =
     utf32BEEncode
 
-  def utf32WithBomEncode: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  def utf32WithBomEncode: ZPipeline[Any, Nothing, String, Byte] =
     utf32BEWithBomEncode
 
-  trait Compose[+LeftLower, -LeftUpper, LeftOut[In], +RightLower, -RightUpper, RightOut[In]] {
-    type Lower
-    type Upper
-    type Out[In]
-  }
-
-  object Compose extends ComposeLowPriorityImplicits {
-    type WithOut[LeftLower, LeftUpper, LeftOut[In], RightLower, RightUpper, RightOut[In], Lower0, Upper0, Out0[In]] =
-      Compose[LeftLower, LeftUpper, LeftOut, RightLower, RightUpper, RightOut] {
-        type Lower   = Lower0
-        type Upper   = Upper0
-        type Out[In] = Out0[In]
-      }
-
-    implicit def compose[
-      LeftLower,
-      LeftUpper,
-      LeftOut >: RightLower <: RightUpper,
-      RightLower,
-      RightUpper,
-      RightOut
-    ]: Compose.WithOut[
-      LeftLower,
-      LeftUpper,
-      ({ type Out[In] = LeftOut })#Out,
-      RightLower,
-      RightUpper,
-      ({ type Out[In] = RightOut })#Out,
-      LeftLower,
-      LeftUpper,
-      ({ type Out[In] = RightOut })#Out
-    ] =
-      new Compose[
-        LeftLower,
-        LeftUpper,
-        ({ type Out[In] = LeftOut })#Out,
-        RightLower,
-        RightUpper,
-        ({ type Out[In] = RightOut })#Out
-      ] {
-        type Lower   = LeftLower
-        type Upper   = LeftUpper
-        type Out[In] = RightOut
-      }
-
-    implicit def identity[LeftLower <: RightLower, LeftUpper, RightLower, RightUpper]: Compose.WithOut[
-      LeftLower,
-      LeftUpper,
-      Identity,
-      RightLower,
-      RightUpper,
-      Identity,
-      RightLower,
-      LeftUpper with RightUpper,
-      Identity
-    ] =
-      new Compose[
-        LeftLower,
-        LeftUpper,
-        Identity,
-        RightLower,
-        RightUpper,
-        Identity
-      ] {
-        type Lower   = RightLower
-        type Upper   = LeftUpper with RightUpper
-        type Out[In] = In
-      }
-
-    implicit def leftIdentity[LeftLower <: RightLower, LeftUpper, RightLower, RightUpper, RightOut]: Compose.WithOut[
-      LeftLower,
-      LeftUpper,
-      Identity,
-      RightLower,
-      RightUpper,
-      ({ type Out[In] = RightOut })#Out,
-      RightLower,
-      LeftUpper with RightUpper,
-      ({ type Out[In] = RightOut })#Out
-    ] =
-      new Compose[
-        LeftLower,
-        LeftUpper,
-        Identity,
-        RightLower,
-        RightUpper,
-        ({ type Out[In] = RightOut })#Out
-      ] {
-        type Lower   = RightLower
-        type Upper   = LeftUpper with RightUpper
-        type Out[In] = RightOut
-      }
-
-    implicit def rightIdentity[LeftLower, LeftUpper, LeftOut >: RightLower <: RightUpper, RightLower, RightUpper]
-      : Compose.WithOut[
-        LeftLower,
-        LeftUpper,
-        ({ type Out[In] = LeftOut })#Out,
-        RightLower,
-        RightUpper,
-        Identity,
-        LeftLower,
-        LeftUpper,
-        ({ type Out[In] = LeftOut })#Out
-      ] =
-      new Compose[
-        LeftLower,
-        LeftUpper,
-        ({ type Out[In] = LeftOut })#Out,
-        RightLower,
-        RightUpper,
-        Identity
-      ] {
-        type Lower   = LeftLower
-        type Upper   = LeftUpper
-        type Out[In] = LeftOut
-      }
-  }
-
-  trait ComposeLowPriorityImplicits {
-
-    implicit def identityLowPriority[LeftLowerElem, LeftUpperElem, RightLowerElem <: LeftLowerElem, RightUpperElem]
-      : Compose.WithOut[
-        LeftLowerElem,
-        LeftUpperElem,
-        Identity,
-        RightLowerElem,
-        RightUpperElem,
-        Identity,
-        LeftLowerElem,
-        LeftUpperElem with RightUpperElem,
-        Identity
-      ] =
-      new Compose[
-        LeftLowerElem,
-        LeftUpperElem,
-        Identity,
-        RightLowerElem,
-        RightUpperElem,
-        Identity
-      ] {
-        type Lower   = LeftLowerElem
-        type Upper   = LeftUpperElem with RightUpperElem
-        type Out[In] = In
-      }
-
-    implicit def leftIdentityLowPriority[LeftLower, LeftUpper, RightLower <: LeftLower, RightUpper, RightOut]
-      : Compose.WithOut[
-        LeftLower,
-        LeftUpper,
-        Identity,
-        RightLower,
-        RightUpper,
-        ({ type Out[In] = RightOut })#Out,
-        LeftLower,
-        LeftUpper with RightUpper,
-        ({ type Out[In] = RightOut })#Out
-      ] =
-      new Compose[
-        LeftLower,
-        LeftUpper,
-        Identity,
-        RightLower,
-        RightUpper,
-        ({ type Out[In] = RightOut })#Out
-      ] {
-        type Lower   = LeftLower
-        type Upper   = LeftUpper with RightUpper
-        type Out[In] = RightOut
-      }
-  }
-
-  private def textDecodeUsing(charset: Charset): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
-      override type OutEnv[Env]   = Env
-      override type OutErr[Err]   = Err
-      override type OutElem[Elem] = String
-
-      override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
-        trace: ZTraceElement
-      ): ZStream[Env, Err, String] = {
+  private def textDecodeUsing(charset: Charset): ZPipeline[Any, Nothing, Byte, String] =
+    new ZPipeline[Any, Nothing, Byte, String] {
+      def apply[Env, Err](
+        sourceStream: ZStream[Env, Err, Byte]
+      )(implicit trace: ZTraceElement): ZStream[Env, Err, String] = {
 
         def stringChunkFrom(bytes: Chunk[Byte]) =
           Chunk.single(
@@ -1399,52 +716,18 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
     bomSize: Int,
     processBom: Chunk[Byte] => (
       Chunk[Byte],
-      ZPipeline.WithOut[
-        Nothing,
-        Any,
-        Nothing,
-        Any,
-        Nothing,
-        Byte,
-        ({ type OutEnv[Env] = Env })#OutEnv,
-        ({ type OutErr[Err] = Err })#OutErr,
-        ({ type OutElem[Elem] = String })#OutElem
-      ]
+      ZPipeline[Any, Nothing, Byte, String]
     )
-  ): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
-      override type OutEnv[Env]   = Env
-      override type OutErr[Err]   = Err
-      override type OutElem[Elem] = String
-
-      override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
+  ): ZPipeline[Any, Nothing, Byte, String] =
+    new ZPipeline[Any, Nothing, Byte, String] {
+      override def apply[Env, Err](sourceStream: ZStream[Env, Err, Byte])(implicit
         trace: ZTraceElement
       ): ZStream[Env, Err, String] = {
 
         type DecodingChannel = ZChannel[Env, Err, Chunk[Byte], Any, Err, Chunk[String], Any]
 
         def passThrough(
-          decodingPipeline: ZPipeline.WithOut[
-            Nothing,
-            Any,
-            Nothing,
-            Any,
-            Nothing,
-            Byte,
-            ({ type OutEnv[Env] = Env })#OutEnv,
-            ({ type OutErr[Err] = Err })#OutErr,
-            ({ type OutElem[Elem] = String })#OutElem
-          ]
+          decodingPipeline: ZPipeline[Any, Nothing, Byte, String]
         ): DecodingChannel =
           ZChannel.readWith(
             received =>
@@ -1491,23 +774,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     }
 
-  private def utf8DecodeNoBom: ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
-      override type OutEnv[Env]   = Env
-      override type OutErr[Err]   = Err
-      override type OutElem[Elem] = String
-
-      override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
+  private def utf8DecodeNoBom: ZPipeline[Any, Nothing, Byte, String] =
+    new ZPipeline[Any, Nothing, Byte, String] {
+      override def apply[Env, Err](sourceStream: ZStream[Env, Err, Byte])(implicit
         trace: ZTraceElement
       ): ZStream[Env, Err, String] = {
 
@@ -1588,23 +857,9 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     }
 
-  private def utfDecodeFixedLength(charset: Charset, fixedLength: Int): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, Byte] {
-      override type OutEnv[Env]   = Env
-      override type OutErr[Err]   = Err
-      override type OutElem[Elem] = String
-
-      override def apply[Env, Err, Elem <: Byte](sourceStream: ZStream[Env, Err, Elem])(implicit
+  private def utfDecodeFixedLength(charset: Charset, fixedLength: Int): ZPipeline[Any, Nothing, Byte, String] =
+    new ZPipeline[Any, Nothing, Byte, String] {
+      override def apply[Env, Err](sourceStream: ZStream[Env, Err, Byte])(implicit
         trace: ZTraceElement
       ): ZStream[Env, Err, String] = {
 
@@ -1654,25 +909,11 @@ object ZPipeline extends ZPipelineCompanionVersionSpecific with ZPipelinePlatfor
       }
     }
 
-  private def utfEncodeFor(charset: Charset, bom: Chunk[Byte] = Chunk.empty): ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
-    new ZPipeline[Nothing, Any, Nothing, Any, Nothing, String] {
-      override type OutEnv[Env]   = Env
-      override type OutErr[Err]   = Err
-      override type OutElem[Elem] = Byte
-
-      override def apply[Env, Err, Elem <: String](sourceStream: ZStream[Env, Err, Elem])(implicit
-        trace: ZTraceElement
-      ): ZStream[Env, Err, Byte] = {
+  private def utfEncodeFor(charset: Charset, bom: Chunk[Byte] = Chunk.empty): ZPipeline[Any, Nothing, String, Byte] =
+    new ZPipeline[Any, Nothing, String, Byte] {
+      def apply[Env, Err](
+        sourceStream: ZStream[Env, Err, String]
+      )(implicit trace: ZTraceElement): ZStream[Env, Err, Byte] = {
         def transform: ZChannel[Env, Err, Chunk[String], Any, Err, Chunk[Byte], Any] =
           ZChannel.readWith(
             received =>

@@ -635,23 +635,13 @@ trait ZSinkPlatformSpecificConstructors {
 }
 
 trait ZPipelinePlatformSpecificConstructors {
-  def deflate[Env, Err](
+  def deflate(
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false,
     level: CompressionLevel = CompressionLevel.DefaultCompression,
     strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
     flushMode: FlushMode = FlushMode.NoFlush
-  )(implicit trace: ZTraceElement): ZPipeline.WithOut[
-    Env,
-    Env,
-    Err,
-    Err,
-    Byte,
-    Byte,
-    ({ type OutEnv[Env0] = Env })#OutEnv,
-    ({ type OutErr[Err0] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, Byte] =
     ZPipeline.fromChannel(
       Deflate.makeDeflater(
         bufferSize,
@@ -662,57 +652,27 @@ trait ZPipelinePlatformSpecificConstructors {
       )
     )
 
-  def inflate[Env](
+  def inflate(
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false
-  )(implicit trace: ZTraceElement): ZPipeline.WithOut[
-    Env,
-    Env,
-    CompressionException,
-    CompressionException,
-    Byte,
-    Byte,
-    ({ type OutEnv[Env0] = Env })#OutEnv,
-    ({ type OutErr[Err0] = CompressionException })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  )(implicit trace: ZTraceElement): ZPipeline[Any, CompressionException, Byte, Byte] =
     ZPipeline.fromChannel(
       Inflate.makeInflater(bufferSize, noWrap)
     )
 
-  def gzip[Env, Err](
+  def gzip(
     bufferSize: Int = 64 * 1024,
     level: CompressionLevel = CompressionLevel.DefaultCompression,
     strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
     flushMode: FlushMode = FlushMode.NoFlush
-  )(implicit trace: ZTraceElement): ZPipeline.WithOut[
-    Env,
-    Env,
-    Err,
-    Err,
-    Byte,
-    Byte,
-    ({ type OutEnv[Env0] = Env })#OutEnv,
-    ({ type OutErr[Err0] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, Byte] =
     ZPipeline.fromChannel(
       Gzip.makeGzipper(bufferSize, level, strategy, flushMode)
     )
 
-  def gunzip[Env](bufferSize: Int = 64 * 1024)(implicit
+  def gunzip(bufferSize: Int = 64 * 1024)(implicit
     trace: ZTraceElement
-  ): ZPipeline.WithOut[
-    Env,
-    Env,
-    CompressionException,
-    CompressionException,
-    Byte,
-    Byte,
-    ({ type OutEnv[Env0] = Env })#OutEnv,
-    ({ type OutErr[Err0] = CompressionException })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ] =
+  ): ZPipeline[Any, CompressionException, Byte, Byte] =
     ZPipeline.fromChannel(
       Gunzip.makeGunzipper(bufferSize)
     )
