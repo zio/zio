@@ -13,6 +13,8 @@ cp src/pages/version2-only-index.js.txt src/pages/index.js
 
 mv versions.json versions.json.org
 
+rm -Rf node_modules 
+
 yarn install 
 yarn build 
 
