@@ -720,7 +720,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E <: E0](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.accessZIO[R] { r =>
+        ZIO.environmentWithZIO[R] { r =>
           val retrySchedule: Schedule[Any, TestFailure[E0], Any] =
             schedule
               .tapOutput(_ => Annotations.annotate(TestAnnotation.retried, 1))

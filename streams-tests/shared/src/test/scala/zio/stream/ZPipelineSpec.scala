@@ -48,7 +48,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
       ),
       suite("mapChunksZIO")(
         test("maps chunks with effect") {
-          val pipeline = ZPipeline.mapChunksZIO { (chunk: Chunk[Int]) =>
+          val pipeline = ZPipeline.mapChunksZIO[Any, Nothing, Int, String] { chunk =>
             ZIO.succeed(chunk.map(_.toString.reverse))
           }
           assertM(
