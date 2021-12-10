@@ -311,7 +311,7 @@ object ZTQueue {
    *
    * For best performance use capacities that are powers of two.
    */
-  def bounded[A](requestedCapacity: Int): USTM[TQueue[A]] =
+  def bounded[A](requestedCapacity: => Int): USTM[TQueue[A]] =
     makeQueue(requestedCapacity, Strategy.BackPressure)
 
   /**
@@ -320,7 +320,7 @@ object ZTQueue {
    *
    * For best performance use capacities that are powers of two.
    */
-  def dropping[A](requestedCapacity: Int): USTM[TQueue[A]] =
+  def dropping[A](requestedCapacity: => Int): USTM[TQueue[A]] =
     makeQueue(requestedCapacity, Strategy.Dropping)
 
   /**
@@ -329,7 +329,7 @@ object ZTQueue {
    *
    * For best performance use capacities that are powers of two.
    */
-  def sliding[A](requestedCapacity: Int): USTM[TQueue[A]] =
+  def sliding[A](requestedCapacity: => Int): USTM[TQueue[A]] =
     makeQueue(requestedCapacity, Strategy.Sliding)
 
   /**
@@ -341,7 +341,7 @@ object ZTQueue {
   /**
    * Creates a queue with the specified strategy.
    */
-  private def makeQueue[A](requestedCapacity: Int, strategy: Strategy): USTM[TQueue[A]] =
+  private def makeQueue[A](requestedCapacity: => Int, strategy: => Strategy): USTM[TQueue[A]] =
     TRef.make[ScalaQueue[A]](ScalaQueue.empty).map { ref =>
       unsafeMakeQueue(ref, requestedCapacity, strategy)
     }

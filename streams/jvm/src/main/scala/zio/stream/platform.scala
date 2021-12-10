@@ -21,7 +21,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def async[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Unit,
-    outputBuffer: Int = 16
+    outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncMaybe(
       callback => {
@@ -39,7 +39,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def asyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
-    outputBuffer: Int = 16
+    outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.unwrapManaged(for {
       output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
@@ -66,7 +66,7 @@ trait ZStreamPlatformSpecificConstructors {
                   maybeError =>
                     ZChannel.fromZIO(output.shutdown) *>
                       maybeError
-                        .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.end(()))(ZChannel.fail(_)),
+                        .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.fail(_)),
                   a => ZChannel.write(a) *> loop
                 )
             )
@@ -83,7 +83,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def asyncManaged[R, E, A](
     register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZManaged[R, E, Any],
-    outputBuffer: Int = 16
+    outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     managed {
       for {
@@ -115,7 +115,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def asyncZIO[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
-    outputBuffer: Int = 16
+    outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     new ZStream(ZChannel.unwrapManaged(for {
       output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
@@ -138,7 +138,7 @@ trait ZStreamPlatformSpecificConstructors {
                 case Left(Some(failure)) =>
                   ZChannel.fail(failure)
                 case Left(None) =>
-                  ZChannel.end(())
+                  ZChannel.unit
                 case Right(cause) =>
                   ZChannel.failCause(cause)
               }),
@@ -157,7 +157,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def asyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
-    outputBuffer: Int = 16
+    outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncInterrupt(k => register(k).toRight(UIO.unit), outputBuffer)
 
@@ -169,7 +169,7 @@ trait ZStreamPlatformSpecificConstructors {
   @deprecated("use async", "2.0.0")
   def effectAsync[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Unit,
-    outputBuffer: Int = 16
+    outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     async(register, outputBuffer)
 
@@ -182,7 +182,7 @@ trait ZStreamPlatformSpecificConstructors {
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
-    outputBuffer: Int = 16
+    outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncInterrupt(register, outputBuffer)
 
@@ -195,7 +195,7 @@ trait ZStreamPlatformSpecificConstructors {
   @deprecated("use asyncZIO", "2.0.0")
   def effectAsyncM[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
-    outputBuffer: Int = 16
+    outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncZIO(register, outputBuffer)
 
@@ -208,14 +208,14 @@ trait ZStreamPlatformSpecificConstructors {
   @deprecated("use asyncMaybe", "2.0.0")
   def effectAsyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
-    outputBuffer: Int = 16
+    outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncMaybe(register, outputBuffer)
 
   /**
    * Creates a stream of bytes from a file at the specified path.
    */
-  def fromFile(path: => Path, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+  def fromFile(path: => Path, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, Byte] =
     ZStream
@@ -241,16 +241,18 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from the resource specified in `path`
    */
   final def fromResource(
-    path: String,
-    chunkSize: Int = ZStream.DefaultChunkSize
+    path: => String,
+    chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
     ZStream.managed {
       ZManaged.fromAutoCloseable {
-        ZIO.attemptBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
-          if (x == null)
-            ZIO.fail(new FileNotFoundException(s"No such resource: '$path'"))
-          else
-            ZIO.succeedNow(x)
+        ZIO.succeed(path).flatMap { path =>
+          ZIO.attemptBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
+            if (x == null)
+              ZIO.fail(new FileNotFoundException(s"No such resource: '$path'"))
+            else
+              ZIO.succeedNow(x)
+          }
         }
       }
     }.flatMap(is => fromInputStream(is, chunkSize = chunkSize))
@@ -258,14 +260,14 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from `java.io.Reader`.
    */
-  def fromReader(reader: => Reader, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+  def fromReader(reader: => Reader, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, IOException, Char] =
-    ZStream.fromZIO(UIO(reader)).flatMap { capturedReader =>
+    ZStream.succeed((reader, chunkSize)).flatMap { case (reader, chunkSize) =>
       ZStream.repeatZIOChunkOption {
         for {
           bufArray  <- UIO(Array.ofDim[Char](chunkSize))
-          bytesRead <- ZIO.attemptBlockingIO(capturedReader.read(bufArray)).asSomeError
+          bytesRead <- ZIO.attemptBlockingIO(reader.read(bufArray)).asSomeError
           chars <- if (bytesRead < 0)
                      ZIO.fail(None)
                    else if (bytesRead == 0)
@@ -284,7 +286,7 @@ trait ZStreamPlatformSpecificConstructors {
   @deprecated("use fromReaderZIO", "2.0.0")
   def fromReaderEffect[R](
     reader: => ZIO[R, IOException, Reader],
-    chunkSize: Int = ZStream.DefaultChunkSize
+    chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
     fromReaderZIO(reader, chunkSize)
 
@@ -293,7 +295,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def fromReaderManaged[R](
     reader: => ZManaged[R, IOException, Reader],
-    chunkSize: Int = ZStream.DefaultChunkSize
+    chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
     ZStream.managed(reader).flatMap(fromReader(_, chunkSize))
 
@@ -302,7 +304,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def fromReaderZIO[R](
     reader: => ZIO[R, IOException, Reader],
-    chunkSize: Int = ZStream.DefaultChunkSize
+    chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
     fromReaderManaged(reader.toManagedWith(r => ZIO.succeed(r.close())), chunkSize)
 
@@ -312,7 +314,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   def fromOutputStreamWriter(
     write: OutputStream => Unit,
-    chunkSize: Int = ZStream.DefaultChunkSize
+    chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[Any, Throwable, Byte] = {
     def from(in: InputStream, out: OutputStream, done: Promise[None.type, Nothing]): ZStream[Any, Throwable, Byte] =
       (fromInputStream(in, chunkSize) ++ fromZIOOption(done.await)).drainFork(
@@ -342,7 +344,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a Java stream
    */
   @deprecated("use fromJavaStreamZIO", "2.0.0")
-  final def fromJavaStreamEffect[R, A](stream: ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
+  final def fromJavaStreamEffect[R, A](stream: => ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
     fromJavaStreamZIO(stream)
@@ -351,7 +353,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a managed Java stream
    */
   final def fromJavaStreamManaged[R, A](
-    stream: ZManaged[R, Throwable, java.util.stream.Stream[A]]
+    stream: => ZManaged[R, Throwable, java.util.stream.Stream[A]]
   )(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
     ZStream.fromJavaIteratorManaged(stream.mapZIO(s => UIO(s.iterator())))
 
@@ -375,7 +377,7 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStreamZIO[R, A](stream: ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
+  final def fromJavaStreamZIO[R, A](stream: => ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
     ZStream.fromJavaIteratorZIO(stream.flatMap(s => UIO(s.iterator())))
@@ -386,8 +388,8 @@ trait ZStreamPlatformSpecificConstructors {
    * it is used
    */
   def fromSocketServer(
-    port: Int,
-    host: Option[String] = None
+    port: => Int,
+    host: => Option[String] = None
   )(implicit trace: ZTraceElement): ZStream[Any, Throwable, Connection] =
     for {
       server <- ZStream.managed(ZManaged.fromAutoCloseable(ZIO.attemptBlocking {
@@ -556,8 +558,8 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromFile(
     path: => Path,
-    position: Long = 0L,
-    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+    position: => Long = 0L,
+    options: => Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
   )(implicit
     trace: ZTraceElement
   ): ZSink[Any, Throwable, Byte, Byte, Long] = {
@@ -602,7 +604,7 @@ trait ZSinkPlatformSpecificConstructors {
    * The caller of this function is responsible for closing the `OutputStream`.
    */
   final def fromOutputStream(
-    os: OutputStream
+    os: => OutputStream
   )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, Byte, Long] = fromOutputStreamManaged(
     ZManaged.succeedNow(os)
   )
@@ -616,7 +618,7 @@ trait ZSinkPlatformSpecificConstructors {
    * finished or an error occurred.
    */
   final def fromOutputStreamManaged(
-    os: ZManaged[Any, IOException, OutputStream]
+    os: => ZManaged[Any, IOException, OutputStream]
   )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, Byte, Long] =
     ZSink.unwrapManaged {
       os.map { out =>
@@ -636,11 +638,11 @@ trait ZSinkPlatformSpecificConstructors {
 
 trait ZPipelinePlatformSpecificConstructors {
   def deflate(
-    bufferSize: Int = 64 * 1024,
-    noWrap: Boolean = false,
-    level: CompressionLevel = CompressionLevel.DefaultCompression,
-    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
-    flushMode: FlushMode = FlushMode.NoFlush
+    bufferSize: => Int = 64 * 1024,
+    noWrap: => Boolean = false,
+    level: => CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: => CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: => FlushMode = FlushMode.NoFlush
   )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, Byte] =
     ZPipeline.fromChannel(
       Deflate.makeDeflater(
@@ -653,24 +655,24 @@ trait ZPipelinePlatformSpecificConstructors {
     )
 
   def inflate(
-    bufferSize: Int = 64 * 1024,
-    noWrap: Boolean = false
+    bufferSize: => Int = 64 * 1024,
+    noWrap: => Boolean = false
   )(implicit trace: ZTraceElement): ZPipeline[Any, CompressionException, Byte, Byte] =
     ZPipeline.fromChannel(
       Inflate.makeInflater(bufferSize, noWrap)
     )
 
   def gzip(
-    bufferSize: Int = 64 * 1024,
-    level: CompressionLevel = CompressionLevel.DefaultCompression,
-    strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
-    flushMode: FlushMode = FlushMode.NoFlush
+    bufferSize: => Int = 64 * 1024,
+    level: => CompressionLevel = CompressionLevel.DefaultCompression,
+    strategy: => CompressionStrategy = CompressionStrategy.DefaultStrategy,
+    flushMode: => FlushMode = FlushMode.NoFlush
   )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, Byte] =
     ZPipeline.fromChannel(
       Gzip.makeGzipper(bufferSize, level, strategy, flushMode)
     )
 
-  def gunzip(bufferSize: Int = 64 * 1024)(implicit
+  def gunzip[Env](bufferSize: => Int = 64 * 1024)(implicit
     trace: ZTraceElement
   ): ZPipeline[Any, CompressionException, Byte, Byte] =
     ZPipeline.fromChannel(

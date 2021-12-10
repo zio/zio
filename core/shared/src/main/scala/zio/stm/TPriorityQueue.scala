@@ -205,7 +205,7 @@ object TPriorityQueue {
   /**
    * Makes a new `TPriorityQueue` initialized with provided iterable.
    */
-  def fromIterable[A](data: Iterable[A])(implicit ord: Ordering[A]): USTM[TPriorityQueue[A]] =
+  def fromIterable[A](data: => Iterable[A])(implicit ord: Ordering[A]): USTM[TPriorityQueue[A]] =
     TRef
       .make(data.foldLeft(SortedMap.empty[A, ::[A]])((map, a) => map + (a -> map.get(a).fold(::(a, Nil))(::(a, _)))))
       .map(ref => new TPriorityQueue(ref))

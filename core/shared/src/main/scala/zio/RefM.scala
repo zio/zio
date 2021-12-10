@@ -26,20 +26,20 @@ object RefM {
    *   [[zio.ZRefM.dequeueRef]]
    */
   @deprecated("use SubscriptionRef", "2.0.0")
-  def dequeueRef[A](a: A)(implicit trace: ZTraceElement): UIO[(RefM[A], Dequeue[A])] =
+  def dequeueRef[A](a: => A)(implicit trace: ZTraceElement): UIO[(RefM[A], Dequeue[A])] =
     ZRefM.dequeueRef(a)
 
   /**
    * @see
    *   [[zio.ZRefM.make]]
    */
-  def make[A](a: A)(implicit trace: ZTraceElement): UIO[RefM[A]] =
+  def make[A](a: => A)(implicit trace: ZTraceElement): UIO[RefM[A]] =
     ZRefM.make(a)
 
   /**
    * @see
    *   [[zio.ZRefM.makeManaged]]
    */
-  def makeManaged[A](a: A)(implicit trace: ZTraceElement): UManaged[RefM[A]] =
+  def makeManaged[A](a: => A)(implicit trace: ZTraceElement): UManaged[RefM[A]] =
     ZRefM.makeManaged(a)
 }

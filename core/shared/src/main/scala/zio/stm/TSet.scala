@@ -197,7 +197,7 @@ object TSet {
   /**
    * Makes a new `TSet` initialized with provided iterable.
    */
-  def fromIterable[A](data: Iterable[A]): USTM[TSet[A]] =
+  def fromIterable[A](data: => Iterable[A]): USTM[TSet[A]] =
     TMap.fromIterable(data.map((_, ()))).map(new TSet(_))
 
   /**
