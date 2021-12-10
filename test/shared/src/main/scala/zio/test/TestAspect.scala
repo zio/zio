@@ -261,7 +261,7 @@ object TestAspect extends TimeoutVariants {
   def dotty[LowerR, UpperR, LowerE, UpperE](
     that: TestAspect[LowerR, UpperR, LowerE, UpperE]
   ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
-    if (TestVersion.isDotty) that else identity
+    scala3(that)
 
   /**
    * An aspect that only runs tests on Dotty.
