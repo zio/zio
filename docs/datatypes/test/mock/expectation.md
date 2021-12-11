@@ -301,3 +301,44 @@ test("satisfying exact repetition of a method call") {
 ```
 
 2. **`twice`** and **`thrice`** — Aliases for `exactly(2)` and `exactly(3)`.
+
+### Range of Repetitions
+
+1. **`Expectation#repeats(range: Range)`** — Repeats this expectation within given bounds, producing a new expectation to satisfy itself sequentially given number of times.
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("expect repeated calls") {
+  for {
+    _ <- (Random.nextInt *> Random.nextInt).provideLayer(
+      MockRandom.NextInt(Expectation.value(42))
+        .repeats(2 to 4)
+    )
+  } yield assertTrue(true)
+}
+```
+
+In the example above, if we repeat `nextInt` less than 2 or over 4 times, the test will fail.
+
+Another note on repetitions is that, if we compose expectations with `andThen`/`++`, once another repetition starts executing, it must be completed in order to satisfy the composite expectation. For example `(A ++ B).repeats(1, 2)` will be satisfied by either `A->B` (one repetition) or `A->B->A->B` (two repetitions), but will fail on `A->B->A` (incomplete second repetition):
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+import zio.test.mock.Expectation._
+
+test("if another repetition starts executing, it must be completed") {
+  for {
+    _ <- (Random.nextInt *> Random.nextBoolean *> Random.nextInt).provideLayer(
+      (MockRandom.NextInt(value(42)) ++ MockRandom.NextBoolean(value(true)))
+        .repeats(1 to 2)
+    )
+  } yield assertTrue(true)
+} @@ TestAspect.failing
+```
+
+2. The **`atLeast(min: Int)`**, **`atMost(max: Int)`**, and **`optional`** expectations are other variants for `repeats` expectation.
