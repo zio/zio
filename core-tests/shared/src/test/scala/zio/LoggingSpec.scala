@@ -112,7 +112,7 @@ object LoggingSpec extends ZIOBaseSpec {
       test("log annotations") {
         val annotation = LogAnnotation("key", "default")
         for {
-          _      <- ZIO.logAnnotations(annotation, "value")(ZIO.log("It's alive!"))
+          _      <- ZIO.logAnnotate(annotation, "value")(ZIO.log("It's alive!"))
           output <- logOutput
         } yield assertTrue(output.length == 1) &&
           assertTrue(output(0).annotations.get(annotation) == "value")
