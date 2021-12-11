@@ -33,7 +33,7 @@ object BuildHelper {
     "-feature",
     "-unchecked"
   ) ++ {
-    if (sys.env.contains("CI")) {
+    if (true) {
       Seq("-Xfatal-warnings")
     } else {
       Nil

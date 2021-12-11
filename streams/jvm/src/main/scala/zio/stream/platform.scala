@@ -9,7 +9,10 @@ import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketCha
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{OpenOption, Path, Paths}
 import java.nio.{Buffer, ByteBuffer}
+import java.security.MessageDigest
+import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
+import scala.annotation.tailrec
 
 trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
@@ -582,6 +585,26 @@ trait ZStreamPlatformSpecificConstructors {
 
 trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
+
+  /**
+   * Creates a sink which digests incoming bytes using Java's MessageDigest
+   * class, returning the digest value.
+   */
+  def digest(digest: => MessageDigest): ZSink[Any, Nothing, Byte, Nothing, Chunk[Byte]] =
+    ZSink.suspend {
+
+      def loop(digest: MessageDigest): ZChannel[Any, Nothing, Chunk[Byte], Any, Nothing, Nothing, Chunk[Byte]] =
+        ZChannel.readWithCause[Any, Nothing, Chunk[Byte], Any, Nothing, Nothing, Chunk[Byte]](
+          in =>
+            ZChannel
+              .succeedNow(digest.update(in.toArray))
+              .zipRight[Any, Nothing, Chunk[Byte], Any, Nothing, Nothing, Chunk[Byte]](loop(digest)),
+          cause => ZChannel.failCause(cause),
+          _ => ZChannel.succeedNow(Chunk.fromArray(digest.digest))
+        )
+
+      new ZSink(loop(digest))
+    }
 
   /**
    * Uses the provided `File` to create a [[ZSink]] that consumes byte chunks

@@ -22,6 +22,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.UUID
 
+import java.util.UUID
+
 object MockRandom extends Mock[Random] {
 
   object NextBoolean       extends Effect[Unit, Nothing, Boolean]

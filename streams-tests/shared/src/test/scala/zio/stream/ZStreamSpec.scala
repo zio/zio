@@ -1195,6 +1195,13 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(fails(equalTo("fail")))
           } @@ zioTag(errors)
         ),
+        test("execute") {
+          for {
+            ref <- Ref.make(List[Int]())
+            _   <- ZStream.execute(ref.set(List(1))).runDrain
+            l   <- ref.get
+          } yield assert(l)(equalTo(List(1)))
+        },
         test("filter")(check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
