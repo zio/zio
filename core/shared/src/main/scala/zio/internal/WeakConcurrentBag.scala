@@ -34,7 +34,7 @@ class WeakConcurrentBag[A](tableSize: Int) {
       else newRef
     }
 
-    // if ((hashCode % tableSize) == 0) gc()
+    if ((hashCode % tableSize) == 0) gc()
 
     loop(new WeakReference[A](value))
   }
