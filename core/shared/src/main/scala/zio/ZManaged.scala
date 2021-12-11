@@ -2719,7 +2719,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Sets the log level for managed effects composed after this.
    */
-  def logLevel(level: LogLevel): ZManaged[Any, Nothing, Unit] =
+  def logLevel(level: LogLevel)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
     FiberRef.currentLogLevel.locallyManaged(level)
 
   /**

@@ -5344,7 +5344,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Sets the log level for streams composed after this.
    */
-  def logLevel(level: LogLevel): ZManaged[Any, Nothing, Unit] =
+  def logLevel(level: LogLevel)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
     ZStream.managed(ZManaged.logLevel(level))
 
   /**
