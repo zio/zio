@@ -16,10 +16,22 @@
 
 package zio
 
-final case class LogAnnotations(annotations: Map[String, Any]) { self =>
+final case class LogAnnotations(annotations: Map[LogAnnotation[Any], Any]) { self =>
 
-  def annotate(key: String, value: Any): LogAnnotations =
-    self.copy(annotations = annotations + (key -> value))
+  def annotate[V](key: LogAnnotation[V], value: V): LogAnnotations =
+    LogAnnotations(
+      annotations.get(key.asInstanceOf[LogAnnotation[Any]]) match {
+        case Some(current) =>
+          annotations.updated(key.asInstanceOf[LogAnnotation[Any]], key.combine(current.asInstanceOf[V], value))
+        case None => annotations.updated(key.asInstanceOf[LogAnnotation[Any]], value)
+      }
+    )
+
+  def get[V](key: LogAnnotation[V]): V =
+    annotations.get(key.asInstanceOf[LogAnnotation[Any]]) match {
+      case Some(value) => value.asInstanceOf[V]
+      case None        => key.initial
+    }
 
   def nonEmpty: Boolean =
     annotations.nonEmpty
@@ -45,9 +57,9 @@ final case class LogAnnotations(annotations: Map[String, Any]) { self =>
 
       val (key, value) = it.next()
 
-      sb.append(key)
+      sb.append(key.identifier)
       sb.append("=")
-      sb.append(value)
+      sb.append(key.render(value))
     }
   }
 }

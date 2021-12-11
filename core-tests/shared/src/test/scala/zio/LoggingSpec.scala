@@ -110,11 +110,12 @@ object LoggingSpec extends ZIOBaseSpec {
         } yield assertTrue(output.length == 0)
       },
       test("log annotations") {
+        val annotation = LogAnnotation("key", "default")
         for {
-          _      <- ZIO.logAnnotations("key", "value")(ZIO.log("It's alive!"))
+          _      <- ZIO.logAnnotations(annotation, "value")(ZIO.log("It's alive!"))
           output <- logOutput
         } yield assertTrue(output.length == 1) &&
-          assertTrue(output(0).annotations.annotations == Map("key" -> "value"))
+          assertTrue(output(0).annotations.get(annotation) == "value")
       }
     ) @@ sequential @@ after(clearOutput) @@ TestAspect.runtimeConfig(
       RuntimeConfigAspect.addLogger(stringLogger)
