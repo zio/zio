@@ -617,7 +617,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
 }
 
 object Spec {
-  sealed abstract class SpecCase[-R, +E, +T, +A] { self =>
+  sealed abstract class SpecCase[-R, +E, +T, +A] {
+    self =>
     final def map[B](f: A => B)(implicit trace: ZTraceElement): SpecCase[R, E, T, B] = self match {
       case ExecCase(label, spec)       => ExecCase(label, f(spec))
       case LabeledCase(label, spec)    => LabeledCase(label, f(spec))
@@ -626,6 +627,7 @@ object Spec {
       case TestCase(test, annotations) => TestCase(test, annotations)
     }
   }
+
   final case class ExecCase[+Spec](exec: ExecutionStrategy, spec: Spec)          extends SpecCase[Any, Nothing, Nothing, Spec]
   final case class LabeledCase[+Spec](label: String, spec: Spec)                 extends SpecCase[Any, Nothing, Nothing, Spec]
   final case class ScopedCase[-R, +E, +Spec](scoped: ZIO[Scope with R, E, Spec]) extends SpecCase[R, E, Nothing, Spec]

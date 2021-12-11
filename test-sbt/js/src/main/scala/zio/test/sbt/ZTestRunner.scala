@@ -119,13 +119,14 @@ sealed class ZTestTask(
         Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
           val logic =
             for {
-              spec <- zioSpec
-                        .runSpec(FilteredSpec(zioSpec.spec, args), args, sendSummary)
-                        .provideLayer(
-                          testLoggers +!+ fullLayer
-                        )
-              events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
-              _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
+              _ <- zioSpec
+                     .runSpec(FilteredSpec(zioSpec.spec, args), args)
+                     .provideLayer(
+                       testLoggers +!+ fullLayer
+                     )
+              // TODO Confirm if/how these events needs to be handled
+              //              events = ZTestEvent.from(taskDef.fullyQualifiedName(), taskDef.fingerprint())
+              //              _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
             } yield ()
           logic
             .onError(e => ZIO.succeed(println(e.prettyPrint)))

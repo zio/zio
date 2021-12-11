@@ -495,8 +495,8 @@ object Assertion extends AssertionVariants {
    */
   def isFailure(assertion: Assertion[Throwable]): Assertion[Try[Any]] =
     Assertion.assertionRec("isFailure")(param(assertion))(assertion) {
-      case Failure(a) => Some(a)
-      case Success(_) => None
+      case scala.util.Failure(a) => Some(a)
+      case Success(_)            => None
     }
 
   /**
@@ -742,8 +742,8 @@ object Assertion extends AssertionVariants {
    */
   def isSuccess[A](assertion: Assertion[A]): Assertion[Try[A]] =
     Assertion.assertionRec("isSuccess")(param(assertion))(assertion) {
-      case Success(a) => Some(a)
-      case Failure(_) => None
+      case Success(a)            => Some(a)
+      case scala.util.Failure(_) => None
     }
 
   /**

@@ -141,30 +141,19 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case existingNewTestTask :: otherTasks =>
-                  if (existingNewTestTask.merges < 1) {
-                    (
-                      MergedSpec(
-                        new ZTestTaskNew(
-                          existingNewTestTask.spec.taskDef,
-                          existingNewTestTask.spec.testClassLoader,
-                          existingNewTestTask.spec.sendSummary zip taskNew.sendSummary,
-                          existingNewTestTask.spec.args,
-                          existingNewTestTask.spec.newSpec <> taskNew.newSpec
-                        ),
-                        existingNewTestTask.merges + 1
-                      ) :: otherTasks,
-                      legacyTests
-                    )
-                  } else {
-                    (
-                      MergedSpec(
-                        taskNew,
-                        1
-                      ) :: existingNewTestTask :: otherTasks,
-                      legacyTests
-                    )
-                  }
-
+                  (
+                    MergedSpec(
+                      new ZTestTaskNew(
+                        existingNewTestTask.spec.taskDef,
+                        existingNewTestTask.spec.testClassLoader,
+                        existingNewTestTask.spec.sendSummary zip taskNew.sendSummary,
+                        existingNewTestTask.spec.args,
+                        existingNewTestTask.spec.newSpec <> taskNew.newSpec
+                      ),
+                      existingNewTestTask.merges + 1
+                    ) :: otherTasks,
+                    legacyTests
+                  )
                 case _ =>
                   (List(MergedSpec(taskNew, 1)), legacyTests)
               }

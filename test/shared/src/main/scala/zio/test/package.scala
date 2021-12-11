@@ -57,7 +57,16 @@ package object test extends CompileVariants {
   type AssertResult  = BoolAlgebra[AssertionValue]
 
   type TestEnvironment =
-    Annotations with Live with Sized with TestClock with TestConfig with TestConsole with TestRandom with TestSystem
+    Annotations
+      with Live
+      with Sized
+      with TestClock
+      with TestConfig
+      with TestConsole
+      with TestRandom
+      with TestSystem
+      with ExecutionEventSink
+      with StreamingTestOutput
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
@@ -71,7 +80,10 @@ package object test extends CompileVariants {
         TestConfig.live(100, 100, 200, 1000) ++
         (Live.default >>> TestConsole.debug) ++
         TestRandom.deterministic ++
-        TestSystem.default
+        TestSystem.default ++
+        (StreamingTestOutput.live >>> ExecutionEventSink.live) ++
+        StreamingTestOutput.live
+
     }
   }
 
@@ -132,7 +144,7 @@ package object test extends CompileVariants {
    * A `TestReporter[E]` is capable of reporting test results with error type
    * `E`.
    */
-  type TestReporter[-E] = (Duration, ExecutedSpec[E]) => URIO[TestLogger, Unit]
+  type TestReporter[-E] = (Duration, ReporterEvent) => URIO[TestLogger, Unit]
 
   object TestReporter {
 

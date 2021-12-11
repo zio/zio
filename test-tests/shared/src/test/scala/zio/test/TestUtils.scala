@@ -1,33 +1,21 @@
 package zio.test
 
-import zio.{ExecutionStrategy, UIO}
+import zio.{ExecutionStrategy, Scope, UIO}
 
 object TestUtils {
 
-  def execute[E](spec: ZSpec[TestEnvironment, E]): UIO[ExecutedSpec[E]] =
-    TestExecutor.default(testEnvironment).run(spec, ExecutionStrategy.Sequential)
-
-  def forAllTests[E](
-    execSpec: ExecutedSpec[E]
-  )(f: Either[TestFailure[E], TestSuccess] => Boolean): Boolean =
-    execSpec.forall {
-      case ExecutedSpec.TestCase(test, _) => f(test)
-      case _                              => true
-    }
+  def execute[E](spec: ZSpec[TestEnvironment, E]): UIO[Summary] =
+    TestExecutor
+      .default(testEnvironment)
+      .run(spec, ExecutionStrategy.Sequential)
+      .provide(testEnvironment, TestLogger.fromConsole, Scope.default)
 
   def isIgnored[E](spec: ZSpec[TestEnvironment, E]): UIO[Boolean] =
-    execute(spec).map { executedSpec =>
-      forAllTests(executedSpec) {
-        case Right(TestSuccess.Ignored) => true
-        case _                          => false
-      }
-    }
+    execute(spec)
+      .map(_.ignore > 0)
 
   def succeeded[E](spec: ZSpec[TestEnvironment, E]): UIO[Boolean] =
-    execute(spec).map { executedSpec =>
-      forAllTests(executedSpec) {
-        case Right(TestSuccess.Succeeded(_)) => true
-        case _                               => false
-      }
+    execute(spec).map { summary =>
+      summary.fail == 0
     }
 }

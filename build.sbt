@@ -19,7 +19,8 @@ inThisBuild(
         "john@degoes.net",
         url("http://degoes.net")
       )
-    )
+    ),
+    Test / logBuffered := false // Enables streaming test output from composed specs
   )
 )
 
