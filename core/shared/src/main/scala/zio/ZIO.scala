@@ -4654,6 +4654,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Sets the log level for this effect.
+   * {{{
+   * ZIO.logLevel(LogLevel.Warning) {
+   *   ZIO.log("The response time exceeded its threshold!")
+   * }
+   * }}}
    */
   def logLevel(level: LogLevel): LogLevel =
     level
