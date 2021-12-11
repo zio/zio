@@ -4647,6 +4647,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new Logged(ZLogger.stringTag, () => message, someInfo, trace = trace)
 
   /**
+   * Logs the specified message at the runtime log level.
+   */
+  def logRuntime(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+    new Logged(ZLogger.stringTag, () => message, someRuntime, trace = trace)
+
+  /**
    * Adjusts the label for the current logging span.
    * {{{
    * ZIO.logSpan("parsing") { parseRequest(req) }
@@ -6502,6 +6508,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] val someWarning = Some(LogLevel.Warning)
   private[zio] val someInfo    = Some(LogLevel.Info)
   private[zio] val someDebug   = Some(LogLevel.Debug)
+  private[zio] val someRuntime = Some(LogLevel.Runtime)
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.SucceedNow(a)
 

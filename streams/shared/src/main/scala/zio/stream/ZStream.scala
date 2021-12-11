@@ -5334,6 +5334,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.fromZIO(ZIO.logInfo(message))
 
   /**
+   * Logs the specified message at the informational log level.
+   */
+  def logRuntime(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.logRuntime(message)) 
+
+  /**
    * Adjusts the label for the logging span for streams composed after this.
    */
   def logSpan(label: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
