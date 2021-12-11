@@ -26,13 +26,6 @@ private[zio] object FiberRenderer {
   def prettyPrint(dump: Fiber.Dump)(implicit trace: ZTraceElement): UIO[String] =
     UIO(unsafePrettyPrint(dump, System.currentTimeMillis()))
 
-  private def zipWithHasNext[A](it: Iterable[A]): Iterable[(A, Boolean)] =
-    if (it.isEmpty)
-      Seq.empty
-    else {
-      Iterable.concat(it.dropRight(1).map((_, true)), Seq((it.last, false)))
-    }
-
   private def unsafePrettyPrint(dump: Fiber.Dump, now: Long): String = {
     val millis  = (now - dump.fiberId.startTimeSeconds * 1000).toLong
     val seconds = millis / 1000L
@@ -70,20 +63,4 @@ private[zio] object FiberRenderer {
         s"Suspended($in, $ep, $as)"
     }
 
-  private def renderHierarchy(trees: Iterable[Dump]): String =
-    zipWithHasNext(trees).map { case (tree, _) =>
-      renderOne(tree)
-    }.mkString
-
-  private def renderOne(tree: Dump): String = {
-    def go(t: Dump, prefix: String): String = {
-      val statusMsg = renderStatus(t.status)
-      s"$prefix+---#${t.fiberId.ids} Status: $statusMsg\n"
-    }
-
-    go(tree, "")
-  }
-
-  private def collectTraces(dumps: Iterable[Dump], now: Long): Vector[String] =
-    dumps.map(unsafePrettyPrint(_, now)).toVector
 }
