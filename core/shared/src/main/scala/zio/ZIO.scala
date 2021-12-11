@@ -4605,10 +4605,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new Logged(ZLogger.stringTag, () => message, trace = trace)
 
   /**
-   * Logs the specified annotation.
+   * Annotates each log in this effect with the specified log annotation.
    */
-  def logAnnotations[V](key: => LogAnnotation[V], value: => V): LogAnnotations[V] =
-    new LogAnnotations(() => key, () => value)
+  def logAnnotate[V](key: => LogAnnotation[V], value: => V): LogAnnotate[V] =
+    new LogAnnotate(() => key, () => value)
 
   /**
    * Logs the specified message at the debug log level.
@@ -5798,7 +5798,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
   }
 
-  final class LogAnnotations[V](val key: () => LogAnnotation[V], val value: () => V) {
+  final class LogAnnotate[V](val key: () => LogAnnotation[V], val value: () => V) {
     def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       FiberRef.currentLogAnnotations.get.flatMap { annotations =>
         FiberRef.currentLogAnnotations.locally(annotations.annotate(key(), value()))(zio)

@@ -16,10 +16,10 @@
 
 package zio
 
-final case class LogAnnotations(annotations: Map[LogAnnotation[Any], Any]) { self =>
+final class LogAnnotations private (annotations: Map[LogAnnotation[Any], Any]) { self =>
 
   def annotate[V](key: LogAnnotation[V], value: V): LogAnnotations =
-    LogAnnotations(
+    new LogAnnotations(
       annotations.get(key.asInstanceOf[LogAnnotation[Any]]) match {
         case Some(current) =>
           annotations.updated(key.asInstanceOf[LogAnnotation[Any]], key.combine(current.asInstanceOf[V], value))
@@ -67,5 +67,5 @@ final case class LogAnnotations(annotations: Map[LogAnnotation[Any], Any]) { sel
 object LogAnnotations {
 
   val empty: LogAnnotations =
-    LogAnnotations(Map.empty)
+    new LogAnnotations(Map.empty)
 }
