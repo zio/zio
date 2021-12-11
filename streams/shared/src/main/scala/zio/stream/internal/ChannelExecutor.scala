@@ -151,7 +151,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                       )
 
                     case r @ ChannelState.Read(_, _, _, _) =>
-                      ZChannel
+                      ChannelExecutor
                         .readUpstream(r.asInstanceOf[ChannelState.Read[Env, Any]], () => drainer)
                         .catchAllCause(cause => bridgeInput.error(cause))
                   }
@@ -486,13 +486,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       },
       onDone = {
         case Exit.Failure(cause) =>
-          // TODO: do not wrap in channelstate
-          handleSubexecFailure(cause) match {
-            case ChannelState.Effect(zio) =>
-              zio.ignore.unit // TODO
-            case _ =>
-              null
-          }
+          handleSubexecFailure(cause).effectOrNull.ignore.unit // NOTE: assuming finalizers cannot fail
         case e @ Exit.Success(doneValue) =>
           val modifiedRest =
             rest.copy(
@@ -540,36 +534,11 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       },
       onDone = { (exit: Exit[Any, Any]) =>
         val lastClose = this.closeLastSubstream
-        exit match {
-          case e @ Exit.Failure(_) =>
-            // TODO: do not wrap in channel state
-            finishSubexecutorWithCloseEffect(
-              e,
-              _ => lastClose,
-              inner.exec.close
-            ) match {
-              case ChannelState.Effect(zio) =>
-                zio.ignore.unit // TODO
-              case _ =>
-                null
-            }
-
-          case Exit.Success(innerDoneValue) =>
-            val doneValue =
-              Exit.succeed(inner.combineSubKAndInner(inner.lastDone, innerDoneValue))
-
-            // TODO: do not wrap in channel state
-            finishSubexecutorWithCloseEffect(
-              doneValue,
-              _ => lastClose,
-              inner.exec.close
-            ) match {
-              case ChannelState.Effect(zio) =>
-                zio.ignore.unit // TODO
-              case _ =>
-                null
-            }
-        }
+        finishSubexecutorWithCloseEffect(
+          exit.map(inner.combineSubKAndInner(inner.lastDone, _)),
+          _ => lastClose,
+          inner.exec.close
+        ).effectOrNull.ignore.unit // NOTE: assuming finalizers cannot fail
       }
     )
 }
@@ -585,6 +554,12 @@ object ChannelExecutor {
       self match {
         case ChannelState.Effect(zio) => zio
         case _                        => UIO.unit
+      }
+
+    def effectOrNull: ZIO[R, E, Any] =
+      self match {
+        case ChannelState.Effect(zio) => zio
+        case _                        => null
       }
   }
 
@@ -645,6 +620,52 @@ object ChannelExecutor {
 
   private def erase[R](conduit: ZChannel[R, _, _, _, _, _, _]): Channel[R] =
     conduit.asInstanceOf[Channel[R]]
+
+  private[stream] def readUpstream[R, E, A](
+    r: ChannelExecutor.ChannelState.Read[R, E],
+    continue: () => ZIO[R, E, A]
+  )(implicit trace: ZTraceElement): ZIO[R, E, A] = {
+    val readStack = scala.collection.mutable.Stack
+      .apply[ChannelState.Read[Any, Any]](r.asInstanceOf[ChannelState.Read[Any, Any]])
+
+    def read(): ZIO[R, E, A] = {
+      val current = readStack.pop()
+      current.upstream.run() match {
+        case ChannelState.Emit =>
+          val emitEffect = current.onEmit(current.upstream.getEmit)
+          if (readStack.isEmpty) {
+            if (emitEffect eq null) continue()
+            else
+              emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
+          } else {
+            if (emitEffect eq null) read() else (emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> read())
+          }
+        case ChannelState.Done =>
+          val doneEffect = current.onDone(current.upstream.getDone)
+          if (readStack.isEmpty) {
+            if (doneEffect eq null) continue()
+            else
+              doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
+          } else {
+            if (doneEffect eq null) read() else (doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> read())
+          }
+        case ChannelState.Effect(zio) =>
+          readStack.push(current)
+          current.onEffect(zio.asInstanceOf[ZIO[Any, Nothing, Unit]]).catchAllCause { cause =>
+            ZIO.suspendSucceed {
+              val doneEffect = current.onDone(Exit.failCause(cause))
+              if (doneEffect eq null) ZIO.unit else doneEffect
+            }
+          } *> read()
+        case r2 @ ChannelState.Read(upstream2, onEffect2, onEmit2, onDone2) =>
+          readStack.push(current.asInstanceOf[ChannelState.Read[Any, Any]])
+          readStack.push(r2.asInstanceOf[ChannelState.Read[Any, Any]])
+          read()
+      }
+    }
+
+    read()
+  }
 }
 
 /**
