@@ -268,7 +268,7 @@ import zio.test.mock._
 
 test("satisfy sequence of two expectations with `andThen` operator") {
   for {
-    total <- (UserService.remove("1") *> UserService.totalUsers).provideLayer(
+    total <- (UserService.recentUsers(5) *> UserService.totalUsers).provideLayer(
       MockUserService.RecentUsers(
         Assertion.isPositive,
         Expectation.value(List(User("1", "user")))
@@ -277,3 +277,5 @@ test("satisfy sequence of two expectations with `andThen` operator") {
   } yield assertTrue(total == 1)
 }
 ```
+
+In the example above, changing the SUT to `UserService.totalUsers *> UserService.remove(1)` will fail the test.
