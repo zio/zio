@@ -2717,6 +2717,12 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.fromZIO(ZIO.logInfo(message))
 
   /**
+   * Sets the log level for managed effects composed after this.
+   */
+  def logLevel(level: LogLevel): ZManaged[Any, Nothing, Unit] =
+    FiberRef.currentLogLevel.locallyManaged(level)
+
+  /**
    * Adjusts the label for the logging span for managed effects composed after
    * this.
    */

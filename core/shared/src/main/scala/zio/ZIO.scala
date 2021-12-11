@@ -4653,6 +4653,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new Logged(ZLogger.stringTag, () => message, someInfo, trace = trace)
 
   /**
+   * Sets the log level for this effect.
+   */
+  def logLevel(level: LogLevel): LogLevel =
+    level
+
+  /**
    * Adjusts the label for the current logging span.
    * {{{
    * ZIO.logSpan("parsing") { parseRequest(req) }
