@@ -768,11 +768,27 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def pipeToOrFail[Env1 <: Env, OutErr1 >: OutErr, OutElem2, OutDone2](
     that: => ZChannel[Env1, Nothing, OutElem, OutDone, OutErr1, OutElem2, OutDone2]
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] = {
+
     case class ChannelFailure(err: OutErr1) extends Throwable
-    self.catchAll(err => ZChannel.failCause(Cause.die(ChannelFailure(err)))).pipeTo(that).catchAllCause {
-      case Cause.Die(ChannelFailure(err), _) => ZChannel.fail(err)
-      case cause                             => ZChannel.failCause(cause)
-    }
+
+    lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
+      ZChannel.readWith(
+        elem => ZChannel.write(elem) *> reader,
+        err => ZChannel.failCause(Cause.die(ChannelFailure(err))),
+        done => ZChannel.succeedNow(done)
+      )
+
+    lazy val writer: ZChannel[Env1, OutErr1, OutElem2, OutDone2, OutErr1, OutElem2, OutDone2] =
+      ZChannel.readWithCause(
+        elem => ZChannel.write(elem) *> writer,
+        {
+          case Cause.Die(ChannelFailure(err), _) => ZChannel.fail(err)
+          case cause                             => ZChannel.failCause(cause)
+        },
+        done => ZChannel.succeedNow(done)
+      )
+
+    self >>> reader >>> that >>> writer
   }
 
   /**

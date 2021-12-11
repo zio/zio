@@ -2842,7 +2842,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               assert(result)(equalTo(Chunk(1, 1, 1))) && assert(state)(isFalse) && assert(finalState)(isTrue)
             }
           )
-        ) @@ ignore,
+        ),
         suite("scan")(
           test("scan")(check(pureStreamOfInts) { s =>
             for {
