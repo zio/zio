@@ -13,7 +13,7 @@ import scala.annotation.tailrec
  * reference will be removed from the bag during the next garbage collection.
  */
 class WeakConcurrentBag[A](tableSize: Int) {
-  import FastList._
+  import zio.internal.FastList._
 
   private[this] val contents: AtomicReferenceArray[List[WeakReference[A]]] = new AtomicReferenceArray(tableSize)
 
