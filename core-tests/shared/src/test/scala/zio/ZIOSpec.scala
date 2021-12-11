@@ -3237,7 +3237,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- fiber.interrupt
           value   <- ref.get
         } yield assert(value)(isTrue)
-      } @@ nonFlaky,
+      } @@ nonFlaky @@ TestAspect.fibers,
       test("effectAsyncInterrupt cancelation") {
         for {
           ref <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))

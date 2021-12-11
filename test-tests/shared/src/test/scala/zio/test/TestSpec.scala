@@ -9,11 +9,6 @@ import zio.test.TestUtils.execute
 
 object TestSpec extends ZIOBaseSpec {
 
-  override val runner: TestRunner[TestEnvironment, Any] =
-    defaultTestRunner.withRuntimeConfig { runtimeConfig =>
-      runtimeConfig.copy(loggers = runtimeConfig.loggers.filterLogLevel(_ >= LogLevel.Error))
-    }
-
   def spec: Spec[Environment, TestFailure[Any], TestSuccess] = suite("TestSpec")(
     test("assertM works correctly") {
       assertM(nanoTime)(equalTo(0L))

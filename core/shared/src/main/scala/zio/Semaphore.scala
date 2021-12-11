@@ -24,6 +24,6 @@ object Semaphore {
   /**
    * Creates a new `Semaphore` with the specified number of permits.
    */
-  def make(permits: Long)(implicit trace: ZTraceElement): UIO[Semaphore] =
+  def make(permits: => Long)(implicit trace: ZTraceElement): UIO[Semaphore] =
     TSemaphore.make(permits).commit
 }

@@ -6,7 +6,7 @@ import zio.Random
 
 import scala.annotation.tailrec
 
-object PolySpec extends DefaultRunnableSpec {
+object PolySpec extends ZIOSpecDefault {
 
   sealed trait Expr[+A]
 
@@ -41,7 +41,7 @@ object PolySpec extends DefaultRunnableSpec {
   def genExpr(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
     Gen.oneOf(genMapping(t), genValue(t))
 
-  def spec: ZSpec[Environment, Failure] = suite("PolySpec")(
+  def spec = suite("PolySpec")(
     test("map fusion") {
       check(GenPoly.genPoly.flatMap(genExpr(_)))(expr => assert(eval(fuse(expr)))(equalTo(eval(expr))))
     }

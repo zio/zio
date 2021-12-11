@@ -52,6 +52,12 @@ object MetricClient {
   /**
    * Unsafely captures a snapshot of all metrics recorded by the application.
    */
-  final def unsafeSnapshot: Map[MetricKey, MetricState] =
-    metricState.snapshot
+  final def unsafeStates: Map[MetricKey, MetricState] =
+    metricState.states
+
+  /**
+   * Unsafely looks up the state of a metric by its key.
+   */
+  final def unsafeState(key: MetricKey): Option[MetricState] =
+    metricState.state(key)
 }

@@ -8,17 +8,10 @@ import zio.test.Assertion._
 import java.util.zip.Deflater
 
 object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
-  override def aspects: List[TestAspect.WithOut[
-    Nothing,
-    TestEnvironment,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ]] =
-    List(TestAspect.timeout(300.seconds))
+  override def aspects: Chunk[TestAspectAtLeastR[Live]] =
+    Chunk(TestAspect.timeout(300.seconds))
 
-  def spec: ZSpec[Environment, Failure] = suite("ZPipeline JVM")(
+  def spec = suite("ZPipeline JVM")(
     suite("Constructors")(
       suite("Deflate")(
         test("JDK inflates what was deflated")(
@@ -29,7 +22,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
                   ZStream
                     .fromIterable(input)
                     .rechunk(n)
-                    .via(ZPipeline.deflate[Any, Nothing](bufferSize))
+                    .via(ZPipeline.deflate(bufferSize))
                     .runCollect
                 inflated <- jdkInflate(deflated, noWrap = false)
               } yield inflated)(equalTo(input))
@@ -45,7 +38,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
                   ZStream
                     .fromIterable(jdkDeflate(chunk.toArray, new Deflater()))
                     .rechunk(n)
-                    .via(ZPipeline.inflate[Any](bufferSize))
+                    .via(ZPipeline.inflate(bufferSize))
                     .runCollect
               } yield out.toList)(equalTo(chunk))
           }
@@ -59,7 +52,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
                 out <- ZStream
                          .fromIterable(jdkGzip(chunk.toArray))
                          .rechunk(n)
-                         .via(ZPipeline.gunzip[Any](bufferSize))
+                         .via(ZPipeline.gunzip(bufferSize))
                          .runCollect
               } yield out.toList)(equalTo(chunk))
           }
@@ -73,7 +66,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
                 gzipped <- ZStream
                              .fromIterable(input)
                              .rechunk(n)
-                             .via(ZPipeline.gzip[Any, Nothing](bufferSize))
+                             .via(ZPipeline.gzip(bufferSize))
                              .runCollect
                 inflated <- jdkGunzip(gzipped)
               } yield inflated)(equalTo(input))

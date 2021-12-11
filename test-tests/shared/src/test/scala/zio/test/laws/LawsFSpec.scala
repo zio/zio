@@ -109,7 +109,7 @@ object LawsFSpec extends ZIOBaseSpec {
       }
   }
 
-  def spec: ZSpec[Environment, Failure] = suite("LawsFSpec")(
+  def spec = suite("LawsFSpec")(
     suite("covariantLaws")(
       test("option") {
         checkAllLaws(Covariant)(GenF.option, Gen.int)

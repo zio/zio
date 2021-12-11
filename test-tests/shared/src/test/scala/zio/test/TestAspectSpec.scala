@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 
 object TestAspectSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("TestAspectSpec")(
+  def spec = suite("TestAspectSpec")(
     test("around evaluates tests inside context of Managed") {
       for {
         ref <- Ref.make(0)
@@ -216,17 +216,6 @@ object TestAspectSpec extends ZIOBaseSpec {
         assertM(ZIO.fail("fail"))(anything)
       } @@ nonTermination(1.minute) @@ failing
     ),
-    test("provideLayer provides a test with its required environment") {
-      for {
-        time <- Clock.nanoTime
-      } yield assert(time)(isGreaterThan(0L))
-    } @@ provideLayer(Clock.live),
-    test("provideCustomLayer provides a test with part of its required environment") {
-      for {
-        time <- Clock.nanoTime
-        _    <- Random.nextInt
-      } yield assert(time)(isGreaterThan(0L))
-    } @@ provideCustomLayer(Clock.live),
     test("repeats sets the number of times to repeat a test to the specified value") {
       for {
         ref   <- Ref.make(0)

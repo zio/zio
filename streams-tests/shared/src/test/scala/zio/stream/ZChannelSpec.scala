@@ -414,7 +414,7 @@ object ZChannelSpec extends ZIOBaseSpec {
           val left = ZChannel.writeAll(1, 2, 3)
           val right = ZChannel
             .read[Int]
-            .catchAll(_ => ZChannel.end(4))
+            .catchAll(_ => ZChannel.succeedNow(4))
             .flatMap(i => ZChannel.write(Whatever(i)))
 
           val conduit = left >>> (right *> right *> right *> right)
@@ -427,23 +427,23 @@ object ZChannelSpec extends ZIOBaseSpec {
           lazy val identity: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
             ZChannel.readWith(
               (i: Int) => ZChannel.write(i) *> identity,
-              (_: Any) => ZChannel.end(()),
-              (_: Any) => ZChannel.end(())
+              (_: Any) => ZChannel.unit,
+              (_: Any) => ZChannel.unit
             )
 
           lazy val doubler: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
             ZChannel.readWith(
               (i: Int) => ZChannel.writeAll(i, i) *> doubler,
-              (_: Any) => ZChannel.end(()),
-              (_: Any) => ZChannel.end(())
+              (_: Any) => ZChannel.unit,
+              (_: Any) => ZChannel.unit
             )
 
           val effect = ZChannel.fromZIO(Ref.make[List[Int]](Nil)).flatMap { ref =>
             lazy val inner: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
               ZChannel.readWith(
                 (i: Int) => ZChannel.fromZIO(ref.update(i :: _)) *> ZChannel.write(i) *> inner,
-                (_: Any) => ZChannel.end(()),
-                (_: Any) => ZChannel.end(())
+                (_: Any) => ZChannel.unit,
+                (_: Any) => ZChannel.unit
               )
 
             inner *> ZChannel.fromZIO(ref.get)
@@ -467,10 +467,10 @@ object ZChannelSpec extends ZIOBaseSpec {
               if (n > 0)
                 ZChannel.readWith(
                   (i: Int) => ZChannel.write(i) *> readNInts(n - 1),
-                  (_: Any) => ZChannel.end("EOF"),
-                  (_: Any) => ZChannel.end("EOF")
+                  (_: Any) => ZChannel.succeedNow("EOF"),
+                  (_: Any) => ZChannel.succeedNow("EOF")
                 )
-              else ZChannel.end("end")
+              else ZChannel.succeedNow("end")
 
             def sum(label: String, acc: Int): ZChannel[Any, Any, Int, Any, Any, Nothing, Unit] =
               ZChannel.readWith(
@@ -505,7 +505,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 events.update(_ :+ s"Read $i").unit
               }
 
-            val right = (read *> read).catchAll(_ => ZChannel.end(()))
+            val right = (read *> read).catchAll(_ => ZChannel.unit)
 
             (left >>> right).runDrain *> events.get.map { events =>
               assert(events)(
@@ -670,20 +670,20 @@ object ZChannelSpec extends ZIOBaseSpec {
       })
       .flatMap {
         case Some(i) => ZChannel.write(i) *> refReader(ref)
-        case None    => ZChannel.end(())
+        case None    => ZChannel.unit
       }
 
   def refWriter[T](ref: Ref[List[T]]): ZChannel[Any, Any, T, Any, Nothing, Nothing, Unit] =
     ZChannel.readWith(
       (in: T) => ZChannel.fromZIO(ref.update(in :: _).unit) *> refWriter(ref),
-      (_: Any) => ZChannel.end(()),
-      (_: Any) => ZChannel.end(())
+      (_: Any) => ZChannel.unit,
+      (_: Any) => ZChannel.unit
     )
 
   def mapper[T, U](f: T => U): ZChannel[Any, Any, T, Any, Nothing, U, Unit] =
     ZChannel.readWith(
       (in: T) => ZChannel.write(f(in)) *> mapper(f),
-      (_: Any) => ZChannel.end(()),
-      (_: Any) => ZChannel.end(())
+      (_: Any) => ZChannel.unit,
+      (_: Any) => ZChannel.unit
     )
 }

@@ -30,7 +30,7 @@ object ZTestFrameworkSpec {
 
   def testFingerprints(): Unit = {
     val fingerprints = new ZTestFramework().fingerprints.toSeq
-    assertEquals("fingerprints", fingerprints, Seq(RunnableSpecFingerprint, ZioSpecFingerprint))
+    assertEquals("fingerprints", fingerprints, Seq(ZioSpecFingerprint))
   }
 
   def testReportEvents(): Unit = {
@@ -47,7 +47,7 @@ object ZTestFrameworkSpec {
   }
 
   private def sbtEvent(fqn: String, label: String, status: Status) =
-    ZTestEvent(fqn, new TestSelector(label), status, None, 0, RunnableSpecFingerprint)
+    ZTestEvent(fqn, new TestSelector(label), status, None, 0, ZioSpecFingerprint)
 
   def testReportDurations(): Unit = {
     val reported = ArrayBuffer[Event]()
@@ -175,8 +175,9 @@ object ZTestFrameworkSpec {
   }
 
   def testSummary(): Unit = {
-    val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
+    val taskDef = new TaskDef(failingSpecFQN, ZioSpecFingerprint, false, Array())
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
+
     val task = runner
       .tasks(Array(taskDef))
       .map(task => task.asInstanceOf[ZTestTask])
@@ -197,7 +198,7 @@ object ZTestFrameworkSpec {
   }
 
   def testNoTestsExecutedWarning(): Unit = {
-    val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
+    val taskDef = new TaskDef(failingSpecFQN, ZioSpecFingerprint, false, Array(new TestSelector("nope")))
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
@@ -234,12 +235,7 @@ object ZTestFrameworkSpec {
   ) = {
     val tasks =
       fqns
-        .map(fqn =>
-          if (fqn.contains("Shared"))
-            new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector))
-          else
-            new TaskDef(fqn, RunnableSpecFingerprint, false, Array(new SuiteSelector))
-        )
+        .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
         .toArray
     val task = new ZTestFramework()
       .runner(testArgs, Array(), getClass.getClassLoader)
@@ -256,8 +252,8 @@ object ZTestFrameworkSpec {
     doRun(Iterable(task))
   }
 
-  lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
-  object SimpleFailingSpec extends DefaultRunnableSpec {
+  lazy val failingSpecFQN = SimpleFailingSharedSpec.getClass.getName
+  object SimpleFailingSharedSpec extends ZIOSpecDefault {
     def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
       test("failing test") {
         zio.test.assert(1)(Assertion.equalTo(2))
@@ -271,16 +267,16 @@ object ZTestFrameworkSpec {
     )
   }
 
-  lazy val timedSpecFQN = TimedSpec.getClass.getName
-  object TimedSpec extends DefaultRunnableSpec {
-    override def spec: ZSpec[Environment, Failure] = test("timed passing test") {
+  lazy val timedSpecFQN = TimedSharedSpec.getClass.getName
+  object TimedSharedSpec extends ZIOSpecDefault {
+    override def spec = test("timed passing test") {
       zio.test.assertCompletes
     } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
   }
 
-  lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
-  object MultiLineSpec extends DefaultRunnableSpec {
-    def spec: ZSpec[Environment, Failure] = test("multi-line test") {
+  lazy val multiLineSpecFQN = MultiLineSharedSpec.getClass.getName
+  object MultiLineSharedSpec extends ZIOSpecDefault {
+    def spec = test("multi-line test") {
       zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
     }
   }

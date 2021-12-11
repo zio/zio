@@ -209,21 +209,22 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
               }
             )
 
-          case ZChannel.Done(terminal) =>
+          case ZChannel.SucceedNow(terminal) =>
             result = doneSucceed(terminal)
 
-          case ZChannel.Halt(error) =>
+          case ZChannel.Fail(error) =>
             result = doneHalt(error())
 
-          case ZChannel.EffectTotal(effect) =>
+          case ZChannel.Succeed(effect) =>
             result = doneSucceed(effect())
 
-          case ZChannel.EffectSuspendTotal(effect) =>
+          case ZChannel.Suspend(effect) =>
             currentChannel = effect()
 
-          case ZChannel.Effect(zio) =>
+          case ZChannel.FromZIO(zio) =>
             val pzio =
-              (if (providedEnv == null) zio else zio.provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]]))
+              (if (providedEnv eq null) zio()
+               else zio().provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]]))
                 .asInstanceOf[ZIO[Env, OutErr, OutDone]]
 
             result = ChannelState.Effect(
@@ -244,7 +245,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
           case ZChannel.Emit(out) =>
             emitted = out
-            currentChannel = if (subexecutorStack ne null) null else ZChannel.end(())
+            currentChannel = if (subexecutorStack ne null) null else ZChannel.unit
             result = ChannelState.Emit
 
           case ensuring @ ZChannel.Ensuring(_, _) =>
@@ -258,7 +259,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                   closeLastSubstream = prevLastClose *> f
                 }
 
-            val exec: ErasedExecutor[Env] = new ChannelExecutor(() => value, providedEnv, innerExecuteLastClose)
+            val exec: ErasedExecutor[Env] = new ChannelExecutor(value, providedEnv, innerExecuteLastClose)
             exec.input = input
 
             subexecutorStack = SubexecutorStack.Inner(
@@ -280,7 +281,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
           case ZChannel.Provide(env, inner) =>
             val previousEnv = providedEnv
-            providedEnv = env
+            providedEnv = env()
             currentChannel = inner.asInstanceOf[Channel[Env]]
 
             addFinalizer { _ =>
@@ -394,7 +395,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   )(implicit trace: ZTraceElement): ChannelState.Effect[Env, Any] =
     ChannelState.Effect {
       ZIO.uninterruptibleMask { restore =>
-        restore(bracketOut.acquire).foldCauseZIO(
+        restore(bracketOut.acquire()).foldCauseZIO(
           cause => UIO { currentChannel = ZChannel.failCause(cause) },
           out =>
             UIO {

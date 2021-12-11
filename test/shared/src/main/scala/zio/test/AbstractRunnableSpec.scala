@@ -26,14 +26,7 @@ abstract class AbstractRunnableSpec {
   type Environment
   type Failure
 
-  def aspects: List[TestAspect.WithOut[
-    Nothing,
-    Environment,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ]]
+  def aspects: List[TestAspectAtLeastR[Environment]]
   def runner: TestRunner[Environment, Failure]
   def spec: ZSpec[Environment, Failure]
 

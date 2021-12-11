@@ -35,9 +35,9 @@ After adding metrics into our application, whenever we want we can capture snaps
 
 ```scala mdoc:silent:nest
 for {
-  _        <- myApp 
-  snapshot <- ZIO.succeed(MetricClient.unsafeSnapshot)
-  _        <- Console.printLine(s"Current state of application metrics: $snapshot")
+  _      <- myApp 
+  states <- ZIO.succeed(MetricClient.unsafeStates)
+  _      <- Console.printLine(s"Current state of application metrics: $states")
 } yield ()
 ```
 

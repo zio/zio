@@ -502,7 +502,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   }
 
-  override def fix(implicit doc: SemanticDocument): Patch =
+  override def fix(implicit doc: SemanticDocument): Patch = {
+    new Zio2ZIOSpec().fix +
     doc.tree.collect {
       case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
 
@@ -589,6 +590,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case t @ ImporteeNameOrRename(FiberId_Old(_)) => Patch.removeImportee(t)
 
     }.asPatch + replaceSymbols
+  }
 
   private def wildcardImport(ref: Term.Ref): Importer =
     Importer(ref, List(Importee.Wildcard()))

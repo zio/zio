@@ -6,7 +6,7 @@ import zio.{Chunk, Random, Ref, ZIO}
 
 object CheckSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] = suite("CheckSpec")(
+  def spec = suite("CheckSpec")(
     test("check is polymorphic in error type") {
       check(Gen.int(1, 100)) { n =>
         for {

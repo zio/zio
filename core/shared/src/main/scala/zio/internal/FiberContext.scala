@@ -46,8 +46,8 @@ private[zio] final class FiberContext[E, A](
   import FiberContext._
   import FiberState._
 
-  fibersStarted.unsafeIncrement()
-  fiberForkLocations.unsafeObserve(location.toString)
+  if (trackMetrics) fibersStarted.unsafeIncrement()
+  if (trackMetrics) fiberForkLocations.unsafeObserve(location.toString)
 
   // Accessed from multiple threads:
   private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
@@ -1082,24 +1082,24 @@ private[zio] final class FiberContext[E, A](
 
             val lifetime = endTimeSeconds - startTimeSeconds
 
-            fiberLifetimes.unsafeObserve(lifetime.toDouble)
+            if (trackMetrics) fiberLifetimes.unsafeObserve(lifetime.toDouble)
 
             newExit match {
-              case Exit.Success(_) => fiberSuccesses.unsafeIncrement()
+              case Exit.Success(_) => if (trackMetrics) fiberSuccesses.unsafeIncrement()
 
               case Exit.Failure(cause) =>
-                fiberFailures.unsafeIncrement()
+                if (trackMetrics) fiberFailures.unsafeIncrement()
 
                 cause.fold[Unit](
                   fiberFailureCauses.unsafeObserve("<empty>"),
                   (failure, _) => {
-                    fiberFailureCauses.unsafeObserve(failure.getClass.getName)
+                    observeFailure(failure.getClass())
                   },
                   (defect, _) => {
-                    fiberFailureCauses.unsafeObserve(defect.getClass.getName)
+                    observeFailure(defect.getClass)
                   },
                   (fiberId, _) => {
-                    fiberFailureCauses.unsafeObserve(classOf[InterruptedException].getName)
+                    observeFailure(classOf[InterruptedException])
                   }
                 )(combineUnit, combineUnit, leftUnit)
             }
@@ -1191,6 +1191,14 @@ private[zio] final class FiberContext[E, A](
     discardedFolds
   }
 
+  @inline
+  private def trackMetrics: Boolean =
+    runtimeConfig.runtimeConfigFlags.isEnabled(RuntimeConfigFlag.TrackRuntimeMetrics)
+
+  @inline
+  private def observeFailure(clzz: Class[_]): Unit =
+    if (trackMetrics) fiberFailureCauses.unsafeObserve(clzz.getName)
+
   private[this] class Finalizer(val finalizer: UIO[Any]) extends ErasedTracedCont {
     def apply(v: Any): Erased = {
       unsafeDisableInterrupting()
@@ -1263,13 +1271,13 @@ private[zio] object FiberContext {
 
   import zio.ZIOMetric
 
-  lazy val fiberFailureCauses = ZIOMetric.occurrences("zio-fiber-failure-causes", "").setCount
-  lazy val fiberForkLocations = ZIOMetric.occurrences("zio-fiber-fork-locations", "").setCount
+  lazy val fiberFailureCauses = ZIOMetric.occurrences("zio_fiber_failure_causes", "class").setCount
+  lazy val fiberForkLocations = ZIOMetric.occurrences("zio_fiber_fork", "location").setCount
 
-  lazy val fibersStarted  = ZIOMetric.count("zio-fiber-started").counter
-  lazy val fiberSuccesses = ZIOMetric.count("zio-fiber-successes").counter
-  lazy val fiberFailures  = ZIOMetric.count("zio-fiber-failures").counter
-  lazy val fiberLifetimes = ZIOMetric.observeHistogram("zio-fiber-lifetimes", fiberLifetimeBoundaries).histogram
+  lazy val fibersStarted  = ZIOMetric.count("zio_fiber_started").counter
+  lazy val fiberSuccesses = ZIOMetric.count("zio_fiber_successes").counter
+  lazy val fiberFailures  = ZIOMetric.count("zio_fiber_failures").counter
+  lazy val fiberLifetimes = ZIOMetric.observeHistogram("zio_fiber_lifetimes", fiberLifetimeBoundaries).histogram
 
   lazy val fiberLifetimeBoundaries = ZIOMetric.Histogram.Boundaries.exponential(1.0, 2.0, 100)
 

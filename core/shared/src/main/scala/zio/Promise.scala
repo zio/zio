@@ -250,7 +250,7 @@ object Promise {
   /**
    * Makes a new promise to be completed by the fiber with the specified id.
    */
-  def makeAs[E, A](fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Promise[E, A]] =
+  def makeAs[E, A](fiberId: => FiberId)(implicit trace: ZTraceElement): UIO[Promise[E, A]] =
     ZIO.succeed(unsafeMake(fiberId))
 
   /**

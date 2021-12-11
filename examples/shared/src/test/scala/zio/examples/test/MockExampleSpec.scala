@@ -3,12 +3,12 @@ package zio.examples.test
 import zio.test.Assertion._
 import zio.test.mock.Expectation.{unit, value, valueF}
 import zio.test.mock.{MockClock, MockConsole, MockRandom}
-import zio.test.{assertM, DefaultRunnableSpec}
+import zio.test.{assertM, ZIOSpecDefault}
 import zio.{Clock, Console, Random, ZIO}
 import java.io.IOException
 import zio.test.{Spec, TestFailure, TestSuccess}
 
-object MockExampleSpec extends DefaultRunnableSpec {
+object MockExampleSpec extends ZIOSpecDefault {
 
   def spec: Spec[Any, TestFailure[IOException], TestSuccess] = suite("suite with mocks")(
     test("expect no call") {
