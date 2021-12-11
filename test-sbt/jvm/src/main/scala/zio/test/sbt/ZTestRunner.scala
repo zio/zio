@@ -133,7 +133,7 @@ case class MergedSpec(spec: ZTestTaskNew, merges: Int)
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
   override def merge(zioTasks: Array[ZTestTask]): Array[Task] = {
-    val (newTaskOpt, legacyTaskList) =
+    val (newMergedSpecs, legacyTaskList) =
       zioTasks.foldLeft((List.empty: List[MergedSpec], List[ZTestTaskLegacy]())) {
         case ((newTests, legacyTests), nextSpec) =>
           nextSpec match {
@@ -141,7 +141,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case existingNewTestTask :: otherTasks =>
-                  if (existingNewTestTask.merges < 1) {
+                  if (existingNewTestTask.merges < 5) {
                     (
                       MergedSpec(
                         new ZTestTaskNew(
@@ -173,7 +173,8 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
           }
       }
 
-    (legacyTaskList ++ newTaskOpt.map(_.spec)).toArray
+    newMergedSpecs.foreach(mergedSpec => println("MergedSpec.merges: " + mergedSpec.merges))
+    (legacyTaskList ++ newMergedSpecs.map(_.spec)).toArray
   }
 
 }
