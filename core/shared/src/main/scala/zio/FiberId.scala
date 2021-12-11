@@ -27,6 +27,8 @@ import scala.annotation.tailrec
 sealed trait FiberId extends Serializable { self =>
   import FiberId._
 
+  final def <>(that: FiberId): FiberId = self.combine(that)
+
   final def combine(that: FiberId): FiberId =
     (self, that) match {
       case (None, that)                                 => that

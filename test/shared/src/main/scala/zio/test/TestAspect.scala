@@ -232,8 +232,18 @@ object TestAspect extends TimeoutVariants {
               (_, _) => dump(label) *> fiber.join
             )
           }
+
         def dump[E, A](label: String): URIO[Live with Annotations, Unit] =
-          Annotations.supervisedFibers.flatMap(fibers => Live.live(Fiber.putDumpStr(label, fibers.toSeq: _*).orDie))
+          Annotations.supervisedFibers.flatMap { fibers =>
+            Live.live(ZIO.foreachDiscard(fibers) { fiber =>
+              for {
+                dump <- fiber.dump
+                str  <- dump.prettyPrint
+                _    <- Console.printLine(str).orDie
+              } yield ()
+            })
+          }
+
         spec.transform[R, TestFailure[E], TestSuccess] {
           case Spec.TestCase(test, annotations) => Spec.TestCase(diagnose("", test), annotations)
           case c                                => c

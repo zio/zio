@@ -379,6 +379,8 @@ trait Runtime[+R] {
       trace
     )
 
+    val contextRef = Fiber._roots.add(context)
+
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)
 
@@ -387,7 +389,10 @@ trait Runtime[+R] {
 
     context.nextEffect = zio
     context.run()
-    context.unsafeOnDone(exit => k(exit.flatten))
+    context.unsafeOnDone { exit =>
+      contextRef.clear()
+      k(exit.flatten)
+    }
 
     fiberId =>
       k => unsafeRunAsyncWith(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))

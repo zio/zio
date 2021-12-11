@@ -37,7 +37,7 @@ private[zio] final class FiberContext[E, A](
   var runtimeConfig: RuntimeConfig,
   val interruptStatus: StackBool,
   val fiberRefLocals: FiberRefLocals,
-  val children: JavaSet[FiberContext[_, _]],
+  val _children: JavaSet[FiberContext[_, _]],
   val location: ZTraceElement
 ) extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable { self =>
@@ -69,6 +69,22 @@ private[zio] final class FiberContext[E, A](
         else Right(ZIO.succeedNow(result))
       },
       fiberId
+    )
+
+  final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
+    evalOnZIO(
+      UIO {
+        val chunkBuilder = ChunkBuilder.make[Fiber.Runtime[_, _]](_children.size)
+
+        val iterator = _children.iterator()
+
+        while (iterator.hasNext()) {
+          chunkBuilder += iterator.next()
+        }
+
+        chunkBuilder.result()
+      },
+      UIO(Chunk.empty)
     )
 
   final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
@@ -531,7 +547,7 @@ private[zio] final class FiberContext[E, A](
   final def trace(implicit trace0: ZTraceElement): UIO[ZTrace] = UIO(unsafeCaptureTrace(Nil))
 
   private[zio] def unsafeAddChild(child: FiberContext[_, _])(implicit trace: ZTraceElement): Unit =
-    unsafeEvalOn(ZIO.succeed(children.add(child)), ZIO.unit)
+    unsafeEvalOn(ZIO.succeed(_children.add(child)), ZIO.unit)
 
   private def unsafeAddFinalizer(finalizer: UIO[Any]): Unit = stack.push(new Finalizer(finalizer))
 
@@ -1059,8 +1075,8 @@ private[zio] final class FiberContext[E, A](
 
             mailbox *> ZIO.done(exit)
           }
-        } else if (children.isEmpty()) {
-          // The mailbox is empty and the children are shut down:
+        } else if (_children.isEmpty()) {
+          // The mailbox is empty and the _children are shut down:
           val interruptorsCause = oldState.interruptorsCause
 
           val newExit =
@@ -1107,13 +1123,13 @@ private[zio] final class FiberContext[E, A](
             null
           }
         } else {
-          // Not done because there are children left to close:
+          // Not done because there are _children left to close:
           import collection.JavaConverters._
 
           unsafeSetInterrupting(true)
 
           var interruptChildren: UIO[Any] = UIO.unit
-          val iterator                    = children.iterator()
+          val iterator                    = _children.iterator()
           while (iterator.hasNext()) {
             val next = iterator.next()
 
@@ -1121,7 +1137,7 @@ private[zio] final class FiberContext[E, A](
               if (next eq null) interruptChildren
               else interruptChildren *> next.interruptAs(fiberId)
           }
-          children.clear()
+          _children.clear()
 
           interruptChildren *> ZIO.done(exit)
         }
