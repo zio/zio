@@ -2703,16 +2703,16 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.fromZIO(ZIO.logFatal(message))
 
   /**
+   * Logs the specified message at the fine log level.
+   */
+  def logFine(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.logFine(message))
+
+  /**
    * Logs the specified message at the informational log level.
    */
   def logInfo(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
     ZManaged.fromZIO(ZIO.logInfo(message))
-
-  /**
-   * Logs the specified message at the runtime log level.
-   */
-  def logRuntime(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZManaged.fromZIO(ZIO.logRuntime(message))
 
   /**
    * Adjusts the label for the logging span for managed effects composed after

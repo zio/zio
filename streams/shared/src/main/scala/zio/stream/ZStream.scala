@@ -5328,16 +5328,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.fromZIO(ZIO.logFatal(message))
 
   /**
-   * Logs the specified message at the informational log level.
+   * Logs the specified message at the fine log level.
    */
-  def logInfo(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
-    ZStream.fromZIO(ZIO.logInfo(message))
+  def logFine(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.logFine(message)) 
 
   /**
    * Logs the specified message at the informational log level.
    */
-  def logRuntime(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
-    ZStream.fromZIO(ZIO.logRuntime(message)) 
+  def logInfo(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.logInfo(message))
 
   /**
    * Adjusts the label for the logging span for streams composed after this.
