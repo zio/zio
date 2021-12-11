@@ -20,6 +20,7 @@ import zio.internal.{FiberContext, Platform, StackBool, StackTraceBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
+import java.lang.ref.WeakReference
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -362,6 +363,8 @@ trait Runtime[+R] {
   private final def unsafeRunWith[E, A](
     zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
+    val enableRoots = runtimeConfig.flags.isEnabled(RuntimeConfigFlag.EnableFiberRoots)
+
     val fiberId = FiberId.unsafeMake()
 
     val children = Platform.newWeakSet[FiberContext[_, _]]()
@@ -379,7 +382,9 @@ trait Runtime[+R] {
       trace
     )
 
-    val contextRef = Fiber._roots.add(context)
+    val contextRef =
+      if (enableRoots) Fiber._roots.add(context)
+      else null.asInstanceOf[WeakReference[FiberContext[_, _]]]
 
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)
@@ -390,7 +395,7 @@ trait Runtime[+R] {
     context.nextEffect = zio
     context.run()
     context.unsafeOnDone { exit =>
-      contextRef.clear()
+      if (contextRef ne null) contextRef.clear()
       k(exit.flatten)
     }
 

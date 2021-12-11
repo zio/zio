@@ -120,7 +120,7 @@ private[zio] final class FiberContext[E, A](
    */
   override final def runUntil(maxOpCount: Int): Unit =
     try {
-      val logRuntime = runtimeConfig.runtimeConfigFlags.isEnabled(RuntimeConfigFlag.LogRuntime)
+      val logRuntime = runtimeConfig.flags.isEnabled(RuntimeConfigFlag.LogRuntime)
 
       // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
       // it in `ObjectRef` and performance will plummet.
@@ -138,7 +138,7 @@ private[zio] final class FiberContext[E, A](
       var extraTrace: ZTraceElement = emptyTraceElement
 
       import RuntimeConfigFlag._
-      val flags = runtimeConfig.runtimeConfigFlags
+      val flags = runtimeConfig.flags
       val superviseOps =
         flags.isEnabled(SuperviseOperations) &&
           (runtimeConfig.supervisor ne Supervisor.none)
@@ -533,7 +533,7 @@ private[zio] final class FiberContext[E, A](
       import RuntimeConfigFlag._
 
       // FIXME: Race condition on fiber resumption
-      if (runtimeConfig.runtimeConfigFlags.isEnabled(EnableCurrentFiber)) Fiber._currentFiber.remove()
+      if (runtimeConfig.flags.isEnabled(EnableCurrentFiber)) Fiber._currentFiber.remove()
       if (runtimeConfig.supervisor ne Supervisor.none) runtimeConfig.supervisor.unsafeOnSuspend(self)
     }
 
