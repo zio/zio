@@ -486,7 +486,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       },
       onDone = {
         case Exit.Failure(cause) =>
-          handleSubexecFailure(cause).effectOrNull.ignore.unit // NOTE: assuming finalizers cannot fail
+          handleSubexecFailure(cause).effectOrNullIgnored // NOTE: assuming finalizers cannot fail
         case e @ Exit.Success(doneValue) =>
           val modifiedRest =
             rest.copy(
@@ -538,7 +538,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           exit.map(inner.combineSubKAndInner(inner.lastDone, _)),
           _ => lastClose,
           inner.exec.close
-        ).effectOrNull.ignore.unit // NOTE: assuming finalizers cannot fail
+        ).effectOrNullIgnored // NOTE: assuming finalizers cannot fail
       }
     )
 }
@@ -556,9 +556,9 @@ object ChannelExecutor {
         case _                        => UIO.unit
       }
 
-    def effectOrNull: ZIO[R, E, Any] =
+    def effectOrNullIgnored: ZIO[R, Nothing, Unit] =
       self match {
-        case ChannelState.Effect(zio) => zio
+        case ChannelState.Effect(zio) => zio.ignore.unit
         case _                        => null
       }
   }
