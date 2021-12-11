@@ -456,11 +456,12 @@ Additionally, we can provide layers that are shared between multiple tests withi
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{test, _}
+import zio.test.TestAspect._
 
 suite("sharing a service between test cases") (
   test("A")(ZIO.service[Int].map(i => assertTrue(i == 5))),
   test("B")(ZIO.service[Int].map(i => assertTrue(i == 5)))
-) @@ TestAspect.provideCustomLayerShared(ZLayer.succeed(5))
+) @@ provideCustomLayerShared(ZLayer.succeed(5))
 ```
 
 Let's try a practical example. Assume we have the following counter service:
@@ -490,6 +491,7 @@ We can share this service among multiple tests:
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{test, _}
+import zio.test.TestAspect._
 
 suite("a suite of two tests with shared counter service")(
   test("A") {
@@ -504,7 +506,7 @@ suite("a suite of two tests with shared counter service")(
       _ <- ZIO.debug(s"Running Test B (counter: $c)")
     } yield assertTrue(c == 2)
   }
-) @@ TestAspect.sequential @@ TestAspect.provideCustomLayerShared(CounterLive.layer)
+) @@ sequential @@ provideCustomLayerShared(CounterLive.layer)
 ```
 
 ```scala mdoc:reset:invisible
