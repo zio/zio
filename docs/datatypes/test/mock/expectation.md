@@ -17,21 +17,22 @@ import zio.test.mock._
 case class User(id: String, name: String)
 
 trait UserService {
-  def totalUsers: IO[String, Int]
 
-  def getUserById(id: String): IO[String, User]
-
-  def recentUsers(n: Int): IO[String, List[User]]
+  def insert(user: User): IO[String, Unit]
 
   def remove(id: String): IO[String, Unit]
+  
+  def totalUsers: IO[String, Int]
+  
+  def recentUsers(n: Int): IO[String, List[User]]
 }
 
 object UserService {
   def totalUsers: ZIO[UserService, String, Int] =
     ZIO.serviceWithZIO(_.totalUsers)
 
-  def getUserById(id: String): ZIO[UserService, String, User] =
-    ZIO.serviceWithZIO(_.getUserById(id))
+  def insert(user: User): ZIO[UserService, String, Unit] =
+    ZIO.serviceWithZIO(_.insert(user))
 
   def recentUsers(n: Int): ZIO[UserService, String, List[User]] =
     ZIO.serviceWithZIO(_.recentUsers(n))
@@ -47,19 +48,19 @@ We can write the mock version of this class as below:
 
 object MockUserService extends Mock[UserService] {
 
-  object TotalUsers  extends Effect[Unit, String, Int]
-  object GetUserById extends Effect[String, String, User]
-  object RecentUsers extends Effect[Int, String, List[User]]
+  object Insert      extends Effect[User, String, Unit]
   object Remove      extends Effect[String, String, Unit]
+  object RecentUsers extends Effect[Int, String, List[User]]
+  object TotalUsers  extends Effect[Unit, String, Int]
 
   val compose: URLayer[mock.Proxy, UserService] =
     ZIO.service[mock.Proxy]
       .map { proxy =>
         new UserService {
-          override def totalUsers:          IO[String, Int]        = proxy(TotalUsers)
-          def getUserById(id: String):      IO[String, User]       = proxy(GetUserById, id)
-          override def recentUsers(n: Int): IO[String, List[User]] = proxy(RecentUsers, n)
+          override def insert(user: User):  IO[String, Unit]       = proxy(Insert, user)
           override def remove(id: String):  IO[String, Unit]       = proxy(Remove, id)
+          override def recentUsers(n: Int): IO[String, List[User]] = proxy(RecentUsers, n)
+          override def totalUsers:          IO[String, Int]        = proxy(TotalUsers)
         }
       }.toLayer
       
