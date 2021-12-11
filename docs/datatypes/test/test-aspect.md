@@ -345,7 +345,7 @@ test("pseudo-random number generator with fixed initial seed") {
   }
 } @@
   samples(5) @@
-  after(Console.printLine("----")) @@
+  after(Console.printLine("----").orDie) @@
   repeat(Schedule.recurs(1))
 ```
 
@@ -382,7 +382,7 @@ test("pseudo-random number generator with random initial seed on each repetition
 } @@
   nondeterministic @@
   samples(5) @@
-  after(Console.printLine("----")) @@
+  after(Console.printLine("----").orDie) @@
   repeat(Schedule.recurs(1))
 ```
 
