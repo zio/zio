@@ -14,10 +14,11 @@ object LoggingSpec extends ZIOBaseSpec {
     message: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
     spans: List[LogSpan],
-    location: ZTraceElement
+    location: ZTraceElement,
+    annotations: LogAnnotations
   ) {
     def call[A](zlogger: ZLogger[String, A]): A =
-      zlogger(trace, fiberId, logLevel, message, context, spans, location)
+      zlogger(trace, fiberId, logLevel, message, context, spans, location, annotations)
   }
 
   val _logOutput = new java.util.concurrent.atomic.AtomicReference[Vector[LogEntry]](Vector.empty)
@@ -36,14 +37,15 @@ object LoggingSpec extends ZIOBaseSpec {
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
-        location: ZTraceElement
+        location: ZTraceElement,
+        annotations: LogAnnotations
       ): Unit = if (logLevel >= LogLevel.Info) {
-        val newEntry = LogEntry(trace, fiberId, logLevel, message, context, spans, location)
+        val newEntry = LogEntry(trace, fiberId, logLevel, message, context, spans, location, annotations)
 
         val oldState = _logOutput.get
 
         if (!_logOutput.compareAndSet(oldState, oldState :+ newEntry))
-          apply(trace, fiberId, logLevel, message, context, spans, location)
+          apply(trace, fiberId, logLevel, message, context, spans, location, annotations)
         else ()
       }
     }

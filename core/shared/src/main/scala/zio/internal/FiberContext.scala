@@ -804,11 +804,12 @@ private[zio] final class FiberContext[E, A](
   private def unsafeIsInterrupting(): Boolean = state.get().isInterrupting
 
   private def unsafeLog(tag: LightTypeTag, message: () => Any)(implicit trace: ZTraceElement): Unit = {
-    val logLevel = unsafeGetRef(FiberRef.currentLogLevel)
-    val spans    = unsafeGetRef(FiberRef.currentLogSpan)
+    val logLevel    = unsafeGetRef(FiberRef.currentLogLevel)
+    val spans       = unsafeGetRef(FiberRef.currentLogSpan)
+    val annotations = unsafeGetRef(FiberRef.currentLogAnnotations)
 
     unsafeForEachLogger(tag) { logger =>
-      logger(trace, fiberId, logLevel, message, fiberRefLocals.get, spans, location)
+      logger(trace, fiberId, logLevel, message, fiberRefLocals.get, spans, location, annotations)
     }
   }
 
@@ -833,6 +834,8 @@ private[zio] final class FiberContext[E, A](
 
     val spans = unsafeGetRef(FiberRef.currentLogSpan)
 
+    val annotations = unsafeGetRef(FiberRef.currentLogAnnotations)
+
     val contextMap =
       if (overrideRef1 ne null) {
         val map = fiberRefLocals.get
@@ -842,7 +845,7 @@ private[zio] final class FiberContext[E, A](
       } else fiberRefLocals.get
 
     unsafeForEachLogger(tag) { logger =>
-      logger(trace, fiberId, logLevel, message, contextMap, spans, location)
+      logger(trace, fiberId, logLevel, message, contextMap, spans, location, annotations)
     }
   }
 
