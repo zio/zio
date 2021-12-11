@@ -1209,7 +1209,7 @@ private[zio] final class FiberContext[E, A](
 
   @inline
   private def trackMetrics: Boolean =
-    runtimeConfig.runtimeConfigFlags.isEnabled(RuntimeConfigFlag.TrackRuntimeMetrics)
+    runtimeConfig.flags.isEnabled(RuntimeConfigFlag.TrackRuntimeMetrics)
 
   @inline
   private def observeFailure(clzz: Class[_]): Unit =
