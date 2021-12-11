@@ -4646,8 +4646,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def logInfo(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
     new Logged(ZLogger.stringTag, () => message, someInfo, trace = trace)
 
-  def logLevel(level: LogLevel): LogLevel = level
-
   /**
    * Adjusts the label for the current logging span.
    * {{{

@@ -5285,6 +5285,67 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     unfold(a)(a => Some((a, f(a))))
 
   /**
+   * Logs the specified message at the current log level.
+   */
+  def log(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.log(message))
+
+  /**
+   * Annotates each log in streams composed after this with the specified log
+   * annotation.
+   */
+  def logAnnotate[V](key: => LogAnnotation[V], value: => V)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.managed(ZManaged.logAnnotate(key, value))
+
+  /**
+   * Retrieves the log annotations associated with the current scope.
+   */
+  def logAnnotations(implicit trace: ZTraceElement): ZStream[Any, Nothing, LogAnnotations] =
+    ZStream.fromZIO(ZFiberRef.currentLogAnnotations.get)
+
+  /**
+   * Logs the specified message at the debug log level.
+   */
+  def logDebug(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.logDebug(message))
+
+  /**
+   * Logs the specified message at the error log level.
+   */
+  def logError(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.logError(message))
+
+  /**
+   * Logs the specified cause as an error.
+   */
+  def logErrorCause(cause: => Cause[Any])(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.logErrorCause(cause))
+
+  /**
+   * Logs the specified message at the fatal log level.
+   */
+  def logFatal(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.logFatal(message))
+
+  /**
+   * Logs the specified message at the informational log level.
+   */
+  def logInfo(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.logInfo(message))
+
+  /**
+   * Adjusts the label for the logging span for streams composed after this.
+   */
+  def logSpan(label: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.managed(ZManaged.logSpan(label))
+
+  /**
+   * Logs the specified message at the warning log level.
+   */
+  def logWarning(message: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.logWarning(message))
+
+  /**
    * Creates a single-valued stream from a managed resource
    */
   def managed[R, E, A](managed: => ZManaged[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =

@@ -2659,6 +2659,74 @@ object ZManaged extends ZManagedPlatformSpecific {
     onExecutor(executor)
 
   /**
+   * Logs the specified message at the current log level.
+   */
+  def log(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.log(message))
+
+  /**
+   * Annotates each log in managed effects composed after this.
+   */
+  def logAnnotate[V](key: => LogAnnotation[V], value: => V)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    FiberRef.currentLogAnnotations.get.toManaged.flatMap { annotations =>
+      FiberRef.currentLogAnnotations.locallyManaged(annotations.annotate(key, value))
+    }
+
+  /**
+   * Retrieves current log annotations.
+   */
+  def logAnnotations(implicit trace: ZTraceElement): ZManaged[Any, Nothing, LogAnnotations] =
+    ZManaged.fromZIO(ZFiberRef.currentLogAnnotations.get)
+
+  /**
+   * Logs the specified message at the debug log level.
+   */
+  def logDebug(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.logDebug(message))
+
+  /**
+   * Logs the specified message at the error log level.
+   */
+  def logError(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.logError(message))
+
+  /**
+   * Logs the specified cause as an error.
+   */
+  def logErrorCause(cause: => Cause[Any])(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.logErrorCause(cause))
+
+  /**
+   * Logs the specified message at the fatal log level.
+   */
+  def logFatal(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.logFatal(message))
+
+  /**
+   * Logs the specified message at the informational log level.
+   */
+  def logInfo(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.logInfo(message))
+
+  /**
+   * Adjusts the label for the logging span for managed effects composed after
+   * this.
+   */
+  def logSpan(label: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    FiberRef.currentLogSpan.get.toManaged.flatMap { stack =>
+      val instant = java.lang.System.currentTimeMillis()
+      val logSpan = LogSpan(label, instant)
+
+      FiberRef.currentLogSpan.locallyManaged(logSpan :: stack)
+    }
+
+  /**
+   * Logs the specified message at the warning log level.
+   */
+  def logWarning(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.logWarning(message))
+
+  /**
    * Loops with the specified effectual function, collecting the results into a
    * list. The moral equivalent of:
    *
