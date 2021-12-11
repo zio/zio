@@ -1,10 +1,9 @@
 package zio.stream
 
 import zio.ZManaged.ReleaseMap
-import zio._
+import zio.{ZIO, _}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
-
 import ChannelExecutor.ChannelState
 
 /**
@@ -819,6 +818,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
               case ChannelState.Done =>
                 ZIO.done(exec.getDone)
+              case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
+                ChannelExecutor.readUpstream[Env, OutErr, OutDone](
+                  r.asInstanceOf[ChannelState.Read[Env, OutErr]],
+                  () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+                )
             }
 
           interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
@@ -866,6 +870,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               ZIO.succeed(Right(exec.getEmit))
             case ChannelState.Effect(zio) =>
               zio *> interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+            case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
+              ChannelExecutor.readUpstream[Env, OutErr, Either[OutDone, OutElem]](
+                r.asInstanceOf[ChannelState.Read[Env, OutErr]],
+                () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+              )
           }
 
         ZIO.suspendSucceed(interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]))

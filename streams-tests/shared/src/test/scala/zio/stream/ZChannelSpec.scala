@@ -136,6 +136,31 @@ object ZChannelSpec extends ZIOBaseSpec {
             }
 
           }
+        },
+        test("finalizer ordering 2") {
+          for {
+            effects <- Ref.make(List[String]())
+            push     = (i: String) => ZIO.debug(i) *> effects.update(i :: _)
+            _ <- ZChannel
+                   .writeAll(1, 2)
+                   .mapOutZIO(n => push(s"pulled $n").as(n))
+                   .concatMap(n =>
+                     ZChannel
+                       .write(n)
+                       .ensuring(push(s"close $n"))
+                   )
+                   .runDrain
+            result <- effects.get
+          } yield assert(result.reverse)(
+            equalTo(
+              List(
+                "pulled 1",
+                "close 1",
+                "pulled 2",
+                "close 2"
+              )
+            )
+          )
         }
       ),
       suite("ZChannel#mapOut")(
@@ -596,6 +621,30 @@ object ZChannelSpec extends ZIOBaseSpec {
               v3 <- ZChannel.fromZIO(ZIO.service[Int])
             } yield (v1, v2, v3)).runDrain.provideEnvironment(ZEnvironment(4))
           )(equalTo((4, 2, 4)))
+        }
+      ),
+      suite("stack safety")(
+        test("mapOut is stack safe") {
+          val N = 100000
+          assertM(
+            (1 to N)
+              .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
+                channel.mapOut(_ + n)
+              }
+              .runCollect
+              .map(_._1.head)
+          )(equalTo((1 to N).foldLeft(1L)(_ + _)))
+        },
+        test("concatMap is stack safe") {
+          val N = 100000L
+          assertM(
+            (1L to N)
+              .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
+                channel.concatMap(_ => ZChannel.write(n)).unit
+              }
+              .runCollect
+              .map(_._1.head)
+          )(equalTo(N))
         }
       ),
       test("cause is propagated on channel interruption") {
