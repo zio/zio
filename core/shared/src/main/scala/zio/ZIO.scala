@@ -4611,6 +4611,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new LogAnnotate(() => key, () => value)
 
   /**
+   * Retrieves the log annotations associated with the current scope.
+   */
+  def logAnnotations(implicit trace: ZTraceElement): UIO[LogAnnotations] =
+    ZFiberRef.currentLogAnnotations.get
+
+  /**
    * Logs the specified message at the debug log level.
    */
   def logDebug(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
