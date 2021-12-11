@@ -136,6 +136,31 @@ object ZChannelSpec extends ZIOBaseSpec {
             }
 
           }
+        },
+        test("finalizer ordering 2") {
+          for {
+            effects <- Ref.make(List[String]())
+            push     = (i: String) => ZIO.debug(i) *> effects.update(i :: _)
+            _ <- ZChannel
+                   .writeAll(1, 2)
+                   .mapOutZIO(n => push(s"pulled $n").as(n))
+                   .concatMap(n =>
+                     ZChannel
+                       .write(n)
+                       .ensuring(push(s"close $n"))
+                   )
+                   .runDrain
+            result <- effects.get
+          } yield assert(result.reverse)(
+            equalTo(
+              List(
+                "pulled 1",
+                "close 1",
+                "pulled 2",
+                "close 2"
+              )
+            )
+          )
         }
       ),
       suite("ZChannel#mapOut")(

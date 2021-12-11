@@ -1292,7 +1292,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- effects.get
             } yield assert(result)(equalTo(List(3, 3, 2, 1, 1)))
           },
-          test("finalizer ordering !") {
+          test("finalizer ordering 1") {
             for {
               effects <- Ref.make(List[String]())
               push     = (i: String) => effects.update(i :: _)

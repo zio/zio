@@ -1565,42 +1565,37 @@ object ZChannel {
 
     def read(): ZIO[R, E, A] = {
       val current = readStack.pop()
-      ZIO.debug(s"readUpstream running ${current.upstream.id}") *> {
-        current.upstream.run() match {
-          case ChannelState.Emit =>
-            val emitEffect = current.onEmit(current.upstream.getEmit)
-            ZIO.debug(s"readUpstream[${current.upstream.id}]: Emit") *> {
-              if (readStack.isEmpty) {
-                if (emitEffect eq null) continue()
-                else
-                  emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
-              } else {
-                if (emitEffect eq null) read() else (emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> read())
-              }
+      current.upstream.run() match {
+        case ChannelState.Emit =>
+          val emitEffect = current.onEmit(current.upstream.getEmit)
+          if (readStack.isEmpty) {
+            if (emitEffect eq null) continue()
+            else
+              emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
+          } else {
+            if (emitEffect eq null) read() else (emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> read())
+          }
+        case ChannelState.Done =>
+          val doneEffect = current.onDone(current.upstream.getDone)
+          if (readStack.isEmpty) {
+            if (doneEffect eq null) continue()
+            else
+              doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
+          } else {
+            if (doneEffect eq null) read() else (doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> read())
+          }
+        case ChannelState.Effect(zio) =>
+          readStack.push(current)
+          current.onEffect(zio.asInstanceOf[ZIO[Any, Nothing, Unit]]).catchAllCause { cause =>
+            ZIO.suspendSucceed {
+              val doneEffect = current.onDone(Exit.failCause(cause))
+              if (doneEffect eq null) ZIO.unit else doneEffect
             }
-          case ChannelState.Done =>
-            val doneEffect = current.onDone(current.upstream.getDone)
-            if (readStack.isEmpty) {
-              if (doneEffect eq null) continue()
-              else
-                doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
-            } else {
-              if (doneEffect eq null) read() else (doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> read())
-            }
-          case ChannelState.Effect(zio) =>
-            readStack.push(current)
-            ZIO.debug(s"readUpstream[${current.upstream.id}]: Effect") *>
-              r.onEffect(zio.asInstanceOf[ZIO[R, Nothing, Unit]]).catchAllCause { cause =>
-                ZIO.suspendSucceed {
-                  val doneEffect = current.onDone(Exit.failCause(cause))
-                  if (doneEffect eq null) ZIO.unit else doneEffect
-                }
-              } *> ZIO.debug(s"readUpstream[${current.upstream.id}]: Effect done") *> read()
-          case r2@ChannelState.Read(upstream2, onEffect2, onEmit2, onDone2) =>
-            readStack.push(current.asInstanceOf[ChannelState.Read[Any, Any]])
-            readStack.push(r2.asInstanceOf[ChannelState.Read[Any, Any]])
-            read()
-        }
+          } *> read()
+        case r2 @ ChannelState.Read(upstream2, onEffect2, onEmit2, onDone2) =>
+          readStack.push(current.asInstanceOf[ChannelState.Read[Any, Any]])
+          readStack.push(r2.asInstanceOf[ChannelState.Read[Any, Any]])
+          read()
       }
     }
 

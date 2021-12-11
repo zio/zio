@@ -15,10 +15,6 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 ) {
   import ChannelExecutor._
 
-  val id = ChannelExecutor.lastId.incrementAndGet()
-
-  def debug(s: String) = println(s"[$id] $s")
-
   private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env])(implicit
     trace: ZTraceElement
   ): ZIO[Env, Nothing, Any] = {
@@ -130,12 +126,6 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       } else if (subexecutorStack ne null) {
         result = drainSubexecutor()
       } else {
-
-        if (currentChannel != null)
-          debug(s"${currentChannel.getClass.getSimpleName}")
-        else
-          debug("DONE")
-
         currentChannel match {
           case null =>
             result = ChannelState.Done
@@ -208,7 +198,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           case read @ ZChannel.Read(_, _) =>
             result = ChannelState.Read(
               input,
-              onEffect = (f: ZIO[Env, Nothing, Unit]) => ZIO.succeed(debug("Read.onEffect")) *> f , //identity[ZIO[Env, Nothing, Unit]],
+              onEffect = identity[ZIO[Env, Nothing, Unit]],
               onEmit = { (out: Any) =>
                 currentChannel = read.more(out)
                 null
@@ -263,7 +253,6 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, value, k) =>
             val innerExecuteLastClose =
               (f: URIO[Env, Any]) =>
-                ZIO.succeed(debug("innerExecuteLastClose")) *>
                 UIO {
                   val prevLastClose = if (closeLastSubstream eq null) ZIO.unit else closeLastSubstream
                   closeLastSubstream = prevLastClose *> f
@@ -492,11 +481,9 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         exec.close
       )
 
-    debug(s"drainFromKAndSubexecutor read")
-
     ChannelState.Read(
       exec,
-      onEffect = (f: ZIO[Env, Nothing, Unit]) => ZIO.debug("drainFromKAndSubexecutor.onEffect") *> f , //identity[ZIO[Env, Nothing, Unit]],
+      onEffect = identity[ZIO[Env, Nothing, Unit]],
       onEmit = { (emitted: Any) =>
         this.subexecutorStack = SubexecutorStack.Emit(emitted, this.subexecutorStack)
         null
@@ -511,7 +498,6 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
               null
           }
         case e @ Exit.Success(doneValue) =>
-          debug(s"drainFromKAndSubexecutor done with $doneValue")
           val modifiedRest =
             rest.copy(
               lastDone =
@@ -527,19 +513,16 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private final def drainInnerSubexecutor(
     inner: ChannelExecutor.SubexecutorStack.Inner[Env]
-  )(implicit trace: ZTraceElement): ChannelState[Env, Any] = {
-    debug(s"drainInnerSubexecutor read")
+  )(implicit trace: ZTraceElement): ChannelState[Env, Any] =
     ChannelState.Read(
       inner.exec,
       onEffect = (effect: ZIO[Env, Nothing, Unit]) => {
-        debug("onEffect() called")
         val closeLast =
           if (closeLastSubstream eq null) ZIO.unit else closeLastSubstream
         closeLastSubstream = null
-        ZIO.succeed(debug("onEffectClose start")) *> executeCloseLastSubstream(closeLast) *> ZIO.succeed(debug("onEffectClose end")) *> effect
+        executeCloseLastSubstream(closeLast) *> effect
       },
       onEmit = { (emitted: Any) =>
-        debug(s"drainInnerSubexecutor onEmit $emitted, closeLast = ${this.closeLastSubstream}")
         if (this.closeLastSubstream ne null) {
           val closeLast = this.closeLastSubstream
           closeLastSubstream = null
@@ -548,7 +531,6 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
               new ChannelExecutor(() => inner.subK(emitted), providedEnv, executeCloseLastSubstream)
             fromK.input = input
 
-            debug(s"Spawned ${fromK.id}")
             subexecutorStack = SubexecutorStack.FromKAnd[Env](fromK, inner)
           }
         } else {
@@ -556,7 +538,6 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             new ChannelExecutor(() => inner.subK(emitted), providedEnv, executeCloseLastSubstream)
           fromK.input = input
 
-          debug(s"Spawned ${fromK.id}")
           subexecutorStack = SubexecutorStack.FromKAnd[Env](fromK, inner)
           null
         }
@@ -595,12 +576,9 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         }
       }
     )
-  }
 }
 
 object ChannelExecutor {
-  val lastId = new AtomicInteger(0)
-
   type Channel[R]            = ZChannel[R, Any, Any, Any, Any, Any, Any]
   type ErasedExecutor[Env]   = ChannelExecutor[Env, Any, Any, Any, Any, Any, Any]
   type ErasedContinuation[R] = ZChannel.Fold.Continuation[R, Any, Any, Any, Any, Any, Any, Any, Any]
