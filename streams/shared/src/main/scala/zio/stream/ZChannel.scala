@@ -1565,7 +1565,7 @@ object ZChannel {
     case object BufferSliding extends MergeStrategy
   }
 
-  private def readUpstream[R, E, A](
+  private[stream] def readUpstream[R, E, A](
     r: ChannelExecutor.ChannelState.Read[R, E],
     continue: () => ZIO[R, E, A]
   )(implicit trace: ZTraceElement): ZIO[R, E, A] = {

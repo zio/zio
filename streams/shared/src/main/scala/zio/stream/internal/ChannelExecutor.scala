@@ -79,19 +79,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     val closeSubexecutors =
       if (subexecutorStack eq null) null
       else
-        subexecutorStack match {
-          case exec: SubexecutorStack.Inner[_] =>
-            exec.close(ex).asInstanceOf[ZIO[Env, Nothing, Exit[Any, Any]]]
-
-          case SubexecutorStack.FromKAnd(fromK, rest) =>
-            val fin1 = fromK.close(ex)
-            val fin2 = rest.close(ex)
-
-            if ((fin1 eq null) && (fin2 eq null)) null
-            else if ((fin1 ne null) && (fin2 ne null)) fin1.exit.zipWith(fin2.exit)(_ *> _)
-            else if (fin1 ne null) fin1.exit
-            else fin2.exit
-        }
+        subexecutorStack.close(ex).asInstanceOf[ZIO[Env, Nothing, Exit[Any, Any]]]
 
     val closeSelf: URIO[Env, Exit[Any, Any]] = {
       val selfFinalizers = popAllFinalizers(ex)
@@ -161,6 +149,11 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                         cause => bridgeInput.error(cause),
                         _ => drainer
                       )
+
+                    case r @ ChannelState.Read(_, _, _, _) =>
+                      ZChannel
+                        .readUpstream(r.asInstanceOf[ChannelState.Read[Env, Any]], () => drainer)
+                        .catchAllCause(cause => bridgeInput.error(cause))
                   }
                 }
 
@@ -204,7 +197,9 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                 null
               },
               onDone = { (exit: Exit[Any, Any]) =>
-                currentChannel = read.done.onExit(exit)
+                val onExit: Exit[Any, Any] => Channel[Env] =
+                  (read.done.onExit _).asInstanceOf[Exit[Any, Any] => Channel[Env]]
+                currentChannel = onExit(exit)
                 null
               }
             )
@@ -613,9 +608,21 @@ object ChannelExecutor {
     else if (l ne null) l.exit
     else r.exit
 
-  sealed abstract class SubexecutorStack[-R]
+  sealed abstract class SubexecutorStack[-R] {
+    def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]]
+  }
   object SubexecutorStack {
-    case class FromKAnd[R](fromK: ErasedExecutor[R], rest: Inner[R]) extends SubexecutorStack[R]
+    case class FromKAnd[R](fromK: ErasedExecutor[R], rest: Inner[R]) extends SubexecutorStack[R] {
+      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] = {
+        val fin1 = fromK.close(ex)
+        val fin2 = rest.close(ex)
+
+        if ((fin1 eq null) && (fin2 eq null)) null
+        else if ((fin1 ne null) && (fin2 ne null)) fin1.exit.zipWith(fin2.exit)(_ *> _)
+        else if (fin1 ne null) fin1.exit
+        else fin2.exit
+      }
+    }
     final case class Inner[R](
       exec: ErasedExecutor[R],
       subK: Any => Channel[R],
@@ -630,7 +637,10 @@ object ChannelExecutor {
         else null
       }
     }
-    final case class Emit[R](value: Any, next: SubexecutorStack[R]) extends SubexecutorStack[R]
+    final case class Emit[R](value: Any, next: SubexecutorStack[R]) extends SubexecutorStack[R] {
+      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] =
+        next.close(ex)
+    }
   }
 
   private def erase[R](conduit: ZChannel[R, _, _, _, _, _, _]): Channel[R] =
