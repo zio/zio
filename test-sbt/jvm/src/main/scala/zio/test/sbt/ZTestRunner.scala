@@ -141,7 +141,8 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case existingNewTestTask :: otherTasks =>
-                  if (existingNewTestTask.merges < 5) {
+                  if (true) {
+//                    if (existingNewTestTask.merges < 5) {
                     (
                       MergedSpec(
                         new ZTestTaskNew(
