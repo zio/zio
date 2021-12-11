@@ -556,7 +556,7 @@ object ChannelExecutor {
         case _                        => UIO.unit
       }
 
-    def effectOrNullIgnored: ZIO[R, Nothing, Unit] =
+    def effectOrNullIgnored(implicit trace: ZTraceElement): ZIO[R, Nothing, Unit] =
       self match {
         case ChannelState.Effect(zio) => zio.ignore.unit
         case _                        => null
