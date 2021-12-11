@@ -279,3 +279,25 @@ test("satisfy sequence of two expectations with `andThen` operator") {
 ```
 
 In the example above, changing the SUT to `UserService.totalUsers *> UserService.remove(1)` will fail the test.
+
+### Exact Repetition
+
+1. **`exactly`** — Produces a new expectation to satisfy itself exactly the given number of times.
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("satisfying exact repetition of a method call") {
+  for {
+    _ <- ZIO.foreach(List("1", "2", "3", "4"))(id => UserService.remove(id)).provideLayer(
+      MockUserService.Remove(
+        Assertion.isNonEmptyString
+      ).exactly(4)
+    )
+  } yield assertTrue(true)
+}
+```
+
+2. **`twice`** and **`thrice`** — Aliases for `exactly(2)` and `exactly(3)`.
