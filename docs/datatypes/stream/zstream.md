@@ -485,12 +485,12 @@ val s2: ZStream[Any, Nothing, Int] =
 
 ### From Java IO
 
-**ZStream.fromFile** — Create ZIO Stream from a file:
+**ZStream.fromPath** — Create ZIO Stream from a file:
 
 ```scala mdoc:silent:nest
 import java.nio.file.Paths
 val file: ZStream[Any, Throwable, Byte] = 
-  ZStream.fromFile(Paths.get("file.txt"))
+  ZStream.fromPath(Paths.get("file.txt"))
 ```
 
 **ZStream.fromInputStream** — Creates a stream from a `java.io.InputStream`:

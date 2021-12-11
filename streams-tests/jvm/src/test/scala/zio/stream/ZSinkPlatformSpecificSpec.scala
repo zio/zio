@@ -1,8 +1,8 @@
 package zio.stream
 
 import zio._
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets.UTF_8
@@ -19,7 +19,7 @@ object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
           .acquireReleaseWith(path => Task(Files.delete(path)).orDie) { path =>
             for {
               bytes  <- Task(data.getBytes(UTF_8))
-              length <- ZStream.fromIterable(bytes).run(ZSink.fromFile(path))
+              length <- ZStream.fromIterable(bytes).run(ZSink.fromPath(path))
               str    <- Task(new String(Files.readAllBytes(path)))
             } yield {
               assertTrue(data == str) &&

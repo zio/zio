@@ -4,10 +4,10 @@ import zio._
 import zio.stream.compression.{CompressionException, CompressionLevel, CompressionStrategy, FlushMode}
 
 import java.io._
-import java.net.{InetSocketAddress, SocketAddress}
+import java.net.{InetSocketAddress, SocketAddress, URI}
 import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel}
-import java.nio.file.{OpenOption, Path}
 import java.nio.file.StandardOpenOption._
+import java.nio.file.{OpenOption, Path, Paths}
 import java.nio.{Buffer, ByteBuffer}
 import java.{util => ju}
 
@@ -213,9 +213,40 @@ trait ZStreamPlatformSpecificConstructors {
     asyncMaybe(register, outputBuffer)
 
   /**
+   * Creates a stream of bytes from the specified file.
+   */
+  final def fromFile(file: => File, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, Byte] =
+    ZStream
+      .fromZIO(ZIO.attempt(file.toPath))
+      .flatMap(path => self.fromPath(path, chunkSize))
+
+  /**
+   * Creates a stream of bytes from a file at the specified path represented by
+   * a string.
+   */
+  final def fromFileString(name: => String, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, Byte] =
+    ZStream
+      .fromZIO(ZIO.attempt(Paths.get(name)))
+      .flatMap(path => self.fromPath(path, chunkSize))
+
+  /**
+   * Creates a stream of bytes from a file at the specified uri.
+   */
+  final def fromFileURI(uri: => URI, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, Byte] =
+    ZStream
+      .fromZIO(ZIO.attempt(Paths.get(uri)))
+      .flatMap(path => self.fromPath(path, chunkSize))
+
+  /**
    * Creates a stream of bytes from a file at the specified path.
    */
-  def fromFile(path: => Path, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
+  final def fromPath(path: => Path, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, Byte] =
     ZStream
@@ -553,10 +584,56 @@ trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
 
   /**
-   * Uses the provided `Path` to create a [[ZSink]] that consumes byte chunks
+   * Uses the provided `File` to create a [[ZSink]] that consumes byte chunks
    * and writes them to the `File`. The sink will yield count of bytes written.
    */
   final def fromFile(
+    file: => File,
+    position: Long = 0L,
+    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Throwable, Byte, Byte, Long] =
+    ZSink
+      .fromZIO(ZIO.attempt(file.toPath))
+      .flatMap(path => self.fromPath(path, position, options))
+
+  /**
+   * Uses the provided `Path` represented as a string to create a [[ZSink]] that
+   * consumes byte chunks and writes them to the `File`. The sink will yield
+   * count of bytes written.
+   */
+  final def fromFileString(
+    name: => String,
+    position: Long = 0L,
+    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Throwable, Byte, Byte, Long] =
+    ZSink
+      .fromZIO(ZIO.attempt(Paths.get(name)))
+      .flatMap(path => self.fromPath(path, position, options))
+
+  /**
+   * Uses the provided `URI` to create a [[ZSink]] that consumes byte chunks and
+   * writes them to the `File`. The sink will yield count of bytes written.
+   */
+  final def fromFileURI(
+    uri: => URI,
+    position: Long = 0L,
+    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Throwable, Byte, Byte, Long] =
+    ZSink
+      .fromZIO(ZIO.attempt(Paths.get(uri)))
+      .flatMap(path => self.fromPath(path, position, options))
+
+  /**
+   * Uses the provided `Path` to create a [[ZSink]] that consumes byte chunks
+   * and writes them to the `File`. The sink will yield count of bytes written.
+   */
+  final def fromPath(
     path: => Path,
     position: => Long = 0L,
     options: => Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)

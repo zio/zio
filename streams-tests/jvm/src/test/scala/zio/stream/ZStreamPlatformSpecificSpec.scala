@@ -2,13 +2,13 @@ package zio.stream
 
 import zio._
 import zio.test.Assertion._
-import zio.test._
 import zio.test.TestAspect.flaky
+import zio.test._
 
-import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
+import java.io._
 import java.net.InetSocketAddress
-import java.nio.charset.StandardCharsets
 import java.nio.channels.AsynchronousSocketChannel
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, NoSuchFileException, Paths}
 import java.nio.{Buffer, ByteBuffer}
 import java.util.concurrent.CountDownLatch
@@ -234,14 +234,14 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
               Task(Files.write(path, data.getBytes(StandardCharsets.UTF_8))) *>
                 assertM(
                   ZStream
-                    .fromFile(path, 24)
+                    .fromPath(path, 24)
                     .via(ZPipeline.utf8Decode)
                     .mkString
                 )(equalTo(data))
           }
         },
         test("fails on a nonexistent file") {
-          assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.exit)(
+          assertM(ZStream.fromPath(Paths.get("nonexistent"), 24).runDrain.exit)(
             fails(isSubtype[NoSuchFileException](anything))
           )
         }
