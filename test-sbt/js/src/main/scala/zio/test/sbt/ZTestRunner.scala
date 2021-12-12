@@ -17,8 +17,17 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpecAbstract, sbt}
-import zio.{Chunk, Exit, Runtime, UIO, ZEnvironment, ZLayer, ZIO, ZIOAppArgs}
+import zio.test.{
+  AbstractRunnableSpec,
+  FilteredSpec,
+  Summary,
+  TestArgs,
+  TestEnvironment,
+  TestLogger,
+  ZIOSpecAbstract,
+  sbt
+}
+import zio.{Chunk, Clock, Exit, Layer, Random, Runtime, System, UIO, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -87,10 +96,38 @@ sealed class ZTestTask(
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     spec match {
-      case NewSpecWrapper(zioSpec) =>
+      case NewSpecWrapper(zioSpec) => {
+
+        val argslayer: ULayer[ZIOAppArgs] =
+          ZLayer.succeed(
+            ZIOAppArgs(Chunk.empty)
+          )
+
+        val filledTestlayer: Layer[Nothing, TestEnvironment] =
+          zio.ZEnv.live >>> TestEnvironment.live
+
+        val layer: Layer[Error, zioSpec.Environment] =
+          (argslayer +!+ filledTestlayer) >>> zioSpec.layer.mapError(e => new Error(e.toString))
+
+        val fullLayer: Layer[
+          Error,
+          zioSpec.Environment with ZIOAppArgs with TestEnvironment with zio.Console with System with Random with Clock
+        ] =
+          layer +!+ argslayer +!+ filledTestlayer
+
+        val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
         Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
-          zioSpec.run
-            .provide(ZLayer.succeed(ZIOAppArgs(Chunk.empty)) ++ zio.ZEnv.live)
+          val logic =
+            for {
+              spec <- zioSpec
+                        .runSpec(FilteredSpec(zioSpec.spec, args), args, sendSummary)
+                        .provideLayer(
+                          testLoggers +!+ fullLayer
+                        )
+              events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
+              _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
+            } yield ()
+          logic
             .onError(e => UIO(println(e.prettyPrint)))
         } { exit =>
           exit match {
@@ -99,6 +136,7 @@ sealed class ZTestTask(
           }
           continuation(Array())
         }
+      }
       case LegacySpecWrapper(abstractRunnableSpec) =>
         Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
           run(eventHandler, abstractRunnableSpec).toManaged
