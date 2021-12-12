@@ -1235,7 +1235,7 @@ package object test extends CompileVariants {
       stream
         .rechunk(1)
         .channel
-        .concatMapWithCustom(as =>
+        .concatMapWithCustom[R1, Any, Any, Any, Nothing, Chunk[Either[Boolean, B]], Any, Any](as =>
           as.map {
             case Some(a) =>
               f(a)
@@ -1274,7 +1274,10 @@ package object test extends CompileVariants {
             }
           }
         )
-    ).filter(_ != Left(true)).map(_.toOption)
+    ).filter(_ != Left(true)).map {
+      case Left(_) => None
+      case Right(value) => Some(value)
+    }
 
   /**
    * An implementation of `ZStream#merge` that supports breadth first search.
