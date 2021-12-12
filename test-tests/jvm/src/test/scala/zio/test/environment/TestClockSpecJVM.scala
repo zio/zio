@@ -7,12 +7,12 @@ import java.util.concurrent.TimeUnit
 
 object TestClockSpecJVM extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("TestClockSpecJVM")(
       suite("asScheduledExecutorService")(
         test("schedules tasks at fixed rate correctly") {
           for {
-            runtime                 <- ZIO.runtime[Has[Clock]]
+            runtime                 <- ZIO.runtime[Clock]
             ref                     <- Ref.make[List[Long]](List.empty)
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
@@ -36,7 +36,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
         },
         test("does not allow tasks to pile up") {
           for {
-            runtime                 <- ZIO.runtime[Has[Clock]]
+            runtime                 <- ZIO.runtime[Clock]
             ref                     <- Ref.make[List[Long]](List.empty)
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
@@ -60,7 +60,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
         },
         test("schedules tasks with fixed delay correctly") {
           for {
-            runtime                 <- ZIO.runtime[Has[Clock]]
+            runtime                 <- ZIO.runtime[Clock]
             ref                     <- Ref.make[List[Long]](List.empty)
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
@@ -84,7 +84,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
         },
         test("allows scheduled tasks to be interrupted") {
           for {
-            runtime                 <- ZIO.runtime[Has[Clock]]
+            runtime                 <- ZIO.runtime[Clock]
             ref                     <- Ref.make[List[Long]](List.empty)
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService

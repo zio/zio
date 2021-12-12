@@ -57,18 +57,19 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val fatal = (_: Throwable) => false
 
-    val logger: ZLogger[Unit] =
+    val loggerString: ZLogger[String, Unit] =
       (
         trace: ZTraceElement,
-        fiberId: FiberId.Runtime,
+        fiberId: FiberId,
         level: LogLevel,
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
-        spans: List[LogSpan]
+        spans: List[LogSpan],
+        location: ZTraceElement
       ) => {
         try {
           // TODO: Improve output & use console.group for spans, etc.
-          val line = ZLogger.defaultFormatter(trace, fiberId, level, message, context, spans)
+          val line = ZLogger.defaultString(trace, fiberId, level, message, context, spans, location)
 
           if (level == LogLevel.Fatal) jsglobal.console.error(line)
           else if (level == LogLevel.Error) jsglobal.console.error(line)
@@ -80,6 +81,10 @@ private[zio] trait RuntimeConfigPlatformSpecific {
           case t if !fatal(t) => ()
         }
       }
+
+    val loggerCause: ZLogger[Cause[Any], Unit] = loggerString.contramap(_.prettyPrint)
+
+    val loggers = ZLogger.Set(loggerString, loggerCause).filterLogLevel(_ >= LogLevel.Info)
 
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()
@@ -94,7 +99,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       fatal,
       reportFatal,
       supervisor,
-      logger.filterLogLevel(_ >= LogLevel.Info),
+      loggers,
       RuntimeConfigFlags.empty
     )
   }

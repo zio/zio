@@ -18,7 +18,7 @@ package zio.test.laws
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, TestConfig, TestResult, check}
-import zio.{Has, URIO, ZIO}
+import zio.{URIO, ZIO}
 import zio.ZTraceElement
 
 object ZLawsF2 {
@@ -33,7 +33,7 @@ object ZLawsF2 {
      * function to construct a generator of `F[A,B]` values given a generator of
      * `B` values.
      */
-    def run[R1 <: R with Has[TestConfig], F[-_, +_]: CapsF, A: CapsLeft, B: CapsRight](
+    def run[R1 <: R with TestConfig, F[-_, +_]: CapsF, A: CapsLeft, B: CapsRight](
       genF: GenF2[R1, F],
       gen: Gen[R1, B]
     )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult]
@@ -55,7 +55,7 @@ object ZLawsF2 {
       right: Divariant[CapsBothF, CapsLeft, CapsRight, R]
     ) extends Divariant[CapsBothF, CapsLeft, CapsRight, R] {
 
-      override final def run[R1 <: R with Has[TestConfig], F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
+      override final def run[R1 <: R with TestConfig, F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
         genF: GenF2[R1, F],
         gen: Gen[R1, B]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] = {
@@ -78,7 +78,7 @@ object ZLawsF2 {
         g: A1 => A2
       ): TestResult
 
-      final def run[R <: Has[TestConfig], F[-_, +_]: CapsBothF, A: Caps, B: Caps, A1: Caps, A2: Caps](
+      final def run[R <: TestConfig, F[-_, +_]: CapsBothF, A: Caps, B: Caps, A1: Caps, A2: Caps](
         genF: GenF2[R, F],
         genB: Gen[R, B],
         genA1: Gen[R, A1],
@@ -98,7 +98,7 @@ object ZLawsF2 {
         extends Divariant[CapsBothF, CapsLeft, CapsRight, Any] { self =>
       def apply[F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](fa: F[A, B]): TestResult
 
-      final def run[R <: Has[TestConfig], F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
+      final def run[R <: TestConfig, F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
         genF: GenF2[R, F],
         gen: Gen[R, B]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =

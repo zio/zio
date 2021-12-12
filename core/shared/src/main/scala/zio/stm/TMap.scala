@@ -274,9 +274,46 @@ final class TMap[K, V] private (
     get(k).flatMap(_.fold(put(k, v))(_ => STM.unit))
 
   /**
+   * Removes bindings matching predicate and returns the removed entries.
+   */
+  def removeIf(p: (K, V) => Boolean): USTM[Chunk[(K, V)]] =
+    ZSTM.Effect { (journal, _, _) =>
+      val f        = p.tupled
+      val buckets  = tBuckets.unsafeGet(journal)
+      val capacity = buckets.array.length
+
+      var i       = 0
+      var newSize = 0
+      val removed = ChunkBuilder.make[(K, V)]()
+
+      while (i < capacity) {
+        val bucket    = buckets.array(i).unsafeGet(journal)
+        var newBucket = List.empty[(K, V)]
+
+        val it = bucket.iterator
+        while (it.hasNext) {
+          val pair = it.next()
+          if (!f(pair)) {
+            newBucket = pair :: newBucket
+            newSize += 1
+          } else {
+            removed += pair
+          }
+        }
+
+        buckets.array(i).unsafeSet(journal, newBucket)
+        i += 1
+      }
+
+      tSize.unsafeSet(journal, newSize)
+
+      removed.result()
+    }
+
+  /**
    * Removes bindings matching predicate.
    */
-  def removeIf(p: (K, V) => Boolean): USTM[Unit] =
+  def removeIfDiscard(p: (K, V) => Boolean): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
       val f        = p.tupled
       val buckets  = tBuckets.unsafeGet(journal)
@@ -308,38 +345,16 @@ final class TMap[K, V] private (
     }
 
   /**
+   * Retains bindings matching predicate and returns removed bindings.
+   */
+  def retainIf(p: (K, V) => Boolean): USTM[Chunk[(K, V)]] =
+    removeIf(!p(_, _))
+
+  /**
    * Retains bindings matching predicate.
    */
-  def retainIf(p: (K, V) => Boolean): USTM[Unit] =
-    ZSTM.Effect { (journal, _, _) =>
-      val f        = p.tupled
-      val buckets  = tBuckets.unsafeGet(journal)
-      val capacity = buckets.array.length
-
-      var i       = 0
-      var newSize = 0
-
-      while (i < capacity) {
-        val bucket    = buckets.array(i).unsafeGet(journal)
-        var newBucket = List.empty[(K, V)]
-
-        val it = bucket.iterator
-        while (it.hasNext) {
-          val pair = it.next()
-          if (f(pair)) {
-            newBucket = pair :: newBucket
-            newSize += 1
-          }
-        }
-
-        buckets.array(i).unsafeSet(journal, newBucket)
-        i += 1
-      }
-
-      tSize.unsafeSet(journal, newSize)
-
-      ()
-    }
+  def retainIfDiscard(p: (K, V) => Boolean): USTM[Unit] =
+    removeIfDiscard(!p(_, _))
 
   /**
    * Returns the number of bindings.
@@ -623,11 +638,13 @@ object TMap {
   /**
    * Makes a new `TMap` initialized with provided iterable.
    */
-  def fromIterable[K, V](data: Iterable[(K, V)]): USTM[TMap[K, V]] = {
-    val size     = data.size
-    val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
-    allocate(capacity, data.toList)
-  }
+  def fromIterable[K, V](data0: => Iterable[(K, V)]): USTM[TMap[K, V]] =
+    ZSTM.suspend {
+      val data     = data0
+      val size     = data.size
+      val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)
+      allocate(capacity, data.toList)
+    }
 
   /**
    * Makes a new `TMap` that is initialized with specified values.

@@ -45,7 +45,7 @@ def server(ref: Ref[Long]): UIO[Nothing] =
 Notice that `server` just takes a `Ref` and does not need to know anything about `SubscriptionRef`. From its perspective it is just updating a value.
 
 ```scala mdoc
-def client(changes: ZStream[Any, Nothing, Long]): URIO[Has[Random], Chunk[Long]] =
+def client(changes: ZStream[Any, Nothing, Long]): URIO[Random, Chunk[Long]] =
   for {
     n     <- Random.nextLongBetween(1, 200)
     chunk <- changes.take(n).runCollect

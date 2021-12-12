@@ -28,20 +28,20 @@ object Ref extends Serializable {
    * @see
    *   [[zio.ZRef.make]]
    */
-  def make[A](a: A)(implicit trace: ZTraceElement): UIO[Ref[A]] =
+  def make[A](a: => A)(implicit trace: ZTraceElement): UIO[Ref[A]] =
     ZRef.make(a)
 
   /**
    * @see
    *   [[zio.ZRef.makeManaged]]
    */
-  def makeManaged[A](a: A)(implicit trace: ZTraceElement): UManaged[Ref[A]] =
+  def makeManaged[A](a: => A)(implicit trace: ZTraceElement): UManaged[Ref[A]] =
     ZRef.makeManaged(a)
 
   /**
    * @see
    *   [[zio.ZRef.unsafeMake]]
    */
-  private[zio] def unsafeMake[A](a: A)(implicit trace: ZTraceElement): Ref.Atomic[A] =
+  private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
     ZRef.unsafeMake(a)
 }

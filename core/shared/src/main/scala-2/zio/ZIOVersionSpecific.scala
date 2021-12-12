@@ -32,44 +32,45 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
    *
    * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.injectCustom(oldLadyLayer, flyLayer)
+   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def injectCustom[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
-    macro LayerMacros.injectSomeImpl[ZIO, ZEnv, R, E1, A]
+  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
+    macro LayerMacros.provideSomeImpl[ZIO, ZEnv, R, E1, A]
 
   /**
    * Splits the environment into two parts, assembling one part using the
-   * specified layers and leaving the remainder `R0`.
+   * specified layer and leaving the remainder `R0`.
    *
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
    * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
    *
-   * val zio2 = zio.injectSome[Random](clockLayer)
+   * val zio2 = zio.provideSome[Random](clockLayer)
    * }}}
    */
-  def injectSome[R0 <: Has[_]]: ProvideSomeLayerPartiallyApplied[R0, R, E, A] =
+  def provideSome[R0]: ProvideSomeLayerPartiallyApplied[R0, R, E, A] =
     new ProvideSomeLayerPartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a layer for the ZIO effect.
    */
-  def inject[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
-    macro LayerMacros.injectImpl[ZIO, R, E1, A]
+  def provide[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[Any, E1, A] =
+    macro LayerMacros.provideImpl[ZIO, R, E1, A]
 
 }
 
-private final class ProvideSomeLayerPartiallyApplied[R0 <: Has[_], -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
-  def provideLayer[E1 >: E, R1](
-    layer: ZLayer[R0, E1, R1]
-  )(implicit ev1: R1 <:< R, ev2: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
+private final class ProvideSomeLayerPartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
+
+  def provideLayer[E1 >: E](
+    layer: ZLayer[R0, E1, R]
+  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E1, A] =
     self.provideLayer(layer)
 
-  def provideSomeLayer[R0 <: Has[_]]: ZIO.ProvideSomeLayer[R0, R, E, A] =
+  def provideSomeLayer[R0]: ZIO.ProvideSomeLayer[R0, R, E, A] =
     new ZIO.ProvideSomeLayer[R0, R, E, A](self)
 
-  def apply[E1 >: E](layers: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
-    macro LayerMacros.injectSomeImpl[ZIO, R0, R, E1, A]
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
+    macro LayerMacros.provideSomeImpl[ZIO, R0, R, E1, A]
 }

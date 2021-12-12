@@ -1,16 +1,25 @@
 package zio.examples
 
+import zio.examples.types._
 import zio._
+
 import java.io.IOException
 
+// 1. Implicit conversions to LayerBuilderType
+// 2. Unify errors
+// 3. Implicit Environment helper
+// 4. Implicit conversion
+
 object ZLayerInjectExample extends ZIOAppDefault {
-  val program: ZIO[Has[OldLady] with Has[Console], IOException, Unit] =
+  val program: ZIO[OldLady with Console, IOException, Unit] =
     OldLady.contentsOfStomach.flatMap { contents =>
       Console.printLine(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}")
     }
 
-  val autoLayer: ZLayer[Any, Nothing, Has[OldLady]] =
-    ZLayer.wire[Has[OldLady]](
+  val thing: ULayer[Int] = ZLayer.succeed(12)
+
+  val autoLayer: ZLayer[Any, Nothing, OldLady] =
+    ZLayer.make[OldLady with Console](
       OldLady.live,
       Spider.live,
       Fly.live,
@@ -20,53 +29,6 @@ object ZLayerInjectExample extends ZIOAppDefault {
 
   def run: ZIO[Any, IOException, Unit] =
     program
-      .inject(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live, ZLayer.Debug.tree)
+      .provide(OldLady.live, Spider.live, Fly.live, Bear.live, Console.live)
 
-  trait OldLady {
-    def contentsOfStomach: UIO[List[String]]
-  }
-
-  object OldLady {
-    def contentsOfStomach: ZIO[Has[OldLady], Nothing, List[String]] = ZIO.accessZIO(_.get.contentsOfStomach)
-
-    def live: URLayer[Has[Spider] with Has[Bear], Has[OldLady]] =
-      (for {
-        spiderGuts <- Spider.contentsOfStomach
-      } yield new OldLady {
-        def contentsOfStomach: UIO[List[String]] = UIO("a Spdder" :: spiderGuts)
-      }).toLayer
-  }
-
-  trait Spider {
-    def contentsOfStomach: UIO[List[String]]
-  }
-
-  object Spider {
-    def contentsOfStomach: ZIO[Has[Spider], Nothing, List[String]] = ZIO.accessZIO(_.get.contentsOfStomach)
-
-    def live: URLayer[Has[Fly], Has[Spider]] =
-      (for {
-        _ <- ZIO.service[Fly]
-      } yield new Spider {
-        def contentsOfStomach: UIO[List[String]] = UIO(List("a Fly"))
-      }).toLayer
-  }
-
-  trait Bear {}
-
-  object Bear {
-    def live: URLayer[Has[Fly], Has[Bear]] =
-      ZLayer.succeed(new Bear {})
-  }
-
-  trait Fly {}
-
-  object Fly {
-
-    def live: URLayer[Has[Console], Has[Fly]] = {
-      println("FLY")
-
-      Console.printLine("Bzzzzzzzzzz...").orDie.as(new Fly {}).toLayer
-    }
-  }
 }

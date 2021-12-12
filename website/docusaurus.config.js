@@ -27,13 +27,12 @@ module.exports = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { to: 'overview/overview_index', label: 'Overview', position: 'right' },
-        { to: 'datatypes/index', label: 'Data Types', position: 'right' },
-        { to: 'services/index', label: 'Services', position: 'right' },
-        { to: 'usecases/usecases_index', label: 'Use Cases', position: 'right' },
-        { to: 'howto/index', label: 'How to', position: 'right' },
-        { to: 'resources/index', label: 'Resources', position: 'right' },
-        { to: 'about/index', label: 'About', position: 'right' },
+        { to: 'version-1.x/overview/', label: 'Overview', position: 'right' },
+        { to: 'version-1.x/datatypes/', label: 'Data Types', position: 'right' },
+        { to: 'version-1.x/usecases/', label: 'Use Cases', position: 'right' },
+        { to: 'version-1.x/howto/', label: 'How to', position: 'right' },
+        { to: 'version-1.x/resources/', label: 'Resources', position: 'right' },
+        { to: 'version-1.x/about/', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
@@ -97,29 +96,11 @@ module.exports = {
           title: 'Additional resources',
           items: [
             {
-              html: `<a href="/api/zio/" target="_blank">Latest Scaladoc of ZIO</a>`
-            },
-            {
-              html: `<a href="/api-1.x/zio/" target="_blank">Scaladoc of ZIO-1.x</a>`
-            },
-            {
-              label: 'Scaladoc on javadoc.io',
-              href: 'https://javadoc.io/doc/dev.zio/'
+              label: 'Scaladoc of ZIO',
+              href: 'https://javadoc.io/doc/dev.zio/zio_2.12/'
             }
           ],
         },
-        {
-          items: [
-            {
-              title: 'Deployment support',
-              html: `
-                <a href="https://www.netlify.com">
-                  <img src="https://www.netlify.com/img/global/badges/netlify-color-accent.svg" alt="Deploys by Netlify"/>
-                </a>
-              `
-            }
-          ]
-        }
       ],
       copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://v2.docusaurus.io/">Docusaurus v2</a>`,
     },
@@ -136,15 +117,21 @@ module.exports = {
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
-          lastVersion: "current",
+          lastVersion: '1.x',
           versions: {
-            current: { label: "ZIO 2.x" },
-            '1.x': { label: "ZIO 1.x" }
+            'current': {
+              label: 'ZIO 2.x (WIP)'
+            },
+            '1.x': {
+              label: 'ZIO 1.x',
+              path: 'version-1.x'
+            }
           },
           remarkPlugins: [
             [require('blended-include-code-plugin'), { marker: 'CODE_INCLUDE' }],
             [require('remark-kroki-plugin'), { krokiBase: 'https://kroki.io', lang: "kroki", imgRefDir: "/img/kroki", imgDir: "static/img/kroki" }]
           ],
+          editUrl: 'https://github.com/zio/zio/edit/series/2.x',
         },
         theme: {
           customCss: [require.resolve('./src/css/custom.css')],

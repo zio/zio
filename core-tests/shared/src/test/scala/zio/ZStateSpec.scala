@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object ZStateSpec extends DefaultRunnableSpec {
+object ZStateSpec extends ZIOSpecDefault {
 
   def spec =
     suite("StateSpec")(
@@ -16,5 +16,5 @@ object ZStateSpec extends DefaultRunnableSpec {
         } yield count
         assertM(zio.provideLayer(ZState.make(MyState(0)).toLayer))(equalTo(1))
       }
-    ) @@ exceptDotty
+    ) @@ exceptScala3
 }

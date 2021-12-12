@@ -8,9 +8,9 @@ import zio.test._
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  def spec: Spec[Has[Random] with Has[TestClock] with Has[TestConsole] with Has[TestRandom] with Has[
-    TestSystem
-  ] with Has[Annotations], TestFailure[Any], TestSuccess] = suite("ZChannelSpec")(
+  def spec: Spec[Random with TestClock with TestConsole with TestRandom with TestSystem with Annotations, TestFailure[
+    Any
+  ], TestSuccess] = suite("ZChannelSpec")(
     suite("interpreter")(
       test("ZChannel.succeed") {
         for {
@@ -137,6 +137,31 @@ object ZChannelSpec extends ZIOBaseSpec {
             }
 
           }
+        },
+        test("finalizer ordering 2") {
+          for {
+            effects <- Ref.make(List[String]())
+            push     = (i: String) => ZIO.debug(i) *> effects.update(i :: _)
+            _ <- ZChannel
+                   .writeAll(1, 2)
+                   .mapOutZIO(n => push(s"pulled $n").as(n))
+                   .concatMap(n =>
+                     ZChannel
+                       .write(n)
+                       .ensuring(push(s"close $n"))
+                   )
+                   .runDrain
+            result <- effects.get
+          } yield assert(result.reverse)(
+            equalTo(
+              List(
+                "pulled 1",
+                "close 1",
+                "pulled 2",
+                "close 2"
+              )
+            )
+          )
         }
       ),
       suite("ZChannel#mapOut")(
@@ -267,7 +292,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 (_, _) => (),
                 (_, _) => (),
                 {
-                  case UpstreamPullRequest.Pulled(_) => UpstreamPullStrategy.PullAfterNext(None)
+                  case UpstreamPullRequest.Pulled(_)     => UpstreamPullStrategy.PullAfterNext(None)
                   case UpstreamPullRequest.NoUpstream(_) => UpstreamPullStrategy.PullAfterAllEnqueued(None)
                 },
                 {
@@ -309,7 +334,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               )(
                 (_, _) => (),
                 (_, _) => (),
-                 _ => UpstreamPullStrategy.PullAfterAllEnqueued(None),
+                _ => UpstreamPullStrategy.PullAfterAllEnqueued(None),
                 {
                   case None    => ChildExecutorDecision.Yield
                   case Some(_) => ChildExecutorDecision.Continue
@@ -473,7 +498,7 @@ object ZChannelSpec extends ZIOBaseSpec {
           val left = ZChannel.writeAll(1, 2, 3)
           val right = ZChannel
             .read[Int]
-            .catchAll(_ => ZChannel.end(4))
+            .catchAll(_ => ZChannel.succeedNow(4))
             .flatMap(i => ZChannel.write(Whatever(i)))
 
           val conduit = left >>> (right *> right *> right *> right)
@@ -486,23 +511,23 @@ object ZChannelSpec extends ZIOBaseSpec {
           lazy val identity: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
             ZChannel.readWith(
               (i: Int) => ZChannel.write(i) *> identity,
-              (_: Any) => ZChannel.end(()),
-              (_: Any) => ZChannel.end(())
+              (_: Any) => ZChannel.unit,
+              (_: Any) => ZChannel.unit
             )
 
           lazy val doubler: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
             ZChannel.readWith(
               (i: Int) => ZChannel.writeAll(i, i) *> doubler,
-              (_: Any) => ZChannel.end(()),
-              (_: Any) => ZChannel.end(())
+              (_: Any) => ZChannel.unit,
+              (_: Any) => ZChannel.unit
             )
 
           val effect = ZChannel.fromZIO(Ref.make[List[Int]](Nil)).flatMap { ref =>
             lazy val inner: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
               ZChannel.readWith(
                 (i: Int) => ZChannel.fromZIO(ref.update(i :: _)) *> ZChannel.write(i) *> inner,
-                (_: Any) => ZChannel.end(()),
-                (_: Any) => ZChannel.end(())
+                (_: Any) => ZChannel.unit,
+                (_: Any) => ZChannel.unit
               )
 
             inner *> ZChannel.fromZIO(ref.get)
@@ -526,10 +551,10 @@ object ZChannelSpec extends ZIOBaseSpec {
               if (n > 0)
                 ZChannel.readWith(
                   (i: Int) => ZChannel.write(i) *> readNInts(n - 1),
-                  (_: Any) => ZChannel.end("EOF"),
-                  (_: Any) => ZChannel.end("EOF")
+                  (_: Any) => ZChannel.succeedNow("EOF"),
+                  (_: Any) => ZChannel.succeedNow("EOF")
                 )
-              else ZChannel.end("end")
+              else ZChannel.succeedNow("end")
 
             def sum(label: String, acc: Int): ZChannel[Any, Any, Int, Any, Any, Nothing, Unit] =
               ZChannel.readWith(
@@ -564,7 +589,7 @@ object ZChannelSpec extends ZIOBaseSpec {
                 events.update(_ :+ s"Read $i").unit
               }
 
-            val right = (read *> read).catchAll(_ => ZChannel.end(()))
+            val right = (read *> read).catchAll(_ => ZChannel.unit)
 
             (left >>> right).runDrain *> events.get.map { events =>
               assert(events)(
@@ -645,43 +670,79 @@ object ZChannelSpec extends ZIOBaseSpec {
         test("simple provide") {
           assertM(
             ZChannel
-              .fromZIO(ZIO.environment[Int])
-              .provide(100)
+              .fromZIO(ZIO.service[Int])
+              .provideEnvironment(ZEnvironment(100))
               .run
           )(equalTo(100))
         },
         test("provide <*> provide") {
           assertM(
-            (ZChannel.fromZIO(ZIO.environment[Int]).provide(100) <*>
-              ZChannel.fromZIO(ZIO.environment[Int]).provide(200)).run
+            (ZChannel.fromZIO(ZIO.service[Int]).provideEnvironment(ZEnvironment(100)) <*>
+              ZChannel.fromZIO(ZIO.service[Int]).provideEnvironment(ZEnvironment(200))).run
           )(equalTo((100, 200)))
         },
         test("concatMap(provide).provide") {
           assertM(
             (ZChannel
-              .fromZIO(ZIO.environment[Int])
+              .fromZIO(ZIO.service[Int])
               .emitCollect
               .mapOut(_._2)
               .concatMap(n =>
                 ZChannel
-                  .fromZIO(ZIO.environment[Int].map(m => (n, m)))
-                  .provide(200)
+                  .fromZIO(ZIO.service[Int].map(m => (n, m)))
+                  .provideEnvironment(ZEnvironment(200))
                   .flatMap(ZChannel.write)
               )
-              .provide(100))
+              .provideEnvironment(ZEnvironment(100)))
               .runCollect
           )(equalTo((Chunk((100, 200)), ())))
         },
         test("provide is modular") {
           assertM(
             (for {
-              v1 <- ZChannel.fromZIO(ZIO.environment[Int])
-              v2 <- ZChannel.fromZIO(ZIO.environment[Int]).provide(2)
-              v3 <- ZChannel.fromZIO(ZIO.environment[Int])
-            } yield (v1, v2, v3)).runDrain.provide(4)
+              v1 <- ZChannel.fromZIO(ZIO.service[Int])
+              v2 <- ZChannel.fromZIO(ZIO.service[Int]).provideEnvironment(ZEnvironment(2))
+              v3 <- ZChannel.fromZIO(ZIO.service[Int])
+            } yield (v1, v2, v3)).runDrain.provideEnvironment(ZEnvironment(4))
           )(equalTo((4, 2, 4)))
         }
-      )
+      ),
+      suite("stack safety")(
+        test("mapOut is stack safe") {
+          val N = 100000
+          assertM(
+            (1 to N)
+              .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
+                channel.mapOut(_ + n)
+              }
+              .runCollect
+              .map(_._1.head)
+          )(equalTo((1 to N).foldLeft(1L)(_ + _)))
+        },
+        test("concatMap is stack safe") {
+          val N = 100000L
+          assertM(
+            (1L to N)
+              .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
+                channel.concatMap(_ => ZChannel.write(n)).unit
+              }
+              .runCollect
+              .map(_._1.head)
+          )(equalTo(N))
+        }
+      ),
+      test("cause is propagated on channel interruption") {
+        for {
+          promise <- Promise.make[Nothing, Unit]
+          ref     <- Ref.make[Exit[Any, Any]](Exit.unit)
+          _ <- ZChannel
+                 .fromZIO(promise.succeed(()) *> ZIO.never)
+                 .runDrain
+                 .onExit(ref.set)
+                 .raceEither(promise.await)
+          exit <- ref.get
+        } yield assertTrue(exit.isInterrupted)
+      }
     )
   )
 
@@ -693,20 +754,20 @@ object ZChannelSpec extends ZIOBaseSpec {
       })
       .flatMap {
         case Some(i) => ZChannel.write(i) *> refReader(ref)
-        case None    => ZChannel.end(())
+        case None    => ZChannel.unit
       }
 
   def refWriter[T](ref: Ref[List[T]]): ZChannel[Any, Any, T, Any, Nothing, Nothing, Unit] =
     ZChannel.readWith(
       (in: T) => ZChannel.fromZIO(ref.update(in :: _).unit) *> refWriter(ref),
-      (_: Any) => ZChannel.end(()),
-      (_: Any) => ZChannel.end(())
+      (_: Any) => ZChannel.unit,
+      (_: Any) => ZChannel.unit
     )
 
   def mapper[T, U](f: T => U): ZChannel[Any, Any, T, Any, Nothing, U, Unit] =
     ZChannel.readWith(
       (in: T) => ZChannel.write(f(in)) *> mapper(f),
-      (_: Any) => ZChannel.end(()),
-      (_: Any) => ZChannel.end(())
+      (_: Any) => ZChannel.unit,
+      (_: Any) => ZChannel.unit
     )
 }

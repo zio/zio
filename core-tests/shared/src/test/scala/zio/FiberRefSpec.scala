@@ -374,12 +374,12 @@ object FiberRefSpec extends ZIOBaseSpec {
         } yield assert(person)(equalTo(Person("Jane Doe", 43)))
       }
     )
-  )
+  ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
 }
 
 object FiberRefSpecUtil {
   val (initial, update, update1, update2) = ("initial", "update", "update1", "update2")
-  val looseTimeAndCpu: ZIO[Has[Live], Nothing, Unit] = Live.live {
+  val looseTimeAndCpu: ZIO[Live, Nothing, Unit] = Live.live {
     (ZIO.yieldNow <* Clock.sleep(1.nano)).repeatN(100)
   }
 

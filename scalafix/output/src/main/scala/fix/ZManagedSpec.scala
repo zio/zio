@@ -1,3 +1,5 @@
+//format: off
+
 package zio
 
 import zio.Cause.Interrupt
@@ -7,11 +9,11 @@ import zio.ZManaged.ReleaseMap
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
-import zio.test.environment._
-import zio.{ Clock, FiberId, Has, _ }
-import zio.test.environment.Live
 
-object ZManagedSpec extends DefaultRunnableSpec {
+import zio.{ Clock, FiberId, _ }
+import zio.test.{ Live, ZIOSpecDefault }
+
+object ZManagedSpec extends ZIOSpecDefault {
 
   def spec: ZSpec[Environment, Failure] = suite("ZManaged")(
     suite("absorbWith")(
@@ -1223,6 +1225,12 @@ object ZManagedSpec extends DefaultRunnableSpec {
         } yield assert(res)(isNone)
       }
     ),
+    suite("toLayer")(
+      test("converts a managed effect to a layer") {
+        ZEnv.live.build.toLayer
+        ???
+      }
+    ),
     suite("toLayerMany")(
       test("converts a managed effect to a layer") {
         val managed = ZEnv.live.build
@@ -1593,10 +1601,10 @@ object ZManagedSpec extends DefaultRunnableSpec {
 
   val ZManagedExampleDie: ZManaged[Any, Throwable, Int] = ZManaged.succeed(throw ExampleError)
 
-  def countDownLatch(n: Int): UIO[URIO[Has[Live], Unit]] =
+  def countDownLatch(n: Int): UIO[URIO[Live, Unit]] =
     Ref.make(n).map { counter =>
       counter.update(_ - 1) *> {
-        def await: URIO[Has[Live], Unit] = counter.get.flatMap { n =>
+        def await: URIO[Live, Unit] = counter.get.flatMap { n =>
           if (n <= 0) ZIO.unit
           else Live.live(ZIO.sleep(10.milliseconds)) *> await
         }
@@ -1607,7 +1615,7 @@ object ZManagedSpec extends DefaultRunnableSpec {
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
     expected: FiberId => Option[Exit[Nothing, Unit]]
-  ): ZIO[Has[Live], Nothing, TestResult] =
+  ): ZIO[Live, Nothing, TestResult] =
     for {
       fiberId            <- ZIO.fiberId
       never              <- Promise.make[Nothing, Unit]
@@ -1639,8 +1647,8 @@ object ZManagedSpec extends DefaultRunnableSpec {
 
   def testAcquirePar[R, E](
     n: Int,
-    f: ZManaged[Has[Live], Nothing, Unit] => ZManaged[R, E, Any]
-  ): ZIO[R with Has[Live], Nothing, TestResult] =
+    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, Any]
+  ): ZIO[R with Live, Nothing, TestResult] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)
@@ -1656,8 +1664,8 @@ object ZManagedSpec extends DefaultRunnableSpec {
 
   def testReservePar[R, E, A](
     n: Int,
-    f: ZManaged[Has[Live], Nothing, Unit] => ZManaged[R, E, A]
-  ): ZIO[R with Has[Live], Nothing, TestResult] =
+    f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, A]
+  ): ZIO[R with Live, Nothing, TestResult] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)

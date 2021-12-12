@@ -25,7 +25,7 @@ import java.lang.Runtime._
 def memoryUsage: UIO[Double] = 
   ZIO.succeed(getRuntime.totalMemory() - getRuntime.freeMemory()).map(_ / (1024.0 * 1024.0))
 
-val myApp: ZIO[Has[Random], Nothing, Unit] = for {
+val myApp: ZIO[Random, Nothing, Unit] = for {
   _ <- (Random.nextIntBounded(10) @@ ZIOMetric.count("request_counts")).repeatUntil(_ == 7)
   _ <- memoryUsage @@ ZIOMetric.setGauge("memory_usage")
 } yield ()
@@ -35,9 +35,9 @@ After adding metrics into our application, whenever we want we can capture snaps
 
 ```scala mdoc:silent:nest
 for {
-  _        <- myApp 
-  snapshot <- ZIO.succeed(MetricClient.unsafeSnapshot)
-  _        <- Console.printLine(s"Current state of application metrics: $snapshot")
+  _      <- myApp 
+  states <- ZIO.succeed(MetricClient.unsafeStates)
+  _      <- Console.printLine(s"Current state of application metrics: $states")
 } yield ()
 ```
 

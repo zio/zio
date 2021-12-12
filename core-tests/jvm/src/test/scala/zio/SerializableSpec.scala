@@ -68,12 +68,12 @@ object SerializableSpec extends ZIOBaseSpec {
       } yield assert(result)(equalTo(list))
     },
     test("ZIO is serializable") {
-      val v = ZIO.access[Int](_ + 1)
+      val v = ZIO.service[Int].map(_ + 1)
       for {
         returnZIO <- serializeAndBack(v)
-        computeV  <- returnZIO.provide(9)
+        computeV  <- returnZIO.provideEnvironment(ZEnvironment(9))
       } yield assert(computeV)(equalTo(10))
-    },
+    } @@ exceptScala212,
     test("FiberStatus is serializable") {
       val list = List("1", "2", "3")
       val io   = IO.succeed(list)
@@ -94,19 +94,19 @@ object SerializableSpec extends ZIOBaseSpec {
     testSync("Cause.die is serializable") {
       val cause = Cause.die(TestException("test"))
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    } @@ exceptDotty,
+    } @@ exceptScala3,
     testSync("Cause.fail is serializable") {
       val cause = Cause.fail("test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    } @@ exceptDotty,
+    } @@ exceptScala3,
     testSync("Cause.&& is serializable") {
       val cause = Cause.fail("test") && Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    } @@ exceptDotty,
+    } @@ exceptScala3,
     testSync("Cause.++ is serializable") {
       val cause = Cause.fail("test") ++ Cause.fail("Another test")
       assert(serializeAndDeserialize(cause))(equalTo(cause))
-    } @@ exceptDotty,
+    } @@ exceptScala3,
     testSync("Exit.succeed is serializable") {
       val exit = Exit.succeed("test")
       assert(serializeAndDeserialize(exit))(equalTo(exit))
@@ -114,15 +114,15 @@ object SerializableSpec extends ZIOBaseSpec {
     testSync("Exit.fail is serializable") {
       val exit = Exit.fail("test")
       assert(serializeAndDeserialize(exit))(equalTo(exit))
-    } @@ exceptDotty,
+    } @@ exceptScala3,
     testSync("Exit.die is serializable") {
       val exit = Exit.die(TestException("test"))
       assert(serializeAndDeserialize(exit))(equalTo(exit))
-    } @@ exceptDotty,
+    } @@ exceptScala3,
     testSync("FiberFailure is serializable") {
       val failure = FiberFailure(Cause.fail("Uh oh"))
       assert(serializeAndDeserialize(failure))(equalTo(failure))
-    } @@ exceptDotty,
+    } @@ exceptScala3,
     testSync("InterruptStatus.interruptible is serializable") {
       val interruptStatus = InterruptStatus.interruptible
       assert(serializeAndDeserialize(interruptStatus))(equalTo(interruptStatus))

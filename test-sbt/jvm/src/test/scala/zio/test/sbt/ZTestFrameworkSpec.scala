@@ -4,7 +4,7 @@ import sbt.testing._
 import zio.test.Assertion.equalTo
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
-import zio.{Has, ZIO, ZLayer, ZTraceElement, durationInt}
+import zio.{ZEnvironment, ZIO, ZLayer, ZTraceElement, durationInt}
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
@@ -24,7 +24,7 @@ object ZTestFrameworkSpec {
     test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
     test("should return summary when done")(testSummary()),
-    test("should use a shared layer without re-initializing it")(testSharedLayers()),
+    test("should use a shared layer without re-initializing it")(testSharedLayer()),
     test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
@@ -47,7 +47,7 @@ object ZTestFrameworkSpec {
   }
 
   private def sbtEvent(fqn: String, label: String, status: Status) =
-    ZTestEvent(fqn, new TestSelector(label), status, None, 0, RunnableSpecFingerprint)
+    ZTestEvent(fqn, new TestSelector(label), status, None, 0, ZioSpecFingerprint)
 
   def testReportDurations(): Unit = {
     val reported = ArrayBuffer[Event]()
@@ -120,7 +120,7 @@ object ZTestFrameworkSpec {
 
   private val counter = new AtomicInteger(0)
 
-  lazy val sharedLayer: ZLayer[Any, Nothing, Has[Int]] = {
+  lazy val sharedLayer: ZLayer[Any, Nothing, Int] = {
     ZLayer.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
   }
 
@@ -134,7 +134,7 @@ object ZTestFrameworkSpec {
     }
 
   lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
-  object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Has[Int]] {
+  object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Int] {
     override def layer = sharedLayer
 
     /*
@@ -156,7 +156,7 @@ object ZTestFrameworkSpec {
   }
 
   lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
-  object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Has[Int]] {
+  object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Int] {
     override def layer = sharedLayer
 
     def spec =
@@ -165,7 +165,7 @@ object ZTestFrameworkSpec {
       }
   }
 
-  def testSharedLayers(): Unit = {
+  def testSharedLayer(): Unit = {
     val reported = ArrayBuffer[Event]()
 
 //    loadAndExecuteAll(Seq.fill(200)(spec2UsingSharedLayer), reported.append(_))
@@ -175,8 +175,9 @@ object ZTestFrameworkSpec {
   }
 
   def testSummary(): Unit = {
-    val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
+    val taskDef = new TaskDef(failingSpecFQN, ZioSpecFingerprint, false, Array())
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
+
     val task = runner
       .tasks(Array(taskDef))
       .map(task => task.asInstanceOf[ZTestTask])
@@ -184,7 +185,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          zTestTask.sendSummary.provide(Summary(1, 0, 0, "foo")),
+          zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(1, 0, 0, "foo"))),
           TestArgs.empty,
           zTestTask.spec
         )
@@ -197,7 +198,7 @@ object ZTestFrameworkSpec {
   }
 
   def testNoTestsExecutedWarning(): Unit = {
-    val taskDef = new TaskDef(failingSpecFQN, RunnableSpecFingerprint, false, Array())
+    val taskDef = new TaskDef(failingSpecFQN, ZioSpecFingerprint, false, Array(new TestSelector("nope")))
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
@@ -206,7 +207,7 @@ object ZTestFrameworkSpec {
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
-          zTestTask.sendSummary.provide(Summary(0, 0, 0, "foo")),
+          zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(0, 0, 0, "foo"))),
           TestArgs.empty,
           zTestTask.spec
         )
@@ -234,12 +235,7 @@ object ZTestFrameworkSpec {
   ) = {
     val tasks =
       fqns
-        .map(fqn =>
-          if (fqn.contains("Shared"))
-            new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector))
-          else
-            new TaskDef(fqn, RunnableSpecFingerprint, false, Array(new SuiteSelector))
-        )
+        .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
         .toArray
     val task = new ZTestFramework()
       .runner(testArgs, Array(), getClass.getClassLoader)
@@ -256,9 +252,9 @@ object ZTestFrameworkSpec {
     doRun(Iterable(task))
   }
 
-  lazy val failingSpecFQN = SimpleFailingSpec.getClass.getName
-  object SimpleFailingSpec extends DefaultRunnableSpec {
-    def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
+  lazy val failingSpecFQN = SimpleFailingSharedSpec.getClass.getName
+  object SimpleFailingSharedSpec extends ZIOSpecDefault {
+    def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
       test("failing test") {
         zio.test.assert(1)(Assertion.equalTo(2))
       },
@@ -271,22 +267,22 @@ object ZTestFrameworkSpec {
     )
   }
 
-  lazy val timedSpecFQN = TimedSpec.getClass.getName
-  object TimedSpec extends DefaultRunnableSpec {
-    override def spec: ZSpec[Environment, Failure] = test("timed passing test") {
+  lazy val timedSpecFQN = TimedSharedSpec.getClass.getName
+  object TimedSharedSpec extends ZIOSpecDefault {
+    override def spec = test("timed passing test") {
       zio.test.assertCompletes
     } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
   }
 
-  lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
-  object MultiLineSpec extends DefaultRunnableSpec {
-    def spec: ZSpec[Environment, Failure] = test("multi-line test") {
+  lazy val multiLineSpecFQN = MultiLineSharedSpec.getClass.getName
+  object MultiLineSharedSpec extends ZIOSpecDefault {
+    def spec = test("multi-line test") {
       zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
     }
   }
 
   def assertSourceLocation()(implicit trace: ZTraceElement): String = {
-    val filePath = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, _, _) =>
+    val filePath = Option(trace).collect { case ZTraceElement(_, file, _) =>
       file
     }
     filePath.fold("")(path => cyan(s"at $path:XXX"))
@@ -294,7 +290,7 @@ object ZTestFrameworkSpec {
 
   implicit class TestOutputOps(output: String) {
     def withNoLineNumbers(implicit trace: ZTraceElement): String = {
-      val filePath = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, _, _) =>
+      val filePath = Option(trace).collect { case ZTraceElement(_, file, _) =>
         file
       }
       filePath.fold(output)(path => output.replaceAll(Pattern.quote(path + ":") + "\\d+", path + ":XXX"))

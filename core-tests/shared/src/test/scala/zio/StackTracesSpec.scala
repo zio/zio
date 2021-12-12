@@ -2,6 +2,7 @@ package zio
 
 import zio.test.Assertion.{containsString, matchesRegex}
 import zio.test.{TestResult, assert, assertTrue}
+import zio.test.TestAspect.sequential
 
 object StackTracesSpec extends ZIOBaseSpec {
 
@@ -93,12 +94,16 @@ object StackTracesSpec extends ZIOBaseSpec {
         }
       }
     )
-  )
+  ) @@ sequential
 
   // set to true to print traces
   private val debug = false
 
-  private def show(trace: => Cause[Any]): Unit = if (debug) println(trace.prettyPrint)
+  private def show(trace: => Cause[Any]): Unit =
+    if (debug) {
+      println("*****")
+      println(trace.prettyPrint)
+    }
 
   private def assertHasExceptionInThreadZioFiber(trace: String): String => TestResult =
     errorMessage => assert(trace)(matchesRegex(s"""(?s)^Exception in thread\\s"zio-fiber-\\d*"\\s$errorMessage.*"""))
@@ -109,14 +114,10 @@ object StackTracesSpec extends ZIOBaseSpec {
   private def numberOfOccurrences(text: String): String => Int = stack =>
     (stack.length - stack.replace(text, "").length) / text.length
 
-  private val UnsupportedTestPath: Task[String] = ZIO("not considered scenario")
-
   private val matchPrettyPrintCause: ZIO[Any, String, Nothing] => ZIO[Any, Throwable, String] = {
     case fail: IO[String, Nothing] =>
-      fail.catchAllCause {
-        case c: Cause[String] => show(c); ZIO(c.prettyPrint)
-        case _                => UnsupportedTestPath
+      fail.catchAllCause { cause =>
+        ZIO.succeed(show(cause)) *> ZIO(cause.prettyPrint)
       }
-    case _ => UnsupportedTestPath
   }
 }

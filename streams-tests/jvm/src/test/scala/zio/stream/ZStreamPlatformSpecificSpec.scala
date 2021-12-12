@@ -2,12 +2,13 @@ package zio.stream
 
 import zio._
 import zio.test.Assertion._
+import zio.test.TestAspect.flaky
 import zio.test._
 
-import java.io.{FileNotFoundException, FileReader, IOException, OutputStream, Reader}
+import java.io._
 import java.net.InetSocketAddress
-import java.nio.charset.StandardCharsets
 import java.nio.channels.AsynchronousSocketChannel
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, NoSuchFileException, Paths}
 import java.nio.{Buffer, ByteBuffer}
 import java.util.concurrent.CountDownLatch
@@ -80,7 +81,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                            Task.unit
                        }
                        .take(chunk.size.toLong)
-                       .run(ZSink.collectAll[Throwable, Int])
+                       .run(ZSink.collectAll[Int])
                        .fork
             _ <- latch.await
             s <- fiber.join
@@ -233,14 +234,14 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
               Task(Files.write(path, data.getBytes(StandardCharsets.UTF_8))) *>
                 assertM(
                   ZStream
-                    .fromFile(path, 24)
+                    .fromPath(path, 24)
                     .via(ZPipeline.utf8Decode)
                     .mkString
                 )(equalTo(data))
           }
         },
         test("fails on a nonexistent file") {
-          assertM(ZStream.fromFile(Paths.get("nonexistent"), 24).runDrain.exit)(
+          assertM(ZStream.fromPath(Paths.get("nonexistent"), 24).runDrain.exit)(
             fails(isSubtype[NoSuchFileException](anything))
           )
         }
@@ -294,56 +295,60 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         }
       ),
       suite("fromSocketServer")(
-        test("read data")(check(Gen.string.filter(_.nonEmpty)) { message =>
+        test("read data") {
           for {
-            refOut <- Ref.make("")
+            messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
+            readMessages <- ZStream
+                              .fromSocketServer(8896)
+                              .zip(ZStream.managed(socketClient(8896)))
+                              .flatMap { case (serverChannel, clientChannel) =>
+                                ZStream
+                                  .fromIterable(messages)
+                                  .mapZIO(m =>
+                                    ZIO
+                                      .fromFutureJava(
+                                        clientChannel.write(ByteBuffer.wrap(m))
+                                      ) *> serverChannel.read
+                                      .take(m.size.toLong)
+                                      .runCollect
+                                  )
 
-            server <- ZStream
-                        .fromSocketServer(8896)
-                        .foreach { c =>
-                          c.read
-                            .via(ZPipeline.utf8Decode)
-                            .mkString
-                            .flatMap(s => refOut.update(_ + s))
-                        }
-                        .fork
+                              }
+                              .take(messages.size.toLong)
+                              .runCollect
+            expectedOutput = messages.map(Chunk.fromArray)
+          } yield assert(readMessages)(hasSameElementsDistinct(expectedOutput))
+        },
+        test("write data") {
+          for {
+            messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
+            writtenMessages <- ZStream
+                                 .fromSocketServer(8897)
+                                 .zip(ZStream.managed(socketClient(8897)))
+                                 .flatMap { case (serverChannel, clientChannel) =>
+                                   ZStream
+                                     .fromIterable(messages)
+                                     .mapZIO(m =>
+                                       ZStream.fromIterable(m).run(serverChannel.write) *> {
+                                         val buffer = ByteBuffer.allocate(m.length)
 
-            _ <- socketClient(8896)
-                   .use(c => ZIO.fromFutureJava(c.write(ByteBuffer.wrap(message.getBytes))))
-                   .retry(Schedule.forever)
+                                         ZIO
+                                           .fromFutureJava(clientChannel.read(buffer))
+                                           .repeatUntil(_ < 1)
+                                           .map { _ =>
+                                             (buffer: Buffer).flip()
+                                             Chunk.fromArray(buffer.array)
+                                           }
+                                       }
+                                     )
+                                 }
+                                 .take(messages.size.toLong)
+                                 .runCollect
+            expectedOutput = messages.map(Chunk.fromArray)
+          } yield assert(writtenMessages)(hasSameElementsDistinct(expectedOutput))
 
-            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
-
-            _ <- server.interrupt
-          } yield assert(receive)(equalTo(message))
-        }),
-        test("write data")(check(Gen.string.filter(_.nonEmpty)) { message =>
-          (for {
-            refOut <- Ref.make("")
-
-            server <- ZStream
-                        .fromSocketServer(8897)
-                        .foreach(c => ZStream.fromIterable(message.getBytes).run(c.write))
-                        .fork
-
-            _ <- socketClient(8897).use { c =>
-                   val buffer = ByteBuffer.allocate(message.getBytes.length)
-
-                   ZIO
-                     .fromFutureJava(c.read(buffer))
-                     .repeatUntil(_ < 1)
-                     .flatMap { _ =>
-                       (buffer: Buffer).flip()
-                       refOut.update(_ => new String(buffer.array))
-                     }
-                 }.retry(Schedule.forever)
-
-            receive <- refOut.get.repeatWhileZIO(s => ZIO.succeed(s.isEmpty))
-
-            _ <- server.interrupt
-          } yield assert(receive)(equalTo(message)))
-        })
-      ),
+        }
+      ) @@ flaky(20), // socket connections can be flaky some times
       suite("fromOutputStreamWriter")(
         test("reads what is written") {
           check(Gen.listOf(Gen.chunkOf(Gen.byte)), Gen.int(1, 10)) { (bytess, chunkSize) =>

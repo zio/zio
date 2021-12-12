@@ -14,7 +14,7 @@ object RTSSpec extends ZIOBaseSpec {
   def spec = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     test("blocking caches threads") {
 
-      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Has[Clock], Nothing, Boolean] =
+      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Clock, Nothing, Boolean] =
         ZIO.blocking {
           UIO(Thread.currentThread())
             .flatMap(thread => ref.modify(set => (set.contains(thread), set + thread))) <* ZIO
@@ -98,7 +98,7 @@ object RTSSpec extends ZIOBaseSpec {
       val rts = Runtime.default
       val e   = Executors.newSingleThreadExecutor()
 
-      (0 until 10000).foreach { _ =>
+      (0 until 1000).foreach { _ =>
         rts.unsafeRun {
           IO.async[Nothing, Int] { k =>
             val c: Callable[Unit] = () => k(IO.succeed(1))

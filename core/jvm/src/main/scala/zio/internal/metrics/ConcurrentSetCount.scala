@@ -10,6 +10,8 @@ private[zio] sealed abstract class ConcurrentSetCount {
 
   def getCount(): Long
 
+  def getCount(word: String): Long
+
   def observe(word: String): Unit
 
   def snapshot(): Chunk[(String, Long)]
@@ -25,6 +27,11 @@ private[zio] object ConcurrentSetCount {
 
       def getCount(): Long = count.longValue()
 
+      def getCount(word: String): Long = {
+        val count = values.get(word)
+        if (count eq null) 0L else count.longValue()
+      }
+
       def observe(word: String): Unit = {
         count.increment()
         var slot = values.get(word)
@@ -33,11 +40,7 @@ private[zio] object ConcurrentSetCount {
           values.putIfAbsent(word, cnt)
           slot = values.get(word)
         }
-        slot match {
-          case la: LongAdder =>
-            la.increment()
-          case _ =>
-        }
+        slot.increment()
       }
 
       def snapshot(): Chunk[(String, Long)] = {

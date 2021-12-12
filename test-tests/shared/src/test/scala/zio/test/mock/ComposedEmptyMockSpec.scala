@@ -1,8 +1,8 @@
 package zio.test.mock
 
 import zio.test.mock.internal.MockException
-import zio.test.{Assertion, ZIOBaseSpec, ZSpec}
-import zio.{Clock, Console, Has, ZIO}
+import zio.test.{Assertion, ZIOBaseSpec}
+import zio.{Clock, Console, ZIO}
 
 import java.io.IOException
 
@@ -12,7 +12,7 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
   import Expectation._
   import MockException._
 
-  def branchingProgram(predicate: Boolean): ZIO[Has[Console] with Has[Clock], IOException, Unit] =
+  def branchingProgram(predicate: Boolean): ZIO[Console with Clock, IOException, Unit] =
     ZIO
       .succeed(predicate)
       .flatMap {
@@ -21,15 +21,15 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
       }
       .unit
 
-  def spec: ZSpec[Environment, Failure] = suite("ComposedEmptyMockSpec")(
+  def spec = suite("ComposedEmptyMockSpec")(
     suite("expect no calls on empty mocks")(
       testValue("should succeed when no calls on Console")(
         MockConsole.empty ++ MockClock.NanoTime(value(42L)),
         branchingProgram(false),
         isUnit
       ), {
-        type M = Capability[Has[Console], Unit, IOException, String]
-        type X = UnexpectedCallException[Has[Console], Unit, IOException, String]
+        type M = Capability[Console, Unit, IOException, String]
+        type X = UnexpectedCallException[Console, Unit, IOException, String]
 
         testDied("should fail when call on Console happened")(
           MockConsole.empty ++ MockClock.NanoTime(value(42L)),
@@ -46,8 +46,8 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
         isUnit
       ), {
 
-        type M = Capability[Has[Clock], Unit, Nothing, Long]
-        type X = UnexpectedCallException[Has[Clock], Unit, Nothing, Long]
+        type M = Capability[Clock, Unit, Nothing, Long]
+        type X = UnexpectedCallException[Clock, Unit, Nothing, Long]
 
         testDied("should fail when call on Clock happened")(
           MockClock.empty ++ MockConsole.ReadLine(value("foo")),
@@ -63,5 +63,5 @@ object ComposedEmptyMockSpec extends ZIOBaseSpec with MockSpecUtils[ComposedEmpt
 }
 
 object ComposedEmptyMockSpecCompat {
-  type Environment = Has[Console] with Has[Clock]
+  type Environment = Console with Clock
 }

@@ -34,22 +34,24 @@ object URIO {
    * @see
    *   [[zio.ZIO.access]]
    */
-  def access[R]: ZIO.AccessPartiallyApplied[R] =
+  @deprecated("use environmentWith", "2.0.0")
+  def access[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
     ZIO.access[R]
 
   /**
    * @see
    *   [[zio.ZIO.accessM]]
    */
-  @deprecated("use accessZIO", "2.0.0")
-  def accessM[R]: ZIO.AccessZIOPartiallyApplied[R] =
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessM[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
     ZIO.accessM[R]
 
   /**
    * @see
    *   [[zio.ZIO.accessZIO]]
    */
-  def accessZIO[R]: ZIO.AccessZIOPartiallyApplied[R] =
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def accessZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
     ZIO.accessZIO[R]
 
   /**
@@ -550,8 +552,22 @@ object URIO {
    * @see
    *   [[zio.ZIO.environment]]
    */
-  def environment[R](implicit trace: ZTraceElement): URIO[R, R] =
+  def environment[R](implicit trace: ZTraceElement): URIO[R, ZEnvironment[R]] =
     ZIO.environment
+
+  /**
+   * @see
+   *   [[zio.ZIO.environmentWithZIO]]
+   */
+  def environmentWith[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
+    ZIO.environmentWith[R]
+
+  /**
+   * @see
+   *   [[zio.ZIO.environmentWithZIO]]
+   */
+  def environmentWithZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
+    ZIO.environmentWithZIO[R]
 
   /**
    * @see
@@ -939,22 +955,22 @@ object URIO {
    *   [[zio.ZIO.fromFunction]]
    */
   @deprecated("use access", "2.0.0")
-  def fromFunction[R, A](f: R => A)(implicit trace: ZTraceElement): URIO[R, A] =
+  def fromFunction[R, A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): URIO[R, A] =
     ZIO.fromFunction(f)
 
   /**
    * @see
    *   [[zio.ZIO.fromFunctionM]]
    */
-  @deprecated("use accessZIO", "2.0.0")
-  def fromFunctionM[R, A](f: R => UIO[A])(implicit trace: ZTraceElement): URIO[R, A] =
+  @deprecated("use environmentWithZIO", "2.0.0")
+  def fromFunctionM[R, A](f: ZEnvironment[R] => UIO[A])(implicit trace: ZTraceElement): URIO[R, A] =
     ZIO.fromFunctionM(f)
 
   /**
    * @see
    *   [[zio.ZIO.getState]]
    */
-  def getState[S: Tag](implicit trace: ZTraceElement): ZIO[Has[ZState[S]], Nothing, S] =
+  def getState[S: Tag](implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, S] =
     ZIO.getState
 
   /**
@@ -991,7 +1007,7 @@ object URIO {
    * @see
    *   [[zio.ZIO.infinity]]
    */
-  def infinity(implicit trace: ZTraceElement): URIO[Has[Clock], Nothing] =
+  def infinity(implicit trace: ZTraceElement): URIO[Clock, Nothing] =
     ZIO.infinity
 
   /**
@@ -1191,8 +1207,8 @@ object URIO {
    * @see
    *   [[zio.ZIO.provide]]
    */
-  def provide[R, A](r: => R)(implicit trace: ZTraceElement): URIO[R, A] => UIO[A] =
-    ZIO.provide(r)
+  def provideEnvironment[R, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): URIO[R, A] => UIO[A] =
+    ZIO.provideEnvironment(r)
 
   /**
    * @see
@@ -1292,14 +1308,14 @@ object URIO {
    * @see
    *   [[zio.ZIO.setState]]
    */
-  def setState[S: Tag](s: => S)(implicit trace: ZTraceElement): ZIO[Has[ZState[S]], Nothing, Unit] =
+  def setState[S: Tag](s: => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.setState(s)
 
   /**
    * @see
    *   See [[zio.ZIO.service]]
    */
-  def service[A: Tag](implicit trace: ZTraceElement): URIO[Has[A], A] =
+  def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URIO[A, A] =
     ZIO.service[A]
 
   /**
@@ -1314,7 +1330,9 @@ object URIO {
    *   See [[zio.ZIO.services[A,B]*]]
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag](implicit trace: ZTraceElement): URIO[Has[A] with Has[B], (A, B)] =
+  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit
+    trace: ZTraceElement
+  ): URIO[A with B, (A, B)] =
     ZIO.services[A, B]
 
   /**
@@ -1322,7 +1340,9 @@ object URIO {
    *   See [[zio.ZIO.services[A,B,C]*]]
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag](implicit trace: ZTraceElement): URIO[Has[A] with Has[B] with Has[C], (A, B, C)] =
+  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](implicit
+    trace: ZTraceElement
+  ): URIO[A with B with C, (A, B, C)] =
     ZIO.services[A, B, C]
 
   /**
@@ -1330,9 +1350,14 @@ object URIO {
    *   See [[zio.ZIO.services[A,B,C,D]*]]
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag, D: Tag](implicit
+  def services[
+    A: Tag: IsNotIntersection,
+    B: Tag: IsNotIntersection,
+    C: Tag: IsNotIntersection,
+    D: Tag: IsNotIntersection
+  ](implicit
     trace: ZTraceElement
-  ): URIO[Has[A] with Has[B] with Has[C] with Has[D], (A, B, C, D)] =
+  ): URIO[A with B with C with D, (A, B, C, D)] =
     ZIO.services[A, B, C, D]
 
   /**
@@ -1344,9 +1369,16 @@ object URIO {
 
   /**
    * @see
+   *   See [[zio.ZIO.serviceWithZIO]]
+   */
+  def serviceWithZIO[Service]: ZIO.ServiceWithZIOPartiallyApplied[Service] =
+    new ZIO.ServiceWithZIOPartiallyApplied[Service]
+
+  /**
+   * @see
    *   [[zio.ZIO.sleep]]
    */
-  def sleep(duration: => Duration)(implicit trace: ZTraceElement): URIO[Has[Clock], Unit] =
+  def sleep(duration: => Duration)(implicit trace: ZTraceElement): URIO[Clock, Unit] =
     ZIO.sleep(duration)
 
   /**
@@ -1447,7 +1479,7 @@ object URIO {
    * @see
    *   [[zio.ZIO.updateState]]
    */
-  def updateState[S: Tag](f: S => S)(implicit trace: ZTraceElement): ZIO[Has[ZState[S]], Nothing, Unit] =
+  def updateState[S: Tag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.updateState(f)
 
   /**

@@ -1,6 +1,5 @@
 package zio.test.mock
 
-import zio.Has
 import zio.test._
 import zio.test.mock.module.{PureModule, PureModuleMock}
 
@@ -14,7 +13,7 @@ object ExpectationSpec extends ZIOBaseSpec {
   lazy val B: Expectation[PureModule] = Static(value("bar"))
   lazy val C: Expectation[PureModule] = Looped(equalTo(1), never)
 
-  private def isAnd[R <: Has[_]](children: List[Expectation[_]]) =
+  private def isAnd[R](children: List[Expectation[_]]) =
     isSubtype[And[R]](
       hasField[And[R], List[Expectation[R]]](
         "children",
@@ -23,7 +22,7 @@ object ExpectationSpec extends ZIOBaseSpec {
       )
     )
 
-  private def isChain[R <: Has[_]](children: List[Expectation[_]]) =
+  private def isChain[R](children: List[Expectation[_]]) =
     isSubtype[Chain[R]](
       hasField[Chain[R], List[Expectation[R]]](
         "children",
@@ -32,7 +31,7 @@ object ExpectationSpec extends ZIOBaseSpec {
       )
     )
 
-  private def isOr[R <: Has[_]](children: List[Expectation[_]]) =
+  private def isOr[R](children: List[Expectation[_]]) =
     isSubtype[Or[R]](
       hasField[Or[R], List[Expectation[R]]](
         "children",
@@ -41,7 +40,7 @@ object ExpectationSpec extends ZIOBaseSpec {
       )
     )
 
-  def spec: ZSpec[Environment, Failure] = suite("ExpectationSpec")(
+  def spec = suite("ExpectationSpec")(
     suite("and")(
       test("A and B")(assert(A and B)(isAnd(A :: B :: Nil))),
       test("A && B")(assert(A && B)(isAnd(A :: B :: Nil)))

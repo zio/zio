@@ -4,12 +4,12 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Clock, Has, Layer, ZIO, ZTraceElement}
+import zio.{Layer, ZIO, ZTraceElement}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("IntelliJ Renderer")(
       test("correctly reports a successful test") {
         assertM(runLog(test1))(equalTo(test1Expected.mkString))
@@ -239,7 +239,7 @@ object IntelliJRenderUtils {
     s"##teamcity[testSuiteFinished name='$name']" + "\n"
 
   def testStarted(name: String)(implicit trace: ZTraceElement): String = {
-    val location = Option(trace).collect { case ZTraceElement.SourceLocation(_, file, line, _) =>
+    val location = Option(trace).collect { case ZTraceElement(_, file, line) =>
       (file, line)
     }
 
@@ -259,7 +259,7 @@ object IntelliJRenderUtils {
     for {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
+             .provideLayer[Nothing, TestEnvironment](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output

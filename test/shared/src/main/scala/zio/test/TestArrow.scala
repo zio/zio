@@ -59,7 +59,7 @@ sealed trait TestArrow[-A, +B] { self =>
 
   def withLocation(implicit trace: ZTraceElement): TestArrow[A, B] =
     trace match {
-      case ZTraceElement.SourceLocation(_, file, line, _) =>
+      case ZTraceElement(_, file, line) =>
         meta(location = Some(s"$file:$line"))
       case _ => self
     }

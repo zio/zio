@@ -20,7 +20,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val effect = ZIO.unit.delay(1.millisecond)
 
         val roundtrip = for {
-          rt <- ZIO.runtime[Has[Console] with Has[Clock]]
+          rt <- ZIO.runtime[Console with Clock]
           _  <- Task.fromFuture(_ => rt.unsafeRunToFuture(effect))
         } yield ()
 
@@ -32,7 +32,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         val effect = Clock.nanoTime.map(_.toString()).delay(10.millisecond)
 
         val roundtrip = for {
-          rt <- ZIO.runtime[Has[Console] with Has[Clock]]
+          rt <- ZIO.runtime[Console with Clock]
           _  <- Task.fromFuture(_ => rt.unsafeRunToFuture(effect))
         } yield ()
 
@@ -99,5 +99,5 @@ object CancelableFutureSpec extends ZIOBaseSpec {
           assert(v)(equalTo(42))
         }
       }
-    ) @@ zioTag(future)
+    ) @@ zioTag(future) @@ TestAspect.fibers
 }

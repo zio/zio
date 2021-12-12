@@ -33,19 +33,7 @@ final case class ZTrace(
    * element into a Java stack trace element.
    */
   def toJava: Chunk[StackTraceElement] =
-    stackTrace.collect { case ZTraceElement.SourceLocation(location, file, line, _) =>
-      val last = location.lastIndexOf(".")
-
-      val (before, after) = if (last < 0) ("", "." + location) else location.splitAt(last)
-
-      def stripSlash(file: String): String = {
-        val last = file.lastIndexOf("/")
-
-        if (last < 0) file else file.drop(last + 1)
-      }
-
-      new StackTraceElement(before, after.drop(1), stripSlash(file), line)
-    }
+    stackTrace.flatMap(ZTraceElement.toJava)
 }
 
 object ZTrace {

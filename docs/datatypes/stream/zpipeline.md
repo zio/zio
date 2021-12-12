@@ -43,7 +43,7 @@ There is also a `ZPipeline.mapZIO` which is an effectful version of this constru
 The identity pipeline passes elements through without any modification:
 
 ```scala mdoc:silent:nest
-ZStream(1,2,3).via(ZPipeline.identity)
+ZStream(1,2,3).via(ZPipeline.identity[Int])
 // Ouput: 1, 2, 3
 ```
 
@@ -112,11 +112,11 @@ def compressWithDeflate(clearText: ZStream[Any, Nothing, Byte]): ZStream[Any, No
   val level: CompressionLevel = CompressionLevel.DefaultCompression
   val strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy
   val flushMode: FlushMode = FlushMode.NoFlush
-  clearText.via(deflate[Any, Nothing](bufferSize, noWrap, level, strategy, flushMode))
+  clearText.via(deflate(bufferSize, noWrap, level, strategy, flushMode))
 }
 
 def deflateWithDefaultParameters(clearText: ZStream[Any, Nothing, Byte]): ZStream[Any, Nothing, Byte] =
-  clearText.via(deflate[Any, Nothing]())
+  clearText.via(deflate())
 ```
 
 **ZPipeline.gzip** — The `gzip` pipeline compresses a stream of bytes as using _gzip_ method:
@@ -125,9 +125,9 @@ def deflateWithDefaultParameters(clearText: ZStream[Any, Nothing, Byte]): ZStrea
 import zio.stream.compression._
 
 ZStream
-  .fromFile(Paths.get("file.txt"))
+  .fromFileString("file.txt")
   .via(
-    ZPipeline.gzip[Any, Throwable](
+    ZPipeline.gzip(
       bufferSize = 64 * 1024,
       level = CompressionLevel.DefaultCompression,
       strategy = CompressionStrategy.DefaultStrategy,
@@ -135,7 +135,7 @@ ZStream
     )
   )
   .run(
-    ZSink.fromFile(Paths.get("file.gz"))
+    ZSink.fromFileString("file.gz")
   )
 ```
 
@@ -153,7 +153,7 @@ import zio.stream.compression.CompressionException
 def decompressDeflated(deflated: ZStream[Any, Nothing, Byte]): ZStream[Any, CompressionException, Byte] = {
   val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
   val noWrap: Boolean = false     // For HTTP Content-Encoding should be false.
-  deflated.via(inflate[Any](bufferSize, noWrap))
+  deflated.via(inflate(bufferSize, noWrap))
 }
 ```
 
@@ -166,7 +166,7 @@ import zio.stream.compression.CompressionException
 
 def decompressGzipped(gzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, CompressionException, Byte] = {
   val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
-  gzipped.via(gunzip[Any](bufferSize))
+  gzipped.via(gunzip(bufferSize))
 }
 ```
 
@@ -222,7 +222,7 @@ We can compose pipelines in two ways:
 ```scala mdoc:silent:nest
 val lines: ZStream[Any, Throwable, String] =
   ZStream
-    .fromFile(Paths.get("file.txt"))
+    .fromFileString("file.txt")
     .via(
       ZPipeline.utf8Decode >>> ZPipeline.splitLines
     )
@@ -233,13 +233,13 @@ val lines: ZStream[Any, Throwable, String] =
 ```scala mdoc:silent:nest
 val refine: ZIO[Any, Throwable, Long] =
   ZStream
-    .fromFile(Paths.get("file.txt"))
+    .fromFileString("file.txt")
     .via(
       ZPipeline.utf8Decode >>> ZPipeline.splitLines >>> ZPipeline.filter[String](_.contains('₿'))
     )
     .run(
       ZSink
-        .fromFile(Paths.get("file.refined.txt"))
+        .fromFileString("file.refined.txt")
         .contramapChunks[String](
           _.flatMap(line => (line + System.lineSeparator()).getBytes())
         )

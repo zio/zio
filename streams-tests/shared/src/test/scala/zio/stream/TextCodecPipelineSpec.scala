@@ -9,29 +9,9 @@ import java.nio.charset.{Charset, StandardCharsets}
 
 object TextCodecPipelineSpec extends ZIOBaseSpec {
 
-  type UtfDecodingPipeline = ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    Byte,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = String })#OutElem
-  ]
+  type UtfDecodingPipeline = ZPipeline[Any, Nothing, Byte, String]
 
-  type UtfEncodingPipeline = ZPipeline.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    Nothing,
-    String,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr,
-    ({ type OutElem[Elem] = Byte })#OutElem
-  ]
+  type UtfEncodingPipeline = ZPipeline[Any, Nothing, String, Byte]
 
   private def stringToByteChunkOf(charset: Charset, source: String): Chunk[Byte] =
     Chunk.fromArray(source.getBytes(charset))
@@ -39,7 +19,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
   private def testDecoderUsing(
     decodingPipeline: UtfDecodingPipeline,
     sourceCharset: Charset,
-    byteGenerator: Gen[Has[Random] with Has[Sized], Chunk[Byte]],
+    byteGenerator: Gen[Random with Sized, Chunk[Byte]],
     bom: Chunk[Byte] = Chunk.empty
   ) = {
     def fixIfGeneratedBytesBeginWithBom(generated: Chunk[Byte]) =
@@ -89,7 +69,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
     decodingPipeline: UtfDecodingPipeline,
     sourceCharset: Charset,
     bom: Chunk[Byte] = Chunk.empty,
-    stringGenerator: Gen[Has[Random] with Has[Sized], String] = Gen.string
+    stringGenerator: Gen[Random with Sized, String] = Gen.string
   ) =
     testDecoderUsing(
       decodingPipeline,
@@ -102,7 +82,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
     textDecodingPipeline: UtfDecodingPipeline,
     encoderUnderTest: UtfEncodingPipeline,
     sourceCharset: Charset,
-    byteGenerator: Gen[Has[Random] with Has[Sized], Chunk[Byte]],
+    byteGenerator: Gen[Random with Sized, Chunk[Byte]],
     bom: Chunk[Byte]
   ) = {
     def fixIfGeneratedBytesBeginWithBom(generated: Chunk[Byte]) =
@@ -138,7 +118,7 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
     encoderUnderTest: UtfEncodingPipeline,
     sourceCharset: Charset,
     bom: Chunk[Byte] = Chunk.empty,
-    stringGenerator: Gen[Has[Random] with Has[Sized], String] = Gen.string
+    stringGenerator: Gen[Random with Sized, String] = Gen.string
   ) =
     testEncoderUsing(
       textDecodingPipeline,

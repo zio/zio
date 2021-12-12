@@ -4,9 +4,9 @@ import zio._
 import zio.test.Assertion._
 import zio.test._
 
-object AccessibleMMSpec extends DefaultRunnableSpec {
+object AccessibleMMSpec extends ZIOSpecDefault {
 
-  def spec: ZSpec[Environment, Failure] = suite("AccessibleMMSpec")(
+  def spec = suite("AccessibleMMSpec")(
     suite("AccessibleMM macro")(
       test("compiles when applied to object with empty Service") {
         assertM(typeCheck {
@@ -88,12 +88,12 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             @accessibleMM[URIO]
             object Module {
               trait Service[F[_, _]] {
-                val foo: F[Has[Unit], Unit]
+                val foo: F[Unit, Unit]
               }
             }
 
             object Check {
-              val foo: ZIO[Has[Module.Service[URIO]] with Has[Unit], Nothing, Unit] =
+              val foo: ZIO[Module.Service[URIO] with Unit, Nothing, Unit] =
                 Module.foo
             }
           """
@@ -105,12 +105,12 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             @accessibleMM[URIO]
             object Module {
               trait Service[F[_, _]] {
-                def foo(i: Int): F[Has[Unit], Unit]
+                def foo(i: Int): F[Unit, Unit]
               }
             }
 
             object Check {
-              def foo(i: Int): ZIO[Has[Module.Service[URIO]] with Has[Unit], Nothing, Unit] =
+              def foo(i: Int): ZIO[Module.Service[URIO] with Unit, Nothing, Unit] =
                 Module.foo(i)
             }
           """
@@ -127,7 +127,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             }
 
             object Check {
-              def varargsFoo(a: Int, b: Int*): ZIO[Has[Module.Service[IO]], Unit, Unit] =
+              def varargsFoo(a: Int, b: Int*): ZIO[Module.Service[IO], Unit, Unit] =
                 Module.varargsFoo(a, b: _*)
             }
           """
@@ -144,7 +144,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             }
 
             object Check {
-              def foo(a: Int): ZIO[Has[Module.Service[IO]], Throwable, Unit] =
+              def foo(a: Int): ZIO[Module.Service[IO], Throwable, Unit] =
                 Module.foo(a)
             }
           """
@@ -156,12 +156,12 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             @accessibleMM[RManaged]
             object Module {
               trait Service[F[_, _]] {
-                def managed(s: String): F[Has[Unit], Int]
+                def managed(s: String): F[Unit, Int]
               }
             }
 
             object Check {
-              def managed(s: String): ZManaged[Has[Module.Service[RManaged]] with Has[Unit], Throwable, Int] =
+              def managed(s: String): ZManaged[Module.Service[RManaged] with Unit, Throwable, Int] =
                 Module.managed(s)
             }
           """
@@ -179,9 +179,9 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
              }
 
              object Check {
-              def foo(x: Int): ZIO[Has[Module.Service[IO]], Unit, Unit] =
+              def foo(x: Int): ZIO[Module.Service[IO], Unit, Unit] =
                 Module.foo(x)
-              def foo(x: String): ZIO[Has[Module.Service[IO]], Unit, Unit] =
+              def foo(x: String): ZIO[Module.Service[IO], Unit, Unit] =
                 Module.foo(x)
             }
           """.stripMargin
@@ -204,19 +204,19 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
              }
 
              object Check {
-               def v[T: Tag]: ZIO[Has[Module.Service[IO, T]], Int, T] =
+               def v[T: Tag]: ZIO[Module.Service[IO, T], Int, T] =
                  Module.v[T]
-               def f1[T: Tag]: ZIO[Has[Module.Service[IO, T]], Int, Unit] =
+               def f1[T: Tag]: ZIO[Module.Service[IO, T], Int, Unit] =
                  Module.f1[T]
-               def f2[T: Tag](): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
+               def f2[T: Tag](): ZIO[Module.Service[IO, T], Int, Unit] =
                  Module.f2[T]()
-               def f3[T: Tag](t: T): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
+               def f3[T: Tag](t: T): ZIO[Module.Service[IO, T], Int, Unit] =
                  Module.f3[T](t)
-               def f4[T: Tag](t: T)(i: Int): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
+               def f4[T: Tag](t: T)(i: Int): ZIO[Module.Service[IO, T], Int, Unit] =
                  Module.f4[T](t)(i)
-               def f5[T: Tag](t: T)(implicit i: Int): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
+               def f5[T: Tag](t: T)(implicit i: Int): ZIO[Module.Service[IO, T], Int, Unit] =
                  Module.f5[T](t)
-               def f6[T: Tag](t: T*): ZIO[Has[Module.Service[IO, T]], Int, Unit] =
+               def f6[T: Tag](t: T*): ZIO[Module.Service[IO, T], Int, Unit] =
                  Module.f6[T](t: _*)
              }
           """
@@ -233,7 +233,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
              }
 
              object Check {
-               def v[A: Tag]: ZIO[Has[Module.Service[A, RIO]] with A, Throwable, Int] =
+               def v[A: Tag]: ZIO[Module.Service[A, RIO] with A, Throwable, Int] =
                  Module.v[A]
              }
           """
@@ -259,19 +259,19 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
              }
 
              object Check {
-               def v[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Has[Module.Service[T, IO, U]], U, T] =
+               def v[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module.Service[T, IO, U], U, T] =
                  Module.v[T, U]
-               def f1[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Has[Module.Service[T, IO, U]], T, U] =
+               def f1[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module.Service[T, IO, U], T, U] =
                  Module.f1[T, U]
-               def f2[T <: Foo: Tag, U >: Bar: Tag](): ZIO[Has[Module.Service[T, IO, U]], T, U] =
+               def f2[T <: Foo: Tag, U >: Bar: Tag](): ZIO[Module.Service[T, IO, U], T, U] =
                  Module.f2[T, U]()
-               def f3[T <: Foo: Tag, U >: Bar: Tag](t: T): ZIO[Has[Module.Service[T, IO, U]], T, U] =
+               def f3[T <: Foo: Tag, U >: Bar: Tag](t: T): ZIO[Module.Service[T, IO, U], T, U] =
                  Module.f3[T, U](t)
-               def f4[T <: Foo: Tag, U >: Bar: Tag](t: T)(u: U): ZIO[Has[Module.Service[T, IO, U]], T, U] =
+               def f4[T <: Foo: Tag, U >: Bar: Tag](t: T)(u: U): ZIO[Module.Service[T, IO, U], T, U] =
                  Module.f4[T, U](t)(u)
-               def f5[T <: Foo: Tag, U >: Bar: Tag](t: T)(implicit u: U): ZIO[Has[Module.Service[T, IO, U]], T, U] =
+               def f5[T <: Foo: Tag, U >: Bar: Tag](t: T)(implicit u: U): ZIO[Module.Service[T, IO, U], T, U] =
                  Module.f5[T, U](t)
-               def f6[T <: Foo: Tag, U >: Bar: Tag](t: T*): ZIO[Has[Module.Service[T, IO, U]], T, U] =
+               def f6[T <: Foo: Tag, U >: Bar: Tag](t: T*): ZIO[Module.Service[T, IO, U], T, U] =
                  Module.f6[T, U](t: _*)
              }
           """
@@ -297,16 +297,16 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             }
 
             object Check {
-              val static                                 : ZIO[Has[Module.Service[IO]], Int, String] = Module.static
-              def zeroArgs                               : ZIO[Has[Module.Service[IO]], Int, Int]    = Module.zeroArgs
-              def zeroArgsWithParens()                   : ZIO[Has[Module.Service[IO]], Int, Long]   = Module.zeroArgsWithParens()
-              def singleArg(arg1: Int)                   : ZIO[Has[Module.Service[IO]], Int, String] = Module.singleArg(arg1)
-              def multiArgs(arg1: Int, arg2: Long)       : ZIO[Has[Module.Service[IO]], Int, String] = Module.multiArgs(arg1, arg2)
-              def multiParamLists(arg1: Int)(arg2: Long) : ZIO[Has[Module.Service[IO]], Int, String] = Module.multiParamLists(arg1)(arg2)
-              def typedVarargs[T](arg1: Int, arg2: T*)   : ZIO[Has[Module.Service[IO]], Int, T]      = Module.typedVarargs[T](arg1, arg2: _*)
-              def command(arg1: Int)                     : ZIO[Has[Module.Service[IO]], Int, Unit]   = Module.command(arg1)
-              def overloaded(arg1: Int)                  : ZIO[Has[Module.Service[IO]], Int, String] = Module.overloaded(arg1)
-              def overloaded(arg1: Long)                 : ZIO[Has[Module.Service[IO]], Int, String] = Module.overloaded(arg1)
+              val static                                 : ZIO[Module.Service[IO], Int, String] = Module.static
+              def zeroArgs                               : ZIO[Module.Service[IO], Int, Int]    = Module.zeroArgs
+              def zeroArgsWithParens()                   : ZIO[Module.Service[IO], Int, Long]   = Module.zeroArgsWithParens()
+              def singleArg(arg1: Int)                   : ZIO[Module.Service[IO], Int, String] = Module.singleArg(arg1)
+              def multiArgs(arg1: Int, arg2: Long)       : ZIO[Module.Service[IO], Int, String] = Module.multiArgs(arg1, arg2)
+              def multiParamLists(arg1: Int)(arg2: Long) : ZIO[Module.Service[IO], Int, String] = Module.multiParamLists(arg1)(arg2)
+              def typedVarargs[T](arg1: Int, arg2: T*)   : ZIO[Module.Service[IO], Int, T]      = Module.typedVarargs[T](arg1, arg2: _*)
+              def command(arg1: Int)                     : ZIO[Module.Service[IO], Int, Unit]   = Module.command(arg1)
+              def overloaded(arg1: Int)                  : ZIO[Module.Service[IO], Int, String] = Module.overloaded(arg1)
+              def overloaded(arg1: Long)                 : ZIO[Module.Service[IO], Int, String] = Module.overloaded(arg1)
             }
           """
         })(isRight(anything))
@@ -317,32 +317,32 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             @accessibleMM[URManaged]
             object Module {
               trait Service[M[_, _]] {
-                val staticManaged                                 : M[Has[Int], String]
-                def zeroArgsManaged                               : M[Has[Int], Int]
-                def zeroArgsTypedManaged[T]                       : M[Has[Int], T]
-                def zeroArgsWithParensManaged()                   : M[Has[Int], Long]
-                def singleArgManaged(arg1: Int)                   : M[Has[Int], String]
-                def multiArgsManaged(arg1: Int, arg2: Long)       : M[Has[Int], String]
-                def multiParamListsManaged(arg1: Int)(arg2: Long) : M[Has[Int], String]
-                def typedVarargsManaged[T](arg1: Int, arg2: T*)   : M[Has[Int], T]
-                def commandManaged(arg1: Int)                     : M[Has[Int], Unit]
-                def overloadedManaged(arg1: Int)                  : M[Has[Int], String]
-                def overloadedManaged(arg1: Long)                 : M[Has[Int], String]
+                val staticManaged                                 : M[Int, String]
+                def zeroArgsManaged                               : M[Int, Int]
+                def zeroArgsTypedManaged[T]                       : M[Int, T]
+                def zeroArgsWithParensManaged()                   : M[Int, Long]
+                def singleArgManaged(arg1: Int)                   : M[Int, String]
+                def multiArgsManaged(arg1: Int, arg2: Long)       : M[Int, String]
+                def multiParamListsManaged(arg1: Int)(arg2: Long) : M[Int, String]
+                def typedVarargsManaged[T](arg1: Int, arg2: T*)   : M[Int, T]
+                def commandManaged(arg1: Int)                     : M[Int, Unit]
+                def overloadedManaged(arg1: Int)                  : M[Int, String]
+                def overloadedManaged(arg1: Long)                 : M[Int, String]
               }
             }
 
             object Check {
-              val staticManaged                                 : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.staticManaged
-              def zeroArgsManaged                               : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, Int]    = Module.zeroArgsManaged
-              def zeroArgsTypedManaged[T]                       : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, T]      = Module.zeroArgsTypedManaged[T]
-              def zeroArgsWithParensManaged()                   : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, Long]   = Module.zeroArgsWithParensManaged()
-              def singleArgManaged(arg1: Int)                   : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.singleArgManaged(arg1)
-              def multiArgsManaged(arg1: Int, arg2: Long)       : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.multiArgsManaged(arg1, arg2)
-              def multiParamListsManaged(arg1: Int)(arg2: Long) : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.multiParamListsManaged(arg1)(arg2)
-              def typedVarargsManaged[T](arg1: Int, arg2: T*)   : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, T]      = Module.typedVarargsManaged[T](arg1, arg2: _*)
-              def commandManaged(arg1: Int)                     : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, Unit]   = Module.commandManaged(arg1)
-              def overloadedManaged(arg1: Int)                  : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.overloadedManaged(arg1)
-              def overloadedManaged(arg1: Long)                 : ZManaged[Has[Module.Service[URManaged]] with Has[Int], Nothing, String] = Module.overloadedManaged(arg1)
+              val staticManaged                                 : ZManaged[Module.Service[URManaged] with Int, Nothing, String] = Module.staticManaged
+              def zeroArgsManaged                               : ZManaged[Module.Service[URManaged] with Int, Nothing, Int]    = Module.zeroArgsManaged
+              def zeroArgsTypedManaged[T]                       : ZManaged[Module.Service[URManaged] with Int, Nothing, T]      = Module.zeroArgsTypedManaged[T]
+              def zeroArgsWithParensManaged()                   : ZManaged[Module.Service[URManaged] with Int, Nothing, Long]   = Module.zeroArgsWithParensManaged()
+              def singleArgManaged(arg1: Int)                   : ZManaged[Module.Service[URManaged] with Int, Nothing, String] = Module.singleArgManaged(arg1)
+              def multiArgsManaged(arg1: Int, arg2: Long)       : ZManaged[Module.Service[URManaged] with Int, Nothing, String] = Module.multiArgsManaged(arg1, arg2)
+              def multiParamListsManaged(arg1: Int)(arg2: Long) : ZManaged[Module.Service[URManaged] with Int, Nothing, String] = Module.multiParamListsManaged(arg1)(arg2)
+              def typedVarargsManaged[T](arg1: Int, arg2: T*)   : ZManaged[Module.Service[URManaged] with Int, Nothing, T]      = Module.typedVarargsManaged[T](arg1, arg2: _*)
+              def commandManaged(arg1: Int)                     : ZManaged[Module.Service[URManaged] with Int, Nothing, Unit]   = Module.commandManaged(arg1)
+              def overloadedManaged(arg1: Int)                  : ZManaged[Module.Service[URManaged] with Int, Nothing, String] = Module.overloadedManaged(arg1)
+              def overloadedManaged(arg1: Long)                 : ZManaged[Module.Service[URManaged] with Int, Nothing, String] = Module.overloadedManaged(arg1)
             }
           """
         })(isRight(anything))
@@ -358,7 +358,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
             }
 
             object Check {
-              def function(arg1: Int) : ZIO[Has[Module.Service[IO]], Throwable, String] = Module.function(arg1)
+              def function(arg1: Int) : ZIO[Module.Service[IO], Throwable, String] = Module.function(arg1)
             }
           """
         })(isRight(anything))
@@ -378,10 +378,10 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
                def assertServiceVariant[S[F[-_, +_]]] = ()
                assertServiceVariant[Module.Service]
 
-               val v: ZIO[Has[Module.Service[URIO]] with Any, Nothing, Int] =
+               val v: ZIO[Module.Service[URIO] with Any, Nothing, Int] =
                  Module.v
 
-               val vCov: ZIO[Has[Module.Service[URIO]] with Int, Nothing, Any] =
+               val vCov: ZIO[Module.Service[URIO] with Int, Nothing, Any] =
                  Module.vCov
              }
           """
@@ -404,7 +404,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
                def assertServiceVariant[S[+F[_, _]]] = ()
                assertServiceVariant[Module.Service]
 
-               val v: ZIO[Has[Module.Service[URIO]], Nothing, Int] =
+               val v: ZIO[Module.Service[URIO], Nothing, Int] =
                  Module.v
              }
           """
@@ -427,7 +427,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
                def assertServiceVariant[S[-F[_, _]]] = ()
                assertServiceVariant[Module.Service]
 
-               val v: ZIO[Has[Module.Service[URIO]], Nothing, Int] =
+               val v: ZIO[Module.Service[URIO], Nothing, Int] =
                  Module.v
              }
           """
@@ -446,7 +446,7 @@ object AccessibleMMSpec extends DefaultRunnableSpec {
              }
 
              object Check {
-               val v: ZIO[Has[Module.Service[URIO]] with AnyVal, Nothing, Int] =
+               val v: ZIO[Module.Service[URIO] with AnyVal, Nothing, Int] =
                  Module.v
              }
           """

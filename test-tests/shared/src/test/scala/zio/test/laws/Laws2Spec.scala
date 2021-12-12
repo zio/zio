@@ -58,7 +58,7 @@ object Laws2Spec extends ZIOBaseSpec {
       Equivalence(_.mkString, _.toList)
   }
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("Laws2Spec") {
       suite("equivalenceLaws")(
         test("byteList <=> byteVector") {

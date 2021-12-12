@@ -65,7 +65,7 @@ object LogStageExample extends zio.App {
     ZLayer.succeed(LogZIO.withFiberId(IzLogger()))
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideLayer(loggerLayer).exitCode
+    myApp.provide(loggerLayer).exitCode
 }
 ```
 

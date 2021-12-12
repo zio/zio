@@ -47,9 +47,9 @@ object ZPool {
    * associated with items in the pool. If cleanup or release is required, then
    * the `make` constructor should be used instead.
    */
-  def fromIterable[A](iterable0: => Iterable[A])(implicit trace: ZTraceElement): UManaged[ZPool[Nothing, A]] =
+  def fromIterable[A](iterable: => Iterable[A])(implicit trace: ZTraceElement): UManaged[ZPool[Nothing, A]] =
     for {
-      iterable <- ZManaged.succeed(iterable0)
+      iterable <- ZManaged.succeed(iterable)
       source   <- Ref.make(iterable.toList).toManaged
       get = if (iterable.isEmpty) ZIO.never
             else
@@ -66,8 +66,11 @@ object ZPool {
    * shutdown because the `Managed` is used, the individual items allocated by
    * the pool will be released in some unspecified order.
    */
-  def make[R, E, A](get: ZManaged[R, E, A], size: Int)(implicit trace: ZTraceElement): URManaged[R, ZPool[E, A]] =
-    makeWith(get, size to size)(Strategy.None)
+  def make[R, E, A](get: => ZManaged[R, E, A], size: => Int)(implicit trace: ZTraceElement): URManaged[R, ZPool[E, A]] =
+    for {
+      size <- ZManaged.succeed(size)
+      pool <- makeWith(get, size to size)(Strategy.None)
+    } yield pool
 
   /**
    * Makes a new pool with the specified minimum and maximum sizes and time to
@@ -84,9 +87,9 @@ object ZPool {
    * }
    * }}}
    */
-  def make[R, E, A](get: ZManaged[R, E, A], range: Range, timeToLive: Duration)(implicit
+  def make[R, E, A](get: => ZManaged[R, E, A], range: => Range, timeToLive: => Duration)(implicit
     trace: ZTraceElement
-  ): ZManaged[R with Has[Clock], Nothing, ZPool[E, A]] =
+  ): ZManaged[R with Clock, Nothing, ZPool[E, A]] =
     makeWith(get, range)(Strategy.TimeToLive(timeToLive))
 
   /**
@@ -94,20 +97,23 @@ object ZPool {
    * describes how a pool whose excess items are not being used will be shrunk
    * down to the minimum size.
    */
-  private def makeWith[R, R1, E, A](get: ZManaged[R, E, A], range: Range)(strategy: Strategy[R1, E, A])(implicit
-    trace: ZTraceElement
+  private def makeWith[R, R1, E, A](get: => ZManaged[R, E, A], range: => Range)(strategy: => Strategy[R1, E, A])(
+    implicit trace: ZTraceElement
   ): ZManaged[R with R1, Nothing, ZPool[E, A]] =
     for {
-      env     <- ZManaged.environment[R]
-      down    <- Ref.make(false).toManaged
-      state   <- Ref.make(State(0, 0)).toManaged
-      items   <- Queue.bounded[Attempted[E, A]](range.end).toManaged
-      inv     <- Ref.make(Set.empty[A]).toManaged
-      initial <- strategy.initial.toManaged
-      pool     = DefaultPool(get.provide(env), range, down, state, items, inv, strategy.track(initial))
-      fiber   <- pool.initialize.forkDaemon.toManaged
-      shrink  <- strategy.run(initial, pool.excess, pool.shrink).forkDaemon.toManaged
-      _       <- ZManaged.finalizer(fiber.interrupt *> shrink.interrupt *> pool.shutdown)
+      get      <- ZManaged.succeed(get)
+      range    <- ZManaged.succeed(range)
+      strategy <- ZManaged.succeed(strategy)
+      env      <- ZManaged.environment[R]
+      down     <- Ref.make(false).toManaged
+      state    <- Ref.make(State(0, 0)).toManaged
+      items    <- Queue.bounded[Attempted[E, A]](range.end).toManaged
+      inv      <- Ref.make(Set.empty[A]).toManaged
+      initial  <- strategy.initial.toManaged
+      pool      = DefaultPool(get.provideEnvironment(env), range, down, state, items, inv, strategy.track(initial))
+      fiber    <- pool.initialize.forkDaemon.toManaged
+      shrink   <- strategy.run(initial, pool.excess, pool.shrink).forkDaemon.toManaged
+      _        <- ZManaged.finalizer(fiber.interrupt *> shrink.interrupt *> pool.shutdown)
     } yield pool
 
   private case class Attempted[+E, +A](result: Exit[E, A], finalizer: UIO[Any]) {
@@ -333,9 +339,9 @@ object ZPool {
      * A strategy that shrinks the pool down to its minimum size if items in the
      * pool have not been used for the specified duration.
      */
-    final case class TimeToLive(timeToLive: Duration) extends Strategy[Has[Clock], Any, Any] {
+    final case class TimeToLive(timeToLive: Duration) extends Strategy[Clock, Any, Any] {
       type State = (Clock, Ref[java.time.Instant])
-      def initial(implicit trace: ZTraceElement): URIO[Has[Clock], State] =
+      def initial(implicit trace: ZTraceElement): URIO[Clock, State] =
         for {
           clock <- ZIO.service[Clock]
           now   <- Clock.instant

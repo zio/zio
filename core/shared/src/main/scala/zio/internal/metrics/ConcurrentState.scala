@@ -22,43 +22,43 @@ private[zio] class ConcurrentState {
 
   private val listener: MetricListener =
     new MetricListener {
-      override def unsafeGaugeChanged(key: MetricKey.Gauge, value: Double, delta: Double): Unit = {
+      override def unsafeGaugeObserved(key: MetricKey.Gauge, value: Double, delta: Double): Unit = {
         val iterator = listeners.iterator
         while (iterator.hasNext) {
           val listener = iterator.next()
-          listener.unsafeGaugeChanged(key, value, delta)
+          listener.unsafeGaugeObserved(key, value, delta)
         }
       }
 
-      override def unsafeCounterChanged(key: MetricKey.Counter, value: Double, delta: Double): Unit = {
+      override def unsafeCounterObserved(key: MetricKey.Counter, value: Double, delta: Double): Unit = {
         val iterator = listeners.iterator
         while (iterator.hasNext) {
           val listener = iterator.next()
-          listener.unsafeCounterChanged(key, value, delta)
+          listener.unsafeCounterObserved(key, value, delta)
         }
       }
 
-      override def unsafeHistogramChanged(key: MetricKey.Histogram, value: MetricState): Unit = {
+      override def unsafeHistogramObserved(key: MetricKey.Histogram, value: Double): Unit = {
         val iterator = listeners.iterator
         while (iterator.hasNext) {
           val listener = iterator.next()
-          listener.unsafeHistogramChanged(key, value)
+          listener.unsafeHistogramObserved(key, value)
         }
       }
 
-      override def unsafeSummaryChanged(key: MetricKey.Summary, value: MetricState): Unit = {
+      override def unsafeSummaryObserved(key: MetricKey.Summary, value: Double): Unit = {
         val iterator = listeners.iterator
         while (iterator.hasNext) {
           val listener = iterator.next()
-          listener.unsafeSummaryChanged(key, value)
+          listener.unsafeSummaryObserved(key, value)
         }
       }
 
-      override def unsafeSetChanged(key: MetricKey.SetCount, value: MetricState): Unit = {
+      override def unsafeSetObserved(key: MetricKey.SetCount, value: String): Unit = {
         val iterator = listeners.iterator
         while (iterator.hasNext) {
           val listener = iterator.next()
-          listener.unsafeSetChanged(key, value)
+          listener.unsafeSetObserved(key, value)
         }
       }
     }
@@ -66,7 +66,7 @@ private[zio] class ConcurrentState {
   private val map: ConcurrentHashMap[MetricKey, ConcurrentMetricState] =
     new ConcurrentHashMap[MetricKey, ConcurrentMetricState]()
 
-  private[zio] def snapshot: Map[MetricKey, MetricState] = {
+  private[zio] def states: Map[MetricKey, MetricState] = {
     val iterator = map.entrySet().iterator()
     val result   = scala.collection.mutable.Map[MetricKey, MetricState]()
     while (iterator.hasNext) {
@@ -75,6 +75,9 @@ private[zio] class ConcurrentState {
     }
     result.toMap
   }
+
+  private[zio] def state(key: MetricKey): Option[MetricState] =
+    Option(map.get(key)).map(_.toMetricState)
 
   /**
    * Increase a named counter by some value.
@@ -97,7 +100,7 @@ private[zio] class ConcurrentState {
 
       private[zio] def unsafeIncrement(value: Double): Unit = {
         val (v, d) = counter.increment(value)
-        listener.unsafeCounterChanged(key, v, d)
+        listener.unsafeCounterObserved(key, v, d)
       }
     }
   }
@@ -114,12 +117,12 @@ private[zio] class ConcurrentState {
       def adjust(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           val (v, d) = gauge.adjust(value)
-          listener.unsafeGaugeChanged(key, v, d)
+          listener.unsafeGaugeObserved(key, v, d)
         }
       def set(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           val (v, d) = gauge.set(value)
-          listener.unsafeGaugeChanged(key, v, d)
+          listener.unsafeGaugeObserved(key, v, d)
         }
       def value(implicit trace: ZTraceElement): UIO[Double] =
         ZIO.succeed(gauge.get)
@@ -154,7 +157,7 @@ private[zio] class ConcurrentState {
 
       def unsafeObserve(value: Double): Unit = {
         histogram.observe(value)
-        listener.unsafeHistogramChanged(key, histogram.toMetricState)
+        listener.unsafeHistogramObserved(key, value)
       }
     }
   }
@@ -179,7 +182,7 @@ private[zio] class ConcurrentState {
       def observe(value: Double)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.succeed {
           summary.observe(value, Instant.now)
-          listener.unsafeSummaryChanged(key, summary.toMetricState)
+          listener.unsafeSummaryObserved(key, value)
         }
       def quantileValues(implicit trace: ZTraceElement): zio.UIO[zio.Chunk[(Double, Option[Double])]] =
         ZIO.succeed(summary.summary.snapshot(Instant.now))
@@ -205,12 +208,21 @@ private[zio] class ConcurrentState {
         ZIO.succeed(unsafeObserve(word))
 
       def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]] =
-        ZIO.succeed(setCount.setCount.snapshot())
+        ZIO.succeed(unsafeOccurrences)
+
+      def occurrences(word: String)(implicit trace: ZTraceElement): UIO[Long] =
+        ZIO.succeed(unsafeOccurrences(word))
 
       def unsafeObserve(word: String): Unit = {
         setCount.observe(word)
-        listener.unsafeSetChanged(key, setCount.toMetricState)
+        listener.unsafeSetObserved(key, word)
       }
+
+      private[zio] def unsafeOccurrences: Chunk[(String, Long)] =
+        setCount.setCount.snapshot()
+
+      private[zio] def unsafeOccurrences(word: String): Long =
+        setCount.setCount.getCount(word)
     }
   }
 }

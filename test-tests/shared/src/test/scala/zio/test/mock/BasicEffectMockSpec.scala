@@ -13,7 +13,7 @@ object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
   import InvalidCall._
   import MockException._
 
-  def spec: Spec[Has[Live], TestFailure[Any], TestSuccess] = suite("BasicEffectMockSpec")(
+  def spec: Spec[Live, TestFailure[Any], TestSuccess] = suite("BasicEffectMockSpec")(
     suite("effects")(
       suite("static")(
         testValue("returns value")(

@@ -3,7 +3,7 @@ package zio.internal.metrics
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.{AtomicReferenceArray, DoubleAdder, LongAdder}
+import java.util.concurrent.atomic.{AtomicLongArray, DoubleAdder, LongAdder}
 
 private[zio] sealed abstract class ConcurrentHistogram {
 
@@ -24,7 +24,7 @@ private[zio] object ConcurrentHistogram {
 
   def manual(bounds: Chunk[Double]): ConcurrentHistogram =
     new ConcurrentHistogram {
-      private[this] val values     = new AtomicReferenceArray[Long](bounds.length + 1)
+      private[this] val values     = new AtomicLongArray(bounds.length + 1)
       private[this] val boundaries = Array.ofDim[Double](bounds.length)
       private[this] val count      = new LongAdder
       private[this] val sum        = new DoubleAdder
@@ -47,7 +47,7 @@ private[zio] object ConcurrentHistogram {
             if (value <= boundaries(from)) to = from else from = to
           }
         }
-        values.getAndUpdate(from, _ + 1L)
+        values.getAndIncrement(from)
         count.increment()
         sum.add(value)
         ()

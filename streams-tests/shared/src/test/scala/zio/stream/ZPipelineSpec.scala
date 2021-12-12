@@ -10,65 +10,6 @@ object ZPipelineSpec extends ZIOBaseSpec {
 
   def spec =
     suite("ZPipelineSpec")(
-      suite("type composition")(
-        test("pipelines are polymorphic") {
-          val pipeline = ZPipeline.identity
-          val stream1  = ZStream(1, 2, 3)
-          val stream2  = ZStream("foo", "bar", "baz")
-          for {
-            result1 <- pipeline(stream1).runCollect
-            result2 <- pipeline(stream2).runCollect
-          } yield assertTrue(result1 == Chunk(1, 2, 3)) &&
-            assertTrue(result2 == Chunk("foo", "bar", "baz"))
-        },
-        test("polymorphic pipelines can be composed") {
-          val pipeline1 = ZPipeline.identity
-          val pipeline2 = ZPipeline.identity
-          val pipeline3 = pipeline1 >>> pipeline2
-          val stream    = ZStream(1, 2, 3)
-          for {
-            result <- pipeline3(stream).runCollect
-          } yield assertTrue(result == Chunk(1, 2, 3))
-        },
-        test("monomorphic pipelines can be composed") {
-          val pipeline1 = ZPipeline.map[String, Double](_.toDouble)
-          val pipeline2 = ZPipeline.map[Double, Int](_.toInt)
-          val pipeline3 = pipeline1 >>> pipeline2
-          val stream    = ZStream("1", "2", "3")
-          for {
-            result <- pipeline3(stream).runCollect
-          } yield assertTrue(result == Chunk(1, 2, 3))
-        },
-        test("monomorphic and polymorphic pipelines can be composed") {
-          val pipeline1 = ZPipeline.map[String, Double](_.toDouble)
-          val pipeline2 = ZPipeline.map[Double, Int](_.toInt)
-          val pipeline3 = pipeline1 >>> pipeline2
-          val pipeline4 = ZPipeline.identity
-          val pipeline5 = pipeline3 >>> pipeline4
-          val stream    = ZStream("1", "2", "3")
-          for {
-            result <- pipeline5(stream).runCollect
-          } yield assertTrue(result == Chunk(1, 2, 3))
-        },
-        test("polymorphic and monomorphic pipelines can be composed") {
-          val pipeline1 = ZPipeline.map[String, Double](_.toDouble)
-          val pipeline2 = ZPipeline.map[Double, Int](_.toInt)
-          val pipeline3 = pipeline1 >>> pipeline2
-          val pipeline4 = ZPipeline.identity
-          val pipeline5 = pipeline4 >>> pipeline3
-          val stream    = ZStream("1", "2", "3")
-          for {
-            result <- pipeline5(stream).runCollect
-          } yield assertTrue(result == Chunk(1, 2, 3))
-        },
-        test("pipelines can provide the environment") {
-          val pipeline = ZPipeline.provide(42)
-          val stream   = ZStream.environment[Int]
-          for {
-            result <- pipeline(stream).runCollect
-          } yield assertTrue(result == Chunk(42))
-        }
-      ),
       suite("splitLines")(
         test("preserves data")(
           check(weirdStringGenForSplitLines) { lines =>
@@ -105,6 +46,16 @@ object ZPipelineSpec extends ZIOBaseSpec {
           testSplitLines(Seq(Chunk("abc\r", "\nabc")))
         }
       ),
+      suite("mapChunksZIO")(
+        test("maps chunks with effect") {
+          val pipeline = ZPipeline.mapChunksZIO[Any, Nothing, Int, String] { chunk =>
+            ZIO.succeed(chunk.map(_.toString.reverse))
+          }
+          assertM(
+            pipeline(ZStream(12, 23, 34)).runCollect
+          )(equalTo(Chunk("21", "32", "43")))
+        }
+      ),
       suite("splitOn")(
         test("preserves data")(check(Gen.chunkOf(Gen.string.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
           val data     = lines.mkString("|")
@@ -139,10 +90,22 @@ object ZPipelineSpec extends ZIOBaseSpec {
             ZPipeline.splitOn("<>")(ZStream("abc<", ">abc")).runCollect
           )(equalTo(Chunk("abc", "abc")))
         }
+      ),
+      suite("take")(
+        test("it takes the correct number of elements") {
+          assertM(
+            ZPipeline.take(3)(ZStream(1, 2, 3, 4, 5)).runCollect
+          )(equalTo(Chunk(1, 2, 3)))
+        },
+        test("it takes all elements if n is larger than the ZStream") {
+          assertM(
+            ZPipeline.take(100)(ZStream(1, 2, 3, 4, 5)).runCollect
+          )(equalTo(Chunk(1, 2, 3, 4, 5)))
+        }
       )
     )
 
-  val weirdStringGenForSplitLines: Gen[Has[Random] with Has[Sized], Chunk[String]] = Gen
+  val weirdStringGenForSplitLines: Gen[Random with Sized, Chunk[String]] = Gen
     .chunkOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
     .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
 

@@ -6,11 +6,26 @@ import zio.test.{
   FilteredSpec,
   SummaryBuilder,
   TestArgs,
-  TestLogger,
   TestEnvironment,
+  TestLogger,
   ZIOSpecAbstract
 }
-import zio.{Chunk, Clock, Has, Layer, Runtime, UIO, ULayer, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{
+  Chunk,
+  Clock,
+  Console,
+  Layer,
+  Random,
+  Runtime,
+  System,
+  UIO,
+  ULayer,
+  ZEnvironment,
+  ZIO,
+  ZIOAppArgs,
+  ZLayer,
+  ZTraceElement
+}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -23,45 +38,53 @@ abstract class BaseTestTask(
   protected def run(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
-  ): ZIO[Has[TestLogger] with Has[Clock], Throwable, Unit] =
+  ): ZIO[TestLogger with Clock, Throwable, Unit] =
     for {
       spec   <- spec.runSpec(FilteredSpec(spec.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
-      _      <- sendSummary.provide(summary)
+      _      <- sendSummary.provideEnvironment(ZEnvironment(summary))
       events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _      <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
     } yield ()
 
   protected def run(
     eventHandler: EventHandler,
-    spec: ZIOSpecAbstract
+    spec: ZIOSpecAbstract,
+    loggers: Array[Logger]
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
-    val argsLayer: ULayer[Has[ZIOAppArgs]] =
+    val argslayer: ULayer[ZIOAppArgs] =
       ZLayer.succeed(
         ZIOAppArgs(Chunk.empty)
       )
 
-    val filledTestLayer: Layer[Nothing, TestEnvironment] =
+    val filledTestlayer: Layer[Nothing, TestEnvironment] =
       zio.ZEnv.live >>> TestEnvironment.live
 
     val layer: Layer[Error, spec.Environment] =
-      (argsLayer +!+ filledTestLayer) >>> spec.layer.mapError(e => new Error(e.toString))
+      (argslayer +!+ filledTestlayer) >>> spec.layer.mapError(e => new Error(e.toString))
 
-    val fullLayer: Layer[Error, spec.Environment with Has[ZIOAppArgs] with TestEnvironment with zio.ZEnv] =
-      layer +!+ argsLayer +!+ filledTestLayer
+    val fullLayer: Layer[
+      Error,
+      spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock
+    ] =
+      layer +!+ argslayer +!+ filledTestlayer
+
+    val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
 
     for {
       spec <- spec
-                .runSpec(FilteredSpec(spec.spec, args), args)
+                .runSpec(FilteredSpec(spec.spec, args), args, sendSummary)
                 .provideLayer(
-                  fullLayer
+                  testLoggers +!+ fullLayer
                 )
       events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
       _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
     } yield ()
   }
 
-  protected def sbtTestLayer(loggers: Array[Logger]): Layer[Nothing, Has[TestLogger] with Has[Clock]] =
+  protected def sbtTestLayer(
+    loggers: Array[Logger]
+  ): Layer[Nothing, TestLogger with Clock] =
     ZLayer.succeed[TestLogger](new TestLogger {
       def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
@@ -71,12 +94,13 @@ abstract class BaseTestTask(
     try {
       spec match {
         case NewSpecWrapper(zioSpec) =>
-          Runtime((), zioSpec.runtime.runtimeConfig).unsafeRun {
-            run(eventHandler, zioSpec)
+          Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
+            run(eventHandler, zioSpec, loggers)
+              .provideLayer(sbtTestLayer(loggers))
               .onError(e => UIO(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>
-          Runtime((), abstractRunnableSpec.runtimeConfig).unsafeRun {
+          Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
             run(eventHandler, abstractRunnableSpec)
               .provideLayer(sbtTestLayer(loggers))
               .onError(e => UIO(println(e.prettyPrint)))

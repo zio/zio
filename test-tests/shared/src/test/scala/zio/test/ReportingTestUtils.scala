@@ -6,7 +6,7 @@ import zio.test.mock.internal.InvalidCall._
 import zio.test.mock.internal.MockException._
 import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.render.TestRenderer
-import zio.{Cause, Clock, Has, Layer, Promise, ZIO, ZTraceElement}
+import zio.{Cause, Layer, Promise, ZIO, ZTraceElement}
 
 import scala.{Console => SConsole}
 
@@ -52,7 +52,7 @@ object ReportingTestUtils {
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
+             .provideLayer(
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
@@ -62,13 +62,15 @@ object ReportingTestUtils {
     for {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
-                   .provideLayer[Nothing, TestEnvironment, Has[TestLogger] with Has[Clock]](
+                   .provideLayer(
                      TestLogger.fromConsole ++ TestClock.default
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
-  private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment])(implicit trace: ZTraceElement) =
+  private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment])(implicit
+    trace: ZTraceElement
+  ) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](testEnvironment),
       reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
@@ -254,7 +256,7 @@ object ReportingTestUtils {
       mock = PureModuleMock.ZeroParams(value("mocked")).toLayer.tap { _ =>
                promise.succeed(())
              }
-      f       = ZIO.serviceWith[PureModule.Service](_.zeroParams) <* ZIO.service[String]
+      f       = ZIO.serviceWithZIO[PureModule.Service](_.zeroParams) <* ZIO.service[String]
       result <- f.provideLayer(failingLayer ++ mock)
     } yield assert(result)(equalTo("mocked"))
   }
@@ -269,7 +271,7 @@ object ReportingTestUtils {
   )
 
   def assertSourceLocation()(implicit trace: ZTraceElement): String =
-    Option(trace).collect { case ZTraceElement.SourceLocation(_, path, line, _) =>
+    Option(trace).collect { case ZTraceElement(_, path, line) =>
       cyan(s"at $path:$line")
     }.getOrElse("")
 }

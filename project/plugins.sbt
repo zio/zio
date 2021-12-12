@@ -10,9 +10,10 @@ addSbtPlugin("org.portable-scala"                % "sbt-scala-native-crossprojec
 addSbtPlugin("org.portable-scala"                % "sbt-scalajs-crossproject"      % "1.1.0")
 addSbtPlugin("org.scala-js"                      % "sbt-scalajs"                   % "1.7.1")
 addSbtPlugin("org.scala-native"                  % "sbt-scala-native"              % "0.4.1")
-addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                      % "2.2.23")
+addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                      % "2.2.24")
 addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"                  % "2.4.3")
 addSbtPlugin("pl.project13.scala"                % "sbt-jcstress"                  % "0.2.0")
 addSbtPlugin("pl.project13.scala"                % "sbt-jmh"                       % "0.4.3")
+addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.32")
 
 libraryDependencies += "org.snakeyaml" % "snakeyaml-engine" % "2.3"

@@ -2,14 +2,14 @@ package zio.test
 
 import zio.test.Assertion._
 import zio.test.TestAspect._
-import zio.{Chunk, Exit, Has}
+import zio.{Chunk, Exit}
 
 import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}
 
 object AssertionSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
+  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
     test("and must succeed when both assertions are satisfied") {
       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
     },
@@ -43,6 +43,9 @@ object AssertionSpec extends ZIOBaseSpec {
     test("dies must fail when exception does not satisfy specified assertion") {
       assert(Exit.die(new RuntimeException("Bam!")))(dies(equalTo(someException)))
     } @@ failing,
+    test("diesWithA must succeed when given type assertion is correct") {
+      assert(Exit.die(customException))(diesWithA[CustomException])
+    },
     test("endWith must succeed when the supplied value ends with the specified sequence") {
       assert(List(1, 2, 3, 4, 5))(endsWith(List(3, 4, 5)))
     },
@@ -103,6 +106,9 @@ object AssertionSpec extends ZIOBaseSpec {
     test("fails must fail when error value does not satisfy specified assertion") {
       assert(Exit.fail("Other Error"))(fails(equalTo("Some Error")))
     } @@ failing,
+    test("failsWithA must succeed when given type assertion is correct") {
+      assert(Exit.fail(customException))(failsWithA[CustomException])
+    },
     test("forall must succeed when all elements of iterable satisfy specified assertion") {
       assert(Seq("a", "bb", "ccc"))(forall(hasField("length", _.length, isWithin(0, 3))))
     },
@@ -561,6 +567,9 @@ object AssertionSpec extends ZIOBaseSpec {
     test("throws must succeed when given assertion is correct") {
       assert(throw sampleException)(throws(equalTo(sampleException)))
     },
+    test("throwsA must succeed when given type assertion is correct") {
+      assert(throw customException)(throwsA[CustomException])
+    },
     test("should implement equals without exception") {
       assert(nameStartsWithU.equals(new Object))(isFalse)
     },
@@ -596,6 +605,9 @@ object AssertionSpec extends ZIOBaseSpec {
   val ageGreaterThan20: Assertion[SampleUser] = hasField("age", _.age, isGreaterThan(20))
 
   val someException = new RuntimeException("Boom!")
+
+  case class CustomException() extends RuntimeException("Custom Boom!")
+  val customException: CustomException = CustomException()
 
   trait Animal
   trait Dog extends Animal

@@ -281,7 +281,7 @@ object ZHub {
    *
    * For best performance use capacities that are powers of two.
    */
-  def bounded[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Hub[A]] =
+  def bounded[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Hub[A]] =
     ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.BackPressure()))
 
   /**
@@ -290,7 +290,7 @@ object ZHub {
    *
    * For best performance use capacities that are powers of two.
    */
-  def dropping[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Hub[A]] =
+  def dropping[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Hub[A]] =
     ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Dropping()))
 
   /**
@@ -299,7 +299,7 @@ object ZHub {
    *
    * For best performance use capacities that are powers of two.
    */
-  def sliding[A](requestedCapacity: Int)(implicit trace: ZTraceElement): UIO[Hub[A]] =
+  def sliding[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Hub[A]] =
     ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Sliding()))
 
   /**

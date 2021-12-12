@@ -128,38 +128,52 @@ abstract class ZTestTaskPolicy {
   def merge(zioTasks: Array[ZTestTask]): Array[Task]
 }
 
+case class MergedSpec(spec: ZTestTaskNew, merges: Int)
+
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
   override def merge(zioTasks: Array[ZTestTask]): Array[Task] = {
     val (newTaskOpt, legacyTaskList) =
-      zioTasks.foldLeft((None: Option[ZTestTaskNew], List[ZTestTaskLegacy]())) {
+      zioTasks.foldLeft((List.empty: List[MergedSpec], List[ZTestTaskLegacy]())) {
         case ((newTests, legacyTests), nextSpec) =>
           nextSpec match {
             case legacy: ZTestTaskLegacy => (newTests, legacyTests :+ legacy)
             case taskNew: ZTestTaskNew =>
               newTests match {
-                case Some(existingNewTestTask: ZTestTaskNew) =>
-                  println("Merging")
-                  (
-                    Some(
-                      new ZTestTaskNew(
-                        existingNewTestTask.taskDef,
-                        existingNewTestTask.testClassLoader,
-                        existingNewTestTask.sendSummary zip taskNew.sendSummary,
-                        existingNewTestTask.args,
-                        existingNewTestTask.newSpec <> (taskNew.newSpec)
-                      )
-                    ),
-                    legacyTests
-                  )
-                case None => (Some(taskNew), legacyTests)
+                case existingNewTestTask :: otherTasks =>
+                  if (existingNewTestTask.merges < 1) {
+                    (
+                      MergedSpec(
+                        new ZTestTaskNew(
+                          existingNewTestTask.spec.taskDef,
+                          existingNewTestTask.spec.testClassLoader,
+                          existingNewTestTask.spec.sendSummary zip taskNew.sendSummary,
+                          existingNewTestTask.spec.args,
+                          existingNewTestTask.spec.newSpec <> taskNew.newSpec
+                        ),
+                        existingNewTestTask.merges + 1
+                      ) :: otherTasks,
+                      legacyTests
+                    )
+                  } else {
+                    (
+                      MergedSpec(
+                        taskNew,
+                        1
+                      ) :: existingNewTestTask :: otherTasks,
+                      legacyTests
+                    )
+                  }
+
+                case _ =>
+                  (List(MergedSpec(taskNew, 1)), legacyTests)
               }
             case other =>
               throw new RuntimeException("Other case: " + other)
           }
       }
 
-    (legacyTaskList ++ newTaskOpt.toList).toArray
+    (legacyTaskList ++ newTaskOpt.map(_.spec)).toArray
   }
 
 }

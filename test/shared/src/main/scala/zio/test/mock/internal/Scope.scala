@@ -16,7 +16,6 @@
 
 package zio.test.mock.internal
 
-import zio.Has
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.mock.Expectation
 
@@ -24,7 +23,7 @@ import zio.test.mock.Expectation
  * A `Scope[R]` represents state of a branch of depth first search on
  * `Expectation[R]` tree for a matching mock to given invocation.
  */
-private[mock] final case class Scope[R <: Has[_]](
+private[mock] final case class Scope[R](
   expectation: Expectation[R],
   invocationId: Int,
   update: Expectation[R] => Expectation[R]

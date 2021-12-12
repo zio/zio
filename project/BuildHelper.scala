@@ -33,7 +33,7 @@ object BuildHelper {
     "-feature",
     "-unchecked"
   ) ++ {
-    if (sys.env.contains("CI")) {
+    if (true) {
       Seq("-Xfatal-warnings")
     } else {
       Nil
@@ -72,12 +72,6 @@ object BuildHelper {
       else
         Seq()
     },
-    scalacOptions --= {
-      if (scalaVersion.value == Scala3)
-        Seq("-Xfatal-warnings")
-      else
-        Seq()
-    },
     Compile / doc / sources := {
       val old = (Compile / doc / sources).value
       if (scalaVersion.value == Scala3) {
@@ -102,7 +96,7 @@ object BuildHelper {
        |import zio.Console._
        |import 
        |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provideLayer(ZEnv.live)) }
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provide(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -113,7 +107,7 @@ object BuildHelper {
        |import 
        |import zio.stream._
        |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provideLayer(ZEnv.live)) }
+       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provide(ZEnv.live)) }
     """.stripMargin
   }
 
@@ -137,7 +131,7 @@ object BuildHelper {
 
   def extraOptions(scalaVersion: String, optimize: Boolean) =
     CrossVersion.partialVersion(scalaVersion) match {
-      case Some((3, 0)) =>
+      case Some((3, _)) =>
         Seq(
           "-language:implicitConversions",
           "-Xignore-scala2-macros"

@@ -18,7 +18,7 @@ package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.{Has, Random, ZTraceElement}
+import zio.{Random, ZTraceElement}
 
 import scala.annotation.tailrec
 
@@ -36,7 +36,7 @@ object GenOrderingPoly {
    * Constructs an instance of `GenOrderingPoly` using the specified `Gen` and
    * `Ordering` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Has[Random] with Has[Sized], A], ord: Ordering[A]): GenOrderingPoly =
+  def apply[A](gen: Gen[Random with Sized, A], ord: Ordering[A]): GenOrderingPoly =
     new GenOrderingPoly {
       type T = A
       val genT = gen
@@ -75,7 +75,7 @@ object GenOrderingPoly {
   def float(implicit trace: ZTraceElement): GenOrderingPoly =
     GenNumericPoly.float
 
-  def genOrderingPoly(implicit trace: ZTraceElement): Gen[Has[Random], GenOrderingPoly] = {
+  def genOrderingPoly(implicit trace: ZTraceElement): Gen[Random, GenOrderingPoly] = {
     val primitives = Gen.elements(
       boolean,
       byte,

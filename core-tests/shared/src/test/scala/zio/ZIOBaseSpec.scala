@@ -4,22 +4,10 @@ import zio.test._
 
 import scala.annotation.tailrec
 
-trait ZIOBaseSpec extends DefaultRunnableSpec {
-  override def aspects: List[TestAspect.WithOut[
-    Nothing,
-    TestEnvironment,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ]] =
-    if (TestPlatform.isJVM) List(TestAspect.timeout(120.seconds))
-    else List(TestAspect.sequential, TestAspect.timeout(120.seconds))
-
-  override def runner: TestRunner[Environment, Any] =
-    defaultTestRunner.withRuntimeConfig(self =>
-      self.copy(runtimeConfigFlags = self.runtimeConfigFlags + RuntimeConfigFlag.EnableCurrentFiber)
-    )
+trait ZIOBaseSpec extends ZIOSpecDefault {
+  override def aspects: Chunk[TestAspectAtLeastR[Live]] =
+    if (TestPlatform.isJVM) Chunk(TestAspect.timeout(120.seconds))
+    else Chunk(TestAspect.sequential, TestAspect.timeout(120.seconds))
 
   sealed trait ZIOTag {
     val value: String
@@ -37,14 +25,7 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
     case object supervision  extends ZIOTag { override val value = "supervision"  }
   }
 
-  def zioTag(zioTag: ZIOTag, zioTags: ZIOTag*): TestAspect.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ] = {
+  def zioTag(zioTag: ZIOTag, zioTags: ZIOTag*): TestAspectPoly = {
     val tags = zioTags.map(_.value) ++ getSubTags(zioTag) ++ zioTags.flatMap(getSubTags)
     TestAspect.tag(zioTag.value, tags.distinct: _*)
   }
@@ -62,4 +43,5 @@ trait ZIOBaseSpec extends DefaultRunnableSpec {
       case Nil     => Nil
     }
   }
+
 }

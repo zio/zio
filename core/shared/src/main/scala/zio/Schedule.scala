@@ -460,7 +460,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a driver that can be used to step the schedule, appropriately
    * handling sleeping.
    */
-  def driver(implicit trace: ZTraceElement): URIO[Has[Clock], Schedule.Driver[self.State, Env, In, Out]] =
+  def driver(implicit trace: ZTraceElement): URIO[Clock, Schedule.Driver[self.State, Env, In, Out]] =
     Clock.driver(self)
 
   /**
@@ -617,7 +617,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that randomly modifies the size of the intervals of
    * this schedule.
    */
-  def jittered(implicit trace: ZTraceElement): Schedule.WithState[self.State, Env with Has[Random], In, Out] =
+  def jittered(implicit trace: ZTraceElement): Schedule.WithState[self.State, Env with Random, In, Out] =
     jittered(0.0, 1.0)
 
   /**
@@ -626,8 +626,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def jittered(min: Double, max: Double)(implicit
     trace: ZTraceElement
-  ): Schedule.WithState[self.State, Env with Has[Random], In, Out] =
-    delayedZIO[Env with Has[Random]] { duration =>
+  ): Schedule.WithState[self.State, Env with Random, In, Out] =
+    delayedZIO[Env with Random] { duration =>
       Random.nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random
@@ -748,28 +748,30 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule with its environment provided to it, so the
    * resulting schedule does not require any environment.
    */
-  def provide(env: Env): Schedule.WithState[self.State, Any, In, Out] =
+  def provideEnvironment(env: ZEnvironment[Env]): Schedule.WithState[self.State, Any, In, Out] =
     new Schedule[Any, In, Out] {
       type State = self.State
       val initial = self.initial
       def step(now: OffsetDateTime, in: In, state: State)(implicit
         trace: ZTraceElement
       ): ZIO[Any, Nothing, (State, Out, Decision)] =
-        self.step(now, in, state).provide(env)
+        self.step(now, in, state).provideEnvironment(env)
     }
 
   /**
-   * Returns a new schedule with part of its environment provided to it, so the
-   * resulting schedule does not require any environment.
+   * Transforms the environment being provided to this schedule with the
+   * specified function.
    */
-  def provideSome[Env2](f: Env2 => Env): Schedule.WithState[self.State, Env2, In, Out] =
+  def provideSomeEnvironment[Env2](
+    f: ZEnvironment[Env2] => ZEnvironment[Env]
+  ): Schedule.WithState[self.State, Env2, In, Out] =
     new Schedule[Env2, In, Out] {
       type State = self.State
       val initial = self.initial
       def step(now: OffsetDateTime, in: In, state: State)(implicit
         trace: ZTraceElement
       ): ZIO[Env2, Nothing, (State, Out, Decision)] =
-        self.step(now, in, state).provideSome(f)
+        self.step(now, in, state).provideSomeEnvironment(f)
     }
 
   /**

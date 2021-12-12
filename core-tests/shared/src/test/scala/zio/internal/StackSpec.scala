@@ -3,7 +3,7 @@ package zio.internal
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.TestAspect._
-import zio.{Has, Random, ZIOBaseSpec}
+import zio.{Random, ZIOBaseSpec}
 
 object StackSpec extends ZIOBaseSpec {
 
@@ -60,7 +60,22 @@ object StackSpec extends ZIOBaseSpec {
         readers <- ZIO.forkAll(List.fill(100)(ZIO.succeed(stack.toList.forall(_ != null))))
         noNulls <- readers.join.map(_.forall(a => a)) <* fiber.interrupt
       } yield assertTrue(noNulls)
-    } @@ nonFlaky
+    } @@ nonFlaky,
+    test("stack safety") {
+      val stack = Stack[String]()
+      val n     = 1000000
+      var i     = 0
+      while (i <= n) {
+        stack.push("1")
+        i += 1
+      }
+      i = n
+      while (i >= 0) {
+        stack.pop()
+        i -= 1
+      }
+      assertCompletes
+    }
   )
 
   sealed trait Boolean {
@@ -72,6 +87,6 @@ object StackSpec extends ZIOBaseSpec {
   case object True  extends Boolean
   case object False extends Boolean
 
-  val gen: Gen[Has[Random] with Has[Sized], List[Boolean]] =
+  val gen: Gen[Random with Sized, List[Boolean]] =
     Gen.large(n => Gen.listOfN(n)(Gen.elements(True, False)))
 }

@@ -217,7 +217,7 @@ object ZFiberRef {
    * Creates a new `FiberRef` with given initial value.
    */
   def make[A](
-    initial: A,
+    initial: => A,
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
   )(implicit trace: ZTraceElement): UIO[FiberRef.Runtime[A]] =
@@ -657,4 +657,13 @@ object ZFiberRef {
         (result, result)
       }
   }
+
+  private[zio] val forkScopeOverride: FiberRef.Runtime[Option[ZScope]] =
+    ZFiberRef.unsafeMake(None, _ => None, (a, _) => a)
+
+  private[zio] val currentExecutor: FiberRef.Runtime[Option[zio.Executor]] =
+    ZFiberRef.unsafeMake(None, a => a, (a, _) => a)
+
+  private[zio] val currentEnvironment: FiberRef.Runtime[ZEnvironment[Any]] =
+    ZFiberRef.unsafeMake(ZEnvironment.empty, a => a, (a, _) => a)
 }

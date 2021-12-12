@@ -22,8 +22,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 object ZEnv {
 
   private[zio] object Services {
-    val live: ZEnv =
-      Has.allOf[Clock, Console, System, Random](
+    val live: ZEnvironment[ZEnv] =
+      ZEnvironment[Clock, Console, System, Random](
         Clock.ClockLive,
         Console.ConsoleLive,
         System.SystemLive,

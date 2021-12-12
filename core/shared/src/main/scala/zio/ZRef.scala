@@ -193,7 +193,7 @@ object ZRef extends Serializable {
   /**
    * Creates a new `ZRef` with the specified value.
    */
-  def make[A](a: A)(implicit trace: ZTraceElement): UIO[Ref[A]] =
+  def make[A](a: => A)(implicit trace: ZTraceElement): UIO[Ref[A]] =
     UIO.succeed(unsafeMake(a))
 
   private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
@@ -202,7 +202,7 @@ object ZRef extends Serializable {
   /**
    * Creates a new managed `ZRef` with the specified value
    */
-  def makeManaged[A](a: A)(implicit trace: ZTraceElement): Managed[Nothing, Ref[A]] =
+  def makeManaged[A](a: => A)(implicit trace: ZTraceElement): Managed[Nothing, Ref[A]] =
     make(a).toManaged
 
   implicit class UnifiedSyntax[-R, +E, A](private val self: ZRef[R, R, E, E, A, A]) extends AnyVal {
@@ -781,7 +781,7 @@ object ZRef extends Serializable {
      * `RefM`.
      */
     @deprecated("use SubscriptionRef", "2.0.0")
-    def dequeueRef[A](a: A)(implicit trace: ZTraceElement): UIO[(RefM[A], Dequeue[A])] =
+    def dequeueRef[A](a: => A)(implicit trace: ZTraceElement): UIO[(RefM[A], Dequeue[A])] =
       for {
         ref   <- make(a)
         queue <- Queue.unbounded[A]
@@ -790,7 +790,7 @@ object ZRef extends Serializable {
     /**
      * Creates a new `ZRef.Synchronized` with the specified value.
      */
-    def make[A](a: A)(implicit trace: ZTraceElement): UIO[Synchronized[Any, Any, Nothing, Nothing, A, A]] =
+    def make[A](a: => A)(implicit trace: ZTraceElement): UIO[Synchronized[Any, Any, Nothing, Nothing, A, A]] =
       for {
         ref       <- Ref.make(a)
         semaphore <- Semaphore.make(1)
@@ -809,7 +809,9 @@ object ZRef extends Serializable {
      * Creates a new `ZRef.Synchronized` with the specified value in the context
      * of a `Managed.`
      */
-    def makeManaged[A](a: A)(implicit trace: ZTraceElement): UManaged[Synchronized[Any, Any, Nothing, Nothing, A, A]] =
+    def makeManaged[A](a: => A)(implicit
+      trace: ZTraceElement
+    ): UManaged[Synchronized[Any, Any, Nothing, Nothing, A, A]] =
       make(a).toManaged
 
     implicit class UnifiedSyntax[-R, +E, A](private val self: Synchronized[R, R, E, E, A, A]) extends AnyVal {
@@ -1177,16 +1179,16 @@ object ZRef extends Serializable {
     }
 
     def update(f: A => A)(implicit trace: ZTraceElement): UIO[Unit] =
-      ZIO.effectTotal(unsafeUpdate(f))
+      ZIO.succeed(unsafeUpdate(f))
 
     def updateAndGet(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
-      ZIO.effectTotal(unsafeUpdateAndGet(f))
+      ZIO.succeed(unsafeUpdateAndGet(f))
 
     def updateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[Unit] =
-      ZIO.effectTotal(unsafeUpdateSome(pf))
+      ZIO.succeed(unsafeUpdateSome(pf))
 
     def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
-      ZIO.effectTotal(unsafeUpdateSomeAndGet(pf))
+      ZIO.succeed(unsafeUpdateSomeAndGet(pf))
   }
 
   private abstract class Derived[+EA, +EB, -A, +B] extends ZRef[Any, Any, EA, EB, A, B] { self =>

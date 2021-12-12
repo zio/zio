@@ -39,7 +39,7 @@ trait CompileVariants {
     }
 
   private val errorMessage =
-    "Reporting of compilation error messages on Dotty is not currently supported due to instability of the underlying APIs."
+    "Reporting of compilation error messages on Scala 3 is not currently supported due to instability of the underlying APIs."
 
   /**
    * Checks the assertion holds for the given value.

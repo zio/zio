@@ -27,5 +27,13 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * better integrate with Scala exception handling.
  */
 final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, true, false) {
-  override def getMessage: String = cause.prettyPrint
+  override def getMessage: String = cause.unified.headOption.fold("<unknown>")(_.message)
+
+  override def getStackTrace(): Array[StackTraceElement] =
+    cause.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
+
+  def unsafeInitSuppressed(): Unit =
+    if (getSuppressed().length == 0) {
+      cause.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
+    }
 }

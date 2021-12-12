@@ -1,52 +1,54 @@
 package zio.autowire
 
-import zio.{Has, Tag, UIO, ZIO, ZLayer}
+import zio.{Tag, UIO, ZIO, ZLayer}
 import zio.test._
 import zio.ULayer
 
 // https://github.com/kitlangton/zio-magic/issues/76
-object InjectParameterizedServicesSpec extends DefaultRunnableSpec {
+object InjectParameterizedServicesSpec extends ZIOSpecDefault {
 
-  def spec: ZSpec[Environment, Failure] = suite("Samples")(
+  def spec = suite("Samples")(
     test("compiles with ParameterisedServiceImpl1 direct usage") {
-      ParameterizedService.something[Has[String]].as(assertCompletes)
-    }.inject(ParameterisedServiceWithoutTypeAlias.live),
+      ParameterizedService.something[String].as(assertCompletes)
+    }.provide(ParameterisedServiceWithoutTypeAlias.live),
     test("compiles using the type alias directly") {
-      val huh: ZIO[Has[ParameterizedService[ParameterizedServiceWithTypeAlias.Alias]], Nothing, TestResult] =
+      val huh: ZIO[ParameterizedService[ParameterizedServiceWithTypeAlias.Alias], Nothing, TestResult] =
         ParameterizedService.something[ParameterizedServiceWithTypeAlias.Alias].as(assertCompletes)
       huh
-    }.inject(ParameterizedServiceWithTypeAlias.live),
+    }.provide(ParameterizedServiceWithTypeAlias.live),
     test("fails to compile using the type directly") {
-      val huh: ZIO[Has[ParameterizedService[Has[String]]], Nothing, TestResult] =
-        ParameterizedService.something[Has[String]].as(assertCompletes)
+      val huh: ZIO[ParameterizedService[String], Nothing, TestResult] =
+        ParameterizedService.something[String].as(assertCompletes)
       huh
-    }.inject(ParameterizedServiceWithTypeAlias.live),
+    }.provide(ParameterizedServiceWithTypeAlias.live),
     test("compile using the type directly if not using wire macro") {
-      ParameterizedService.something[Has[String]].as(assertCompletes)
+      ParameterizedService.something[String].as(assertCompletes)
     }.provideLayer(ParameterizedServiceWithTypeAlias.live)
-  ) @@ TestAspect.exceptDotty
+  ) @@ TestAspect.exceptScala3
 
   trait ParameterizedService[A] {
     def something: UIO[Unit]
   }
 
   object ParameterizedService {
-    def something[A: Tag]: ZIO[Has[ParameterizedService[A]], Nothing, Unit] =
-      ZIO.serviceWith[ParameterizedService[A]](_.something)
+    def something[A: Tag]: ZIO[ParameterizedService[A], Nothing, Unit] =
+      ZIO.serviceWithZIO[ParameterizedService[A]](_.something)
   }
 
   object ParameterizedServiceWithTypeAlias {
-    type Alias = Has[String]
+    type Alias = String
 
-    val live: ULayer[Has[ParameterizedService[Alias]]] = ZLayer.succeed(new ParameterizedService[Alias] {
-      override def something: UIO[Unit] = ZIO.unit
-    })
+    val live: ULayer[ParameterizedService[Alias]] =
+      ZLayer.succeed(new ParameterizedService[Alias] {
+        override def something: UIO[Unit] = ZIO.unit
+      })
   }
 
   object ParameterisedServiceWithoutTypeAlias {
-    val live: ULayer[Has[ParameterizedService[Has[String]]]] = ZLayer.succeed(new ParameterizedService[Has[String]] {
-      override def something: UIO[Unit] = ZIO.unit
-    })
+    val live: ULayer[ParameterizedService[String]] =
+      ZLayer.succeed(new ParameterizedService[String] {
+        override def something: UIO[Unit] = ZIO.unit
+      })
   }
 
 }

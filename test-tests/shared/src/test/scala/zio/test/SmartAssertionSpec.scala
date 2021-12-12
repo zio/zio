@@ -13,19 +13,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
    * Switch TestAspect.failing to TestAspect.identity to easily preview
    * the error messages.
    */
-  val failing: TestAspect.WithOut[
-    Nothing,
-    Any,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ] =
-    TestAspect.failing
+  val failing: TestAspectPoly = TestAspect.failing
 
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
-  def spec: ZSpec[Environment, Failure] = suite("SmartAssertionSpec")(
+  def spec = suite("SmartAssertionSpec")(
     suite("Array")(
       suite("==")(
         test("success") {
@@ -68,11 +60,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list = List(10, 5, 8, 3, 4)
       assertTrue(list.forall(_ % 2 == 0))
     } @@ failing,
-    test("right.get") {
-      val myEither: Either[String, Int] = Left("string")
-      case class Cool(int: Int)
-      assertTrue(myEither.right.get + 1 > 18)
-    } @@ failing,
     test("string contains") {
       val myString = "something"
       assertTrue(myString.contains("aoseunoth") && myString == "coool")
@@ -96,12 +83,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     suite("contains")(
       test("Option") {
         assertTrue(company.users.head.posts.head.publishDate.contains(LocalDateTime.MAX))
-      }
-    ) @@ failing,
-    suite("Either")(
-      test("right.get") {
-        val myEither: Either[String, Int] = Left("string")
-        assertTrue(myEither.right.get + 1 > 11233)
       }
     ) @@ failing,
     suite("Exceptions")(

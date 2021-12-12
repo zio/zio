@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Has, IO, Layer, Ref, System, UIO, URIO, ZIO, ZLayer, ZTraceElement}
+import zio.{IO, Layer, Ref, System, UIO, URIO, ZIO, ZLayer, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZTrace
@@ -38,7 +38,7 @@ import zio.ZTrace
  * } yield result == Some("VM")
  * }}}
  */
-trait TestSystem extends Restorable {
+trait TestSystem extends System with Restorable {
   def putEnv(name: String, value: String)(implicit trace: ZTraceElement): UIO[Unit]
   def putProperty(name: String, value: String)(implicit trace: ZTraceElement): UIO[Unit]
   def setLineSeparator(lineSep: String)(implicit trace: ZTraceElement): UIO[Unit]
@@ -161,59 +161,59 @@ object TestSystem extends Serializable {
    * useful for providing the required environment to an effect that requires a
    * `Console`, such as with `ZIO#provide`.
    */
-  def live(data: Data): Layer[Nothing, Has[System] with Has[TestSystem]] = {
+  def live(data: Data): Layer[Nothing, TestSystem] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    Ref.make(data).map(ref => Has.allOf[System, TestSystem](Test(ref), Test(ref))).toLayerMany
+    Ref.make(data).map(Test(_)).toLayer
   }
 
-  val any: ZLayer[Has[System] with Has[TestSystem], Nothing, Has[System] with Has[TestSystem]] =
-    ZLayer.environment[Has[System] with Has[TestSystem]](Tracer.newTrace)
+  val any: ZLayer[TestSystem, Nothing, TestSystem] =
+    ZLayer.environment[TestSystem](Tracer.newTrace)
 
-  val default: Layer[Nothing, Has[System] with Has[TestSystem]] =
+  val default: Layer[Nothing, TestSystem] =
     live(DefaultData)
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of environment variables.
    */
-  def putEnv(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
-    ZIO.accessZIO(_.get.putEnv(name, value))
+  def putEnv(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
+    ZIO.serviceWithZIO(_.putEnv(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of system properties.
    */
-  def putProperty(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
-    ZIO.accessZIO(_.get.putProperty(name, value))
+  def putProperty(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
+    ZIO.serviceWithZIO(_.putProperty(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and saves the system
    * state in an effect which, when run, will restore the `TestSystem` to the
    * saved state
    */
-  def save(implicit trace: ZTraceElement): ZIO[Has[TestSystem], Nothing, UIO[Unit]] =
-    ZIO.accessZIO(_.get.save)
+  def save(implicit trace: ZTraceElement): ZIO[TestSystem, Nothing, UIO[Unit]] =
+    ZIO.serviceWithZIO(_.save)
 
   /**
    * Accesses a `TestSystem` instance in the environment and sets the line
    * separator to the specified value.
    */
-  def setLineSeparator(lineSep: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
-    ZIO.accessZIO(_.get.setLineSeparator(lineSep))
+  def setLineSeparator(lineSep: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
+    ZIO.serviceWithZIO(_.setLineSeparator(lineSep))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of environment variables.
    */
-  def clearEnv(variable: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
-    ZIO.accessZIO(_.get.clearEnv(variable))
+  def clearEnv(variable: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
+    ZIO.serviceWithZIO(_.clearEnv(variable))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of system properties.
    */
-  def clearProperty(prop: => String)(implicit trace: ZTraceElement): URIO[Has[TestSystem], Unit] =
-    ZIO.accessZIO(_.get.clearProperty(prop))
+  def clearProperty(prop: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
+    ZIO.serviceWithZIO(_.clearProperty(prop))
 
   /**
    * The state of the `TestSystem`.

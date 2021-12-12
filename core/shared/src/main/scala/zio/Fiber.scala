@@ -133,8 +133,8 @@ sealed abstract class Fiber[+E, +A] { self =>
     synthetic: Fiber.Synthetic[E, A] => Z
   ): Z =
     self match {
-      case fiber: Fiber.Runtime[E, A]   => runtime(fiber)
-      case fiber: Fiber.Synthetic[E, A] => synthetic(fiber)
+      case fiber: Fiber.Runtime[_, _]   => runtime(fiber.asInstanceOf[Fiber.Runtime[E, A]])
+      case fiber: Fiber.Synthetic[_, _] => synthetic(fiber.asInstanceOf[Fiber.Synthetic[E, A]])
     }
 
   /**
@@ -467,6 +467,11 @@ object Fiber extends FiberPlatformSpecific {
   sealed abstract class Runtime[+E, +A] extends Fiber[E, A] { self =>
 
     /**
+     * The location the fiber was forked from.
+     */
+    def location: ZTraceElement
+
+    /**
      * Generates a fiber dump.
      */
     final def dumpWith(withTrace: Boolean)(implicit trace: ZTraceElement): UIO[Fiber.Dump] =
@@ -481,11 +486,32 @@ object Fiber extends FiberPlatformSpecific {
     final def dump(implicit trace: ZTraceElement): UIO[Fiber.Dump] = dumpWith(true)
 
     /**
+     * Evaluates the specified effect on the fiber. If this is not possible,
+     * because the fiber has already ended life, then the specified alternate
+     * effect will be executed instead.
+     */
+    def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit]
+
+    /**
+     * A fully-featured, but much slower version of `evalOn`, which is useful
+     * when environment and error are required.
+     */
+    def evalOnZIO[R, E2, A2](effect: ZIO[R, E2, A2], orElse: ZIO[R, E2, A2])(implicit
+      trace: ZTraceElement
+    ): ZIO[R, E2, A2] =
+      for {
+        r <- ZIO.environment[R]
+        p <- Promise.make[E2, A2]
+        _ <- evalOn(effect.provideEnvironment(r).intoPromise(p), orElse.provideEnvironment(r).intoPromise(p))
+        a <- p.await
+      } yield a
+
+    /**
      * The identity of the fiber.
      */
     def id: FiberId.Runtime
 
-    def scope: ZScope[Exit[E, A]]
+    def scope: ZScope
 
     /**
      * The status of the fiber.
@@ -523,7 +549,7 @@ object Fiber extends FiberPlatformSpecific {
     def interruptStatus: InterruptStatus
     def executor: Executor
     def isLocked: Boolean
-    def scope: ZScope[Exit[Any, Any]]
+    def scope: ZScope
   }
 
   object Descriptor {
@@ -547,7 +573,7 @@ object Fiber extends FiberPlatformSpecific {
       interruptStatus0: InterruptStatus,
       executor0: Executor,
       locked0: Boolean,
-      scope0: ZScope[Exit[Any, Any]]
+      scope0: ZScope
     ): Descriptor =
       new Descriptor {
         def id: FiberId                      = id0
@@ -556,7 +582,7 @@ object Fiber extends FiberPlatformSpecific {
         def interruptStatus: InterruptStatus = interruptStatus0
         def executor: Executor               = executor0
         def isLocked: Boolean                = locked0
-        def scope: ZScope[Exit[Any, Any]]    = scope0
+        def scope: ZScope                    = scope0
       }
   }
 
@@ -882,7 +908,7 @@ object Fiber extends FiberPlatformSpecific {
    */
   def putDumpStr(label: String, fibers: Fiber.Runtime[_, _]*)(implicit
     trace: ZTraceElement
-  ): ZIO[Has[Console], IOException, Unit] =
+  ): ZIO[Console, IOException, Unit] =
     dumpStr(fibers: _*).flatMap(str => Console.printLine(s"$label: $str"))
 
   /**
@@ -913,11 +939,6 @@ object Fiber extends FiberPlatformSpecific {
   def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
-  private[zio] def newFiberId(): FiberId.Runtime =
-    FiberId.Runtime((java.lang.System.currentTimeMillis / 1000).toInt, _fiberCounter.getAndIncrement())
-
   private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
     new ThreadLocal[internal.FiberContext[_, _]]()
-
-  private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 }

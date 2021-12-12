@@ -14,7 +14,7 @@ trait MockSpecUtils[R] {
     app: ZIO[R, E, A],
     check: Assertion[A]
   ): ZSpec[Any, E] = test(name) {
-    val result = mock.build.use[Any, E, A](app.provide(_))
+    val result = mock.build.use[Any, E, A](app.provideEnvironment(_))
     assertM(result)(check)
   }
 
@@ -23,7 +23,7 @@ trait MockSpecUtils[R] {
     app: ZIO[R, E, A],
     check: Assertion[E]
   ): ZSpec[Any, A] = test(name) {
-    val result = mock.build.use[Any, A, E](app.flip.provide(_))
+    val result = mock.build.use[Any, A, E](app.flip.provideEnvironment(_))
     assertM(result)(check)
   }
 
@@ -31,11 +31,11 @@ trait MockSpecUtils[R] {
     mock: ULayer[R],
     app: ZIO[R, E, A],
     check: Assertion[Option[A]]
-  ): ZSpec[Has[Live], E] = test(name) {
+  ): ZSpec[Live, E] = test(name) {
     val result =
       Live.live {
         mock.build
-          .use(app.provide(_))
+          .use(app.provideEnvironment(_))
           .timeout(duration)
       }
 
@@ -49,7 +49,7 @@ trait MockSpecUtils[R] {
   ): ZSpec[Any, Any] = test(name) {
     val result: IO[Any, Throwable] =
       mock.build
-        .use(app.provide(_))
+        .use(app.provideEnvironment(_))
         .orElse(ZIO.unit)
         .absorb
         .flip

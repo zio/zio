@@ -26,14 +26,7 @@ abstract class AbstractRunnableSpec {
   type Environment
   type Failure
 
-  def aspects: List[TestAspect.WithOut[
-    Nothing,
-    Environment,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ]]
+  def aspects: List[TestAspectAtLeastR[Environment]]
   def runner: TestRunner[Environment, Failure]
   def spec: ZSpec[Environment, Failure]
 
@@ -48,7 +41,7 @@ abstract class AbstractRunnableSpec {
    * Returns an effect that executes the spec, producing the results of the
    * execution.
    */
-  final def run(implicit trace: ZTraceElement): ZIO[ZEnv with Has[ZIOAppArgs], Any, Any] =
+  final def run(implicit trace: ZTraceElement): ZIO[ZEnv with ZIOAppArgs, Any, Any] =
     runSpec(spec).provideCustomLayer(runner.bootstrap)
 
   /**
@@ -57,7 +50,7 @@ abstract class AbstractRunnableSpec {
    */
   private[zio] def runSpec(
     spec: ZSpec[Environment, Failure]
-  )(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
+  )(implicit trace: ZTraceElement): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _))
 
   /**

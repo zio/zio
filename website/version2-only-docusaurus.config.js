@@ -27,9 +27,9 @@ module.exports = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { to: 'overview/overview_index', label: 'Overview', position: 'right' },
+        { to: 'overview/index', label: 'Overview', position: 'right' },
         { to: 'datatypes/index', label: 'Data Types', position: 'right' },
-        { to: 'usecases/usecases_index', label: 'Use Cases', position: 'right' },
+        { to: 'usecases/index', label: 'Use Cases', position: 'right' },
         { to: 'howto/index', label: 'How to', position: 'right' },
         { to: 'resources/index', label: 'Resources', position: 'right' },
         { to: 'about/index', label: 'About', position: 'right' },
@@ -125,7 +125,7 @@ module.exports = {
             [require('blended-include-code-plugin'), { marker: 'CODE_INCLUDE' }],
             [require('remark-kroki-plugin'), { krokiBase: 'https://kroki.io', lang: "kroki", imgRefDir: "/img/kroki", imgDir: "static/img/kroki" }]
           ],
-          editUrl: 'https://github.com/zio/zio/edit/series/2.x', 
+          editUrl: 'https://github.com/zio/zio/edit/series/2.x',
         },
         theme: {
           customCss: [require.resolve('./src/css/custom.css')],

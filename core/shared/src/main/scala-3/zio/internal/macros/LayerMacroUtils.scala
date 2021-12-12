@@ -11,7 +11,7 @@ private [zio] object LayerMacroUtils {
 
   def renderExpr[A](expr: Expr[A])(using Quotes): String = {
     import quotes.reflect._
-    expr.asTerm.pos.sourceCode.getOrElse(expr.show)
+    scala.util.Try(expr.asTerm.pos.sourceCode).toOption.flatten.getOrElse(expr.show)
   }
 
   def buildMemoizedLayer(ctx: Quotes)(exprGraph: ZLayerExprBuilder[ctx.reflect.TypeRepr, LayerExpr], requirements: List[ctx.reflect.TypeRepr]) : LayerExpr = {
@@ -34,14 +34,14 @@ private [zio] object LayerMacroUtils {
     }.asExpr.asInstanceOf[LayerExpr]
   }
 
-  def getNodes(layers: Expr[Seq[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
+  def getNodes(layer: Expr[Seq[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
     import quotes.reflect._
-    layers match {
-      case Varargs(layers) =>
-        getNodes(layers)
+    layer match {
+      case Varargs(layer) =>
+        getNodes(layer)
 
       case other =>
-        report.throwError(
+        report.errorAndAbort(
           "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
           "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
         )
@@ -49,9 +49,9 @@ private [zio] object LayerMacroUtils {
   }
 
 
-  def getNodes(layers: Seq[Expr[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
+  def getNodes(layer: Seq[Expr[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
     import quotes.reflect._
-    layers.map {
+    layer.map {
       case '{$layer: ZLayer[in, e, out]} =>
       val inputs = getRequirements[in]("Input for " + layer.show.cyan.bold)
       val outputs = getRequirements[out]("Output for " + layer.show.cyan.bold)
@@ -60,17 +60,9 @@ private [zio] object LayerMacroUtils {
   }
 
   def getRequirements[T: Type](description: String)(using ctx: Quotes): List[ctx.reflect.TypeRepr] = {
-      import quotes.reflect._
+    import quotes.reflect._
 
-      val (nonHasTypes, requirements) = intersectionTypes[T].map(_.asType).partitionMap {
-        case '[Has[t]] => Right(TypeRepr.of[t])
-        case '[t] => Left(TypeRepr.of[t])
-      }
-
-    if (nonHasTypes.nonEmpty) report.throwError(
-      "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
-      s"${description} contains non-Has types:\n- ${nonHasTypes.mkString("\n- ")}"
-    )
+    val requirements = intersectionTypes[T]
 
     requirements
   }

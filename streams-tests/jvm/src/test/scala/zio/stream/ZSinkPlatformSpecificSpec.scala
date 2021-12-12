@@ -1,12 +1,13 @@
 package zio.stream
 
 import zio._
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
+import java.security.MessageDigest
 
 object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
 
@@ -19,7 +20,7 @@ object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
           .acquireReleaseWith(path => Task(Files.delete(path)).orDie) { path =>
             for {
               bytes  <- Task(data.getBytes(UTF_8))
-              length <- ZStream.fromIterable(bytes).run(ZSink.fromFile(path))
+              length <- ZStream.fromIterable(bytes).run(ZSink.fromPath(path))
               str    <- Task(new String(Files.readAllBytes(path)))
             } yield {
               assertTrue(data == str) &&
@@ -38,6 +39,33 @@ object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
           length <- ZStream.fromIterable(bytes).run(ZSink.fromOutputStream(os))
           str    <- Task(os.toString("UTF-8"))
         } yield assert(data)(equalTo(str)) && assert(bytes.length.toLong)(equalTo(length))
+      }
+    ),
+    suite("digest")(
+      test("should calculate digest for a stream") {
+        for {
+          res <- ZStream
+                   .fromIterable("Hello!".getBytes())
+                   .run(ZSink.digest(MessageDigest.getInstance("SHA-1")))
+        } yield {
+          assert(res)(
+            equalTo(
+              Chunk[Byte](105, 52, 44, 92, 57, -27, -82, 95, 0, 119, -82, -52, 50, -64, -8, 24, 17, -5, -127, -109)
+            )
+          )
+        }
+      },
+      test("should calculate digest for an empty stream") {
+        for {
+          res <- ZStream.empty
+                   .run(ZSink.digest(MessageDigest.getInstance("SHA-1")))
+        } yield {
+          assert(res)(
+            equalTo(
+              Chunk[Byte](-38, 57, -93, -18, 94, 107, 75, 13, 50, 85, -65, -17, -107, 96, 24, -112, -81, -40, 7, 9)
+            )
+          )
+        }
       }
     )
   )

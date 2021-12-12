@@ -1,12 +1,12 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.exceptDotty
+import zio.test.TestAspect.exceptScala3
 import zio.test._
 
 object TaggedSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Has[Annotations], TestFailure[Any], TestSuccess] = suite("TaggedSpec")(
+  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("TaggedSpec")(
     test("tags can be derived for polymorphic services") {
       val result = typeCheck {
         """
@@ -19,6 +19,6 @@ object TaggedSpec extends ZIOBaseSpec {
             """
       }
       assertM(result)(isRight(isUnit))
-    } @@ exceptDotty
+    } @@ exceptScala3
   )
 }

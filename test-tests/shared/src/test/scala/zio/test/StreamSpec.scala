@@ -6,7 +6,7 @@ import zio.test.Assertion._
 
 object StreamSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec =
     suite("StreamSpec")(
       suite("flatMapStream")(
         test("implements breadth first search") {
@@ -146,10 +146,10 @@ object StreamSpec extends ZIOBaseSpec {
       expected <- runCollectUnordered(100)(right)
     } yield assert(actual)(equalTo(expected))
 
-  lazy val genIntStreamFunction: Gen[Has[Random] with Has[Sized], Int => ZStream[Any, Nothing, Option[Int]]] =
+  lazy val genIntStreamFunction: Gen[Random with Sized, Int => ZStream[Any, Nothing, Option[Int]]] =
     Gen.function(genStream)
 
-  lazy val genStream: Gen[Has[Random] with Has[Sized], ZStream[Any, Nothing, Option[Int]]] =
+  lazy val genStream: Gen[Random with Sized, ZStream[Any, Nothing, Option[Int]]] =
     for {
       as <- Gen.listOf(Gen.option(Gen.int))
       n  <- Gen.small(n => Gen.int(1, n), 1)

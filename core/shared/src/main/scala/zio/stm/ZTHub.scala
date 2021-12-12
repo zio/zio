@@ -237,14 +237,14 @@ object ZTHub {
    * messages until they have been taken by all subscribers, applying back
    * pressure to publishers if the hub is at capacity.
    */
-  def bounded[A](requestedCapacity: Int): USTM[THub[A]] =
+  def bounded[A](requestedCapacity: => Int): USTM[THub[A]] =
     makeHub(requestedCapacity, Strategy.BackPressure)
 
   /**
    * Creates a bounded hub with the dropping strategy. The hub will drop new
    * messages if the hub is at capacity.
    */
-  def dropping[A](requestedCapacity: Int): USTM[THub[A]] =
+  def dropping[A](requestedCapacity: => Int): USTM[THub[A]] =
     makeHub(requestedCapacity, Strategy.Dropping)
 
   /**
@@ -253,7 +253,7 @@ object ZTHub {
    *
    * For best performance use capacities that are powers of two.
    */
-  def sliding[A](requestedCapacity: Int): USTM[THub[A]] =
+  def sliding[A](requestedCapacity: => Int): USTM[THub[A]] =
     makeHub(requestedCapacity, Strategy.Sliding)
 
   /**
@@ -265,7 +265,7 @@ object ZTHub {
   /**
    * Creates a hub with the specified strategy.
    */
-  private def makeHub[A](requestedCapacity: Int, strategy: Strategy): USTM[THub[A]] =
+  private def makeHub[A](requestedCapacity: => Int, strategy: => Strategy): USTM[THub[A]] =
     for {
       empty           <- TRef.make[Node[A]](null)
       hubSize         <- TRef.make(0)

@@ -210,7 +210,7 @@ import zio._
 ```scala mdoc:compile-only
 val hub: Hub[Int] = ???
 
-val hubWithLogging: ZHub[Any, Has[Clock] with Has[Console], Nothing, Nothing, Int, Int] =
+val hubWithLogging: ZHub[Any, Clock with Console, Nothing, Nothing, Int, Int] =
   hub.mapZIO { n =>
     Clock.currentDateTime.flatMap { currentDateTime =>
       Console.printLine(s"Took message $n from the hub at $currentDateTime").orDie
@@ -398,7 +398,7 @@ You can also create a sink that sends values to a hub.
 object ZSink {
   def fromHub[R, E, I](
     hub: ZHub[R, Nothing, E, Any, I, Any]
-  ): ZSink[R, E, I, E, Nothing, Unit] =
+  ): ZSink[R, E, I, Nothing, Unit] =
     ???
 }
 ```

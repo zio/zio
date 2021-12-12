@@ -21,18 +21,11 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A default runnable spec that provides testable versions of all of the modules
- * in ZIO (Clock, Has[Random], etc).
+ * in ZIO (Clock, Random, etc).
  */
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
-  override def aspects: List[TestAspect.WithOut[
-    Nothing,
-    TestEnvironment,
-    Nothing,
-    Any,
-    ({ type OutEnv[Env] = Env })#OutEnv,
-    ({ type OutErr[Err] = Err })#OutErr
-  ]] =
+  override def aspects: List[TestAspectAtLeastR[TestEnvironment]] =
     List(TestAspect.timeoutWarning(60.seconds))
 
   override def runner: TestRunner[TestEnvironment, Any] =
@@ -44,7 +37,7 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]
-  )(implicit trace: ZTraceElement): URIO[Has[TestLogger] with Has[Clock], ExecutedSpec[Failure]] =
+  )(implicit trace: ZTraceElement): URIO[TestLogger with Clock, ExecutedSpec[Failure]] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 
   /**

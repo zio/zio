@@ -3,7 +3,7 @@ package zio.stm
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.{URIO, ZIO, ZIOBaseSpec}
+import zio.{Chunk, URIO, ZIO, ZIOBaseSpec}
 
 object TMapSpec extends ZIOBaseSpec {
 
@@ -180,30 +180,58 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertM(tx.commit)(equalTo((3, 2)))
       },
-      test("retainIf") {
-        val tx =
-          for {
-            tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.retainIf((k, _) => k == "aa")
-            a    <- tmap.contains("a")
-            aa   <- tmap.contains("aa")
-            aaa  <- tmap.contains("aaa")
-          } yield (a, aa, aaa)
+      suite("retainIf")(
+        test("retainIf") {
+          val tx =
+            for {
+              tmap    <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
+              removed <- tmap.retainIf((k, _) => k == "aa")
+              a       <- tmap.contains("a")
+              aa      <- tmap.contains("aa")
+              aaa     <- tmap.contains("aaa")
+            } yield (removed, a, aa, aaa)
 
-        assertM(tx.commit)(equalTo((false, true, false)))
-      },
-      test("removeIf") {
-        val tx =
-          for {
-            tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
-            _    <- tmap.removeIf((k, _) => k == "aa")
-            a    <- tmap.contains("a")
-            aa   <- tmap.contains("aa")
-            aaa  <- tmap.contains("aaa")
-          } yield (a, aa, aaa)
+          assertM(tx.commit)(equalTo((Chunk("aaa" -> 3, "a" -> 1), false, true, false)))
+        },
+        test("retainIfDiscard") {
+          val tx =
+            for {
+              tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
+              _    <- tmap.retainIfDiscard((k, _) => k == "aa")
+              a    <- tmap.contains("a")
+              aa   <- tmap.contains("aa")
+              aaa  <- tmap.contains("aaa")
+            } yield (a, aa, aaa)
 
-        assertM(tx.commit)(equalTo((true, false, true)))
-      },
+          assertM(tx.commit)(equalTo((false, true, false)))
+        }
+      ),
+      suite("removeIf")(
+        test("removeIf") {
+          val tx =
+            for {
+              tmap    <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
+              removed <- tmap.removeIf((_, v) => v > 1)
+              a       <- tmap.contains("a")
+              aa      <- tmap.contains("aa")
+              aaa     <- tmap.contains("aaa")
+            } yield (removed, a, aa, aaa)
+
+          assertM(tx.commit)(equalTo((Chunk("aaa" -> 3, "aa" -> 2), true, false, false)))
+        },
+        test("removeIfDiscard") {
+          val tx =
+            for {
+              tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
+              _    <- tmap.removeIfDiscard((k, _) => k == "aa")
+              a    <- tmap.contains("a")
+              aa   <- tmap.contains("aa")
+              aaa  <- tmap.contains("aaa")
+            } yield (a, aa, aaa)
+
+          assertM(tx.commit)(equalTo((true, false, true)))
+        }
+      ),
       test("transform") {
         val tx =
           for {

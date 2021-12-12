@@ -20,7 +20,7 @@ import zio._
 import zio.stream._
 
 val stream = ZStream.fromIterable(1 to 1000)
-val sink   = ZSink.sum[Nothing, Int]
+val sink   = ZSink.sum[Int]
 val sum    = stream.run(sink)
 ```
 
@@ -33,7 +33,7 @@ The `zio.stream` provides numerous kinds of sinks to use.
 **ZSink.head** — It creates a sink containing the first element, returns `None` for empty streams:
 
 ```scala mdoc:silent:nest
-val sink: ZSink[Any, Nothing, Int, Nothing, Int, Option[Int]] = ZSink.head[Nothing, Int]
+val sink: ZSink[Any, Nothing, Int, Int, Option[Int]] = ZSink.head[Int]
 val head: ZIO[Any, Nothing, Option[Int]]             = ZStream(1, 2, 3, 4).run(sink)
 // Result: Some(1)
 ``` 
@@ -41,7 +41,7 @@ val head: ZIO[Any, Nothing, Option[Int]]             = ZStream(1, 2, 3, 4).run(s
 **ZSink.last** — It consumes all elements of a stream and returns the last element of the stream:
 
 ```scala mdoc:silent:nest
-val sink: ZSink[Any, Nothing, Int, Nothing, Int, Option[Int]] = ZSink.last[Nothing, Int]
+val sink: ZSink[Any, Nothing, Int, Int, Option[Int]] = ZSink.last[Int]
 val last: ZIO[Any, Nothing, Option[Int]]                 = ZStream(1, 2, 3, 4).run(sink)
 // Result: Some(4)
 ```
@@ -49,7 +49,7 @@ val last: ZIO[Any, Nothing, Option[Int]]                 = ZStream(1, 2, 3, 4).r
 **ZSink.count** — A sink that consumes all elements of the stream and counts the number of elements fed to it:
 
 ```scala mdoc:silent:nest
-val sink : ZSink[Any, Nothing, Int, Nothing, Nothing, Int] = ZSink.sum[Nothing, Int]
+val sink : ZSink[Any, Nothing, Int, Nothing, Int] = ZSink.sum[Int]
 val count: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(sink)
 // Result: 5
 ```
@@ -57,7 +57,7 @@ val count: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(s
 **ZSink.sum** — A sink that consumes all elements of the stream and sums incoming numeric values:
 
 ```scala mdoc:silent:nest
-val sink : ZSink[Any, Nothing, Int, Nothing, Nothing, Int] = ZSink.sum[Nothing, Int]
+val sink : ZSink[Any, Nothing, Int, Nothing, Int] = ZSink.sum[Int]
 val sum: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(sink)
 // Result: 15
 ```
@@ -65,7 +65,7 @@ val sum: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(sin
 **ZSink.take** — A sink that takes the specified number of values and result in a `Chunk` data type:
 
 ```scala mdoc:silent:nest
-val sink  : ZSink[Any, Nothing, Int, Nothing, Int, Chunk[Int]] = ZSink.take[Nothing, Int](3)
+val sink  : ZSink[Any, Nothing, Int, Int, Chunk[Int]] = ZSink.take[Int](3)
 val stream: ZIO[Any, Nothing, Chunk[Int]]             = ZStream(1, 2, 3, 4, 5).run(sink)
 // Result: Chunk(1, 2, 3)
 ```
@@ -73,14 +73,14 @@ val stream: ZIO[Any, Nothing, Chunk[Int]]             = ZStream(1, 2, 3, 4, 5).r
 **ZSink.drain** — A sink that ignores its inputs:
 
 ```scala mdoc:silent:nest
-val drain: ZSink[Any, Nothing, Any, Nothing, Nothing, Unit] = ZSink.drain
+val drain: ZSink[Any, Nothing, Any, Nothing, Unit] = ZSink.drain
 ```
 
 **ZSink.timed** — A sink that executes the stream and times its execution:
 
 ```scala mdoc:silent
-val timed: ZSink[Has[Clock], Nothing, Any, Nothing, Nothing, Duration] = ZSink.timed
-val stream: ZIO[Has[Clock], Nothing, Long] =
+val timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.timed
+val stream: ZIO[Clock, Nothing, Long] =
   ZStream(1, 2, 3, 4, 5).fixed(2.seconds).run(timed).map(_.getSeconds)
 // Result: 10
 ```
@@ -88,9 +88,9 @@ val stream: ZIO[Has[Clock], Nothing, Long] =
 **ZSink.foreach** — A sink that executes the provided effectful function for every element fed to it:
 
 ```scala mdoc:silent:nest
-val printer: ZSink[Has[Console], IOException, Int, IOException, Int, Unit] =
+val printer: ZSink[Console, IOException, Int, Int, Unit] =
   ZSink.foreach((i: Int) => printLine(i))
-val stream : ZIO[Has[Console], IOException, Unit]             =
+val stream : ZIO[Console, IOException, Unit]             =
   ZStream(1, 2, 3, 4, 5).run(printer)
 ```
 
@@ -101,13 +101,13 @@ Similar to the `ZStream` data type, we can create a `ZSink` using `fail` and `su
 A sink that doesn't consume any element from its upstream and successes with a value of `Int` type:
 
 ```scala mdoc:silent:nest
-val succeed: ZSink[Any, Any, Any, Nothing, Nothing, Int] = ZSink.succeed(5)
+val succeed: ZSink[Any, Any, Any, Nothing, Int] = ZSink.succeed(5)
 ```
 
 A sink that doesn't consume any element from its upstream and intentionally fails with a message of `String` type:
 
 ```scala mdoc:silent:nest
-val failed : ZSink[Any, Any, Any, String, Nothing, Nothing] = ZSink.fail("fail!")
+val failed : ZSink[Any, String, Any, Nothing, Nothing] = ZSink.fail("fail!")
 ```
 
 ### Collecting
@@ -116,14 +116,14 @@ To create a sink that collects all elements of a stream into a `Chunk[A]`, we ca
 
 ```scala mdoc:silent:nest
 val stream    : UStream[Int]    = UStream(1, 2, 3, 4, 5)
-val collection: UIO[Chunk[Int]] = stream.run(ZSink.collectAll[Nothing, Int])
+val collection: UIO[Chunk[Int]] = stream.run(ZSink.collectAll[Int])
 // Output: Chunk(1, 2, 3, 4, 5)
 ```
 
 We can collect all elements into a `Set`:
 
 ```scala mdoc:silent:nest
-val collectAllToSet: ZSink[Any, Nothing, Int, Nothing, Nothing, Set[Int]] = ZSink.collectAllToSet[Nothing, Int]
+val collectAllToSet: ZSink[Any, Nothing, Int, Nothing, Set[Int]] = ZSink.collectAllToSet[Int]
 val stream: ZIO[Any, Nothing, Set[Int]] = ZStream(1, 3, 2, 3, 1, 5, 1).run(collectAllToSet)
 // Output: Set(1, 3, 2, 5)
 ```
@@ -131,7 +131,7 @@ val stream: ZIO[Any, Nothing, Set[Int]] = ZStream(1, 3, 2, 3, 1, 5, 1).run(colle
 Or we can collect and merge them into a `Map[K, A]` using a merge function. In the following example, we use `(_:Int) % 3` to determine map keys and, we provide `_ + _` function to merge multiple elements with the same key:
 
 ```scala mdoc:silent:nest
-val collectAllToMap: ZSink[Any, Nothing, Int, Nothing, Nothing, Map[Int, Int]] = ZSink.collectAllToMap((_: Int) % 3)(_ + _)
+val collectAllToMap: ZSink[Any, Nothing, Int, Nothing, Map[Int, Int]] = ZSink.collectAllToMap((_: Int) % 3)(_ + _)
 val stream: ZIO[Any, Nothing, Map[Int, Int]] = ZStream(1, 3, 2, 3, 1, 5, 1).run(collectAllToMap)
 // Output: Map(1 -> 3, 0 -> 6, 2 -> 7)
 ```
@@ -187,7 +187,7 @@ ZStream(1, 2, 1, 2, 1, 3, 0, 5, 0, 2).run(
 Basic fold accumulation of received elements:
 
 ```scala mdoc:silent
-ZSink.foldLeft[Nothing, Int, Int](0)(_ + _)
+ZSink.foldLeft[Int, Int](0)(_ + _)
 ```
 
 A fold with short-circuiting has a termination predicate that determines the end of the folding process:
@@ -288,7 +288,7 @@ ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
 ```scala mdoc:silent:nest
 val stream: ZIO[Any, Nothing, Int] = 
-  ZStream(1, 2, 3, 4).run(ZSink.foldLeft[Nothing, Int, Int](0)(_ + _))
+  ZStream(1, 2, 3, 4).run(ZSink.foldLeft[Int, Int](0)(_ + _))
 // Output: 10
 ```
 
@@ -302,12 +302,12 @@ val sink = ZSink.fromZIO(ZIO.succeed(1))
 
 ### From File
 
-The `ZSink.fromFile` creates a file sink that consumes byte chunks and writes them to the specified file:
+The `ZSink.fromPath` creates a file sink that consumes byte chunks and writes them to the specified file:
 
 ```scala mdoc:silent:nest
-def fileSink(path: Path): ZSink[Any, Throwable, String, Throwable, Byte, Long] =
+def fileSink(path: Path): ZSink[Any, Throwable, String, Byte, Long] =
   ZSink
-    .fromFile(path)
+    .fromPath(path)
     .contramapChunks[String](_.flatMap(_.getBytes))
 
 val result = ZStream("Hello", "ZIO", "World!")
@@ -334,7 +334,7 @@ ZStream("Application", "Error", "Logs")
 A queue has a finite or infinite buffer size, so they are useful in situations where we need to consume streams as fast as we can, and then do some batching operations on consumed messages. By using `ZSink.fromQueue` we can create a sink that is backed by a queue; it enqueues each element into the specified queue:
 
 ```scala mdoc:silent:nest
-val myApp: ZIO[Has[Console] with Has[Clock], IOException, Unit] =
+val myApp: ZIO[Console with Clock, IOException, Unit] =
   for {
     queue    <- ZQueue.bounded[Int](32)
     producer <- ZStream
@@ -354,7 +354,7 @@ val myApp: ZIO[Has[Console] with Has[Clock], IOException, Unit] =
 In the following example, the `sink` consumes elements of the `producer` stream and publishes them to the `hub`. We have two consumers that are subscribed to that hub and they are taking its elements forever:
 
 ```scala mdoc:silent:nest
-val myApp: ZIO[Has[Console] with Has[Clock], IOException, Unit] =
+val myApp: ZIO[Console with Clock, IOException, Unit] =
   for {
     promise <- Promise.make[Nothing, Unit]
     hub <- ZHub.bounded[Int](1)
@@ -384,9 +384,9 @@ Contramap is a simple combinator to change the domain of an existing function. W
 This is useful when we have a fixed output, and our existing function cannot consume those outputs. So we can use _contramap_ to create a new function that can consume that fixed output. Assume we have a `ZSink.sum` that sums incoming numeric values, but we have a `ZStream` of `String` values. We can convert the `ZSink.sum` to a sink that can consume `String` values;
 
 ```scala mdoc:silent:nest
-val numericSum: ZSink[Any, Nothing, Int, Nothing, Nothing, Int]    = 
-  ZSink.sum[Nothing, Int]
-val stringSum : ZSink[Any, Nothing, String, Nothing, Nothing, Int] = 
+val numericSum: ZSink[Any, Nothing, Int, Nothing, Int]    = 
+  ZSink.sum[Int]
+val stringSum : ZSink[Any, Nothing, String, Nothing, Int] = 
   numericSum.contramap((x: String) => x.toInt)
 
 val sum: ZIO[Any, Nothing, Int] =
@@ -400,7 +400,7 @@ A `dimap` is an extended `contramap` that additionally transforms sink's output:
 
 ```scala mdoc:silent:nest
 // Convert its input to integers, do the computation and then convert them back to a string
-val sumSink: ZSink[Any, Nothing, String, Nothing, Nothing, String] =
+val sumSink: ZSink[Any, Nothing, String, Nothing, String] =
   numericSum.dimap[String, String](_.toInt, _.toString)
   
 val sum: ZIO[Any, Nothing, String] =
@@ -417,7 +417,7 @@ Sinks have `ZSink#filterInput` for filtering incoming elements:
 ZStream(1, -2, 0, 1, 3, -3, 4, 2, 0, 1, -3, 1, 1, 6)
   .transduce(
     ZSink
-      .collectAllN[Nothing, Int](3)
+      .collectAllN[Int](3)
       .filterInput[Int](_ > 0)
   )
 // Output: Chunk(Chunk(1,1,3),Chunk(4,2,1),Chunk(1,1,6),Chunk())
@@ -435,13 +435,13 @@ case class Record()
 ```
 
 ```scala mdoc:silent:nest
-val kafkaSink: ZSink[Any, Throwable, Record, Throwable, Record, Unit] =
+val kafkaSink: ZSink[Any, Throwable, Record, Record, Unit] =
   ZSink.foreach[Any, Throwable, Record](record => ZIO.attempt(???))
 
-val pulsarSink: ZSink[Any, Throwable, Record, Throwable, Record, Unit] =
+val pulsarSink: ZSink[Any, Throwable, Record, Record, Unit] =
   ZSink.foreach[Any, Throwable, Record](record => ZIO.attempt(???))
 
-val stream: ZSink[Any, Throwable, Record, Throwable, Record, Unit] =
+val stream: ZSink[Any, Throwable, Record, Record, Unit] =
   kafkaSink zipPar pulsarSink 
 ```
 
@@ -450,7 +450,7 @@ val stream: ZSink[Any, Throwable, Record, Throwable, Record, Unit] =
 We are able to `race` multiple sinks, they will run in parallel, and the one that wins will provide the result of our program:
 
 ```scala mdoc:silent:nest
-val stream: ZSink[Any, Throwable, Record, Throwable, Record, Unit] =
+val stream: ZSink[Any, Throwable, Record, Record, Unit] =
   kafkaSink race pulsarSink 
 ```
 
@@ -472,7 +472,7 @@ val s1: ZIO[Any, Nothing, (Chunk[Int], Chunk[Int])] =
 
 val s2: ZIO[Any, Nothing, (Option[Int], Chunk[Int])] =
   ZStream(1, 2, 3, 4, 5).run(
-    ZSink.head[Nothing, Int].exposeLeftover
+    ZSink.head[Int].exposeLeftover
   )
 // Output: (Some(1), Chunk(2, 3, 4, 5))
 ```
@@ -482,5 +482,5 @@ val s2: ZIO[Any, Nothing, (Option[Int], Chunk[Int])] =
 If we don't need leftovers, we can drop them by using `ZSink#dropLeftover`:
 
 ```scala mdoc:silent:nest
-ZSink.take[Nothing, Int](3).dropLeftover
+ZSink.take[Int](3).dropLeftover
 ```

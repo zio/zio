@@ -84,7 +84,7 @@ import scala.collection.immutable.SortedSet
  * placed in the queue, and when we adjust the clock by another 60 minutes
  * exactly one more value is placed in the queue.
  */
-trait TestClock extends Restorable {
+trait TestClock extends Clock with Restorable {
   def adjust(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit]
   def setDateTime(dateTime: OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit]
   def setTime(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit]
@@ -365,27 +365,28 @@ object TestClock extends Serializable {
    */
   def live(
     data: Data
-  )(implicit trace: ZTraceElement): ZLayer[Has[Annotations] with Has[Live], Nothing, Has[Clock] with Has[TestClock]] = {
-    for {
-      live                  <- ZManaged.service[Live]
-      annotations           <- ZManaged.service[Annotations]
-      clockState            <- ZIO.succeedNow(Ref.unsafeMake(data)).toManaged
-      warningState          <- Ref.Synchronized.make(WarningData.start).toManaged
-      suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start).toManaged
-      test <-
-        Managed.acquireReleaseWith(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) {
-          test =>
-            test.warningDone *> test.suspendedWarningDone
-        }
-    } yield Has.allOf(test: Clock, test: TestClock)
-  }.toLayerMany
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[Annotations with Live, Nothing, TestClock] =
+    ZLayer {
+      for {
+        live                  <- ZManaged.service[Live]
+        annotations           <- ZManaged.service[Annotations]
+        clockState            <- ZIO.succeedNow(Ref.unsafeMake(data)).toManaged
+        warningState          <- Ref.Synchronized.make(WarningData.start).toManaged
+        suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start).toManaged
+        test <-
+          Managed.acquireReleaseWith(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) {
+            test =>
+              test.warningDone *> test.suspendedWarningDone
+          }
+      } yield test
+    }
 
-  //    case class FooLive(int: Int, string: String)
+  val any: ZLayer[TestClock, Nothing, TestClock] =
+    ZLayer.environment[TestClock](Tracer.newTrace)
 
-  val any: ZLayer[Has[Clock] with Has[TestClock], Nothing, Has[Clock] with Has[TestClock]] =
-    ZLayer.environment[Has[Clock] with Has[TestClock]](Tracer.newTrace)
-
-  val default: ZLayer[Has[Live] with Has[Annotations], Nothing, Has[Clock] with Has[TestClock]] =
+  val default: ZLayer[Live with Annotations, Nothing, TestClock] =
     live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))(Tracer.newTrace)
 
   /**
@@ -393,32 +394,32 @@ object TestClock extends Serializable {
    * by the specified duration, running any actions scheduled for on or before
    * the new time in order.
    */
-  def adjust(duration: => Duration)(implicit trace: ZTraceElement): URIO[Has[TestClock], Unit] =
-    ZIO.accessZIO(_.get.adjust(duration))
+  def adjust(duration: => Duration)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
+    ZIO.serviceWithZIO(_.adjust(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock
    * state in an effect which, when run, will restore the `TestClock` to the
    * saved state.
    */
-  def save(implicit trace: ZTraceElement): ZIO[Has[TestClock], Nothing, UIO[Unit]] =
-    ZIO.accessZIO(_.get.save)
+  def save(implicit trace: ZTraceElement): ZIO[TestClock, Nothing, UIO[Unit]] =
+    ZIO.serviceWithZIO(_.save)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
    * to the specified `OffsetDateTime`, running any actions scheduled for on or
    * before the new time in order.
    */
-  def setDateTime(dateTime: => OffsetDateTime)(implicit trace: ZTraceElement): URIO[Has[TestClock], Unit] =
-    ZIO.accessZIO(_.get.setDateTime(dateTime))
+  def setDateTime(dateTime: => OffsetDateTime)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
+    ZIO.serviceWithZIO(_.setDateTime(dateTime))
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
    * to the specified time in terms of duration since the epoch, running any
    * actions scheduled for on or before the new time in order.
    */
-  def setTime(duration: => Duration)(implicit trace: ZTraceElement): URIO[Has[TestClock], Unit] =
-    ZIO.accessZIO(_.get.setTime(duration))
+  def setTime(duration: => Duration)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
+    ZIO.serviceWithZIO(_.setTime(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment, setting the time zone
@@ -426,22 +427,22 @@ object TestClock extends Serializable {
    * the epoch will not be altered and no scheduled actions will be run as a
    * result of this effect.
    */
-  def setTimeZone(zone: => ZoneId)(implicit trace: ZTraceElement): URIO[Has[TestClock], Unit] =
-    ZIO.accessZIO(_.get.setTimeZone(zone))
+  def setTimeZone(zone: => ZoneId)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
+    ZIO.serviceWithZIO(_.setTimeZone(zone))
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list of
    * times that effects are scheduled to run.
    */
-  def sleeps(implicit trace: ZTraceElement): ZIO[Has[TestClock], Nothing, List[Duration]] =
-    ZIO.accessZIO(_.get.sleeps)
+  def sleeps(implicit trace: ZTraceElement): ZIO[TestClock, Nothing, List[Duration]] =
+    ZIO.serviceWithZIO(_.sleeps)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
-  def timeZone(implicit trace: ZTraceElement): URIO[Has[TestClock], ZoneId] =
-    ZIO.accessZIO(_.get.timeZone)
+  def timeZone(implicit trace: ZTraceElement): URIO[TestClock, ZoneId] =
+    ZIO.serviceWithZIO(_.timeZone)
 
   /**
    * `Data` represents the state of the `TestClock`, including the clock time
@@ -526,7 +527,7 @@ object TestClock extends Serializable {
    */
   private val warning =
     "Warning: A test is using time, but is not advancing the test clock, " +
-      "which may result in the test hanging. Use Has[TestClock].adjust to " +
+      "which may result in the test hanging. Use TestClock.adjust to " +
       "manually advance the time."
 
   /**

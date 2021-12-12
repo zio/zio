@@ -28,43 +28,43 @@ addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "check",
-  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile"
+  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile; scalafixTests/test"
 )
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile"
+  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile;concurrentJVM/test:compile"
 )
 addCommandAlias(
   "testNative",
-  ";coreNative/test;stacktracerNative/test;streamsNative/test;testNative/test;testRunnerNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
+  ";coreNative/test;stacktracerNative/test;streamsNative/test;testNative/test;testRunnerNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test;concurrentJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test:compile;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test:compile;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test"
 )
 addCommandAlias(
   "testJVMDotty",
-  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile"
+  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test"
 )
 addCommandAlias(
   "testJSDotty",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;concurrentJS/test"
 )
 addCommandAlias(
   "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test;concurrentJVM/test"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test;concurrentJS/test"
 )
 addCommandAlias(
   "testJS211",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test;concurrentJS/test"
 )
 addCommandAlias(
   "mimaChecks",
@@ -88,18 +88,26 @@ lazy val root = project
   )
   .aggregate(
     benchmarks,
+    concurrentJVM,
+    concurrentJS,
+    concurrentNative,
     coreJS,
     coreJVM,
     coreNative,
     coreTestsJS,
     coreTestsJVM,
     docs,
+    internalMacrosJS,
+    internalMacrosJVM,
+    internalMacrosNative,
     examplesJS,
     examplesJVM,
     macrosJS,
     macrosJVM,
+    macrosNative,
     macrosTestsJS,
     macrosTestsJVM,
+    scalafixTests,
     stacktracerJS,
     stacktracerJVM,
     stacktracerNative,
@@ -132,11 +140,11 @@ lazy val root = project
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core"))
-  .dependsOn(stacktracer)
+  .dependsOn(internalMacros, stacktracer)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.0")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.8")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(
@@ -146,6 +154,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       else
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
     }
+  )
+  .jsSettings(
+    libraryDependencies += ("org.scala-js" %%% "scalajs-weakreferences" % "1.0.0").cross(CrossVersion.for3Use2_13)
   )
 
 lazy val coreJVM = core.jvm
@@ -187,7 +198,7 @@ lazy val coreTestsJVM = coreTests.jvm
 lazy val coreTestsJS = coreTests.js
   .settings(dottySettings)
 
-lazy val macros = crossProject(JSPlatform, JVMPlatform)
+lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
   .dependsOn(core)
   .settings(stdSettings("zio-macros"))
@@ -195,8 +206,9 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
 
-lazy val macrosJVM = macros.jvm
-lazy val macrosJS  = macros.js
+lazy val macrosJVM    = macros.jvm
+lazy val macrosJS     = macros.js
+lazy val macrosNative = macros.native.settings(nativeSettings)
 
 lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros-tests"))
@@ -213,6 +225,17 @@ lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
 
 lazy val macrosTestsJVM = macrosTests.jvm
 lazy val macrosTestsJS  = macrosTests.js
+
+lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("internal-macros"))
+  .settings(stdSettings("zio-internal-macros"))
+  .settings(crossProjectSettings)
+  .settings(macroDefinitionSettings)
+  .settings(macroExpansionSettings)
+
+lazy val internalMacrosJVM    = internalMacros.jvm.settings(dottySettings)
+lazy val internalMacrosJS     = internalMacros.js.settings(dottySettings)
+lazy val internalMacrosNative = internalMacros.native.settings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -498,6 +521,26 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
         .value
   )
 
+lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("concurrent"))
+  .dependsOn(core)
+  .settings(stdSettings("zio-concurrent"))
+  .settings(crossProjectSettings)
+  .settings(buildInfoSettings("zio.stream"))
+  .enablePlugins(BuildInfoPlugin)
+  .dependsOn(testRunner % Test)
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+
+lazy val concurrentJVM = concurrent.jvm
+  .settings(dottySettings)
+  .settings(mimaSettings(failOnProblem = false))
+
+lazy val concurrentJS = concurrent.js
+  .settings(dottySettings)
+
+lazy val concurrentNative = concurrent.native
+  .settings(nativeSettings)
+
 /**
  * Examples sub-project that is not included in the root project.
  *
@@ -508,7 +551,6 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(stdSettings("examples"))
   .settings(crossProjectSettings)
   .settings(macroExpansionSettings)
-  .settings(scalacOptions += "-Xfatal-warnings")
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(publish / skip := true)
   .dependsOn(macros, testRunner)
@@ -574,6 +616,62 @@ val http4sV     = "0.23.6"
 val doobieV     = "1.0.0-RC1"
 val catsEffectV = "3.2.9"
 val zioActorsV  = "0.0.9"
+
+lazy val scalafixSettings = List(
+  scalaVersion := "2.13.7",
+  addCompilerPlugin(scalafixSemanticdb),
+  crossScalaVersions --= List(Scala211, Scala212, Scala3),
+  scalacOptions ++= List(
+    "-Yrangepos",
+    "-P:semanticdb:synthetics:on"
+  )
+)
+
+lazy val scalafixRules = project.module
+  .in(file("scalafix/rules")) // TODO .in needed when name matches?
+  .settings(
+    scalafixSettings,
+    semanticdbEnabled                      := true, // enable SemanticDB
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.32"
+  )
+
+val zio1Version = "1.0.12"
+
+lazy val scalafixInput = project
+  .in(file("scalafix/input"))
+  .settings(
+    scalafixSettings,
+    publish / skip                   := true,
+    libraryDependencies += "dev.zio" %% "zio"         % zio1Version,
+    libraryDependencies += "dev.zio" %% "zio-streams" % zio1Version,
+    libraryDependencies += "dev.zio" %% "zio-test"    % zio1Version
+  )
+
+lazy val scalafixOutput = project
+  .in(file("scalafix/output"))
+  .settings(
+    scalafixSettings,
+    publish / skip := true
+  )
+  .dependsOn(coreJVM, testJVM, streamsJVM)
+
+lazy val scalafixTests = project
+  .in(file("scalafix/tests"))
+  .settings(
+    scalafixSettings,
+    publish / skip                        := true,
+    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.9.32" % Test cross CrossVersion.full,
+    Compile / compile :=
+      (Compile / compile).dependsOn(scalafixInput / Compile / compile).value,
+    scalafixTestkitOutputSourceDirectories :=
+      (scalafixOutput / Compile / sourceDirectories).value,
+    scalafixTestkitInputSourceDirectories :=
+      (scalafixInput / Compile / sourceDirectories).value,
+    scalafixTestkitInputClasspath :=
+      (scalafixInput / Compile / fullClasspath).value
+  )
+  .dependsOn(scalafixRules)
+  .enablePlugins(ScalafixTestkitPlugin)
 
 lazy val docs = project.module
   .in(file("zio-docs"))
