@@ -133,7 +133,7 @@ jobs:
       - name: Test on different Scala target platforms
         run: ./sbt test${{ matrix.platform }}
         env:
-          JVM_OPTS: -XX:+UseG1GC
+          JVM_OPTS: -Xmx2G
 
   ci:
     runs-on: ubuntu-20.04
