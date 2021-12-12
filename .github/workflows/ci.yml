@@ -123,6 +123,8 @@ jobs:
       fail-fast: false
       matrix:
         platform: ['JS', 'Native']
+    env:
+      JVM_OPTS: -Xmx2G -XX:+UseG1GC
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2.4.0
@@ -132,8 +134,6 @@ jobs:
         uses: coursier/cache-action@v6
       - name: Test on different Scala target platforms
         run: ./sbt test${{ matrix.platform }}
-        env:
-          SBT_OPTS: '-Xmx2G -XX:+UseG1GC'
 
   ci:
     runs-on: ubuntu-20.04
