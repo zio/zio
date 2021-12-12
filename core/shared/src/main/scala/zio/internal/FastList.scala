@@ -45,7 +45,7 @@ object FastList {
         }
     }
   type List[+A] = listModule.List[A]
-  implicit class ListExtensionMethods[A](val self: List[A]) extends AnyVal {
+  implicit final class ListExtensionMethods[A](val self: List[A]) extends AnyVal {
     def ::(a: A): List[A] = listModule.cons(a, self)
 
     def dropWhile(p: A => Boolean): List[A] =
@@ -57,6 +57,10 @@ object FastList {
         if (p(h)) t.dropWhile(p)
         else self
       }
+
+    def exists(p: A => Boolean): Boolean =
+      if (isEmpty) false
+      else p(head) || tail.exists(p)
 
     def filter(p: A => Boolean): List[A] =
       if (isEmpty) List.Nil
@@ -76,6 +80,10 @@ object FastList {
 
         tail.foldLeft(z2)(f)
       }
+
+    def forall(p: A => Boolean): Boolean =
+      if (isEmpty) true
+      else p(head) && tail.forall(p)
 
     def head: A = listModule.head(self)
 

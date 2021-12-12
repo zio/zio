@@ -46,6 +46,18 @@ object FastListSpec extends ZIOBaseSpec {
           }
 
           assertTrue(list == building.reverse)
+        } +
+        test("forall positive") {
+          assertTrue(List(1, 2, 3, 4, 5).forall(_ <= 5) == true)
+        } +
+        test("forall negative") {
+          assertTrue(List(1, 2, 3, 4, 5).forall(_ < 5) == false)
+        } +
+        test("exists positive") {
+          assertTrue(List(1, 2, 3, 4, 5).exists(_ > 4) == true)
+        } +
+        test("exists negative") {
+          assertTrue(List(1, 2, 3, 4, 5).exists(_ > 5) == false)
         }
     }
 }

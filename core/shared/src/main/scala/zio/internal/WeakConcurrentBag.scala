@@ -8,9 +8,15 @@ import scala.annotation.tailrec
 /**
  * A [[WeakConcurrentBag]] stores a collection of values, each wrapped in a
  * `WeakReference`. The structure is optimized for addition, and will achieve
- * zero allocations in the happy path. To remove a value from the bag, it is
+ * zero allocations in the happy path (aside from the allocation of the
+ * `WeakReference`, which is unavoidable). To remove a value from the bag, it is
  * sufficient to clear the corresponding weak reference, at which point the weak
  * reference will be removed from the bag during the next garbage collection.
+ *
+ * Garbage collection happens regularly during the `add` operation. Assuming
+ * uniform distribution of hash codes of values added to the bag, the chance of
+ * garbage collection occurring during an `add` operation is 1/n, where `n` is
+ * the capacity of the table backing the bag.
  */
 class WeakConcurrentBag[A](tableSize: Int) {
   import zio.internal.FastList._
@@ -42,13 +48,20 @@ class WeakConcurrentBag[A](tableSize: Int) {
   /**
    * Performs garbage collection, removing any empty weak references.
    */
-  final def gc(): Unit =
+  final def gc(): Unit = {
+    val predicate: WeakReference[A] => Boolean =
+      ref => (ref ne null) && (ref.get() != null)
+
     (0 until tableSize).foreach { bucket =>
       val oldValue = contents.get(bucket)
-      val newValue = oldValue.filter(ref => (ref ne null) && (ref.get() != null))
 
-      contents.compareAndSet(bucket, oldValue, newValue)
+      if (!oldValue.forall(predicate)) {
+        val newValue = oldValue.filter(predicate)
+
+        contents.compareAndSet(bucket, oldValue, newValue)
+      }
     }
+  }
 
   /**
    * Returns a weakly consistent iterator over the bag. This iterator will never
