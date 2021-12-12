@@ -490,7 +490,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   ): (Option[Any], Queue[Subexecutor.PullFromChild[Env]]) =
     strategy match {
       case UpstreamPullStrategy.PullAfterNext(emitSeparator) =>
-        (emitSeparator, if (!upstreamFinished || queue.exists(_ != null)) queue.prepended(null) else queue)
+        (emitSeparator, if (!upstreamFinished || queue.exists(_ != null)) null +: queue else queue)
       case UpstreamPullStrategy.PullAfterAllEnqueued(emitSeparator) =>
         (
           emitSeparator,
@@ -580,7 +580,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           val drain = Subexecutor.DrainChildExecutors(
             self.upstreamExecutor,
             self.lastDone,
-            self.activeChildExecutors.prepended(null),
+            null +: self.activeChildExecutors,
             self.upstreamExecutor.getDone,
             self.combineChildResults,
             self.combineWithChildResult,
@@ -751,20 +751,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         onEmitted(emitted) match {
           case ChildExecutorDecision.Yield =>
             debug(s"pullFromChild[$debugId] onEmit($emitted) => Yield")
-            val modifiedParent = {
-              parentSubexecutor match {
-                case pfu: Subexecutor.PullFromUpstream[Env] =>
-                  pfu.copy(
-                    activeChildExecutors = pfu.activeChildExecutors.enqueue(self)
-                  )
-                case dce: Subexecutor.DrainChildExecutors[Env] =>
-                  dce.copy(
-                    activeChildExecutors = dce.activeChildExecutors.enqueue(self)
-                  )
-                case _ =>
-                  ??? // TODO: avoid this case
-              }
-            }
+            val modifiedParent = parentSubexecutor.enqueuePullFromChild(self)
             replaceSubexecutor(modifiedParent)
           case ChildExecutorDecision.Close(doneValue) =>
             finishWithDoneValue(doneValue)
@@ -828,8 +815,10 @@ object ChannelExecutor {
     else if (l ne null) l.exit
     else r.exit
 
-  sealed abstract class Subexecutor[-R] {
+  sealed abstract class Subexecutor[R] {
     def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]]
+
+    def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R]
   }
   object Subexecutor {
 
@@ -850,7 +839,7 @@ object ChannelExecutor {
       def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] = {
         val fin1 = upstreamExecutor.close(ex)
         val fins =
-          activeChildExecutors.map(child => if (child != null) child.childExecutor.close(ex) else null).appended(fin1)
+          activeChildExecutors.map(child => if (child != null) child.childExecutor.close(ex) else null).enqueue(fin1)
 
         fins.foldLeft[URIO[R, Exit[Any, Any]]](null) { case (acc, next) =>
           if ((acc eq null) && (next eq null)) null
@@ -859,6 +848,9 @@ object ChannelExecutor {
           else acc.zipWith(next.exit)(_ *> _)
         }
       }
+
+      override def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R] =
+        this.copy(activeChildExecutors = activeChildExecutors.enqueue(child))
     }
 
     /**
@@ -881,6 +873,9 @@ object ChannelExecutor {
         else fin2
       }
 
+      override def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R] =
+        this
+
       override def toString: String = debugId
     }
 
@@ -900,7 +895,7 @@ object ChannelExecutor {
       def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] = {
         val fin1 = upstreamExecutor.close(ex)
         val fins =
-          activeChildExecutors.map(child => if (child != null) child.childExecutor.close(ex) else null).appended(fin1)
+          activeChildExecutors.map(child => if (child != null) child.childExecutor.close(ex) else null).enqueue(fin1)
 
         fins.foldLeft[URIO[R, Exit[Any, Any]]](null) { case (acc, next) =>
           if ((acc eq null) && (next eq null)) null
@@ -909,10 +904,17 @@ object ChannelExecutor {
           else acc.zipWith(next.exit)(_ *> _)
         }
       }
+
+      override def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R] =
+        this.copy(activeChildExecutors = activeChildExecutors.enqueue(child))
     }
+
     final case class Emit[R](value: Any, next: Subexecutor[R]) extends Subexecutor[R] {
       def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] =
         next.close(ex)
+
+      override def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R] =
+        this
     }
   }
 
