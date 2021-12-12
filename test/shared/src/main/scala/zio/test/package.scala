@@ -1275,7 +1275,7 @@ package object test extends CompileVariants {
           }
         )
     ).filter(_ != Left(true)).map {
-      case Left(_) => None
+      case Left(_)      => None
       case Right(value) => Some(value)
     }
 
