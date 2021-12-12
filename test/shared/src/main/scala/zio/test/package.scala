@@ -1033,7 +1033,6 @@ package object test extends CompileVariants {
     ) extends State
 
     def pull(
-      id: Int,
       outerDone: Ref[Boolean],
       outerStream: ZIO[R, Option[Nothing], Chunk[Option[A]]],
       currentOuterChunk: Ref[(Chunk[Option[A]], Int)],
@@ -1041,9 +1040,6 @@ package object test extends CompileVariants {
       currentStreams: Ref[ScalaQueue[State]],
       innerFinalizers: ZManaged.ReleaseMap
     ): ZIO[R1, Option[Nothing], Chunk[Option[B]]] = {
-
-      def debug1(s: String) =
-        if (id == 1) ZIO.debug(s) else ZIO.unit
 
       def pullNonEmpty[R, E, A](pull: ZIO[R, Option[E], Chunk[A]]): ZIO[R, Option[E], Chunk[A]] =
         pull.flatMap(as => if (as.nonEmpty) ZIO.succeed(as) else pullNonEmpty(pull))
@@ -1100,20 +1096,89 @@ package object test extends CompileVariants {
           (Some(builder.result()), innerChunk, i)
         }
 
-      currentStreams.get.flatMap { queue =>
-        debug1(s"[$id] ${queue.map(_.getClass.getSimpleName).mkString(", ")}")
-      } *>
-        currentInnerStream.get.flatMap {
-          case None =>
-            currentStreams.get.map(_.headOption).flatMap {
-              case None =>
-                ZIO.fail(None)
-              case Some(PullInner(innerStream, chunk, index, innerFinalizer)) =>
-                debug1(s"Switching to next inner") *>
-                  currentInnerStream.set(Some(PullInner(innerStream, chunk, index, innerFinalizer))) *>
-                  currentStreams.update(_.tail) *>
+      currentInnerStream.get.flatMap {
+        case None =>
+          currentStreams.get.map(_.headOption).flatMap {
+            case None =>
+              ZIO.fail(None)
+            case Some(PullInner(innerStream, chunk, index, innerFinalizer)) =>
+              currentInnerStream.set(Some(PullInner(innerStream, chunk, index, innerFinalizer))) *>
+                currentStreams.update(_.tail) *>
+                pull(
+                  outerDone,
+                  outerStream,
+                  currentOuterChunk,
+                  currentInnerStream,
+                  currentStreams,
+                  innerFinalizers
+                )
+            case Some(PullOuter) =>
+              outerDone.get.flatMap { done =>
+                if (done) {
+                  currentStreams.get.flatMap { queue =>
+                    if (queue.size == 1)
+                      ZIO.fail(None)
+                    else
+                      currentStreams.update(_.tail.enqueue(PullOuter)) *>
+                        ZIO.succeedNow(Chunk(None))
+                  }
+                } else
+                  currentOuterChunk.get.flatMap { case (outerChunk, outerChunkIndex) =>
+                    pullOuter(outerStream, outerChunk, outerChunkIndex).foldZIO(
+                      _ =>
+                        outerDone.set(true) *>
+                          pull(
+                            outerDone,
+                            outerStream,
+                            currentOuterChunk,
+                            currentInnerStream,
+                            currentStreams,
+                            innerFinalizers
+                          ),
+                      {
+                        case (Some(a), outerChunk, outerChunkIndex) =>
+                          openInner(a).flatMap { case (innerStream, innerFinalizer) =>
+                            currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
+                              currentInnerStream
+                                .set(Some(PullInner(innerStream, Chunk.empty, 0, innerFinalizer))) *>
+                              pull(
+                                outerDone,
+                                outerStream,
+                                currentOuterChunk,
+                                currentInnerStream,
+                                currentStreams,
+                                innerFinalizers
+                              )
+                          }
+                        case (None, outerChunk, outerChunkIndex) =>
+                          currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
+                            currentStreams.update(_.tail.enqueue(PullOuter)) *>
+                            ZIO.succeedNow(Chunk(None))
+                      }
+                    )
+                  }
+              }
+          }
+        case Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer)) =>
+          pullInner(innerStream, innerChunk, innerChunkIndex).foldZIO(
+            _ =>
+              innerFinalizer(Exit.unit) *>
+                currentInnerStream.set(None) *>
+                pull(
+                  outerDone,
+                  outerStream,
+                  currentOuterChunk,
+                  currentInnerStream,
+                  currentStreams,
+                  innerFinalizers
+                ),
+            {
+              case (None, innerChunk, innerChunkIndex) =>
+                currentInnerStream.set(None) *>
+                  currentStreams.update(
+                    _.enqueue(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))
+                  ) *>
                   pull(
-                    id,
                     outerDone,
                     outerStream,
                     currentOuterChunk,
@@ -1121,112 +1186,25 @@ package object test extends CompileVariants {
                     currentStreams,
                     innerFinalizers
                   )
-              case Some(PullOuter) =>
-                outerDone.get.flatMap { done =>
-                  if (done) {
-                    debug1(s"Outer is already done") *>
-                      currentStreams.get.flatMap { queue =>
-                        if (queue.size == 1)
-                          ZIO.fail(None)
-                        else
-                          currentStreams.update(_.tail.enqueue(PullOuter)) *>
-                            ZIO.succeedNow(Chunk(None))
-                      }
-                  } else
-                    currentOuterChunk.get.flatMap { case (outerChunk, outerChunkIndex) =>
-                      debug1(s"Pulling outer") *>
-                        pullOuter(outerStream, outerChunk, outerChunkIndex).foldZIO(
-                          _ =>
-                            outerDone.set(true) *>
-                              pull(
-                                id,
-                                outerDone,
-                                outerStream,
-                                currentOuterChunk,
-                                currentInnerStream,
-                                currentStreams,
-                                innerFinalizers
-                              ),
-                          {
-                            case (Some(a), outerChunk, outerChunkIndex) =>
-                              debug1(s"Pulled Some, opening new") *>
-                                openInner(a).flatMap { case (innerStream, innerFinalizer) =>
-                                  currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
-                                    currentInnerStream
-                                      .set(Some(PullInner(innerStream, Chunk.empty, 0, innerFinalizer))) *>
-                                    pull(
-                                      id,
-                                      outerDone,
-                                      outerStream,
-                                      currentOuterChunk,
-                                      currentInnerStream,
-                                      currentStreams,
-                                      innerFinalizers
-                                    )
-                                }
-                            case (None, outerChunk, outerChunkIndex) =>
-                              debug1(s"Pulled None, enqueuing PullOuter again") *>
-                                currentOuterChunk.set((outerChunk, outerChunkIndex)) *>
-                                currentStreams.update(_.tail.enqueue(PullOuter)) *>
-                                ZIO.succeedNow(Chunk(None))
-                          }
-                        )
-                    }
-                }
+              case (Some(bs), innerChunk, innerChunkIndex) =>
+                currentInnerStream.set(Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))) *>
+                  ZIO.succeedNow(bs)
             }
-          case Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer)) =>
-            pullInner(innerStream, innerChunk, innerChunkIndex).foldZIO(
-              _ =>
-                innerFinalizer(Exit.unit) *>
-                  currentInnerStream.set(None) *>
-                  pull(
-                    id,
-                    outerDone,
-                    outerStream,
-                    currentOuterChunk,
-                    currentInnerStream,
-                    currentStreams,
-                    innerFinalizers
-                  ),
-              {
-                case (None, innerChunk, innerChunkIndex) =>
-                  debug1(s"Pulled None from inner, enqueuing self") *>
-                    currentInnerStream.set(None) *>
-                    currentStreams.update(
-                      _.enqueue(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))
-                    ) *>
-                    pull(
-                      id,
-                      outerDone,
-                      outerStream,
-                      currentOuterChunk,
-                      currentInnerStream,
-                      currentStreams,
-                      innerFinalizers
-                    )
-                case (Some(bs), innerChunk, innerChunkIndex) =>
-                  debug1(s"Pulled Some from inner") *>
-                    currentInnerStream.set(Some(PullInner(innerStream, innerChunk, innerChunkIndex, innerFinalizer))) *>
-                    ZIO.succeedNow(bs)
-              }
-            )
-        }
+          )
+      }
     }
 
     ZStream.fromPull {
       for {
-        id                 <- UIO(debugId.incrementAndGet()).toManaged
         outerDone          <- Ref.make(false).toManaged
         outerStream        <- stream.toPull
         currentOuterChunk  <- Ref.make[(Chunk[Option[A]], Int)]((Chunk.empty, 0)).toManaged
         currentInnerStream <- Ref.make[Option[PullInner]](None).toManaged
         currentStreams     <- Ref.make[ScalaQueue[State]](ScalaQueue(PullOuter)).toManaged
         innerFinalizers    <- ZManaged.ReleaseMap.makeManaged(ExecutionStrategy.Sequential)
-      } yield pull(id, outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers)
+      } yield pull(outerDone, outerStream, currentOuterChunk, currentInnerStream, currentStreams, innerFinalizers)
     }
   }
-
-  private var debugId = new AtomicInteger(0)
 
   private[test] def flatMapStream[R, R1 <: R, A, B](
     stream: ZStream[R, Nothing, Option[A]]
