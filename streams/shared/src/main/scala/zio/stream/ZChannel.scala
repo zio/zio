@@ -1638,8 +1638,6 @@ object ZChannel {
      * from upstream, or yields to an already created active substream.
      */
     case object Yield extends ChildExecutorDecision
-
-    // TODO: control emitted value (emit, skip, map to multiple emitted values?)
   }
 
   sealed trait UpstreamPullRequest[+A]
