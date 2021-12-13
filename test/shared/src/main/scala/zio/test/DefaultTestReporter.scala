@@ -39,6 +39,7 @@ object DefaultTestReporter {
       ancestors: List[TestAnnotationMap],
       labels: List[String]
     ): Seq[ExecutionResult] =
+//      println("Looping in test reporter...")
       executedSpec.caseValue match {
         case ExecutedSpec.LabeledCase(label, spec) =>
           loop(spec, depth, ancestors, label :: labels)
@@ -125,6 +126,7 @@ object DefaultTestReporter {
           }
           renderedResult.map(r => Seq(r.withAnnotations(annotations :: ancestors))).getOrElse(Seq.empty)
       }
+
     loop(executedSpec, 0, List.empty, List.empty)
   }
 

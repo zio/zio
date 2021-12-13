@@ -194,6 +194,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .settings(
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
+  .settings(
+    Test / logBuffered := false
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm

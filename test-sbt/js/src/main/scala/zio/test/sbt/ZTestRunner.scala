@@ -120,7 +120,7 @@ sealed class ZTestTask(
           val logic =
             for {
               spec <- zioSpec
-                        .runSpec(FilteredSpec(zioSpec.spec, args), args, sendSummary)
+                        .runSpecInner(FilteredSpec(zioSpec.spec, args), args, sendSummary)
                         .provideLayer(
                           testLoggers +!+ fullLayer
                         )

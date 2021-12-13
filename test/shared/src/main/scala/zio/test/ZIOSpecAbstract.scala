@@ -50,10 +50,24 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       type Environment = self.Environment with that.Environment
       def layer: ZLayer[ZIOAppArgs, Any, Environment] =
         self.layer +!+ that.layer
-      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] =
-        self.runSpec.zipPar(that.runSpec)
+//      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] =
+//        self.runSpec.zip(ZIO.debug("Next spec: " + that.spec.caseValue)).zip(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =
         self.spec + that.spec
+
+      override def runSpecInner(
+        spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
+        testArgs: TestArgs,
+        sendSummary: URIO[Summary, Unit]
+      )(implicit
+        trace: ZTraceElement
+      ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, ExecutedSpec[Any]] =
+        for {
+          res1 <- self.runSpecInner(self.spec, testArgs, sendSummary)
+          res2 <- that.runSpecInner(that.spec, testArgs, sendSummary)
+        } yield {
+          ExecutedSpec.multiple(Chunk(res1, res2))
+        }
       def tag: EnvironmentTag[Environment] = {
         implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
         implicit val thatTag: EnvironmentTag[that.Environment] = that.tag
@@ -65,9 +79,10 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] = {
     implicit val trace = Tracer.newTrace
     for {
+      _            <- UIO(println("runSpec"))
       args         <- ZIO.service[ZIOAppArgs]
       testArgs      = TestArgs.parse(args.getArgs.toArray)
-      executedSpec <- runSpec(spec, testArgs, ZIO.unit)
+      executedSpec <- runSpecInner(spec, testArgs, ZIO.unit)
       hasFailures = executedSpec.exists {
                       case ExecutedSpec.TestCase(test, _) => test.isLeft
                       case _                              => false
@@ -100,7 +115,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
     }
 
-  private[zio] def runSpec(
+  def runSpecInner(
     spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
     testArgs: TestArgs,
     sendSummary: URIO[Summary, Unit]
@@ -111,6 +126,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
     for {
       env <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
+      _   <- env.get[TestLogger].logLine("running a spec...")
       runner =
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any](
@@ -118,9 +134,12 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
           )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
+      _           <- ZIO.debug("runSpec.before")
       results <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
+      _ <- ZIO.debug("runSpec.after")
 
+      // TODO We need to dump this out as we go.
       summary = SummaryBuilder.buildSummary(results)
       _      <- sendSummary.provideEnvironment(ZEnvironment(summary))
     } yield results

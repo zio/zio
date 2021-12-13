@@ -73,7 +73,7 @@ abstract class BaseTestTask(
 
     for {
       spec <- spec
-                .runSpec(FilteredSpec(spec.spec, args), args, sendSummary)
+                .runSpecInner(FilteredSpec(spec.spec, args), args, sendSummary)
                 .provideLayer(
                   testLoggers +!+ fullLayer
                 )
@@ -87,11 +87,13 @@ abstract class BaseTestTask(
   ): Layer[Nothing, TestLogger with Clock] =
     ZLayer.succeed[TestLogger](new TestLogger {
       def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
+//        ZIO.debug(line) *>
         ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {
+      println("Number of Loggers: " + loggers.length)
       spec match {
         case NewSpecWrapper(zioSpec) =>
           Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
