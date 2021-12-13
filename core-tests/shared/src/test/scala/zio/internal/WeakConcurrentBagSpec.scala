@@ -64,7 +64,7 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
             ref.clear()
           }
 
-          assertTrue(bag.size < 100)
+          assertTrue(bag.size < 300)
         } @@ flaky
     }
 }
