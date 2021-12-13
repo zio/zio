@@ -214,9 +214,11 @@ test("never ending expectation") {
 
 ## Composing Expectations
 
+We can combine our expectation to build complex scenarios using combinators defined in `zio.test.mock.Expectation`:
+
 ### `and`
 
-Whenever there are two expectations to satisfy, we can compose them with the `and` operator:
+The `and` (alias `&&`) operator composes two expectations, producing a new expectation to **satisfy both in any order**:
 
 ```scala mdoc:compile-only
 import zio._
@@ -238,7 +240,7 @@ test("satisfy both expectations with a logical `and` operator") {
 
 ### `or`
 
-In order to satisfy one of the two expectations, we can use the `or` operator:
+Th `or` (alias `||`) composes two expectations, producing a new expectation to **satisfy only one of them**:
 
 ```scala mdoc:compile-only
 import zio._
@@ -260,7 +262,7 @@ test("satisfy one of expectations with a logical `or` operator") {
 
 ### `andThen`
 
-The `andThen` operator composes two expectations and produces a new expectation that satisfies both of them sequentially:
+The `andThen` (alias `++`) operator composes two expectations, producing a new expectation to **satisfy both sequentially**:
 
 ```scala mdoc:compile-only
 import zio._
@@ -305,7 +307,7 @@ test("satisfying exact repetition of a method call") {
 
 ### Range of Repetitions
 
-1. **`Expectation#repeats(range: Range)`** — Repeats this expectation within given bounds, producing a new expectation to satisfy itself sequentially given number of times.
+1. **`Expectation#repeats(range: Range)`** — Repeats this expectation within given bounds, producing a new expectation to **satisfy itself sequentially given number of times**:
 
 ```scala mdoc:compile-only
 import zio._
@@ -343,3 +345,6 @@ test("if another repetition starts executing, it must be completed") {
 ```
 
 2. The **`atLeast(min: Int)`**, **`atMost(max: Int)`**, and **`optional`** expectations are other variants for `repeats` expectation.
+  - The `atLeast` operator is a lower-bounded variant of `repeated`, produces a new expectation to satisfy **itself sequentially at least given number of times**.
+  - The `atMost` operator is an upper-bounded variant of `repeated`, produces a new expectation to satisfy **itself sequentially at most given number of times**.
+  - The `optional` operator is an alias for `atMost(1)`, produces a new expectation to satisfy **itself at most once**.
