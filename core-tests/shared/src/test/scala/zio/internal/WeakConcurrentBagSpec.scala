@@ -56,15 +56,15 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
         test("auto gc") {
           val bag = WeakConcurrentBag[Wrapper[String]](100)
 
-          (1 to 10000).foreach { int =>
-            val str = Wrapper(int.toString)
+          (1 to 10000).foreach { _ =>
+            val str = Wrapper(scala.util.Random.nextString(10))
 
             val ref = bag.add(str)
 
             ref.clear()
           }
 
-          assertTrue(bag.size < 300)
+          assertTrue(bag.size < 100)
         } @@ flaky
     }
 }
