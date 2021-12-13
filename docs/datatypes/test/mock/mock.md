@@ -7,7 +7,95 @@ A `Mock[R]` represents a mockable environment `R`. It's a base abstract class fo
 
 ## Creating a Mock Service
 
-In the main sources we define the _service_, a module alias and _capability accessors_. In test sources we're defining the _mock object_ which extends `zio.test.mock.Mock` which holds _capability tags_ and _compose layer_:
+In order to create a mock object, we should define an object which implements the `Mock` abstract class in the test sources. To implement the `Mock` need to define _capability tags_ and the _compose layer_:
+
+### Capability Tags
+
+Capabilities are service functionalities that are accessible from the client-side. For example, in the following service the `send` method is a service capability:
+
+```scala mdoc:compile-only
+trait UserService {
+  def register(username: String, age: Int, email: String): Task[Unit]
+}
+```
+
+A **capability tag** encodes all information needed to mock the target capability. It is just a value that extends the `zio.test.mock.Capability[R, I, E, A]` type constructor, where:
+- `R` is the type of _environment_ the method belongs to
+- `I` is the type of _methods input arguments_
+- `E` is the type of _error_ it can fail with
+- `A` is the type of _return value_ it can produce
+
+The `Capability` type is not publicly available, instead we have to extend `Mock` dependent types `Effect`, `Method`, `Sink` or `Stream`.
+
+We can have 4 types of capabilities inside a service:
+1. **`Effect`** — describes an effectful ZIO operation
+2. **`Method`** — describes an ordinary scala function
+3. **`Sink`** — describes an effectful ZIO Sink
+4. **`Stream`** — describes an effectful ZIO Stream
+
+Let's say we have the following service:
+
+```scala mdoc:silent
+import zio._
+import zio.test.mock._
+import zio.stream._
+
+trait ExampleService {
+  def exampleEffect(i: Int): Task[String]
+  def exampleMethod(i: Int): String
+  def exampleSink(a: Int): Sink[Throwable, Int, Nothing, List[Int]]
+  def exampleStream(a: Int): Stream[Throwable, String]
+}
+```
+
+Therefore, the mock service should have the following _capability tags_:
+
+```scala mdoc:compile-only
+import zio.test.mock._
+
+object MockExampleService extends Mock[ExampleService] {
+  object ExampleEffect extends Effect[Int, Throwable, String]
+  object ExampleMethod extends Method[Int, Throwable, String]
+  object ExampleSink   extends Sink[Any, String, Int, Nothing, List[Int]]
+  object ExampleStream extends Stream[Any, String, Int]
+  
+  override val compose: URLayer[Proxy, ExampleService] = ???
+}
+```
+
+In this example, all `ExampleEffect`, `ExampleMethod`, `ExampleSink`, and `ExampleStream` are capability tags. Each of these capability tags encodes all information needed to mock the target capability.
+
+For example, the `ExampleEffect` capability tag encodes the type of _environments_, _arguments_ (inputs), the _error channel_, and also the _success channel_ of the `exampleEffect(i: Int)` method.
+
+```scala mdoc:invisible:reset
+
+```
+
+### Multiple Arguments
+
+If the capability has more than one argument, we should encode the argument types in the `Tuple` data type. For example, if we have the following service:
+
+```scala mdoc:silent
+trait ExampleService {
+  def manyParams(a: Int, b: String, c: Long): Task[Int]
+}
+```
+
+We should encode that with the following capability tag:
+
+```scala mdoc:compile-only
+trait MockExampleService extends Mock[ExampleService] {
+  object ManyParams extends Method[(Int, String, Long), Throwable, String]
+  override val compose = ???
+}
+```
+
+```scala mdoc:invisible:reset
+
+```
+
+### Compose layer
+In this step, we need to provide a layer in which used to construct the mocked object. To do that, we should obtain the `Proxy` data type from the environment and then implement the service interface (i.e. `EmailService`) by wrapping all capability tags with proxy.
 
 ```scala mdoc:silent
 // main sources
@@ -57,13 +145,6 @@ object ExampleMock extends Mock[Example] {
 }
 ```
 
-A _capability tag_ is just a value which extends the `zio.test.mock.Capability[R, I, E, A]` type constructor, where:
-- `R` is the type of _environment_ the method belongs to
-- `I` is the type of _methods input arguments_
-- `E` is the type of _error_ it can fail with
-- `A` is the type of _return value_ it can produce
-
-The `Capability` type is not publicly available, instead we have to extend `Mock` dependent types `Effect`, `Method`, `Sink` or `Stream`.
 
 ### Modeling Input Arguments
 
@@ -181,12 +262,11 @@ object AccountObserverMock extends Mock[AccountObserver] {
 
 ## Mocking Collaborators
 
-### Setting up Expectations
-
-
 ### Providing Mocked Environment
 
 ```scala mdoc:silent
+import zio.test._
+
 object AccountObserverSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     test("calls printLine > readLine > printLine and returns unit") {
