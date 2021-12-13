@@ -66,10 +66,7 @@ object ZScope {
     ): Boolean = {
       val parent = parentRef.get()
 
-      if (parent ne null) {
-        parent.unsafeAddChild(child)
-        true
-      } else false
+      (parent ne null) && parent.unsafeAddChild(child)
     }
   }
 

@@ -88,7 +88,9 @@ private[zio] final class FiberContext[E, A](
     )
 
   final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
-    UIO.suspendSucceed(unsafeEvalOn(effect, orElse))
+    UIO.suspendSucceed {
+      if (unsafeEvalOn(effect)) ZIO.unit else orElse.unit
+    }
 
   final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] =
     UIO(unsafeGetRef(ref))
@@ -546,8 +548,8 @@ private[zio] final class FiberContext[E, A](
 
   final def trace(implicit trace0: ZTraceElement): UIO[ZTrace] = UIO(unsafeCaptureTrace(Nil))
 
-  private[zio] def unsafeAddChild(child: FiberContext[_, _])(implicit trace: ZTraceElement): Unit =
-    unsafeEvalOn(ZIO.succeed(_children.add(child)), ZIO.unit)
+  private[zio] def unsafeAddChild(child: FiberContext[_, _])(implicit trace: ZTraceElement): Boolean =
+    unsafeEvalOn(ZIO.succeed(_children.add(child)))
 
   private def unsafeAddFinalizer(finalizer: UIO[Any]): Unit = stack.push(new Finalizer(finalizer))
 
@@ -666,7 +668,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  def unsafeEvalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] = {
+  def unsafeEvalOn(effect: UIO[Any])(implicit trace: ZTraceElement): Boolean = {
     val oldState = state.get
 
     oldState match {
@@ -674,10 +676,10 @@ private[zio] final class FiberContext[E, A](
         val newMailbox = if (mailbox eq null) effect else mailbox.flatMap(_ => effect)
         val newState   = executing.copy(mailbox = newMailbox)
 
-        if (!state.compareAndSet(oldState, newState)) unsafeEvalOn(effect, orElse)
-        else UIO.unit
+        if (!state.compareAndSet(oldState, newState)) unsafeEvalOn(effect)
+        else true
 
-      case Done(_) => orElse.unit
+      case Done(_) => false
     }
   }
 
