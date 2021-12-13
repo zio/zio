@@ -363,8 +363,6 @@ trait Runtime[+R] {
   private final def unsafeRunWith[E, A](
     zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
-    val enableRoots = runtimeConfig.flags.isEnabled(RuntimeConfigFlag.EnableFiberRoots)
-
     val fiberId = FiberId.unsafeMake()
 
     val children = Platform.newWeakSet[FiberContext[_, _]]()
