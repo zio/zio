@@ -2975,29 +2975,34 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def rechunk(n: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.unwrap {
       ZIO.succeed {
-        val rechunker = new ZStream.Rechunker[A](n)
+        val target    = n
+        val rechunker = new ZStream.Rechunker[A](target)
 
         lazy val process: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
           ZChannel.readWithCause(
             (chunk: Chunk[A]) =>
               if (chunk.size > 0) {
-                var chunks: List[Chunk[A]] = Nil
-                var result: Chunk[A]       = null
-                var i                      = 0
+                if (chunk.size == target) {
+                  ZChannel.write(chunk) *> process
+                } else {
+                  var chunks: List[Chunk[A]] = Nil
+                  var result: Chunk[A]       = null
+                  var i                      = 0
 
-                while (i < chunk.size) {
-                  while (i < chunk.size && (result eq null)) {
-                    result = rechunker.write(chunk(i))
-                    i += 1
+                  while (i < chunk.size) {
+                    while (i < chunk.size && (result eq null)) {
+                      result = rechunker.write(chunk(i))
+                      i += 1
+                    }
+
+                    if (result ne null) {
+                      chunks = result :: chunks
+                      result = null
+                    }
                   }
 
-                  if (result ne null) {
-                    chunks = result :: chunks
-                    result = null
-                  }
+                  ZChannel.writeAll(chunks.reverse: _*) *> process
                 }
-
-                ZChannel.writeAll(chunks.reverse: _*) *> process
               } else process,
             (cause: Cause[E]) => rechunker.emitIfNotEmpty() *> ZChannel.failCause(cause),
             (_: Any) => rechunker.emitIfNotEmpty()
