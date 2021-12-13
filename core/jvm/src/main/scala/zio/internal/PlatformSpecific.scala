@@ -18,6 +18,21 @@ private[zio] trait PlatformSpecific {
       }
     }
 
+  def addSignalHandler(signal: String, action: () => Unit): Unit = {
+    import sun.misc.Signal
+    import sun.misc.SignalHandler
+
+    try Signal.handle(
+      new Signal(signal),
+      new SignalHandler {
+        override def handle(sig: Signal): Unit = action()
+      }
+    )
+    catch {
+      case _: Throwable => ()
+    }
+  }
+
   /**
    * Exits the application with the specified exit code.
    */

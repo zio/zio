@@ -13,6 +13,13 @@ private[zio] trait PlatformSpecific {
     val _ = action
   }
 
+  def addSignalHandler(signal: String, action: () => Unit): Unit = {
+    val _ = signal
+    val _ = action
+
+    ()
+  }
+
   /**
    * Exits the application with the specified exit code.
    */

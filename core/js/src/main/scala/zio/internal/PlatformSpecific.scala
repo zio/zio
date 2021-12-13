@@ -13,6 +13,21 @@ private[zio] trait PlatformSpecific {
     val _ = action
   }
 
+  def addSignalHandler(signal: String, action: () => Unit): Unit = {
+    import org.scalajs.dom
+    import org.scalajs.dom.raw._
+
+    try {
+      val string = s"zio-signal=${signal}".toLowerCase
+
+      dom.window.onhashchange = (e: HashChangeEvent) => {
+        if (e.newURL.toLowerCase.contains(string)) action()
+      }
+    } catch {
+      case _: Throwable => ()
+    }
+  }
+
   /**
    * Exits the application with the specified exit code.
    */

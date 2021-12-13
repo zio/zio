@@ -94,7 +94,6 @@ object BuildHelper {
   val replSettings = makeReplSettings {
     """|import zio._
        |import zio.Console._
-       |import 
        |import zio.Runtime.default._
        |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provide(ZEnv.live)) }
     """.stripMargin
@@ -119,10 +118,8 @@ object BuildHelper {
     // avoid deadlocking on parallel operations, see
     //   https://issues.scala-lang.org/browse/SI-9076
     Compile / console / scalacOptions := Seq(
-      "-Ypartial-unification",
       "-language:higherKinds",
       "-language:existentials",
-      "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
     ),
