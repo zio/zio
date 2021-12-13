@@ -28,7 +28,7 @@ class WeakConcurrentBag[A](tableSize: Int) {
    * that wraps the value.
    */
   final def add(value: A): WeakReference[A] = {
-    val hashCode = value.hashCode
+    val hashCode = value.hashCode.abs
 
     @tailrec
     def loop(newRef: WeakReference[A]): WeakReference[A] = {

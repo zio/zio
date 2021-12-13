@@ -11,9 +11,8 @@ private[zio] trait PlatformSpecific {
    *
    * This is currently a no-op on Scala Native.
    */
-  final def addShutdownHook(action: () => Unit): Unit = {
-    val _ = action
-  }
+  final def addShutdownHook(action: () => Unit): Unit =
+    blackhole(action)
 
   /**
    * Adds a signal handler for the specified signal (e.g. "INFO"). This method
@@ -22,18 +21,15 @@ private[zio] trait PlatformSpecific {
    * This is currently a no-op on Scala Native.
    */
   final def addSignalHandler(signal: String, action: () => Unit): Unit = {
-    val _ = signal
-    val _ = action
-
-    ()
+    blackhole(signal)
+    blackhole(action)
   }
 
   /**
    * Exits the application with the specified exit code.
    */
-  final def exit(code: Int): Unit = {
-    val _ = code
-  }
+  final def exit(code: Int): Unit =
+    blackhole(code)
 
   /**
    * Returns the name of the thread group to which this thread belongs. This is
@@ -65,4 +61,9 @@ private[zio] trait PlatformSpecific {
   final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
 
   final def newWeakReference[A](value: A): () => A = { () => value }
+
+  private def blackhole(a: Any): Unit = {
+    val _ = a
+    ()
+  }
 }
