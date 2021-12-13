@@ -71,7 +71,39 @@ For example, the `ExampleEffect` capability tag encodes the type of _environment
 
 ```
 
-### Multiple Arguments
+### Modeling Input Arguments
+
+We model input arguments according to the following scheme:
+
+1. For zero arguments the type is `Unit`
+
+```scala mdoc:compile-only
+trait ExampleService {
+  def zeroParams: Task[Int]
+}
+```
+
+So the capability tag of `zeroParams` should be:
+
+```scala mdoc:compile-only
+object MockExampleService extends Mock[ExampleService] {
+  object ZeroParams extends Effect[Unit, Throwable, Int]
+  
+  override val compose = ???
+}
+```
+
+```scala mdoc:invisible:reset
+
+```
+
+2. For one or more arguments, regardless of how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
+
+> **Note:**
+>
+> We're using tuples to represent multiple argument methods, which follows with a limit to max 22 arguments, as is Scala itself limited.
+
+For overloaded methods, we nest a list of numbered objects, each representing subsequent overloads.
 
 If the capability has more than one argument, we should encode the argument types in the `Tuple` data type. For example, if we have the following service:
 
@@ -86,6 +118,7 @@ We should encode that with the following capability tag:
 ```scala mdoc:compile-only
 trait MockExampleService extends Mock[ExampleService] {
   object ManyParams extends Method[(Int, String, Long), Throwable, String]
+  
   override val compose = ???
 }
 ```
@@ -93,6 +126,62 @@ trait MockExampleService extends Mock[ExampleService] {
 ```scala mdoc:invisible:reset
 
 ```
+
+### Polymorphic capabilities
+
+Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter.
+
+```scala mdoc:silent
+// main sources
+
+trait PolyExample {
+  def polyInput[I: Tag](input: I): Task[String]
+  def polyError[E: Tag](input: Int): IO[E, String]
+  def polyOutput[A: Tag](input: Int): Task[A]
+  def polyAll[I: Tag, E: Tag, A: Tag](input: I): IO[E, A]
+}
+```
+
+In the test sources we construct partially applied _capability tags_ by extending `Method.Poly` family. The unknown types
+must be provided at call site. To produce a final monomorphic `Method` tag we must use the `of` combinator and pass the
+missing types.
+
+```scala mdoc:silent
+// test sources
+object PolyExampleMock extends Mock[PolyExample] {
+
+  object PolyInput  extends Poly.Effect.Input[Throwable, String]
+  object PolyError  extends Poly.Effect.Error[Int, String]
+  object PolyOutput extends Poly.Effect.Output[Int, Throwable]
+  object PolyAll    extends Poly.Effect.InputErrorOutput
+
+  val compose: URLayer[Proxy, PolyExample] =
+    ZIO.serviceWithZIO[Proxy] { proxy =>
+      withRuntime[Any].map { rts =>
+        new PolyExample {
+          def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)
+          def polyError[E: Tag](input: Int)                   = proxy(PolyError.of[E], input)
+          def polyOutput[A: Tag](input: Int)                  = proxy(PolyOutput.of[A], input)
+          def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
+        }
+      }
+    }.toLayer
+}
+```
+
+Similarly, we use the same `of` combinator to refer to concrete monomorphic call in our test suite when building expectations:
+
+```scala mdoc:silent
+import PolyExampleMock._
+
+val exp06 = PolyInput.of[String](equalTo("foo"), value("bar"))
+val exp07 = PolyInput.of[Int](equalTo(42), failure(new Exception))
+val exp08 = PolyInput.of[Long](equalTo(42L), value("baz"))
+
+val exp09 = PolyAll.of[Int, Throwable, String](equalTo(42), value("foo"))
+val exp10 = PolyAll.of[Int, Throwable, String](equalTo(42), failure(new Exception))
+```
+
 
 ### Compose layer
 In this step, we need to provide a layer in which used to construct the mocked object. To do that, we should obtain the `Proxy` data type from the environment and then implement the service interface (i.e. `EmailService`) by wrapping all capability tags with proxy.
@@ -144,17 +233,6 @@ object ExampleMock extends Mock[Example] {
   val compose: URLayer[Proxy, Example] = ???
 }
 ```
-
-
-### Modeling Input Arguments
-
-We model input arguments according to following scheme:
-- For zero arguments the type is `Unit`
-- For one or more arguments, regardless in how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
-
-> **Note:** we're using tuples to represent multiple argument methods, which follows with a limit to max 22 arguments, as is Scala itself limited.
-
-For overloaded methods we nest a list of numbered objects, each representing subsequent overloads.
 
 ### Defining Compose Layer
 
@@ -320,61 +398,6 @@ val combinedApp =
 
 val result = combinedApp.provideLayer(combinedEnv)
 assertM(result)(isUnit)
-```
-
-### Polymorphic capabilities
-
-Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter.
-
-```scala mdoc:silent
-// main sources
-
-trait PolyExample {
-  def polyInput[I: Tag](input: I): Task[String]
-  def polyError[E: Tag](input: Int): IO[E, String]
-  def polyOutput[A: Tag](input: Int): Task[A]
-  def polyAll[I: Tag, E: Tag, A: Tag](input: I): IO[E, A]
-}
-```
-
-In the test sources we construct partially applied _capability tags_ by extending `Method.Poly` family. The unknown types
-must be provided at call site. To produce a final monomorphic `Method` tag we must use the `of` combinator and pass the
-missing types.
-
-```scala mdoc:silent
-// test sources
-object PolyExampleMock extends Mock[PolyExample] {
-
-  object PolyInput  extends Poly.Effect.Input[Throwable, String]
-  object PolyError  extends Poly.Effect.Error[Int, String]
-  object PolyOutput extends Poly.Effect.Output[Int, Throwable]
-  object PolyAll    extends Poly.Effect.InputErrorOutput
-
-  val compose: URLayer[Proxy, PolyExample] =
-    ZIO.serviceWithZIO[Proxy] { proxy =>
-      withRuntime[Any].map { rts =>
-        new PolyExample {
-          def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)
-          def polyError[E: Tag](input: Int)                   = proxy(PolyError.of[E], input)
-          def polyOutput[A: Tag](input: Int)                  = proxy(PolyOutput.of[A], input)
-          def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
-        }
-      }
-    }.toLayer
-}
-```
-
-Similarly, we use the same `of` combinator to refer to concrete monomorphic call in our test suite when building expectations:
-
-```scala mdoc:silent
-import PolyExampleMock._
-
-val exp06 = PolyInput.of[String](equalTo("foo"), value("bar"))
-val exp07 = PolyInput.of[Int](equalTo(42), failure(new Exception))
-val exp08 = PolyInput.of[Long](equalTo(42L), value("baz"))
-
-val exp09 = PolyAll.of[Int, Throwable, String](equalTo(42), value("foo"))
-val exp10 = PolyAll.of[Int, Throwable, String](equalTo(42), failure(new Exception))
 ```
 
 ## More examples
