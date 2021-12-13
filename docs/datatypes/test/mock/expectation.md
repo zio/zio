@@ -5,7 +5,7 @@ title: Expectation
 
 An `Expectation[R]` is an immutable tree structure that represents expectations on environment `R`.
 
-## Expectations
+## Defining Expectations
 
 ZIO Test has a variety of expectations, such as `value`, `unit`, `failure`, and `never`. In this section we are going to learn each of these expectations and their variant, by mocking the `UserService` service. So let's assume we have the following service:
 
@@ -25,6 +25,8 @@ trait UserService {
   def totalUsers: IO[String, Int]
   
   def recentUsers(n: Int): IO[String, List[User]]
+  
+  def removeAll: IO[String, Unit]
 }
 
 object UserService {
@@ -39,6 +41,9 @@ object UserService {
 
   def remove(id: String): ZIO[UserService, String, Unit] =
     ZIO.serviceWithZIO(_.remove(id))
+   
+  def removeAll: ZIO[UserService, String, Unit] = 
+    ZIO.serviceWithZIO(_.removeAll) 
 }
 ```
 
@@ -52,6 +57,7 @@ object MockUserService extends Mock[UserService] {
   object Remove      extends Effect[String, String, Unit]
   object RecentUsers extends Effect[Int, String, List[User]]
   object TotalUsers  extends Effect[Unit, String, Int]
+  object RemoveAll   extends Effect[Unit, String, Unit]
 
   val compose: URLayer[mock.Proxy, UserService] =
     ZIO.service[mock.Proxy]
@@ -61,13 +67,53 @@ object MockUserService extends Mock[UserService] {
           override def remove(id: String):  IO[String, Unit]       = proxy(Remove, id)
           override def recentUsers(n: Int): IO[String, List[User]] = proxy(RecentUsers, n)
           override def totalUsers:          IO[String, Int]        = proxy(TotalUsers)
+          override def removeAll:           IO[String, Unit]       = proxy(RemoveAll)
         }
       }.toLayer
       
 }
 ```
 
-Now, let's look at each expectation:
+To create expectations we use the previously defined _capability tags_.
+
+1. For methods that take input, the first argument will be an assertion on input, and the second the predefined result.
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.test.mock._
+
+val exp01 = MockUserService.RecentUsers( // capability to build an expectation for
+  Assertion.equalTo(5), // assertion of the expected input argument
+  Expectation.value(List(User("1", "Jane Doe"), User("2", "John Doe"))) // result, that will be returned
+)
+```
+
+2. For methods that take no input, we only define the expected output:
+
+```scala mdoc:compile-only
+val exp02 = MockUserService.TotalUsers(Expectation.value(42))
+```
+
+3. For methods that may return `Unit`, we may skip the predefined result (it will default to successful value) or use `unit` helper:
+
+```scala mdoc:compile-only
+import zio.test.mock.MockConsole
+
+val exp03 = MockUserService.remove(
+  Assertion.equalTo("1"),
+  Expectation.unit
+)
+```
+
+4. For methods that may return `Unit` and take no input we can skip both:
+
+```scala mdoc:compile-only
+val exp04 = MockUserService.RemoveAll()
+```
+
+## Expectations
+
+In the most robust example, the result can be either a successful value or a failure. In this section we are going to introduce all these cases, by using the proper expectation from `zio.test.mock.Expectations` companion object:
 
 ### `value`
 
@@ -214,7 +260,7 @@ test("never ending expectation") {
 
 ## Composing Expectations
 
-We can combine our expectation to build complex scenarios using combinators defined in `zio.test.mock.Expectation`:
+We can combine our expectation to build complex scenarios using combinators defined in `zio.test.mock.Expectation`.
 
 ### `and`
 
@@ -240,7 +286,7 @@ test("satisfy both expectations with a logical `and` operator") {
 
 ### `or`
 
-Th `or` (alias `||`) composes two expectations, producing a new expectation to **satisfy only one of them**:
+The `or` (alias `||`) operator composes two expectations, producing a new expectation to **satisfy only one of them**:
 
 ```scala mdoc:compile-only
 import zio._
@@ -285,7 +331,7 @@ In the example above, changing the SUT to `UserService.totalUsers *> UserService
 
 ### Exact Repetition
 
-1. **`exactly`** — Produces a new expectation to satisfy itself exactly the given number of times.
+1. **`exactly`** — Produces a new expectation to satisfy itself exactly the given number of times:
 
 ```scala mdoc:compile-only
 import zio._
