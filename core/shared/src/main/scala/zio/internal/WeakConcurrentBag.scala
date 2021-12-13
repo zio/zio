@@ -29,10 +29,10 @@ class WeakConcurrentBag[A](tableSize: Int) {
    */
   final def add(value: A): WeakReference[A] = {
     val hashCode = value.hashCode.abs
+    val bucket   = hashCode % tableSize
 
     @tailrec
     def loop(newRef: WeakReference[A]): WeakReference[A] = {
-      val bucket   = hashCode % tableSize
       val oldValue = contents.get(bucket)
       val newValue = newRef :: oldValue
 
@@ -40,7 +40,7 @@ class WeakConcurrentBag[A](tableSize: Int) {
       else newRef
     }
 
-    if ((hashCode % tableSize) == 0) gc()
+    if (bucket == 0) gc()
 
     loop(new WeakReference[A](value))
   }
