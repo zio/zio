@@ -382,9 +382,7 @@ trait Runtime[+R] {
       trace
     )
 
-    val contextRef =
-      if (enableRoots) Fiber._roots.add(context)
-      else null.asInstanceOf[WeakReference[FiberContext[_, _]]]
+    ZScope.global.unsafeAdd(runtimeConfig, context)
 
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)
@@ -395,7 +393,6 @@ trait Runtime[+R] {
     context.nextEffect = zio
     context.run()
     context.unsafeOnDone { exit =>
-      if (contextRef ne null) contextRef.clear()
       k(exit.flatten)
     }
 

@@ -728,7 +728,9 @@ private[zio] final class FiberContext[E, A](
       childContext.unsafeOnDone(exit => runtimeConfig.supervisor.unsafeOnEnd(exit.flatten, childContext))
     }
 
-    val childZio = if (!parentScope.unsafeAdd(childContext)) ZIO.interruptAs(parentScope.fiberId) else zio
+    val childZio =
+      if (!parentScope.unsafeAdd(runtimeConfig, childContext)) ZIO.interruptAs(parentScope.fiberId)
+      else zio
 
     childContext.nextEffect = childZio
     if (stack.isEmpty) unsafeGetExecutor().unsafeSubmitAndYieldOrThrow(childContext)

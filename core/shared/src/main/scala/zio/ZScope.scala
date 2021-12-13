@@ -28,7 +28,14 @@ import java.lang.ref.WeakReference
  */
 sealed trait ZScope {
   def fiberId: FiberId
-  private[zio] def unsafeAdd(child: FiberContext[_, _])(implicit trace: ZTraceElement): Boolean
+
+  /**
+   * Adds the specified child fiber to the scope, returning `true` if the scope
+   * is still open, and `false` if it has been closed already.
+   */
+  private[zio] def unsafeAdd(runtimeConfig: RuntimeConfig, child: FiberContext[_, _])(implicit
+    trace: ZTraceElement
+  ): Boolean
 }
 object ZScope {
 
@@ -40,11 +47,23 @@ object ZScope {
   object global extends ZScope {
     def fiberId: FiberId = FiberId.None
 
-    private[zio] def unsafeAdd(child: FiberContext[_, _])(implicit trace: ZTraceElement): Boolean = true
+    private[zio] def unsafeAdd(runtimeConfig: RuntimeConfig, child: FiberContext[_, _])(implicit
+      trace: ZTraceElement
+    ): Boolean = {
+      if (runtimeConfig.flags.isEnabled(RuntimeConfigFlag.EnableFiberRoots)) {
+        val childRef = Fiber._roots.add(child)
+
+        child.unsafeOnDone(_ => childRef.clear())
+      }
+
+      true
+    }
   }
 
   final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends ZScope {
-    private[zio] def unsafeAdd(child: FiberContext[_, _])(implicit trace: ZTraceElement): Boolean = {
+    private[zio] def unsafeAdd(runtimeConfig: RuntimeConfig, child: FiberContext[_, _])(implicit
+      trace: ZTraceElement
+    ): Boolean = {
       val parent = parentRef.get()
 
       if (parent ne null) {
