@@ -2982,7 +2982,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           ZChannel.readWithCause(
             (chunk: Chunk[A]) =>
               if (chunk.size > 0) {
-                if (chunk.size == target) {
+                if (chunk.size == target && rechunker.isEmpty) {
                   ZChannel.write(chunk) *> process
                 } else {
                   var chunks: List[Chunk[A]] = Nil
@@ -6391,6 +6391,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         null
       }
     }
+
+    def isEmpty: Boolean =
+      pos == 0
 
     def emitIfNotEmpty()(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Unit] =
       if (pos != 0) {
