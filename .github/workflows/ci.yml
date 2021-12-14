@@ -124,7 +124,7 @@ jobs:
       matrix:
         platform: ['JS', 'Native']
     env:
-      JVM_OPTS: -XX:+PrintCommandLineFlags -XX:+UseG1GC -Xmx6g -Xms6g
+      JVM_OPTS: -XX:+PrintCommandLineFlags -XX:+UseParallelGC -Xmx6g -Xms6g
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2.4.0
