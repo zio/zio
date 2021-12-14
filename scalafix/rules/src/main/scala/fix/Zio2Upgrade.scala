@@ -130,6 +130,23 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.TestFailure",
     "zio.Runtime"
   )
+  /*
+    Stream renames:
+     repeatEffectOption  => repeatZIOOption
+     Effect => ZIO generally
+     zioHaltCause => zioFailCause
+     count/sum => runSum/runCount
+     into => runIntoQueue/runIntoHub
+     serviceWithStream
+     
+     Semantic:
+       transducer is gone; replaced with different pipeline
+        -Sink might be good
+        ZTransducer.utf32BEDDecode into ZPipeline variations
+      Try to convert these classes:
+        ZStreamSpec, ZSinkSpec
+     
+   */
 
   case class GenericRename(scopes: List[String], oldName: String, newName: String) {
     val companions = scopes.map(_ + ".")
