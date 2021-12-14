@@ -60,7 +60,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       },
       supervisor = Supervisor.none,
       loggers = ZLogger.Set.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info),
-      flags = RuntimeConfigFlags.empty
+      flags = RuntimeConfigFlags.empty + RuntimeConfigFlags.EnableFiberRoots,
     )
 
   /**
