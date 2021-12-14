@@ -14,6 +14,8 @@ In order to create a mock object, we should define an object which implements th
 Capabilities are service functionalities that are accessible from the client-side. For example, in the following service the `send` method is a service capability:
 
 ```scala mdoc:compile-only
+import zio._
+
 trait UserService {
   def register(username: String, age: Int, email: String): Task[Unit]
 }
@@ -77,7 +79,9 @@ We model input arguments according to the following scheme:
 
 1. For zero arguments the type is `Unit`
 
-```scala mdoc:compile-only
+```scala mdoc:silent
+import zio._
+
 trait ExampleService {
   def zeroParams: Task[Int]
 }
@@ -86,6 +90,8 @@ trait ExampleService {
 So the capability tag of `zeroParams` should be:
 
 ```scala mdoc:compile-only
+import zio.test.mock._
+
 object MockExampleService extends Mock[ExampleService] {
   object ZeroParams extends Effect[Unit, Throwable, Int]
   
@@ -108,6 +114,8 @@ For overloaded methods, we nest a list of numbered objects, each representing su
 If the capability has more than one argument, we should encode the argument types in the `Tuple` data type. For example, if we have the following service:
 
 ```scala mdoc:silent
+import zio._
+
 trait ExampleService {
   def manyParams(a: Int, b: String, c: Long): Task[Int]
 }
@@ -116,6 +124,8 @@ trait ExampleService {
 We should encode that with the following capability tag:
 
 ```scala mdoc:compile-only
+import zio.test.mock._
+
 trait MockExampleService extends Mock[ExampleService] {
   object ManyParams extends Method[(Int, String, Long), Throwable, String]
   
@@ -127,12 +137,13 @@ trait MockExampleService extends Mock[ExampleService] {
 
 ```
 
-### Polymorphic capabilities
+### Polymorphic Capabilities
 
 Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter.
 
 ```scala mdoc:silent
 // main sources
+import zio._
 
 trait PolyExample {
   def polyInput[I: Tag](input: I): Task[String]
@@ -148,6 +159,8 @@ missing types.
 
 ```scala mdoc:silent
 // test sources
+import zio.test.mock._
+
 object PolyExampleMock extends Mock[PolyExample] {
 
   object PolyInput  extends Poly.Effect.Input[Throwable, String]
@@ -172,14 +185,15 @@ object PolyExampleMock extends Mock[PolyExample] {
 Similarly, we use the same `of` combinator to refer to concrete monomorphic call in our test suite when building expectations:
 
 ```scala mdoc:silent
+import zio.test._
 import PolyExampleMock._
 
-val exp06 = PolyInput.of[String](equalTo("foo"), value("bar"))
-val exp07 = PolyInput.of[Int](equalTo(42), failure(new Exception))
-val exp08 = PolyInput.of[Long](equalTo(42L), value("baz"))
+val exp06 = PolyInput.of[String](Assertion.equalTo("foo"), Expectation.value("bar"))
+val exp07 = PolyInput.of[Int](Assertion.equalTo(42), Expectation.failure(new Exception))
+val exp08 = PolyInput.of[Long](Assertion.equalTo(42L), Expectation.value("baz"))
 
-val exp09 = PolyAll.of[Int, Throwable, String](equalTo(42), value("foo"))
-val exp10 = PolyAll.of[Int, Throwable, String](equalTo(42), failure(new Exception))
+val exp09 = PolyAll.of[Int, Throwable, String](Assertion.equalTo(42), Expectation.value("foo"))
+val exp10 = PolyAll.of[Int, Throwable, String](Assertion.equalTo(42), Expectation.failure(new Exception))
 ```
 
 
@@ -342,7 +356,7 @@ object AccountObserverMock extends Mock[AccountObserver] {
 
 ### Providing Mocked Environment
 
-```scala mdoc:silent
+```scala
 import zio.test._
 
 object AccountObserverSpec extends DefaultRunnableSpec {
@@ -360,6 +374,9 @@ object AccountObserverSpec extends DefaultRunnableSpec {
 Often the dependency on a collaborator is only in some branches of the code. To test the correct behaviour of branches without dependencies, we still have to provide it to the environment, but we would like to assert it was never called. With the `Mock.empty` method we can obtain a `ZLayer` with an empty service (no calls expected):
 
 ```scala mdoc:silent
+import zio.test._
+import zio.test.mock._
+
 object MaybeConsoleSpec extends DefaultRunnableSpec {
   def spec = suite("processEvent")(
     test("expect no call") {
@@ -367,8 +384,8 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
         ZIO.when(invokeConsole)(Console.printLine("foo"))
 
       val maybeTest1 = maybeConsole(false).unit.provideLayer(MockConsole.empty)
-      val maybeTest2 = maybeConsole(true).unit.provideLayer(MockConsole.PrintLine(equalTo("foo"), unit))
-      assertM(maybeTest1)(isUnit) *> assertM(maybeTest2)(isUnit)
+      val maybeTest2 = maybeConsole(true).unit.provideLayer(MockConsole.PrintLine(Assertion.equalTo("foo"), Expectation.unit))
+      assertM(maybeTest1)(Assertion.isUnit) *> assertM(maybeTest2)(Assertion.isUnit)
     }
   )
 }
@@ -379,13 +396,14 @@ object MaybeConsoleSpec extends DefaultRunnableSpec {
 In some cases we have more than one collaborating service being called. We can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlying mocked layer will be updated.
 
 ```scala mdoc:silent
-import zio.test.mock.MockRandom
+import zio.test._
+import zio.test.mock._
 
 val combinedEnv: ULayer[Console with Random] = (
-  MockConsole.PrintLine(equalTo("What is your name?"), unit) ++
-  MockConsole.ReadLine(value("Mike")) ++
-  MockRandom.NextInt(value(42)) ++
-  MockConsole.PrintLine(equalTo("Mike, your lucky number today is 42!"), unit)
+  MockConsole.PrintLine(Assertion.equalTo("What is your name?"), Expectation.unit) ++
+  MockConsole.ReadLine(Expectation.value("Mike")) ++
+  MockRandom.NextInt(Expectation.value(42)) ++
+  MockConsole.PrintLine(Assertion.equalTo("Mike, your lucky number today is 42!"), Expectation.unit)
 )
 
 val combinedApp =
@@ -397,7 +415,7 @@ val combinedApp =
   } yield ()
 
 val result = combinedApp.provideLayer(combinedEnv)
-assertM(result)(isUnit)
+assertM(result)(Assertion.isUnit)
 ```
 
 ## More examples
