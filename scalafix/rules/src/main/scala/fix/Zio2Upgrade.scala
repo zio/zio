@@ -98,7 +98,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "validatePar_"           -> "validateParDiscard",
       "validate_"              -> "validateDiscard",
       "whenCaseM"              -> "whenCaseZIO",
-      "whenM"                  -> "whenZIO"
+      "whenM"                  -> "whenZIO",
     )
 
   lazy val scopes = List(
@@ -203,6 +203,52 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "whenM"         -> "whenSTM"
     )
   )
+  
+  val StreamRenames = Renames(
+    List("zio.stream.ZStream"),
+    Map(
+      "dropWhileM" -> "dropWhileZIO", // RC only, cannot test
+      "findM" -> "findZIO", // RC only, cannot test
+//      "filterM" -> "filterZIO",
+      "fold"         -> "runFold",
+      "foldM"         -> "runFoldZIO", // RC only
+      "foldManaged" -> "runFoldManaged",
+      "foldManagedM"         -> "runFoldManagedZIO",
+      "foldManagedZIO" -> "runFoldManagedZIO",
+      "foldWhile" -> "runFoldWhile",
+      "foldWhileM" -> "runFoldWhileZIO",
+      "foldWhileManagedM" -> "runFoldWhileManagedZIO",
+      "foldWhileManagedZIO" -> "runFoldWhileManagedZIO", // RC only
+      "foldWhileZIO" -> "runFoldWhileZIO", // RC only
+      "foldWhileManaged" -> "runFoldWhileManaged",
+      "foldZIO" -> "runFoldZIO", // RC only
+      "foreachChunk" -> "runForeachChunk",
+      "foreachChunkManaged" -> "runForeachChunkManaged",
+      "foreachManaged" -> "runForeachManaged",
+      "foreachWhile" -> "runForeachWhile",
+      "foreachWhileManaged" -> "runForeachWhileManaged",
+      "mapM"          -> "mapZIO",
+      "collectWhileM" -> "collectWhileZIO",
+      "collectUntilM" -> "collectUntilZIO",
+      "accessStream" -> "environmentWithStream",
+      "runInto" -> "runIntoQueue", // RC only
+      "runIntoElementsManaged" -> "runIntoQueueElementsManaged", // RC only
+      "runFoldM" -> "runFoldZIO", // RC only
+      "runFoldManagedM" -> "runFoldManagedZIO",
+      "runFoldWhileM" -> "runFoldWhileZIO", // RC only
+      "runFoldWhileManagedM" -> "runFoldWhileManagedZIO", // RC only
+      "chunkN" -> "rechunk", // RC only
+      "intoHub" -> "runIntoHub",
+      "intoHubManaged" -> "runIntoHubManaged",
+      "intoManaged" -> "runIntoQueueManaged",
+      "runIntoManaged" -> "runIntoQueueManaged", // RC only
+      "intoQueue" -> "runIntoQueue",
+      "intoQueueManaged" -> "runIntoQueueManaged", // RC only
+      "lock" -> "onExecutor",
+      "mapAccumM" -> "mapAccumZIO",
+      "mapChunksM" -> "mapChunksZIO"
+    )
+  )
 
   val ScheduleRenames = Renames(
     List("zio.Schedule", "zio.stm.STM"),
@@ -212,6 +258,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "contramapM"    -> "contramapZIO",
       "delayedM"      -> "delayedZIO",
       "dimapM"        -> "dimapZIO",
+      "dropWhileM" -> "dropWhileZIO", // RC only, cannot test
+      "findM" -> "findZIO", // RC only, cannot test
       "foldM"         -> "foldZIO",
       "mapM"          -> "mapZIO",
       "modifyDelayM"  -> "modifyDelayZIO",
@@ -528,6 +576,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case ZManagedRenames.Matcher(patch)  => patch
       case STMRenames.Matcher(patch)       => patch
       case ScheduleRenames.Matcher(patch)  => patch
+      case StreamRenames.Matcher(patch)  => patch
       case UniversalRenames.Matcher(patch) => patch
 
       case BuiltInServiceFixer(patch) => patch

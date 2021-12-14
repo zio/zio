@@ -75,12 +75,12 @@ object ZStreamSpec extends ZIOSpecDefault {
         suite("accessStream")(
           test("accessStream") {
             for {
-              result <- ZStream.accessStream[String](ZStream.succeed(_)).provide("test").runHead.get
+              result <- ZStream.environmentWithStream[String](ZStream.succeed(_)).provide("test").runHead.get
             } yield assert(result)(equalTo("test"))
           },
           test("accessStream fails") {
             for {
-              result <- ZStream.accessStream[Int](_ => ZStream.fail("fail")).provide(0).runHead.exit
+              result <- ZStream.environmentWithStream[Int](_ => ZStream.fail("fail")).provide(0).runHead.exit
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
@@ -520,10 +520,10 @@ object ZStreamSpec extends ZIOSpecDefault {
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                      .fromZIO(latch1.await)
-                     .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
+                     .flatMap(_ => ZStream.range(1, 17).rechunk(1).ensuring(latch2.succeed(())))
               s2 = ZStream
                      .fromZIO(latch3.await)
-                     .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
+                     .flatMap(_ => ZStream.range(17, 25).rechunk(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferDropping(8)
               snapshots <- s.process.use { as =>
                              for {
@@ -595,10 +595,10 @@ object ZStreamSpec extends ZIOSpecDefault {
               latch4 <- Promise.make[Nothing, Unit]
               s1 = ZStream(0) ++ ZStream
                      .fromZIO(latch1.await)
-                     .flatMap(_ => ZStream.range(1, 17).chunkN(1).ensuring(latch2.succeed(())))
+                     .flatMap(_ => ZStream.range(1, 17).rechunk(1).ensuring(latch2.succeed(())))
               s2 = ZStream
                      .fromZIO(latch3.await)
-                     .flatMap(_ => ZStream.range(17, 25).chunkN(1).ensuring(latch4.succeed(())))
+                     .flatMap(_ => ZStream.range(17, 25).rechunk(1).ensuring(latch4.succeed(())))
               s = (s1 ++ s2).bufferSliding(8)
               snapshots <- s.process.use { as =>
                              for {
@@ -796,7 +796,7 @@ object ZStreamSpec extends ZIOSpecDefault {
         suite("collectWhileM")(
           test("collectWhileM") {
             assertM(
-              ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileM { case Some(v) =>
+              ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileZIO { case Some(v) =>
                 ZIO(v * 2)
               }.runCollect
             )(equalTo(Chunk(2, 4, 6)))
@@ -804,7 +804,7 @@ object ZStreamSpec extends ZIOSpecDefault {
           test("collectWhileM short circuits") {
             assertM(
               (ZStream(Option(1)) ++ ZStream.fail("Ouch"))
-                .collectWhileM[Any, String, Int] { case None =>
+                .collectWhileZIO[Any, String, Int] { case None =>
                   ZIO.succeedNow(1)
                 }
                 .runDrain
@@ -813,14 +813,14 @@ object ZStreamSpec extends ZIOSpecDefault {
           },
           test("collectWhileM fails") {
             assertM(
-              ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileM { case Some(_) =>
+              ZStream(Some(1), Some(2), Some(3), None, Some(4)).collectWhileZIO { case Some(_) =>
                 ZIO.fail("Ouch")
               }.runDrain.either
             )(isLeft(isNonEmptyString))
           },
           test("laziness on chunks") {
             assertM(
-              ZStream(1, 2, 3, 4).collectWhileM {
+              ZStream(1, 2, 3, 4).collectWhileZIO {
                 case 3 => ZIO.fail("boom")
                 case x => UIO.succeed(x)
               }.either.runCollect
@@ -1462,7 +1462,7 @@ object ZStreamSpec extends ZIOSpecDefault {
           test("foreachWhile") {
             for {
               ref <- Ref.make(0)
-              _ <- ZStream(1, 1, 1, 1, 1, 1).foreachWhile[Any, Nothing](a =>
+              _ <- ZStream(1, 1, 1, 1, 1, 1).runForeachWhile[Any, Nothing](a =>
                      ref.modify(sum =>
                        if (sum >= 3) (false, sum)
                        else (true, sum + a)
@@ -1475,7 +1475,7 @@ object ZStreamSpec extends ZIOSpecDefault {
             for {
               flag <- Ref.make(true)
               _ <- (ZStream(true, true, false) ++ ZStream.fromZIO(flag.set(false)).drain)
-                     .foreachWhile(ZIO.succeedNow)
+                     .runForeachWhile(ZIO.succeedNow)
               skipped <- flag.get
             } yield assert(skipped)(isTrue)
           }
@@ -1483,7 +1483,7 @@ object ZStreamSpec extends ZIOSpecDefault {
         test("forever") {
           for {
             ref <- Ref.make(0)
-            _ <- ZStream(1).forever.foreachWhile[Any, Nothing](_ =>
+            _ <- ZStream(1).forever.runForeachWhile[Any, Nothing](_ =>
                    ref.modify(sum => (if (sum >= 9) false else true, sum + 1))
                  )
             sum <- ref.get
@@ -1927,7 +1927,7 @@ object ZStreamSpec extends ZIOSpecDefault {
             default   <- ZIO.executor
             ref1      <- Ref.make[Executor](default)
             ref2      <- Ref.make[Executor](default)
-            stream1    = ZStream.fromZIO(ZIO.executor.flatMap(ref1.set)).lock(global)
+            stream1    = ZStream.fromZIO(ZIO.executor.flatMap(ref1.set)).onExecutor(global)
             stream2    = ZStream.fromZIO(ZIO.executor.flatMap(ref2.set))
             _         <- (stream1 *> stream2).runDrain
             executor1 <- ref1.get
@@ -3045,7 +3045,7 @@ object ZStreamSpec extends ZIOSpecDefault {
           test("`available` returns the size of chunk's leftover") {
             ZStream
               .fromIterable((1 to 10).map(_.toByte))
-              .chunkN(3)
+              .rechunk(3)
               .toInputStream
               .use[Any, Throwable, TestResult](is =>
                 ZIO.attempt {
@@ -3609,7 +3609,7 @@ object ZStreamSpec extends ZIOSpecDefault {
           test("accessStream") {
             for {
               result <- ZStream
-                          .accessStream[String](ZStream.succeed(_))
+                          .environmentWithStream[String](ZStream.succeed(_))
                           .provide("test")
                           .runCollect
                           .map(_.head)
@@ -3618,7 +3618,7 @@ object ZStreamSpec extends ZIOSpecDefault {
           test("accessStream fails") {
             for {
               result <- ZStream
-                          .accessStream[Int](_ => ZStream.fail("fail"))
+                          .environmentWithStream[Int](_ => ZStream.fail("fail"))
                           .provide(0)
                           .runCollect
                           .exit
@@ -3631,7 +3631,7 @@ object ZStreamSpec extends ZIOSpecDefault {
             assertM(
               ZStream
                 .fromChunks(chunk: _*)
-                .chunkN(n)
+                .rechunk(n)
                 .mapChunks(ch => Chunk(ch))
                 .runCollect
             )(equalTo(expected))
