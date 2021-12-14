@@ -17,15 +17,10 @@ import zio.test.mock._
 case class User(id: String, name: String)
 
 trait UserService {
-
   def insert(user: User): IO[String, Unit]
-
   def remove(id: String): IO[String, Unit]
-  
   def totalUsers: IO[String, Int]
-  
   def recentUsers(n: Int): IO[String, List[User]]
-  
   def removeAll: IO[String, Unit]
 }
 
@@ -97,9 +92,7 @@ val exp02 = MockUserService.TotalUsers(Expectation.value(42))
 3. For methods that may return `Unit`, we may skip the predefined result (it will default to successful value) or use `unit` helper:
 
 ```scala mdoc:compile-only
-import zio.test.mock.MockConsole
-
-val exp03 = MockUserService.remove(
+val exp03 = MockUserService.Remove(
   Assertion.equalTo("1"),
   Expectation.unit
 )
@@ -109,6 +102,92 @@ val exp03 = MockUserService.remove(
 
 ```scala mdoc:compile-only
 val exp04 = MockUserService.RemoveAll()
+```
+
+### Providing Mocked Environment
+
+Each expectation can be taught of a mocked environment. They can be converted to a `ZLayer` implicitly. Therefore, we can compose them together and provide them to the environment of the SUT (System Under Test).
+
+```scala mdoc:compile-only
+import zio.test._
+
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("expecting simple value on call to nextInt") {
+  val sut     = Random.nextInt
+  val mockEnv = MockRandom.NextInt(Expectation.value(5))
+  for {
+    total <- sut.provideLayer(mockEnv)
+  } yield assertTrue(total == 5)
+} 
+```
+
+### Mocking Unused Collaborators
+
+Often the dependency on a collaborator is only in some branches of the code. To test the correct behaviour of branches without dependencies, we still have to provide it to the environment, but we would like to assert it was never called. With the `Mock.empty` method we can obtain a `ZLayer` with an empty service (no calls expected):
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.test.mock._
+
+object MaybeConsoleSpec extends DefaultRunnableSpec {
+  def spec = suite("processEvent")(
+    test("expect no call") {
+      def maybeConsole(invokeConsole: Boolean) =
+        ZIO.when(invokeConsole)(Console.printLine("foo"))
+
+      val sut1     = maybeConsole(false).unit
+      val mockEnv1 = MockConsole.empty
+
+      val sut2     = maybeConsole(true).unit
+      val mockEnv2 = MockConsole.PrintLine(
+        Assertion.equalTo("foo"),
+        Expectation.unit
+      )
+
+      for {
+        _ <- sut1.provideLayer(mockEnv1)
+        _ <- sut2.provideLayer(mockEnv2)
+      } yield assertTrue(true)
+    }
+  )
+}
+```
+
+### Mocking Multiple Collaborators
+
+In some cases we have more than one collaborating service being called. We can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlying mocked layer will be updated.
+
+```scala mdoc:compile-only
+import zio._
+import zio.test.{test, _}
+import zio.test.mock._
+
+test("mocking multiple collaborators") {
+  val sut =
+    for {
+      _ <- Console.printLine("What is your name?")
+      name <- Console.readLine.orDie
+      num <- Random.nextInt
+      _ <- Console.printLine(s"$name, your lucky number today is $num!")
+    } yield ()
+
+  val mockEnv: ULayer[Console with Random] = MockConsole.PrintLine(
+    Assertion.equalTo("What is your name?"),
+    Expectation.unit
+  ) ++ MockConsole.ReadLine(Expectation.value("Mike")) ++
+    MockRandom.NextInt(Expectation.value(42)) ++
+    MockConsole.PrintLine(
+      Assertion.equalTo("Mike, your lucky number today is 42!"),
+      Expectation.unit
+    )
+    
+  for {
+    _ <- sut.provideLayer(mockEnv)
+  } yield assertTrue(true)
+} 
 ```
 
 ## Expectations
