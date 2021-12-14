@@ -58,8 +58,8 @@ import zio.test.mock._
 object MockExampleService extends Mock[ExampleService] {
   object ExampleEffect extends Effect[Int, Throwable, String]
   object ExampleMethod extends Method[Int, Throwable, String]
-  object ExampleSink   extends Sink[Any, String, Int, Nothing, List[Int]]
-  object ExampleStream extends Stream[Any, String, Int]
+  object ExampleSink   extends Sink[Any, Throwable, Int, Nothing, List[Int]]
+  object ExampleStream extends Stream[Int, Throwable, String]
   
   override val compose: URLayer[Proxy, ExampleService] = ???
 }
@@ -137,7 +137,7 @@ trait MockExampleService extends Mock[ManyParamsService] {
 
 ### Encoding Overloaded Capabilities
 
-For **overloaded methods**, we nest a list of numbered objects, each representing subsequent overloads:
+For overloaded methods, we nest a list of numbered objects, each representing subsequent overloads:
 
 ```scala mdoc:silent
 // Main sources
@@ -223,108 +223,90 @@ Similarly, we use the same `of` combinator to refer to concrete monomorphic call
 import zio.test._
 import MockPolyService._
 
-val exp06 = PolyInput.of[String](Assertion.equalTo("foo"), Expectation.value("bar"))
-val exp07 = PolyInput.of[Int](Assertion.equalTo(42), Expectation.failure(new Exception))
-val exp08 = PolyInput.of[Long](Assertion.equalTo(42L), Expectation.value("baz"))
+val exp06 = PolyInput.of[String](
+  Assertion.equalTo("foo"),
+  Expectation.value("bar")
+)
 
-val exp09 = PolyAll.of[Int, Throwable, String](Assertion.equalTo(42), Expectation.value("foo"))
-val exp10 = PolyAll.of[Int, Throwable, String](Assertion.equalTo(42), Expectation.failure(new Exception))
+val exp07 = PolyInput.of[Int](
+  Assertion.equalTo(42),
+  Expectation.failure(new Exception)
+)
+
+val exp08 = PolyInput.of[Long](
+  Assertion.equalTo(42L),
+  Expectation.value("baz")
+)
+
+val exp09 = PolyAll.of[Int, Throwable, String](
+  Assertion.equalTo(42),
+  Expectation.value("foo")
+)
+
+val exp10 = PolyAll.of[Int, Throwable, String](
+  Assertion.equalTo(42),
+  Expectation.failure(new Exception)
+)
 ```
 
 
 ## Defining a Layer for the Mocked Service
 
-In this step, we need to provide a layer in which used to construct the mocked object. To do that, we should obtain the `Proxy` data type from the environment and then implement the service interface (i.e. `EmailService`) by wrapping all capability tags with proxy.
+Finally, we need to define a _compose layer_ that can create our environment from a `Proxy`. A `Proxy` holds the mock state and serves predefined responses to calls.
 
-```scala mdoc:silent
-// main sources
-
-import zio._
-import zio.stream.{ ZSink, ZStream }
-
-trait Example {
-  val static                                 : UIO[String]
-  def zeroArgs                               : UIO[Int]
-  def zeroArgsWithParens()                   : UIO[Long]
-  def singleArg(arg1: Int)                   : UIO[String]
-  def multiArgs(arg1: Int, arg2: Long)       : UIO[String]
-  def multiParamLists(arg1: Int)(arg2: Long) : UIO[String]
-  def command(arg1: Int)                     : UIO[Unit]
-  def overloaded(arg1: Int)                  : UIO[String]
-  def overloaded(arg1: Long)                 : UIO[String]
-  def function(arg1: Int)                    : String
-  def sink(a: Int)                           : ZSink[Any, String, Int, Int, List[Int]]
-  def stream(a: Int)                         : ZStream[Any, String, Int]
-}
-```
-
-```scala mdoc:silent
-// test sources
-
-import zio._
-import zio.test.mock._
-
-object ExampleMock extends Mock[Example] {
-  object Static             extends Effect[Unit, Nothing, String]
-  object ZeroArgs           extends Effect[Unit, Nothing, Int]
-  object ZeroArgsWithParens extends Effect[Unit, Nothing, Long]
-  object SingleArg          extends Effect[Int, Nothing, String]
-  object MultiArgs          extends Effect[(Int, Long), Nothing, String]
-  object MultiParamLists    extends Effect[(Int, Long), Nothing, String]
-  object Command            extends Effect[Int, Nothing, Unit]
-  object Overloaded {
-    object _0 extends Effect[Int, Nothing, String]
-    object _1 extends Effect[Long, Nothing, String]
-  }
-  object Function extends Method[Int, Throwable, String]
-  object Sink     extends Sink[Any, String, Int, Int, List[Int]]
-  object Stream   extends Stream[Any, String, Int]
-
-  val compose: URLayer[Proxy, Example] = ???
-}
-```
-
-## Defining Compose Layer
-
-Finally, we need to define a _compose layer_ that can create our environment from a `Proxy`. A `Proxy` holds the mock state and serves predefined responses to calls:
-
-```scala mdoc:invisible
-def withRuntime[R]: URIO[R, Runtime[R]] = ???
-```
+So again, assume we have the following service:
 
 ```scala mdoc:silent
 import zio._
 import zio.test.mock._
-import ExampleMock._
 
-val compose: URLayer[Proxy, Example] =
-  ZIO.serviceWithZIO[Proxy] { proxy =>
-    withRuntime[Any].map { rts =>
-      new Example {
-        val static                                 = proxy(Static)
-        def zeroArgs                               = proxy(ZeroArgs)
-        def zeroArgsWithParens()                   = proxy(ZeroArgsWithParens)
-        def singleArg(arg1: Int)                   = proxy(SingleArg, arg1)
-        def multiArgs(arg1: Int, arg2: Long)       = proxy(MultiArgs, arg1, arg2)
-        def multiParamLists(arg1: Int)(arg2: Long) = proxy(MultiParamLists, arg1, arg2)
-        def command(arg1: Int)                     = proxy(Command, arg1)
-        def overloaded(arg1: Int)                  = proxy(Overloaded._0, arg1)
-        def overloaded(arg1: Long)                 = proxy(Overloaded._1, arg1)
-        def function(arg1: Int)                    = rts.unsafeRunTask(proxy(Function, arg1))
-        def sink(a: Int)                           = rts.unsafeRun(proxy(Sink, a).catchAll(error => UIO(ZSink.fail[String](error))))
-        def stream(a: Int)                         = rts.unsafeRun(proxy(Stream, a))
+trait ExampleService {
+  def exampleEffect(i: Int): Task[String]
+  def exampleMethod(i: Int): String
+  def exampleSink(a: Int): stream.Sink[Throwable, Int, Nothing, List[Int]]
+  def exampleStream(a: Int): stream.Stream[Throwable, String]
+}
+```
+
+In this step, we need to provide a layer in which used to construct the mocked object. To do that, we should obtain the `Proxy` data type from the environment and then implement the service interface by wrapping all capability tags with proxy:
+
+```scala mdoc:compile-only
+import zio.test.mock._
+
+object MockExampleService extends Mock[ExampleService] {
+  object ExampleEffect extends Effect[Int, Throwable, String]
+  object ExampleMethod extends Method[Int, Throwable, String]
+  object ExampleSink extends Sink[Any, Throwable, Int, Nothing, List[Int]]
+  object ExampleStream extends Stream[Int, Throwable, String]
+
+  override val compose: URLayer[Proxy, ExampleService] =
+    ZIO.serviceWithZIO[Proxy] { proxy =>
+      withRuntime[Any].map { rts =>
+        new ExampleService {
+          override def exampleEffect(i: Int): Task[String] =
+            proxy(ExampleEffect, i)
+
+          override def exampleMethod(i: Int): String =
+            rts.unsafeRunTask(proxy(ExampleMethod, i))
+
+          override def exampleSink(a: Int): stream.Sink[Throwable, Int, Nothing, List[Int]] =
+            rts.unsafeRun(proxy(ExampleSink, a))
+
+          override def exampleStream(a: Int): stream.Stream[Throwable, String] =
+            rts.unsafeRun(proxy(ExampleStream, a))
+        }
       }
-    }
-  }.toLayer
+    }.toLayer
+}
 ```
 
 > **Note:** The `withRuntime` helper is defined in `Mock`. It accesses the Runtime via `ZIO.runtime` and if you're on JS platform, it will replace the executor to an unyielding one.
 
 A reference to this layer is passed to _capability tags_, so it can be used to automatically build environment for composed expectations on multiple services.
 
-> **Note:**
->
-> For non-effectful capabilities we need to unsafely run the final effect to satisfy the required interface. For `ZSink` we also need to map the error into a failed sink as demonstrated above.
+```scala mdoc:invisible:reset
+
+```
 
 ## The Complete Example
 
