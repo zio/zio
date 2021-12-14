@@ -204,9 +204,10 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("expecting simple value") {
+  val sut     = UserService.totalUsers
+  val mockEnv = MockUserService.TotalUsers(Expectation.value(14))
   for {
-    total <- UserService.totalUsers.provideLayer(
-      MockUserService.TotalUsers(Expectation.value(14)))
+    total <- sut.provideLayer(mockEnv)
   } yield assertTrue(total == 14)
 } 
 ```
@@ -215,21 +216,22 @@ test("expecting simple value") {
 
 Expecting a value based on input arguments:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
 import zio.test.{test, _}
 import zio.test.mock._
 
 test("an expectation based on input arguments") {
-  for {
-    users <- UserService.recentUsers(3).provideLayer(
-      MockUserService.RecentUsers(
-        Assertion.isPositive,
-        Expectation.valueF(n =>
-          (1 to n).map(id => User(id.toString, "name")).toList
-        )
-      )
+  val sut     = UserService.recentUsers(3)
+  val mockEnv = MockUserService.RecentUsers(
+    Assertion.isPositive,
+    Expectation.valueF(n =>
+      (1 to n).map(id => User(id.toString, "name")).toList
     )
+  )
+
+  for {
+    users <- sut.provideLayer(mockEnv)
   } yield assertTrue(users.map(_.id) == List("1", "2", "3"))
 }
 ```
@@ -244,22 +246,23 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("effectful expectation") {
-  for {
-    users <- UserService.recentUsers(3).provideLayer(
-      MockUserService.RecentUsers(
-        Assertion.isPositive,
-        Expectation.valueM(n =>
-          ZIO.foreach(1 to n) { n =>
-            Random
-              .nextUUID
-              .map(id => User(id.toString, s"name-$n"))
-              .provideLayer(Random.live)
-          }.map(_.toList)
-        )
-      )
+  val sut     = UserService.recentUsers(3)
+  val mockEnv = MockUserService.RecentUsers(
+    Assertion.isPositive,
+    Expectation.valueM(n =>
+      ZIO.foreach(1 to n) { n =>
+        Random
+          .nextUUID
+          .map(id => User(id.toString, s"name-$n"))
+          .provideLayer(Random.live)
+      }.map(_.toList)
     )
+  )
+
+  for {
+    users <- sut.provideLayer(mockEnv)
   } yield assertTrue(List("name-1", "name-2", "name-3") == users.map(_.name))
-} 
+}
 ```
 
 ### `unit`
@@ -272,13 +275,14 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("expecting unit") {
+  val sut     = UserService.remove("1")
+  val mockEnv = MockUserService.Remove(
+    Assertion.isNonEmptyString,
+    Expectation.unit
+  )
+  
   for {
-    res <- UserService.remove("1").provideLayer(
-      MockUserService.Remove(
-        Assertion.isNonEmptyString,
-        Expectation.unit
-      )
-    ).exit
+    res <- sut.provideLayer(mockEnv).exit
   } yield assertTrue(
     res match {
       case Exit.Success(()) => true
@@ -298,10 +302,11 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("failure expectation") {
+  val sut = UserService.totalUsers
+  val mockEnv = MockUserService.TotalUsers(Expectation.failure("connection failed"))
+  
   for {
-    total <- UserService.totalUsers.provideLayer(
-      MockUserService.TotalUsers(Expectation.failure("connection failed"))
-    ).exit
+    total <- sut.provideLayer(mockEnv).exit
   } yield assertTrue(
     total match {
       case Exit.Success(_) =>
@@ -325,13 +330,14 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("never ending expectation") {
+  val sut     = UserService.totalUsers
+  val mockEnv = MockUserService.TotalUsers(
+    Expectation.never
+  )
+
   for {
     r <- Live.live(
-      UserService.totalUsers.provideLayer(
-        MockUserService.TotalUsers(
-          Expectation.never
-        )
-      ).timeout(500.millis)
+      sut.provideLayer(mockEnv).timeout(500.millis)
     )
   } yield assertTrue(r.isEmpty)
 }
@@ -351,14 +357,15 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("satisfy both expectations with a logical `and` operator") {
+  val sut     = UserService.recentUsers(5) *> UserService.totalUsers
+  val mockEnv = MockUserService.TotalUsers(Expectation.value(1)).and(
+    MockUserService.RecentUsers(
+      Assertion.isPositive,
+      Expectation.value(List(User("1", "user"))))
+  )
+
   for {
-    total <- (UserService.recentUsers(5) *> UserService.totalUsers).provideLayer(
-      MockUserService.TotalUsers(Expectation.value(1)).and(
-        MockUserService.RecentUsers(
-          Assertion.isPositive,
-          Expectation.value(List(User("1", "user"))))
-      )
-    )
+    total <- sut.provideLayer(mockEnv)
   } yield assertTrue(total == 1)
 }
 ```
@@ -373,14 +380,15 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("satisfy one of expectations with a logical `or` operator") {
+  val sut     = UserService.totalUsers
+  val mockEnv = MockUserService.TotalUsers(Expectation.value(1)).or(
+    MockUserService.RecentUsers(
+      Assertion.isPositive,
+      Expectation.value(List(User("1", "user"))))
+  )
+
   for {
-    total <- UserService.totalUsers.provideLayer(
-      MockUserService.TotalUsers(Expectation.value(1)).or(
-        MockUserService.RecentUsers(
-          Assertion.isPositive,
-          Expectation.value(List(User("1", "user"))))
-      )
-    )
+    total <- sut.provideLayer(mockEnv)
   } yield assertTrue(total == 1)
 }
 ```
@@ -395,13 +403,14 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("satisfy sequence of two expectations with `andThen` operator") {
+  val sut     = UserService.recentUsers(5) *> UserService.totalUsers
+  val mockEnv = MockUserService.RecentUsers(
+    Assertion.isPositive,
+    Expectation.value(List(User("1", "user")))
+  ) andThen MockUserService.TotalUsers(Expectation.value(1))
+
   for {
-    total <- (UserService.recentUsers(5) *> UserService.totalUsers).provideLayer(
-      MockUserService.RecentUsers(
-        Assertion.isPositive,
-        Expectation.value(List(User("1", "user")))
-      ) andThen MockUserService.TotalUsers(Expectation.value(1))
-    )
+    total <- sut.provideLayer(mockEnv)
   } yield assertTrue(total == 1)
 }
 ```
@@ -418,12 +427,13 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("satisfying exact repetition of a method call") {
+  val sut     = ZIO.foreach(List("1", "2", "3", "4"))(id => UserService.remove(id))
+  val mockEnv = MockUserService.Remove(
+    Assertion.isNonEmptyString
+  ).exactly(4)
+
   for {
-    _ <- ZIO.foreach(List("1", "2", "3", "4"))(id => UserService.remove(id)).provideLayer(
-      MockUserService.Remove(
-        Assertion.isNonEmptyString
-      ).exactly(4)
-    )
+    _ <- sut.provideLayer(mockEnv)
   } yield assertTrue(true)
 }
 ```
@@ -440,11 +450,11 @@ import zio.test.{test, _}
 import zio.test.mock._
 
 test("expect repeated calls") {
+  val sut     = Random.nextInt *> Random.nextInt
+  val mockEnv = MockRandom.NextInt(Expectation.value(42)).repeats(2 to 4)
+
   for {
-    _ <- (Random.nextInt *> Random.nextInt).provideLayer(
-      MockRandom.NextInt(Expectation.value(42))
-        .repeats(2 to 4)
-    )
+    _ <- sut.provideLayer(mockEnv)
   } yield assertTrue(true)
 }
 ```
@@ -460,11 +470,11 @@ import zio.test.mock._
 import zio.test.mock.Expectation._
 
 test("if another repetition starts executing, it must be completed") {
+  val sut     = Random.nextInt *> Random.nextBoolean *> Random.nextInt
+  val mockEnv = (MockRandom.NextInt(value(42)) ++ MockRandom.NextBoolean(value(true)))
+    .repeats(1 to 2)
   for {
-    _ <- (Random.nextInt *> Random.nextBoolean *> Random.nextInt).provideLayer(
-      (MockRandom.NextInt(value(42)) ++ MockRandom.NextBoolean(value(true)))
-        .repeats(1 to 2)
-    )
+    _ <- sut.provideLayer(mockEnv)
   } yield assertTrue(true)
 } @@ TestAspect.failing
 ```
