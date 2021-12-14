@@ -224,6 +224,18 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     }
 
   /**
+   * Checks whether the hub is currently empty.
+   */
+  final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+    self.size.map(_ == 0)
+
+  /**
+   * Checks whether the hub is currently full.
+   */
+  final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+    self.size.map(_ == capacity)
+
+  /**
    * Transforms messages taken from the hub using the specified function.
    */
   final def map[C](f: B => C): ZHub[RA, RB, EA, EB, A, C] =

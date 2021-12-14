@@ -20,6 +20,7 @@ import zio.internal.{FiberContext, Platform, StackBool, StackTraceBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
+import java.lang.ref.WeakReference
 
 /**
  * A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -379,6 +380,8 @@ trait Runtime[+R] {
       trace
     )
 
+    ZScope.global.unsafeAdd(runtimeConfig, context)
+
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)
 
@@ -387,7 +390,9 @@ trait Runtime[+R] {
 
     context.nextEffect = zio
     context.run()
-    context.unsafeOnDone(exit => k(exit.flatten))
+    context.unsafeOnDone { exit =>
+      k(exit.flatten)
+    }
 
     fiberId =>
       k => unsafeRunAsyncWith(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))

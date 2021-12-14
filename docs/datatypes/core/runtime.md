@@ -95,7 +95,7 @@ object MainApp extends scala.App {
 
 ## Custom Runtime
 
-Sometimes we need to create a custom `Runtime` with a user-defined environment and user-specified `RuntimeCOnfig`. Many real applications should not use `Runtime.default`. Instead, they should make their own `Runtime` which configures the `RuntimeConfig` and environment accordingly.
+Sometimes we need to create a custom `Runtime` with a user-defined environment and user-specified `RuntimeConfig`. Many real applications should not use `Runtime.default`. Instead, they should make their own `Runtime` which configures the `RuntimeConfig` and environment accordingly.
 
 Some use-cases of custom Runtimes:
 
@@ -246,7 +246,7 @@ ZIO has a `RuntimeConfigAspect` which helps us easily transform an existing `Run
 It has the following constructors:
 
 | Constructor                               | Input                         | Output                |
-|-------------------------------------------+-------------------------------+-----------------------|
+|-------------------------------------------|-------------------------------|-----------------------|
 | `RuntimeConfigAspect.addLogger`           | `logger: ZLogger[Any]`        | `RuntimeConfigAspect` |
 | `RuntimeConfigAspect.addReportFatal`      | `f: Throwable => Nothing`     | `RuntimeConfigAspect` |
 | `RuntimeConfigAspect.addSupervisor`       | `supervisor: Supervisor[Any]` | `RuntimeConfigAspect` |

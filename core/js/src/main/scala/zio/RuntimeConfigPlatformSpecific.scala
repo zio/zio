@@ -100,7 +100,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       reportFatal,
       supervisor,
       loggers,
-      RuntimeConfigFlags.empty
+      RuntimeConfigFlags.empty + RuntimeConfigFlag.EnableFiberRoots
     )
   }
 
