@@ -37,7 +37,7 @@ private[zio] final class FiberContext[E, A](
   var runtimeConfig: RuntimeConfig,
   val interruptStatus: StackBool,
   val fiberRefLocals: FiberRefLocals,
-  val children: JavaSet[FiberContext[_, _]],
+  val _children: JavaSet[FiberContext[_, _]],
   val location: ZTraceElement
 ) extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable { self =>
@@ -71,8 +71,26 @@ private[zio] final class FiberContext[E, A](
       fiberId
     )
 
+  final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
+    evalOnZIO(
+      UIO {
+        val chunkBuilder = ChunkBuilder.make[Fiber.Runtime[_, _]](_children.size)
+
+        val iterator = _children.iterator()
+
+        while (iterator.hasNext()) {
+          chunkBuilder += iterator.next()
+        }
+
+        chunkBuilder.result()
+      },
+      UIO(Chunk.empty)
+    )
+
   final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
-    UIO.suspendSucceed(unsafeEvalOn(effect, orElse))
+    UIO.suspendSucceed {
+      if (unsafeEvalOn(effect)) ZIO.unit else orElse.unit
+    }
 
   final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] =
     UIO(unsafeGetRef(ref))
@@ -104,7 +122,7 @@ private[zio] final class FiberContext[E, A](
    */
   override final def runUntil(maxOpCount: Int): Unit =
     try {
-      val logRuntime = runtimeConfig.runtimeConfigFlags.isEnabled(RuntimeConfigFlag.LogRuntime)
+      val logRuntime = runtimeConfig.flags.isEnabled(RuntimeConfigFlag.LogRuntime)
 
       // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
       // it in `ObjectRef` and performance will plummet.
@@ -122,7 +140,7 @@ private[zio] final class FiberContext[E, A](
       var extraTrace: ZTraceElement = emptyTraceElement
 
       import RuntimeConfigFlag._
-      val flags = runtimeConfig.runtimeConfigFlags
+      val flags = runtimeConfig.flags
       val superviseOps =
         flags.isEnabled(SuperviseOperations) &&
           (runtimeConfig.supervisor ne Supervisor.none)
@@ -517,7 +535,7 @@ private[zio] final class FiberContext[E, A](
       import RuntimeConfigFlag._
 
       // FIXME: Race condition on fiber resumption
-      if (runtimeConfig.runtimeConfigFlags.isEnabled(EnableCurrentFiber)) Fiber._currentFiber.remove()
+      if (runtimeConfig.flags.isEnabled(EnableCurrentFiber)) Fiber._currentFiber.remove()
       if (runtimeConfig.supervisor ne Supervisor.none) runtimeConfig.supervisor.unsafeOnSuspend(self)
     }
 
@@ -530,8 +548,8 @@ private[zio] final class FiberContext[E, A](
 
   final def trace(implicit trace0: ZTraceElement): UIO[ZTrace] = UIO(unsafeCaptureTrace(Nil))
 
-  private[zio] def unsafeAddChild(child: FiberContext[_, _])(implicit trace: ZTraceElement): Unit =
-    unsafeEvalOn(ZIO.succeed(children.add(child)), ZIO.unit)
+  private[zio] def unsafeAddChild(child: FiberContext[_, _])(implicit trace: ZTraceElement): Boolean =
+    unsafeEvalOn(ZIO.succeed(_children.add(child)))
 
   private def unsafeAddFinalizer(finalizer: UIO[Any]): Unit = stack.push(new Finalizer(finalizer))
 
@@ -650,7 +668,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   @tailrec
-  def unsafeEvalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] = {
+  def unsafeEvalOn(effect: UIO[Any])(implicit trace: ZTraceElement): Boolean = {
     val oldState = state.get
 
     oldState match {
@@ -658,10 +676,10 @@ private[zio] final class FiberContext[E, A](
         val newMailbox = if (mailbox eq null) effect else mailbox.flatMap(_ => effect)
         val newState   = executing.copy(mailbox = newMailbox)
 
-        if (!state.compareAndSet(oldState, newState)) unsafeEvalOn(effect, orElse)
-        else UIO.unit
+        if (!state.compareAndSet(oldState, newState)) unsafeEvalOn(effect)
+        else true
 
-      case Done(_) => orElse.unit
+      case Done(_) => false
     }
   }
 
@@ -712,7 +730,9 @@ private[zio] final class FiberContext[E, A](
       childContext.unsafeOnDone(exit => runtimeConfig.supervisor.unsafeOnEnd(exit.flatten, childContext))
     }
 
-    val childZio = if (!parentScope.unsafeAdd(childContext)) ZIO.interruptAs(parentScope.fiberId) else zio
+    val childZio =
+      if (!parentScope.unsafeAdd(runtimeConfig, childContext)) ZIO.interruptAs(parentScope.fiberId)
+      else zio
 
     childContext.nextEffect = childZio
     if (stack.isEmpty) unsafeGetExecutor().unsafeSubmitAndYieldOrThrow(childContext)
@@ -1059,8 +1079,8 @@ private[zio] final class FiberContext[E, A](
 
             mailbox *> ZIO.done(exit)
           }
-        } else if (children.isEmpty()) {
-          // The mailbox is empty and the children are shut down:
+        } else if (_children.isEmpty()) {
+          // The mailbox is empty and the _children are shut down:
           val interruptorsCause = oldState.interruptorsCause
 
           val newExit =
@@ -1107,13 +1127,13 @@ private[zio] final class FiberContext[E, A](
             null
           }
         } else {
-          // Not done because there are children left to close:
+          // Not done because there are _children left to close:
           import collection.JavaConverters._
 
           unsafeSetInterrupting(true)
 
           var interruptChildren: UIO[Any] = UIO.unit
-          val iterator                    = children.iterator()
+          val iterator                    = _children.iterator()
           while (iterator.hasNext()) {
             val next = iterator.next()
 
@@ -1121,7 +1141,7 @@ private[zio] final class FiberContext[E, A](
               if (next eq null) interruptChildren
               else interruptChildren *> next.interruptAs(fiberId)
           }
-          children.clear()
+          _children.clear()
 
           interruptChildren *> ZIO.done(exit)
         }
@@ -1193,7 +1213,7 @@ private[zio] final class FiberContext[E, A](
 
   @inline
   private def trackMetrics: Boolean =
-    runtimeConfig.runtimeConfigFlags.isEnabled(RuntimeConfigFlag.TrackRuntimeMetrics)
+    runtimeConfig.flags.isEnabled(RuntimeConfigFlag.TrackRuntimeMetrics)
 
   @inline
   private def observeFailure(clzz: Class[_]): Unit =

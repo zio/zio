@@ -23,4 +23,5 @@ object RuntimeConfigFlag {
   case object LogRuntime          extends RuntimeConfigFlag
   case object SuperviseOperations extends RuntimeConfigFlag
   case object TrackRuntimeMetrics extends RuntimeConfigFlag
+  case object EnableFiberRoots    extends RuntimeConfigFlag
 }

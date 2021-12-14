@@ -3,6 +3,7 @@ package zio
 import zio.Cause.{Both, Then, empty}
 import zio.test.Assertion._
 import zio.test._
+import zio.test.TestAspect.samples
 
 object CauseSpec extends ZIOBaseSpec {
 
@@ -160,7 +161,7 @@ object CauseSpec extends ZIOBaseSpec {
         assert(stripped)(isNone)
       }
     )
-  )
+  ) @@ samples(10)
 
   val causes: Gen[Random with Sized, Cause[String]] =
     Gen.causes(Gen.string, Gen.string.map(s => new RuntimeException(s)))

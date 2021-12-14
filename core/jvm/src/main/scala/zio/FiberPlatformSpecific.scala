@@ -28,6 +28,8 @@ private[zio] trait FiberPlatformSpecific {
     new Fiber.Synthetic.Internal[Throwable, A] {
       override def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).exit
 
+      def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
+
       override def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Throwable, A]]] =
         UIO.suspendSucceed {
           val cf = cs.toCompletableFuture
@@ -42,6 +44,8 @@ private[zio] trait FiberPlatformSpecific {
         }
 
       final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
+
+      def id: FiberId = FiberId.None
 
       final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
         join.fold(Exit.fail, Exit.succeed)
@@ -61,6 +65,9 @@ private[zio] trait FiberPlatformSpecific {
       def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
         ZIO.fromFutureJava(ftr).exit
 
+      def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
+        ZIO.succeedNow(Chunk.empty)
+
       def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Throwable, A]]] =
         UIO.suspendSucceed {
           if (ftr.isDone) {
@@ -74,6 +81,8 @@ private[zio] trait FiberPlatformSpecific {
         }
 
       def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
+
+      def id: FiberId = FiberId.None
 
       def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
         join.fold(Exit.fail, Exit.succeed)

@@ -156,7 +156,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     }
   )
   .jsSettings(
-    libraryDependencies += ("org.scala-js" %%% "scalajs-weakreferences" % "1.0.0").cross(CrossVersion.for3Use2_13)
+    libraryDependencies ++=
+      Seq(
+        ("org.scala-js" %%% "scalajs-weakreferences" % "1.0.0").cross(CrossVersion.for3Use2_13),
+        "org.scala-js"  %%% "scalajs-dom"            % "2.0.0"
+      )
   )
 
 lazy val coreJVM = core.jvm
@@ -599,10 +603,8 @@ lazy val benchmarks = project.module
       )
       .reduce(_ | _),
     Compile / console / scalacOptions := Seq(
-      "-Ypartial-unification",
       "-language:higherKinds",
       "-language:existentials",
-      "-Yno-adapted-args",
       "-Xsource:2.13",
       "-Yrepl-class-based"
     )
