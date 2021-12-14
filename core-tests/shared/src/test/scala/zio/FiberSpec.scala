@@ -123,7 +123,7 @@ object FiberSpec extends ZIOBaseSpec {
             _      <- fiber1.interrupt *> fiber2.interrupt
           } yield assertCompletes
         }
-      ),
+      ) @@ ignore,
       suite("stack safety")(
         test("awaitAll") {
           assertM(Fiber.awaitAll(fibers))(anything)
