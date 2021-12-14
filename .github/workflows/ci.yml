@@ -125,6 +125,7 @@ jobs:
         platform: ['JS', 'Native']
     env:
       JVM_OPTS: -XX:+PrintCommandLineFlags -XX:+UseG1GC -Xmx2g -Xms2g
+      NODE_OPTIONS: --max_old_space_size=4096
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2.4.0
