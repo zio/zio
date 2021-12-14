@@ -451,67 +451,6 @@ test("a test that will only pass on a specified failure") {
 
 When we use some services in our tests, we need to provide the implementation layer of that service to our tests. ZIO Test has multiple test aspects for providing layers such as `provide`, `provideCustom`, `provideEnvironment`, `provideSome` and `provideSomeEnvironment`. We can choose one of them depending on our needs.
 
-Additionally, we can provide layers that are shared between multiple tests within a suite through the `provideCustomShared` and `provideSomeShared` test aspects.
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-import zio.test.TestAspect._
-
-suite("sharing a service between test cases") (
-  test("A")(ZIO.service[Int].map(i => assertTrue(i == 5))),
-  test("B")(ZIO.service[Int].map(i => assertTrue(i == 5)))
-) @@ provideCustomLayerShared(ZLayer.succeed(5))
-```
-
-Let's try a practical example. Assume we have the following counter service:
-
-```scala mdoc:silent
-trait Counter {
-  def inc: UIO[Int]
-}
-
-object Counter {
-  def inc: ZIO[Counter, Nothing, Int] =
-    ZIO.serviceWithZIO[Counter](_.inc)
-}
-
-case class CounterLive(ref: Ref[Int]) extends Counter {
-  override def inc: ZIO[Any, Nothing, Int] = ref.updateAndGet(_ + 1)
-}
-
-object CounterLive {
-  val layer: ULayer[CounterLive] =
-    ZRef.make(0).map(CounterLive(_)).toLayer
-}
-```
-
-We can share this service among multiple tests:
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-import zio.test.TestAspect._
-
-suite("a suite of two tests with shared counter service")(
-  test("A") {
-    for {
-      c <- Counter.inc
-      _ <- ZIO.debug(s"Running Test A (counter: $c)")
-    } yield assertTrue(c == 1)
-  },
-  test("B") {
-    for {
-      c <- Counter.inc
-      _ <- ZIO.debug(s"Running Test B (counter: $c)")
-    } yield assertTrue(c == 2)
-  }
-) @@ sequential @@ provideCustomLayerShared(CounterLive.layer)
-```
-
-```scala mdoc:reset:invisible
-```
-
 ## Repeat and Retry
 
 There are some situations where we need to repeat a test with a specific schedule, or our tests might fail, and we need to retry them until we make sure that our tests pass. ZIO Test has the following test aspects for these scenarios:
