@@ -21,7 +21,7 @@ for {
   fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
   _      <- TestClock.adjust(1.minute)
   result <- fiber.join
-} yield result == None
+} yield assertTrue(result.isEmpty)
 ```
 
 Note how we forked the fiber that `sleep` was invoked on. Calls to `sleep` and methods derived from it will semantically block until the time is set to on or after the time they are scheduled to run. 
@@ -49,7 +49,7 @@ for {
   _ <- TestClock.adjust(60.minutes)
   d <- q.take.as(true)
   e <- q.poll.map(_.isEmpty)
-} yield a && b && c && d && e
+} yield assertTrue(a && b && c && d && e)
 ``` 
 
 Here we verify that no effect is performed before the recurrence period, that an effect is performed after the recurrence period, and that the effect is performed exactly once. 
@@ -74,7 +74,7 @@ test("One can move time very fast") {
     startTime <- currentTime(TimeUnit.SECONDS)
     _         <- TestClock.adjust(1.minute)
     endTime   <- currentTime(TimeUnit.SECONDS)
-  } yield assert(endTime - startTime)(isGreaterThanEqualTo(60L))
+  } yield assertTrue((endTime - startTime) >= 60L)
 }
 ```
 
@@ -93,7 +93,7 @@ test("One can control time as he see fit") {
     _       <- (ZIO.sleep(10.seconds) *> promise.succeed(1)).fork
     _       <- TestClock.adjust(10.seconds)
     readRef <- promise.await
-  } yield assert(1)(equalTo(readRef))
+  } yield assertTrue(1 == readRef)
 }
 ```
 
@@ -140,11 +140,11 @@ test("One can control time for failing effects too") {
   val testCase =
     for {
       promise <- Promise.make[Unit, Int]
-      result  <- ZIO.service[SchedulingService].flatMap(_.schedule(promise)).exit.fork
-      _       <- TestClock.adjust(10.seconds)
+      result <- ZIO.service[SchedulingService].flatMap(_.schedule(promise)).exit.fork
+      _ <- TestClock.adjust(10.seconds)
       readRef <- promise.await
-      result  <- result.join
-    } yield assert(1)(equalTo(readRef)) && assert(result)(fails(isSubtype[Exception](anything)))
+      result <- result.join
+    } yield assertTrue((1 == readRef) && result.isFailure)
   testCase.provideSomeLayer[TestEnvironment](partialLayer)
 }
 ```
@@ -178,6 +178,6 @@ test("zipWithLatest") {
     fiber  <- ZIO.collectAll(ZIO.replicate(4)(q.take)).fork
     _      <- TestClock.adjust(1.second)
     result <- fiber.join
-  } yield assert(result)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
+  } yield assertTrue(result == List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2))
 }
 ```

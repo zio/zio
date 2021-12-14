@@ -20,16 +20,18 @@ import zio.test.Assertion._
 
 test("Use setSeed to generate stable values") {
   for {
-    _  <- TestRandom.setSeed(27)
+    _ <- TestRandom.setSeed(27)
     r1 <- Random.nextLong
     r2 <- Random.nextLong
     r3 <- Random.nextLong
   } yield
-    assert(List(r1,r2,r3))(equalTo(List[Long](
-      -4947896108136290151L,
-      -5264020926839611059L,
-      -9135922664019402287L
-    )))
+    assertTrue(
+      List(r1, r2, r3) == List[Long](
+        -4947896108136290151L,
+        -5264020926839611059L,
+        -9135922664019402287L
+      )
+    )
 }
 ```
 
@@ -46,7 +48,7 @@ import zio.test.Assertion._
 
 test("One can provide its own list of ints") {
   for {
-    _  <- TestRandom.feedInts(1, 9, 2, 8, 3, 7, 4, 6, 5)
+    _ <- TestRandom.feedInts(1, 9, 2, 8, 3, 7, 4, 6, 5)
     r1 <- Random.nextInt
     r2 <- Random.nextInt
     r3 <- Random.nextInt
@@ -56,9 +58,9 @@ test("One can provide its own list of ints") {
     r7 <- Random.nextInt
     r8 <- Random.nextInt
     r9 <- Random.nextInt
-  } yield assert(
-    List(1, 9, 2, 8, 3, 7, 4, 6, 5)
-  )(equalTo(List(r1, r2, r3, r4, r5, r6, r7, r8, r9)))
+  } yield assertTrue(
+    List(1, 9, 2, 8, 3, 7, 4, 6, 5) == List(r1, r2, r3, r4, r5, r6, r7, r8, r9)
+  )
 }
 ```
 

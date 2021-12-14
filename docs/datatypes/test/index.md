@@ -86,7 +86,7 @@ object HelloWorldSpec extends DefaultRunnableSpec {
       for {
         _      <- sayHello
         output <- TestConsole.output
-      } yield assert(output)(equalTo(Vector("Hello, World!\n")))
+      } yield assertTrue(output == Vector("Hello, World!\n"))
     }
   )
 }
@@ -128,7 +128,7 @@ test("timeout") {
     fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
     _      <- TestClock.adjust(1.minute)
     result <- fiber.join
-  } yield assert(result)(isNone)
+  } yield assertTrue(result.isEmpty)
 }
 ```
 
@@ -177,7 +177,7 @@ Support for property based testing is included out-of-the-box through the `check
 import zio.test._
 val associativity =
   check(Gen.int, Gen.int, Gen.int) { (x, y, z) =>
-    assert((x + y) + z)(equalTo(x + (y + z)))
+    assertTrue(((x + y) + z) == (x + (y + z)))
   }
 ```
 
