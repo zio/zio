@@ -9,7 +9,7 @@ A `Mock[R]` represents a mockable environment `R`. It's a base abstract class fo
 
 In order to create a mock object, we should define an object which implements the `Mock` abstract class in the test sources. To implement the `Mock` need to define _capability tags_ and the _compose layer_:
 
-### Capability Tags
+## Encoding Service Capabilities
 
 Capabilities are service functionalities that are accessible from the client-side. For example, in the following service the `send` method is a service capability:
 
@@ -82,7 +82,7 @@ We model input arguments according to the following scheme:
 ```scala mdoc:silent
 import zio._
 
-trait ExampleService {
+trait ZeroParamService {
   def zeroParams: Task[Int]
 }
 ```
@@ -92,7 +92,7 @@ So the capability tag of `zeroParams` should be:
 ```scala mdoc:compile-only
 import zio.test.mock._
 
-object MockExampleService extends Mock[ExampleService] {
+object MockZeroParamService extends Mock[ZeroParamService] {
   object ZeroParams extends Effect[Unit, Throwable, Int]
   
   override val compose = ???
@@ -116,7 +116,7 @@ If the capability has more than one argument, we should encode the argument type
 ```scala mdoc:silent
 import zio._
 
-trait ExampleService {
+trait ManyParamsService {
   def manyParams(a: Int, b: String, c: Long): Task[Int]
 }
 ```
@@ -126,7 +126,7 @@ We should encode that with the following capability tag:
 ```scala mdoc:compile-only
 import zio.test.mock._
 
-trait MockExampleService extends Mock[ExampleService] {
+trait MockExampleService extends Mock[ManyParamsService] {
   object ManyParams extends Method[(Int, String, Long), Throwable, String]
   
   override val compose = ???
@@ -139,13 +139,13 @@ trait MockExampleService extends Mock[ExampleService] {
 
 ### Polymorphic Capabilities
 
-Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter.
+Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter:
 
 ```scala mdoc:silent
 // main sources
 import zio._
 
-trait PolyExample {
+trait PolyService {
   def polyInput[I: Tag](input: I): Task[String]
   def polyError[E: Tag](input: Int): IO[E, String]
   def polyOutput[A: Tag](input: Int): Task[A]
@@ -153,28 +153,27 @@ trait PolyExample {
 }
 ```
 
-In the test sources we construct partially applied _capability tags_ by extending `Method.Poly` family. The unknown types
-must be provided at call site. To produce a final monomorphic `Method` tag we must use the `of` combinator and pass the
-missing types.
+In the test sources we construct partially applied _capability tags_ by extending `Method.Poly` family. The unknown types must be provided at call site. To produce a final monomorphic `Method` tag we must use the `of` combinator and pass the missing types:
 
 ```scala mdoc:silent
 // test sources
 import zio.test.mock._
 
-object PolyExampleMock extends Mock[PolyExample] {
+object MockPolyService extends Mock[PolyService] {
 
   object PolyInput  extends Poly.Effect.Input[Throwable, String]
   object PolyError  extends Poly.Effect.Error[Int, String]
   object PolyOutput extends Poly.Effect.Output[Int, Throwable]
   object PolyAll    extends Poly.Effect.InputErrorOutput
 
-  val compose: URLayer[Proxy, PolyExample] =
+  // We will learn about the compose layer in the next section
+  val compose: URLayer[Proxy, PolyService] =
     ZIO.serviceWithZIO[Proxy] { proxy =>
       withRuntime[Any].map { rts =>
-        new PolyExample {
-          def polyInput[I: Tag](input: I)                     = proxy(PolyInput.of[I], input)
-          def polyError[E: Tag](input: Int)                   = proxy(PolyError.of[E], input)
-          def polyOutput[A: Tag](input: Int)                  = proxy(PolyOutput.of[A], input)
+        new PolyService {
+          def polyInput[I: Tag](input: I)               = proxy(PolyInput.of[I], input)
+          def polyError[E: Tag](input: Int)             = proxy(PolyError.of[E], input)
+          def polyOutput[A: Tag](input: Int)            = proxy(PolyOutput.of[A], input)
           def polyAll[I: Tag, E: Tag, A: Tag](input: I) = proxy(PolyAll.of[I, E, A], input)
         }
       }
@@ -186,7 +185,7 @@ Similarly, we use the same `of` combinator to refer to concrete monomorphic call
 
 ```scala mdoc:silent
 import zio.test._
-import PolyExampleMock._
+import MockPolyService._
 
 val exp06 = PolyInput.of[String](Assertion.equalTo("foo"), Expectation.value("bar"))
 val exp07 = PolyInput.of[Int](Assertion.equalTo(42), Expectation.failure(new Exception))
@@ -197,7 +196,8 @@ val exp10 = PolyAll.of[Int, Throwable, String](Assertion.equalTo(42), Expectatio
 ```
 
 
-### Compose layer
+## Defining a Layer for the Mocked Service
+
 In this step, we need to provide a layer in which used to construct the mocked object. To do that, we should obtain the `Proxy` data type from the environment and then implement the service interface (i.e. `EmailService`) by wrapping all capability tags with proxy.
 
 ```scala mdoc:silent
@@ -248,7 +248,7 @@ object ExampleMock extends Mock[Example] {
 }
 ```
 
-### Defining Compose Layer
+## Defining Compose Layer
 
 Finally, we need to define a _compose layer_ that can create our environment from a `Proxy`. A `Proxy` holds the mock state and serves predefined responses to calls:
 
@@ -290,7 +290,7 @@ A reference to this layer is passed to _capability tags_, so it can be used to a
 >
 > For non-effectful capabilities we need to unsafely run the final effect to satisfy the required interface. For `ZSink` we also need to map the error into a failed sink as demonstrated above.
 
-### The Complete Example
+## The Complete Example
 
 ```scala mdoc:invisible:reset
 trait AccountEvent
