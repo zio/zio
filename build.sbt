@@ -71,8 +71,6 @@ addCommandAlias(
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
 )
 
-logBuffered in Test := false
-
 val catsEffectVersion = "3.2.5"
 val fs2Version        = "3.1.1"
 

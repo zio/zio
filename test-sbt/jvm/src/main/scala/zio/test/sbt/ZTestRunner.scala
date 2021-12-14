@@ -148,7 +148,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
                         new ZTestTaskNew(
                           existingNewTestTask.spec.taskDef,
                           existingNewTestTask.spec.testClassLoader,
-                          existingNewTestTask.spec.sendSummary zip taskNew.sendSummary,
+                          existingNewTestTask.spec.sendSummary,
                           existingNewTestTask.spec.args,
                           existingNewTestTask.spec.newSpec <> taskNew.newSpec
                         ),
