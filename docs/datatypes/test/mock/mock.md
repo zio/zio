@@ -73,11 +73,11 @@ For example, the `ExampleEffect` capability tag encodes the type of _environment
 
 ```
 
-### Modeling Input Arguments
+We encode service capabilities according to the following scheme:
 
-We model input arguments according to the following scheme:
+### Encoding Zero Argument Capability
 
-1. For zero arguments the type is `Unit`
+For zero arguments the type is `Unit`
 
 ```scala mdoc:silent
 import zio._
@@ -103,13 +103,13 @@ object MockZeroParamService extends Mock[ZeroParamService] {
 
 ```
 
-2. For one or more arguments, regardless of how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
+### Encoding Multiple Arguments Capability
+
+For one or more arguments, regardless of how many parameter lists, the type is a `TupleN` where `N` is the size of arguments list
 
 > **Note:**
 >
 > We're using tuples to represent multiple argument methods, which follows with a limit to max 22 arguments, as is Scala itself limited.
-
-For overloaded methods, we nest a list of numbered objects, each representing subsequent overloads.
 
 If the capability has more than one argument, we should encode the argument types in the `Tuple` data type. For example, if we have the following service:
 
@@ -118,6 +118,7 @@ import zio._
 
 trait ManyParamsService {
   def manyParams(a: Int, b: String, c: Long): Task[Int]
+  def manyParamLists(a: Int, b: String)(c: Long): Task[Int]
 }
 ```
 
@@ -127,9 +128,44 @@ We should encode that with the following capability tag:
 import zio.test.mock._
 
 trait MockExampleService extends Mock[ManyParamsService] {
-  object ManyParams extends Method[(Int, String, Long), Throwable, String]
+  object ManyParams     extends Method[(Int, String, Long), Throwable, String]
+  object ManyParamLists extends Method[(Int, String, Long), Throwable, String]
   
   override val compose = ???
+}
+```
+
+### Encoding Overloaded Capabilities
+
+For **overloaded methods**, we nest a list of numbered objects, each representing subsequent overloads:
+
+```scala mdoc:silent
+// Main sources
+
+import zio._
+import zio.stream.{ ZSink, ZStream }
+
+trait OverloadedService {
+  def overloaded(arg1: Int)                  : UIO[String]
+  def overloaded(arg1: Long)                 : UIO[String]
+}
+```
+
+We encode both overloaded capabilities by using numbered objects inside a nested object:
+
+```scala mdoc:silent
+// Test sources
+
+import zio._
+import zio.test.mock._
+
+object MockOervloadedService extends Mock[OverloadedService] {
+  object Overloaded {
+    object _0 extends Effect[Int, Nothing, String]
+    object _1 extends Effect[Long, Nothing, String]
+  }
+
+  val compose: URLayer[Proxy, OverloadedService] = ???
 }
 ```
 
@@ -137,7 +173,7 @@ trait MockExampleService extends Mock[ManyParamsService] {
 
 ```
 
-### Polymorphic Capabilities
+### Encoding Polymorphic Capabilities
 
 Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter:
 
