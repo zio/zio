@@ -302,6 +302,18 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
     }
 
   /**
+   * Checks whether the queue is currently empty.
+   */
+  final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+    self.size.map(_ == 0)
+
+  /**
+   * Checks whether the queue is currently full.
+   */
+  final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+    self.size.map(_ == capacity)
+
+  /**
    * Transforms elements dequeued from this queue with a function.
    */
   final def map[C](f: B => C): ZQueue[RA, RB, EA, EB, A, C] =
