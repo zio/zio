@@ -75,21 +75,21 @@ an <code>Expr</code> can take, including multiple layers of nested mappings and 
 between different types.</p><p>Since we do not need any constraints on the generated types we can simply use
 <code>GenPoly</code>. <code>GenPoly</code> includes a convenient generator in its companion object,
 <code>genPoly</code>, that generates instances of 40 different types including primitive
-types and various collections.</p><p>Using it we can define polymorphic generators for expressions:</p><pre><span class="kw">def</span> genValue(t: GenPoly): Gen[Has[Random] <span class="kw">with</span> Has[Sized], Expr[t.T]] =
+types and various collections.</p><p>Using it we can define polymorphic generators for expressions:</p><pre><span class="kw">def</span> genValue(t: GenPoly): Gen[Random <span class="kw">with</span> Sized, Expr[t.T]] =
   t.genT.map(Value(_))
 
-<span class="kw">def</span> genMapping(t: GenPoly): Gen[Has[Random] <span class="kw">with</span> Has[Sized], Expr[t.T]] =
+<span class="kw">def</span> genMapping(t: GenPoly): Gen[Random <span class="kw">with</span> Sized, Expr[t.T]] =
   Gen.suspend {
     GenPoly.genPoly.flatMap { t0 <span class="kw">=&gt;</span>
       genExpr(t0).flatMap { expr <span class="kw">=&gt;</span>
-        <span class="kw">val</span> genFunction: Gen[Has[Random] <span class="kw">with</span> Has[Sized], t0.T <span class="kw">=&gt;</span> t.T] = Gen.function(t.genT)
-        <span class="kw">val</span> genExpr1: Gen[Has[Random] <span class="kw">with</span> Has[Sized], Expr[t.T]]      = genFunction.map(f <span class="kw">=&gt;</span> Mapping(expr, f))
+        <span class="kw">val</span> genFunction: Gen[Random <span class="kw">with</span> Sized, t0.T <span class="kw">=&gt;</span> t.T] = Gen.function(t.genT)
+        <span class="kw">val</span> genExpr1: Gen[Random <span class="kw">with</span> Sized, Expr[t.T]]      = genFunction.map(f <span class="kw">=&gt;</span> Mapping(expr, f))
         genExpr1
       }
     }
   }
 
-<span class="kw">def</span> genExpr(t: GenPoly): Gen[Has[Random] <span class="kw">with</span> Has[Sized], Expr[t.T]] =
+<span class="kw">def</span> genExpr(t: GenPoly): Gen[Random <span class="kw">with</span> Sized, Expr[t.T]] =
   Gen.oneOf(genMapping(t), genValue(t))</pre><p>Finally, we can test our property:</p><pre>test(<span class="lit">"map fusion"</span>) {
   check(GenPoly.genPoly.flatMap(genExpr(_))) { expr <span class="kw">=&gt;</span>
     assert(eval(fuse(expr)))(equalTo(eval(expr)))

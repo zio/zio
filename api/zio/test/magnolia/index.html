@@ -63,14 +63,14 @@ DeriveGen are automatically provided for standard types and algebraic data
 types made up of standard types. For example, here is how you can
 automatically derive generators for case classes and sealed traits:</p><pre><span class="kw">final</span> <span class="kw">case</span> <span class="kw">class</span> Point(x: <span class="std">Double</span>, y: <span class="std">Double</span>)
 
-<span class="kw">val</span> genPoint: Gen[Has[Random] <span class="kw">with</span> Has[Sized], Point] = DeriveGen[Point]
+<span class="kw">val</span> genPoint: Gen[Random <span class="kw">with</span> Sized, Point] = DeriveGen[Point]
 
 <span class="kw">sealed</span> <span class="kw">trait</span> Color
 <span class="kw">case</span> <span class="kw">object</span> Red   <span class="kw">extends</span> Color
 <span class="kw">case</span> <span class="kw">object</span> Green <span class="kw">extends</span> Color
 <span class="kw">case</span> <span class="kw">object</span> Blue  <span class="kw">extends</span> Color
 
-<span class="kw">val</span> genColor: Gen[Has[Random] <span class="kw">with</span> Has[Sized], Color] = DeriveGen[Color]</pre><p>You can derive generators that include your own custom types by providing an
+<span class="kw">val</span> genColor: Gen[Random <span class="kw">with</span> Sized, Color] = DeriveGen[Color]</pre><p>You can derive generators that include your own custom types by providing an
 implicit <code>DeriveGen</code> instance for your type using a generator and the
 <code>instance</code> method.
 </p></div></div></li></ol></div><div class="values members"><h3>Value Members</h3><ol><li class="indented0 " name="zio.test.magnolia.DeriveGen" group="Ungrouped" fullComment="no" data-isabs="false" visbl="pub"><a id="DeriveGen" class="anchorToMember"></a><a id="DeriveGen:DeriveGen" class="anchorToMember"></a> <span class="permalink"><a href="../../../zio/test/magnolia/DeriveGen$.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">object</span></span> <span class="symbol"><a href="DeriveGen$.html" title=""><span class="name">DeriveGen</span></a></span></li></ol></div></div><div id="inheritedMembers"></div><div id="groupedMembers"><div name="Ungrouped" class="group"><h3>Ungrouped</h3></div></div></div><div id="tooltip"></div><div id="footer"></div></body></div></div></div></body></html>
