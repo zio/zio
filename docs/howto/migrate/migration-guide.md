@@ -503,7 +503,7 @@ After running the effect on the specified runtime configuration, it will restore
 
 ## ZLayer
 
-### Functions to Service Builders
+### Functions to Layers
 
 In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZLayer.fromService*` variants with a lot of boilerplate:
 
