@@ -209,14 +209,13 @@ To run a test on a specific platform, we can use one of the `jvm`, `js`, or `nat
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{test, _}
-import zio.test.TestAspect._
 
 test("Java virtual machine name can be accessed") {
   for {
     vm <- live(System.property("java.vm.name"))
   } yield
-    assert(vm)(Assertion.isSome(Assertion.containsString("VM")))
-} @@ jvmOnly
+    assertTrue(vm.get.contains("VM"))
+} @@ TestAspect.jvmOnly
 ```
 
 ### Version-specific Tests
@@ -293,7 +292,7 @@ import zio.test.TestAspect._
 test("random value is always greater than zero") {
   for {
     random <- Random.nextIntBounded(100)
-  } yield assert(random)(Assertion.isGreaterThan(0))
+  } yield assertTrue(random > 0)
 } @@ nonFlaky
 ```
 
@@ -735,13 +734,12 @@ The `TestAspect.timeout` test aspect takes a duration and times out each test. I
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{test, _}
-import zio.test.TestAspect._
 
 test("effects can be safely interrupted") {
   for {
-    r <- ZIO.attempt(println("Still going ...")).forever
-  } yield assert(r)(Assertion.isSuccess)
-} @@ timeout(1.second)
+    _ <- ZIO.attempt(println("Still going ...")).forever
+  } yield assertTrue(true)
+} @@ TestAspect.timeout(1.second)
 ```
 
 By applying a `timeout(1.second)` test aspect, this will work with ZIO's interruption mechanism. So when we run this test, you can see a tone of print lines, and after a second, the `timeout` aspect will interrupt that.

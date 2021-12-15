@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit
 test("live can access real environment") {
   for {
     live <- Live.live(Clock.currentTime(TimeUnit.MILLISECONDS))
-  } yield assert(live)(not(equalTo(0L)))
+  } yield assertTrue(live != 0L)
 }
 ```
 

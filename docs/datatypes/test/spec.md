@@ -15,7 +15,7 @@ We can think of a spec as just a collection of tests. It is essentially a recurs
   import zio.test._
   
   val mySpec = test("true is true") {
-    assert(true)(Assertion.isTrue)
+    assertTrue(true)
   }
   ```
   
@@ -23,34 +23,36 @@ We can think of a spec as just a collection of tests. It is essentially a recurs
 
 - **Collection of Multiple Tests** — The `suite` creates a suite which contains other specs (tests or suites):
 
-  ```scala mdoc:silent:nest
-  val mySuite =
-    suite("A suite containing multiple tests")(
-      test("the first test") {
-        assert(true)(Assertion.isTrue)
-      },
-      test("the second test") {
-        assert(false)(Assertion.isFalse)
-      }
-    )
-  ```
+```scala mdoc:compile-only
+import zio.test._
+
+val mySuite =
+  suite("A suite containing multiple tests")(
+    test("the first test") {
+      assertTrue(1 + 1 == 2)
+    },
+    test("the second test") {
+      assertTrue(2 * 2 == 4)
+    }
+  )
+```
 
   Suites can contain other suites. We can have multiple suites and one big suite that will aggregate them all:
 
-  ```scala mdoc:compile-only
-  import zio.test._
-  
-  suite("int and string")(
-    suite("int suite")(
-      test("minus")(assertTrue(2 - 1 == 1)),
-      test("plus")(assertTrue(1 + 1 == 2))
-    ),
-    suite("string suite")(
-      test("concat")(assertTrue("a" + "b" == "ab")),
-      test("length")(assertTrue("abc".length == 3))
-    )
+```scala mdoc:compile-only
+import zio.test._
+
+suite("int and string")(
+  suite("int suite")(
+    test("minus")(assertTrue(2 - 1 == 1)),
+    test("plus")(assertTrue(1 + 1 == 2))
+  ),
+  suite("string suite")(
+    test("concat")(assertTrue("a" + "b" == "ab")),
+    test("length")(assertTrue("abc".length == 3))
   )
-  ```
+)
+```
   
 ## Dependencies on Other Services
 
@@ -77,7 +79,7 @@ suite("HelloWorldSpec")(
     for {
       _      <- sayHello
       output <- TestConsole.output
-    } yield assert(output)(equalTo(Vector("Hello, World!\n")))
+    } yield assertTrue(output == Vector("Hello, World!\n"))
   }
 )
 ```
@@ -200,31 +202,30 @@ This is an example of a test suite showing the use of aspects to modify test beh
 ```scala mdoc:compile-only
 import zio.test._
 import zio.{test => _, _}
-import zio.test.Assertion._
 import zio.test.TestAspect._
 
 object MySpec extends DefaultRunnableSpec {
   def spec = suite("A Suite")(
     test("A passing test") {
-      assert(true)(isTrue)
+      assertTrue(true)
     },
     test("A passing test run for JVM only") {
-      assert(true)(isTrue)
+      assertTrue(true)
     } @@ jvmOnly, // @@ jvmOnly only runs tests on the JVM
     test("A passing test run for JS only") {
-      assert(true)(isTrue)
+      assertTrue(true)
     } @@ jsOnly, // @@ jsOnly only runs tests on Scala.js
     test("A passing test with a timeout") {
-      assert(true)(isTrue)
+      assertTrue(true)
     } @@ timeout(10.nanos), // @@ timeout will fail a test that doesn't pass within the specified time
     test("A failing test... that passes") {
-      assert(true)(isFalse)
+      assertTrue(true)
     } @@ failing, //@@ failing turns a failing test into a passing test
     test("A ignored test") {
-      assert(false)(isTrue)
+      assertTrue(false)
     } @@ ignore, //@@ ignore marks test as ignored
     test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
-      assert(false)(isTrue)
+      assertTrue(false)
     } @@ jvmOnly           // only run on the JVM
       @@ eventually        // @@ eventually retries a test indefinitely until it succeeds
       @@ timeout(20.nanos) // it's a good idea to compose `eventually` with `timeout`, or the test may never end

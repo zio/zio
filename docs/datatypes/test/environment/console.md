@@ -22,10 +22,10 @@ val consoleSuite = suite("ConsoleTest")(
       q1             = questionVector(0)
       q2             = questionVector(1)
     } yield {
-      assert(name)(equalTo("Jimmy")) &&
-      assert(age)(equalTo(37)) &&
-      assert(q1)(equalTo("What is your name?\n")) &&
-      assert(q2)(equalTo("What is your age?\n"))
+      assertTrue(name == "Jimmy") &&
+        assertTrue(age == 37) &&
+        assertTrue(q1 == "What is your name?\n") &&
+        assertTrue(q2 == "What is your age?\n")
     }
   }
 )
