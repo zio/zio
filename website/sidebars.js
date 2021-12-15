@@ -181,6 +181,46 @@ module.exports = {
           "datatypes/metrics/metriclabel",
           "datatypes/metrics/jvm",
       ],
+      "ZIO Test": [
+        "datatypes/test/index",
+        "datatypes/test/spec",
+        "datatypes/test/assertion",
+        {
+          type: "category",
+          label: "Test Services",
+          items: [
+            "datatypes/test/environment/index",
+            "datatypes/test/environment/console",
+            "datatypes/test/environment/clock",
+            "datatypes/test/environment/random",
+            "datatypes/test/environment/system",
+            "datatypes/test/environment/live",
+            "datatypes/test/environment/config",
+            "datatypes/test/environment/sized",
+          ]
+        },
+        {
+          type: "category",
+          label: "Mock Services",
+          items: [
+            "datatypes/test/mock/index",
+            "datatypes/test/mock/mock",
+            "datatypes/test/mock/expectation",
+            {
+              type: "category",
+              label: "Built-in Mock Services",
+              items: [
+                "datatypes/test/mock/console",
+                "datatypes/test/mock/clock",
+                "datatypes/test/mock/random",
+                "datatypes/test/mock/system",
+              ]
+            }
+          ]
+        },
+        "datatypes/test/test-aspect",
+        "datatypes/test/gen",
+      ],
     "Miscellaneous": [
       "datatypes/misc/chunk",
       "datatypes/misc/schedule",
@@ -204,9 +244,6 @@ module.exports = {
   "howto-sidebar": {
     "Overview": ["howto/index"],
     "How to": [
-      "howto/use-test-assertions",
-      "howto/test-effects",
-      "howto/mock-services",
       "howto/handle-errors",
       "howto/access-system-information",
       "howto/use-zio-macros"
