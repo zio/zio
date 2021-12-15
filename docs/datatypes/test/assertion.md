@@ -26,7 +26,7 @@ We have two methods for writing test assertions:
 1. **`assert`** and **`assertM`**
 2. **`assertTrue`**
 
-The first one is the old way of asserting ordinary values and also ZIO effects. The second method, which is called _smart assertion_, has a unified logic for testing both ordinary values and ZIO effects. We encourage developers to use the smart assertion method, which is much simpler.
+The first one is the old way of asserting ordinary values and also ZIO effects. The second method, which is called _smart assertion_, has a unified logic for testing both ordinary values and ZIO effects. **We encourage developers to use the smart assertion method, which is much simpler.**
 
 ### Classic Old-fashioned Assertions
 
@@ -103,6 +103,11 @@ test("updating ref") {
   } yield assertTrue(v == 1)
 }
 ```
+
+Using `assertTrue` with for-comprehension style, we can think of testing as these three steps:
+1. **Setup the test** — In this section we should setup fixtures like the SUT (System Under Test) and all its [mocked collaborators](mock/index.md) (e.g. `Ref.make(0)`).
+2. **Running the test** — Then we run the test scenario according to the test specification. (e.g `ref.update(_ + 1)`)
+3. **Making assertions about the test** - Finally, we should assert the result with the right expectations (e.g. `assertTrue(v == 1)`)
 
 ## Logical Operations
 
