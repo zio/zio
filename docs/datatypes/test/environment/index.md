@@ -17,7 +17,7 @@ However, there is another source of complexity that comes from the local infrast
 
 Fortunately, ZIO abstracted most of it in its runtime under `Environment` type. Thanks to this design ZIO Test could easily provide its own implementation named `TestEnvironment` which gives us test implementations of mentioned infrastructure.
 
-If we are using ZIO Test and extending `RunnableSpec` a `TestEnvironment` containing all of them will be automatically provided to each of our tests. Otherwise, the easiest way to use the test implementations in ZIO Test is by providing the `TestEnvironment` to our program:
+If we are using ZIO Test and extending `ZIOSpecDefault` a `TestEnvironment` containing all of them will be automatically provided to each of our tests. Otherwise, the easiest way to use the test implementations in ZIO Test is by providing the `TestEnvironment` to our program:
 
 ```scala mdoc:invisible:nest
 import zio.test._

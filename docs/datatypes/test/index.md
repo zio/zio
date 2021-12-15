@@ -64,7 +64,7 @@ testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
 ## Our First Lines of ZIO Test
 
-The fastest way to start writing tests is to extend `DefaultRunnableSpec`, which requires a `Spec`. `DefaultRunnableSpec` is very similar in its logic of operations to `ZIOAppDefault`. Instead of providing one `ZIO` application at the end of the world, we provide a suite that can be a tree of other suites and tests. 
+The fastest way to start writing tests is to extend `ZIOSpecDefault`, which requires a `Spec`. `ZIOSpecDefault` is very similar in its logic of operations to `ZIOAppDefault`. Instead of providing one `ZIO` application at the end of the world, we provide a suite that can be a tree of other suites and tests. 
 
 ```scala mdoc:compile-only
 import zio._
@@ -80,7 +80,7 @@ object HelloWorld {
     Console.printLine("Hello, World!")
 }
 
-object HelloWorldSpec extends DefaultRunnableSpec {
+object HelloWorldSpec extends ZIOSpecDefault {
   def spec = suite("HelloWorldSpec")(
     test("sayHello correctly displays output") {
       for {
@@ -105,7 +105,7 @@ We can run ZIO Tests in two ways:
   sbt Test/testOnly HelloWorldSpec   // run a specific test
   ```
 
-2. However, if we're not using SBT or have some other special needs, the `DefaultRunnableSpec` has a `main` method which can be invoked directly or with SBTs `Test/run` or `Test/runMain` commands:
+2. However, if we're not using SBT or have some other special needs, the `ZIOSpecDefault` has a `main` method which can be invoked directly or with SBTs `Test/run` or `Test/runMain` commands:
 
   ```bash
   sbt Test/run                       // prompt to choose which test to run

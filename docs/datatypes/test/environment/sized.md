@@ -90,7 +90,7 @@ type TestEnvironment =
 So when we test a property with ZIO Test, all the required services will be provided to the ZIO Test Runner:
 
 ```scala mdoc:compile-only
-object SizedSpec extends DefaultRunnableSpec {
+object SizedSpec extends ZIOSpecDefault {
   def spec =
     suite("sized") {
       test("bounded int generator shouldn't cross its boundaries") {
@@ -126,7 +126,7 @@ ZIO Test has a test aspect called `TestAspect.sized` which is a helper method fo
 import zio._
 import zio.test._
 
-object SizedSpec extends DefaultRunnableSpec {
+object SizedSpec extends ZIOSpecDefault {
   def spec =
     suite("sized") {
       test("bounded int generator shouldn't cross its boundaries") {

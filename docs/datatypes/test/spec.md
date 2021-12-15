@@ -204,7 +204,7 @@ import zio.test._
 import zio.{test => _, _}
 import zio.test.TestAspect._
 
-object MySpec extends DefaultRunnableSpec {
+object MySpec extends ZIOSpecDefault {
   def spec = suite("A Suite")(
     test("A passing test") {
       assertTrue(true)

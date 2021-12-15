@@ -132,7 +132,7 @@ Often the dependency on a collaborator is only in some branches of the code. To 
 import zio.test._
 import zio.test.mock._
 
-object MaybeConsoleSpec extends DefaultRunnableSpec {
+object MaybeConsoleSpec extends ZIOSpecDefault {
   def spec = suite("processEvent")(
     test("expect no call") {
       def maybeConsole(invokeConsole: Boolean) =

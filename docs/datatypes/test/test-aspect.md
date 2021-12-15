@@ -658,7 +658,7 @@ import zio._
 import zio.test.{test, _}
 import zio.test.TestAspect._
 
-object TaggedSpecsExample extends DefaultRunnableSpec {
+object TaggedSpecsExample extends ZIOSpecDefault {
   def spec =
     suite("a suite containing tagged tests")(
       test("a slow test") {
