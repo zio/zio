@@ -131,21 +131,16 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.Runtime"
   )
   /*
-    Stream renames:
-     repeatEffectOption  => repeatZIOOption
-     Effect => ZIO generally
-     zioHaltCause => zioFailCause
-     count/sum => runSum/runCount
-     into => runIntoQueue/runIntoHub
-     serviceWithStream
-     
-     Semantic:
-       transducer is gone; replaced with different pipeline
-        -Sink might be good
-        ZTransducer.utf32BEDDecode into ZPipeline variations
-      Try to convert these classes:
-        ZStreamSpec, ZSinkSpec
-     
+    TODO
+       Sink renames:
+         count/sum => run(ZSink.count)/run(ZSink.Sum)
+         serviceWithStream
+       Semantic:
+         transducer is gone; replaced with Pipeline
+          -Sink might be good
+          ZTransducer.utf32BEDDecode into ZPipeline variations
+        Try to convert these classes:
+          ZStreamSpec, ZSinkSpec
    */
 
   case class GenericRename(scopes: List[String], oldName: String, newName: String) {
@@ -207,9 +202,11 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val StreamRenames = Renames(
     List("zio.stream.ZStream"),
     Map(
+      "access" -> "environment",
+      "accessM" -> "environmentWithZIO",
+      "accessZIO" -> "environmentWithZIO", // RC only
       "dropWhileM" -> "dropWhileZIO", // RC only, cannot test
       "findM" -> "findZIO", // RC only, cannot test
-//      "filterM" -> "filterZIO",
       "fold"         -> "runFold",
       "foldM"         -> "runFoldZIO", // RC only
       "foldManaged" -> "runFoldManaged",
@@ -246,7 +243,29 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "intoQueueManaged" -> "runIntoQueueManaged", // RC only
       "lock" -> "onExecutor",
       "mapAccumM" -> "mapAccumZIO",
-      "mapChunksM" -> "mapChunksZIO"
+      "mapChunksM" -> "mapChunksZIO",
+      "mapConcatChunkM" -> "mapConcatChunkZIO",
+      "mapMPartitioned" -> "mapZIOPartitioned", 
+      "scanM" -> "scanZIO",
+      "scanReduceM" -> "scanReduceZIO",
+      "takeUntilM" -> "takeUntilZIO",
+      "throttleEnforceM" -> "throttleEnforceZIO",
+      "throttleShapeM" -> "throttleShapeZIO",
+      "timeoutError" -> "timeoutFail",
+      "timeoutErrorCause" -> "timeoutFailCause",
+      "timeoutHalt" -> "timeoutFailCause", // RC only
+      "fromInputStreamEffect" -> "fromInputStreamZIO",
+      "fromIteratorEffect" -> "fromIteratorZIO",
+      "fromJavaIteratorEffect" -> "fromJavaIteratorZIO",
+      "fromJavaIteratorTotal" -> "fromJavaIteratorSucceed",
+      "halt" -> "failCause",
+      "repeatEffectChunkOption" -> "repeatZIOChunkOption",
+      "repeatWith" -> "repeatWithSchedule",
+      "unfoldChunkM" -> "unfoldChunkZIO",
+      "whenCaseM" -> "whenCaseZIO",
+      // TODO Look at restructuring calls to ZStream.cross with the method version
+      // TODO Look into fromBlocking* refactors
+      
     )
   )
 
