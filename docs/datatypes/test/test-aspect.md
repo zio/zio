@@ -656,20 +656,19 @@ val anotherLongRunningAssertion = assertTrue(true)
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{test, _}
-import zio.test.TestAspect._
 
 object TaggedSpecsExample extends ZIOSpecDefault {
   def spec =
     suite("a suite containing tagged tests")(
       test("a slow test") {
         longRunningAssertion
-      } @@ tag("slow", "math"),
+      } @@ TestAspect.tag("slow", "math"),
       test("a simple test") {
         assertTrue(1 + 1 == 2)
-      } @@ tag("math"),
+      } @@ TestAspect.tag("math"),
       test("another slow test") {
         anotherLongRunningAssertion
-      } @@ tag("slow")
+      } @@ TestAspect.tag("slow")
     )
 }
 ```
