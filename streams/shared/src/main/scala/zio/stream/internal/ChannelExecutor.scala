@@ -909,7 +909,7 @@ object ChannelExecutor {
         case ChannelState.Emit =>
           val emitEffect = current.onEmit(current.upstream.getEmit)
           if (readStack.isEmpty) {
-            if (emitEffect eq null) continue()
+            if (emitEffect eq null) ZIO.suspendSucceed(continue())
             else
               emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
           } else {
@@ -918,7 +918,7 @@ object ChannelExecutor {
         case ChannelState.Done =>
           val doneEffect = current.onDone(current.upstream.getDone)
           if (readStack.isEmpty) {
-            if (doneEffect eq null) continue()
+            if (doneEffect eq null) ZIO.suspendSucceed(continue())
             else
               doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
           } else {

@@ -4628,7 +4628,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * See also [[ZStream#zipN[R,E,A,B,C]*]] for the more common point-wise
    * variant.
    */
-  @deprecated("use cross", "2.0.0")
+  @deprecated("use instance method cross", "2.0.0")
   def crossN[R, E, A, B, C](zStream1: => ZStream[R, E, A], zStream2: => ZStream[R, E, B])(
     f: (A, B) => C
   )(implicit trace: ZTraceElement): ZStream[R, E, C] =

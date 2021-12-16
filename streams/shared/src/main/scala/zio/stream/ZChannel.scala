@@ -836,8 +836,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.Provide(() => env, self)
 
-  def repeated(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Nothing] =
-    self *> self.repeated
+  def repeated(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Nothing] = {
+    lazy val loop: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Nothing] = self *> loop
+    loop
+  }
 
   def runManaged(implicit
     ev1: Any <:< InElem,

@@ -145,7 +145,7 @@ sealed abstract class Expectation[R: Tag] { self =>
     }
 
   /**
-   * Repeats this expectation withing given bounds, producing a new expectation
+   * Repeats this expectation within given bounds, producing a new expectation
    * to satisfy itself sequentially given number of times.
    *
    * {{{val mockEnv = MockClock.sleep(equalTo(1.second)).repeats(1, 5)}}}
