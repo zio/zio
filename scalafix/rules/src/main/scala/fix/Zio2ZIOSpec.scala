@@ -4,7 +4,7 @@ import scalafix.v1._
 
 import scala.meta._
 
-class Zio2ZIOSpec extends SemanticRule("ZIOSpecMigration"){
+class Zio2ZIOSpec() extends SemanticRule("ZIOSpecMigration"){
   val zio2UpgradeRule = new Zio2Upgrade()
   val AbstractRunnableSpecRenames = zio2UpgradeRule.Renames(
     List("zio.test.DefaultRunnableSpec" /* TODO What other types here? */),
