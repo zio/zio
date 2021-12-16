@@ -203,6 +203,39 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
+   * Creates a pipeline from a chunk processing function.
+   */
+  def fromPush[Env, Err, In, Out](
+    push: => ZManaged[Env, Nothing, Option[Chunk[In]] => ZIO[Env, Err, Chunk[Out]]]
+  ): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline[Env, Err, In, Out] {
+      def apply[Env1 <: Env, Err1 >: Err](stream: ZStream[Env1, Err1, In])(implicit
+        trace: ZTraceElement
+      ): ZStream[Env1, Err1, Out] = {
+
+        def pull(
+          push: Option[Chunk[In]] => ZIO[Env, Err, Chunk[Out]]
+        ): ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+          ZChannel.readWith[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any](
+            in =>
+              ZChannel
+                .fromZIO(push(Some(in)))
+                .flatMap(out => ZChannel.write(out))
+                .zipRight[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any](pull(push)),
+            err => ZChannel.fail(err),
+            _ => ZChannel.fromZIO(push(None)).flatMap(out => ZChannel.write(out))
+          )
+
+        val channel: ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+          ZChannel.unwrapManaged[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] {
+            push.map(pull)
+          }
+
+        stream.pipeThroughChannelOrFail(channel)
+      }
+    }
+
+  /**
    * The identity pipeline, which does not modify streams in any way.
    */
   def identity[In]: ZPipeline[Any, Nothing, In, In] =
