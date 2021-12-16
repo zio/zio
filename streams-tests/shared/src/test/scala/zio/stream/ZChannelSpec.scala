@@ -645,6 +645,17 @@ object ZChannelSpec extends ZIOBaseSpec {
               .runCollect
               .map(_._1.head)
           )(equalTo(N))
+        },
+        test("flatMap is stack safe") {
+          val N = 100000L
+          assertM(
+            (1L to N)
+              .foldLeft(ZChannel.write(0L)) { case (channel, n) =>
+                channel.flatMap(_ => ZChannel.write(n))
+              }
+              .runCollect
+              .map(_._1)
+          )(equalTo(Chunk.fromIterable(0L to N)))
         }
       ),
       test("cause is propagated on channel interruption") {
