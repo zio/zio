@@ -587,7 +587,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   }
 
   override def fix(implicit doc: SemanticDocument): Patch = {
-    new Zio2ZIOSpec().fix +
+    Zio2ZIOSpec.fix +
     doc.tree.collect {
       case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
 
