@@ -1356,7 +1356,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       chunk.length
 
     def apply(i: Int): A = {
-      var j = used
+      var j = used - 1
       var a = null.asInstanceOf[A]
       while (j >= 0) {
         if (bufferIndices(j) == i) {
