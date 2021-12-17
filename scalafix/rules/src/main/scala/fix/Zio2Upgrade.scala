@@ -439,6 +439,11 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
               Patch.removeImportee(t)
           }
 
+        val pf1:PartialFunction[Tree, Option[Patch]] = { case (_: Tree) => None }
+        val pf2: Function2[PartialFunction[Tree, Option[Patch]], PartialFunction[Tree, Patch], PartialFunction[Tree, Option[Patch]]] = {
+          case (totalPatch, nextPatch) => (tree: Tree) => nextPatch.lift(tree).orElse(totalPatch(tree))
+        }
+
         List(
           randomMigrator,
           systemMigrator,
@@ -455,10 +460,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           testLiveMigrator
         ).foldLeft(List[SymbolMatcher](hasNormalized)) { case (serviceMatchers, serviceMigrator) =>
           serviceMatchers ++ List(serviceMigrator.normalizedOld, serviceMigrator.normalizedOldService)
-        }.map(pf).foldLeft[PartialFunction[Tree, Option[Patch]]] { case (_: Tree) => None } { case (totalPatch, nextPatch) =>
-          (tree: Tree) => nextPatch.lift(tree).orElse(totalPatch(tree))
-        }
+        }.map(pf).foldLeft {pf1} {pf2}
       }
+      /*
+        [error]     (which expands to)  scala.meta.Tree => Option[scalafix.patch.Patch]
+        [error]     (which expands to)  PartialFunction[scala.meta.Tree,Option[scalafix.patch.Patch]]
+
+       */
 
       def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
         importeeRenames.apply(tree)
