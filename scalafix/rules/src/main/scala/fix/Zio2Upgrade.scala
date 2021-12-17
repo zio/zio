@@ -441,7 +441,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
         val pf1:PartialFunction[Tree, Option[Patch]] = { case (_: Tree) => None }
         val pf2: Function2[PartialFunction[Tree, Option[Patch]], PartialFunction[Tree, Patch], PartialFunction[Tree, Option[Patch]]] = {
-          case (totalPatch, nextPatch) => (tree: Tree) => nextPatch.lift(tree).orElse(totalPatch(tree))
+          case (totalPatch, nextPatch) => {
+            case (tree: Tree) => nextPatch.lift(tree).orElse(totalPatch(tree))
+          }
         }
 
         List(
