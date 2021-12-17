@@ -1378,6 +1378,51 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     fromZIO(b)
 
   /**
+   * Creates a sink from a chunk processing function.
+   */
+  def fromPush[R, E, I, L, Z](
+    push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]]
+  )(implicit trace: ZTraceElement): ZSink[R, E, I, L, Z] = {
+
+    def pull(
+      push: Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
+    ): ZChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z] =
+      ZChannel.readWith[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+        in =>
+          ZChannel
+            .fromZIO(push(Some(in)))
+            .foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+              {
+                case (Left(e), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
+                case (Right(z), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
+              },
+              _ => pull(push)
+            ),
+        err => ZChannel.fail(err),
+        _ =>
+          ZChannel
+            .fromZIO(push(None))
+            .foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+              {
+                case (Left(e), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
+                case (Right(z), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
+              },
+              _ => ZChannel.fromZIO(ZIO.dieMessage("empty sink"))
+            )
+      )
+
+    new ZSink(
+      ZChannel.unwrapManaged[R, Nothing, Chunk[I], Any, E, Chunk[L], Z] {
+        push.map(pull)
+      }
+    )
+  }
+
+  /**
    * Creates a single-value sink produced from an effect
    */
   def fromZIO[R, E, Z](b: => ZIO[R, E, Z])(implicit trace: ZTraceElement): ZSink[R, E, Any, Nothing, Z] =
