@@ -705,7 +705,7 @@ object ChunkSpec extends ZIOBaseSpec {
       },
       test("apply") {
         val chunk = Chunk.fill(256)(1).foldLeft(Chunk(0)) { case (as, a) =>
-          as.updated(0, as(0) + 1)
+          as.updated(0, as(0) + a)
         }
         assertTrue(chunk(0) == 256)
       }
