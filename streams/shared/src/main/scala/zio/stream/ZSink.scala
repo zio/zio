@@ -721,8 +721,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that ignores its inputs.
    */
-  def drain(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
-    new ZSink(ZChannel.read[Any].unit.repeated.catchAll(_ => ZChannel.unit))
+  def drain(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] = {
+    lazy val loop: ZChannel[Any, Nothing, Chunk[Any], Any, Nothing, Chunk[Nothing], Unit] =
+      ZChannel
+        .readWith[Any, Nothing, Chunk[Any], Any, Nothing, Chunk[Nothing], Unit](
+          (_: Chunk[Any]) => loop,
+          (error: Nothing) => ZChannel.fail(error),
+          (_: Any) => ZChannel.unit
+        )
+    new ZSink(loop)
+  }
 
   def dropWhile[In](p: In => Boolean)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Any] = {
     lazy val loop: ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =

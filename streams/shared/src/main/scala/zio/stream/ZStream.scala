@@ -3228,7 +3228,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Runs the stream only for its effects. The emitted elements are discarded.
    */
   def runDrain(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    foreach(_ => ZIO.unit)
+    run(ZSink.drain)
 
   /**
    * Runs the stream to completion and yields the first value emitted by it,
