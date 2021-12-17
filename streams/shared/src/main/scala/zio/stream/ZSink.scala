@@ -1380,21 +1380,31 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       push: Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
     ): ZChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z] =
       ZChannel.readWith[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
-        in => ZChannel.fromZIO(push(Some(in))).foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
-          {
-            case (Left(e), leftovers) => ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
-            case (Right(z), leftovers) => ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
-          },
-          _ => pull(push)
-        ),
+        in =>
+          ZChannel
+            .fromZIO(push(Some(in)))
+            .foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+              {
+                case (Left(e), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
+                case (Right(z), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
+              },
+              _ => pull(push)
+            ),
         err => ZChannel.fail(err),
-        _ => ZChannel.fromZIO(push(None)).foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
-          {
-            case (Left(e), leftovers) => ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
-            case (Right(z), leftovers) => ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
-          },
-          _ => ZChannel.fromZIO(ZIO.dieMessage("empty sink"))
-        )
+        _ =>
+          ZChannel
+            .fromZIO(push(None))
+            .foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+              {
+                case (Left(e), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
+                case (Right(z), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
+              },
+              _ => ZChannel.fromZIO(ZIO.dieMessage("empty sink"))
+            )
       )
 
     new ZSink(
