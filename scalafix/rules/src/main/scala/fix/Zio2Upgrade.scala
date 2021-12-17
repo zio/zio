@@ -464,11 +464,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           serviceMatchers ++ List(serviceMigrator.normalizedOld, serviceMigrator.normalizedOldService)
         }.map(pf).foldLeft {pf1} {pf2}
       }
-      /*
-        [error]     (which expands to)  scala.meta.Tree => Option[scalafix.patch.Patch]
-        [error]     (which expands to)  PartialFunction[scala.meta.Tree,Option[scalafix.patch.Patch]]
-
-       */
 
       def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
         importeeRenames.apply(tree)
