@@ -75,6 +75,70 @@ As a contributor to ZIO ecosystem libraries, we also should cover these guidelin
 3. We should update names to match [ZIO 2.0 naming conventions](#zio-20-naming-conventions).
 4. ZIO 2.0 introduced [new structured concurrently operators](#compositional-concurrency) which helps us to change the regional parallelism settings of our application. So if applicable, we should use these operators instead of the old parallel operators.
 
+## Has
+
+The Has data type, which was used for combining services, was removed. Therefore, we no longer need to wrap services in the `Has` data type.
+
+For example, in the ZIO 1.x, the following layer denotes this layer requires `Logging`, `Random`, `Database` and produce the `UserRepo`:
+
+```scala
+val userRepo: ZLayer[Has[Logging] with Has[Random] with Has[Database], Throwable, Has[UserRepo]] = ???
+```
+
+In ZIO 2.x, the `Has` has been removed and simplified for better ergonomics:
+
+```scala mdoc:invisible
+trait UserRepo
+trait Database
+trait Logging
+```
+
+```scala mdoc:compile-only
+val userRepo: ZLayer[Logging with Random with Database, Throwable, UserRepo] = ???
+```
+
+Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` backed into the ZIO. Let's see how this changes the way we can provide a service to the environment.
+
+Using the following code snippet, we demonstrate how we used to access and provide instances of `Config` service to the application environment using ZIO 1.x:
+
+```scala
+// ZIO 1.x
+import zio._
+
+case class Config(url: String, port: Int)
+
+object ConfigExample extends zio.App {
+
+  val app: ZIO[Has[console.Console.Service] with Has[Config], Nothing, Unit] = for {
+    config <- ZIO.service[Config]
+    _      <- console.putStrLn(s"application config: $config").orDie
+  } yield ()
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
+
+    app.provideSome[Has[console.Console.Service]](_ ++ Has(Config("localhost", 8080))).exitCode
+  }
+}
+```
+
+To migrate this snippet to ZIO 2.x, we need to remove all the `Has` service wrappers, and finally, we will use the `ZIO#provideSomeEnvironment` method to append the `Config` instance to the `ZEnvironment`:
+
+```scala mdoc:compile-only
+// ZIO 2.x
+import zio._
+
+case class Config(url: String, port: Int)
+
+object ConfigExample extends ZIOAppDefault {
+  val app: ZIO[Console with Config, Nothing, Unit] = for {
+    config <- ZIO.service[Config]
+    _      <- Console.printLine(s"application config: $config").orDie
+  } yield ()
+    
+  def run = 
+    app.provideSomeEnvironment[Console](_ ++ ZEnvironment(Config("localhost", 8080)))
+}
+```
+
 ## ZIO
 
 ### Removed Methods
