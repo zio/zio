@@ -1246,49 +1246,6 @@ private[zio] final class FiberContext[E, A](
   }
 }
 private[zio] object FiberContext {
-  sealed abstract class FiberState[+E, +A] extends Serializable with Product {
-    def suppressed: Cause[Nothing]
-    def status: Fiber.Status
-    def isInterrupting: Boolean = status.isInterrupting
-    def interruptors: Set[FiberId]
-    def interruptorsCause: Cause[Nothing] =
-      interruptors.foldLeft[Cause[Nothing]](Cause.empty) { case (acc, interruptor) =>
-        acc ++ Cause.interrupt(interruptor)
-      }
-  }
-  object FiberState extends Serializable {
-    final case class Executing[E, A](
-      status: Fiber.Status,
-      observers: List[Callback[Nothing, Exit[E, A]]],
-      suppressed: Cause[Nothing],
-      interruptors: Set[FiberId],
-      asyncCanceler: CancelerState,
-      mailbox: UIO[Any]
-    ) extends FiberState[E, A]
-    final case class Done[E, A](value: Exit[E, A]) extends FiberState[E, A] {
-      def suppressed: Cause[Nothing] = Cause.empty
-      def status: Fiber.Status       = Status.Done
-      def interruptors: Set[FiberId] = Set.empty
-    }
-
-    def initial[E, A]: Executing[E, A] =
-      Executing[E, A](
-        Status.Running(false),
-        Nil,
-        Cause.empty,
-        Set.empty[FiberId],
-        CancelerState.Empty,
-        null.asInstanceOf[UIO[Any]]
-      )
-  }
-
-  sealed abstract class CancelerState
-
-  object CancelerState {
-    case object Empty                                              extends CancelerState
-    case object Pending                                            extends CancelerState
-    final case class Registered(asyncCanceler: ZIO[Any, Any, Any]) extends CancelerState
-  }
 
   type FiberRefLocals = AtomicReference[Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]]
 
