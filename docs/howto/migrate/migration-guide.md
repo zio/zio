@@ -949,6 +949,32 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 [info] https://mermaid-js.github.io/mermaid-live-editor/edit/#eyJjb2RlIjoiZ3JhcGhcbiAgICBDb25zb2xlLmxpdmVcbiAgICBCbG9iU3RvcmFnZS5saXZlIC0tPiBMb2dnaW5nLmxpdmVcbiAgICBMb2dnaW5nLmxpdmUgLS0+IENvbnNvbGUubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IExvZ2dpbmcubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IEJsb2JTdG9yYWdlLmxpdmVcbiAgICBEYXRhYmFzZS5saXZlXG4gICAgIiwibWVybWFpZCI6ICJ7XG4gIFwidGhlbWVcIjogXCJkZWZhdWx0XCJcbn0iLCAidXBkYXRlRWRpdG9yIjogdHJ1ZSwgImF1dG9TeW5jIjogdHJ1ZSwgInVwZGF0ZURpYWdyYW0iOiB0cnVlfQ==
 ```
 
+### Eliminators for Environmental Effects
+
+In ZIO 2.x, layers become eliminators for environmental effects:
+
+```scala mdoc:compile-only
+trait Foo
+trait Bar
+trait Baz
+
+val fooLayer         : ZLayer[Any, Nothing, Foo]                   = ZLayer.succeed(???)
+val fooWithBarWithBaz: ZIO[Foo with Bar with Baz, Throwable, Unit] = ZIO.succeed(???)
+val barWithBaz       : ZIO[Bar with Baz, Any, Unit]                = fooLayer(fooWithBarWithBaz)
+```
+
+In this example, by applying the `fooLayer` to the `fooWithBarWithBaz` effect it will eliminate the contextual `Foo` service from the environment of the effect.
+
+It helps us to provide contextual environments like the DSL below:
+
+```scala
+dbTransaction {
+  effect
+}
+```
+
+The `dbTransaction` is a `ZLayer` of type `ZLayer[any, Throwable, Connection]` which can eliminate the `Connection` service from the `effect`.
+
 ### Module Pattern
 
 The _Module Pattern_ is one of the most important changes in ZIO 2.x. Let's take a look at services in ZIO 1.x before discussing changes. Here is a `Logging` service that uses _Module Pattern 1.0_:
