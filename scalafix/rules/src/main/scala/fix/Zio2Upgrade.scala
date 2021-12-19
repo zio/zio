@@ -104,6 +104,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   lazy val scopes = List(
     "zio.test.package",
+    "zio.test.Gen",
     "zio.test.DefaultRunnableSpec",
     "zio.Exit",
     "zio.ZIO",
@@ -400,6 +401,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.Gen.anyUpperHexChar"            -> "zio.test.Gen.hexCharUpper",
     "zio.test.Gen.anyASCIIString"             -> "zio.test.Gen.asciiString",
     "zio.test.Gen.anyUUID"                    -> "zio.test.Gen.uuid",
+    "zio.test.Gen.anyInstant"                 -> "zio.test.Gen.instant",
     "zio.test.TimeVariants.anyDayOfWeek"      -> "zio.test.Gen.dayOfWeek",
     "zio.test.TimeVariants.anyFiniteDuration" -> "zio.test.Gen.finiteDuration",
     "zio.test.TimeVariants.anyLocalDate"      -> "zio.test.Gen.localDate",
