@@ -1843,7 +1843,7 @@ object TracingExample extends ZIOAppDefault {
   def myApp: ZIO[Console, String, Unit] =
     for {
       _ <- Console.printLine("Hello!").orDie
-      _ <- doSomething(5)
+      _ <- doSomething(5)   // line number 15
       _ <- Console.printLine("Bye Bye!").orDie
     } yield ()
 
@@ -1851,68 +1851,17 @@ object TracingExample extends ZIOAppDefault {
 }
 ```
 
-The output is more descriptive than the ZIO 1.x:
+The output is more descriptive than the ZIO 1.x. It is similar to the Java stacktrace:
 
 ```
 Hello!
 Do something 5
-timestamp=2021-10-22T06:24:57.958955503Z level=ERROR thread=#0 message="Fiber failed.
-A checked error was not handled.
-Boom!
-
-Fiber:FiberId(1634883897813,2) was supposed to continue to:
-  a future continuation at 
-  a future continuation at 
-  a future continuation at 
-  a future continuation at 
-  a future continuation at 
-  a future continuation at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:15:9)
-
-Fiber:FiberId(1634883897813,2) execution trace:
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:8:20)
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:9)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:54)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:9)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:40)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
+timestamp=2021-12-19T08:25:09.372926403Z level=ERROR thread=#zio-fiber-1639902309 message="Exception in thread "zio-fiber-1639902309" java.lang.String: Boom!
+	at zio.examples.TracingExample.doSomething(TracingExample.scala:8)
+	at zio.examples.TracingExample.myApp(TracingExample.scala:15)"
 ```
 
-As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), line number 8 and column 20:
-
-```
-Fiber:FiberId(1634883897813,2) execution trace:
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:8:20)
-```
+As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), which is line number 8.
 
 Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterward. So it adds a huge amount of complexity at the runtime.
 
