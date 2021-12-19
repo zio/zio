@@ -956,14 +956,37 @@ In ZIO 2.x, layers become eliminators for environmental effects:
 ```scala mdoc:compile-only
 trait Foo
 trait Bar
-trait Baz
 
-val fooLayer         : ZLayer[Any, Nothing, Foo]                   = ZLayer.succeed(???)
-val fooWithBarWithBaz: ZIO[Foo with Bar with Baz, Throwable, Unit] = ZIO.succeed(???)
-val barWithBaz       : ZIO[Bar with Baz, Any, Unit]                = fooLayer(fooWithBarWithBaz)
+val fooLayer   : ZLayer[Any, Nothing, Foo]          = ZLayer.succeed(???)
+val fooWithBar : ZIO[Foo with Bar, Throwable, Unit] = ZIO.succeed(???)
+val bar        : ZIO[Bar, Any, Unit]                = fooLayer(fooWithBar)
 ```
 
 In this example, by applying the `fooLayer` to the `fooWithBarWithBaz` effect it will eliminate the contextual `Foo` service from the environment of the effect.
+
+Furthermore, we can compose multiple layers together and then eliminate services from the environmental effects:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  val needsClockAndRandomAndConsole: URIO[Console with Clock with Random, Unit] =
+    for {
+      uuid <- Random.nextUUID
+      date <- Clock.localDateTime
+      _ <- Console.printLine(s"$date -- $uuid").orDie
+    } yield ()
+
+  val clockAndRandom: ULayer[Clock with Random] = Clock.live ++ Random.live
+
+  val needsConsole: URIO[Console, Unit] =
+    clockAndRandom(needsClockAndRandomAndConsole)
+
+  def run = needsConsole
+  
+}
+```
 
 It helps us to provide contextual environments like the DSL below:
 
