@@ -24,7 +24,7 @@ import scala.collection.mutable.Builder
 
 /**
  * A `ZLayer[E, A, B]` describes how to build one or more services in your
- * application. Services can be injected into effects via ZIO#inject. Effects
+ * application. Services can be injected into effects via ZIO#provide. Effects
  * can require services via ZIO.service."
  *
  * Layer can be thought of as recipes for producing bundles of services, given
