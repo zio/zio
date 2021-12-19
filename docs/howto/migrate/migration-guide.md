@@ -1342,6 +1342,36 @@ val taken: UIO[Chunk[Int]] = for {
 
 ## ZIO Test
 
+### Composable Test Apps
+
+In ZIO 2.x, the `DefaultRunnableSpec` deprecated, so in order to write tests, we should extend the `ZIOSpecDefault` abstract class. Due to this change, executable tests can be composed, similar to `ZIOAppDefault`:
+
+```scala mdoc:compile-only
+import zio.ZIOApp
+import zio.test._
+
+object ExampleSpec1 extends ZIOSpecDefault {
+  def spec = suite("suite 1")(
+    test("passing test 1")(assertTrue(true)),
+    test("failing test 2")(assertTrue(false))
+  )
+}
+
+object ExampleSpec2 extends ZIOSpecDefault {
+  def spec = suite("suite 2")(
+    test("passing test")(assertTrue(true))
+  )
+}
+
+object AllSpecs extends ZIOApp.Proxy(ExampleSpec1 <> ExampleSpec2)
+```
+
+To run `AllSpecs` with sbt:
+
+```bash
+sbt Test/runMain AllSpecs
+```
+
 ### Smart Constructors
 
 By introducing smart constructors, we do not longer have the `testM` function to create effectful test suits. Instead, we should use the `test` function:
