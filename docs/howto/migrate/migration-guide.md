@@ -941,6 +941,144 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 [info] https://mermaid-js.github.io/mermaid-live-editor/edit/#eyJjb2RlIjoiZ3JhcGhcbiAgICBDb25zb2xlLmxpdmVcbiAgICBCbG9iU3RvcmFnZS5saXZlIC0tPiBMb2dnaW5nLmxpdmVcbiAgICBMb2dnaW5nLmxpdmUgLS0+IENvbnNvbGUubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IExvZ2dpbmcubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IEJsb2JTdG9yYWdlLmxpdmVcbiAgICBEYXRhYmFzZS5saXZlXG4gICAgIiwibWVybWFpZCI6ICJ7XG4gIFwidGhlbWVcIjogXCJkZWZhdWx0XCJcbn0iLCAidXBkYXRlRWRpdG9yIjogdHJ1ZSwgImF1dG9TeW5jIjogdHJ1ZSwgInVwZGF0ZURpYWdyYW0iOiB0cnVlfQ==
 ```
 
+### Descriptive ZIOApp Environment Compiler Errors
+
+In ZIO 1.x, if we mistakenly forget to provide some requirements, we have some complicated compile errors. Assume we have the following example:
+
+```scala
+// ZIO 1.x
+import zio._
+
+case class Config(host: String, port: Int)
+
+trait Logger {
+  def log(line: Any): Task[Unit]
+}
+
+object MainApp extends App {
+  val myApp =
+    for {
+      config <- ZIO.service[Config]
+      logger <- ZIO.service[Logger]
+      _ <- logger.log(s"Application started with the following config: $config")
+    } yield ()
+
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+    myApp.exitCode
+}
+```
+
+This program needs `Config` and `Logger` layers, but we missed them. The compiler prints this mystic error, which is hard to reason about:
+
+```scala
+type mismatch;
+found   : zio.URIO[zio.Has[Config] with zio.Has[Logger] with zio.console.Console,zio.ExitCode]
+(which expands to)  zio.ZIO[zio.Has[Config] with zio.Has[Logger] with zio.Has[zio.console.Console.Service],Nothing,zio.ExitCode]
+required: zio.URIO[zio.ZEnv,zio.ExitCode]
+(which expands to)  zio.ZIO[zio.Has[zio.clock.Clock.Service] with zio.Has[zio.console.Console.Service] with zio.Has[zio.system.System.Service] with zio.Has[zio.random.Random.Service] with zio.Has[zio.blocking.Blocking.Service],Nothing,zio.ExitCode]
+myApp.exitCode
+```
+
+In ZIO 2.x, we have descriptive errors. Let's try the above example in ZIO 2.x:
+
+```scala
+import zio._
+
+case class Config(host: String, port: Int)
+
+trait Logger {
+  def log(line: Any): Task[Unit]
+}
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      config <- ZIO.service[Config]
+      logger <- ZIO.service[Logger]
+      _ <- logger.log(s"Application started with the following config: $config")
+    } yield ()
+}
+```
+
+This will print the following error message:
+
+```
+[error] ──── ZIO APP ERROR ───────────────────────────────────────────────────
+[error] 
+[error]  Your effect requires a service that is not in the environment.
+[error]  Please provide a layer for the following type:
+[error] 
+[error] 
+[error]    1. Logger
+[error] 
+[error] 
+[error]  Call your effect's provide method with the layers you need.
+[error]  You can read more about layers and providing services here:
+[error]  
+[error]    https://zio.dev/version-1.x/datatypes/contextual/index
+[error] 
+[error] ──────────────────────────────────────────────────────────────────────
+[error] 
+[error]       logger <- ZIO.service[Logger]
+[error]              ^
+[error] one error found
+```
+
+It also warns if we provide layers more than needed:
+
+```scala
+import zio._
+
+case class Config(host: String, port: Int)
+
+trait Logger {
+  def log(line: Any): Task[Unit]
+}
+
+case class LoggerLive(console: Console) extends Logger {
+  override def log(line: Any): Task[Unit] =
+    console.printLine(line)
+}
+
+object LoggerLive {
+  val layer = (LoggerLive.apply _).toLayer[Logger]
+}
+
+object MainApp extends ZIOAppDefault {
+  val myApp = for {
+    config <- ZIO.service[Config]
+    _ <- Console.printLine(s"Application started with the following config: $config")
+  } yield ()
+
+  def run =
+    myApp.provide(
+      Console.live,
+      Random.live,
+      ZLayer.succeed(Config("localhost", 8080)),
+      LoggerLive.layer
+    )
+}
+```
+
+It will print the following warning message:
+
+```
+[error] ──── ZLAYER WARNING ──────────────────────────────────────────────────
+[error] 
+[error]  You have provided more than is required.
+[error]  You may remove the following 2 layers:
+[error]    
+[error]    1. Random.live
+[error]    2. LoggerLive.layer
+[error] 
+[error]   
+[error] ──────────────────────────────────────────────────────────────────────
+[error] 
+[error]     myApp.provide(
+[error]                  ^
+[error] one error found
+```
+
 ### Eliminators for Environmental Effects
 
 In ZIO 2.x, layers become eliminators for environmental effects:
