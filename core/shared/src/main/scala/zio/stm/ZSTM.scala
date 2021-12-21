@@ -1928,6 +1928,9 @@ object ZSTM {
                 }
 
               case _ =>
+                Sync(globalLock) {
+                  if (isInvalid(journal)) loop = true
+                }
             }
           }
         }
