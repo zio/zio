@@ -269,7 +269,7 @@ trait Runtime[+R] {
 
             val trace = ZTrace(fiberId, stackTraceBuilder.value.result())
 
-            throw new ZIO.ZioError(Exit.fail(cause.traced(trace)), trace0)
+            throw new ZIO.ZioError(Exit.failCause(cause.traced(trace)), trace0)
         }
 
     }
