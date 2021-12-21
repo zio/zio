@@ -340,6 +340,7 @@ module.exports = {
   "about-sidebar": {
     "About": [
       "about/index",
+      "about/faq",
       "about/coding-guidelines",
       "about/contributing",
       "about/contributing-to-documentation",
