@@ -122,7 +122,7 @@ trait Runtime[+R] {
     try {
       Exit.Success(unsafeRunFast(zio, 50))
     } catch {
-      case failure: ZIO.ZioError[_] => Exit.Failure(failure.cause.asInstanceOf[Cause[E]])
+      case failure: ZIO.ZioError[_, _] => failure.exit.asInstanceOf[Exit[E, A]]
     }
 
   private[zio] def unsafeRunFast[E, A](zio: ZIO[R, E, A], maxStack: Int)(implicit
@@ -140,7 +140,7 @@ trait Runtime[+R] {
       if (stack >= maxStack) {
         defaultUnsafeRunSync(zio) match {
           case Exit.Success(success) => success.asInstanceOf[UnsafeSuccess]
-          case Exit.Failure(cause)   => throw new ZIO.ZioError(cause, zio.trace)
+          case Exit.Failure(cause)   => throw new ZIO.ZioError(Exit.failCause(cause), zio.trace)
         }
       } else {
         var curZio         = zio.asInstanceOf[Erased]
@@ -178,7 +178,7 @@ trait Runtime[+R] {
               case ZIO.Tags.Fail =>
                 val zio = curZio.asInstanceOf[ZIO.Fail[E]]
 
-                throw new ZIO.ZioError(zio.cause(), zio.trace)
+                throw new ZIO.ZioError(Exit.failCause(zio.cause()), zio.trace)
 
               case ZIO.Tags.Succeed =>
                 val zio = curZio.asInstanceOf[ZIO.Succeed[Any]]
@@ -205,11 +205,11 @@ trait Runtime[+R] {
                       success = value.asInstanceOf[UnsafeSuccess]
                     }
 
-                  case Exit.Failure(cause) => throw new ZIO.ZioError(cause, zio.trace)
+                  case Exit.Failure(cause) => throw new ZIO.ZioError(Exit.failCause(cause), zio.trace)
                 }
             }
           } catch {
-            case failure: ZIO.ZioError[_] =>
+            case failure: ZIO.ZioError[_, _] =>
               val builder = stackTraceBuilder.value
 
               builder += failure.trace
@@ -246,7 +246,7 @@ trait Runtime[+R] {
                 }
               }
 
-              if (!runtimeConfig.fatal(t)) throw new ZIO.ZioError(Cause.die(t), trace0)
+              if (!runtimeConfig.fatal(t)) throw new ZIO.ZioError(Exit.die(t), trace0)
               else runtimeConfig.reportFatal(t)
           }
         }
@@ -259,14 +259,19 @@ trait Runtime[+R] {
     try {
       loop(zio, 0, stackTraceBuilder).asInstanceOf[A]
     } catch {
-      case failure: ZIO.ZioError[_] =>
-        val cause = failure.cause.asInstanceOf[Cause[E]]
+      case failure: ZIO.ZioError[_, _] =>
+        failure.exit match {
+          case Exit.Success(value) =>
+            throw new ZIO.ZioError(Exit.succeed(value), trace0)
 
-        val fiberId = cause.trace.fiberId.getOrElse(FiberId.unsafeMake())
+          case Exit.Failure(cause) =>
+            val fiberId = cause.trace.fiberId.getOrElse(FiberId.unsafeMake())
 
-        val trace = ZTrace(fiberId, stackTraceBuilder.value.result())
+            val trace = ZTrace(fiberId, stackTraceBuilder.value.result())
 
-        throw new ZIO.ZioError(cause.traced(trace), trace0)
+            throw new ZIO.ZioError(Exit.fail(cause.traced(trace)), trace0)
+        }
+
     }
   }
 
