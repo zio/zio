@@ -53,6 +53,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       case (self, Chunk.PrependN(end, buffer, bufferUsed, _)) =>
         val chunk = Chunk.fromArray(buffer.asInstanceOf[Array[A1]]).takeRight(bufferUsed)
         self ++ chunk ++ end
+      case (self, Chunk.Empty) => self
+      case (Chunk.Empty, that) => that
       case (self, that) =>
         val diff = that.depth - self.depth
         if (math.abs(diff) <= 1) Chunk.Concat(self, that)
