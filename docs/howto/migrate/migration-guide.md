@@ -2023,6 +2023,8 @@ timestamp=2021-12-19T08:25:09.372926403Z level=ERROR thread=#zio-fiber-163990230
 
 As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), which is line number 8.
 
+In ZIO 2.x, the tracing is not optional, and unlike the ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
+
 Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterward. So it adds a huge amount of complexity at the runtime.
 
 Some users often turn off the tracing when they need more speed, so they lose this ability to trace their application when something breaks.
