@@ -4222,7 +4222,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The new stream will end when one of the sides ends.
    */
   def zipLeft[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    zipWithChunks(that)(zipLeftChunks)
+    self.zipWithChunks(that)(zipLeftChunks)
 
   /**
    * Zips this stream with another point-wise, but keeps only the outputs of the
@@ -4231,7 +4231,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The new stream will end when one of the sides ends.
    */
   def zipRight[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A2] =
-    zipWithChunks(that)(zipRightChunks)
+    self.zipWithChunks(that)(zipRightChunks)
 
   /**
    * Zips this stream with another point-wise and emits tuples of elements from
@@ -4368,73 +4368,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def zipWith[R1 <: R, E1 >: E, A2, A3](
     that: => ZStream[R1, E1, A2]
   )(f: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] =
-    zipWithChunks(that)(zipChunks(_, _, f))
-
-  /**
-   * Zips this stream with another point-wise and applies the function to the
-   * paired elements.
-   *
-   * The new stream will end when one of the sides ends.
-   */
-  def zipWithChunks[R1 <: R, E1 >: E, A2, A3](
-    that: => ZStream[R1, E1, A2]
-  )(
-    f: (Chunk[A], Chunk[A2]) => (Chunk[A3], Either[Chunk[A], Chunk[A2]])
-  )(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
-    sealed trait State[+W1, +W2]
-    case class Running[W1, W2](excess: Either[Chunk[W1], Chunk[W2]]) extends State[W1, W2]
-    case class LeftDone[W1](excessL: NonEmptyChunk[W1])              extends State[W1, Nothing]
-    case class RightDone[W2](excessR: NonEmptyChunk[W2])             extends State[Nothing, W2]
-    case object End                                                  extends State[Nothing, Nothing]
-
-    def handleSuccess(
-      leftUpd: Option[Chunk[A]],
-      rightUpd: Option[Chunk[A2]],
-      excess: Either[Chunk[A], Chunk[A2]]
-    ): Exit[Option[Nothing], (Chunk[A3], State[A, A2])] = {
-      val (left, right) = {
-        val (leftExcess, rightExcess) = excess.fold(l => (l, Chunk.empty), r => (Chunk.empty, r))
-        val l                         = leftUpd.fold(leftExcess)(upd => leftExcess ++ upd)
-        val r                         = rightUpd.fold(rightExcess)(upd => rightExcess ++ upd)
-        (l, r)
-      }
-      val (emit, newExcess): (Chunk[A3], Either[Chunk[A], Chunk[A2]]) = f(left, right)
-      (leftUpd.isDefined, rightUpd.isDefined) match {
-        case (true, true)   => Exit.succeed((emit, Running(newExcess)))
-        case (false, false) => Exit.fail(None)
-        case _ => {
-          val newState = newExcess match {
-            case Left(l)  => l.nonEmptyOrElse[State[A, A2]](End)(LeftDone(_))
-            case Right(r) => r.nonEmptyOrElse[State[A, A2]](End)(RightDone(_))
-          }
-          Exit.succeed((emit, newState))
-        }
-      }
-    }
-
-    combineChunks(that)(Running(Left(Chunk.empty)): State[A, A2]) { (st, p1, p2) =>
-      st match {
-        case Running(excess) =>
-          {
-            p1.unsome.zipWithPar(p2.unsome) { case (l, r) =>
-              handleSuccess(l, r, excess)
-            }
-          }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
-        case LeftDone(excessL) =>
-          {
-            p2.unsome.map(handleSuccess(None, _, Left(excessL)))
-          }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
-        case RightDone(excessR) => {
-          p1.unsome
-            .map(handleSuccess(_, None, Right(excessR)))
-            .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
-        }
-        case End => {
-          UIO.succeedNow(Exit.fail(None))
-        }
-      }
-    }
-  }
+    self.zipWithChunks(that)(zipChunks(_, _, f))
 
   /**
    * Zips this stream together with the index of elements.
@@ -6747,6 +6681,75 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
       self.combineChunks[R1, E1, State, (K, B), (K, C)](that)(PullBoth(exec))(pull)
+    }
+  }
+
+  implicit class ZStreamOps[R, E, A](self: ZStream[R, E, A]) {
+
+    /**
+     * Zips this stream with another point-wise and applies the function to the
+     * paired elements.
+     *
+     * The new stream will end when one of the sides ends.
+     */
+    def zipWithChunks[R1 <: R, E1 >: E, A2, A3](
+      that: => ZStream[R1, E1, A2]
+    )(
+      f: (Chunk[A], Chunk[A2]) => (Chunk[A3], Either[Chunk[A], Chunk[A2]])
+    )(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
+      sealed trait State[+W1, +W2]
+      case class Running[W1, W2](excess: Either[Chunk[W1], Chunk[W2]]) extends State[W1, W2]
+      case class LeftDone[W1](excessL: NonEmptyChunk[W1])              extends State[W1, Nothing]
+      case class RightDone[W2](excessR: NonEmptyChunk[W2])             extends State[Nothing, W2]
+      case object End                                                  extends State[Nothing, Nothing]
+
+      def handleSuccess(
+        leftUpd: Option[Chunk[A]],
+        rightUpd: Option[Chunk[A2]],
+        excess: Either[Chunk[A], Chunk[A2]]
+      ): Exit[Option[Nothing], (Chunk[A3], State[A, A2])] = {
+        val (left, right) = {
+          val (leftExcess, rightExcess) = excess.fold(l => (l, Chunk.empty), r => (Chunk.empty, r))
+          val l                         = leftUpd.fold(leftExcess)(upd => leftExcess ++ upd)
+          val r                         = rightUpd.fold(rightExcess)(upd => rightExcess ++ upd)
+          (l, r)
+        }
+        val (emit, newExcess): (Chunk[A3], Either[Chunk[A], Chunk[A2]]) = f(left, right)
+        (leftUpd.isDefined, rightUpd.isDefined) match {
+          case (true, true)   => Exit.succeed((emit, Running(newExcess)))
+          case (false, false) => Exit.fail(None)
+          case _ => {
+            val newState = newExcess match {
+              case Left(l)  => l.nonEmptyOrElse[State[A, A2]](End)(LeftDone(_))
+              case Right(r) => r.nonEmptyOrElse[State[A, A2]](End)(RightDone(_))
+            }
+            Exit.succeed((emit, newState))
+          }
+        }
+      }
+
+      self.combineChunks(that)(Running(Left(Chunk.empty)): State[A, A2]) { (st, p1, p2) =>
+        st match {
+          case Running(excess) =>
+            {
+              p1.unsome.zipWithPar(p2.unsome) { case (l, r) =>
+                handleSuccess(l, r, excess)
+              }
+            }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
+          case LeftDone(excessL) =>
+            {
+              p2.unsome.map(handleSuccess(None, _, Left(excessL)))
+            }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
+          case RightDone(excessR) => {
+            p1.unsome
+              .map(handleSuccess(_, None, Right(excessR)))
+              .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
+          }
+          case End => {
+            UIO.succeedNow(Exit.fail(None))
+          }
+        }
+      }
     }
   }
 }
