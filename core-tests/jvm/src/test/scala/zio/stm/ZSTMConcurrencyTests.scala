@@ -203,7 +203,8 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentGetAndSet {
-    val outer: TRef[TRef[Boolean]] = runtime.unsafeRun(TRef.makeCommit(false).flatMap(TRef.makeCommit(_)))
+    val inner: TRef[Boolean]       = runtime.unsafeRun(TRef.makeCommit(false))
+    val outer: TRef[TRef[Boolean]] = runtime.unsafeRun(TRef.makeCommit(inner))
 
     @Actor
     def actor1(): Unit = {
