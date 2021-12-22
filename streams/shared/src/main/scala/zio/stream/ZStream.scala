@@ -6441,34 +6441,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       that: => ZStream[R1, E1, (K, B)]
     )(left: A => C, right: B => C)(
       both: (A, B) => C
-    )(implicit ord: Ordering[K], trace: ZTraceElement): ZStream[R1, E1, (K, C)] =
-      zipAllSortedByKeyWithExec(that)(ExecutionStrategy.Parallel)(left, right)(both)
-
-    /**
-     * Zips this stream that is sorted by distinct keys and the specified stream
-     * that is sorted by distinct keys to produce a new stream that is sorted by
-     * distinct keys. Uses the functions `left`, `right`, and `both` to handle
-     * the cases where a key and value exist in this stream, that stream, or
-     * both streams.
-     *
-     * This allows zipping potentially unbounded streams of data by key in
-     * constant space but the caller is responsible for ensuring that the
-     * streams are sorted by distinct keys.
-     *
-     * The execution strategy `exec` will be used to determine whether to pull
-     * from the streams sequentially or in parallel.
-     */
-    final def zipAllSortedByKeyWithExec[R1 <: R, E1 >: E, B, C](that: => ZStream[R1, E1, (K, B)])(
-      exec: => ExecutionStrategy
-    )(left: A => C, right: B => C)(
-      both: (A, B) => C
     )(implicit ord: Ordering[K], trace: ZTraceElement): ZStream[R1, E1, (K, C)] = {
       sealed trait State
-      case object DrainLeft                                                         extends State
-      case object DrainRight                                                        extends State
-      final case class PullBoth(exec: ExecutionStrategy)                            extends State
-      final case class PullLeft(rightChunk: Chunk[(K, B)], exec: ExecutionStrategy) extends State
-      final case class PullRight(leftChunk: Chunk[(K, A)], exec: ExecutionStrategy) extends State
+      case object DrainLeft                                extends State
+      case object DrainRight                               extends State
+      case object PullBoth                                 extends State
+      final case class PullLeft(rightChunk: Chunk[(K, B)]) extends State
+      final case class PullRight(leftChunk: Chunk[(K, A)]) extends State
 
       def pull(
         state: State,
@@ -6486,41 +6465,28 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               e => Exit.fail(e),
               rightChunk => Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight)
             )
-          case PullBoth(exec) =>
-            exec match {
-              case ExecutionStrategy.Sequential =>
-                pullLeft.foldZIO(
-                  {
-                    case Some(e) => ZIO.succeedNow(Exit.fail(Some(e)))
-                    case None    => pull(DrainRight, pullLeft, pullRight)
-                  },
-                  leftChunk =>
-                    if (leftChunk.isEmpty) pull(PullBoth(exec), pullLeft, pullRight)
-                    else pull(PullRight(leftChunk, exec), pullLeft, pullRight)
-                )
-              case _ =>
-                pullLeft.unsome
-                  .zipPar(pullRight.unsome)
-                  .foldZIO(
-                    e => ZIO.succeedNow(Exit.fail(Some(e))),
-                    {
-                      case (Some(leftChunk), Some(rightChunk)) =>
-                        if (leftChunk.isEmpty && rightChunk.isEmpty) pull(PullBoth(exec), pullLeft, pullRight)
-                        else if (leftChunk.isEmpty) pull(PullLeft(rightChunk, exec), pullLeft, pullRight)
-                        else if (rightChunk.isEmpty) pull(PullRight(leftChunk, exec), pullLeft, pullRight)
-                        else ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk, exec)))
-                      case (Some(leftChunk), None) =>
-                        if (leftChunk.isEmpty) pull(DrainLeft, pullLeft, pullRight)
-                        else ZIO.succeedNow(Exit.succeed(leftChunk.map { case (k, a) => (k, left(a)) } -> DrainLeft))
-                      case (None, Some(rightChunk)) =>
-                        if (rightChunk.isEmpty) pull(DrainRight, pullLeft, pullRight)
-                        else
-                          ZIO.succeedNow(Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight))
-                      case (None, None) => ZIO.succeedNow(Exit.fail(None))
-                    }
-                  )
-            }
-          case PullLeft(rightChunk, exec) =>
+          case PullBoth =>
+            pullLeft.unsome
+              .zipPar(pullRight.unsome)
+              .foldZIO(
+                e => ZIO.succeedNow(Exit.fail(Some(e))),
+                {
+                  case (Some(leftChunk), Some(rightChunk)) =>
+                    if (leftChunk.isEmpty && rightChunk.isEmpty) pull(PullBoth, pullLeft, pullRight)
+                    else if (leftChunk.isEmpty) pull(PullLeft(rightChunk), pullLeft, pullRight)
+                    else if (rightChunk.isEmpty) pull(PullRight(leftChunk), pullLeft, pullRight)
+                    else ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
+                  case (Some(leftChunk), None) =>
+                    if (leftChunk.isEmpty) pull(DrainLeft, pullLeft, pullRight)
+                    else ZIO.succeedNow(Exit.succeed(leftChunk.map { case (k, a) => (k, left(a)) } -> DrainLeft))
+                  case (None, Some(rightChunk)) =>
+                    if (rightChunk.isEmpty) pull(DrainRight, pullLeft, pullRight)
+                    else
+                      ZIO.succeedNow(Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight))
+                  case (None, None) => ZIO.succeedNow(Exit.fail(None))
+                }
+              )
+          case PullLeft(rightChunk) =>
             pullLeft.foldZIO(
               {
                 case Some(e) => ZIO.succeedNow(Exit.fail(Some(e)))
@@ -6528,25 +6494,24 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                   ZIO.succeedNow(Exit.succeed(rightChunk.map { case (k, b) => (k, right(b)) } -> DrainRight))
               },
               leftChunk =>
-                if (leftChunk.isEmpty) pull(PullLeft(rightChunk, exec), pullLeft, pullRight)
-                else ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk, exec)))
+                if (leftChunk.isEmpty) pull(PullLeft(rightChunk), pullLeft, pullRight)
+                else ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
             )
-          case PullRight(leftChunk, exec) =>
+          case PullRight(leftChunk) =>
             pullRight.foldZIO(
               {
                 case Some(e) => ZIO.succeedNow(Exit.fail(Some(e)))
                 case None    => ZIO.succeedNow(Exit.succeed(leftChunk.map { case (k, a) => (k, left(a)) } -> DrainLeft))
               },
               rightChunk =>
-                if (rightChunk.isEmpty) pull(PullRight(leftChunk, exec), pullLeft, pullRight)
-                else ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk, exec)))
+                if (rightChunk.isEmpty) pull(PullRight(leftChunk), pullLeft, pullRight)
+                else ZIO.succeedNow(Exit.succeed(mergeSortedByKeyChunk(leftChunk, rightChunk)))
             )
         }
 
       def mergeSortedByKeyChunk(
         leftChunk: Chunk[(K, A)],
-        rightChunk: Chunk[(K, B)],
-        exec: ExecutionStrategy
+        rightChunk: Chunk[(K, B)]
       ): (Chunk[(K, C)], State) = {
         val builder       = ChunkBuilder.make[(K, C)]()
         var state         = null.asInstanceOf[State]
@@ -6571,13 +6536,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               k2 = rightTuple._1
               b = rightTuple._2
             } else if (leftIterator.hasNext) {
-              state = PullRight(Chunk.fromIterator(leftIterator), exec)
+              state = PullRight(Chunk.fromIterator(leftIterator))
               loop = false
             } else if (rightIterator.hasNext) {
-              state = PullLeft(Chunk.fromIterator(rightIterator), exec)
+              state = PullLeft(Chunk.fromIterator(rightIterator))
               loop = false
             } else {
-              state = PullBoth(exec)
+              state = PullBoth
               loop = false
             }
           } else if (compare < 0) {
@@ -6590,7 +6555,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               val rightBuilder = ChunkBuilder.make[(K, B)]()
               rightBuilder += rightTuple
               rightBuilder ++= rightIterator
-              state = PullLeft(rightBuilder.result(), exec)
+              state = PullLeft(rightBuilder.result())
               loop = false
             }
           } else {
@@ -6603,7 +6568,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
               val leftBuilder = ChunkBuilder.make[(K, A)]()
               leftBuilder += leftTuple
               leftBuilder ++= leftIterator
-              state = PullRight(leftBuilder.result(), exec)
+              state = PullRight(leftBuilder.result())
               loop = false
             }
           }
@@ -6611,7 +6576,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         (builder.result(), state)
       }
 
-      self.combineChunks[R1, E1, State, (K, B), (K, C)](that)(PullBoth(exec))(pull)
+      self.combineChunks[R1, E1, State, (K, B), (K, C)](that)(PullBoth)(pull)
     }
   }
 }
