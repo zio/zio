@@ -1,5 +1,5 @@
 /*
-rule = ZIOSpecMigration
+rule = Zio2Upgrade
  */
 package fix
 

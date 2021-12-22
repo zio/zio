@@ -9,7 +9,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val renames =
     Map(
-      "accessM"                -> "accessZIO",
+      "accessM"                -> "environmentWithZIO",
+      "accessZIO"              -> "environmentWithZIO",
       "asEC"                   -> "asExecutionContext",
       "bimap"                  -> "mapBoth",
       "bracket"                -> "acquireReleaseWith",
@@ -103,6 +104,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   lazy val scopes = List(
     "zio.test.package",
+    "zio.test.Gen",
     "zio.test.DefaultRunnableSpec",
     "zio.Exit",
     "zio.ZIO",
@@ -289,8 +291,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "whileOutputM"  -> "whileOutputZIO",
       "collectWhileM" -> "collectWhileZIO",
       "collectUntilM" -> "collectUntilZIO",
-      "recurWhileM"   -> "recureWhileZIO",
-      "recurUntilM"   -> "recureUntilZIO"
+      "recurWhileM"   -> "recurWhileZIO",
+      "recurUntilM"   -> "recurUntilZIO"
     )
   )
 
@@ -399,6 +401,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.Gen.anyUpperHexChar"            -> "zio.test.Gen.hexCharUpper",
     "zio.test.Gen.anyASCIIString"             -> "zio.test.Gen.asciiString",
     "zio.test.Gen.anyUUID"                    -> "zio.test.Gen.uuid",
+    "zio.test.Gen.anyInstant"                 -> "zio.test.Gen.instant",
     "zio.test.TimeVariants.anyDayOfWeek"      -> "zio.test.Gen.dayOfWeek",
     "zio.test.TimeVariants.anyFiniteDuration" -> "zio.test.Gen.finiteDuration",
     "zio.test.TimeVariants.anyLocalDate"      -> "zio.test.Gen.localDate",
@@ -430,7 +433,21 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   object BuiltInServiceFixer { // TODO Handle all built-in services?
 
     object ImporteeRenamer {
-      def importeeRenames(implicit sdoc: SemanticDocument): PartialFunction[Tree, Option[Patch]] =
+        
+      def importeeRenames(implicit sdoc: SemanticDocument): PartialFunction[Tree, Option[Patch]] = {
+        val pf: SymbolMatcher => PartialFunction[Tree, Patch] =
+          (symbolMatcher: SymbolMatcher) => {
+            case t @ ImporteeNameOrRename(symbolMatcher(_)) =>
+              Patch.removeImportee(t)
+          }
+
+        val pf1:PartialFunction[Tree, Option[Patch]] = { case (_: Tree) => None }
+        val pf2: Function2[PartialFunction[Tree, Option[Patch]], PartialFunction[Tree, Patch], PartialFunction[Tree, Option[Patch]]] = {
+          case (totalPatch, nextPatch) => {
+            case (tree: Tree) => nextPatch.lift(tree).orElse(totalPatch(tree))
+          }
+        }
+
         List(
           randomMigrator,
           systemMigrator,
@@ -447,11 +464,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           testLiveMigrator
         ).foldLeft(List[SymbolMatcher](hasNormalized)) { case (serviceMatchers, serviceMigrator) =>
           serviceMatchers ++ List(serviceMigrator.normalizedOld, serviceMigrator.normalizedOldService)
-        }.map[PartialFunction[Tree, Patch]](symbolMatcher => { case t @ ImporteeNameOrRename(symbolMatcher(_)) =>
-          Patch.removeImportee(t)
-        }).foldLeft[PartialFunction[Tree, Option[Patch]]] { case (_: Tree) => None } { case (totalPatch, nextPatch) =>
-          (tree: Tree) => nextPatch.lift(tree).orElse(totalPatch(tree))
-        }
+        }.map(pf).foldLeft {pf1} {pf2}
+      }
 
       def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
         importeeRenames.apply(tree)
@@ -587,7 +601,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   }
 
   override def fix(implicit doc: SemanticDocument): Patch = {
-    new Zio2ZIOSpec().fix +
+    Zio2ZIOSpec.fix +
     doc.tree.collect {
       case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
 
@@ -685,6 +699,31 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     case Some(t: Type.Select) => unwindSelect(t)
     case Some(t: Term.Select) => unwindSelect(t)
     case _                    => t
+  }
+  
+  object Zio2ZIOSpec extends SemanticRule("ZIOSpecMigration"){
+    val zio2UpgradeRule = new Zio2Upgrade()
+    val AbstractRunnableSpecRenames = zio2UpgradeRule.Renames(
+      List("zio.test.DefaultRunnableSpec" /* TODO What other types here? */),
+      Map(
+        "Failure"            -> "Any",
+      )
+    )
+
+    override def fix(implicit doc: SemanticDocument): Patch =
+      doc.tree.collect {
+        case AbstractRunnableSpecRenames.Matcher(patch) => patch
+
+        // TODO Check if we really want to do this, or if we want to keep it now that we might have a
+        //    meaningful Failure type
+        case t @ q"override def spec: $tpe = $body" if tpe.toString().contains("ZSpec[Environment, Failure]") =>
+          Patch.replaceTree(t, s"override def spec = $body")
+      }.asPatch + replaceSymbols
+
+    def replaceSymbols(implicit doc: SemanticDocument) = Patch.replaceSymbols(
+      "zio.test.DefaultRunnableSpec" -> "zio.test.ZIOSpecDefault"
+    )
+
   }
 }
 

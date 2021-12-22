@@ -13,6 +13,15 @@ object ZSinkSpec extends ZIOBaseSpec {
   def spec = {
     suite("ZSinkSpec")(
       suite("Constructors")(
+        suite("drain")(
+          test("fails if upstream fails") {
+            ZStream(1)
+              .mapZIO(_ => ZIO.fail("boom!"))
+              .run(Sink.drain)
+              .exit
+              .map(assert(_)(fails(equalTo("boom!"))))
+          }
+        ),
         suite("collectAllN")(
           test("respects the given limit") {
             ZStream

@@ -1331,7 +1331,15 @@ object ZChannel {
   )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
     acquireReleaseOutExitWith(
       ReleaseMap.make.flatMap { releaseMap =>
-        ZManaged.currentReleaseMap.locally(releaseMap)(m.zio).map { case (_, out) => (out, releaseMap) }
+        ZIO.uninterruptibleMask { restore =>
+          ZManaged.currentReleaseMap
+            .locally(releaseMap)(restore(m.zio))
+            .foldCauseZIO(
+              cause =>
+                releaseMap.releaseAll(Exit.failCause(cause), ExecutionStrategy.Sequential) *> ZIO.failCause(cause),
+              { case (_, out) => ZIO.succeedNow((out, releaseMap)) }
+            )
+        }
       }
     ) { case ((_, releaseMap), exit) =>
       releaseMap.releaseAll(exit, ExecutionStrategy.Sequential)

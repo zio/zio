@@ -66,6 +66,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     flatMap(f)
 
   /**
+   * Symbolic alias for [[ZStream#via]].
+   */
+  def >>>[R1 <: R, E1 >: E, B](pipeline: ZPipeline[R1, E1, A, B])(implicit
+    trace: ZTraceElement
+  ): ZStream[R1, E1, B] =
+    via(pipeline)
+
+  /**
    * Symbolic alias for [[[zio.stream.ZStream!.run[R1<:R,E1>:E,B]*]]].
    */
   def >>>[R1 <: R, E1 >: E, A2 >: A, Z](sink: => ZSink[R1, E1, A2, Any, Z])(implicit
@@ -247,37 +255,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def branchAfter[R1 <: R, E1 >: E, B](
     n: Int
-  )(f: Chunk[A] => ZPipeline[R1, E1, A, B])(implicit trace: ZTraceElement): ZStream[R1, E1, B] = {
-    def collecting(buf: Chunk[A]): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[B], Any] =
-      ZChannel.readWithCause(
-        (chunk: Chunk[A]) => {
-          val newBuf = buf ++ chunk
-          if (newBuf.length >= n) {
-            val (is, is1) = newBuf.splitAt(n)
-            val pipeline  = f(is)
-            pipeline(ZStream.fromChunk(is1)).channel *> emitting(pipeline)
-          } else
-            collecting(newBuf)
-        },
-        (cause: Cause[E1]) => ZChannel.failCause(cause),
-        (_: Any) =>
-          if (buf.isEmpty)
-            ZChannel.unit
-          else {
-            val pipeline = f(buf)
-            pipeline(ZStream.empty).channel
-          }
-      )
-
-    def emitting(pipeline: ZPipeline[R1, E1, A, B]): ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[B], Any] =
-      ZChannel.readWithCause(
-        (chunk: Chunk[A]) => pipeline(ZStream.fromChunk(chunk)).channel *> emitting(pipeline),
-        (cause: Cause[E1]) => ZChannel.failCause(cause),
-        (_: Any) => ZChannel.unit
-      )
-
-    new ZStream(self.channel >>> collecting(Chunk.empty))
-  }
+  )(f: Chunk[A] => ZPipeline[R1, E1, A, B])(implicit trace: ZTraceElement): ZStream[R1, E1, B] =
+    self >>> ZPipeline.branchAfter(n)(f)
 
   /**
    * Returns a stream whose failure and success channels have been mapped by the
@@ -695,36 +674,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def groupAdjacentBy[K](
     f: A => K
-  )(implicit trace: ZTraceElement): ZStream[R, E, (K, NonEmptyChunk[A])] = {
-    type O = (K, NonEmptyChunk[A])
-    def go(in: Chunk[A], state: Option[O]): (Chunk[O], Option[O]) =
-      in.foldLeft[(Chunk[O], Option[O])]((Chunk.empty, state)) {
-        case ((os, None), a) =>
-          (os, Some((f(a), NonEmptyChunk(a))))
-        case ((os, Some(agg @ (k, aggregated))), a) =>
-          val k2 = f(a)
-          if (k == k2)
-            (os, Some((k, aggregated :+ a)))
-          else
-            (os :+ agg, Some((k2, NonEmptyChunk(a))))
-      }
-
-    def chunkAdjacent(buffer: Option[O]): ZChannel[R, E, Chunk[A], Any, E, Chunk[O], Unit] =
-      ZChannel.readWithCause[R, E, Chunk[A], Any, E, Chunk[O], Unit](
-        in = chunk => {
-          val (outputs, newBuffer) = go(chunk, buffer)
-          ZChannel.write(outputs) *> chunkAdjacent(newBuffer)
-        },
-        halt = ZChannel.failCause(_),
-        done = _ =>
-          buffer match {
-            case Some(o) => ZChannel.write(Chunk.single(o))
-            case None    => ZChannel.unit
-          }
-      )
-
-    new ZStream(self.channel >>> chunkAdjacent(None))
-  }
+  )(implicit trace: ZTraceElement): ZStream[R, E, (K, NonEmptyChunk[A])] =
+    self >>> ZPipeline.groupAdjacentBy(f)
 
   private def loopOnChunks[R1 <: R, E1 >: E, A1](
     f: Chunk[A] => ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[A1], Boolean]
@@ -1177,23 +1128,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Drops the specified number of elements from this stream.
    */
-  def drop(n: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
-    def loop(r: Int): ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
-      ZChannel
-        .readWith(
-          (in: Chunk[A]) => {
-            val dropped  = in.drop(r)
-            val leftover = (r - in.length).max(0)
-            val more     = in.isEmpty || leftover > 0
-
-            if (more) loop(leftover) else ZChannel.write(dropped) *> ZChannel.identity[E, Chunk[A], Any]
-          },
-          (e: E) => ZChannel.fail(e),
-          (_: Any) => ZChannel.unit
-        )
-
-    new ZStream(channel >>> loop(n))
-  }
+  def drop(n: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    self >>> ZPipeline.drop(n)
 
   /**
    * Drops the last specified number of elements from this stream.
@@ -1233,7 +1169,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * evaluates to `true`.
    */
   final def dropWhile(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    pipeThrough(ZSink.dropWhile[A](f))
+    self >>> ZPipeline.dropWhile(f)
 
   /**
    * Drops all elements of the stream for as long as the specified predicate
@@ -1253,7 +1189,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * `true`.
    */
   final def dropUntil(pred: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    dropWhile(!pred(_)).drop(1)
+    self >>> ZPipeline.dropUntil(pred)
 
   /**
    * Drops all elements of the stream for as long as the specified predicate
@@ -2394,34 +2330,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def mapAccumZIO[R1 <: R, E1 >: E, S, A1](
     s: => S
   )(f: (S, A) => ZIO[R1, E1, (S, A1)])(implicit trace: ZTraceElement): ZStream[R1, E1, A1] =
-    ZStream.succeed(s).flatMap { s =>
-      def accumulator(s: S): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Unit] =
-        ZChannel.readWith(
-          (in: Chunk[A]) =>
-            ZChannel.unwrap(
-              ZIO.suspendSucceed {
-                val outputChunk           = ChunkBuilder.make[A1](in.size)
-                val emit: A1 => UIO[Unit] = (a: A1) => UIO(outputChunk += a).unit
-                ZIO
-                  .foldLeft[R1, E1, S, A](in)(s)((s1, a) => f(s1, a).flatMap(sa => emit(sa._2) as sa._1))
-                  .fold(
-                    failure => {
-                      val partialResult = outputChunk.result()
-                      if (partialResult.nonEmpty)
-                        ZChannel.write(partialResult) *> ZChannel.fail(failure)
-                      else
-                        ZChannel.fail(failure)
-                    },
-                    ZChannel.write(outputChunk.result()) *> accumulator(_)
-                  )
-              }
-            ),
-          ZChannel.fail(_),
-          (_: Any) => ZChannel.unit
-        )
-
-      new ZStream(self.channel >>> accumulator(s))
-    }
+    self >>> ZPipeline.mapAccumZIO(s)(f)
 
   /**
    * Returns a stream whose failure and success channels have been mapped by the
@@ -2973,44 +2882,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * last chunk might contain less than `n` elements
    */
   def rechunk(n: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    ZStream.unwrap {
-      ZIO.succeed {
-        val target    = n
-        val rechunker = new ZStream.Rechunker[A](target)
-
-        lazy val process: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Unit] =
-          ZChannel.readWithCause(
-            (chunk: Chunk[A]) =>
-              if (chunk.size > 0) {
-                if (chunk.size == target && rechunker.isEmpty) {
-                  ZChannel.write(chunk) *> process
-                } else {
-                  var chunks: List[Chunk[A]] = Nil
-                  var result: Chunk[A]       = null
-                  var i                      = 0
-
-                  while (i < chunk.size) {
-                    while (i < chunk.size && (result eq null)) {
-                      result = rechunker.write(chunk(i))
-                      i += 1
-                    }
-
-                    if (result ne null) {
-                      chunks = result :: chunks
-                      result = null
-                    }
-                  }
-
-                  ZChannel.writeAll(chunks.reverse: _*) *> process
-                }
-              } else process,
-            (cause: Cause[E]) => rechunker.emitIfNotEmpty() *> ZChannel.failCause(cause),
-            (_: Any) => rechunker.emitIfNotEmpty()
-          )
-
-        new ZStream(channel >>> process)
-      }
-    }
+    self >>> ZPipeline.rechunk(n)
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
@@ -3233,7 +3105,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Runs the stream only for its effects. The emitted elements are discarded.
    */
   def runDrain(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    foreach(_ => ZIO.unit)
+    run(ZSink.drain)
 
   /**
    * Runs the stream to completion and yields the first value emitted by it,
@@ -3316,7 +3188,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def scanZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, S] =
-    ZStream(s) ++ mapAccumZIO[R1, E1, S, S](s)((s, a) => f(s, a).map(s => (s, s)))
+    self >>> ZPipeline.scanZIO(s)(f)
 
   /**
    * Schedules the output of the stream using the provided `schedule`.
@@ -3521,27 +3393,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Takes the specified number of elements from this stream.
    */
   def take(n: => Long)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    ZStream.succeed(n).flatMap { n =>
-      def loop(n: Long): ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
-        ZChannel
-          .readWith[R, E, Chunk[A], Any, E, Chunk[A], Any](
-            (chunk: Chunk[A]) => {
-              val taken    = chunk.take(n.min(Int.MaxValue).toInt)
-              val leftover = (n - taken.length).max(0)
-              val more     = leftover > 0
-
-              if (more) ZChannel.write(taken) *> loop(leftover)
-              else ZChannel.write(taken)
-            },
-            ZChannel.fail(_),
-            ZChannel.succeed(_)
-          )
-
-      if (0 < n)
-        new ZStream(self.channel >>> loop(n))
-      else
-        ZStream.empty
-    }
+    self >>> ZPipeline.take(n)
 
   /**
    * Takes the last specified number of elements from this stream.
@@ -3574,23 +3426,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Takes all elements of the stream until the specified predicate evaluates to
    * `true`.
    */
-  def takeUntil(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
-    lazy val loop: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
-      ZChannel
-        .readWith[R, E, Chunk[A], Any, E, Chunk[A], Any](
-          (chunk: Chunk[A]) => {
-            val taken = chunk.takeWhile(!f(_))
-            val last  = chunk.drop(taken.length).take(1)
-
-            if (last.isEmpty) ZChannel.write(taken) *> loop
-            else ZChannel.write(taken ++ last)
-          },
-          ZChannel.fail(_),
-          ZChannel.succeed(_)
-        )
-
-    new ZStream(channel >>> loop)
-  }
+  def takeUntil(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    self >>> ZPipeline.takeUntil(f)
 
   /**
    * Takes all elements of the stream until the specified effectual predicate
@@ -3616,22 +3453,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Takes all elements of the stream for as long as the specified predicate
    * evaluates to `true`.
    */
-  def takeWhile(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
-    lazy val loop: ZChannel[R, E, Chunk[A], Any, E, Chunk[A], Any] =
-      ZChannel
-        .readWith[R, E, Chunk[A], Any, E, Chunk[A], Any](
-          (chunk: Chunk[A]) => {
-            val taken = chunk.takeWhile(f)
-            val more  = taken.length == chunk.length
-
-            if (more) ZChannel.write(taken) *> loop else ZChannel.write(taken)
-          },
-          ZChannel.fail(_),
-          ZChannel.succeed(_)
-        )
-
-    new ZStream(channel >>> loop)
-  }
+  def takeWhile(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    self >>> ZPipeline.takeWhile(f)
 
   /**
    * Adds an effect to consumption of every element of the stream.
@@ -4169,16 +3992,18 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream.UpdateServiceAt[R, E, A, Service](self)
 
   /**
-   * Threads the stream through the transformation function `f`.
-   */
-  def via[R2, E2, B](f: ZStream[R, E, A] => ZStream[R2, E2, B])(implicit trace: ZTraceElement): ZStream[R2, E2, B] =
-    f(self)
-
-  /**
    * Threads the stream through a transformation pipeline.
    */
   def via[R1 <: R, E1 >: E, B](pipeline: ZPipeline[R1, E1, A, B])(implicit trace: ZTraceElement): ZStream[R1, E1, B] =
     pipeline(self)
+
+  /**
+   * Threads the stream through the transformation function `f`.
+   */
+  def viaFunction[R2, E2, B](f: ZStream[R, E, A] => ZStream[R2, E2, B])(implicit
+    trace: ZTraceElement
+  ): ZStream[R2, E2, B] =
+    f(self)
 
   /**
    * Returns this stream if the specified condition is satisfied, otherwise
@@ -4373,59 +4198,77 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def zipWith[R1 <: R, E1 >: E, A2, A3](
     that: => ZStream[R1, E1, A2]
   )(f: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
-    sealed trait State[+W1, +W2]
-    case class Running[W1, W2](excess: Either[Chunk[W1], Chunk[W2]]) extends State[W1, W2]
-    case class LeftDone[W1](excessL: NonEmptyChunk[W1])              extends State[W1, Nothing]
-    case class RightDone[W2](excessR: NonEmptyChunk[W2])             extends State[Nothing, W2]
-    case object End                                                  extends State[Nothing, Nothing]
 
-    def handleSuccess(
-      leftUpd: Option[Chunk[A]],
-      rightUpd: Option[Chunk[A2]],
-      excess: Either[Chunk[A], Chunk[A2]]
-    ): Exit[Option[Nothing], (Chunk[A3], State[A, A2])] = {
-      val (left, right) = {
-        val (leftExcess, rightExcess) = excess.fold(l => (l, Chunk.empty), r => (Chunk.empty, r))
-        val l                         = leftUpd.fold(leftExcess)(upd => leftExcess ++ upd)
-        val r                         = rightUpd.fold(rightExcess)(upd => rightExcess ++ upd)
-        (l, r)
-      }
-      val (emit, newExcess): (Chunk[A3], Either[Chunk[A], Chunk[A2]]) = zipChunks(left, right, f)
-      (leftUpd.isDefined, rightUpd.isDefined) match {
-        case (true, true)   => Exit.succeed((emit, Running(newExcess)))
-        case (false, false) => Exit.fail(None)
-        case _ => {
-          val newState = newExcess match {
-            case Left(l)  => l.nonEmptyOrElse[State[A, A2]](End)(LeftDone(_))
-            case Right(r) => r.nonEmptyOrElse[State[A, A2]](End)(RightDone(_))
-          }
-          Exit.succeed((emit, newState))
-        }
-      }
-    }
+    sealed trait State[+A, +A2]
+    case object PullBoth                                 extends State[Nothing, Nothing]
+    final case class PullLeft[A2](rightChunk: Chunk[A2]) extends State[Nothing, A2]
+    final case class PullRight[A](leftChunk: Chunk[A])   extends State[A, Nothing]
 
-    combineChunks(that)(Running(Left(Chunk.empty)): State[A, A2]) { (st, p1, p2) =>
-      st match {
-        case Running(excess) =>
-          {
-            p1.unsome.zipWithPar(p2.unsome) { case (l, r) =>
-              handleSuccess(l, r, excess)
-            }
-          }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
-        case LeftDone(excessL) =>
-          {
-            p2.unsome.map(handleSuccess(None, _, Left(excessL)))
-          }.catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
-        case RightDone(excessR) => {
-          p1.unsome
-            .map(handleSuccess(_, None, Right(excessR)))
-            .catchAllCause(e => UIO.succeedNow(Exit.failCause(e.map(Some(_)))))
-        }
-        case End => {
-          UIO.succeedNow(Exit.fail(None))
-        }
+    def pull(
+      state: State[A, A2],
+      pullLeft: ZIO[R, Option[E], Chunk[A]],
+      pullRight: ZIO[R1, Option[E1], Chunk[A2]]
+    ): ZIO[R1, Nothing, Exit[Option[E1], (Chunk[A3], State[A, A2])]] =
+      state match {
+        case PullBoth =>
+          pullLeft
+            .zipPar(pullRight)
+            .foldZIO(
+              err => ZIO.succeedNow(Exit.fail(err)),
+              { case (leftChunk, rightChunk) =>
+                if (leftChunk.isEmpty && rightChunk.isEmpty)
+                  pull(PullBoth, pullLeft, pullRight)
+                else if (leftChunk.isEmpty)
+                  pull(PullLeft(rightChunk), pullLeft, pullRight)
+                else if (rightChunk.isEmpty)
+                  pull(PullRight(leftChunk), pullLeft, pullRight)
+                else
+                  ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk, f)))
+              }
+            )
+        case PullLeft(rightChunk) =>
+          pullLeft.foldZIO(
+            err => ZIO.succeedNow(Exit.fail(err)),
+            leftChunk =>
+              if (leftChunk.isEmpty)
+                pull(PullLeft(rightChunk), pullLeft, pullRight)
+              else if (rightChunk.isEmpty)
+                pull(PullRight(leftChunk), pullLeft, pullRight)
+              else
+                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk, f)))
+          )
+        case PullRight(leftChunk) =>
+          pullRight.foldZIO(
+            err => ZIO.succeedNow(Exit.fail(err)),
+            rightChunk =>
+              if (rightChunk.isEmpty)
+                pull(PullRight(leftChunk), pullLeft, pullRight)
+              else if (leftChunk.isEmpty)
+                pull(PullLeft(rightChunk), pullLeft, pullRight)
+              else
+                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk, f)))
+          )
       }
-    }
+
+    def zipWithChunks(
+      leftChunk: Chunk[A],
+      rightChunk: Chunk[A2],
+      f: (A, A2) => A3
+    ): (Chunk[A3], State[A, A2]) =
+      zipChunks(leftChunk, rightChunk, f) match {
+        case (out, Left(leftChunk)) =>
+          if (leftChunk.isEmpty)
+            out -> PullBoth
+          else
+            out -> PullRight(leftChunk)
+        case (out, Right(rightChunk)) =>
+          if (rightChunk.isEmpty)
+            out -> PullBoth
+          else
+            out -> PullLeft(rightChunk)
+      }
+
+    self.combineChunks[R1, E1, State[A, A2], A2, A3](that)(PullBoth)(pull)
   }
 
   /**
