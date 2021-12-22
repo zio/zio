@@ -169,111 +169,13 @@ In object-oriented programming:
 
 We have a similar analogy in Module Pattern, except instead of using _constructors_ we use **`ZLayer`** to define dependencies. So in ZIO fashion, we can think of `ZLayer` as a service constructor.
 
-ZIO has two patterns to write services. The first version of _Module Pattern_ has some boilerplate, but the second version is very concise and straightforward. ZIO doesn't mandate any of them, you can use whichever you like.
+## Module Pattern
 
-### Module Pattern 1.0
+Writing services in ZIO using _Module Pattern_ is much similar to the object-oriented way of defining services. We use scala traits to define services, classes to implement services, and constructors to define service dependencies. Finally, we lift the class constructor into the `ZLayer`.
 
-Let's start learning this pattern by writing a `Logging` service:
+Let's start learning this module pattern by writing a `Logging` service:
 
-1. **Bundling** — Define an object that gives the name to the module, this can be (not necessarily) a package object. We create a `logging` object, all the definitions and implementations will be included in this object.
-
-2. **Service Definition** — Then we create the `Logging` companion object. Inside the companion object, we define the service definition with a trait named `Service`. Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility.
-
-3. **Service Implementation** — After that, we implement our service by creating a new Service and then lifting that entire implementation into the `ZLayer` data type by using the `ZLayer.succeed` constructor.
-
-4. **Defining Dependencies** — If our service has a dependency on other services, we should use constructors like `ZLayer.fromService` and `ZLayer.fromServices`.
-
-5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods.
-
-Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `log`, we don't need to pull out the `log` function from the ZIO Environment. The `accessZIO` method helps us to access the environment of effect and reduce the redundant operation, every time.
-
-```scala mdoc:invisible:reset
-import zio._
-import zio.Console._
-```
-
-```scala mdoc:invisible
-import zio.{UIO, Layer, ZLayer, ZIO, URIO}
-```
-
-```scala mdoc:silent:nest
-object logging {
-  type Logging = Logging.Service
-
-  // Companion object exists to hold service definition and also the live implementation.
-  object Logging {
-    trait Service {
-      def log(line: String): UIO[Unit]
-    }
-
-    val live: ULayer[Logging] = ZLayer.succeed {
-      new Service {
-        override def log(line: String): UIO[Unit] =
-          ZIO.succeed(println(line))
-      }
-    }
-  }
-
-  // Accessor Methods
-  def log(line: => String): URIO[Logging, Unit] =
-    ZIO.serviceWithZIO(_.log(line))
-}
-```
-
-We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we use `ZLayer.fromServices` constructor:
-
-```scala mdoc:silent:nest:warn
-object logging {
-  type Logging = Logging.Service
-
-  // Companion object exists to hold service definition and also the live implementation.
-  object Logging {
-    trait Service {
-      def log(line: String): UIO[Unit]
-    }
-
-    val live: URLayer[Clock with Console, Logging] =
-      ZLayer.fromServices[Clock, Console, Logging.Service] {
-        (clock: Clock, console: Console) =>
-          new Logging.Service {
-            override def log(line: String): UIO[Unit] =
-              for {
-                current <- clock.currentDateTime
-                _ <- console.printLine(s"$current--$line").orDie
-              } yield ()
-          }
-      }
-  }
-
-  // Accessor Methods
-  def log(line: => String): URIO[Logging, Unit] =
-    ZIO.serviceWithZIO(_.log(line))
-}
-```
-
-
-This is how ZIO services are created. Let's use the `Logging` service in our application:
-
-```scala mdoc:compile-only
-object LoggingExample extends ZIOAppDefault {
-  import zio.RIO
-  import logging._
- 
-  private val app: RIO[Logging, Unit] = log("Hello, World!") 
-
-  def run = app.provide(Logging.live)
-}
-```
-
-During writing an application we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by methods like `provide`.
-
-### Module Pattern 2.0
-
-Writing services with _Module Pattern 2.0_ is much easier than the previous one. It removes some level of indirection from the previous version, and much more similar to the object-oriented approach in writing services.
-
-_Module Pattern 2.0_ has more similarity with object-oriented way of defining services. We use classes to implement services, and we use constructors to define service dependencies; At the end of the day, we lift class constructor into the `ZLayer`.
-
-1. **Service Definition** — Defining service in this version has changed slightly compared to the previous version. We would take the service definition and pull it out into the top-level:
+1. **Service Definition** — Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility. We define the service definition with a trait named `Logging`:
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -285,7 +187,7 @@ trait Logging {
 }
 ```
 
-2. **Service Implementation** — It is the same as what we did in object-oriented fashion. We implement the service with Scala class. By convention, we name the live version of its implementation as `LoggingLive`:
+2. **Service Implementation** — It is the same as what we did in an object-oriented fashion. We implement the service with the Scala class. By convention, we name the live version of its implementation as `LoggingLive`:
 
 ```scala mdoc:silent:nest
 case class LoggingLive() extends Logging {
@@ -294,7 +196,7 @@ case class LoggingLive() extends Logging {
 }
 ```
 
-3. **Define Service Dependencies** — We might need `Console` and `Clock` services to implement the `Logging` service. In this case, we put its dependencies into its constructor. All the dependencies are just interfaces, not implementation. Just like what we did in object-oriented style:
+3. **Define Service Dependencies** — We might need `Console` and `Clock` services to implement the `Logging` service. Here, we put its dependencies into its constructor. All the dependencies are just interfaces, not implementation. Just like what we did in object-oriented style:
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -323,7 +225,7 @@ object LoggingLive {
 }
 ```
 
-5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods. Just like what we did in Module Pattern 1.0, but with a slight change, in this case, instead of using `ZIO.accessZIO` we use `ZIO.serviceWithZIO` method to define accessors inside the service companion object:
+5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods using `ZIO.serviceWithZIO` constructor inside the companion object:
 
 ```scala mdoc:silent
 object Logging {
@@ -331,17 +233,30 @@ object Logging {
 }
 ```
 
-That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge.
+Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `Logging.log`, we don't need to pull out the `log` function from the ZIO Environment. The `ZIO.serviceWithZIO` constructor helps us to access the environment and reduce the redundant operations, every time.
 
-Finally, we provide required layers to our `app` effect:
+This is how ZIO services are created. Let's use the `Logging` service in our application. We should provide the live layer of `Logging` service to be able to run the application:
 
-```scala
- val app = Logging.log("Application Started")
+```scala mdoc:compile-only
+import zio._
 
- zio.Runtime.default.unsafeRun(
-   app.provide(LoggingLive.layer)
- )
+object MainApp extends ZIOAppDefault {
+  val app =
+    for {
+      _    <- Logging.log("Application Started!")
+      _    <- Console.print("Enter your name:")
+      name <- Console.readLine
+      _    <- Console.printLine(s"Hello, $name!")
+      _    <- Logging.log("Application Exited!")
+    } yield ()
+
+  def run = app.provideCustom(LoggingLive.layer)
+}
 ```
+
+During writing the application, we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by one of `ZIO#provide*` methods.
+
+That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge.
 
 ## Dependency Injection in ZIO
 
