@@ -41,7 +41,7 @@ object ImpureModuleMock extends Mock[ImpureModule] {
       .service[Proxy]
       .flatMap { proxy =>
         withRuntime[Proxy].map { rts =>
-          new ImpureModule.Service {
+          new ImpureModule {
             def zeroParams: String                                 = rts.unsafeRunTask(proxy(ZeroParams))
             def zeroParamsWithParens(): String                     = rts.unsafeRunTask(proxy(ZeroParamsWithParens))
             def singleParam(a: Int): String                        = rts.unsafeRunTask(proxy(SingleParam, a))
