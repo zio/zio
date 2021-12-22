@@ -6235,6 +6235,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
     }
 
+    def isEmpty: Boolean =
+      pos == 0
+
     def emitIfNotEmpty()(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Unit] =
       if (pos != 0) {
         ZChannel.write(builder.result())
