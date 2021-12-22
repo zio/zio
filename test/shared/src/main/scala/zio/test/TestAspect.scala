@@ -926,8 +926,9 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: Live with Annotations, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-        Live.withLive(test)(_.either.timed).flatMap { case (duration, result) =>
-          ZIO.fromEither(result).ensuring(Annotations.annotate(TestAnnotation.timing, duration))
+        Live.withLive(test)(_.either.summarized(Clock.instant)(TestDuration.fromInterval)).flatMap {
+          case (duration, result) =>
+            ZIO.fromEither(result).ensuring(Annotations.annotate(TestAnnotation.timing, duration))
         }
     }
 
