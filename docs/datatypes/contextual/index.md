@@ -239,9 +239,10 @@ This is how ZIO services are created. Let's use the `Logging` service in our app
 
 ```scala mdoc:compile-only
 import zio._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  val app =
+  val app: ZIO[Logging with Console, IOException, Unit] =
     for {
       _    <- Logging.log("Application Started!")
       _    <- Console.print("Enter your name:")
@@ -257,6 +258,70 @@ object MainApp extends ZIOAppDefault {
 During writing the application, we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by one of `ZIO#provide*` methods.
 
 That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge.
+
+## The Three Laws of ZIO Environment
+
+When we are working with the ZIO environment, one question might arise: "When should we use environment and when do we need to use constructors?".
+
+Using ZIO environment follows three laws:
+
+1. **Service Interface (Trait)** — When we are defining service interfaces, we shouldn't care about implementation details like what dependencies we have. So at this level, we should _never_ use the environment. For example, the following service definition is wrong:
+
+```scala mdoc:compile-only
+trait Logging {
+  def log(line: String): ZIO[Console with Clock, Nothing, Unit]
+}
+```
+
+2. **Service Implementation (Class)** — When implementing service interfaces, we should accept all dependencies in the class constructor.
+
+Again, let's see how `LoggingLive` accepts `Console` and `Clock` dependencies from the class constructor:
+
+```scala mdoc:compile-only
+case class LoggingLive(console: Console, clock: Clock) extends Logging {
+  override def log(line: String): UIO[Unit] =
+    for {
+      current <- clock.currentDateTime
+      _       <- console.printLine(s"$current--$line").orDie
+    } yield ()
+}
+```
+
+So keep in mind, we can't do something like this:
+
+```scala mdoc:fail
+case class LoggingLive() extends Logging {
+  override def log(line: String) =
+    for {
+      clock   <- ZIO.service[Clock]
+      console <- ZIO.service[Console]
+      current <- clock.currentDateTime
+      _       <- console.printLine(s"$current--$line").orDie
+    } yield ()
+}
+```
+
+3. **Business Logic** — Finally, in the business logic we should use the ZIO environment to consume services.
+
+Therefore, in the last example, if we inline all accessor methods whenever we are using services, we are using the ZIO environment:
+
+```scala mdoc:compile-only
+import zio._
+import java.io.IOException
+
+object MainApp extends ZIOAppDefault {
+  val app: ZIO[Logging with Console, IOException, Unit] =
+    for {
+      _    <- ZIO.serviceWithZIO[Logging](_.log("Application Started!"))
+      _    <- ZIO.serviceWithZIO[Console](_.print("Enter your name: "))
+      name <- ZIO.serviceWithZIO[Console](_.readLine)
+      _    <- ZIO.serviceWithZIO[Console](_.printLine(s"Hello, $name!"))
+      _    <- ZIO.serviceWithZIO[Logging](_.log("Application Exited!"))
+    } yield ()
+
+  def run = app.provideCustom(LoggingLive.layer)
+}
+```
 
 ## Dependency Injection in ZIO
 
