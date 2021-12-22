@@ -4199,16 +4199,16 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     that: => ZStream[R1, E1, A2]
   )(f: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
 
-    sealed trait State
-    case object PullBoth                       extends State
-    case class PullLeft(rightChunk: Chunk[A2]) extends State
-    case class PullRight(leftChunk: Chunk[A])  extends State
+    sealed trait State[+A, +A2]
+    case object PullBoth                                 extends State[Nothing, Nothing]
+    final case class PullLeft[A2](rightChunk: Chunk[A2]) extends State[Nothing, A2]
+    final case class PullRight[A](leftChunk: Chunk[A])   extends State[A, Nothing]
 
     def pull(
-      state: State,
+      state: State[A, A2],
       pullLeft: ZIO[R, Option[E], Chunk[A]],
       pullRight: ZIO[R1, Option[E1], Chunk[A2]]
-    ): ZIO[R1, Nothing, Exit[Option[E1], (Chunk[A3], State)]] =
+    ): ZIO[R1, Nothing, Exit[Option[E1], (Chunk[A3], State[A, A2])]] =
       state match {
         case PullBoth =>
           pullLeft
@@ -4254,7 +4254,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       leftChunk: Chunk[A],
       rightChunk: Chunk[A2],
       f: (A, A2) => A3
-    ): (Chunk[A3], State) =
+    ): (Chunk[A3], State[A, A2]) =
       zipChunks(leftChunk, rightChunk, f) match {
         case (out, Left(leftChunk)) =>
           if (leftChunk.isEmpty)
@@ -4268,7 +4268,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             out -> PullLeft(rightChunk)
       }
 
-    self.combineChunks[R1, E1, State, A2, A3](that)(PullBoth)(pull)
+    self.combineChunks[R1, E1, State[A, A2], A2, A3](that)(PullBoth)(pull)
   }
 
   /**
