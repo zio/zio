@@ -5,7 +5,7 @@ import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm._
 import zio.stream.ZStream.{DebounceState, HandoffSignal}
-import zio.stream.internal.Utils.zipChunks
+import zio.stream.internal.Utils.{zipChunks, zipLeftChunks, zipRightChunks}
 import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}
@@ -4052,7 +4052,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The new stream will end when one of the sides ends.
    */
   def zipLeft[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    zipWith(that)((o, _) => o)
+    zipWithChunks(that)(zipLeftChunks)
 
   /**
    * Zips this stream with another point-wise, but keeps only the outputs of the
@@ -4061,7 +4061,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The new stream will end when one of the sides ends.
    */
   def zipRight[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A2] =
-    zipWith(that)((_, A2) => A2)
+    zipWithChunks(that)(zipRightChunks)
 
   /**
    * Zips this stream with another point-wise and emits tuples of elements from
@@ -4197,18 +4197,30 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def zipWith[R1 <: R, E1 >: E, A2, A3](
     that: => ZStream[R1, E1, A2]
-  )(f: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
+  )(f: (A, A2) => A3)(implicit trace: ZTraceElement): ZStream[R1, E1, A3] =
+    zipWithChunks(that)(zipChunks(_, _, f))
 
-    sealed trait State[+A, +A2]
+  /**
+   * Zips this stream with another point-wise and applies the function to the
+   * paired elements.
+   *
+   * The new stream will end when one of the sides ends.
+   */
+  def zipWithChunks[R1 <: R, E1 >: E, A1 >: A, A2, A3](
+    that: => ZStream[R1, E1, A2]
+  )(
+    f: (Chunk[A1], Chunk[A2]) => (Chunk[A3], Either[Chunk[A1], Chunk[A2]])
+  )(implicit trace: ZTraceElement): ZStream[R1, E1, A3] = {
+    sealed trait State[+A1, +A2]
     case object PullBoth                                 extends State[Nothing, Nothing]
     final case class PullLeft[A2](rightChunk: Chunk[A2]) extends State[Nothing, A2]
-    final case class PullRight[A](leftChunk: Chunk[A])   extends State[A, Nothing]
+    final case class PullRight[A1](leftChunk: Chunk[A1]) extends State[A1, Nothing]
 
     def pull(
-      state: State[A, A2],
-      pullLeft: ZIO[R, Option[E], Chunk[A]],
+      state: State[A1, A2],
+      pullLeft: ZIO[R, Option[E], Chunk[A1]],
       pullRight: ZIO[R1, Option[E1], Chunk[A2]]
-    ): ZIO[R1, Nothing, Exit[Option[E1], (Chunk[A3], State[A, A2])]] =
+    ): ZIO[R1, Nothing, Exit[Option[E1], (Chunk[A3], State[A1, A2])]] =
       state match {
         case PullBoth =>
           pullLeft
@@ -4223,7 +4235,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                 else if (rightChunk.isEmpty)
                   pull(PullRight(leftChunk), pullLeft, pullRight)
                 else
-                  ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk, f)))
+                  ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
               }
             )
         case PullLeft(rightChunk) =>
@@ -4235,7 +4247,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
               else if (rightChunk.isEmpty)
                 pull(PullRight(leftChunk), pullLeft, pullRight)
               else
-                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk, f)))
+                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
           )
         case PullRight(leftChunk) =>
           pullRight.foldZIO(
@@ -4246,16 +4258,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
               else if (leftChunk.isEmpty)
                 pull(PullLeft(rightChunk), pullLeft, pullRight)
               else
-                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk, f)))
+                ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
           )
       }
 
     def zipWithChunks(
-      leftChunk: Chunk[A],
-      rightChunk: Chunk[A2],
-      f: (A, A2) => A3
-    ): (Chunk[A3], State[A, A2]) =
-      zipChunks(leftChunk, rightChunk, f) match {
+      leftChunk: Chunk[A1],
+      rightChunk: Chunk[A2]
+    ): (Chunk[A3], State[A1, A2]) =
+      f(leftChunk, rightChunk) match {
         case (out, Left(leftChunk)) =>
           if (leftChunk.isEmpty)
             out -> PullBoth
@@ -4268,7 +4279,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             out -> PullLeft(rightChunk)
       }
 
-    self.combineChunks[R1, E1, State[A, A2], A2, A3](that)(PullBoth)(pull)
+    self.combineChunks[R1, E1, State[A1, A2], A2, A3](that)(PullBoth)(pull)
   }
 
   /**
@@ -4852,7 +4863,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     else {
       object StreamEnd extends Throwable
 
-      ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any] <*> UIO(ChunkBuilder.make[A]())).flatMap {
+      ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any] <*> UIO(ChunkBuilder.make[A](maxChunkSize))).flatMap {
         case (it, rt, builder) =>
           ZStream.repeatZIOChunkOption {
             Task {
