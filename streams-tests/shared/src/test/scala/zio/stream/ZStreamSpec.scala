@@ -4883,13 +4883,19 @@ object ZStreamSpec extends ZIOBaseSpec {
           )(equalTo(Chunk.fromIterable(0 to 9)))
         },
         test("unwrapManaged") {
-          assertM(
+          def stream(promise: Promise[Nothing, Unit]) =
             ZStream.unwrapManaged {
-              ZManaged.succeed {
-                ZStream.fail("error")
-              }
-            }.runCollect.either
-          )(isLeft(equalTo("error")))
+              ZManaged.acquireRelease(Console.print("acquire outer"))(Console.print("release outer").orDie) *>
+                ZManaged.fromZIO(promise.succeed(()) *> ZIO.never) *>
+                ZManaged.succeed(ZStream(1, 2, 3))
+            }
+          for {
+            promise <- Promise.make[Nothing, Unit]
+            fiber   <- stream(promise).runDrain.fork
+            _       <- promise.await
+            _       <- fiber.interrupt
+            output  <- TestConsole.output
+          } yield assertTrue(output == Vector("acquire outer", "release outer"))
         },
         suite("withRuntimeConfig")(
           test("runs the stream on the specified runtime configuration") {
