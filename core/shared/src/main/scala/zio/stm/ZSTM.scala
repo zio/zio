@@ -973,12 +973,7 @@ object ZSTM {
     ZIO.environmentWithZIO[R] { r =>
       ZIO.suspendSucceedWith { (runtimeConfig, fiberId) =>
         tryCommitSync(runtimeConfig, fiberId, stm, r) match {
-          case TryCommit.Done(exit) =>
-            exit match {
-              case Exit.Success(value) => ZIO.succeedNow(value)
-              case Exit.Failure(cause) => throw new ZIO.ZioError(cause, trace)
-            }
-
+          case TryCommit.Done(exit) => throw new ZIO.ZioError(exit, trace)
           case TryCommit.Suspend(journal) =>
             val txnId = makeTxnId()
             val state = new AtomicReference[State[E, A]](State.Running)
@@ -2063,6 +2058,9 @@ object ZSTM {
                 }
 
               case _ =>
+                Sync(globalLock) {
+                  if (isInvalid(journal)) loop = true
+                }
             }
           }
         }
@@ -2182,6 +2180,9 @@ object ZSTM {
                 }
 
               case _ =>
+                Sync(globalLock) {
+                  if (isInvalid(journal)) loop = true
+                }
             }
           }
         }
