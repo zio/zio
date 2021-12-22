@@ -413,10 +413,17 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def rechunk[In](n: => Int)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] = {
 
-    def process(rechunker: ZStream.Rechunker[In]): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+    def process(
+      rechunker: ZStream.Rechunker[In],
+      target: Int
+    ): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
       ZChannel.readWithCause[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
         (chunk: Chunk[In]) =>
-          if (chunk.size > 0) {
+          if (chunk.size == target && rechunker.isEmpty) {
+            ZChannel
+              .write(chunk)
+              .zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](process(rechunker, target))
+          } else if (chunk.size > 0) {
             var chunks: List[Chunk[In]] = Nil
             var result: Chunk[In]       = null
             var i                       = 0
@@ -435,14 +442,17 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
             ZChannel
               .writeAll(chunks.reverse: _*)
-              .zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](process(rechunker))
-          } else process(rechunker),
+              .zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](process(rechunker, target))
+          } else process(rechunker, target),
         (cause: Cause[Nothing]) => rechunker.emitIfNotEmpty() *> ZChannel.failCause(cause),
         (_: Any) => rechunker.emitIfNotEmpty()
       )
 
+    val target = n
     new ZPipeline(
-      ZChannel.suspend[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](process(new ZStream.Rechunker(n)))
+      ZChannel.suspend[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
+        process(new ZStream.Rechunker(target), target)
+      )
     )
   }
 
