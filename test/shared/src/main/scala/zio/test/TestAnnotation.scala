@@ -72,8 +72,8 @@ object TestAnnotation {
   /**
    * An annotation for timing.
    */
-  val timing: TestAnnotation[Duration] =
-    TestAnnotation("timing", Duration.Zero, _ + _)
+  val timing: TestAnnotation[TestDuration] =
+    TestAnnotation("timing", TestDuration.zero, _ <> _)
 
   /**
    * An annotation for capturing the trace information, including source
