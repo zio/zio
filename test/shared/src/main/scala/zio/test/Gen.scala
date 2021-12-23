@@ -33,6 +33,12 @@ import scala.math.Numeric.DoubleIsFractional
 final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) { self =>
 
   /**
+   * A symbolic alias for `concat`.
+   */
+  def ++[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: ZTraceElement): Gen[R1, A1] =
+    self.concat(that)
+
+  /**
    * A symbolic alias for `zip`.
    */
   @deprecated("use <*>", "2.0.0")
@@ -48,6 +54,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
     that: Gen[R1, B]
   )(implicit zippable: Zippable[A, B], trace: ZTraceElement): Gen[R1, zippable.Out] =
     self.zip(that)
+
+  /**
+   * Concatenates the specified deterministic generator with this determinstic
+   * generator, resulting in a deterministic generator that generates the values
+   * from this generator and then the values from the specified generator.
+   */
+  def concat[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: ZTraceElement): Gen[R1, A1] =
+    Gen(self.sample ++ that.sample)
 
   /**
    * Maps the values produced by this generator with the specified partial
@@ -456,7 +470,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * specified generators.
    */
   def concatAll[R, A](gens: => Iterable[Gen[R, A]])(implicit trace: ZTraceElement): Gen[R, A] =
-    Gen(ZStream.concatAll(Chunk.fromIterable(gens).map(_.sample)))
+    Gen.suspend(gens.foldLeft[Gen[R, A]](Gen.empty)(_ ++ _))
 
   /**
    * A constant generator of the specified value.
