@@ -994,16 +994,6 @@ val s2 = ZStream(1, 2, 3).zipAllWith(
 // Output: (1, a), (2, b), (3, c), (0, d), (0, e)
 ```
 
-ZIO Stream also has a `ZStream#zipAllWithExec` function, which takes `ExecutionStrategy` as an argument. The execution strategy will be used to determine whether to pull from the streams sequentially or in parallel:
-
-```scala 
-def zipAllWithExec[R1 <: R, E1 >: E, O2, O3](
-  that: ZStream[R1, E1, O2]
-)(exec: ExecutionStrategy)(
-  left: O => O3, right: O2 => O3
-)(both: (O, O2) => O3): ZStream[R1, E1, O3] = ???
-```
-
 Sometimes we want to zip stream, but we do not want to zip two elements one by one. For example, we may have two streams with two different speeds, we do not want to wait for the slower one when zipping elements, assume need to zip elements with the latest element of the slower stream. The `ZStream#zipWithLates` do this for us. It zips two streams so that when a value is emitted by either of the two streams; it is combined with the latest value from the other stream to produce a result:
 
 ```scala mdoc:silent:nest

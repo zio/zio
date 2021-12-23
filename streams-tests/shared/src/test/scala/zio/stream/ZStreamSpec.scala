@@ -3903,18 +3903,16 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(chars))
           }
         ),
-        test("zipAllSortedByKeyExecWith") {
-          val genExecutionStrategy =
-            Gen.elements(ExecutionStrategy.Parallel, ExecutionStrategy.Sequential)
+        test("zipAllSortedByKeyWith") {
           val genSortedByKey = for {
             map    <- Gen.mapOf(Gen.int(1, 100), Gen.int(1, 100))
             chunk   = Chunk.fromIterable(map).sorted
             chunks <- splitChunks(Chunk(chunk))
           } yield chunks
-          check(genSortedByKey, genSortedByKey, genExecutionStrategy) { (as, bs, exec) =>
+          check(genSortedByKey, genSortedByKey) { (as, bs) =>
             val left   = ZStream.fromChunks(as: _*)
             val right  = ZStream.fromChunks(bs: _*)
-            val actual = left.zipAllSortedByKeyWithExec(right)(exec)(identity, identity)(_ + _)
+            val actual = left.zipAllSortedByKeyWith(right)(identity, identity)(_ + _)
             val expected = Chunk.fromIterable {
               as.flatten.toMap.foldLeft(bs.flatten.toMap) { case (map, (k, v)) =>
                 map.get(k).fold(map + (k -> v))(v1 => map + (k -> (v + v1)))
