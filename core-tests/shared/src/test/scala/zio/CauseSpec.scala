@@ -2,8 +2,8 @@ package zio
 
 import zio.Cause.{Both, Then, empty}
 import zio.test.Assertion._
-import zio.test._
 import zio.test.TestAspect.samples
+import zio.test._
 
 object CauseSpec extends ZIOBaseSpec {
 

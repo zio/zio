@@ -25,11 +25,11 @@ import scala.reflect.ClassTag
 
 /**
  * `ChunkLike` represents the capability for a `Chunk` to extend Scala's
- * collection library. Because of changes to Scala's collection library in
- * 2.13, separate versions of this trait are implemented for 2.11 / 2.12 and
- * 2.13 / Dotty. This allows code in `Chunk` to be written without concern for
- * the implementation details of Scala's collection library to the maximum
- * extent possible.
+ * collection library. Because of changes to Scala's collection library in 2.13,
+ * separate versions of this trait are implemented for 2.11 / 2.12 and 2.13 /
+ * Dotty. This allows code in `Chunk` to be written without concern for the
+ * implementation details of Scala's collection library to the maximum extent
+ * possible.
  *
  * Note that `IndexedSeq` is not a referentially transparent interface in that
  * it exposes methods that are partial (e.g. `apply`), allocate mutable state
@@ -196,16 +196,16 @@ private[zio] trait ChunkLike[+A]
     zipWithIndexFrom(0)
 
   /**
-   * Constructs a new `ChunkBuilder`. This operation allocates mutable state
-   * and is not referentially transparent. It is provided for compatibility
-   * with Scala's collection library and should not be used for other purposes.
+   * Constructs a new `ChunkBuilder`. This operation allocates mutable state and
+   * is not referentially transparent. It is provided for compatibility with
+   * Scala's collection library and should not be used for other purposes.
    */
   override protected[this] def newBuilder: ChunkBuilder[A] =
     ChunkBuilder.make()
 
   /**
-   * Returns whether the specified `CanBuildFrom` is a `ChunkCanBuildFrom` or
-   * a `CanBuildFrom` of one of the supertypes of `Chunk`.
+   * Returns whether the specified `CanBuildFrom` is a `ChunkCanBuildFrom` or a
+   * `CanBuildFrom` of one of the supertypes of `Chunk`.
    */
   @inline
   private[this] def isChunkCanBuildFrom[A, B, That](bf: CanBuildFrom[Chunk[A], B, That]): Boolean =
@@ -217,8 +217,8 @@ private[zio] trait ChunkLike[+A]
 object ChunkLike {
 
   /**
-   * Provides implicit evidence that that a collection of type `Chunk[A]` can
-   * be build from elements of type `A`.
+   * Provides implicit evidence that that a collection of type `Chunk[A]` can be
+   * build from elements of type `A`.
    */
   implicit def chunkCanBuildFrom[A](implicit bf: ChunkCanBuildFrom[A]): ChunkCanBuildFrom[A] =
     bf

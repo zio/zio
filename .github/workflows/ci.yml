@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx3G # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
-  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx3G # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -XX:+UseG1GC -Xmx6g -Xms6g # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  JVM_OPTS: -XX:+PrintCommandLineFlags -XX:+UseG1GC -Xmx6g -Xms6g # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
 
 on:
   pull_request:
@@ -124,7 +124,8 @@ jobs:
       matrix:
         platform: ['JS', 'Native']
     env:
-      JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx3G -XX:+UseG1GC
+      JVM_OPTS: -XX:+PrintCommandLineFlags -XX:+UseG1GC -Xmx3g -Xms3g
+      NODE_OPTIONS: --max_old_space_size=3072
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2.4.0
