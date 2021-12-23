@@ -9,7 +9,6 @@ sealed trait TestDuration { self =>
 
   final def <>(that: TestDuration): TestDuration =
     (self, that) match {
-      case (Zero, Zero)  => Zero
       case (Zero, right) => right
       case (left, Zero)  => left
       case (Finite(leftStart, leftEnd), Finite(rightStart, rightEnd)) =>
