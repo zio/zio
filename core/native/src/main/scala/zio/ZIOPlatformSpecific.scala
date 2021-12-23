@@ -35,4 +35,3 @@ private[zio] trait ZIOCompanionPlatformSpecific {
   def attemptBlockingInterrupt[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
     ZIO.attemptBlocking(effect)
 }
-
