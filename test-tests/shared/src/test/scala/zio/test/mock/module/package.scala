@@ -5,9 +5,5 @@ package zio.test.mock
  */
 package object module {
 
-  type PureModule   = PureModule.Service
-  type ImpureModule = ImpureModule.Service
-  type StreamModule = StreamModule.Service
-
   type T22[A] = (A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A)
 }

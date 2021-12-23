@@ -720,6 +720,11 @@ object GenSpec extends ZIOBaseSpec {
       for {
         size <- Gen.size.resize(42).runHead.some
       } yield assertTrue(size == 42)
+    },
+    test("listOfBounded is stack safe") {
+      check(Gen.listOfBounded(0, 1024)(Gen.byte)) { _ =>
+        assertCompletes
+      }
     }
   )
 }

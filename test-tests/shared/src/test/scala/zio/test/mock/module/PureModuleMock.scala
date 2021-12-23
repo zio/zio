@@ -44,7 +44,7 @@ object PureModuleMock extends Mock[PureModule] {
       .service[Proxy]
       .flatMap { proxy =>
         withRuntime[Proxy].map { rts =>
-          new PureModule.Service {
+          new PureModule {
             val static: IO[String, String]                                     = proxy(Static)
             def zeroParams: IO[String, String]                                 = proxy(ZeroParams)
             def zeroParamsWithParens(): IO[String, String]                     = proxy(ZeroParamsWithParens)
