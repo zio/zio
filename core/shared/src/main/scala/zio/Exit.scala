@@ -327,4 +327,6 @@ object Exit extends Serializable {
   def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
   val unit: Exit[Nothing, Unit] = succeed(())
+
+  private[zio] val empty: Exit[Nothing, Nothing] = Exit.failCause[Nothing](Cause.empty)
 }

@@ -571,7 +571,16 @@ object Fiber extends FiberPlatformSpecific {
         def executor: Executor               = executor0
         def isLocked: Boolean                = locked0
       }
-  }
+  }  
+
+  final case class Descriptor2(
+    id: FiberId,
+    status: Status,
+    interrupters: Set[FiberId],
+    interruptStatus: InterruptStatus,
+    executor: Executor,
+    isLocked: Boolean
+  )
 
   final case class Dump(fiberId: FiberId.Runtime, status: Status, trace: ZTrace) extends Product with Serializable {
     self =>
