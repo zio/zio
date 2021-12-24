@@ -23,8 +23,8 @@ import java.lang.ref.WeakReference
 
 /**
  * A `ZScope` represents the scope of a fiber lifetime. The scope of a fiber can
- * be retrieved using [[ZIO.scope]], and when forking fibers, you can
- * specify a custom scope to fork them on by using the [[ZIO#forkIn]].
+ * be retrieved using [[ZIO.scope]], and when forking fibers, you can specify a
+ * custom scope to fork them on by using the [[ZIO#forkIn]].
  */
 sealed trait ZScope {
   def fiberId: FiberId
