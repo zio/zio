@@ -104,7 +104,7 @@ object AppConfig {
   val layer: ULayer[Map[String, AppConfig]] = ZLayer.fromZIOEnvironment(
     UIO(
       ZEnvironment[Map[String, AppConfig]](
-        Map(that are provided 
+        Map(
           "prod" -> AppConfig("production.myapp", 80),
           "dev" -> AppConfig("development.myapp", 8080)
         )
