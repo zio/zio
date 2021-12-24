@@ -1253,7 +1253,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
       ZManaged.currentReleaseMap.locally(releaseMap) {
         ZManaged.currentReleaseMap.get.acquireReleaseExitWith(
           (relMap, exit: Exit[E1, B]) => relMap.releaseAll(exit, ExecutionStrategy.Sequential),
-          relMap => ZIO.uninterruptibleMask(restore => restore(zio)).flatMap { case (_, a) => f(a) }
+          relMap => zio.flatMap { case (_, a) => f(a) }
         )
       }
     }
