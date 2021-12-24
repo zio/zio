@@ -38,6 +38,7 @@ module.exports = {
     ],
     "Contextual Types": [
         "datatypes/contextual/index",
+        "datatypes/contextual/zenvironment",
         {
             type: "category",
             label: "ZIO Dependencies",
