@@ -101,8 +101,8 @@ import zio._
 case class AppConfig(host: String, port: Int)
 
 object AppConfig {
-  val layer: ULayer[Map[String, AppConfig]] = ZLayer.fromZIOEnvironment(
-    UIO(
+  val layer: ULayer[Map[String, AppConfig]] =
+    ZLayer.succeedEnvironment(
       ZEnvironment[Map[String, AppConfig]](
         Map(
           "prod" -> AppConfig("production.myapp", 80),
@@ -110,7 +110,6 @@ object AppConfig {
         )
       )
     )
-  )
 }
 ```
 
@@ -156,13 +155,11 @@ trait Database {
 
 object Database {
   val layer: ULayer[Map[String, Database]] = {
-    ZLayer.fromZIOEnvironment(
-      UIO(
-        ZEnvironment(
-          Map(
-            "persistent" -> PersistentDatabase.apply(),
-            "inmemory" -> InmemoryDatabase.apply()
-          )
+    ZLayer.succeedEnvironment(
+      ZEnvironment(
+        Map(
+          "persistent" -> PersistentDatabase.apply(),
+          "inmemory" -> InmemoryDatabase.apply()
         )
       )
     )
