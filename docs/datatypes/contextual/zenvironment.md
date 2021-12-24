@@ -7,6 +7,32 @@ A `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which i
 
 ```scala
 type ZIO[R, E, A] = ZEnvironment[R] => Either[E, A]
+or 
+type ZIO[R, E, A] = ZEnvironment[R] => IO[E, A]
+```
+
+We can eliminate the environment of `ZIO[R, E, A]` by providing `ZEnvironment[R]` to that effect. 
+
+Let's see an example:
+
+```scala mdoc:compile-only
+val originalEffect: ZIO[Console with Random, IOException, Unit] =
+  for {
+    uuid <- Random.nextUUID
+    _ <- Console.printLine(s"next random UUID: $uuid")
+  } yield ()
+```
+
+By providing `ZEnvironment[Console with Random]` we can eliminate the environment of the `originalEffect`:
+
+```
+val eliminatedEffect: IO[IOException, Unit] =
+  originalEffect.provideEnvironment(
+    ZEnvironment(
+      ConsoleLive,
+      RandomLive
+    ) 
+  )
 ```
 
 > **Note**:
