@@ -5041,6 +5041,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceedWith((runtimeConfig, _) => ZIO.succeedNow(runtimeConfig))
 
   /**
+   * Returns the current fiber's scope.
+   */
+  def scope(implicit trace: ZTraceElement): UIO[ZScope] =
+    descriptorWith(descriptor => ZIO.succeedNow(descriptor.scope))
+
+  /**
    * Passes the fiber's scope to the specified function, which creates an effect
    * that will be returned from this method.
    */
