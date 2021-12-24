@@ -60,7 +60,7 @@ object ZScope {
     }
   }
 
-  final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends ZScope {
+  private final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends ZScope {
     private[zio] def unsafeAdd(runtimeConfig: RuntimeConfig, child: FiberContext[_, _])(implicit
       trace: ZTraceElement
     ): Boolean = {
