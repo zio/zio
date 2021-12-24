@@ -11,11 +11,18 @@ or
 type ZIO[R, E, A] = ZEnvironment[R] => IO[E, A]
 ```
 
+> **Note**:
+>
+> The `ZEnvironment` is useful for manually constructing and combining the ZIO environment. So, in most cases, we do not require working directly with this data type. So you can skip reading this page if you are not an advanced user.
+
 We can eliminate the environment of `ZIO[R, E, A]` by providing `ZEnvironment[R]` to that effect. 
 
 Let's see an example:
 
 ```scala mdoc:compile-only
+import zio._
+import java.io.IOException
+
 val originalEffect: ZIO[Console with Random, IOException, Unit] =
   for {
     uuid <- Random.nextUUID
@@ -35,9 +42,31 @@ val eliminatedEffect: IO[IOException, Unit] =
   )
 ```
 
-> **Note**:
+Also, we can access the whole environment using `ZIO.environment`:
+
+```scala mdoc:compile-only
+import zio._ 
+import zio.Console.ConsoleLive
+import java.io.IOException
+
+case class AppConfig(poolSize: Int)
+
+val myApp: ZIO[AppConfig & Console, IOException, Unit] =
+  ZIO.environment[AppConfig & Console].flatMap { env =>
+    val console = env.get[Console]
+    val config  = env.get[AppConfig]
+    console.printLine(s"Application started with config: $config")
+  }
+
+val eliminated: IO[IOException, Unit] =
+  myApp.provideEnvironment(
+    ZEnvironment(AppConfig(poolSize = 10)) ++ ZEnvironment(ConsoleLive)
+  )
+```
+
+> **Note**: 
 >
-> The `ZEnvironment` is useful for manually constructing and combining the ZIO environment. So, in most cases, we do not require working directly with this data type. You can skip reading this page if you are not an advanced user.
+> In most cases, we do not require using `ZIO.environment` to access the whole environment or the `ZIO#provideEnvironment` to provide effect dependencies. Therefore, most of the time, we use `ZIO.service*` and other `ZIO#provide*` methods to access a specific service from the environment or provide services to a ZIO effect.
 
 ## Creation
 
