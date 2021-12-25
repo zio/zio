@@ -158,7 +158,7 @@ case class AppConfig(host: String, port: Int)
 object AppConfig {
   val layer: ULayer[Map[String, AppConfig]] =
     ZLayer.succeedEnvironment(
-      ZEnvironment[Map[String, AppConfig]](
+      ZEnvironment(
         Map(
           "prod" -> AppConfig("production.myapp", 80),
           "dev" -> AppConfig("development.myapp", 8080)
