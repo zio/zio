@@ -446,7 +446,8 @@ object ZHub {
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
               ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
-                ZIO.succeed(subscription.unsubscribe())
+                ZIO.succeed(subscription.unsubscribe()) *>
+                ZIO.succeed(strategy.unsafeOnHubEmptySpace(hub, subscribers))
             }
             .unit
         }.uninterruptible
