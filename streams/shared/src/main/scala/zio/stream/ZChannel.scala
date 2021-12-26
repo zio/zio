@@ -683,16 +683,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def mapOut[OutElem2](
     f: OutElem => OutElem2
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] = {
-    lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, OutElem2, OutDone] =
-      ZChannel.readWith(
-        out => ZChannel.write(f(out)) *> reader,
-        (e: OutErr) => ZChannel.fail(e),
-        (z: OutDone) => ZChannel.succeedNow(z)
-      )
-
-    self >>> reader
-  }
+  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
+    self >>> ZChannel.map(f)
 
   def mapOutZIO[Env1 <: Env, OutErr1 >: OutErr, OutElem2](
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
@@ -1297,11 +1289,7 @@ object ZChannel {
     Fail(() => cause)
 
   def identity[Err, Elem, Done](implicit trace: ZTraceElement): ZChannel[Any, Err, Elem, Done, Err, Elem, Done] =
-    readWith(
-      (in: Elem) => write(in) *> identity[Err, Elem, Done],
-      (err: Err) => fail(err),
-      (done: Done) => succeedNow(done)
-    )
+    map(Predef.identity)
 
   def interrupt(fiberId: => FiberId)(implicit
     trace: ZTraceElement
@@ -1344,6 +1332,15 @@ object ZChannel {
     ) { case ((_, releaseMap), exit) =>
       releaseMap.releaseAll(exit, ExecutionStrategy.Sequential)
     }.mapOut(_._1)
+
+  def map[Err, InElem, OutElem, Done](
+    f: InElem => OutElem
+  )(implicit trace: ZTraceElement): ZChannel[Any, Err, InElem, Done, Err, OutElem, Done] =
+    readWith(
+      (in: InElem) => write(f(in)) *> map[Err, InElem, OutElem, Done](f),
+      (err: Err) => fail(err),
+      (done: Done) => succeedNow(done)
+    )
 
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[

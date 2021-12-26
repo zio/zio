@@ -313,7 +313,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * The identity pipeline, which does not modify streams in any way.
    */
   def identity[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
-    new ZPipeline(ZChannel.identity)
+    map(Predef.identity)
 
   def iso_8859_1Decode(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, String] =
     textDecodeUsing(StandardCharsets.ISO_8859_1)
@@ -325,7 +325,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that maps elements with the specified function.
    */
   def map[In, Out](f: In => Out)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
-    new ZPipeline(ZChannel.identity.mapOut(_.map(f)))
+    new ZPipeline(ZChannel.map(_.map(f)))
 
   /**
    * Creates a pipeline that statefully maps elements with the specified
