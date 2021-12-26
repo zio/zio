@@ -265,7 +265,11 @@ When we are working with the ZIO environment, one question might arise: "When sh
 
 Using ZIO environment follows three laws:
 
-1. **Service Interface (Trait)** — When we are defining service interfaces, we shouldn't care about implementation details like what dependencies we have. So at this level, we should _never_ use the environment. For example, the following service definition is wrong:
+1. **Service Interface (Trait)** — When we are defining service interfaces we should _never_ use the environment for dependencies of the service itself.
+
+For example, if the implementation of service `X` depends on service `Y` and `Z` then these should never be reflected in the trait that defines service `X`. It's leaking implementation details.
+
+So the following service definition is wrong because the `Console` and `Clock` service are dependencies of the  `Logging` service's implementation, not the `Logging` interface itself:
 
 ```scala mdoc:compile-only
 trait Logging {
@@ -322,6 +326,151 @@ object MainApp extends ZIOAppDefault {
   def run = app.provideCustom(LoggingLive.layer)
 }
 ```
+
+That's it! These are the most important rules we need to know about the ZIO environment.
+
+> **Note**:
+> 
+> The remaining part of this section can be skipped if you are not an advanced ZIO user.
+
+Now let's elaborate more on the first rule. On rare occasions, all of which involve local context that is independent of implementation, it's _acceptable_ to use the environment in the definition of a service.
+
+Here are two examples:
+
+1. In a web application, a service may be defined only to operate in the context of an HTTP request. In such a case, the request itself could be stored in the environment: `ZIO[HttpRequest, ...]`. This is acceptable because this use of the environment is part of the semantics of the trait itself, rather than leaking an implementation detail of some particular class that implements the service trait:
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+import java.net.URI
+import java.nio.charset.StandardCharsets
+
+type HttpApp = ZIO[HttpRequest, Throwable, HttpResponse]
+type HttpRoute = Map[String, HttpApp]
+
+case class HttpRequest(method: Int,
+                       uri: URI,
+                       headers: Map[String, String],
+                       body: UStream[Byte])
+
+case class HttpResponse(status: Int,
+                        headers: Map[String, String],
+                        body: UStream[Byte])
+
+object HttpResponse {
+  def apply(status: Int, message: String): HttpResponse =
+    HttpResponse(
+      status = status,
+      headers = Map.empty,
+      body = ZStream.fromChunk(
+        Chunk.fromArray(message.getBytes(StandardCharsets.UTF_8))
+      )
+    )
+
+  def ok(msg: String): HttpResponse = HttpResponse(200, msg)
+
+  def error(msg: String): HttpResponse = HttpResponse(800, msg)
+}
+
+trait HttpServer {
+  def serve(map: HttpRoute, host: String, port: Int): ZIO[Any, Throwable, Unit]
+}
+
+object HttpServer {
+  def serve(map: HttpRoute, host: String, port: Int): ZIO[HttpServer, Throwable, Unit] =
+    ZIO.serviceWithZIO(_.serve(map, host, port))
+}
+
+case class HttpServerLive() extends HttpServer {
+  override def serve(map: HttpRoute, host: String, port: Int): ZIO[Any, Throwable, Unit] = ???
+}
+
+object HttpServerLive {
+  val layer: URLayer[Any, HttpServer] = (HttpServerLive.apply _).toLayer[HttpServer]
+}
+
+object MainWebApp extends ZIOAppDefault {
+
+  val myApp: ZIO[HttpServer, Throwable, Unit] = for {
+    _ <- ZIO.unit
+    healthcheck: HttpApp = ZIO.service[HttpRequest].map { _ =>
+      HttpResponse.ok("up")
+    }
+
+    pingpong = ZIO.service[HttpRequest].flatMap { req =>
+      ZIO.ifZIO(
+        req.body.via(ZPipeline.utf8Decode).runHead.map(_.contains("ping"))
+      )(
+        onTrue = ZIO(HttpResponse.ok("pong")),
+        onFalse = ZIO(HttpResponse.error("bad request"))
+      )
+    }
+
+    map = Map(
+      "/healthcheck" -> healthcheck,
+      "/pingpong" -> pingpong
+    )
+    _ <- HttpServer.serve(map, "localhost", 8080)
+  } yield ()
+
+  def run = myApp.provideCustomLayer(HttpServerLive.layer)
+
+}
+```
+
+2. In a database application, a service may be defined only to operate in the context of a larger database transaction. In such a case, the transaction could be stored in the environment: `ZIO[DatabaseTransaction, ...]`. As in the previous example, because this is part of the semantics of the trait itself (whose functionality all operates within a transaction), this is not leaking implementation details, and therefore it is valid:
+
+```scala mdoc:compile-only
+trait DatabaseTransaction {
+  def get(key: String): Task[Int]
+  def put(key: String, value: Int): Task[Unit]
+}
+
+object DatabaseTransaction {
+  def get(key: String): ZIO[DatabaseTransaction, Throwable, Int] =
+    ZIO.serviceWithZIO(_.get(key))
+
+  def put(key: String, value: Int): ZIO[DatabaseTransaction, Throwable, Unit] =
+    ZIO.serviceWithZIO(_.put(key, value))
+}
+
+trait Database {
+  def atomically[E, A](zio: ZIO[DatabaseTransaction, E, A]): ZIO[Any, E, A]
+}
+
+object Database {
+  def atomically[E, A](zio: ZIO[DatabaseTransaction, E, A]): ZIO[Database, E, A] =
+    ZIO.serviceWithZIO(_.atomically(zio))
+}
+
+case class DatabaseLive() extends Database {
+  override def atomically[E, A](zio: ZIO[DatabaseTransaction, E, A]): ZIO[Any, E, A] = ???
+}
+
+object DatabaseLive {
+  val layer = (DatabaseLive.apply _).toLayer[Database]
+}
+
+object MainDatabaseApp extends ZIOAppDefault {
+  val myApp: ZIO[Database, Throwable, Unit] =
+    for {
+      _ <- Database.atomically(DatabaseTransaction.put("counter", 0))
+      _ <- ZIO.foreachPar(List(1 to 10)) { _ =>
+        Database.atomically(
+          for {
+            value <- DatabaseTransaction.get("counter")
+            _ <- DatabaseTransaction.put("counter", value + 1)
+          } yield ()
+        )
+      }
+    } yield ()
+
+  def run = myApp.provideCustomLayer(DatabaseLive.layer)
+
+}
+```
+
+So while it's better to err on the side of "don't put things into the environment of service interface", there are cases where it's acceptable.
 
 ## Dependency Injection in ZIO
 
