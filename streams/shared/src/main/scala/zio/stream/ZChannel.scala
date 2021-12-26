@@ -120,6 +120,37 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone2] =
     self.map(_ => z2)
 
+  def asPipeline[In, Out](implicit
+    In: Chunk[In] <:< InElem,
+    Out: OutElem <:< Chunk[Out],
+    InDone: Any <:< InDone,
+    trace: ZTraceElement
+  ): ZPipeline[Env, OutErr, In, Out] =
+    new ZPipeline[Env, OutErr, In, Out](
+      self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], Any]]
+    )
+
+  def asSink[In, Out](implicit
+    In: Chunk[In] <:< InElem,
+    Out: OutElem <:< Chunk[Out],
+    InDone: Any <:< InDone,
+    trace: ZTraceElement
+  ): ZSink[Env, OutErr, In, Out, OutDone] =
+    new ZSink[Env, OutErr, In, Out, OutDone](
+      self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], OutDone]]
+    )
+
+  def asStream[Out](implicit
+    Out: OutElem <:< Chunk[Out],
+    InErr: Any <:< InErr,
+    InElem: Any <:< InElem,
+    InDone: Any <:< InDone,
+    trace: ZTraceElement
+  ): ZStream[Env, OutErr, Out] =
+    new ZStream[Env, OutErr, Out](
+      self.asInstanceOf[ZChannel[Env, Any, Any, Any, OutErr, Chunk[Out], Any]]
+    )
+
   /**
    * Returns a new channel that is the same as this one, except if this channel
    * errors for any typed error, then the returned channel will switch over to
@@ -932,88 +963,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
         ZIO.suspendSucceed(interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]))
       }
-
-  def toZPipeline[In, Out](implicit
-    In: Chunk[In] <:< InElem,
-    Out: OutElem <:< Chunk[Out],
-    InDone: Any <:< InDone,
-    trace: ZTraceElement
-  ): ZPipeline[Env, OutErr, In, Out] =
-    new ZPipeline[Env, OutErr, In, Out](
-//      transform[Nothing, Chunk[In], Any, OutErr, Chunk[Out], Any](
-//        Predef.identity,
-//        In,
-//        InDone,
-//        Predef.identity,
-//        Out,
-//        Predef.identity
-//      )
-      self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], Any]]
-    )
-
-  def toZSink[In, Out](implicit
-    In: Chunk[In] <:< InElem,
-    Out: OutElem <:< Chunk[Out],
-    InDone: Any <:< InDone,
-    trace: ZTraceElement
-  ): ZSink[Env, OutErr, In, Out, OutDone] =
-    new ZSink[Env, OutErr, In, Out, OutDone](
-//      transform[Nothing, Chunk[In], Any, OutErr, Chunk[Out], OutDone](
-//        Predef.identity,
-//        In,
-//        InDone,
-//        Predef.identity,
-//        Out,
-//        Predef.identity
-//      )
-      self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], OutDone]]
-    )
-
-  def toZStream[Out](implicit
-    Out: OutElem <:< Chunk[Out],
-    InErr: Any <:< InErr,
-    InElem: Any <:< InElem,
-    InDone: Any <:< InDone,
-    trace: ZTraceElement
-  ): ZStream[Env, OutErr, Out] =
-    new ZStream[Env, OutErr, Out](
-//      transform[Any, Any, Any, OutErr, Chunk[Out], Any](
-//        InErr,
-//        InElem,
-//        InDone,
-//        Predef.identity,
-//        Out,
-//        Predef.identity
-//      )
-      self.asInstanceOf[ZChannel[Env, Any, Any, Any, OutErr, Chunk[Out], Any]]
-    )
-
-  def transform[InErr2, InElem2, InDone2, OutErr2, OutElem2, OutDone2](
-//    env: Env2 => Env,
-    inErr: InErr2 => InErr,
-    inElem: InElem2 => InElem,
-    inDone: InDone2 => InDone,
-    outErr: OutErr => OutErr2,
-    outElem: OutElem => OutElem2,
-    outDone: OutDone => OutDone2
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr2, InElem2, InDone2, OutErr2, OutElem2, OutDone2] = {
-
-    lazy val readerIn: ZChannel[Env, InErr2, InElem2, InDone2, InErr, InElem, InDone] =
-      ZChannel.readWith(
-        (in: InElem2) => ZChannel.write(inElem(in)) *> readerIn,
-        (err: InErr2) => ZChannel.fail(inErr(err)),
-        (done: InDone2) => ZChannel.succeedNow(inDone(done))
-      )
-
-    lazy val readerOut: ZChannel[Env, OutErr, OutElem, OutDone, OutErr2, OutElem2, OutDone2] =
-      ZChannel.readWith(
-        out => ZChannel.write(outElem(out)) *> readerOut,
-        (e: OutErr) => ZChannel.fail(outErr(e)),
-        (z: OutDone) => ZChannel.succeedNow(outDone(z))
-      )
-
-    readerIn >>> self >>> readerOut
-  }
 
   def zip[
     Env1 <: Env,
