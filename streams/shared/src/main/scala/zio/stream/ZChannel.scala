@@ -274,16 +274,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def contramapIn[InElem0](
     f: InElem0 => InElem
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem0, InDone, OutErr, OutElem, OutDone] = {
-    lazy val reader: ZChannel[Any, InErr, InElem0, InDone, InErr, InElem, InDone] =
-      ZChannel.readWith(
-        (in: InElem0) => ZChannel.write(f(in)) *> reader,
-        (err: InErr) => ZChannel.fail(err),
-        (done: InDone) => ZChannel.succeedNow(done)
-      )
-
-    reader >>> self
-  }
+  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem0, InDone, OutErr, OutElem, OutDone] =
+    ZChannel.map(f) >>> self
 
   def contramapInZIO[InElem0, Env1 <: Env](
     f: InElem0 => ZIO[Env1, InErr, InElem]
