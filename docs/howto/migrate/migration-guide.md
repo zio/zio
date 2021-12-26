@@ -1194,10 +1194,10 @@ val myApp: ZIO[Console, Nothing, Unit] =
 
 Also, there is a slight change on `TSemaphore#withPermit` method. In ZIO 2.x, instead of accepting `STM` values, it accepts only `ZIO` values and returns the `ZIO` value.
 
-| `withPermit` | Input           | Output         |
-|--------------|-----------------|----------------|
-| ZIO 1.x      | `STM[E, B]`     | `STM[E, B]`    |
-| ZIO 2.x      | `ZIO[R, E, A])` | `ZIO[R, E, A]` |
+| `withPermit` | Input          | Output         |
+|--------------|----------------|----------------|
+| ZIO 1.x      | `STM[E, B]`    | `STM[E, B]`    |
+| ZIO 2.x      | `ZIO[R, E, A]` | `ZIO[R, E, A]` |
 
 ## ZQueue
 
