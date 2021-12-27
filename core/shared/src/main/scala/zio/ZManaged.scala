@@ -3072,10 +3072,10 @@ object ZManaged extends ZManagedPlatformSpecific {
       }
     }
 
-  def provideLayer[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
+  def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     managed: ZManaged[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with RIn2, E, ROut2] =
-    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
+    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
