@@ -1,7 +1,7 @@
 package zio.test.mock
 
 import zio.test.mock.internal.MockException
-import zio.test.{Assertion, ZIOBaseSpec}
+import zio.test.{Assertion}
 import zio.{Clock, Console, ZIO}
 
 import java.io.IOException

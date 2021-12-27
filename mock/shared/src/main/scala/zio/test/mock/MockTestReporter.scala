@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio.test.mock
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test._
+import zio.test.mock.Expectation
+import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.test.render.ExecutionResult.ResultType.{Suite, Test}
 import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -28,7 +31,7 @@ import java.util.regex.Pattern
 import scala.annotation.tailrec
 import scala.util.Try
 
-object DefaultTestReporter {
+object MockTestReporter {
   def render[E](
     executedSpec: ExecutedSpec[E],
     includeCause: Boolean
@@ -254,11 +257,21 @@ object DefaultTestReporter {
     val timeouts = defects.collect { case TestTimeoutException(message) =>
       Message(message)
     }
+    val mockExceptions = defects.collect { case exception: MockException =>
+      renderMockException(exception).map(withOffset(offset + 1))
+    }
     val remaining =
       cause.stripSomeDefects {
         case TestTimeoutException(_) => true
+        case _: MockException        => true
       }
-    val prefix = timeouts.foldLeft(Message.empty)(_ ++ _)
+    val prefix =
+      if (timeouts.nonEmpty)
+        // In case of timeout we don't show the mock exceptions
+        timeouts.foldLeft(Message.empty)(_ ++ _)
+      else {
+        mockExceptions.foldLeft(Message.empty)(_ ++ _)
+      }
 
     remaining match {
       case Some(remainingCause) =>
@@ -271,6 +284,106 @@ object DefaultTestReporter {
       case None =>
         prefix
     }
+  }
+
+  private def renderMockException(exception: MockException)(implicit trace: ZTraceElement): Message =
+    exception match {
+      case MockException.InvalidCallException(failures) =>
+        val header = error(s"- could not find a matching expectation").toLine
+        header +: renderUnmatchedExpectations(failures)
+
+      case MockException.UnsatisfiedExpectationsException(expectation) =>
+        val header = error(s"- unsatisfied expectations").toLine
+        header +: renderUnsatisfiedExpectations(expectation)
+
+      case MockException.UnexpectedCallException(method, args) =>
+        Message(
+          Seq(
+            error(s"- unexpected call to $method with arguments").toLine,
+            withOffset(1)(detail(args.toString).toLine)
+          )
+        )
+
+      case MockException.InvalidRangeException(range) =>
+        Message(
+          Seq(
+            error(s"- invalid repetition range ${range.start} to ${range.end} by ${range.step}").toLine
+          )
+        )
+    }
+
+  private def renderUnmatchedExpectations(failedMatches: List[InvalidCall])(implicit trace: ZTraceElement): Message =
+    failedMatches.map {
+      case InvalidCall.InvalidArguments(invoked, args, assertion) =>
+        val header = error(s"- $invoked called with invalid arguments").toLine
+        (header +: renderTestFailure("", assertImpl(args)(assertion)).drop(1)).withOffset(1)
+
+      case InvalidCall.InvalidCapability(invoked, expected, assertion) =>
+        Message(
+          Seq(
+            withOffset(1)(error(s"- invalid call to $invoked").toLine),
+            withOffset(2)(
+              Fragment(s"expected $expected with arguments ") + detail(assertion.toString)
+            )
+          )
+        )
+
+      case InvalidCall.InvalidPolyType(invoked, args, expected, assertion) =>
+        Message(
+          Seq(
+            withOffset(1)(error(s"- $invoked called with arguments $args and invalid polymorphic type").toLine),
+            withOffset(2)(
+              Fragment(s"expected $expected with arguments ") + detail(assertion.toString)
+            )
+          )
+        )
+    }.reverse.foldLeft(Message.empty)(_ ++ _)
+
+  private def renderUnsatisfiedExpectations[R](expectation: Expectation[R]): Message = {
+
+    @tailrec
+    def loop(stack: List[(Int, Expectation[R])], lines: Vector[Line]): Vector[Line] =
+      stack match {
+        case Nil =>
+          lines
+
+        case (ident, Expectation.And(children, state, _, _)) :: tail if state.isFailed =>
+          val title       = Line.fromString("in any order", ident)
+          val unsatisfied = children.filter(_.state.isFailed).map(ident + 1 -> _)
+          loop(unsatisfied ++ tail, lines :+ title)
+
+        case (ident, Expectation.Call(method, assertion, _, state, _)) :: tail if state.isFailed =>
+          val rendered =
+            withOffset(ident)(Fragment(s"$method with arguments ") + detail(assertion.toString))
+          loop(tail, lines :+ rendered)
+
+        case (ident, Expectation.Chain(children, state, _, _)) :: tail if state.isFailed =>
+          val title       = Line.fromString("in sequential order", ident)
+          val unsatisfied = children.filter(_.state.isFailed).map(ident + 1 -> _)
+          loop(unsatisfied ++ tail, lines :+ title)
+
+        case (ident, Expectation.Or(children, state, _, _)) :: tail if state.isFailed =>
+          val title       = Line.fromString("one of", ident)
+          val unsatisfied = children.map(ident + 1 -> _)
+          loop(unsatisfied ++ tail, lines :+ title)
+
+        case (ident, Expectation.Repeated(child, range, state, _, _, completed)) :: tail if state.isFailed =>
+          val min = Try(range.min.toString).getOrElse("0")
+          val max = Try(range.max.toString).getOrElse("∞")
+          val title =
+            Line.fromString(
+              s"repeated $completed times not in range $min to $max by ${range.step}",
+              ident
+            )
+          val unsatisfied = ident + 1 -> child
+          loop(unsatisfied :: tail, lines :+ title)
+
+        case _ :: tail =>
+          loop(tail, lines)
+      }
+
+    val lines = loop(List(1 -> expectation), Vector.empty)
+    Message(lines)
   }
 
   def renderTestFailure(label: String, testResult: TestResult): Message =

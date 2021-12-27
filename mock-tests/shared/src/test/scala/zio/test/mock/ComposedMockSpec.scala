@@ -1,7 +1,7 @@
 package zio.test.mock
 
 import zio._
-import zio.test.{Assertion, ZIOBaseSpec, assertM}
+import zio.test.{Assertion, assertM}
 
 import java.io.IOException
 

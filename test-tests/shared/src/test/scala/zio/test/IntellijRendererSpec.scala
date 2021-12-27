@@ -40,18 +40,6 @@ object IntellijRendererSpec extends ZIOBaseSpec {
       },
       test("correctly reports negated failures") {
         runLog(test8).map(str => assertTrue(str == test8Expected.mkString))
-      },
-      test("correctly reports mock failure of invalid call") {
-        assertM(runLog(mock1))(equalTo(mock1Expected.mkString))
-      },
-      test("correctly reports mock failure of unmet expectations") {
-        assertM(runLog(mock2))(equalTo(mock2Expected.mkString))
-      },
-      test("correctly reports mock failure of unexpected call") {
-        assertM(runLog(mock3))(equalTo(mock3Expected.mkString))
-      },
-      test("correctly reports mock failure of invalid range") {
-        assertM(runLog(mock4))(equalTo(mock4Expected.mkString))
       }
     ) @@ silent
 

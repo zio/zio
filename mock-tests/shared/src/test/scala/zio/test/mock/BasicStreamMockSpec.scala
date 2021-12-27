@@ -2,7 +2,7 @@ package zio.test.mock
 
 import zio.stream.{ZSink, ZStream}
 import zio.test.mock.module.{StreamModule, StreamModuleMock}
-import zio.test.{Annotations, Assertion, TestAspect, ZIOBaseSpec, ZSpec}
+import zio.test.{Annotations, Assertion, TestAspect, ZSpec}
 import zio.Chunk
 
 object BasicStreamMockSpec extends ZIOBaseSpec with MockSpecUtils[StreamModule] {

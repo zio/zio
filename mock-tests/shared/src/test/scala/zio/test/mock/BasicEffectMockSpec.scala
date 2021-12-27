@@ -3,7 +3,7 @@ package zio.test.mock
 import zio._
 import zio.test.mock.internal.{ExpectationState, InvalidCall, MockException}
 import zio.test.mock.module.{PureModule, PureModuleMock}
-import zio.test.{Assertion, Live, Spec, TestFailure, TestSuccess, ZIOBaseSpec}
+import zio.test.{Assertion, Live, Spec, TestFailure, TestSuccess}
 
 object BasicEffectMockSpec extends ZIOBaseSpec with MockSpecUtils[PureModule] {
 

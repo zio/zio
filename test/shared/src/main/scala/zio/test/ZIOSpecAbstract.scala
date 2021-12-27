@@ -32,6 +32,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
     Chunk(TestAspect.fibers)
 
+  def testReporter(testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit trace: ZTraceElement): TestReporter[Any] =
+    DefaultTestReporter(testRenderer, testAnnotationRenderer)
+
   final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {
     implicit val trace = Tracer.newTrace
 
@@ -77,7 +80,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       case "intellij" => IntelliJRenderer
       case _          => TestRenderer.default
     }
-    DefaultTestReporter(renderer, TestAnnotationRenderer.default)
+    testReporter(renderer, TestAnnotationRenderer.default)
   }
 
   private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =

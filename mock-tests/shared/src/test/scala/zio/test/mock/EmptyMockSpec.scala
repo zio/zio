@@ -2,7 +2,7 @@ package zio.test.mock
 
 import zio._
 import zio.test.mock.internal.MockException
-import zio.test.{Assertion, ZIOBaseSpec}
+import zio.test.Assertion
 
 import java.io.IOException
 
