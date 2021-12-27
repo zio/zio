@@ -97,4 +97,6 @@ object Zio2Renames {
   
   ZManaged.access( (x: Int) => x)
   ZManaged.accessManaged( (x: Int) => ZManaged.succeed(x))
+  
+  ZIO.serviceWithZIO
 }

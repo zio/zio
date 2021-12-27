@@ -100,6 +100,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "validate_"              -> "validateDiscard",
       "whenCaseM"              -> "whenCaseZIO",
       "whenM"                  -> "whenZIO",
+      "serviceWith"               -> "serviceWithZIO"
     )
 
   lazy val scopes = List(
@@ -320,7 +321,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "someOrElseM"               -> "someOrElseManaged",
       "unlessM"                   -> "unlessManaged",
       "whenCaseM"                 -> "whenCaseManaged",
-      "whenM"                     -> "whenManaged"
+      "whenM"                     -> "whenManaged",
     )
   )
 
