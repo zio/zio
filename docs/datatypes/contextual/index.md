@@ -78,16 +78,122 @@ ZIO environment facility enables us to:
 
 2. **Write a Testable Code** — By coding to an interface, whenever we want to test our effects, we can easily mock any external services, by providing a _test_ version of those instead of the `live` version.
 
-## Contextual Data Types
+## Accessing Services from ZIO Environment
 
-Defining service in ZIO is not very different from object-oriented style, it has the same principle; coding to an interface, not an implementation. But the way ZIO encourages us to implement this principle by using _Module Pattern_ which doesn't very differ from the object-oriented style.
+### Service Accessor
 
-ZIO have one data type that plays a key role in writing ZIO services using _Module Pattern_:
-1. ZLayer
+To access a service from the ZIO environment, we can use the `ZIO.service` constructor. For example, in the following program we are going to access the `AppConfig` from the environment:
 
-So, before diving into the _Module Pattern_, We need to learn more about ZIO Contextual Data Types. Let's review each of them:
+```scala mdoc:silent
+import zio._
 
-### ZLayer
+case class AppConfig(host: String, port: Int)
+
+val myApp: ZIO[AppConfig, Nothing, Unit] =
+  for {
+    config <- ZIO.service[AppConfig]
+    _ <- ZIO.logInfo(s"Application started with config: $config")
+  } yield ()
+```
+
+To run the `myApp` effect, we should provide the `AppConfig` layer (we will talk about `ZLayer` on the next section):
+
+```scala mdoc:compile-only
+object MainApp extends ZIOAppDefault {
+  def run = myApp.provide(ZLayer.succeed(AppConfig("localhost", 8080)))
+}
+```
+
+```scala mdoc:invisible:reset
+
+```
+
+To access multiple services from the ZIO environment, we can do the same:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Foo
+trait Bar
+trait Baz
+
+for {
+  foo <- ZIO.service[Foo]  
+  bar <- ZIO.service[Bar]
+  bax <- ZIO.service[Baz]
+} yield ()
+```
+
+When creating ZIO layers that have multiple dependencies, this can be helpful. We will discuss this pattern in the [Module Pattern](#module-pattern) section.
+
+### Service Members Accessors
+
+Sometimes instead of accessing a service, we need to access the capabilities (members) of a service. Based on the return type of each capability, we can use one of these accessors:
+- **ZIO.serviceWith**
+- **ZIO.serviceWithZIO**
+
+In [Module Pattern](#module-pattern), we use these accessors to write "accessor methods" for ZIO services.
+
+Let's look at each one in more detail:
+
+1. **ZIO.serviceWith** — When we are accessing service members whose return type is an ordinary value, we should use the `ZIO.serviceWith`.
+
+In the following example, we need to use the `ZIO.serviceWith` to write accessor methods for all of the `AppConfig` members:
+
+```scala mdoc:compile-only
+import zio._
+
+case class AppConfig(host: String, port: Int, poolSize: Int)
+
+object AppConfig {
+  // Accessor Methods
+  def host: ZIO[AppConfig, Nothing, String]  = ZIO.serviceWith(_.host) 
+  def port: ZIO[AppConfig, Nothing, Int]     = ZIO.serviceWith(_.port)
+  def poolSize: ZIO[AppConfig, Nothing, Int] = ZIO.serviceWith(_.poolSize)
+}
+
+val myApp: ZIO[AppConfig, Nothing, Unit] =
+  for {
+    host     <- AppConfig.host
+    port     <- AppConfig.port
+    _        <- ZIO.logInfo(s"The service will be service at $host:$port")
+    poolSize <- AppConfig.poolSize
+    _        <- ZIO.logInfo(s"Application started with $poolSize pool size")
+  } yield ()
+```
+
+2. **ZIO.serviceWithZIO** — When we are accessing service members whose return type is a ZIO effect, we should use the `ZIO.serviceWithZIO`.
+
+For example, in order to write the accessor method for the `log` member of the `Logging` service, we need to use the `ZIO.serviceWithZIO` function:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Logging {
+  def log(line: String): Task[Unit]
+}
+
+object Logging {
+  // Accessor Methods:
+  def log(line: String): ZIO[Logging, Throwable, Unit] =
+    ZIO.serviceWithZIO(_.log(line))
+}
+
+val myApp: ZIO[Logging with Console, Throwable, Unit] =
+  for {
+    _    <- Logging.log("Application Started!")
+    _    <- Console.print("Please enter your name: ")
+    name <- Console.readLine
+    _    <- Console.printLine(s"Hello, $name!")
+    _    <- Logging.log("Application exited!)
+  } yield ()
+```
+
+## ZLayer
+
+Defining service in ZIO is not very different from object-oriented style, it has the same principle; coding to an interface, not an implementation. Therefore, ZIO encourages us to implement this principle by using the _Module Pattern_, which is quite similar to the object-oriented style.
+
+**The `ZLayer` is a data type that plays a key role in writing ZIO services using the _Module Pattern_**. So, before diving into the _Module Pattern_, we need to learn more about it. 
 
 `ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
 
