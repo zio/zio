@@ -44,7 +44,7 @@ val eliminatedEffect: IO[IOException, Unit] =
   )
 ```
 
-Also, we can access the whole environment using `ZIO.environment`:
+Also, we can access the **whole** environment using `ZIO.environment`:
 
 ```scala mdoc:compile-only
 import zio._ 
