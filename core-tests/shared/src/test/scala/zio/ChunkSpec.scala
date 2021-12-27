@@ -708,6 +708,12 @@ object ChunkSpec extends ZIOBaseSpec {
           as.updated(0, as(0) + a)
         }
         assertTrue(chunk(0) == 256)
+      },
+      test("buffer size") {
+        val chunk = Chunk.fill(257)(1).zipWithIndex.foldLeft(Chunk.fill(256)(0)) { case (as, (a, i)) =>
+          as.updated(i % 256, as(i % 256) + a)
+        }
+        assertTrue(chunk.sum == 257)
       }
     )
   )

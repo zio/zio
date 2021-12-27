@@ -1382,7 +1382,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         val bufferValues  = Array.ofDim[AnyRef](UpdateBufferSize)
         bufferIndices(0) = i
         bufferValues(0) = a.asInstanceOf[AnyRef]
-        val array = chunk.asInstanceOf[Chunk[AnyRef]].toArray
+        val array = self.asInstanceOf[Chunk[AnyRef]].toArray
         Update(Chunk.fromArray(array.asInstanceOf[Array[A1]]), bufferIndices, bufferValues, 1, new AtomicInteger(1))
       }
 
