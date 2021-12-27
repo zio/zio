@@ -350,7 +350,6 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
 lazy val testTestsJS  = testTests.js.settings(dottySettings)
 
-
 lazy val mock = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("mock"))
   .dependsOn(core, streams, test)

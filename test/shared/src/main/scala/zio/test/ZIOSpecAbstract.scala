@@ -32,7 +32,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
     Chunk(TestAspect.fibers)
 
-  def testReporter(testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit trace: ZTraceElement): TestReporter[Any] =
+  def testReporter(testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
+    trace: ZTraceElement
+  ): TestReporter[Any] =
     DefaultTestReporter(testRenderer, testAnnotationRenderer)
 
   final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {

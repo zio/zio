@@ -255,8 +255,8 @@ object DefaultTestReporter {
       Message(message)
     }
     val remaining =
-      cause.stripSomeDefects {
-        case TestTimeoutException(_) => true
+      cause.stripSomeDefects { case TestTimeoutException(_) =>
+        true
       }
     val prefix = timeouts.foldLeft(Message.empty)(_ ++ _)
 
