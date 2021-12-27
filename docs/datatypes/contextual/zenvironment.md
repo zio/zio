@@ -11,6 +11,8 @@ or
 type ZIO[R, E, A] = ZEnvironment[R] => IO[E, A]
 ```
 
+For example, the `ZIO[Console with Random, Throwable, String]` can be thought of as a function from `ZEnvironment[Console with Random]` to `Either[Throwable, String]`:
+
 > **Note**:
 >
 > The `ZEnvironment` is useful for manually constructing and combining the ZIO environment. So, in most cases, we do not require working directly with this data type. So you can skip reading this page if you are not an advanced user.
