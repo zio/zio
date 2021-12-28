@@ -18,19 +18,19 @@ type ZIO[R, E, A] = R => Either[E, A]
 `R` represents dependencies; whatever services, config, or wiring a part of a ZIO program depends upon to work. We will explore what we can do with `R`, as it plays a crucial role in `ZIO`.
 
 For example, when we have `ZIO[Console, Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
-```scala mdoc:invisible
-import zio._
-import zio.Console._
-```
 
-```scala mdoc:silent
-val effect: ZIO[Console, Nothing, Unit] = printLine("Hello, World!").orDie
+```scala mdoc:compile-only
+import zio._
+import java.io.IOException
+
+val effect: ZIO[Console, IOException, Unit] = 
+  printLine("Hello, World!")
 ```
 
 So finally when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
 
 ```scala mdoc:silent
-val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live)
+val mainApp: ZIO[Any, IOException, Unit] = effect.provide(Console.live)
 ```
 
 Finally, to run our application we can put our `mainApp` inside the `run` method:
@@ -38,10 +38,11 @@ Finally, to run our application we can put our `mainApp` inside the `run` method
 ```scala mdoc:compile-only
 import zio._
 import zio.Console._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  val effect: ZIO[Console, Nothing, Unit] = printLine("Hello, World!").orDie
-  val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live)
+  val effect: ZIO[Console, IOException, Unit] = printLine("Hello, World!")
+  val mainApp: ZIO[Any, IOException, Unit] = effect.provide(Console.live)
 
   def run = mainApp
 }
