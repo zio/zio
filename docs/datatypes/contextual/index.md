@@ -9,6 +9,12 @@ The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type 
 
 The input type is also known as _environment type_. This type-parameter indicates that to run an effect we need one or some services as an environment of that effect. In other word, `R` represents the _requirement_ for the effect to run, meaning we need to fulfill the requirement in order to make the effect _runnable_.
 
+So we can think of `ZIO[R, E, A]` as a mental model of a function from a value of type `R` to the `Either[E, A]`:
+
+```scala
+type ZIO[R, E, A] = R => Either[E, A]
+```
+
 `R` represents dependencies; whatever services, config, or wiring a part of a ZIO program depends upon to work. We will explore what we can do with `R`, as it plays a crucial role in `ZIO`.
 
 For example, when we have `ZIO[Console, Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
