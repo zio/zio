@@ -692,7 +692,7 @@ val appLayer: URLayer[Any, DocRepo with UserRepo] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
     
-val res: ZIO[Any, Nothing, Unit] = myApp.provide(appLayer)
+val res: ZIO[Any, Nothing, Unit] = myApp.provideLayer(appLayer)
 ```
 
 As the development of our application progress, the number of layers will grow, and maintaining the dependency graph would be tedious and hard to debug.
@@ -700,7 +700,7 @@ As the development of our application progress, the number of layers will grow, 
 For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
 
 ```scala
-myApp.provide(
+myApp.provideLayer(
   ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
     (Database.live >>> UserRepo.live)
 )
@@ -814,11 +814,11 @@ val app: ZIO[Console, Nothing, Unit] =
   )
 ```
 
-In ZIO 1.x, the `ZIO#provideCustom` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
+In ZIO 1.x, the `ZIO#provideCustomLayer` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
 
 ```scala mdoc:silent:nest
 val app: ZIO[zio.ZEnv, Nothing, Unit] = 
-  myApp.provideCustom(
+  myApp.provideCustomLayer(
     ((Logging.live ++ Database.live ++ (Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       ((Logging.live ++ Database.live) >>> UserRepo.live)
   )
@@ -843,9 +843,9 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 
 | ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
 |--------------------------------------------------------|----------------------------|
-| `ZIO#provide`                                          | `ZIO#inject`               |
+| `ZIO#provideLayer`                                     | `ZIO#inject`               |
 | `ZIO#provideSomeLayer`                                 | `ZIO#provideSome`          |
-| `ZIO#provideCustom`                                    | `ZIO#provideCustom`        |
+| `ZIO#provideCustomLayer`                               | `ZIO#provideCustom`        |
 | Composing manually using `ZLayer` combinators          | `ZLayer#wire`              |
 | Composing manually using `ZLayer` combinators          | `ZLayer#wireSome`          |
 
