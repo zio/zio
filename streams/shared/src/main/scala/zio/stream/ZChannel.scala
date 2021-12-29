@@ -933,6 +933,37 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         ZIO.suspendSucceed(interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]))
       }
 
+  final def toPipeline[In, Out](implicit
+    In: Chunk[In] <:< InElem,
+    Out: OutElem <:< Chunk[Out],
+    InDone: Any <:< InDone,
+    trace: ZTraceElement
+  ): ZPipeline[Env, OutErr, In, Out] =
+    new ZPipeline[Env, OutErr, In, Out](
+      self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], Any]]
+    )
+
+  final def toSink[In, Out](implicit
+    In: Chunk[In] <:< InElem,
+    Out: OutElem <:< Chunk[Out],
+    InDone: Any <:< InDone,
+    trace: ZTraceElement
+  ): ZSink[Env, OutErr, In, Out, OutDone] =
+    new ZSink[Env, OutErr, In, Out, OutDone](
+      self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], OutDone]]
+    )
+
+  final def toStream[Out](implicit
+    Out: OutElem <:< Chunk[Out],
+    InErr: Any <:< InErr,
+    InElem: Any <:< InElem,
+    InDone: Any <:< InDone,
+    trace: ZTraceElement
+  ): ZStream[Env, OutErr, Out] =
+    new ZStream[Env, OutErr, Out](
+      self.asInstanceOf[ZChannel[Env, Any, Any, Any, OutErr, Chunk[Out], Any]]
+    )
+
   def zip[
     Env1 <: Env,
     InErr1 <: InErr,
