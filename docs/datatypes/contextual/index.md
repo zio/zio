@@ -206,6 +206,33 @@ ZIO environment facility enables us to:
 
 2. **Write a Testable Code** — By coding to an interface, whenever we want to test our effects, we can easily mock any external services, by providing a _test_ version of those instead of the `live` version.
 
+3. **Service Composition** — We can compose multiple effects that require various services, so the final effect requires the intersection of all those services. As we see the type inference works well on the ZIO environment:
+
+```scala mdoc:compile-only
+import zio._
+
+trait ServiceA
+trait ServiceB
+trait ServiceC
+
+// Requires ServiceA and produces a value of type Int
+def foo: ZIO[ServiceA, Nothing, Int] = ???
+
+// Requires ServiceB and ServiceC and produces a value of type String
+def bar: ZIO[ServiceB with ServiceC, Throwable, String] = ???
+
+// Requires ServicB and produces a value of type Double
+def baz(a: Int, b: String): ZIO[ServiceB, Nothing, Double] = ???
+
+// Requires ServiceB and ServiceB and ServiceC and produces a value of type Double
+val myApp: ZIO[ServiceA with ServiceB with ServiceC, Throwable, Double] =
+  for {
+    a <- foo
+    b <- bar
+    c <- baz(a, b)
+  } yield c
+```
+
 ## Accessing Services from ZIO Environment
 
 ### Service Accessor
