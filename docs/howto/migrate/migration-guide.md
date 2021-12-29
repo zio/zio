@@ -714,7 +714,7 @@ type mismatch;
     ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
 ```
 
-In ZIO 2.x, we can automatically construct dependencies with friendly compile-time hints, using `ZIO#inject` operator:
+In ZIO 2.x, we can automatically construct dependencies with friendly compile-time hints, using `ZIO#provide` operator:
 
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
@@ -838,12 +838,12 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 ```
 
 > Note:
-> All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `inject`/`wire` methods.
+> All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `provide`/`wire` methods.
 
 
 | ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
 |--------------------------------------------------------|----------------------------|
-| `ZIO#provideLayer`                                     | `ZIO#inject`               |
+| `ZIO#provideLayer`                                     | `ZIO#provide`              |
 | `ZIO#provideSomeLayer`                                 | `ZIO#provideSome`          |
 | `ZIO#provideCustomLayer`                               | `ZIO#provideCustom`        |
 | Composing manually using `ZLayer` combinators          | `ZLayer#wire`              |
