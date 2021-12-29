@@ -19,18 +19,23 @@ type ZIO[R, E, A] = R => Either[E, A]
 
 For example, when we have `ZIO[Console, Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio._
+
 import java.io.IOException
 
 val effect: ZIO[Console, IOException, Unit] = 
-  printLine("Hello, World!")
+  Console.printLine("Hello, World!")
 ```
 
 So finally when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 val mainApp: ZIO[Any, IOException, Unit] = effect.provide(Console.live)
+```
+
+```scala mdoc:invisible:reset
+
 ```
 
 Finally, to run our application we can put our `mainApp` inside the `run` method:
@@ -48,33 +53,32 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Sometimes an effect needs more than one environmental service, it doesn't matter, in these cases, we compose all dependencies by `++` operator:
+Sometimes an effect needs more than one environmental service, it doesn't matter, in these cases, we can provide all dependencies all together:
 
 ```scala mdoc:silent:nest
-import zio.Console._
-import zio.Random._
+import zio._
 
-val effect: ZIO[Console with Random, Nothing, Unit] = for {
-  r <- nextInt
-  _ <- printLine(s"random number: $r").orDie
+import java.io.IOException
+
+val effect: ZIO[Console with Random, IOException, Unit] = for {
+  r <- Random.nextInt
+  _ <- Console.printLine(s"random number: $r")
 } yield ()
 
-val mainApp: ZIO[Any, Nothing, Unit] = effect.provide(Console.live ++ Random.live)
+val mainApp: ZIO[Any, IOException, Unit] = effect.provide(Console.live, Random.live)
 ```
 
 We don't need to provide live layers for built-in services (don't worry, we will discuss layers later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
 
 ```scala mdoc:compile-only
 import zio._
-import zio.Console._
-import zio.Random._
 
 object MainApp extends ZIOAppDefault {
   def run = effect
   
   val effect: ZIO[Console with Random, Nothing, Unit] = for {
-    r <- nextInt
-    _ <- printLine(s"random number: $r").orDie
+    r <- Random.nextInt
+    _ <- Console.printLine(s"random number: $r").orDie
   } yield ()
 }
 ```
@@ -192,7 +196,7 @@ val myApp: ZIO[Logging with Console, Throwable, Unit] =
     _    <- Console.print("Please enter your name: ")
     name <- Console.readLine
     _    <- Console.printLine(s"Hello, $name!")
-    _    <- Logging.log("Application exited!)
+    _    <- Logging.log("Application exited!")
   } yield ()
 ```
 
