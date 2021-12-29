@@ -55,7 +55,7 @@ object MainApp extends ZIOAppDefault {
 
 Sometimes an effect needs more than one environmental service, it doesn't matter, in these cases, we can provide all dependencies all together:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 import zio._
 
 import java.io.IOException
@@ -83,9 +83,126 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
+```scala mdoc:invisible:reset
+
+```
+
+## Motivation
+
+One might ask "What is the motivation behind encoding the dependency, `R`, in the type parameter of `ZIO` data type"? What is the benefit of doing so?
+
+Let's see how writing an application which requires reading from or writing to the console. As part of making the application **modular** and **testable** we define a separate service called `Console` which is responsible for reading from and writing to the console. We do that simply by writing an interface:
+
+```scala mdoc:silent
+import zio._
+
+trait Console {
+  def print(line: Any): Task[Unit]
+
+  def printLine(line: Any): Task[Unit]
+
+  def readLine: Task[String]
+}
+```
+
+Now we can write our application that accepts the `Console` interface as a parameter:
+
+```scala mdoc:silent
+import zio._
+
+def myApp(c: Console): Task[Unit] =
+  for {
+    _    <- c.print("Please enter your name: ")
+    name <- c.readLine
+    _    <- c.printLine(s"Hello, $name!")
+  } yield ()
+```
+
+Similar to the object-oriented paradigm we code to interface not implementation. In order to run the application, we need to implement a production version of the `Console`:
+
+```scala mdoc:silent
+import zio._
+
+object ConsoleLive extends Console {
+  override def print(line: Any): Task[Unit] =
+    Task.attemptBlocking(scala.Predef.print(line))
+
+  override def printLine(line: Any): Task[Unit] =
+    Task.attemptBlocking(scala.Predef.println(line))
+
+  override def readLine: Task[String] =
+    Task.attemptBlocking(scala.io.StdIn.readLine())
+}
+```
+
+Finally, we can provide the `ConsoleLive` to our application and run the whole:
+
+```mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def myApp(c: Console): Task[Unit] =
+    for {
+      _    <- c.print("Please enter your name: ")
+      name <- c.readLine
+      _    <- c.printLine(s"Hello, $name!")
+    } yield ()
+
+  def run = myApp(ConsoleLive)
+}
+```
+
+```scala mdoc:invisible:reset
+
+```
+
+In the above example, we discard the fact that we can use the ZIO environment and utilize the `R` parameter of the `ZIO` data type. So instead we tried to write the application with the `Task` data type which ignore the ZIO environment. To create our application testable, we gathered all console functionalities into the same interface called, `Console` and implement that in another object called, `ConsoleLive`. Finally, at the end of the day, we provide the implementation of the `Console` service, i.e. `ConsoleLive`, to our application.
+
+**While this technique works for small programs, it doesn't scale.** Assume we have multiple services, and we use them in our application logic like bellow:
+
+```scala
+def foo(
+   s1: Service1,
+   s2: Service2,
+   s3: Service3
+)(arg1: String, arg2: String, arg3: Int): Task[Int] = ???
+
+def bar(
+  s1: Service1,
+  s12: Service12,
+  s18: Service18, 
+  sn: ServiceN
+)(arg1: Int, arg2: String, arg3: Double, arg4: Int): Task[Unit]
+
+def myApp(s1: Service1, s2: Service2, ..., sn: ServiceN): Task[Unit] = 
+  for {
+    a <- foo(s1, s2, s3)("arg1", "arg2", 4) 
+    _ <- bar(s1, s12, s18, sn)(7, "arg2", 1.2, a)
+      ...
+  } yield ()
+```
+
+Writing real applications using this technique is tedious and cumbersome because all dependencies have to be passed across all methods. We can simplify the process of writing our application by using the ZIO environment and [Module Pattern](#module-pattern):
+
+```scala
+def foo(arg1: String, arg2: String, arg3: Int): ZIO[Service1 & Service2 & Service3, Throwable, Int] = 
+  for {
+    s1 <- ZIO.service[Service1]
+    s2 <- ZIO.service[Service2] 
+      ...
+  } yield ()
+
+def bar(arg1: Int, arg2: String, arg3: Double, arg4: Int): ZIO[Service1 & Service12 & Service18 & ServiceN, Throwable, Unit] =
+  for {
+    s1  <- ZIO.service[Service1] 
+    s12 <- ZIO.service[Service12]
+      ...
+  } yield ()
+```
+
 ZIO environment facility enables us to:
 
-1. **Code to Interface** — like object-oriented paradigm, in ZIO we encouraged to code to interfaces and defer the implementation. It is the best practice, but ZIO does not enforce us to do that.
+1. **Code to Interface** — like object-oriented paradigm, in ZIO we encouraged to code to interface and defer the implementation. It is the best practice, but ZIO does not enforce us to do that.
 
 2. **Write a Testable Code** — By coding to an interface, whenever we want to test our effects, we can easily mock any external services, by providing a _test_ version of those instead of the `live` version.
 
