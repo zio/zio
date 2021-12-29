@@ -200,13 +200,15 @@ def bar(arg1: Int, arg2: String, arg3: Double, arg4: Int): ZIO[Service1 & Servic
   } yield ()
 ```
 
+## Advantage of Using ZIO Environment
+
 ZIO environment facility enables us to:
 
 1. **Code to Interface** — like object-oriented paradigm, in ZIO we encouraged to code to interface and defer the implementation. It is the best practice, but ZIO does not enforce us to do that.
 
-2. **Write a Testable Code** — By coding to an interface, whenever we want to test our effects, we can easily mock any external services, by providing a _test_ version of those instead of the `live` version.
+2. **Write a Testable Code** — By coding to an interface, whenever we want to test our effects, we can easily mock any external services, by providing a _test_ version of those instead of the _live_ version.
 
-3. **Service Composition** — We can compose multiple effects that require various services, so the final effect requires the intersection of all those services. As we see the type inference works well on the ZIO environment:
+3. **Compose Services with Strong Type Inference Facility** — We can compose multiple effects that require various services, so the final effect requires the intersection of all those services:
 
 ```scala mdoc:compile-only
 import zio._
@@ -232,6 +234,10 @@ val myApp: ZIO[ServiceA with ServiceB with ServiceC, Throwable, Double] =
     c <- baz(a, b)
   } yield c
 ```
+
+Another important note about the ZIO environment is that the type inference works well on effect composition. After we composed all the application logic together, the compiler and also IDE can infer the proper type for the environment of the final effect.
+
+So in the above example, the compiler can infer the environment type of the `myApp` as the `ServiceA with ServiceB with ServiceC`.
 
 ## Accessing Services from ZIO Environment
 
