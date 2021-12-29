@@ -237,7 +237,7 @@ val myApp: ZIO[ServiceA with ServiceB with ServiceC, Throwable, Double] =
 
 Another important note about the ZIO environment is that the type inference works well on effect composition. After we composed all the application logic together, the compiler and also IDE can infer the proper type for the environment of the final effect.
 
-So in the above example, the compiler can infer the environment type of the `myApp` as the `ServiceA with ServiceB with ServiceC`.
+In the example above, the compiler can infer the environment type of the `myApp` effect which is `ServiceA with ServiceB with ServiceC`.
 
 ## Accessing Services from ZIO Environment
 
