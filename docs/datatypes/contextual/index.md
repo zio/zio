@@ -89,9 +89,9 @@ object MainApp extends ZIOAppDefault {
 
 ## Motivation
 
-One might ask "What is the motivation behind encoding the dependency, `R`, in the type parameter of `ZIO` data type"? What is the benefit of doing so?
+One might ask "What is the motivation behind encoding the dependency in the type parameter of `ZIO` data type"? What is the benefit of doing so?
 
-Let's see how writing an application which requires reading from or writing to the console. As part of making the application **modular** and **testable** we define a separate service called `Console` which is responsible for reading from and writing to the console. We do that simply by writing an interface:
+Let's see how writing an application which requires reading from or writing to the console. As part of making the application _modular_ and _testable_ we define a separate service called `Console` which is responsible for reading from and writing to the console. We do that simply by writing an interface:
 
 ```scala mdoc:silent
 import zio._
