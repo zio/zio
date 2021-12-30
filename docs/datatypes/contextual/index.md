@@ -6,7 +6,7 @@ sidebar_label: "Introduction"
 
 ZIO provides a contextual abstraction that encodes the environment of the running effect. This means, every effect can work within a specific context, called an environment.
 
-So when we have a `ZIO[R, E, A]` effect, we can say "given `R` an environment of the effect, the effect may fail with an error type of `E`, or may succeed with a value of type `A`".
+So when we have a `ZIO[R, E, A]` effect, we can say "given `R` as the environment of the effect, the effect may fail with an error type of `E`, or may succeed with a value of type `A`".
 
 For example, when we have an effect of type `ZIO[DatabaseConnection, IOException, String]`, we can say that our effect works within the context of `DatabaseConnection`. In other words, we can say that our effect requires the `DatabaseConnection` service as a context to run.
 
@@ -670,8 +670,8 @@ trait Logging {
 
 2. **Service Implementation** — It is the same as what we did in an object-oriented fashion. We implement the service with the Scala class. By convention, we name the live version of its implementation as `LoggingLive`:
 
-```scala mdoc:silent:nest
-case class LoggingLive() extends Logging {
+```scala mdoc:compile-only
+case class LoggingLiveee() extends Logging {
   override def log(line: String): UIO[Unit] = 
     ZIO.succeed(print(line))
 }
@@ -703,6 +703,20 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 object LoggingLive {
   val layer: URLayer[Console with Clock, Logging] =
     (LoggingLive(_, _)).toLayer[Logging]
+}
+```
+
+Note that the previous step is syntactic sugar of writing the layer directly in combination with for-comprehension style of accessing the ZIO environment:
+
+```scala
+object LoggingLive {
+  val layer: ZLayer[Clock with Console, Nothing, Logging] =
+    ZLayer {
+      for {
+        console <- ZIO.service[Console]
+        clock   <- ZIO.service[Clock]
+      } yield LoggingLive(console, clock)
+    }
 }
 ```
 
@@ -753,6 +767,7 @@ For example, if the implementation of service `X` depends on service `Y` and `Z`
 So the following service definition is wrong because the `Console` and `Clock` service are dependencies of the  `Logging` service's implementation, not the `Logging` interface itself:
 
 ```scala mdoc:compile-only
+import zio._
 trait Logging {
   def log(line: String): ZIO[Console with Clock, Nothing, Unit]
 }
