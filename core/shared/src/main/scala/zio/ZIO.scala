@@ -4892,10 +4892,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def provideEnvironment[R, E, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): ZIO[R, E, A] => IO[E, A] =
     _.provideEnvironment(r)
 
-  def provideLayer[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
+  def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     zio: ZIO[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
-    zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
+    zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the

@@ -5271,10 +5271,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   ): ZStream[R, E, A] =
     paginateZIO(s)(f)
 
-  def provideLayer[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
+  def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     stream: => ZStream[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZStream[RIn with RIn2, E, ROut2] =
-    ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder))
+    ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer))
 
   /**
    * Like [[unfoldZIO]], but allows the emission of values to end one step
