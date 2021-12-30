@@ -65,7 +65,7 @@ val effect: ZIO[Console, IOException, Unit] =
   Console.printLine("Hello, World!")
 ```
 
-So finally when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
+So when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
 
 ```scala mdoc:compile-only
 val mainApp: ZIO[Any, IOException, Unit] = effect.provide(Console.live)
@@ -105,7 +105,7 @@ val effect: ZIO[Console with Random, IOException, Unit] = for {
 val mainApp: ZIO[Any, IOException, Unit] = effect.provide(Console.live, Random.live)
 ```
 
-We don't need to provide live layers for built-in services (don't worry, we will discuss layers later in this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (Clock, Console, System, Random, and Blocking). So we can run the above `effect` as follows:
+We don't need to provide live layers for built-in services (Layers will be discussed later on this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (`Clock`, `Console`, `System`, `Random`, and `Blocking`). So we can run the above `effect` as follows:
 
 ```scala mdoc:compile-only
 import zio._
@@ -276,7 +276,15 @@ Another important note about the ZIO environment is that the type inference work
 
 In the example above, the compiler can infer the environment type of the `myApp` effect which is `ServiceA with ServiceB with ServiceC`.
 
-## Accessing Services from ZIO Environment
+## Accessing ZIO Environment
+
+We have two types of accessors for the ZIO environment:
+1. **Service Accessor (`ZIO.service`)** is used to access a specific service from the environment.
+2. **Service Members Accessors (`ZIO.serviceWith` and `ZIO.serviceWithZIO`)** are used to access capabilities of a specific service from the environment.
+
+> **Note**:
+>
+> To access the entire ZIO environment we can use `ZIO.environment*`, but we do not use these methods regularly to access ZIO services. Instead, we use service accessors and service member accessors.
 
 ### Service Accessor
 
@@ -290,7 +298,7 @@ case class AppConfig(host: String, port: Int)
 val myApp: ZIO[AppConfig, Nothing, Unit] =
   for {
     config <- ZIO.service[AppConfig]
-    _ <- ZIO.logInfo(s"Application started with config: $config")
+    _      <- ZIO.logInfo(s"Application started with config: $config")
   } yield ()
 ```
 
