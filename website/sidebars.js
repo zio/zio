@@ -41,7 +41,7 @@ module.exports = {
         "datatypes/contextual/zenvironment",
         {
             type: "category",
-            label: "ZIO Dependencies",
+            label: "ZIO Layers",
             items: [
                 "datatypes/contextual/zlayer",
                 "datatypes/contextual/rlayer",
