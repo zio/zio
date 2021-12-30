@@ -1,7 +1,44 @@
 ---
 id: index
-title: "Introduction"
+title: "Introduction to the ZIO's Contextual Data Types"
+sidebar_label: "Introduction"
 ---
+
+ZIO provides a contextual abstraction that encodes the environment of the running effect. This means, every effect can work within a specific context, called an environment.
+
+So when we have a `ZIO[R, E, A]` effect, we can say "given `R` an environment of the effect, the effect may fail with an error type of `E`, or may succeed with a value of type `A`".
+
+For example, when we have an effect of type `ZIO[DatabaseConnection, IOException, String]`, we can say that our effect works within the context of `DatabaseConnection`. In other words, we can say that our effect requires the `DatabaseConnection` service as a context to run.
+
+We will see how layers can be used to eliminate the environment of an effect:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io.IOException
+
+trait DatabaseConnection
+
+// An effect which requires DatabaseConnection to run
+val effect: ZIO[DatabaseConnection, IOException, String] = ???
+
+// A layer that produces DatabaseConnection service
+val dbConnection: ZLayer[Any, IOException, DatabaseConnection] = ???
+
+// After applying dbConnection to our environmental effect the reurned
+// effect has no dependency on the DatabaseConnection
+val eliminated: ZIO[Any, IOException, String] = 
+  dbConnection { // Provides DatabaseConnection context
+    effect       // An effect running within `DatabaseConnection` context
+  }
+```
+
+ZIO provide this facility through the following concept and data types:
+1. [ZIO Environment](#zio-environment) — The `R` type parameter of `ZIO[R, E, A]` data type.
+2. [ZEnvironment](./zenvironment.md) — Built-in type-level map for maintaining the environment of a `ZIO` data type. 
+3. [ZLayer](./zlayer.md) — Describes how to build one or more services in our application.
+
+Let's take into an overview of each of them.
 
 ## ZIO Environment
 
