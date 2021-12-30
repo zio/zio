@@ -434,17 +434,17 @@ ZIO has some facilities for doing this. `ZIO#provide` is the core function that 
 
 Notice that the act of `provide`ing an effect with its environment, eliminates the environment dependency in the resulting effect type, represented by type `Any` of the resulting environment.
 
-#### Using `provide` Method
+#### Using `ZIO#provideEnvironment` Method
 
-The `ZIO#provide` takes an `R` environment and provides it to the `ZIO` effect which eliminates its dependency on `R`:
+The `ZIO#provideEnvironment` takes an instance of `ZEnvironment[R]` and provides it to the `ZIO` effect which eliminates its dependency on `R`:
 
 ```scala
 trait ZIO[-R, +E, +A] {
-  def provideEnvironment(r: R)(implicit ev: NeedsEnv[R]): IO[E, A]
+  def provideEnvironment(r: => ZEnvironment[R]): IO[E, A]
 }
 ```
 
-This is similar to dependency injection, and the `provide` function can be thought of as `inject`.
+This is similar to dependency injection, and the `provide*` function can be thought of as _inject_.
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -479,9 +479,9 @@ val loggingImpl = new Logging {
 val effect = app.provideEnvironment(ZEnvironment(loggingImpl))
 ```
 
-Most of the time, we don't use `Has` directly to implement our services, instead; we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provide` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `ZIO#provideEnvironment` directly to provide our services, instead; we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provide`, `ZIO#provideSome` and `ZIO#provideCustom` to propagate dependencies into the environment of our ZIO effect.
 
-#### Using `provide` Method
+#### Using `ZIO#provide` Method
 
 Unlike the `ZIO#provideEnvironment` which takes a `ZEnvironment[R]`, the `ZIO#provide` takes a `ZLayer` to the ZIO effect and translates it to another level.
 
@@ -500,7 +500,7 @@ val myApp: ZIO[Random with Console with Clock, Nothing, Unit] = for {
 } yield ()
 ```
 
-We can compose the live implementation of `Random`, `Console` and `Clock` services horizontally and then provide them to the `myApp` effect by using `ZIO#provide` method:
+We provide implementation of `Random`, `Console` and `Clock` services to the `myApp` effect by using `ZIO#provide` method:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
@@ -509,7 +509,7 @@ val mainEffect: ZIO[Any, Nothing, Unit] =
 
 As we see, the type of our effect converted from `ZIO[Random with Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
 
-#### Using `provideSome` Method
+#### Using `ZIO#provideSome` Method
 
 Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSome` to partially apply some layers to the `ZIO` effect.
 
@@ -524,15 +524,11 @@ val mainEffectSome: ZIO[Random with Clock, Nothing, Unit] =
 >
 > When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
 
-#### Using `provideCustom` Method
+#### Using `ZIO#provideCustom` Method
 
-`ZEnv` is a convenient type alias that provides several built-in ZIO services that are useful in most applications.
+`ZEnv` is a convenient type alias that provides several built-in ZIO services that are useful in most applications. Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.
 
-Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.
-
-As `ZEnv` provides us the implementation of built-in services, we just need to provide layers for those services that are not part of the `ZEnv`.
-
-`ZIO#provideCustom` helps us to do so and returns an effect that only depends on `ZEnv`.
+As `ZEnv` provides us the implementation of built-in services, we just need to provide layers for those services that are not part of the `ZEnv`. The `ZIO#provideCustom` method helps us to do so. It returns an effect that only depends on `ZEnv`.
 
 Let's write an effect that has some built-in services and also has a `Logging` service:
 
@@ -561,8 +557,8 @@ object LoggingLive {
 
 val myApp: ZIO[Logging with Console with Clock, Nothing, Unit] = for {
   _       <- Logging.log("Application Started!")
-  current <- currentDateTime
-  _       <- printLine(s"Current Data Time: $current").orDie
+  current <- Clock.currentDateTime
+  _       <- Console.printLine(s"Current Data Time: $current").orDie
 } yield ()
 ```
 
