@@ -316,7 +316,7 @@ object MockTestReporter {
     failedMatches.map {
       case InvalidCall.InvalidArguments(invoked, args, assertion) =>
         val header = error(s"- $invoked called with invalid arguments").toLine
-        (header +: renderTestFailure("", assert(args)(assertion)).drop(1)).withOffset(1)
+        (header +: renderTestFailure("", assertImpl(args)(assertion)).drop(1)).withOffset(1)
 
       case InvalidCall.InvalidCapability(invoked, expected, assertion) =>
         Message(

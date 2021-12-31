@@ -30,7 +30,7 @@ trait CompileVariants {
   final def typeCheck(code: String): UIO[Either[String, Unit]] =
     macro Macros.typeCheck_impl
 
-  private[test] def assertImpl[A](
+  private[zio] def assertImpl[A](
     value: => A,
     expression: Option[String] = None
   )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult
