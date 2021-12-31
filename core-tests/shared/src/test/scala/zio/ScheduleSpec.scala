@@ -377,7 +377,7 @@ object ScheduleSpec extends ZIOBaseSpec {
 
         assertM(runManually(Schedule.hourOfDay(1), input).map(toOffsetDateTime)) {
           val expected          = originOffset.withHour(1)
-          val afterTimeExpected = expected.withDayOfYear(expected.getDayOfYear + 1)
+          val afterTimeExpected = expected.withDayOfYear(expected.getDayOfYear).plusDays(1L)
           equalTo(List(expected, afterTimeExpected, expected, afterTimeExpected))
         }
       },
