@@ -1,7 +1,7 @@
-package zio.test.mock
+package zio.mock
 
+import zio.mock.module.{StreamModule, StreamModuleMock}
 import zio.stream.{ZSink, ZStream}
-import zio.test.mock.module.{StreamModule, StreamModuleMock}
 import zio.test.{Annotations, Assertion, TestAspect, ZSpec}
 import zio.Chunk
 

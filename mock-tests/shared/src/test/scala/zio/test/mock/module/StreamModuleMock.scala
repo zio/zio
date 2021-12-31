@@ -1,7 +1,7 @@
-package zio.test.mock.module
+package zio.mock.module
 
+import zio.mock.{Mock, Proxy}
 import zio.stream.ZSink
-import zio.test.mock.{Mock, Proxy}
 import zio.{UIO, URLayer, ZIO}
 
 /**

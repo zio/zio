@@ -9,8 +9,8 @@ Here is an example of mocking `Console.readLine` capability:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("calling mocked readline should return expected value") {
   for {

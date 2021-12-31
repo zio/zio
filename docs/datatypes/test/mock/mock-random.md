@@ -9,8 +9,8 @@ Here's how we can mock the `MockRandom.nextIntBounded` capability:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("expect call with input satisfying assertion and transforming it into output") {
   for {

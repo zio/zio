@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package zio.test.mock.internal
+package zio.mock.internal
 
+import zio.mock.Capability
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
-import zio.test.mock.Capability
 
 /**
  * An `InvalidCall` represents failed expectation.

@@ -1,8 +1,8 @@
 package zio.examples.test
 
+import zio.mock.Expectation.{unit, value, valueF}
+import zio.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.Assertion._
-import zio.test.mock.Expectation.{unit, value, valueF}
-import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.{assertM, ZIOSpecDefault}
 import zio.{Clock, Console, Random, ZIO}
 import java.io.IOException

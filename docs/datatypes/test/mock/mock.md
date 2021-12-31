@@ -21,7 +21,7 @@ trait UserService {
 }
 ```
 
-A **capability tag** encodes all information needed to mock the target capability. It is just a value that extends the `zio.test.mock.Capability[R, I, E, A]` type constructor, where:
+A **capability tag** encodes all information needed to mock the target capability. It is just a value that extends the `zio.mock.Capability[R, I, E, A]` type constructor, where:
 - `R` is the type of _environment_ the method belongs to
 - `I` is the type of _methods input arguments_
 - `E` is the type of _error_ it can fail with
@@ -39,7 +39,7 @@ Let's say we have the following service:
 
 ```scala mdoc:silent
 import zio._
-import zio.test.mock._
+import zio.mock._
 import zio.stream._
 
 trait ExampleService {
@@ -53,7 +53,7 @@ trait ExampleService {
 Therefore, the mock service should have the following _capability tags_:
 
 ```scala mdoc:compile-only
-import zio.test.mock._
+import zio.mock._
 
 object MockExampleService extends Mock[ExampleService] {
   object ExampleEffect extends Effect[Int, Throwable, String]
@@ -90,7 +90,7 @@ trait ZeroParamService {
 So the capability tag of `zeroParams` should be:
 
 ```scala mdoc:compile-only
-import zio.test.mock._
+import zio.mock._
 
 object MockZeroParamService extends Mock[ZeroParamService] {
   object ZeroParams extends Effect[Unit, Throwable, Int]
@@ -125,7 +125,7 @@ trait ManyParamsService {
 We should encode that with the following capability tag:
 
 ```scala mdoc:compile-only
-import zio.test.mock._
+import zio.mock._
 
 trait MockExampleService extends Mock[ManyParamsService] {
   object ManyParams     extends Method[(Int, String, Long), Throwable, String]
@@ -157,7 +157,7 @@ We encode both overloaded capabilities by using numbered objects inside a nested
 // Test sources
 
 import zio._
-import zio.test.mock._
+import zio.mock._
 
 object MockOervloadedService extends Mock[OverloadedService] {
   object Overloaded {
@@ -193,7 +193,7 @@ In the test sources we construct partially applied _capability tags_ by extendin
 
 ```scala mdoc:silent
 // test sources
-import zio.test.mock._
+import zio.mock._
 
 object MockPolyService extends Mock[PolyService] {
 
@@ -258,7 +258,7 @@ So again, assume we have the following service:
 
 ```scala mdoc:silent
 import zio._
-import zio.test.mock._
+import zio.mock._
 
 trait ExampleService {
   def exampleEffect(i: Int): Task[String]
@@ -271,7 +271,7 @@ trait ExampleService {
 In this step, we need to provide a layer in which used to construct the mocked object. To do that, we should obtain the `Proxy` data type from the environment and then implement the service interface by wrapping all capability tags with proxy:
 
 ```scala mdoc:compile-only
-import zio.test.mock._
+import zio.mock._
 
 object MockExampleService extends Mock[ExampleService] {
   object ExampleEffect extends Effect[Int, Throwable, String]
@@ -318,7 +318,7 @@ trait AccountEvent
 // main sources
 
 import zio._
-import zio.test.mock._
+import zio.mock._
 
 trait AccountObserver {
   def processEvent(event: AccountEvent): UIO[Unit]

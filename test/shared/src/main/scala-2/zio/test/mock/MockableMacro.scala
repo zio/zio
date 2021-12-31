@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.mock
 
 import com.github.ghik.silencer.silent
 import zio.test.TestVersion
@@ -49,7 +49,7 @@ private[mock] object MockableMacro {
     val any: Type        = definitions.AnyTpe
     val throwable: Type  = c.typecheck(q"(??? : _root_.java.lang.Throwable)").tpe
     val unit: Type       = definitions.UnitTpe
-    val composeAsc: Tree = tq"_root_.zio.URLayer[_root_.zio.test.mock.Proxy, $env]"
+    val composeAsc: Tree = tq"_root_.zio.URLayer[_root_.zio.mock.Proxy, $env]"
     val taggedFcqns      = List("izumi.reflect.Tag")
 
     def bound(tpe: Type): Tree =
@@ -305,13 +305,13 @@ private[mock] object MockableMacro {
 
     val structure =
       q"""
-        object $mockName extends _root_.zio.test.mock.Mock[$env] {
+        object $mockName extends _root_.zio.mock.Mock[$env] {
 
           ..$tags
 
           val compose: $composeAsc =
-            _root_.zio.ZIO.service[_root_.zio.test.mock.Proxy].flatMap { proxy =>
-              withRuntime[_root_.zio.test.mock.Proxy].map { rts =>
+            _root_.zio.ZIO.service[_root_.zio.mock.Proxy].flatMap { proxy =>
+              withRuntime[_root_.zio.mock.Proxy].map { rts =>
                 class $serviceClassName extends $service {
                   ..$mocks
                 }

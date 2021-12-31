@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.mock
 
 import zio.{Chunk, Random, UIO, URLayer, ZIO, ZTraceElement}
 import zio.internal.stacktracer.Tracer

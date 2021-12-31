@@ -1,11 +1,11 @@
-package zio.test.mock
+package zio.mock
 
+import zio.mock.Expectation._
+import zio.mock.internal.InvalidCall._
+import zio.mock.internal.MockException._
+import zio.mock.module.{PureModule, PureModuleMock}
 import zio.test._
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
-import zio.test.mock.Expectation._
-import zio.test.mock.internal.InvalidCall._
-import zio.test.mock.internal.MockException._
-import zio.test.mock.module.{PureModule, PureModuleMock}
 import zio.test.render.TestRenderer
 import zio.{Cause, Layer, Promise, ZIO, ZTraceElement}
 
@@ -205,14 +205,14 @@ object ReportingTestUtils {
     expectedFailure("Invalid call"),
     withOffset(2)(s"${red("- could not find a matching expectation")}\n"),
     withOffset(4)(
-      s"${red("- zio.test.mock.module.PureModuleMock.ParameterizedCommand called with invalid arguments")}\n"
+      s"${red("- zio.mock.module.PureModuleMock.ParameterizedCommand called with invalid arguments")}\n"
     ),
     withOffset(6)(s"${blue("2")} did not satisfy ${cyan("equalTo(1)")}\n"),
     withOffset(6)(assertSourceLocation() + "\n"),
     withOffset(4)("\n"),
-    withOffset(4)(s"${red("- invalid call to zio.test.mock.module.PureModuleMock.SingleParam")}\n"),
+    withOffset(4)(s"${red("- invalid call to zio.mock.module.PureModuleMock.SingleParam")}\n"),
     withOffset(6)(
-      s"expected zio.test.mock.module.PureModuleMock.ParameterizedCommand with arguments ${cyan("equalTo(1)")}\n"
+      s"expected zio.mock.module.PureModuleMock.ParameterizedCommand with arguments ${cyan("equalTo(1)")}\n"
     )
   )
 
@@ -227,8 +227,8 @@ object ReportingTestUtils {
     expectedFailure("Unsatisfied expectations"),
     withOffset(2)(s"${red("- unsatisfied expectations")}\n"),
     withOffset(4)(s"in sequential order\n"),
-    withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(2)")}\n"""),
-    withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(3)")}\n""")
+    withOffset(6)(s"""zio.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(2)")}\n"""),
+    withOffset(6)(s"""zio.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(3)")}\n""")
   )
 
   def mock3(implicit trace: ZTraceElement): ZSpec[Any, Nothing] = test("Extra calls") {
@@ -237,7 +237,7 @@ object ReportingTestUtils {
 
   val mock3Expected: Vector[String] = Vector(
     expectedFailure("Extra calls"),
-    withOffset(2)(s"${red("- unexpected call to zio.test.mock.module.PureModuleMock.ManyParams with arguments")}\n"),
+    withOffset(2)(s"${red("- unexpected call to zio.mock.module.PureModuleMock.ManyParams with arguments")}\n"),
     withOffset(4)(s"${cyan("(2,3,4)")}\n")
   )
 

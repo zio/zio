@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.mock.internal
+package zio.mock.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -23,13 +23,13 @@ import scala.math.Ordering
 /**
  * A `ExpectationState` represents the state of an expectation tree branch.
  */
-private[test] sealed abstract class ExpectationState(val value: Int) extends Ordered[ExpectationState] {
+private[mock] sealed abstract class ExpectationState(val value: Int) extends Ordered[ExpectationState] {
   def compare(that: ExpectationState): Int = Ordering.Int.compare(this.value, that.value)
 
   lazy val isFailed: Boolean = this < ExpectationState.Satisfied
 }
 
-private[test] object ExpectationState {
+private[mock] object ExpectationState {
 
   /**
    * Expectation that has yet to be satisfied by invocations.

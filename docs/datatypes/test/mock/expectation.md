@@ -11,8 +11,8 @@ ZIO Test has a variety of expectations, such as `value`, `unit`, `failure`, and 
 
 ```scala mdoc:silent
 import zio._
+import zio.mock._
 import zio.test._
-import zio.test.mock._
 
 case class User(id: String, name: String)
 
@@ -74,8 +74,8 @@ To create expectations we use the previously defined _capability tags_.
 1. For methods that take input, the first argument will be an assertion on input, and the second the predefined result.
 
 ```scala mdoc:compile-only
+import zio.mock._
 import zio.test._
-import zio.test.mock._
 
 val exp01 = MockUserService.RecentUsers( // capability to build an expectation for
   Assertion.equalTo(5), // assertion of the expected input argument
@@ -112,8 +112,8 @@ Each expectation can be taught of a mocked environment. They can be converted to
 import zio.test._
 
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("expecting simple value on call to nextInt") {
   val sut     = Random.nextInt
@@ -129,8 +129,8 @@ test("expecting simple value on call to nextInt") {
 Often the dependency on a collaborator is only in some branches of the code. To test the correct behaviour of branches without dependencies, we still have to provide it to the environment, but we would like to assert it was never called. With the `Mock.empty` method we can obtain a `ZLayer` with an empty service (no calls expected):
 
 ```scala mdoc:compile-only
+import zio.mock._
 import zio.test._
-import zio.test.mock._
 
 object MaybeConsoleSpec extends ZIOSpecDefault {
   def spec = suite("processEvent")(
@@ -162,8 +162,8 @@ In some cases we have more than one collaborating service being called. We can c
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("mocking multiple collaborators") {
   val sut =
@@ -192,7 +192,7 @@ test("mocking multiple collaborators") {
 
 ## Expectations
 
-In the most robust example, the result can be either a successful value or a failure. In this section we are going to introduce all these cases, by using the proper expectation from `zio.test.mock.Expectations` companion object:
+In the most robust example, the result can be either a successful value or a failure. In this section we are going to introduce all these cases, by using the proper expectation from `zio.mock.Expectation` companion object:
 
 ### `value`
 
@@ -200,8 +200,8 @@ Expecting a simple value:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("expecting simple value") {
   val sut     = UserService.totalUsers
@@ -218,8 +218,8 @@ Expecting a value based on input arguments:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("an expectation based on input arguments") {
   val sut     = UserService.recentUsers(3)
@@ -242,8 +242,8 @@ Expecting a value based on the input arguments and also the result of an effectf
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("effectful expectation") {
   val sut     = UserService.recentUsers(3)
@@ -271,8 +271,8 @@ Expecting simple unit value:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("expecting unit") {
   val sut     = UserService.remove("1")
@@ -298,8 +298,8 @@ Expecting a failure:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("failure expectation") {
   val sut = UserService.totalUsers
@@ -326,8 +326,8 @@ This expectation simulates a never-ending loop:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("never ending expectation") {
   val sut     = UserService.totalUsers
@@ -345,7 +345,7 @@ test("never ending expectation") {
 
 ## Composing Expectations
 
-We can combine our expectation to build complex scenarios using combinators defined in `zio.test.mock.Expectation`.
+We can combine our expectation to build complex scenarios using combinators defined in `zio.mock.Expectation`.
 
 ### `and`
 
@@ -353,8 +353,8 @@ The `and` (alias `&&`) operator composes two expectations, producing a new expec
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("satisfy both expectations with a logical `and` operator") {
   val sut     = UserService.recentUsers(5) *> UserService.totalUsers
@@ -376,8 +376,8 @@ The `or` (alias `||`) operator composes two expectations, producing a new expect
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("satisfy one of expectations with a logical `or` operator") {
   val sut     = UserService.totalUsers
@@ -399,8 +399,8 @@ The `andThen` (alias `++`) operator composes two expectations, producing a new e
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("satisfy sequence of two expectations with `andThen` operator") {
   val sut     = UserService.recentUsers(5) *> UserService.totalUsers
@@ -423,8 +423,8 @@ In the example above, changing the SUT to `UserService.totalUsers *> UserService
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("satisfying exact repetition of a method call") {
   val sut     = ZIO.foreach(List("1", "2", "3", "4"))(id => UserService.remove(id))
@@ -446,8 +446,8 @@ test("satisfying exact repetition of a method call") {
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("expect repeated calls") {
   val sut     = Random.nextInt *> Random.nextInt
@@ -465,9 +465,9 @@ Another note on repetitions is that, if we compose expectations with `andThen`/`
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
+import zio.mock.Expectation._
 import zio.test.{test, _}
-import zio.test.mock._
-import zio.test.mock.Expectation._
 
 test("if another repetition starts executing, it must be completed") {
   val sut     = Random.nextInt *> Random.nextBoolean *> Random.nextInt

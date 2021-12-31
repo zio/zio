@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package zio.test.mock.internal
+package zio.mock.internal
 
+import zio.mock.{Capability, Expectation}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.mock.{Capability, Expectation}
 
 /**
  * A `MockException` is used internally by the mock framework to signal failed

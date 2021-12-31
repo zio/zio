@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.mock
 
+import zio.mock.Expectation.{And, Chain, Exactly, Or, Repeated}
+import zio.mock.Result.{Fail, Succeed}
+import zio.mock.internal.{ExpectationState, MockException, MockState, ProxyFactory}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
-import zio.test.mock.Expectation.{And, Chain, Exactly, Or, Repeated}
-import zio.test.mock.Result.{Fail, Succeed}
-import zio.test.mock.internal.{ExpectationState, MockException, MockState, ProxyFactory}
 import zio.{IO, Managed, Tag, ULayer, URLayer, ZLayer, ZTraceElement}
 
 import scala.language.implicitConversions
@@ -166,17 +166,17 @@ sealed abstract class Expectation[R: Tag] { self =>
   /**
    * Invocations log.
    */
-  private[test] val invocations: List[Int]
+  private[mock] val invocations: List[Int]
 
   /**
    * Environment to which expectation belongs.
    */
-  private[test] val mock: Mock[R]
+  private[mock] val mock: Mock[R]
 
   /**
    * Mock execution state.
    */
-  private[test] val state: ExpectationState
+  private[mock] val state: ExpectationState
 }
 
 object Expectation {
@@ -188,14 +188,14 @@ object Expectation {
    * checked in the order they are provided, meaning that earlier expectations
    * may shadow later ones.
    */
-  private[test] case class And[R: Tag](
+  private[mock] case class And[R: Tag](
     children: List[Expectation[R]],
     state: ExpectationState,
     invocations: List[Int],
     mock: Mock.Composed[R]
   ) extends Expectation[R]
 
-  private[test] object And {
+  private[mock] object And {
 
     def apply[R: Tag](compose: URLayer[Proxy, R])(children: List[Expectation[_]]): And[R] =
       And(
@@ -207,7 +207,7 @@ object Expectation {
 
     object Items {
 
-      private[test] def unapply[R](and: And[R]): Option[(List[Expectation[R]])] =
+      private[mock] def unapply[R](and: And[R]): Option[(List[Expectation[R]])] =
         Some(and.children)
     }
   }
@@ -216,7 +216,7 @@ object Expectation {
    * Models a call in environment `R` that takes input arguments `I` and returns
    * an effect that may fail with an error `E` or produce a single `A`.
    */
-  private[test] case class Call[R: Tag, I, E, A](
+  private[mock] case class Call[R: Tag, I, E, A](
     capability: Capability[R, I, E, A],
     assertion: Assertion[I],
     returns: I => IO[E, A],
@@ -226,7 +226,7 @@ object Expectation {
     val mock: Mock[R] = capability.mock
   }
 
-  private[test] object Call {
+  private[mock] object Call {
 
     def apply[R: Tag, I, E, A](
       capability: Capability[R, I, E, A],
@@ -239,14 +239,14 @@ object Expectation {
   /**
    * Models sequential expectations on environment `R`.
    */
-  private[test] case class Chain[R: Tag](
+  private[mock] case class Chain[R: Tag](
     children: List[Expectation[R]],
     state: ExpectationState,
     invocations: List[Int],
     mock: Mock.Composed[R]
   ) extends Expectation[R]
 
-  private[test] object Chain {
+  private[mock] object Chain {
 
     def apply[R: Tag](compose: URLayer[Proxy, R])(children: List[Expectation[_]]): Chain[R] =
       Chain(
@@ -258,16 +258,16 @@ object Expectation {
 
     object Items {
 
-      private[test] def unapply[R](chain: Chain[R]): Option[(List[Expectation[R]])] =
+      private[mock] def unapply[R](chain: Chain[R]): Option[(List[Expectation[R]])] =
         Some(chain.children)
     }
   }
 
-  private[test] case class NoCalls[R: Tag](mock: Mock[R]) extends Expectation[R] {
+  private[mock] case class NoCalls[R: Tag](mock: Mock[R]) extends Expectation[R] {
 
-    override private[test] val invocations: List[Int] = Nil
+    override private[mock] val invocations: List[Int] = Nil
 
-    override private[test] val state: ExpectationState = Satisfied
+    override private[mock] val state: ExpectationState = Satisfied
 
   }
 
@@ -276,14 +276,14 @@ object Expectation {
    * checked in the order they are provided, meaning that earlier expectations
    * may shadow later ones.
    */
-  private[test] case class Or[R: Tag](
+  private[mock] case class Or[R: Tag](
     children: List[Expectation[R]],
     state: ExpectationState,
     invocations: List[Int],
     mock: Mock.Composed[R]
   ) extends Expectation[R]
 
-  private[test] object Or {
+  private[mock] object Or {
 
     def apply[R: Tag](compose: URLayer[Proxy, R])(children: List[Expectation[_]]): Or[R] =
       Or(
@@ -295,7 +295,7 @@ object Expectation {
 
     object Items {
 
-      private[test] def unapply[R](or: Or[R]): Option[(List[Expectation[R]])] =
+      private[mock] def unapply[R](or: Or[R]): Option[(List[Expectation[R]])] =
         Some(or.children)
     }
   }
@@ -303,7 +303,7 @@ object Expectation {
   /**
    * Models expectation repetition on environment `R`.
    */
-  private[test] final case class Repeated[R: Tag](
+  private[mock] final case class Repeated[R: Tag](
     child: Expectation[R],
     range: Range,
     state: ExpectationState,
@@ -314,7 +314,7 @@ object Expectation {
     val mock: Mock[R] = child.mock
   }
 
-  private[test] object Repeated {
+  private[mock] object Repeated {
 
     def apply[R: Tag](child: Expectation[R], range: Range): Repeated[R] =
       if (range.step <= 0) throw MockException.InvalidRangeException(range)
@@ -324,7 +324,7 @@ object Expectation {
   /**
    * Models expectation exactitude on environment `R`.
    */
-  private[test] final case class Exactly[R: Tag](
+  private[mock] final case class Exactly[R: Tag](
     child: Expectation[R],
     times: Int,
     state: ExpectationState,
@@ -334,7 +334,7 @@ object Expectation {
     val mock: Mock[R] = child.mock
   }
 
-  private[test] object Exactly {
+  private[mock] object Exactly {
 
     def apply[R: Tag](child: Expectation[R], times: Int): Exactly[R] =
       Exactly(child, times, if (times == 0) Saturated else Unsatisfied, List.empty, 0)

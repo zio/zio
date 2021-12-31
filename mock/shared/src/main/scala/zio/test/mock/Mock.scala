@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.mock
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{ZSink, ZStream}
@@ -26,7 +26,7 @@ import zio.{Executor, Runtime, Tag, ULayer, URIO, URLayer, ZIO, ZTraceElement}
  */
 abstract class Mock[R: Tag] { self =>
 
-  protected[test] val compose: URLayer[Proxy, R]
+  protected[mock] val compose: URLayer[Proxy, R]
 
   def empty(implicit trace: ZTraceElement): ULayer[R] = Expectation.NoCalls(self)
 

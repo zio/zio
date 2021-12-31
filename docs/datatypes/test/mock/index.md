@@ -95,7 +95,7 @@ ZIO Test provides a framework for mocking our modules. In the next section, we a
 
 In the previous section, we learned we can test the `UserService` by mocking its collaborators. Let's see how we can mock the `EmailService` and also the `UserRepository`.
 
-We should create a mock object by extending `Mock[EmailService]` (`zio.test.mock.Mock`). Then we need to define the following objects:
+We should create a mock object by extending `Mock[EmailService]` (`zio.mock.Mock`). Then we need to define the following objects:
 1. **Capability tags** — They are value objects which extend one of the `Capability[R, I, E, A]` data types, such as `Effect`, `Method`, `Sink`, or `Stream`. For each of the service capabilities, we need to create an object extending one of these data types. They encode the type of _environments_, _arguments_ (inputs), the _error channel_, and also the _success channel_ of each capability of the service.
 
 For example, to encode the `send` capability of `EmailService` we need to extend the `Effect` capability as bellow:
@@ -110,7 +110,7 @@ Let's see how we can mock the `EmailService`:
 
 ```scala mdoc:silent
 // Test Sources
-import zio.test.mock._
+import zio.mock._
 
 object MockEmailService extends Mock[EmailService] {
   object Send extends Effect[(String, String), String, Unit]
@@ -132,7 +132,7 @@ And, here is the mock version of the `UserRepository`:
 
 ```scala mdoc:silent
 import zio._
-import zio.test.mock._
+import zio.mock._
 
 object MockUserRepository extends Mock[UserRepository] {
   object Save extends Effect[User, String, Unit]
@@ -262,7 +262,7 @@ test("a valid user can register to the user service") {
 
 ## Built-in Mock Services
 
-For each built-in ZIO service, we will find their mockable counterparts in `zio.test.mock` package:
+For each built-in ZIO service, we will find their mockable counterparts in `zio.mock` package:
 - [`MockClock`](mock-clock.md) for `zio.Clock`
 - [`MockConsole`](mock-console.md) for `zio.Console`
 - [`MockRandom`](mock-random.md) for `zio.Random`

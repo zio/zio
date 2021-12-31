@@ -9,8 +9,8 @@ Here's how we can mock the `MockSystem.property` capability:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
 import zio.test.{test, _}
-import zio.test.mock._
 
 test("calling mocked property should return expected property") {
   for {

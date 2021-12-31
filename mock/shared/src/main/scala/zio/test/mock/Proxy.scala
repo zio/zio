@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.mock
 
 import zio.ZIO
 import zio.stacktracer.TracingImplicits.disableAutoTrace

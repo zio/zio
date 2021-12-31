@@ -1,4 +1,4 @@
-package zio.test.mock.module
+package zio.mock.module
 
 import com.github.ghik.silencer.silent
 import zio.{Tag, URIO, ZIO}

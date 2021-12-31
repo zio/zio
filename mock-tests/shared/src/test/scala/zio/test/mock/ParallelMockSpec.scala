@@ -1,8 +1,8 @@
-package zio.test.mock
+package zio.mock
 
 import zio.ZIO
+import zio.mock.module.{ImpureModule, ImpureModuleMock}
 import zio.test._
-import zio.test.mock.module.{ImpureModule, ImpureModuleMock}
 
 object ParallelMockSpec extends ZIOBaseSpec {
 

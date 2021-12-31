@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package zio.test.mock
+package zio.mock
 
+import zio.mock.Expectation
+import zio.mock.internal.{InvalidCall, MockException}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test._
-import zio.test.mock.Expectation
-import zio.test.mock.internal.{InvalidCall, MockException}
 import zio.test.render.ExecutionResult.ResultType.{Suite, Test}
 import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -316,7 +316,7 @@ object MockTestReporter {
     failedMatches.map {
       case InvalidCall.InvalidArguments(invoked, args, assertion) =>
         val header = error(s"- $invoked called with invalid arguments").toLine
-        (header +: renderTestFailure("", assertImpl(args)(assertion)).drop(1)).withOffset(1)
+        (header +: renderTestFailure("", assert(args)(assertion)).drop(1)).withOffset(1)
 
       case InvalidCall.InvalidCapability(invoked, expected, assertion) =>
         Message(

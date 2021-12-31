@@ -1,6 +1,6 @@
-package zio.test.mock
+package zio.mock
 
-import zio.test.mock.internal.MockException
+import zio.mock.internal.MockException
 import zio.test.{Assertion}
 import zio.{Clock, Console, ZIO}
 

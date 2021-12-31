@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.test
+package zio
 
 import zio.BuildFromCompat
 import zio.stacktracer.TracingImplicits.disableAutoTrace

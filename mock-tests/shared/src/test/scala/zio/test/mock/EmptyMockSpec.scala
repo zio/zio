@@ -1,7 +1,7 @@
-package zio.test.mock
+package zio.mock
 
 import zio._
-import zio.test.mock.internal.MockException
+import zio.mock.internal.MockException
 import zio.test.Assertion
 
 import java.io.IOException

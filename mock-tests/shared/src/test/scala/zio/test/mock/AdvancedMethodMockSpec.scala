@@ -1,7 +1,7 @@
-package zio.test.mock
+package zio.mock
 
-import zio.test.mock.internal.{InvalidCall, MockException}
-import zio.test.mock.module.{ImpureModule, ImpureModuleMock}
+import zio.mock.internal.{InvalidCall, MockException}
+import zio.mock.module.{ImpureModule, ImpureModuleMock}
 import zio.test.{Assertion, Spec, TestFailure, TestSuccess}
 import zio.{URIO, ZIO}
 

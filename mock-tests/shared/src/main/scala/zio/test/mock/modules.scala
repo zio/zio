@@ -1,4 +1,4 @@
-package zio.test.mock
+package zio.mock
 
 import zio.{IO, Tag, UIO, ZIO}
 import zio.stream.ZStream

@@ -1,4 +1,4 @@
-package zio.test.mock.module
+package zio.mock.module
 
 import zio.{IO, Tag, URIO, ZIO}
 

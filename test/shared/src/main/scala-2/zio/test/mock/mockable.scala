@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package zio.test.mock
+package zio.mock
 
 import scala.annotation.{StaticAnnotation, compileTimeOnly}
 

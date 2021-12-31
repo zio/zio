@@ -1,7 +1,7 @@
-package zio.test.mock.module
+package zio.mock.module
 
 import com.github.ghik.silencer.silent
-import zio.test.mock.{Mock, Proxy}
+import zio.mock.{Mock, Proxy}
 import zio.{Tag, URLayer, ZIO}
 
 /**

@@ -1,7 +1,7 @@
-package zio.test.mock
+package zio.mock
 
+import zio.mock.module.{PureModule, PureModuleMock}
 import zio.test._
-import zio.test.mock.module.{PureModule, PureModuleMock}
 
 object ExpectationSpec extends ZIOBaseSpec {
 

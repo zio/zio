@@ -9,9 +9,9 @@ Here is an example of mocking `Clock.nanoTime` capability:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.mock._
+import zio.mock.Expectation._
 import zio.test.{test, _}
-import zio.test.mock._
-import zio.test.mock.Expectation._
 
 test("calling mocked nanoTime should return expected time") {
   val app = Clock.nanoTime

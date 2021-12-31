@@ -1,8 +1,8 @@
-package zio.test.mock
+package zio.mock
 
+import zio.mock.modules._
 import zio.test.Assertion._
 import zio.test._
-import zio.test.mock.modules._
 
 /**
  * https://github.com/scalamacros/paradise/issues/75

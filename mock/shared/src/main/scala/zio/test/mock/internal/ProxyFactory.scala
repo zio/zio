@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package zio.test.mock.internal
+package zio.mock.internal
 
+import zio.mock.{Capability, Expectation, Proxy}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
-import zio.test.mock.{Capability, Expectation, Proxy}
 import zio.{IO, Tag, ULayer, ZIO, ZLayer, ZTraceElement}
 
 import scala.annotation.tailrec

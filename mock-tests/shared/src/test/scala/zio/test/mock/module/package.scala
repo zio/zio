@@ -1,4 +1,4 @@
-package zio.test.mock
+package zio.mock
 
 /**
  * Example modules used for testing _ZIO Mock_ library.

@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package zio.test.mock.internal
+package zio.mock.internal
 
+import zio.mock.Expectation
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.mock.Expectation
 
 /**
  * A `Scope[R]` represents state of a branch of depth first search on

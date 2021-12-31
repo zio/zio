@@ -1,4 +1,4 @@
-package zio.test.mock
+package zio.mock
 
 import zio._
 import zio.test.{Assertion, assertM}
