@@ -40,6 +40,19 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
 
   /**
+   * Imports a synchronous effect that does blocking IO into a pure value.
+   *
+   * If the returned `ZIO` is interrupted, the blocked thread running the
+   * synchronous effect will be interrupted via `Thread.interrupt`.
+   *
+   * Note that this adds significant overhead. For performance sensitive
+   * applications consider using `attemptBlocking` or
+   * `attemptBlockingCancelable`.
+   */
+  def attemptBlockingInterrupt[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
+    ZIO.attemptBlocking(effect)
+
+  /**
    * Imports a Scala.js promise into a `ZIO`.
    */
   def fromPromiseJS[A](promise: => JSPromise[A])(implicit trace: ZTraceElement): Task[A] =
