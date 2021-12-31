@@ -75,29 +75,19 @@ In most cases, we use `ZLayer.succeed` to create a layer of type `A`.
 For example, assume we have written the following service:
 
 ```scala mdoc:silent
-object terminal {
-  type Terminal = Terminal.Service
+trait Logging {
+  def log(line: String): UIO[Unit]
+}
 
-  object Terminal {
-    trait Service {
-      def printLine(line: String): UIO[Unit]
-    }
-
-    object Service {
-      val live: Service = new Service {
-        override def printLine(line: String): UIO[Unit] =
+object Logging {
+  val layer: ZLayer[Any, Nothing, Logging] = 
+    ZLayer.succeed( 
+      new Logging {
+        override def log(line: String): UIO[Unit] =
           ZIO.succeed(println(line))
       }
-    }
-  }
+    )
 }
-```
-
-Now we can create a `ZLayer` from the `live` version of this service:
-
-```scala mdoc:silent
-import terminal._
-val live: ZLayer[Any, Nothing, Terminal] = ZLayer.succeed(Terminal.Service.live)
 ```
 
 ### From Managed Resources
@@ -305,32 +295,17 @@ If we don't want to share a module, we should create a fresh, non-shared version
 import zio._
 
 trait DBError
-trait Product
-trait ProductId
-trait DBConnection
+
 case class User(id: UserId, name: String)
 case class UserId(value: Long)
 
-
-type UserRepo = UserRepo.Service
+trait UserRepo {
+  def getUser(userId: UserId): IO[DBError, Option[User]]
+  def createUser(user: User):  IO[DBError, Unit]
+}
 
 object UserRepo {
-  trait Service {
-    def getUser(userId: UserId): IO[DBError, Option[User]]
-    def createUser(user: User): IO[DBError, Unit]
-  }
-
-  // This simple in-memory version has no dependencies.
-  // This could be useful for tests where you don't want the additional
-  // complexity of having to manage DB Connections.
-  val inMemory: Layer[Nothing, UserRepo] = ZLayer.succeed(
-    new Service {
-      def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-      def createUser(user: User): IO[DBError, Unit] = UIO(???)
-    }
-  )
-
-  //accessor methods
+  // Accessor Methods
   def getUser(userId: UserId): ZIO[UserRepo, DBError, Option[User]] =
     ZIO.serviceWithZIO(_.getUser(userId))
 
@@ -338,22 +313,25 @@ object UserRepo {
     ZIO.serviceWithZIO(_.createUser(user))
 }
 
+case class InmemoryUserRepo() extends UserRepo {
+  override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
+  override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
+}
 
-type Logging = Logging.Service
+object InmemoryUserRepo {
+  // This simple in-memory version has no dependencies.
+  // This could be useful for tests where we don't want the additional
+  // complexity of having to manage DB Connections.
+  val layer: ZLayer[Any, Nothing, UserRepo] =
+    (InmemoryUserRepo.apply _).toLayer[UserRepo]
+}
+
+trait Logging {
+  def info(s: String): UIO[Unit]
+  def error(s: String): UIO[Unit]
+}
 
 object Logging {
-  trait Service {
-    def info(s: String): UIO[Unit]
-    def error(s: String): UIO[Unit]
-  }
-
-  val consoleLogger: ZLayer[Console, Nothing, Logging] = ZLayer.fromFunction( environment =>
-    new Service {
-      def info(s: String): UIO[Unit]  = environment.get.printLine(s"info - $s").orDie
-      def error(s: String): UIO[Unit] = environment.get.printLine(s"error - $s").orDie
-    }
-  )
-
   //accessor methods
   def info(s: String): URIO[Logging, Unit] =
     ZIO.serviceWithZIO(_.info(s))
@@ -362,25 +340,49 @@ object Logging {
     ZIO.serviceWithZIO(_.error(s))
 }
 
+case class ConsoleLogger(console: Console) extends Logging {
+  def info(s: String): UIO[Unit]  = console.printLine(s"info - $s").orDie
+  def error(s: String): UIO[Unit] = console.printLine(s"error - $s").orDie
+}
 
-
-import java.sql.Connection
-def makeConnection: UIO[Connection] = UIO(???)
-val connectionLayer: Layer[Nothing, Connection] =
-    ZLayer.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
-val postgresLayer: ZLayer[Connection, Nothing, UserRepo] =
-  ZLayer.fromFunction { environment: ZEnvironment[Connection] =>
-    new UserRepo.Service {
-      override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-      override def createUser(user: User): IO[DBError, Unit] = UIO(???)
+object ConsoleLogger {
+  val layer: ZLayer[Console, Nothing, Logging] = 
+    ZLayer {
+      for {
+        console <- ZIO.service[Console] 
+      } yield ConsoleLogger(console) 
     }
-  }
+}
 
-val fullRepo: Layer[Nothing, UserRepo] = connectionLayer >>> postgresLayer
+trait Connection {
+  def close(): Unit
+}
 
+object Connection {
+  def makeConnection: UIO[Connection] = UIO(???)
+  
+  val layer: Layer[Nothing, Connection] =
+    ZLayer.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
+}
 
+case class PostgresUserRepo(connection: Connection) extends UserRepo {
+  override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
+  override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
+}
+
+object PostgresUserRepo {
+  val layer: ZLayer[Connection, Nothing, UserRepo] =
+    ZLayer {
+      for {
+        connection <- ZIO.service[Connection] 
+      } yield PostgresUserRepo(connection) 
+    }
+}
+
+val fullRepo: Layer[Nothing, UserRepo] = Connection.layer >>> PostgresUserRepo.layer 
 
 val user2: User = User(UserId(123), "Tommy")
+
 val makeUser: ZIO[Logging with UserRepo, DBError, Unit] = for {
   _ <- Logging.info(s"inserting user")  // URIO[Logging, Unit]
   _ <- UserRepo.createUser(user2)       // ZIO[UserRepo, DBError, Unit]
@@ -389,7 +391,7 @@ val makeUser: ZIO[Logging with UserRepo, DBError, Unit] = for {
 
 
 // compose horizontally
-val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = Logging.consoleLogger ++ UserRepo.inMemory
+val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = ConsoleLogger.layer ++ InmemoryUserRepo.layer
 
 // fulfill missing services, composing vertically
 val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizontal
@@ -403,9 +405,10 @@ Given a layer, it is possible to update one or more components it provides. We u
 1. **Using the `update` Method** — This method allows us to replace one requirement with a different implementation:
 
 ```scala mdoc:silent:nest
-val withPostgresService = horizontal.update[UserRepo.Service]{ oldRepo  => new UserRepo.Service {
+val withPostgresService = horizontal.update[UserRepo]{ oldRepo  => 
+    new UserRepo {
       override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-      override def createUser(user: User): IO[DBError, Unit] = UIO(???)
+      override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
     }
   }
 ```
@@ -413,9 +416,9 @@ val withPostgresService = horizontal.update[UserRepo.Service]{ oldRepo  => new U
 2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a layer that provides the updated service. The resulting composition will replace the old layer with the new one:
 
 ```scala mdoc:silent:nest
-val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo.Service {
+val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo {
     override def getUser(userId: UserId): IO[DBError, Option[User]] = ???
-    override def createUser(user: User): IO[DBError, Unit] = ???
+    override def createUser(user: User):  IO[DBError, Unit]         = ???
   })
 
 val updatedHorizontal2 = horizontal ++ dbLayer
@@ -428,9 +431,9 @@ One design decision regarding building dependency graphs is whether to hide or p
 To illustrate this, consider the Postgres-based repository discussed above:
 
 ```scala mdoc:silent:nest
-val connection: ZLayer[Any, Nothing, Connection] = connectionLayer
-val userRepo: ZLayer[Connection, Nothing, UserRepo] = postgresLayer
-val layer: ZLayer[Any, Nothing, UserRepo] = connection >>> userRepo
+val connection: ZLayer[Any, Nothing, Connection]      = Connection.layer
+val userRepo:   ZLayer[Connection, Nothing, UserRepo] = PostgresUserRepo.layer
+val layer:      ZLayer[Any, Nothing, UserRepo]        = Connection.layer >>> userRepo
 ```
 
 Notice that in `layer`, the dependency `UserRepo` has on `Connection` has been "hidden", and is no longer expressed in the type signature. From the perspective of a caller, `layer` just outputs a `UserRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` is constructed.
@@ -441,7 +444,8 @@ To provide only some inputs, we need to explicitly define what inputs still need
 trait Configuration
 
 val userRepoWithConfig: ZLayer[Configuration with Connection, Nothing, UserRepo] = 
-  ZLayer.succeed(new Configuration{}) ++ postgresLayer
+  ZLayer.succeed(new Configuration{}) ++ PostgresUserRepo.layer
+  
 val partialLayer: ZLayer[Configuration, Nothing, UserRepo] = 
   (ZLayer.environment[Configuration] ++ connection) >>> userRepoWithConfig
 ``` 
