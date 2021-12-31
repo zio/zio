@@ -291,7 +291,7 @@ And then we can compose the `newLayer` with `userRepo` vertically:
 val myLayer: ZLayer[Console, Throwable, UserRepo] = newLayer >>> userRepo
 ```
 
-## Service Builder Memoization
+## Layer Memoization
 
 One important feature of `ZIO` layers is that **they are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time.
 
