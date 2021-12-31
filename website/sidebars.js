@@ -199,25 +199,6 @@ module.exports = {
             "datatypes/test/environment/sized",
           ]
         },
-        {
-          type: "category",
-          label: "Mock Services",
-          items: [
-            "datatypes/test/mock/index",
-            "datatypes/test/mock/mock",
-            "datatypes/test/mock/expectation",
-            {
-              type: "category",
-              label: "Built-in Mock Services",
-              items: [
-                "datatypes/test/mock/console",
-                "datatypes/test/mock/clock",
-                "datatypes/test/mock/random",
-                "datatypes/test/mock/system",
-              ]
-            }
-          ]
-        },
         "datatypes/test/test-aspect",
         "datatypes/test/gen",
       ],
