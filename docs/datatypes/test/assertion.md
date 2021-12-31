@@ -105,7 +105,7 @@ test("updating ref") {
 ```
 
 Using `assertTrue` with for-comprehension style, we can think of testing as these three steps:
-1. **Setup the test** — In this section we should setup fixtures like the SUT (System Under Test) and all its [mocked collaborators](mock/index.md) (e.g. `Ref.make(0)`).
+1. **Setup the test** — In this section we should setup the system under test (e.g. `Ref.make(0)`).
 2. **Running the test** — Then we run the test scenario according to the test specification. (e.g `ref.update(_ + 1)`)
 3. **Making assertions about the test** - Finally, we should assert the result with the right expectations (e.g. `assertTrue(v == 1)`)
 
