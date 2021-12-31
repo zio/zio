@@ -2576,7 +2576,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A] =
-    self.mergeEither(that).collectLeft
+    self.merge(that.drain)
 
   /**
    * Merges this stream and the specified stream together, discarding the values
@@ -2588,7 +2588,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
-    self.mergeEither(that).collectRight
+    self.drain.merge(that)
 
   /**
    * Merges this stream and the specified stream together to a common element
@@ -3475,11 +3475,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * to emitting them.
    */
   final def tapSink[R1 <: R, E1 >: E](
-    sink: => ZSink[R1, E1, A, Any, Any],
-    maximumLag: => Int
+    sink: => ZSink[R1, E1, A, Any, Any]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    ZStream.managed(broadcast(2, maximumLag)).flatMap { streams =>
-      streams(0).mergeLeft(ZStream.fromZIO(streams(1).run(sink)))
+    ZStream.managed(broadcastedQueues(2, 1)).flatMap { queues =>
+      val left  = ZStream.fromQueue(queues(0)).flattenTake
+      val right = ZStream.fromQueueWithShutdown(queues(1)).flattenTake
+      left.merge(ZStream.execute(right.run(sink)))
     }
 
   /**
