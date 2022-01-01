@@ -902,16 +902,8 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 ```
 
 > Note:
-> All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `provide`/`wire` methods.
-
-
-| ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
-|--------------------------------------------------------|----------------------------|
-| `ZIO#provideLayer`                                     | `ZIO#provide`              |
-| `ZIO#provideSomeLayer`                                 | `ZIO#provideSome`          |
-| `ZIO#provideCustomLayer`                               | `ZIO#provideCustom`        |
-| Composing manually using `ZLayer` combinators          | `ZLayer#wire`              |
-| Composing manually using `ZLayer` combinators          | `ZLayer#wireSome`          |
+> 
+> In ZIO 2.x, the `ZIO#provide` method—and all its variants `ZIO#provideSome`, `ZIO#provideCustom`—is a default and easier way of injecting dependencies to the environmental effect. We do not require creating the dependency graph manually, it will be automatically generated. In contrast, the `ZIO#provideLayer`—and all its variants `ZIO#provideSomeLayer`, `ZIO#provideCustomLayer`—is useful for low-level and custom cases like.
 
 ### ZLayer Debugging
 
