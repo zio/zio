@@ -49,8 +49,6 @@ There are many ways to create a ZLayer. Here's an incomplete list:
 - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
 - `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
 - `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `ZManaged`.
-- `ZLayer.fromService` to build a layer from a service
-- `ZLayer.fromServices` to build a layer from a number of required services
 - `ZLayer.identity` to express the requirement for a dependency
 - `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
 
