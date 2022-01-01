@@ -236,7 +236,13 @@ Well, with ZIO ZLayer, our constructor could be asynchronous, and they also can 
 
 We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO.
 
-## Layer Composition (Building the Dependency Graph)
+## Manual Layer Composition
+
+The `ZLayer` offers various operators for composing layers together to build the dependency graph required by our application. In this section, we will learn more about these operators.
+
+> **Note**:
+>
+> In a regular ZIO application we are not required to build the dependency graph through composing layers tougher. Instead, we can provide all dependencies to the ZIO application using `ZIO#provide`, and the ZIO will create the dependency graph manually under the hood. Therefore, use manual layer composition if you know what you're doing.
 
 ### Vertical and Horizontal Composition
 
