@@ -97,7 +97,7 @@ import zio._
 
 import java.io.IOException
 
-val effect: ZIO[Console with Random, IOException, Unit] = for {
+val effect: ZIO[Console & Random, IOException, Unit] = for {
   r <- Random.nextInt
   _ <- Console.printLine(s"random number: $r")
 } yield ()
@@ -113,7 +113,7 @@ import zio._
 object MainApp extends ZIOAppDefault {
   def run = effect
   
-  val effect: ZIO[Console with Random, Nothing, Unit] = for {
+  val effect: ZIO[Console & Random, Nothing, Unit] = for {
     r <- Random.nextInt
     _ <- Console.printLine(s"random number: $r").orDie
   } yield ()
@@ -258,13 +258,13 @@ trait ServiceC
 def foo: ZIO[ServiceA, Nothing, Int] = ???
 
 // Requires ServiceB and ServiceC and produces a value of type String
-def bar: ZIO[ServiceB with ServiceC, Throwable, String] = ???
+def bar: ZIO[ServiceB & ServiceC, Throwable, String] = ???
 
 // Requires ServicB and produces a value of type Double
 def baz(a: Int, b: String): ZIO[ServiceB, Nothing, Double] = ???
 
 // Requires ServiceB and ServiceB and ServiceC and produces a value of type Double
-val myApp: ZIO[ServiceA with ServiceB with ServiceC, Throwable, Double] =
+val myApp: ZIO[ServiceA & ServiceB & ServiceC, Throwable, Double] =
   for {
     a <- foo
     b <- bar
@@ -274,7 +274,7 @@ val myApp: ZIO[ServiceA with ServiceB with ServiceC, Throwable, Double] =
 
 Another important note about the ZIO environment is that the type inference works well on effect composition. After we composed all the application logic together, the compiler and also IDE can infer the proper type for the environment of the final effect.
 
-In the example above, the compiler can infer the environment type of the `myApp` effect which is `ServiceA with ServiceB with ServiceC`.
+In the example above, the compiler can infer the environment type of the `myApp` effect which is `ServiceA & ServiceB & ServiceC`.
 
 ### Accessing ZIO Environment
 
@@ -385,7 +385,7 @@ object Logging {
     ZIO.serviceWithZIO(_.log(line))
 }
 
-val myApp: ZIO[Logging with Console, Throwable, Unit] =
+val myApp: ZIO[Logging & Console, Throwable, Unit] =
   for {
     _    <- Logging.log("Application Started!")
     _    <- Console.print("Please enter your name: ")
@@ -492,7 +492,7 @@ import zio.Clock._
 import zio.Console._
 import zio.Random._
 
-val myApp: ZIO[Random with Console with Clock, Nothing, Unit] = for {
+val myApp: ZIO[Random & Console & Clock, Nothing, Unit] = for {
   random  <- nextInt 
   _       <- printLine(s"A random number: $random").orDie
   current <- currentDateTime
@@ -507,7 +507,7 @@ val mainEffect: ZIO[Any, Nothing, Unit] =
   myApp.provide(Random.live, Console.live, Clock.live)
 ```
 
-As we see, the type of our effect converted from `ZIO[Random with Console with Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
+As we see, the type of our effect converted from `ZIO[Random & Console & Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
 
 #### Using `ZIO#provideSome` Method
 
@@ -516,8 +516,8 @@ Sometimes we have written a program, and we don't want to provide all its requir
 In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSome`:
 
 ```scala
-val mainEffectSome: ZIO[Random with Clock, Nothing, Unit] = 
-  myApp.provideSome[Random with Clock](Console.live)
+val mainEffectSome: ZIO[Random & Clock, Nothing, Unit] = 
+  myApp.provideSome[Random & Clock](Console.live)
 ```
 
 > **Note:**
@@ -555,7 +555,7 @@ object LoggingLive {
   }
 }
 
-val myApp: ZIO[Logging with Console with Clock, Nothing, Unit] = for {
+val myApp: ZIO[Logging & Console & Clock, Nothing, Unit] = for {
   _       <- Logging.log("Application Started!")
   current <- Clock.currentDateTime
   _       <- Console.printLine(s"Current Data Time: $current").orDie
@@ -697,7 +697,7 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 
 ```scala mdoc:silent
 object LoggingLive {
-  val layer: URLayer[Console with Clock, Logging] =
+  val layer: URLayer[Console & Clock, Logging] =
     (LoggingLive(_, _)).toLayer[Logging]
 }
 ```
@@ -706,7 +706,7 @@ Note that the previous step is syntactic sugar of writing the layer directly in 
 
 ```scala
 object LoggingLive {
-  val layer: ZLayer[Clock with Console, Nothing, Logging] =
+  val layer: ZLayer[Clock & Console, Nothing, Logging] =
     ZLayer {
       for {
         console <- ZIO.service[Console]
@@ -733,7 +733,7 @@ import zio._
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  val app: ZIO[Logging with Console, IOException, Unit] =
+  val app: ZIO[Logging & Console, IOException, Unit] =
     for {
       _    <- Logging.log("Application Started!")
       _    <- Console.print("Enter your name:")
@@ -868,7 +868,7 @@ So the following service definition is wrong because the `Console` and `Clock` s
 ```scala mdoc:compile-only
 import zio._
 trait Logging {
-  def log(line: String): ZIO[Console with Clock, Nothing, Unit]
+  def log(line: String): ZIO[Console & Clock, Nothing, Unit]
 }
 ```
 
@@ -909,7 +909,7 @@ import zio._
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  val app: ZIO[Logging with Console, IOException, Unit] =
+  val app: ZIO[Logging & Console, IOException, Unit] =
     for {
       _    <- ZIO.serviceWithZIO[Logging](_.log("Application Started!"))
       _    <- ZIO.serviceWithZIO[Console](_.print("Enter your name: "))

@@ -13,7 +13,7 @@ type ZLayer[-RIn, +E, +ROut] = RIn => async Either[E, ROut]
 
 Layers are:
 
-1. **Recipes for Creating Services** — They describe how a given dependencies produces another services. For example, the `ZLayer[Logging with Database, Throwable, UserRepo]` is a recipe for building a service that requires `Logging` and `Database` service, and it produces a `UserRepo` service.
+1. **Recipes for Creating Services** — They describe how a given dependencies produces another services. For example, the `ZLayer[Logging & Database, Throwable, UserRepo]` is a recipe for building a service that requires `Logging` and `Database` service, and it produces a `UserRepo` service.
 
 2. **An Alternative to Constructors** — We can think of `ZLayer` as a more powerful version of a constructor, it is an alternative way to represent a constructor. Like a constructor, it allows us to build the `ROut` service in terms of its dependencies (`RIn`).
 
@@ -23,7 +23,7 @@ Layers are:
 
 5. **Asynchronous** — Unlike class constructors which are blocking, ZLayer is fully asynchronous and non-blocking.
 
-For example, a `ZLayer[Clock with Logging, Throwable, Database]` can be thought of as a function that map `Clock` and `Logging` services into `Database` service:
+For example, a `ZLayer[Clock & Logging, Throwable, Database]` can be thought of as a function that map `Clock` and `Logging` services into `Database` service:
 
 ```scala
 (Clock, Logging) => Database
@@ -279,11 +279,11 @@ We can't compose these services together, because their constructors are not val
 Let's assume we have lifted these services into `ZLayer`s:
 
 ```scala mdoc:silent
-val logging:     URLayer[Console, Logging]                                = (LoggerImpl.apply _).toLayer
-val database:    URLayer[Any, Database]                                   = ZLayer.succeed(DatabaseImp)
-val userRepo:    URLayer[Logging with Database, UserRepo]                 = (UserRepoImpl(_, _)).toLayer
-val blobStorage: URLayer[Logging, BlobStorage]                            = (BlobStorageImpl(_)).toLayer
-val docRepo:     URLayer[Logging with Database with BlobStorage, DocRepo] = (DocRepoImpl(_, _, _)).toLayer
+val logging:     URLayer[Console, Logging]                          = (LoggerImpl.apply _).toLayer
+val database:    URLayer[Any, Database]                             = ZLayer.succeed(DatabaseImp)
+val userRepo:    URLayer[Logging & Database, UserRepo]              = (UserRepoImpl(_, _)).toLayer
+val blobStorage: URLayer[Logging, BlobStorage]                      = (BlobStorageImpl(_)).toLayer
+val docRepo:     URLayer[Logging & Database & BlobStorage, DocRepo] = (DocRepoImpl(_, _, _)).toLayer
 ```
 
 Please note that the following implementations can be used if the above ones are cryptic:
@@ -295,7 +295,7 @@ val logging: URLayer[Console, Logging] =
 val database: URLayer[Any, Database] =
   ZLayer.succeed(DatabaseImp)
 
-val userRepo: URLayer[Logging with Database, UserRepo] =
+val userRepo: URLayer[Logging & Database, UserRepo] =
   ZLayer {
     for {
       database <- ZIO.service[Database]
@@ -306,7 +306,7 @@ val userRepo: URLayer[Logging with Database, UserRepo] =
 val blobStorage: URLayer[Logging, BlobStorage] =
   ZLayer(ZIO.serviceWith[Logging](BlobStorageImpl))
 
-val docRepo: URLayer[Logging with Database with BlobStorage, DocRepo] = {
+val docRepo: URLayer[Logging & Database & BlobStorage, DocRepo] = {
   ZLayer {
     for {
       logging     <- ZIO.service[Logging]
@@ -320,7 +320,7 @@ val docRepo: URLayer[Logging with Database with BlobStorage, DocRepo] = {
 Now, we can compose logging and database horizontally:
 
 ```scala mdoc:silent
-val newLayer: ZLayer[Console, Throwable, Logging with Database] = logging ++ database
+val newLayer: ZLayer[Console, Throwable, Logging & Database] = logging ++ database
 ```
 
 And then we can compose the `newLayer` with `userRepo` vertically:
@@ -423,18 +423,19 @@ val fullRepo: Layer[Nothing, UserRepo] = Connection.layer >>> PostgresUserRepo.l
 
 val user2: User = User(UserId(123), "Tommy")
 
-val makeUser: ZIO[Logging with UserRepo, DBError, Unit] = for {
-  _ <- Logging.info(s"inserting user")  // URIO[Logging, Unit]
-  _ <- UserRepo.createUser(user2)       // ZIO[UserRepo, DBError, Unit]
-  _ <- Logging.info(s"user inserted")   // URIO[Logging, Unit]
-} yield ()
+val makeUser: ZIO[Logging & UserRepo, DBError, Unit] = 
+  for {
+    _ <- Logging.info(s"inserting user")  // URIO[Logging, Unit]
+    _ <- UserRepo.createUser(user2)       // ZIO[UserRepo, DBError, Unit]
+    _ <- Logging.info(s"user inserted")   // URIO[Logging, Unit]
+  } yield ()
 
 
 // compose horizontally
-val horizontal: ZLayer[Console, Nothing, Logging with UserRepo] = ConsoleLogger.layer ++ InmemoryUserRepo.layer
+val horizontal: ZLayer[Console, Nothing, Logging & UserRepo] = ConsoleLogger.layer ++ InmemoryUserRepo.layer
 
 // fulfill missing services, composing vertically
-val fullLayer: Layer[Nothing, Logging with UserRepo] = Console.live >>> horizontal
+val fullLayer: Layer[Nothing, Logging & UserRepo] = Console.live >>> horizontal
 
 // provide the services to the program
 makeUser.provide(fullLayer)
@@ -483,7 +484,7 @@ To provide only some inputs, we need to explicitly define what inputs still need
 ```scala mdoc:silent:nest
 trait Configuration
 
-val userRepoWithConfig: ZLayer[Configuration with Connection, Nothing, UserRepo] = 
+val userRepoWithConfig: ZLayer[Configuration & Connection, Nothing, UserRepo] = 
   ZLayer.succeed(new Configuration{}) ++ PostgresUserRepo.layer
   
 val partialLayer: ZLayer[Configuration, Nothing, UserRepo] = 
@@ -504,7 +505,7 @@ However, if an upstream dependency is used by many other services, it can be con
 
 
 ```scala mdoc:silent:nest
-val layer: ZLayer[Any, Nothing, Connection with UserRepo] = connection >+> userRepo
+val layer: ZLayer[Any, Nothing, Connection & UserRepo] = connection >+> userRepo
 ```
 
 Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
@@ -519,15 +520,15 @@ trait Cake
 lazy val baker: ZLayer[Any, Nothing, Baker] = ???
 lazy val ingredients: ZLayer[Any, Nothing, Ingredients] = ???
 lazy val oven: ZLayer[Any, Nothing, Oven] = ???
-lazy val dough: ZLayer[Baker with Ingredients, Nothing, Dough] = ???
-lazy val cake: ZLayer[Baker with Oven with Dough, Nothing, Cake] = ???
+lazy val dough: ZLayer[Baker & Ingredients, Nothing, Dough] = ???
+lazy val cake: ZLayer[Baker & Oven & Dough, Nothing, Cake] = ???
 
-lazy val all: ZLayer[Any, Nothing, Baker with Ingredients with Oven with Dough with Cake] =
+lazy val all: ZLayer[Any, Nothing, Baker & Ingredients & Oven & Dough & Cake] =
   baker >+>       // Baker
-  ingredients >+> // Baker with Ingredients
-  oven >+>        // Baker with Ingredients with Oven
-  dough >+>       // Baker with Ingredients with Oven with Dough
-  cake            // Baker with Ingredients with Oven with Dough with Cake
+  ingredients >+> // Baker & Ingredients
+  oven >+>        // Baker & Ingredients & Oven
+  dough >+>       // Baker & Ingredients & Oven & Dough
+  cake            // Baker & Ingredients & Oven & Dough & Cake
 ```
 
 `ZLayer` makes it easy to mix and match these styles. If you pass through dependencies and later want to hide them you can do so through a simple type ascription:
@@ -561,7 +562,7 @@ import zio._
 
 case class AppConfig(poolSize: Int)
 
-object Example extends ZIOAppDefault {
+object MainApp extends ZIOAppDefault {
 
   // Define our simple ZIO program
   val zio: ZIO[AppConfig, Nothing, Unit] = 
@@ -629,7 +630,7 @@ object BLive {
 
 object MainApp extends ZIOAppDefault {
 
-  val program: ZIO[Console with Clock with B, IOException, Unit] =
+  val program: ZIO[Console & Clock & B, IOException, Unit] =
     for {
       _ <- Console.printLine(s"Welcome to ZIO!")
       _ <- Clock.sleep(1.second)
@@ -681,7 +682,7 @@ case class CLive(a: A, b: B) extends C {
 }
 
 object C {
-  val live: ZLayer[A with B with Clock, Nothing, C] =
+  val live: ZLayer[A & B & Clock, Nothing, C] =
     ZLayer {
       for {
         a <- ZIO.service[A]
@@ -693,10 +694,11 @@ object C {
 }
 
 object MainApp extends ZIOAppDefault {
-  val myApp = for {
-    r <- C.foo
-    _ <- Console.printLine(r)
-  } yield ()
+  val myApp = 
+    for {
+      r <- C.foo
+      _ <- Console.printLine(r)
+    } yield ()
 
   def run = myApp.provideCustom(A.live, B.live, C.live)
 }

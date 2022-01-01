@@ -11,7 +11,7 @@ or
 type ZIO[R, E, A] = ZEnvironment[R] => IO[E, A]
 ```
 
-For example, the `ZIO[Console with Random, Throwable, String]` can be thought of as a function from `ZEnvironment[Console with Random]` to `Either[Throwable, String]`:
+For example, the `ZIO[Console & Random, Throwable, String]` can be thought of as a function from `ZEnvironment[Console & Random]` to `Either[Throwable, String]`:
 
 > **Note**:
 >
@@ -25,14 +25,14 @@ Let's see an example:
 import zio._
 import java.io.IOException
 
-val originalEffect: ZIO[Console with Random, IOException, Unit] =
+val originalEffect: ZIO[Console & Random, IOException, Unit] =
   for {
     uuid <- Random.nextUUID
     _ <- Console.printLine(s"next random UUID: $uuid")
   } yield ()
 ```
 
-By providing `ZEnvironment[Console with Random]` we can eliminate the environment of the `originalEffect`:
+By providing `ZEnvironment[Console & Random]` we can eliminate the environment of the `originalEffect`:
 
 ```
 val eliminatedEffect: IO[IOException, Unit] =
@@ -107,7 +107,7 @@ import zio._
 
 case class AppConfig(host: String, port: Int)
 
-val app: ZEnvironment[ZEnv with AppConfig] =
+val app: ZEnvironment[ZEnv & AppConfig] =
   ZEnvironment.default ++ ZEnvironment(AppConfig("localhost", 8080))
 ```
 
@@ -118,7 +118,7 @@ import zio._
 
 case class AppConfig(host: String, port: Int)
 
-val app: ZEnvironment[ZEnv with AppConfig] =
+val app: ZEnvironment[ZEnv & AppConfig] =
   ZEnvironment.default.add(AppConfig("localhost", 8080))
 ```
 
@@ -177,7 +177,7 @@ import zio._
 
 object MultipleConfigExample extends ZIOAppDefault {
 
-  val myApp: ZIO[Map[String, AppConfig] with System, String, Unit] = for {
+  val myApp: ZIO[Map[String, AppConfig] & System, String, Unit] = for {
     env <- System.env("APP_ENV")
       .flatMap(x => ZIO.fromOption(x))
       .orElseFail("The environment variable APP_ENV cannot be found.")

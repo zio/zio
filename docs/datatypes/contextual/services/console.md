@@ -25,9 +25,9 @@ import zio.Console._
 
 object MyHelloApp extends ZIOAppDefault {
   val program: ZIO[Console, IOException, Unit] = for {
-    _ <- printLine("Hello, what is you name?")
+    _    <- printLine("Hello, what is you name?")
     name <- readLine
-    _ <- printLine(s"Hello $name, welcome to ZIO!")
+    _    <- printLine(s"Hello $name, welcome to ZIO!")
   } yield ()
 
   def run = program
