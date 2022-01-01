@@ -239,17 +239,17 @@ import zio._
 ```
 
 ```scala mdoc:silent:nest
-trait Logging { }
-trait Database { }
-trait BlobStorage { }
-trait UserRepo { }
-trait DocRepo { }
+trait Logging
+trait Database
+trait BlobStorage
+trait UserRepo
+trait DocRepo
 
-case class LoggerImpl(console: Console) extends Logging { }
-case object DatabaseImp extends Database { }
-case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo { } 
-case class BlobStorageImpl(logging: Logging) extends BlobStorage { }
-case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo { }
+case class LoggerImpl(console: Console) extends Logging
+case object DatabaseImp extends Database
+case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo
+case class BlobStorageImpl(logging: Logging) extends BlobStorage
+case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo
 ```
 
 We can't compose these services together, because their constructors are not value. `ZLayer` can convert these services into values, then we can compose them together.
@@ -257,16 +257,42 @@ We can't compose these services together, because their constructors are not val
 Let's assume we have lifted these services into `ZLayer`s:
 
 ```scala mdoc:silent
-val logging: URLayer[Console, Logging] = 
-  (LoggerImpl.apply _).toLayer
-val database: URLayer[Any, Database] = 
+val logging:     URLayer[Console, Logging]                                = (LoggerImpl.apply _).toLayer
+val database:    URLayer[Any, Database]                                   = ZLayer.succeed(DatabaseImp)
+val userRepo:    URLayer[Logging with Database, UserRepo]                 = (UserRepoImpl(_, _)).toLayer
+val blobStorage: URLayer[Logging, BlobStorage]                            = (BlobStorageImpl(_)).toLayer
+val docRepo:     URLayer[Logging with Database with BlobStorage, DocRepo] = (DocRepoImpl(_, _, _)).toLayer
+```
+
+Please note that the following implementations can be used if the above ones are cryptic:
+
+```scala mdoc:compile-only
+val logging: URLayer[Console, Logging] =
+  ZLayer(ZIO.serviceWith[Console](LoggerImpl))
+
+val database: URLayer[Any, Database] =
   ZLayer.succeed(DatabaseImp)
-val userRepo: URLayer[Logging with Database, UserRepo] = 
-  (UserRepoImpl(_, _)).toLayer
-val blobStorage: URLayer[Logging, BlobStorage] = 
-  (BlobStorageImpl(_)).toLayer
-val docRepo: URLayer[Logging with Database with BlobStorage, DocRepo] = 
-  (DocRepoImpl(_, _, _)).toLayer
+
+val userRepo: URLayer[Logging with Database, UserRepo] =
+  ZLayer {
+    for {
+      database <- ZIO.service[Database]
+      logging  <- ZIO.service[Logging]
+    } yield UserRepoImpl(logging, database)
+  }
+
+val blobStorage: URLayer[Logging, BlobStorage] =
+  ZLayer(ZIO.serviceWith[Logging](BlobStorageImpl))
+
+val docRepo: URLayer[Logging with Database with BlobStorage, DocRepo] = {
+  ZLayer {
+    for {
+      logging     <- ZIO.service[Logging]
+      database    <- ZIO.service[Database]
+      blobStorage <- ZIO.service[BlobStorage]
+    } yield DocRepoImpl(logging, database, blobStorage)
+  }
+}
 ```
 
 Now, we can compose logging and database horizontally:
