@@ -7,7 +7,7 @@ title: "ZIO Kinesis"
 
 ## Introduction
 
-ZIO Kinesis is an interface to Amazon Kinesis Data Streams for consuming and producing data. This library is built on top of [ZIO AWS](https://github.com/vigoo/zio-aws), a library of automatically generated ZIO wrappers around AWS SDK methods.
+ZIO Kinesis is an interface to Amazon Kinesis Data Streams for consuming and producing data. This library is built on top of [ZIO AWS](https://github.com/zio/zio-aws), a library of automatically generated ZIO wrappers around AWS SDK methods.
 
 ## Installation
 
