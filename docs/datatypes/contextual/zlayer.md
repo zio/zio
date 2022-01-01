@@ -516,26 +516,28 @@ We can acquire resources asynchronously or in a blocking fashion, and spend some
 
 ### The simplest ZLayer application
 
-This application demonstrates a ZIO program with a single dependency on a simple string value:
+This application demonstrates a ZIO program with a single dependency on a simple `AppConfig`:
 
 ```scala mdoc:compile-only
 import zio._
 
+case class AppConfig(poolSize: Int)
+
 object Example extends ZIOAppDefault {
 
   // Define our simple ZIO program
-  val zio: ZIO[String, Nothing, Unit] = 
+  val zio: ZIO[AppConfig, Nothing, Unit] = 
     for {
-      name <- ZIO.service[String]
-      _    <- UIO(println(s"Hello, $name!"))
+      config <- ZIO.service[AppConfig]
+      _      <- UIO(println(s"Applicaiton started with config: $config"))
     } yield ()
 
-  // Create a ZLayer that produces a string and can be used to satisfy a string
+  // Create a ZLayer that produces an AppConfig and can be used to satisfy the AppConfig 
   // dependency that the program has
-  val nameLayer: ULayer[String] = ZLayer.succeed("Adam")
+  val defaultConfig: ULayer[AppConfig] = ZLayer.succeed(AppConfig(10))
 
-  // Run the program, providing the `nameLayer`
-  def run = zio.provide(nameLayer)
+  // Run the program, providing the `defaultConfig`
+  def run = zio.provide(defaultConfig)
 }
 
 ```
