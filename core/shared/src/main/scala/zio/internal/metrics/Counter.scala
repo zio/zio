@@ -51,6 +51,8 @@ private[zio] trait Counter {
 
   private[zio] final def unsafeIncrement(): Unit =
     unsafeIncrement(1.0)
+
+  private[zio] def metricKey: MetricKey.Counter
 }
 
 private[zio] object Counter {

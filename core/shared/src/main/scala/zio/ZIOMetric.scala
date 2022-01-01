@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.internal.metrics
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -214,8 +215,8 @@ object ZIOMetric {
    * of interest is the cumulative value over time, as opposed to a gauge where
    * the quantity of interest is the value as of a specific point in time.
    */
-  abstract class Counter[-A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
-    private[zio] val counter = internal.metrics.Counter(name, tags)
+  abstract class Counter[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
+    private[zio] var counter = internal.metrics.Counter(name, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -264,6 +265,25 @@ object ZIOMetric {
       counter.increment(1.0)
 
     /**
+     * Converts this counter metric to one where the tags depend on the measured
+     * effect's result value
+     */
+    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+      new ZIOMetric[A] {
+        override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+          self.apply(zio.tap(changeCounter))
+
+        private def changeCounter(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
+          ZIO.succeed {
+            val extraTags = f(value)
+            val allTags   = self.tags ++ extraTags
+            if (self.counter.metricKey.tags != allTags) {
+              self.counter = internal.metrics.Counter(self.name, allTags)
+            }
+          }
+      }
+
+    /**
      * The type of this counter.
      */
     protected lazy val metricType =
@@ -278,7 +298,7 @@ object ZIOMetric {
    * values over time.
    */
   abstract class Gauge[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
-    private[this] val gauge = internal.metrics.Gauge(name, tags)
+    private[this] var gauge = internal.metrics.Gauge(name, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -327,6 +347,25 @@ object ZIOMetric {
       gauge.value
 
     /**
+     * Converts this gauge metric to one where the tags depend on the measured
+     * effect's result value
+     */
+    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+      new ZIOMetric[A] {
+        override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+          self.apply(zio.tap(changeGauge))
+
+        private def changeGauge(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
+          ZIO.succeed {
+            val extraTags = f(value)
+            val allTags   = self.tags ++ extraTags
+            if (self.gauge.metricKey.tags != allTags) {
+              self.gauge = internal.metrics.Gauge(self.name, allTags)
+            }
+          }
+      }
+
+    /**
      * The type of this gauge.
      */
     protected lazy val metricType =
@@ -346,7 +385,7 @@ object ZIOMetric {
     final val boundaries: Histogram.Boundaries,
     final val tags: Chunk[MetricLabel]
   ) extends ZIOMetric[A] { self =>
-    private[zio] val histogram = internal.metrics.Histogram(name, boundaries, tags)
+    private[zio] var histogram = internal.metrics.Histogram(name, boundaries, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -410,6 +449,25 @@ object ZIOMetric {
       histogram.sum
 
     /**
+     * Converts this histogram metric to one where the tags depend on the
+     * measured effect's result value
+     */
+    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+      new ZIOMetric[A] {
+        override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+          self.apply(zio.tap(changeHistogram))
+
+        private def changeHistogram(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
+          ZIO.succeed {
+            val extraTags = f(value)
+            val allTags   = self.tags ++ extraTags
+            if (self.histogram.metricKey.tags != allTags) {
+              self.histogram = internal.metrics.Histogram(self.name, self.boundaries, allTags)
+            }
+          }
+      }
+
+    /**
      * The type of this histogram.
      */
     protected lazy val metricType =
@@ -456,7 +514,7 @@ object ZIOMetric {
     final val quantiles: Chunk[Double],
     final val tags: Chunk[MetricLabel]
   ) extends ZIOMetric[A] { self =>
-    private[this] val summary = internal.metrics.Summary(name, maxAge, maxSize, error, quantiles, tags)
+    private[this] var summary = internal.metrics.Summary(name, maxAge, maxSize, error, quantiles, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -526,6 +584,26 @@ object ZIOMetric {
       summary.sum
 
     /**
+     * Converts this summary metric to one where the tags depend on the measured
+     * effect's result value
+     */
+    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+      new ZIOMetric[A] {
+        override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+          self.apply(zio.tap(changeSummary))
+
+        private def changeSummary(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
+          ZIO.succeed {
+            val extraTags = f(value)
+            val allTags   = self.tags ++ extraTags
+            if (self.summary.metricKey.tags != allTags) {
+              self.summary =
+                internal.metrics.Summary(self.name, self.maxAge, self.maxSize, self.error, self.quantiles, allTags)
+            }
+          }
+      }
+
+    /**
      * The type of this summary.
      */
     protected lazy val metricType =
@@ -541,7 +619,7 @@ object ZIOMetric {
    */
   abstract class SetCount[A](final val name: String, final val setTag: String, final val tags: Chunk[MetricLabel])
       extends ZIOMetric[A] { self =>
-    private[zio] val setCount = internal.metrics.SetCount(name, setTag, tags)
+    private[zio] var setCount = internal.metrics.SetCount(name, setTag, tags)
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -585,11 +663,30 @@ object ZIOMetric {
       setCount.observe(value)
 
     /**
-     * Returns the number of occurences of every value observed by this set
+     * Returns the number of occurrences of every value observed by this set
      * count.
      */
     def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]] =
       setCount.occurrences
+
+    /**
+     * Converts this set count metric to one where the tags depend on the
+     * measured effect's result value
+     */
+    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+      new ZIOMetric[A] {
+        override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+          self.apply(zio.tap(changeSetCount))
+
+        private def changeSetCount(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
+          ZIO.succeed {
+            val extraTags = f(value)
+            val allTags   = self.tags ++ extraTags
+            if (self.setCount.metricKey.tags != allTags) {
+              self.setCount = internal.metrics.SetCount(self.name, self.setTag, allTags)
+            }
+          }
+      }
 
     /**
      * The type of this set count.

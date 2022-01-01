@@ -52,6 +52,8 @@ private[zio] trait Histogram {
   def sum(implicit trace: ZTraceElement): UIO[Double]
 
   private[zio] def unsafeObserve(value: Double): Unit
+
+  private[zio] def metricKey: MetricKey.Histogram
 }
 
 private[zio] object Histogram {
