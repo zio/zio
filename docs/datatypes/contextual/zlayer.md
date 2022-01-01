@@ -5,6 +5,12 @@ title: "ZLayer"
 
 A `ZLayer[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`.
 
+We can think of a layer as mental model of an asynchronous function from `RIn` to the `Either[E, ROut]`:
+
+```scala
+type ZLayer[-RIn, +E, +ROut] = RIn => async Either[E, ROut]
+```
+
 Layers are:
 
 1. **Recipes for Creating Services** — They describe how a given dependencies produces another services. For example, the `ZLayer[Logging with Database, Throwable, UserRepo]` is a recipe for building a service that requires `Logging` and `Database` service, and it produces a `UserRepo` service.
