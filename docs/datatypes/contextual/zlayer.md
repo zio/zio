@@ -469,35 +469,13 @@ val layer: ZLayer[Any, Nothing, Connection with UserRepo] = connection >+> userR
 
 Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
 
-```scala mdoc:invisible
-type Baker = Baker.Service
-type Ingredients = Ingredients.Service
-type Oven = Oven.Service
-type Dough = Dough.Service
-type Cake = Cake.Service
-
-object Baker {
-  trait Service
-}
-
-object Ingredients {
-  trait Service
-}
-
-object Oven {
-  trait Service
-}
-
-object Dough {
-  trait Service
-}
-
-object Cake {
-  trait Service
-}
-```
-
 ```scala mdoc
+trait Baker 
+trait Ingredients
+trait Oven
+trait Dough
+trait Cake
+
 lazy val baker: ZLayer[Any, Nothing, Baker] = ???
 lazy val ingredients: ZLayer[Any, Nothing, Ingredients] = ???
 lazy val oven: ZLayer[Any, Nothing, Oven] = ???
@@ -524,7 +502,7 @@ And if you do build your dependency graph more explicitly, you can be confident 
 
 The `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
 
-## Asynchronous Service Construction
+## Asynchronous Layer Construction
 
 Another important note about `ZLayer` is that, unlike constructors which are synchronous, `ZLayer` is _asynchronous_. Constructors in classes are always synchronous. This is a drawback for non-blocking applications. Because sometimes we might want to use something that is blocking the inside constructor.
 
@@ -546,10 +524,11 @@ import zio._
 object Example extends ZIOAppDefault {
 
   // Define our simple ZIO program
-  val zio: ZIO[String, Nothing, Unit] = for {
-    name <- ZIO.service[String]
-    _    <- UIO(println(s"Hello, $name!"))
-  } yield ()
+  val zio: ZIO[String, Nothing, Unit] = 
+    for {
+      name <- ZIO.service[String]
+      _    <- UIO(println(s"Hello, $name!"))
+    } yield ()
 
   // Create a ZLayer that produces a string and can be used to satisfy a string
   // dependency that the program has
@@ -566,152 +545,122 @@ object Example extends ZIOAppDefault {
 In the following example, our ZIO application has several dependencies:
 - `zio.Clock`
 - `zio.Console`
-- `ModuleB`
+- `B`
 
-`ModuleB` in turn depends upon `ModuleA`:
+And also the `B` service depends upon the `A` service:
 
-```scala
+```scala mdoc:compile-only
 import zio._
-import zio.Clock._
-import zio.Console._
+
 import java.io.IOException
 
-object moduleA {
-  type ModuleA = ModuleA.Service
-
-  object ModuleA {
-    trait Service {
-      def letsGoA(v: Int): UIO[String]
-    }
-
-    val any: ZLayer[ModuleA, Nothing, ModuleA] =
-      ZLayer.requires[ModuleA]
-
-    val live: Layer[Nothing, Service] = ZLayer.succeed {
-      new Service {
-        def letsGoA(v: Int): UIO[String] = UIO(s"done: v = $v ")
-      }
-    }
-  }
-
-  def letsGoA(v: Int): URIO[ModuleA, String] =
-    ZIO.serviceWithZIO(_.letsGoA(v))
+trait A {
+  def letsGoA(v: Int): UIO[String]
 }
 
-import moduleA._
-
-object moduleB {
-  type ModuleB = ModuleB.Service
-
-  object ModuleB {
-    trait Service {
-      def letsGoB(v: Int): UIO[String]
-    }
-
-    val any: ZLayer[ModuleB, Nothing, ModuleB] =
-      ZLayer.requires[ModuleB]
-
-    val live: ZLayer[ModuleA, Nothing, ModuleB] = ZLayer.fromService { (moduleA: ModuleA.Service) =>
-      new Service {
-        def letsGoB(v: Int): UIO[String] =
-          moduleA.letsGoA(v)
-      }
-    }
-  }
-
-  def letsGoB(v: Int): URIO[ModuleB, String] =
-    ZIO.serviceWithZIO(_.letsGoB(v))
+object A {
+  def letsGoA(v: Int): URIO[A, String] = ZIO.serviceWithZIO(_.letsGoA(v))
 }
 
-object ZLayerApp0 extends zio.App {
+case class ALive() extends A {
+  override def letsGoA(v: Int): UIO[String] = UIO(s"done: v = $v ")
+}
 
-  import moduleB._
+object ALive {
+  val layer: ULayer[A] = ZLayer.succeed(ALive())
+}
 
-  val env = Console.live ++ Clock.live ++ (ModuleA.live >>> ModuleB.live)
-  val program: ZIO[Console with Clock with ModuleB, IOException, Unit] =
+trait B {
+  def letsGoB(v: Int): UIO[String]
+}
+
+object B {
+  def letsGoB(v: Int): URIO[B, String] = ZIO.serviceWithZIO(_.letsGoB(v))
+}
+
+case class BLive(serviceA: A) extends B {
+  def letsGoB(v: Int): UIO[String] = serviceA.letsGoA(v)
+}
+
+object BLive {
+  val layer: ZLayer[A, Nothing, BLive] = ZLayer(ZIO.service[A].map(BLive(_)))
+}
+
+
+object MainApp extends ZIOAppDefault {
+
+  val program: ZIO[Console with Clock with B, IOException, Unit] =
     for {
-      _ <- printLine(s"Welcome to ZIO!")
-      _ <- sleep(1.second)
-      r <- letsGoB(10)
-      _ <- printLine(r)
+      _ <- Console.printLine(s"Welcome to ZIO!")
+      _ <- Clock.sleep(1.second)
+      r <- B.letsGoB(10)
+      _ <- Console.printLine(r)
     } yield ()
 
-  def run(args: List[String]) =
-    program.provide(env).exitCode
+  def run = program.provideCustom(ALive.layer, BLive.layer)
 
 }
 
-// output: 
-// [info] running ZLayerApp 
+// The output: 
 // Welcome to ZIO!
 // done: v = 10 
 ```
 
-### ZLayer example with complex dependencies
+### ZLayer Example with Multiple Dependencies
 
-In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, and `Clock`. The layer provided to the runnable application shows how dependency layers can be combined using `++` into a single combined layer. The combined layer will then be able to produce both of the outputs of the original sets as a single layer:
+In this example, we can see that the `C` service depends upon `A`, `B`, and `Clock`:
 
 ```scala mdoc:compile-only
 import zio._
-import zio.Clock._
 
-object ZLayerApp1 extends scala.App {
-  val rt = Runtime.default
+trait A
 
-  type ModuleA = ModuleA.Service
+object A {
+  val live: ZLayer[Any, Nothing, A] =
+    ZLayer.succeed(new A {})
+}
 
-  object ModuleA {
+trait B
 
-    trait Service {}
+object B {
+  val live: ZLayer[Any, Nothing, B] =
+    ZLayer.succeed(new B {})
+}
 
-    val any: ZLayer[ModuleA, Nothing, ModuleA] =
-      ZLayer.environment[ModuleA]
+trait C {
+  def foo: UIO[Int]
+}
 
-    val live: ZLayer[Any, Nothing, ModuleA] =
-      ZLayer.succeed(new Service {})
+case class CLive(a: A, b: B) extends C {
+  val foo: UIO[Int] = {
+    // In real application we use A and B services to implement the C service
+    val _ = a
+    val _ = b
+    UIO.succeed(42)
   }
+}
 
-  type ModuleB = ModuleB.Service
-
-  object ModuleB {
-
-    trait Service {}
-
-    val any: ZLayer[ModuleB, Nothing, ModuleB] =
-      ZLayer.environment[ModuleB]
-
-    val live: ZLayer[Any, Nothing, ModuleB] =
-      ZLayer.succeed(new Service {})
-  }
-
-  type ModuleC = ModuleC.Service
-
-  object ModuleC {
-
-    trait Service {
-      def foo: UIO[Int]
+object C {
+  val live: ZLayer[A with B with Clock, Nothing, C] =
+    ZLayer {
+      for {
+        a <- ZIO.service[A]
+        b <- ZIO.service[B]
+      } yield CLive(a, b)
     }
 
-    val any: ZLayer[ModuleC, Nothing, ModuleC] =
-      ZLayer.environment[ModuleC]
-
-    val live: ZLayer[ModuleA with ModuleB with Clock, Nothing, ModuleC] =
-      ZLayer.succeed {
-        new Service {
-          val foo: UIO[Int] = UIO.succeed(42)
-        }
-      }
-
-    val foo: URIO[ModuleC, Int] =
-      ZIO.serviceWithZIO(_.foo)
-  }
-
-  val env = (ModuleA.live ++ ModuleB.live ++ ZLayer.environment[Clock]) >>> ModuleC.live
-
-  val res = ModuleC.foo.provideCustom(env)
-
-  val out = rt.unsafeRun(res)
-  println(out)
-  // 42
+  val foo: URIO[C, Int] = ZIO.serviceWithZIO(_.foo)
 }
+
+object MainApp extends ZIOAppDefault {
+  val myApp = for {
+    r <- C.foo
+    _ <- Console.printLine(r)
+  } yield ()
+
+  def run = myApp.provideCustom(A.live, B.live, C.live)
+}
+
+// The Output:
+// 42
 ```
