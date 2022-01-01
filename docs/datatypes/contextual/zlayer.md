@@ -226,7 +226,19 @@ val live: ZLayer[Console, Nothing, Logging] = ZLayer.fromService(console =>
 )
 ```
 
-## Vertical and Horizontal Composition
+### Asynchronous Layer Construction
+
+Another important note about `ZLayer` is that, unlike constructors which are synchronous, `ZLayer` is _asynchronous_. Constructors in classes are always synchronous. This is a drawback for non-blocking applications. Because sometimes we might want to use something that is blocking the inside constructor.
+
+For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to blocking inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
+
+Well, with ZIO ZLayer, our constructor could be asynchronous, and they also can block definitely. And that is because `ZLayer` has the full power of ZIO. And as a result, we have strictly more power on our constructors with ZLayer.
+
+We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO.
+
+## Layer Composition (Building the Dependency Graph)
+
+### Vertical and Horizontal Composition
 
 We said that we can think of the `ZLayer` as a more powerful _constructor_. Constructors are not composable, because they are not values. While a constructor is not composable, `ZLayer` has a nice facility to compose with other `ZLayer`s. So we can say that a `ZLayer` turns a constructor into values.
 
@@ -311,15 +323,7 @@ And then we can compose the `newLayer` with `userRepo` vertically:
 val myLayer: ZLayer[Console, Throwable, UserRepo] = newLayer >>> userRepo
 ```
 
-## Layer Memoization
-
-One important feature of `ZIO` layers is that **they are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time.
-
-For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it.
-
-If we don't want to share a module, we should create a fresh, non-shared version of it through `ZLayer#fresh`.
-
-## Updating Local Dependencies
+### Updating Local Dependencies
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -454,7 +458,7 @@ val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo {
 val updatedHorizontal2 = horizontal ++ dbLayer
 ```
 
-## Hidden Versus Passed Through Dependencies
+### Hidden Versus Passed Through Dependencies
 
 One design decision regarding building dependency graphs is whether to hide or pass through the upstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to pass through dependencies as well.
 
@@ -528,23 +532,21 @@ lazy val hidden: ZLayer[Any, Nothing, Cake] = all
 
 And if you do build your dependency graph more explicitly, you can be confident that dependencies used in multiple parts of the dependency graph will only be created once due to memoization and sharing.
 
-## Cyclic Dependencies
+### Cyclic Dependencies
 
 The `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
 
-## Asynchronous Layer Construction
+## Layer Memoization
 
-Another important note about `ZLayer` is that, unlike constructors which are synchronous, `ZLayer` is _asynchronous_. Constructors in classes are always synchronous. This is a drawback for non-blocking applications. Because sometimes we might want to use something that is blocking the inside constructor.
+One important feature of `ZIO` layers is that **they are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time.
 
-For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to blocking inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
+For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it.
 
-Well, with ZIO ZLayer, our constructor could be asynchronous, and they also can block definitely. And that is because `ZLayer` has the full power of ZIO. And as a result, we have strictly more power on our constructors with ZLayer.
-
-We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO.
+If we don't want to share a module, we should create a fresh, non-shared version of it through `ZLayer#fresh`.
 
 ## Examples
 
-### The simplest ZLayer application
+### ZLayer Application with a Simple Dependency
 
 This application demonstrates a ZIO program with a single dependency on a simple `AppConfig`:
 
@@ -572,7 +574,7 @@ object Example extends ZIOAppDefault {
 
 ```
 
-### ZLayer application with dependencies
+### ZLayer Application with Multiple dependencies
 
 In the following example, our ZIO application has several dependencies:
 - `zio.Clock`
@@ -638,7 +640,7 @@ object MainApp extends ZIOAppDefault {
 // done: v = 10 
 ```
 
-### ZLayer Example with Multiple Dependencies
+### ZLayer Application with Transitive Dependency
 
 In this example, we can see that the `C` service depends upon `A`, `B`, and `Clock`:
 
