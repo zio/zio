@@ -94,74 +94,88 @@ object Logging {
 
 ### From Managed Resources
 
-Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down).
+Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). As we stated before, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
-Fortunately, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
-
-`ZLayer` relies on the powerful `ZManaged` data type and this makes this process extremely simple.
-
-We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZIO.fromManaged` constructor:
+1. The `ZLayer` relies on the powerful `ZManaged` data type and this makes this process extremely simple. We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZIO.apply` or the `ZIO.fromManaged` constructor:
 
 ```scala mdoc:silent:nest
 import zio._
 import scala.io.BufferedSource
 
-val managedFile = ZManaged.fromAutoCloseable(
+val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
+  // alternative: ZLayer.fromManaged
+  ZLayer {
+    ZManaged.fromAutoCloseable(
+      ZIO.attempt(scala.io.Source.fromFile("file.txt"))
+    )
+  }
+```
+
+2. Also, every `ZIO` effect can be converted to `ZManaged` using `ZIO#toManagedAuto` or `ZIO#toManagedWith` and then can be converted to `ZLayer` by calling the `ZLayer#toLayer`:
+
+```scala mdoc:compile-only
+val managedFile: ZLayer[Any, Throwable, BufferedSource] =
   ZIO.attempt(scala.io.Source.fromFile("file.txt"))
-)
-val fileLayer: ZLayer[Any, Throwable, BufferedSource] = 
-  ZLayer.fromManaged(managedFile)
+    .toManagedAuto   // alternative: toManagedWith(b => UIO(b.close())
+    .toLayer
 ```
 
-Also, every `ZManaged` can be converted to `ZLayer` by calling `ZLayer#toLayer`:
+3. We can create a `ZLayer` directly from `acquire` and `release` actions of a managed resource:
 
-```scala mdoc:silent:nest
-val fileLayer: ZLayer[Any, Throwable, BufferedSource] = managedFile.toLayer
-```
-
-Let's see another real-world example of creating a layer from managed resources. Assume we have written a managed `UserRepository`:
-
-```scala mdoc:invisible:reset
+```scala mdoc:compile-only
 import zio._
-import zio.Console._
+import java.io.{Closeable, FileInputStream}
+
+def acquire: Task[FileInputStream] = ZIO.attempt(new FileInputStream("file.txt"))
+def release(resource: Closeable): UIO[Unit] = ZIO.succeed(resource.close())
+
+val inputStreamLayer: ZLayer[Any, Throwable, FileInputStream] =
+  ZLayer.fromAcquireRelease(acquire)(release)
+```
+
+Let's see a real-world example of creating a layer from managed resources. Assume we have the following `UserRepository` service:
+
+```scala mdoc:silent
+import zio._
 import scala.io.Source._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
 
 trait DBConfig
 trait Transactor
+trait User
 
 def dbConfig: Task[DBConfig] = Task.attempt(???)
 def initializeDb(config: DBConfig): Task[Unit] = Task.attempt(???)
-def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ???
+def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ZManaged.attempt(???)
 
-case class UserRepository(xa: Transactor)
-object UserRepository {
-  def apply(xa: Transactor): UserRepository = new UserRepository(xa) 
+trait UserRepository {
+  def save(user: User): Task[Unit]
+}
+
+case class UserRepositoryLive(xa: Transactor) extends UserRepository {
+  override def save(user: User): Task[Unit] = Task(???)
 }
 ```
 
+Assume we have written a managed `UserRepository`:
+
 ```scala mdoc:silent:nest
-def userRepository: ZManaged[Console, Throwable, UserRepository] = for {
-  cfg <- dbConfig.toManaged
-  _ <- initializeDb(cfg).toManaged
-  xa <- makeTransactor(cfg)
-} yield new UserRepository(xa)
+def managed: ZManaged[Console, Throwable, UserRepository] = 
+  for {
+    cfg <- dbConfig.toManaged
+    _   <- initializeDb(cfg).toManaged
+    xa  <- makeTransactor(cfg)
+  } yield new UserRepositoryLive(xa)
 ```
 
 We can convert that to `ZLayer` with `ZLayer.fromManaged` or `ZManaged#toLayer`:
 
 ```scala mdoc:nest
-val usersLayer  = userRepository.toLayer
-val usersLayer_ = ZLayer.fromManaged(userRepository)
+val usersLayer : ZLayer[Console, Throwable, UserRepository] = managed.toLayer
 ```
 
-Also, we can create a `ZLayer` directly from `acquire` and `release` actions of a managed resource:
+```scala mdoc:invisible:reset
 
-```scala mdoc:nest
-def acquire = ZIO.attempt(new FileInputStream("file.txt"))
-def release(resource: Closeable) = ZIO.succeed(resource.close())
-
-val inputStreamLayer = ZLayer.fromAcquireRelease(acquire)(release)
 ```
 
 ### From ZIO Effects
@@ -169,6 +183,8 @@ val inputStreamLayer = ZLayer.fromAcquireRelease(acquire)(release)
 We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromEffect` constructor, or calling `ZIO#toLayer` method:
 
 ```scala mdoc
+import zio._
+
 val layer = ZLayer.fromZIO(ZIO.succeed("Hello, World!"))
 val layer_ = ZIO.succeed("Hello, World!").toLayer
 ```
