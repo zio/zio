@@ -11,7 +11,9 @@ We can think of a layer as mental model of an asynchronous function from `RIn` t
 type ZLayer[-RIn, +E, +ROut] = RIn => async Either[E, ROut]
 ```
 
-Layers are:
+In some cases, a `ZLayer` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The [`Layer`](layer.md) type alias provided by ZIO is a convenient way to define a layer without requirements.
+
+ZLayers are:
 
 1. **Recipes for Creating Services** — They describe how a given dependencies produces another services. For example, the `ZLayer[Logging & Database, Throwable, UserRepo]` is a recipe for building a service that requires `Logging` and `Database` service, and it produces a `UserRepo` service.
 
@@ -19,7 +21,7 @@ Layers are:
 
 3. **Composable** — Because of their excellent **composition properties**, layers are the idiomatic way in ZIO to create services that depend on other services. We can define layers that are relying on each other.
 
-4. **Effectful and Resourceful** — The construction of ZIO layers can be effectful and resourceful, they can be acquired and safely released when the services are done being utilized.
+4. **Effectful and Resourceful** — The construction of ZIO layers can be effectful and resourceful. They can be acquired effectfully and safely released when the services are done being utilized. For example, to create a recipe for a `Database` service, we should describe how the `Database` will be initialized using an acquisition action. In addition, it may contain information about how the `Database` releases its connection pools.
 
 5. **Asynchronous** — Unlike class constructors which are blocking, ZLayer is fully asynchronous and non-blocking.
 
@@ -35,14 +37,6 @@ Let's see how we can create a layer:
 
 ## Creation
 
-`ZLayer` is an **alternative to a class constructor**, a recipe to create a service. This recipe may contain the following information:
-
-1. **Dependencies** — To create a service, we need to indicate what other service we are depending on. For example, a `Database` service might need `Socket` and `Clock` services to perform its operations.
-
-2. **Acquisition/Release Action** — It may contain how to initialize a service. For example, if we are creating a recipe for a `Database` service, we should provide how the `Database` will be initialized, via acquisition action. Also, it may contain how to release a service. For example, how the `Database` releases its connection pools.
-
-In some cases, a `ZLayer` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The `Layer` type alias provided by ZIO is a convenient way to define a layer without requirements.
-
 There are many ways to create a ZLayer. Here's an incomplete list:
 - `ZLayer.succeed` to create a layer from an existing service
 - `ZLayer.succeedMany` to create a layer from a value that's one or more services
@@ -56,29 +50,33 @@ Where it makes sense, these methods have also variants to build a service effect
 
 Let's review some of the `ZLayer`'s most useful constructors:
 
-### From Simple Values
+### From a Simple Value or an Existing Service
 
-With `ZLayer.succeed` we can construct a `ZLayer` from a value. It returns a `ULayer[A]` value, which represents a layer of an application that _has_ a service of type `A`:
+With `ZLayer.succeed` we can construct a `ZLayer` from a value. It returns a `ULayer[A]` value, which represents a layer of an application that has a service of type `A`:
 
 ```scala
 def succeed[A: Tag](a: A): ULayer[A]
 ```
 
-In the following example, we are going to create a `nameLayer` that provides us the name of `Adam`.
+Using `ZLayer.succeed` we can create a layer containing _simple value_ or a _service_:
 
-```scala mdoc:invisible
+1. To create a layer from a _simple value_:
+
+```scala mdoc:compile-only
 import zio._
+
+case class AppConfig(host: String, port: Int)
+
+val configLayer: ULayer[AppConfig] = ZLayer.succeed(AppConfig("localhost", 8080))
 ```
 
-```scala mdoc:silent
-val nameLayer: ULayer[String] = ZLayer.succeed("Adam")
-```
+In the example above, we created a `configLayer` that provides us an instance of `AppConfig`.
 
-In most cases, we use `ZLayer.succeed` to create a layer of type `A`.
+2. To create a layer from an _existing service_:
 
-For example, assume we have written the following service:
+```scala mdoc:compile-only
+import zio._
 
-```scala mdoc:silent
 trait Logging {
   def log(line: String): UIO[Unit]
 }
@@ -104,11 +102,10 @@ Fortunately, the construction of ZIO layers can be effectful and resourceful, th
 
 We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZIO.fromManaged` constructor:
 
-```scala mdoc:invisible
-import scala.io.BufferedSource
-```
-
 ```scala mdoc:silent:nest
+import zio._
+import scala.io.BufferedSource
+
 val managedFile = ZManaged.fromAutoCloseable(
   ZIO.attempt(scala.io.Source.fromFile("file.txt"))
 )
