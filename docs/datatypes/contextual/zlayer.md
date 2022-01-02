@@ -11,6 +11,14 @@ We can think of a layer as mental model of an asynchronous function from `RIn` t
 type ZLayer[-RIn, +E, +ROut] = RIn => async Either[E, ROut]
 ```
 
+For example, a `ZLayer[Clock & Logging, Throwable, Database]` can be thought of as a function that map `Clock` and `Logging` services into `Database` service:
+
+```scala
+(Clock, Logging) => Database
+```
+
+So we can say that the `Database` service has two dependencies: `Clock` and `Logging` services.
+
 In some cases, a `ZLayer` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The [`Layer`](layer.md) type alias provided by ZIO is a convenient way to define a layer without requirements.
 
 ZLayers are:
@@ -23,15 +31,11 @@ ZLayers are:
 
 4. **Effectful and Resourceful** — The construction of ZIO layers can be effectful and resourceful. They can be acquired effectfully and safely released when the services are done being utilized. For example, to create a recipe for a `Database` service, we should describe how the `Database` will be initialized using an acquisition action. In addition, it may contain information about how the `Database` releases its connection pools.
 
-5. **Asynchronous** — Unlike class constructors which are blocking, ZLayer is fully asynchronous and non-blocking.
+5. **Asynchronous** — Unlike class constructors which are blocking, `ZLayer` is fully asynchronous and non-blocking. Note that constructors in classes are always synchronous. This is a drawback for non-blocking applications because sometimes we might want to use something that is blocking the inside constructor.
 
-For example, a `ZLayer[Clock & Logging, Throwable, Database]` can be thought of as a function that map `Clock` and `Logging` services into `Database` service:
+  For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to block inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
 
-```scala
-(Clock, Logging) => Database
-```
-
-So we can say that the `Database` service has two dependencies: `Clock` and `Logging` services.
+  With ZIO ZLayer, our constructor could be asynchronous, and they could also block. We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO. And that is because `ZLayer` has the full power of the `ZIO` data type, and as a result, we have strictly more power on our constructors with `ZLayer`.
 
 Let's see how we can create a layer:
 
@@ -239,15 +243,6 @@ val live: ZLayer[Console, Nothing, Logging] = ZLayer.fromService(console =>
 )
 ```
 
-### Asynchronous Layer Construction
-
-Another important note about `ZLayer` is that, unlike constructors which are synchronous, `ZLayer` is _asynchronous_. Constructors in classes are always synchronous. This is a drawback for non-blocking applications. Because sometimes we might want to use something that is blocking the inside constructor.
-
-For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to blocking inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
-
-Well, with ZIO ZLayer, our constructor could be asynchronous, and they also can block definitely. And that is because `ZLayer` has the full power of ZIO. And as a result, we have strictly more power on our constructors with ZLayer.
-
-We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO.
 
 ## Manual Layer Composition
 
