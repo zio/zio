@@ -216,7 +216,7 @@ object ZIOMetric {
    * the quantity of interest is the value as of a specific point in time.
    */
   abstract class Counter[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
-    private[zio] var counter = internal.metrics.Counter(name, tags)
+    private[zio] val counter = ZFiberRef.unsafeMake(internal.metrics.Counter(name, tags))
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -235,7 +235,7 @@ object ZIOMetric {
      * Returns the current value of this counter.
      */
     final def count(implicit trace: ZTraceElement): UIO[Double] =
-      counter.count
+      counter.getWith(_.count)
 
     /**
      * Returns whether this counter is equal to the specified counter.
@@ -256,13 +256,13 @@ object ZIOMetric {
      * Increments this counter by the specified amount.
      */
     final def increment(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
-      counter.increment(value)
+      counter.getWith(_.increment(value))
 
     /**
      * Increments this counter by one.
      */
     final def increment(implicit trace: ZTraceElement): UIO[Any] =
-      counter.increment(1.0)
+      counter.getWith(_.increment(1.0))
 
     /**
      * Converts this counter metric to one where the tags depend on the measured
@@ -274,11 +274,13 @@ object ZIOMetric {
           self.apply(zio.tap(changeCounter))
 
         private def changeCounter(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
-          ZIO.succeed {
+          self.counter.update { counter =>
             val extraTags = f(value)
             val allTags   = self.tags ++ extraTags
-            if (self.counter.metricKey.tags != allTags) {
-              self.counter = internal.metrics.Counter(self.name, allTags)
+            if (counter.metricKey.tags != allTags) {
+              internal.metrics.Counter(self.name, allTags)
+            } else {
+              counter
             }
           }
       }
@@ -298,7 +300,7 @@ object ZIOMetric {
    * values over time.
    */
   abstract class Gauge[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
-    private[this] var gauge = internal.metrics.Gauge(name, tags)
+    private[this] val gauge = ZFiberRef.unsafeMake(internal.metrics.Gauge(name, tags))
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -306,7 +308,7 @@ object ZIOMetric {
      * Adjusts this gauge by the specified amount.
      */
     def adjust(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
-      gauge.adjust(value)
+      gauge.getWith(_.adjust(value))
 
     /**
      * Returns a copy of this gauge with the specified name and tags.
@@ -338,13 +340,13 @@ object ZIOMetric {
      * Sets this gauge to the specified value.
      */
     def set(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
-      gauge.set(value)
+      gauge.getWith(_.set(value))
 
     /**
      * Returns the current value of this gauge.
      */
     final def value(implicit trace: ZTraceElement): UIO[Double] =
-      gauge.value
+      gauge.getWith(_.value)
 
     /**
      * Converts this gauge metric to one where the tags depend on the measured
@@ -356,11 +358,13 @@ object ZIOMetric {
           self.apply(zio.tap(changeGauge))
 
         private def changeGauge(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
-          ZIO.succeed {
+          self.gauge.update { gauge =>
             val extraTags = f(value)
             val allTags   = self.tags ++ extraTags
-            if (self.gauge.metricKey.tags != allTags) {
-              self.gauge = internal.metrics.Gauge(self.name, allTags)
+            if (gauge.metricKey.tags != allTags) {
+              internal.metrics.Gauge(self.name, allTags)
+            } else {
+              gauge
             }
           }
       }
@@ -385,7 +389,7 @@ object ZIOMetric {
     final val boundaries: Histogram.Boundaries,
     final val tags: Chunk[MetricLabel]
   ) extends ZIOMetric[A] { self =>
-    private[zio] var histogram = internal.metrics.Histogram(name, boundaries, tags)
+    private[zio] val histogram = ZFiberRef.unsafeMake(internal.metrics.Histogram(name, boundaries, tags))
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -394,13 +398,13 @@ object ZIOMetric {
      * histogram.
      */
     def buckets(implicit trace: ZTraceElement): UIO[Chunk[(Double, Long)]] =
-      histogram.buckets
+      histogram.getWith(_.buckets)
 
     /**
      * Returns the current count of values in this histogram.
      */
     def count(implicit trace: ZTraceElement): UIO[Long] =
-      histogram.count
+      histogram.getWith(_.count)
 
     /**
      * Returns a copy of this histogram with the specified name, boundaries, and
@@ -440,13 +444,13 @@ object ZIOMetric {
      * this histogram.
      */
     def observe(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
-      histogram.observe(value)
+      histogram.getWith(_.observe(value))
 
     /**
      * Returns the current sum of values in this histogram.
      */
     def sum(implicit trace: ZTraceElement): UIO[Double] =
-      histogram.sum
+      histogram.getWith(_.sum)
 
     /**
      * Converts this histogram metric to one where the tags depend on the
@@ -458,11 +462,13 @@ object ZIOMetric {
           self.apply(zio.tap(changeHistogram))
 
         private def changeHistogram(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
-          ZIO.succeed {
+          self.histogram.update { histogram =>
             val extraTags = f(value)
             val allTags   = self.tags ++ extraTags
-            if (self.histogram.metricKey.tags != allTags) {
-              self.histogram = internal.metrics.Histogram(self.name, self.boundaries, allTags)
+            if (histogram.metricKey.tags != allTags) {
+              internal.metrics.Histogram(self.name, self.boundaries, allTags)
+            } else {
+              histogram
             }
           }
       }
@@ -514,7 +520,8 @@ object ZIOMetric {
     final val quantiles: Chunk[Double],
     final val tags: Chunk[MetricLabel]
   ) extends ZIOMetric[A] { self =>
-    private[this] var summary = internal.metrics.Summary(name, maxAge, maxSize, error, quantiles, tags)
+    private[this] val summary =
+      ZFiberRef.unsafeMake(internal.metrics.Summary(name, maxAge, maxSize, error, quantiles, tags))
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -542,7 +549,7 @@ object ZIOMetric {
      * summary.
      */
     def count(implicit trace: ZTraceElement): UIO[Long] =
-      summary.count
+      summary.getWith(_.count)
 
     /**
      * Returns whether this summary is equal to the specified summary.
@@ -569,19 +576,19 @@ object ZIOMetric {
      * also recording the `Instant` when the value was observed.
      */
     def observe(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
-      summary.observe(value)
+      summary.getWith(_.observe(value))
 
     /**
      * Returns the values corresponding to each quantile in this summary.
      */
     def quantileValues(implicit trace: ZTraceElement): UIO[Chunk[(Double, Option[Double])]] =
-      summary.quantileValues
+      summary.getWith(_.quantileValues)
 
     /**
      * Returns the current sum of all the values ever observed by this summary.
      */
     def sum(implicit trace: ZTraceElement): UIO[Double] =
-      summary.sum
+      summary.getWith(_.sum)
 
     /**
      * Converts this summary metric to one where the tags depend on the measured
@@ -593,12 +600,13 @@ object ZIOMetric {
           self.apply(zio.tap(changeSummary))
 
         private def changeSummary(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
-          ZIO.succeed {
+          self.summary.update { summary =>
             val extraTags = f(value)
             val allTags   = self.tags ++ extraTags
-            if (self.summary.metricKey.tags != allTags) {
-              self.summary =
-                internal.metrics.Summary(self.name, self.maxAge, self.maxSize, self.error, self.quantiles, allTags)
+            if (summary.metricKey.tags != allTags) {
+              internal.metrics.Summary(self.name, self.maxAge, self.maxSize, self.error, self.quantiles, allTags)
+            } else {
+              summary
             }
           }
       }
@@ -619,7 +627,7 @@ object ZIOMetric {
    */
   abstract class SetCount[A](final val name: String, final val setTag: String, final val tags: Chunk[MetricLabel])
       extends ZIOMetric[A] { self =>
-    private[zio] var setCount = internal.metrics.SetCount(name, setTag, tags)
+    private[zio] val setCount = ZFiberRef.unsafeMake(internal.metrics.SetCount(name, setTag, tags))
 
     def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
 
@@ -660,14 +668,14 @@ object ZIOMetric {
      * Increments the counter associated with the specified value by one.
      */
     def observe(value: String)(implicit trace: ZTraceElement): UIO[Any] =
-      setCount.observe(value)
+      setCount.getWith(_.observe(value))
 
     /**
      * Returns the number of occurrences of every value observed by this set
      * count.
      */
     def occurrences(implicit trace: ZTraceElement): UIO[Chunk[(String, Long)]] =
-      setCount.occurrences
+      setCount.getWith(_.occurrences)
 
     /**
      * Converts this set count metric to one where the tags depend on the
@@ -679,11 +687,13 @@ object ZIOMetric {
           self.apply(zio.tap(changeSetCount))
 
         private def changeSetCount(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
-          ZIO.succeed {
+          self.setCount.update { setCount =>
             val extraTags = f(value)
             val allTags   = self.tags ++ extraTags
-            if (self.setCount.metricKey.tags != allTags) {
-              self.setCount = internal.metrics.SetCount(self.name, self.setTag, allTags)
+            if (setCount.metricKey.tags != allTags) {
+              internal.metrics.SetCount(self.name, self.setTag, allTags)
+            } else {
+              setCount
             }
           }
       }
