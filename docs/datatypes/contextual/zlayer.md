@@ -186,63 +186,23 @@ val usersLayer : ZLayer[Console, Throwable, UserRepository] = managed.toLayer
 
 We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromEffect` constructor, or calling `ZIO#toLayer` method:
 
-```scala mdoc
+```scala mdoc:compile-only
 import zio._
 
-val layer = ZLayer.fromZIO(ZIO.succeed("Hello, World!"))
-val layer_ = ZIO.succeed("Hello, World!").toLayer
+val layer1: ZLayer[Any, Nothing, String] = ZLayer.fromZIO(ZIO.succeed("Hello, World!"))
+val layer2: ZLayer[Any, Nothing, String] = ZIO.succeed("Hello, World!").toLayer
 ```
 
-Assume we have a `ZIO` effect that read the application config from a file, we can create a layer from that:
+For example, assume we have a `ZIO` effect that read the application config from a file, we can create a layer from that:
 
-```scala mdoc:invisible
-trait AppConfig
+```scala mdoc:compile-only
+import zio._
+
+case class AppConfig(poolSize: Int)
+  
+def loadConfig : Task[AppConfig]      = Task.attempt(???)
+val configLayer: TaskLayer[AppConfig] = ZLayer.fromZIO(loadConfig)
 ```
-
-```scala mdoc:nest
-def loadConfig: Task[AppConfig] = Task.attempt(???)
-val configLayer = ZLayer.fromZIO(loadConfig)
-```
-
-### From another Service
-
-Every `ZLayer` describes an application that requires some services as input and produces some services as output. Sometimes when we are creating a layer, we may need to access and depend on one or several services.
-
-The `ZLayer.fromService` construct a layer that purely depends on the specified service:
-
-```scala
-def fromService[A: Tag, B: Tag](f: A => B): ZLayer[A, Nothing, B]
-```
-
-Assume we want to write a `live` version of the following logging service:
-
-```scala mdoc:silent:nest
-object logging {
-  type Logging = Logging.Service
-
-  object Logging {
-    trait Service {
-      def log(msg: String): UIO[Unit]
-    }
-  }
-}
-```
-
-We can create that by using `ZLayer.fromService` constructor, which depends on `Console` service:
-
-```scala mdoc:invisible
-import logging.Logging
-import logging.Logging._
-```
-
-```scala mdoc:silent:nest:warn
-val live: ZLayer[Console, Nothing, Logging] = ZLayer.fromService(console =>
-  new Service {
-    override def log(msg: String): UIO[Unit] = console.printLine(msg).orDie
-  }
-)
-```
-
 
 ## Manual Layer Composition
 
