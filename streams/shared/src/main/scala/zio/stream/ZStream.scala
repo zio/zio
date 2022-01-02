@@ -3477,10 +3477,19 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def tapSink[R1 <: R, E1 >: E](
     sink: => ZSink[R1, E1, A, Any, Any]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    ZStream.managed(broadcastedQueues(2, 1)).flatMap { queues =>
-      val left  = ZStream.fromQueue(queues(0)).flattenTake
-      val right = ZStream.fromQueueWithShutdown(queues(1)).flattenTake
-      left.merge(ZStream.execute(right.run(sink)))
+    ZStream.fromZIO(Queue.bounded[Take[E1, A]](1)).flatMap { queue =>
+      val right = ZStream.fromQueueWithShutdown(queue, 1).flattenTake
+      lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
+        ZChannel.readWithCause(
+          chunk =>
+            ZChannel.fromZIO(queue.offer(Take.chunk(chunk))) *>
+              ZChannel.write(chunk) *>
+              loop,
+          cause => ZChannel.fromZIO(queue.offer(Take.failCause(cause))),
+          _ => ZChannel.fromZIO(queue.shutdown)
+        )
+      new ZStream(self.channel >>> loop)
+        .merge(ZStream.execute(right.run(sink)), TerminationStrategy.Both)
     }
 
   /**
