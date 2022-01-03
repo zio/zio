@@ -204,6 +204,70 @@ def loadConfig : Task[AppConfig]      = Task.attempt(???)
 val configLayer: TaskLayer[AppConfig] = ZLayer.fromZIO(loadConfig)
 ```
 
+### From Functions
+
+A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer`.
+
+Let's say we have defined the following `Logging` service:
+
+```scala mdoc:silent
+import zio._
+
+trait Logging {
+  def log(line: String): UIO[Unit]
+}
+```
+
+Assume we have the following function which creates a live layer for `Logging` service:
+
+```scala mdoc:silent
+import zio._
+
+def loggingLive(console: Console, clock: Clock): Logging =
+  new Logging {
+    override def log(line: String): UIO[Unit] =
+      for {
+        time <- clock.currentDateTime
+        _    <- console.printLine(s"$time —- $line").orDie
+      } yield ()
+  }
+```
+
+We can convert the `loggingLive` function to the `ZLayer` using `toLayer` extension method on functions:
+
+```scala mdoc:compile-only
+val layer: ZLayer[Console & Clock, Nothing, Logging] = (loggingLive _).toLayer
+```
+
+This is the same method we use in Module Pattern:
+
+```scala mdoc:silent
+import zio._
+
+case class LoggingLive(console: Console, clock: Clock) extends Logging {
+  override def log(line: String): UIO[Unit] =
+    for {
+      time <- clock.currentDateTime
+      _    <- console.printLine(s"$time —- $line").orDie
+    } yield ()
+}
+
+object LoggingLive {
+  val layer: ZLayer[Console & Clock, Nothing, Logging] = (LoggingLive.apply _).toLayer
+}
+```
+
+Other than the `toLayer` extension method, we can create a layer using `ZLayer.fromFunction` directly:
+
+```scala mdoc:silent
+val layer: ZLayer[Console & Clock, Nothing, Logging] =
+  ZLayer.fromFunction(x => LoggingLive(x.get[Console], x.get[Clock]))
+```
+
+```scala mdoc:invisible:reset
+
+```
+
 ## Manual Layer Composition
 
 The `ZLayer` offers various operators for composing layers together to build the dependency graph required by our application. In this section, we will learn more about these operators.
