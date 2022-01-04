@@ -605,8 +605,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
           exit match {
             case Exit.Success(Right(elem)) =>
-              pull.forkDaemon.map { leftFiber =>
-                ZChannel.write(elem) *> go(both(leftFiber, fiber))
+              ZIO.succeed {
+                ZChannel.write(elem) *> ZChannel.fromZIO(pull.forkDaemon).flatMap { leftFiber =>
+                  go(both(leftFiber, fiber))
+                }
               }
 
             case Exit.Success(Left(z)) =>
