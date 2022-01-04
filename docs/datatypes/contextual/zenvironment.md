@@ -3,7 +3,36 @@ id: zenvironment
 title: "ZEnvironment"
 ---
 
-A `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect. So we can think of `ZIO` as the following function:
+A `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect. The `ZIO` data type uses this map to maintain all the environmental services and their implementations.
+
+For example, assume we have written a `ZEnvironment` containing all built-in services as below:
+
+```scala mdoc:silent
+import zio._
+
+val environment: ZEnvironment[Console & Clock & Random & System] =
+  ZEnvironment[Console, Clock, Random, System](
+    Console.ConsoleLive,
+    Clock.ClockLive,
+    Random.RandomLive,
+    System.SystemLive
+  )
+```
+
+This map contains all built-in services and their corresponding implementations. If we evaluate the `ZEnvironment#toString` method, we can see the underlying type-level map something like this.
+
+```scala
+ZEnvironment(
+  Map(
+    Console -> (zio.Console$ConsoleLive$@76a3e297, 0),
+    Clock   -> (zio.Clock$ClockLive$@4d3167f4, 1), 
+    Random  -> (RandomScala(scala.util.Random$@4eb7f003), 2), 
+    System  -> (zio.System$SystemLive$@eafc191, 3)
+  )
+)
+```
+
+From a ZIO Environment point of view, we can think of `ZIO` as the following function:
 
 ```scala
 type ZIO[R, E, A] = ZEnvironment[R] => Either[E, A]
