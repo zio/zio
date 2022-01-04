@@ -640,6 +640,8 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
+ZIO Test's [Live service](../test/environment/live.md) uses this pattern to provide real environment to a single part of an effect.
+
 ## Layer Memoization
 
 One important feature of `ZIO` layers is that **they are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time.
