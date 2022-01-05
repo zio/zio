@@ -844,6 +844,8 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     self flatMap (a => that map (b => f(a, b)))
 
   private def run(journal: Journal, fiberId: FiberId, r0: ZEnvironment[R]): TExit[E, A] = {
+    import internal._
+
     type Erased = ZSTM[Any, Any, Any]
     type Cont   = Any => Erased
 
@@ -851,6 +853,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     val envStack  = Stack[ZEnvironment[Any]](r0)
     var exit      = null.asInstanceOf[TExit[Any, Any]]
     var curr      = self.asInstanceOf[Erased]
+    var opCount   = 0
 
     def unwindStack(error: Any, isRetry: Boolean): Erased = {
       var result = null.asInstanceOf[Erased]
@@ -867,66 +870,73 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     }
 
     while (exit eq null) {
-      (curr.tag: @annotation.switch) match {
-        case Tags.Effect =>
-          try {
-            val effect = curr.asInstanceOf[Effect[Any, Any, Any]]
-            val a      = effect.f(journal, fiberId, envStack.peek())
+      if (opCount == YieldOpCount) {
+        if (isInvalid(journal)) exit = TExit.Retry
+        else opCount = 0
+      } else {
+        (curr.tag: @annotation.switch) match {
+          case Tags.Effect =>
+            try {
+              val effect = curr.asInstanceOf[Effect[Any, Any, Any]]
+              val a      = effect.f(journal, fiberId, envStack.peek())
+
+              if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
+            } catch {
+              case ZSTM.RetryException =>
+                curr = unwindStack(null, true)
+
+                if (curr eq null) exit = TExit.Retry
+
+              case ZSTM.FailException(e) =>
+                curr = unwindStack(e, false)
+
+                if (curr eq null) exit = TExit.Fail(e)
+
+              case ZSTM.DieException(t) =>
+                curr = unwindStack(t, false)
+
+                if (curr eq null) exit = TExit.Die(t)
+
+              case ZSTM.InterruptException(fiberId) =>
+                exit = TExit.Interrupt(fiberId)
+            }
+
+          case Tags.OnSuccess =>
+            val onSuccess = curr.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
+            contStack.push(onSuccess.k)
+            curr = onSuccess.stm
+
+          case Tags.OnFailure =>
+            val onFailure = curr.asInstanceOf[OnFailure[Any, Any, Any, Any]]
+            contStack.push(onFailure)
+            curr = onFailure.stm
+
+          case Tags.OnRetry =>
+            val onRetry = curr.asInstanceOf[OnRetry[Any, Any, Any]]
+            contStack.push(onRetry)
+            curr = onRetry.stm
+
+          case Tags.Provide =>
+            val provide = curr.asInstanceOf[Provide[Any, Any, Any, Any]]
+
+            envStack.push(provide.f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]](envStack.peek()))
+
+            val cleanup = ZSTM.succeed(envStack.pop())
+
+            curr = provide.effect.ensuring(cleanup).asInstanceOf[Erased]
+
+          case Tags.SucceedNow =>
+            val a = curr.asInstanceOf[SucceedNow[Any]].a
 
             if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
-          } catch {
-            case ZSTM.RetryException =>
-              curr = unwindStack(null, true)
 
-              if (curr eq null) exit = TExit.Retry
+          case Tags.Succeed =>
+            val a = curr.asInstanceOf[Succeed[Any]].a()
 
-            case ZSTM.FailException(e) =>
-              curr = unwindStack(e, false)
+            if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
+        }
 
-              if (curr eq null) exit = TExit.Fail(e)
-
-            case ZSTM.DieException(t) =>
-              curr = unwindStack(t, false)
-
-              if (curr eq null) exit = TExit.Die(t)
-
-            case ZSTM.InterruptException(fiberId) =>
-              exit = TExit.Interrupt(fiberId)
-          }
-
-        case Tags.OnSuccess =>
-          val onSuccess = curr.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
-          contStack.push(onSuccess.k)
-          curr = onSuccess.stm
-
-        case Tags.OnFailure =>
-          val onFailure = curr.asInstanceOf[OnFailure[Any, Any, Any, Any]]
-          contStack.push(onFailure)
-          curr = onFailure.stm
-
-        case Tags.OnRetry =>
-          val onRetry = curr.asInstanceOf[OnRetry[Any, Any, Any]]
-          contStack.push(onRetry)
-          curr = onRetry.stm
-
-        case Tags.Provide =>
-          val provide = curr.asInstanceOf[Provide[Any, Any, Any, Any]]
-
-          envStack.push(provide.f.asInstanceOf[ZEnvironment[Any] => ZEnvironment[Any]](envStack.peek()))
-
-          val cleanup = ZSTM.succeed(envStack.pop())
-
-          curr = provide.effect.ensuring(cleanup).asInstanceOf[Erased]
-
-        case Tags.SucceedNow =>
-          val a = curr.asInstanceOf[SucceedNow[Any]].a
-
-          if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
-
-        case Tags.Succeed =>
-          val a = curr.asInstanceOf[Succeed[Any]].a()
-
-          if (contStack.isEmpty) exit = TExit.Succeed(a) else curr = contStack.pop()(a)
+        opCount += 1
       }
     }
 
@@ -1808,6 +1818,7 @@ object ZSTM {
   private[stm] object internal {
     val DefaultJournalSize = 4
     val MaxRetries         = 10
+    val YieldOpCount       = 2048
 
     object Tags {
       final val Effect     = 0
