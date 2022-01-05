@@ -644,11 +644,139 @@ ZIO Test's [Live service](../test/environment/live.md) uses this pattern to prov
 
 ## Layer Memoization
 
-One important feature of `ZIO` layers is that **they are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time.
+One important feature of `ZIO` layers is that **they are shared by default**, meaning that if the same layer is used twice, the layer will only be allocated a single time. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it.
 
-For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it.
+For example, assume we have the three `A`, `B`, and `C` services. The implementation of both `B` and `C` are dependent on the `A` service:
 
-If we don't want to share a module, we should create a fresh, non-shared version of it through `ZLayer#fresh`.
+```scala mdoc:silent
+import zio._
+
+trait A
+trait B
+trait C
+
+case class BLive(a: A) extends B
+case class CLive(a: A) extends C
+
+val a: ZLayer[Any, Nothing, A] = UIO(new A {}).debug("initialized").toLayer
+val b: ZLayer[A,   Nothing, B] = (BLive.apply _).toLayer[B]
+val c: ZLayer[A,   Nothing, C] = (CLive.apply _).toLayer[C]
+```
+
+Although both `b` and `c` layers require the `a` layer, the `a` layer is instantiated only once. It is shared with both `b` and `c`:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  val myApp: ZIO[B & C, Nothing, Unit] =
+    for {
+      _ <- ZIO.service[B]
+      _ <- ZIO.service[C]
+    } yield ()
+    
+  // alternative: myApp.provideLayer((a >>> b) ++ (a >>> c))
+  def run = myApp.provide(a, b, c) 
+}
+// Output:
+// initialized: zio.examples.MyMainApp3$$anon$32@62c8b8d3
+```
+
+If we don't want to share a module, we should create a fresh, non-shared version of it through `ZLayer#fresh`:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  val myApp: ZIO[B & C, Nothing, Unit] =
+    for {
+      _ <- ZIO.service[B]
+      _ <- ZIO.service[C]
+    } yield ()
+
+  def run = myApp.provideLayer((a.fresh >>> b) ++ (a.fresh >>> c))
+}
+// Output:
+// initialized: zio.examples.MyMainApp2$$anon$22@7eb282da
+// initialized: zio.examples.MyMainApp2$$anon$22@6397a26a
+```
+
+Let's see a real example of using the `ZLayer#fresh` operator. In the following example, we have two services named `DocumentRepo` and `UserRepo`. Both live versions of these services are dependent on an in-memory cache service. While sharing the cache service may cause some problems four our business logic, we should separate cache service for both `DocumentRepo` and `UserRepo` services:
+
+```scala mdoc:compile-only
+import zio._
+
+trait User
+
+trait UserRepo {
+  def save(user: User): Task[Unit]
+}
+case class UserRepoLive(cache: Cache, database: Database) extends UserRepo {
+  override def save(user: User): Task[Unit] = ???
+}
+object UserRepoLive {
+  val layer: URLayer[Cache & Database, UserRepo] = (UserRepoLive.apply _).toLayer
+}
+
+trait Database
+case class DatabaseLive() extends Database
+object DatabaseLive {
+  val layer: ZLayer[Any, Nothing, Database] = (DatabaseLive.apply _).toLayer
+}
+
+trait Cache {
+  def save(key: String, value: Array[Byte]): Task[Unit]
+  def get(key: String): Task[Array[Byte]]
+  def remove(key: String): Task[Unit]
+}
+object InmemoryCacheLive {
+  val layer: ZLayer[Any, Throwable, Cache] = ZIO(new Cache {
+    override def save(key: String, value: Array[Byte]): Task[Unit] = ???
+
+    override def get(key: String): Task[Array[Byte]] = ???
+
+    override def remove(key: String): Task[Unit] = ???
+  }).debug("initialized").toLayer
+}
+
+trait Document
+trait DocumentRepo {
+  def save(document: Document): Task[Unit]
+}
+case class DocumentRepoLive(cache: Cache, blobStorage: BlobStorage) extends DocumentRepo {
+  override def save(document: Document): Task[Unit] = ???
+}
+object DocumentRepoLive {
+  val layer: ZLayer[Cache & BlobStorage, Nothing, DocumentRepoLive] = (DocumentRepoLive.apply _).toLayer
+}
+
+trait BlobStorage {
+  def store(key: String, value: Array[Byte]): Task[Unit]
+}
+case class BlobStorageLive() extends BlobStorage {
+  override def store(key: String, value: Array[Byte]): Task[Unit] = ???
+}
+object BlobStorageLive {
+  val layer = (BlobStorageLive.apply _ ).toLayer
+}
+
+object MyMainApp extends ZIOAppDefault {
+
+  def myApp: ZIO[DocumentRepo & UserRepo, Nothing, Unit] =
+    for {
+      _ <- ZIO.service[UserRepo]
+      _ <- ZIO.service[DocumentRepo]
+    } yield ()
+
+  val layers: ZLayer[Any, Throwable, UserRepo & DocumentRepoLive] =
+    ((InmemoryCacheLive.layer.fresh ++ DatabaseLive.layer) >>> UserRepoLive.layer) ++
+      ((InmemoryCacheLive.layer.fresh ++ BlobStorageLive.layer) >>> DocumentRepoLive.layer)
+
+  def run = myApp.provideLayer(layers)
+}
+```
 
 ## Examples
 
