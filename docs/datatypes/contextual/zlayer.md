@@ -652,6 +652,8 @@ ZIO Test's [Live service](../test/environment/live.md) uses this pattern to prov
 
 ## Layer Memoization
 
+Layer memoization allows a layer to be created once and used multiple times in the dependency graph. So if we use the same layer twice, e.g. `(a >>> b) ++ (a >>> c)`, then the `a` layer will be allocated only once.
+
 ### Layers are Memoized by Default when Providing Globally
 
 One important feature of a ZIO application is that layers are shared by default, meaning that if the same layer is used twice, and if we provide the layer [globally](#global-environment) the layer will only be allocated a single time. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it.
