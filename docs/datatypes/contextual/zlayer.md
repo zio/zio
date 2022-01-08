@@ -268,9 +268,21 @@ val layer: ZLayer[Console & Clock, Nothing, Logging] =
 
 ```
 
-### Building Dependency Graph
+## Building Dependency Graph
 
-Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically:
+The `ZLayer` offers various operators for composing layers together to build the dependency graph required by our application. In this section, we will learn more about these operators.
+
+### Manual Layer Composition
+
+We said that we can think of the `ZLayer` as a more powerful _constructor_. Constructors are not composable, because they are not values. While a constructor is not composable, `ZLayer` has a nice facility to compose with other `ZLayer`s. So we can say that a `ZLayer` turns a constructor into values.
+
+> **Note**:
+>
+> In a regular ZIO application we are not required to build the dependency graph through composing layers tougher. Instead, we can provide all dependencies to the ZIO application using `ZIO#provide`, and the ZIO will create the dependency graph manually under the hood. Therefore, use manual layer composition if you know what you're doing.
+
+#### Vertical and Horizontal Composition
+
+Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically.
 
 ```scala mdoc:invisible
 trait A
@@ -279,7 +291,9 @@ trait C
 trait D
 ```
 
-1. **Horizontal Composition** — We can compose `fooLayer` and `barLayer` _horizontally_ to build a layer that has the requirements of both, to provide the capabilities of both, through `fooLayer ++ barLayer`:
+1. **Horizontal Composition** — Layers can be composed together horizontally with the `++` operator. When we compose layers horizontally, the new layer requires all the services that both of them require and produces all services that both of them produce. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that they don't have any relationship with each other.
+
+We can compose `fooLayer` and `barLayer` _horizontally_ to build a layer that has the requirements of both, to provide the capabilities of both, through `fooLayer ++ barLayer`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -291,7 +305,7 @@ val horizontal: ZLayer[A & C, Throwable, B & D] =  // A & C ==> B & D
   fooLayer ++ barLayer
 ```
 
-2. **Vertical Composition** — We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer, resulting in one layer with the requirement of the first, and the output of the second: `fooLayer >>> barLayer`.
+2. **Vertical Composition** — If we have a layer that requires `A` and produces `B`, we can compose this with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another:
 
 ```scala mdoc:compile-only
 import zio._
@@ -308,20 +322,24 @@ When doing this, the first layer must output all the services required by the se
 For example, assume we have the these two layers:
 
 ```scala mdoc:compile-only
-val fooLayer: ZLayer[A    , Throwable, B]    // A     ==> B
-val barLayer: ZLayer[B & C, Throwable, D]    // B & C ==> D
+import zio._
 
-val layer: ZLayer[A & B & C, Throwable, D] = // A & B & C ==> B & D
+val fooLayer: ZLayer[A    , Throwable, B] = ???  // A     ==> B
+val barLayer: ZLayer[B & C, Throwable, D] = ???  // B & C ==> D
+
+val layer: ZLayer[A & B & C, Throwable, D] =     // A & B & C ==> B & D
   fooLayer >>> barLayer
 ```
 
 We can defer the creation of the `C` layer using `ZLayer.service[C]`:
 
 ```scala mdoc:compile-only
-val fooLayer: ZLayer[A    , Throwable, B]  // A ==> B 
-val barLayer: ZLayer[B & C, Throwable, D]  // B & C ==> D
+import zio._
 
-val layer: ZLayer[A & C, Throwable, D] =   // A & C ==> D
+val fooLayer: ZLayer[A    , Throwable, B] = ??? // A ==> B 
+val barLayer: ZLayer[B & C, Throwable, D] = ??? // B & C ==> D
+
+val layer: ZLayer[A & C, Throwable, D] =        // A & C ==> D
   (fooLayer ++ ZLayer.service[C]) >>> barLayer  // ((A ==> B) ++ (C ==> C)) >>> (B & C ==> D)
 ```
 
@@ -332,313 +350,6 @@ We can think of `ZIO.service[C]` is an _identity function_ (`C ==> C`).
 ```
 
 Using these simple operators we can build complex dependency graphs.
-
-## Manual Layer Composition
-
-The `ZLayer` offers various operators for composing layers together to build the dependency graph required by our application. In this section, we will learn more about these operators.
-
-> **Note**:
->
-> In a regular ZIO application we are not required to build the dependency graph through composing layers tougher. Instead, we can provide all dependencies to the ZIO application using `ZIO#provide`, and the ZIO will create the dependency graph manually under the hood. Therefore, use manual layer composition if you know what you're doing.
-
-### Vertical and Horizontal Composition
-
-We said that we can think of the `ZLayer` as a more powerful _constructor_. Constructors are not composable, because they are not values. While a constructor is not composable, `ZLayer` has a nice facility to compose with other `ZLayer`s. So we can say that a `ZLayer` turns a constructor into values.
-
-`ZLayer`s can be composed together horizontally or vertically:
-
-1. **Horizontal Composition** — They can be composed together horizontally with the `++` operator. When we compose layers horizontally, the new layer requires all the services that both of them require and produces all services that both of them produce. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that they don't have any relationship with each other.
-
-2. **Vertical Composition** — If we have a layer that requires `A` and produces `B`, we can compose this with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another.
-
-Let's get into an example, assume we have these services with their implementations:
-
-```scala mdoc:invisible:reset
-import zio._
-```
-
-```scala mdoc:silent:nest
-trait Logging
-trait Database
-trait BlobStorage
-trait UserRepo
-trait DocRepo
-
-case class LoggerImpl(console: Console) extends Logging
-case object DatabaseImp extends Database
-case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo
-case class BlobStorageImpl(logging: Logging) extends BlobStorage
-case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo
-```
-
-We can't compose these services together, because their constructors are not value. `ZLayer` can convert these services into values, then we can compose them together.
-
-Let's assume we have lifted these services into `ZLayer`s:
-
-```scala mdoc:silent
-val logging:     URLayer[Console, Logging]                          = (LoggerImpl.apply _).toLayer
-val database:    URLayer[Any, Database]                             = ZLayer.succeed(DatabaseImp)
-val userRepo:    URLayer[Logging & Database, UserRepo]              = (UserRepoImpl(_, _)).toLayer
-val blobStorage: URLayer[Logging, BlobStorage]                      = (BlobStorageImpl(_)).toLayer
-val docRepo:     URLayer[Logging & Database & BlobStorage, DocRepo] = (DocRepoImpl(_, _, _)).toLayer
-```
-
-Please note that the following implementations can be used if the above ones are cryptic:
-
-```scala mdoc:compile-only
-val logging: URLayer[Console, Logging] =
-  ZLayer(ZIO.serviceWith[Console](LoggerImpl))
-
-val database: URLayer[Any, Database] =
-  ZLayer.succeed(DatabaseImp)
-
-val userRepo: URLayer[Logging & Database, UserRepo] =
-  ZLayer {
-    for {
-      database <- ZIO.service[Database]
-      logging  <- ZIO.service[Logging]
-    } yield UserRepoImpl(logging, database)
-  }
-
-val blobStorage: URLayer[Logging, BlobStorage] =
-  ZLayer(ZIO.serviceWith[Logging](BlobStorageImpl))
-
-val docRepo: URLayer[Logging & Database & BlobStorage, DocRepo] = {
-  ZLayer {
-    for {
-      logging     <- ZIO.service[Logging]
-      database    <- ZIO.service[Database]
-      blobStorage <- ZIO.service[BlobStorage]
-    } yield DocRepoImpl(logging, database, blobStorage)
-  }
-}
-```
-
-Now, we can compose logging and database horizontally:
-
-```scala mdoc:silent
-val newLayer: ZLayer[Console, Throwable, Logging & Database] = logging ++ database
-```
-
-And then we can compose the `newLayer` with `userRepo` vertically:
-
-```scala mdoc:silent
-val myLayer: ZLayer[Console, Throwable, UserRepo] = newLayer >>> userRepo
-```
-
-### Updating Local Dependencies
-
-```scala mdoc:invisible:reset
-import zio._
-
-trait DBError
-
-case class User(id: UserId, name: String)
-case class UserId(value: Long)
-
-trait UserRepo {
-  def getUser(userId: UserId): IO[DBError, Option[User]]
-  def createUser(user: User):  IO[DBError, Unit]
-}
-
-object UserRepo {
-  // Accessor Methods
-  def getUser(userId: UserId): ZIO[UserRepo, DBError, Option[User]] =
-    ZIO.serviceWithZIO(_.getUser(userId))
-
-  def createUser(user: User): ZIO[UserRepo, DBError, Unit] =
-    ZIO.serviceWithZIO(_.createUser(user))
-}
-
-case class InmemoryUserRepo() extends UserRepo {
-  override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-  override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
-}
-
-object InmemoryUserRepo {
-  // This simple in-memory version has no dependencies.
-  // This could be useful for tests where we don't want the additional
-  // complexity of having to manage DB Connections.
-  val layer: ZLayer[Any, Nothing, UserRepo] =
-    (InmemoryUserRepo.apply _).toLayer[UserRepo]
-}
-
-trait Logging {
-  def info(s: String): UIO[Unit]
-  def error(s: String): UIO[Unit]
-}
-
-object Logging {
-  //accessor methods
-  def info(s: String): URIO[Logging, Unit] =
-    ZIO.serviceWithZIO(_.info(s))
-
-  def error(s: String): URIO[Logging, Unit] =
-    ZIO.serviceWithZIO(_.error(s))
-}
-
-case class ConsoleLogger(console: Console) extends Logging {
-  def info(s: String): UIO[Unit]  = console.printLine(s"info - $s").orDie
-  def error(s: String): UIO[Unit] = console.printLine(s"error - $s").orDie
-}
-
-object ConsoleLogger {
-  val layer: ZLayer[Console, Nothing, Logging] = 
-    ZLayer {
-      for {
-        console <- ZIO.service[Console] 
-      } yield ConsoleLogger(console) 
-    }
-}
-
-trait Connection {
-  def close(): Unit
-}
-
-object Connection {
-  def makeConnection: UIO[Connection] = UIO(???)
-  
-  val layer: Layer[Nothing, Connection] =
-    ZLayer.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
-}
-
-case class PostgresUserRepo(connection: Connection) extends UserRepo {
-  override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-  override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
-}
-
-object PostgresUserRepo {
-  val layer: ZLayer[Connection, Nothing, UserRepo] =
-    ZLayer {
-      for {
-        connection <- ZIO.service[Connection] 
-      } yield PostgresUserRepo(connection) 
-    }
-}
-
-val fullRepo: Layer[Nothing, UserRepo] = Connection.layer >>> PostgresUserRepo.layer 
-
-val user2: User = User(UserId(123), "Tommy")
-
-val makeUser: ZIO[Logging & UserRepo, DBError, Unit] = 
-  for {
-    _ <- Logging.info(s"inserting user")  // URIO[Logging, Unit]
-    _ <- UserRepo.createUser(user2)       // ZIO[UserRepo, DBError, Unit]
-    _ <- Logging.info(s"user inserted")   // URIO[Logging, Unit]
-  } yield ()
-
-
-// compose horizontally
-val horizontal: ZLayer[Console, Nothing, Logging & UserRepo] = ConsoleLogger.layer ++ InmemoryUserRepo.layer
-
-// fulfill missing services, composing vertically
-val fullLayer: Layer[Nothing, Logging & UserRepo] = Console.live >>> horizontal
-
-// provide the services to the program
-makeUser.provide(fullLayer)
-```
-
-Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
-
-1. **Using the `update` Method** — This method allows us to replace one requirement with a different implementation:
-
-```scala mdoc:silent:nest
-val withPostgresService = horizontal.update[UserRepo]{ oldRepo  => 
-    new UserRepo {
-      override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-      override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
-    }
-  }
-```
-
-2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a layer that provides the updated service. The resulting composition will replace the old layer with the new one:
-
-```scala mdoc:silent:nest
-val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo {
-    override def getUser(userId: UserId): IO[DBError, Option[User]] = ???
-    override def createUser(user: User):  IO[DBError, Unit]         = ???
-  })
-
-val updatedHorizontal2 = horizontal ++ dbLayer
-```
-
-### Hidden Versus Passed Through Dependencies
-
-One design decision regarding building dependency graphs is whether to hide or pass through the upstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to pass through dependencies as well.
-
-To illustrate this, consider the Postgres-based repository discussed above:
-
-```scala mdoc:silent:nest
-val connection: ZLayer[Any, Nothing, Connection]      = Connection.layer
-val userRepo:   ZLayer[Connection, Nothing, UserRepo] = PostgresUserRepo.layer
-val layer:      ZLayer[Any, Nothing, UserRepo]        = Connection.layer >>> userRepo
-```
-
-Notice that in `layer`, the dependency `UserRepo` has on `Connection` has been "hidden", and is no longer expressed in the type signature. From the perspective of a caller, `layer` just outputs a `UserRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` is constructed.
-
-To provide only some inputs, we need to explicitly define what inputs still need to be provided:
-
-```scala mdoc:silent:nest
-trait Configuration
-
-val userRepoWithConfig: ZLayer[Configuration & Connection, Nothing, UserRepo] = 
-  ZLayer.succeed(new Configuration{}) ++ PostgresUserRepo.layer
-  
-val partialLayer: ZLayer[Configuration, Nothing, UserRepo] = 
-  (ZLayer.environment[Configuration] ++ connection) >>> userRepoWithConfig
-``` 
-
-In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialLayer`.
-
-This achieves an encapsulation of services and can make it easier to refactor code. For example, say we want to refactor our application to use an in-memory database:
-
-```scala mdoc:silent:nest
-val updatedLayer: ZLayer[Any, Nothing, UserRepo] = dbLayer
-```
-
-No other code will need to be changed, because the previous implementation's dependency upon a `Connection` was hidden from users, and so they were not able to rely on it.
-
-However, if an upstream dependency is used by many other services, it can be convenient to "pass through" that dependency, and include it in the output of a layer. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_.
-
-
-```scala mdoc:silent:nest
-val layer: ZLayer[Any, Nothing, Connection & UserRepo] = connection >+> userRepo
-```
-
-Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
-
-```scala mdoc
-trait Baker 
-trait Ingredients
-trait Oven
-trait Dough
-trait Cake
-
-lazy val baker: ZLayer[Any, Nothing, Baker] = ???
-lazy val ingredients: ZLayer[Any, Nothing, Ingredients] = ???
-lazy val oven: ZLayer[Any, Nothing, Oven] = ???
-lazy val dough: ZLayer[Baker & Ingredients, Nothing, Dough] = ???
-lazy val cake: ZLayer[Baker & Oven & Dough, Nothing, Cake] = ???
-
-lazy val all: ZLayer[Any, Nothing, Baker & Ingredients & Oven & Dough & Cake] =
-  baker >+>       // Baker
-  ingredients >+> // Baker & Ingredients
-  oven >+>        // Baker & Ingredients & Oven
-  dough >+>       // Baker & Ingredients & Oven & Dough
-  cake            // Baker & Ingredients & Oven & Dough & Cake
-```
-
-`ZLayer` makes it easy to mix and match these styles. If you pass through dependencies and later want to hide them you can do so through a simple type ascription:
-
-```scala mdoc:silent
-lazy val hidden: ZLayer[Any, Nothing, Cake] = all
-```
-
-And if you do build your dependency graph more explicitly, you can be confident that dependencies used in multiple parts of the dependency graph will only be created once due to memoization and sharing.
-
-### Cyclic Dependencies
-
-The `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
 
 ## Dependency Propagation
 
@@ -1217,3 +928,295 @@ object MainApp extends ZIOAppDefault {
 ```scala mdoc:invisible:reset
 
 ```
+
+### Example of Building Dependency Graph
+
+Let's get into an example, assume we have these services with their implementations:
+
+```scala mdoc:invisible:reset
+import zio._
+```
+
+```scala mdoc:silent:nest
+trait Logging
+trait Database
+trait BlobStorage
+trait UserRepo
+trait DocRepo
+
+case class LoggerImpl(console: Console) extends Logging
+case object DatabaseImp extends Database
+case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo
+case class BlobStorageImpl(logging: Logging) extends BlobStorage
+case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo
+```
+
+We can't compose these services together, because their constructors are not value. `ZLayer` can convert these services into values, then we can compose them together.
+
+Let's assume we have lifted these services into `ZLayer`s:
+
+```scala mdoc:silent
+val logging:     URLayer[Console, Logging]                          = (LoggerImpl.apply _).toLayer
+val database:    URLayer[Any, Database]                             = ZLayer.succeed(DatabaseImp)
+val userRepo:    URLayer[Logging & Database, UserRepo]              = (UserRepoImpl(_, _)).toLayer
+val blobStorage: URLayer[Logging, BlobStorage]                      = (BlobStorageImpl(_)).toLayer
+val docRepo:     URLayer[Logging & Database & BlobStorage, DocRepo] = (DocRepoImpl(_, _, _)).toLayer
+```
+
+Please note that the following implementations can be used if the above ones are cryptic:
+
+```scala mdoc:compile-only
+val logging: URLayer[Console, Logging] =
+  ZLayer(ZIO.serviceWith[Console](LoggerImpl))
+
+val database: URLayer[Any, Database] =
+  ZLayer.succeed(DatabaseImp)
+
+val userRepo: URLayer[Logging & Database, UserRepo] =
+  ZLayer {
+    for {
+      database <- ZIO.service[Database]
+      logging  <- ZIO.service[Logging]
+    } yield UserRepoImpl(logging, database)
+  }
+
+val blobStorage: URLayer[Logging, BlobStorage] =
+  ZLayer(ZIO.serviceWith[Logging](BlobStorageImpl))
+
+val docRepo: URLayer[Logging & Database & BlobStorage, DocRepo] = {
+  ZLayer {
+    for {
+      logging     <- ZIO.service[Logging]
+      database    <- ZIO.service[Database]
+      blobStorage <- ZIO.service[BlobStorage]
+    } yield DocRepoImpl(logging, database, blobStorage)
+  }
+}
+```
+
+Now, we can compose logging and database horizontally:
+
+```scala mdoc:silent
+val newLayer: ZLayer[Console, Throwable, Logging & Database] = logging ++ database
+```
+
+And then we can compose the `newLayer` with `userRepo` vertically:
+
+```scala mdoc:silent
+val myLayer: ZLayer[Console, Throwable, UserRepo] = newLayer >>> userRepo
+```
+
+#### Updating Local Dependencies
+
+```scala mdoc:invisible:reset
+import zio._
+
+trait DBError
+
+case class User(id: UserId, name: String)
+case class UserId(value: Long)
+
+trait UserRepo {
+  def getUser(userId: UserId): IO[DBError, Option[User]]
+  def createUser(user: User):  IO[DBError, Unit]
+}
+
+object UserRepo {
+  // Accessor Methods
+  def getUser(userId: UserId): ZIO[UserRepo, DBError, Option[User]] =
+    ZIO.serviceWithZIO(_.getUser(userId))
+
+  def createUser(user: User): ZIO[UserRepo, DBError, Unit] =
+    ZIO.serviceWithZIO(_.createUser(user))
+}
+
+case class InmemoryUserRepo() extends UserRepo {
+  override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
+  override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
+}
+
+object InmemoryUserRepo {
+  // This simple in-memory version has no dependencies.
+  // This could be useful for tests where we don't want the additional
+  // complexity of having to manage DB Connections.
+  val layer: ZLayer[Any, Nothing, UserRepo] =
+    (InmemoryUserRepo.apply _).toLayer[UserRepo]
+}
+
+trait Logging {
+  def info(s: String): UIO[Unit]
+  def error(s: String): UIO[Unit]
+}
+
+object Logging {
+  //accessor methods
+  def info(s: String): URIO[Logging, Unit] =
+    ZIO.serviceWithZIO(_.info(s))
+
+  def error(s: String): URIO[Logging, Unit] =
+    ZIO.serviceWithZIO(_.error(s))
+}
+
+case class ConsoleLogger(console: Console) extends Logging {
+  def info(s: String): UIO[Unit]  = console.printLine(s"info - $s").orDie
+  def error(s: String): UIO[Unit] = console.printLine(s"error - $s").orDie
+}
+
+object ConsoleLogger {
+  val layer: ZLayer[Console, Nothing, Logging] = 
+    ZLayer {
+      for {
+        console <- ZIO.service[Console] 
+      } yield ConsoleLogger(console) 
+    }
+}
+
+trait Connection {
+  def close(): Unit
+}
+
+object Connection {
+  def makeConnection: UIO[Connection] = UIO(???)
+  
+  val layer: Layer[Nothing, Connection] =
+    ZLayer.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
+}
+
+case class PostgresUserRepo(connection: Connection) extends UserRepo {
+  override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
+  override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
+}
+
+object PostgresUserRepo {
+  val layer: ZLayer[Connection, Nothing, UserRepo] =
+    ZLayer {
+      for {
+        connection <- ZIO.service[Connection] 
+      } yield PostgresUserRepo(connection) 
+    }
+}
+
+val fullRepo: Layer[Nothing, UserRepo] = Connection.layer >>> PostgresUserRepo.layer 
+
+val user2: User = User(UserId(123), "Tommy")
+
+val makeUser: ZIO[Logging & UserRepo, DBError, Unit] = 
+  for {
+    _ <- Logging.info(s"inserting user")  // URIO[Logging, Unit]
+    _ <- UserRepo.createUser(user2)       // ZIO[UserRepo, DBError, Unit]
+    _ <- Logging.info(s"user inserted")   // URIO[Logging, Unit]
+  } yield ()
+
+
+// compose horizontally
+val horizontal: ZLayer[Console, Nothing, Logging & UserRepo] = ConsoleLogger.layer ++ InmemoryUserRepo.layer
+
+// fulfill missing services, composing vertically
+val fullLayer: Layer[Nothing, Logging & UserRepo] = Console.live >>> horizontal
+
+// provide the services to the program
+makeUser.provide(fullLayer)
+```
+
+Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
+
+1. **Using the `update` Method** — This method allows us to replace one requirement with a different implementation:
+
+```scala mdoc:silent:nest
+val withPostgresService = horizontal.update[UserRepo]{ oldRepo  => 
+    new UserRepo {
+      override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
+      override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
+    }
+  }
+```
+
+2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a layer that provides the updated service. The resulting composition will replace the old layer with the new one:
+
+```scala mdoc:silent:nest
+val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo {
+    override def getUser(userId: UserId): IO[DBError, Option[User]] = ???
+    override def createUser(user: User):  IO[DBError, Unit]         = ???
+  })
+
+val updatedHorizontal2 = horizontal ++ dbLayer
+```
+
+#### Hidden Versus Passed Through Dependencies
+
+One design decision regarding building dependency graphs is whether to hide or pass through the upstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to pass through dependencies as well.
+
+To illustrate this, consider the Postgres-based repository discussed above:
+
+```scala mdoc:silent:nest
+val connection: ZLayer[Any, Nothing, Connection]      = Connection.layer
+val userRepo:   ZLayer[Connection, Nothing, UserRepo] = PostgresUserRepo.layer
+val layer:      ZLayer[Any, Nothing, UserRepo]        = Connection.layer >>> userRepo
+```
+
+Notice that in `layer`, the dependency `UserRepo` has on `Connection` has been "hidden", and is no longer expressed in the type signature. From the perspective of a caller, `layer` just outputs a `UserRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` is constructed.
+
+To provide only some inputs, we need to explicitly define what inputs still need to be provided:
+
+```scala mdoc:silent:nest
+trait Configuration
+
+val userRepoWithConfig: ZLayer[Configuration & Connection, Nothing, UserRepo] = 
+  ZLayer.succeed(new Configuration{}) ++ PostgresUserRepo.layer
+  
+val partialLayer: ZLayer[Configuration, Nothing, UserRepo] = 
+  (ZLayer.environment[Configuration] ++ connection) >>> userRepoWithConfig
+``` 
+
+In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialLayer`.
+
+This achieves an encapsulation of services and can make it easier to refactor code. For example, say we want to refactor our application to use an in-memory database:
+
+```scala mdoc:silent:nest
+val updatedLayer: ZLayer[Any, Nothing, UserRepo] = dbLayer
+```
+
+No other code will need to be changed, because the previous implementation's dependency upon a `Connection` was hidden from users, and so they were not able to rely on it.
+
+However, if an upstream dependency is used by many other services, it can be convenient to "pass through" that dependency, and include it in the output of a layer. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_.
+
+
+```scala mdoc:silent:nest
+val layer: ZLayer[Any, Nothing, Connection & UserRepo] = connection >+> userRepo
+```
+
+Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
+
+```scala mdoc
+trait Baker 
+trait Ingredients
+trait Oven
+trait Dough
+trait Cake
+
+lazy val baker: ZLayer[Any, Nothing, Baker] = ???
+lazy val ingredients: ZLayer[Any, Nothing, Ingredients] = ???
+lazy val oven: ZLayer[Any, Nothing, Oven] = ???
+lazy val dough: ZLayer[Baker & Ingredients, Nothing, Dough] = ???
+lazy val cake: ZLayer[Baker & Oven & Dough, Nothing, Cake] = ???
+
+lazy val all: ZLayer[Any, Nothing, Baker & Ingredients & Oven & Dough & Cake] =
+  baker >+>       // Baker
+  ingredients >+> // Baker & Ingredients
+  oven >+>        // Baker & Ingredients & Oven
+  dough >+>       // Baker & Ingredients & Oven & Dough
+  cake            // Baker & Ingredients & Oven & Dough & Cake
+```
+
+`ZLayer` makes it easy to mix and match these styles. If you pass through dependencies and later want to hide them you can do so through a simple type ascription:
+
+```scala mdoc:silent
+lazy val hidden: ZLayer[Any, Nothing, Cake] = all
+```
+
+And if you do build your dependency graph more explicitly, you can be confident that dependencies used in multiple parts of the dependency graph will only be created once due to memoization and sharing.
+
+#### Cyclic Dependencies
+
+The `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
+
