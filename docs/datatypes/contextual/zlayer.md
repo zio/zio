@@ -351,6 +351,103 @@ We can think of `ZIO.service[C]` is an _identity function_ (`C ==> C`).
 
 Using these simple operators we can build complex dependency graphs.
 
+#### Updating Local Dependencies
+
+Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
+
+1. **Using the `update` Method** — This method allows us to replace one requirement with a different implementation:
+
+```scala mdoc:compile-only
+import zio._
+
+val origin: ZLayer[Any, Nothing, String & Int & Double] = 
+  ZLayer.succeedEnvironment(ZEnvironment[String, Int, Double]("foo", 123, 1.3))
+
+val updated1 = origin.update[String](_ + "bar")
+val updated2 = origin.update[Int](_ + 5)
+val updated3 = origin.update[Double](_ - 0.3)
+```
+
+Here is an example of updating a config layer:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io.IOException
+
+case class AppConfig(poolSize: Int)
+
+object MainApp extends ZIOAppDefault {
+
+  val myApp: ZIO[Console with AppConfig, IOException, Unit] =
+    for {
+      config <- ZIO.service[AppConfig]
+      _ <- Console.printLine(s"Application config after the update operation: $config")
+    } yield ()
+
+
+  val appLayers: ZLayer[Any, Nothing, AppConfig with Console] =
+    UIO(AppConfig(5))
+      .debug("Application config initialized")
+      .toLayer ++ Console.live
+
+  val updatedConfig: ZLayer[Any, Nothing, AppConfig with Console] =
+    appLayers.update[AppConfig](c =>
+      c.copy(poolSize = c.poolSize + 10)
+    )
+
+  def run = myApp.provide(updatedConfig)
+}
+
+// Output:
+// Application config initialized: AppConfig(5)
+// Application config after the update operation: AppConfig(15)
+```
+
+2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a layer that provides the updated service. The resulting composition will replace the old layer with the new one:
+
+```scala mdoc:compile-only
+import zio._
+
+val origin: ZLayer[Any, Nothing, String & Int & Double] =
+  ZLayer.succeedEnvironment(ZEnvironment[String, Int, Double]("foo", 123, 1.3))
+
+val updated = origin ++ ZLayer.succeed(321)
+```
+
+Let's see an example of updating a config layer:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io.IOException
+
+case class AppConfig(poolSize: Int)
+
+object MainApp extends ZIOAppDefault {
+
+  val myApp: ZIO[Console with AppConfig, IOException, Unit] =
+    for {
+      config <- ZIO.service[AppConfig]
+      _      <- Console.printLine(s"Application config after the update operation: $config")
+    } yield ()
+
+
+  val appLayers: ZLayer[Any, Nothing, AppConfig with Console] =
+    UIO(AppConfig(5))
+      .debug("Application config initialized")
+      .toLayer ++ Console.live
+
+  val updatedConfig: ZLayer[Any, Nothing, AppConfig with Console] =
+    appLayers ++ ZLayer.succeed(AppConfig(8))
+
+  def run = myApp.provide(updatedConfig)
+}
+// Output:
+// Application config initialized: AppConfig(5)
+// Application config after the update operation: AppConfig(8)
+```
+
 ## Dependency Propagation
 
 When we write an application, our application has a lot of dependencies. We need a way to provide implementations and feeding and propagating all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.
