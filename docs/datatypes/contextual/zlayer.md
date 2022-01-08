@@ -317,21 +317,55 @@ val horizontal: ZLayer[A, Throwable, C] =    // A ==> C
   fooLayer >>> barLayer
 ```
 
-When doing this, the first layer must output all the services required by the second layer, but we can _defer_ creating some of these services and require them as part of the input of the final layer using `ZLayer.service/ZLayer.environment`.
+#### Hidden and Passed Through Dependencies
 
-For example, assume we have the these two layers:
+By default, the `ZLayer` hides intermediate dependencies when composing vertically. For example, when we compose `fooLayer` with `barLayer` vertically, the output would be a `ZLayer[A, Throwable, C]`. This hides the dependency on the `B` layer.
+
+One design decision regarding building dependency graphs is whether to hide or pass through the upstream/downstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to pass through dependencies as well.
+
+Let's include the `B` service into the upstream dependencies of the final layer using the `ZIO.service[B]`. We can think of `ZIO.service[B]` is an _identity function_ (`B ==> B`).
 
 ```scala mdoc:compile-only
 import zio._
 
-val fooLayer: ZLayer[A    , Throwable, B] = ???  // A     ==> B
-val barLayer: ZLayer[B & C, Throwable, D] = ???  // B & C ==> D
+val fooLayer: ZLayer[A, Throwable, B] = ???  // A  ==> B
+val barLayer: ZLayer[B, Throwable, C] = ???  // B  ==> C
 
-val layer: ZLayer[A & B & C, Throwable, D] =     // A & B & C ==> B & D
+val finalLayer: ZLayer[A & B, Throwable, C] = // A & B ==> C
+  (fooLayer ++ ZLayer.service[B]) >>> barLayer
+
+// ((A ==> B) ++ (B ==> B)) >>> (B ==> C)
+// (A & B ==> B) >> (B ==> C)
+// (A & B ==> C)
+```
+
+Or we might need to include the middle services in the output channel of the final layer:
+
+```scala mdoc:compiel-only
+val fooLayer: ZLayer[A, Throwable, B] = ??? // A  ==> B
+val barLayer: ZLayer[B, Throwable, C] = ??? // B  ==> C
+
+val finalLayer: ZLayer[A, Throwable, B & C] = // A ==> B & C
+  fooLayer >>> (ZLayer.service[B] ++ barLayer)
+  
+// (A ==> B) >>> ((B ==> B) ++ (B ==> C))
+// (A ==> B) >>> (B ==> B & C)
+// (A ==> B & C)
+```
+
+This technique is useful when we want to defer the creation of some intermediate services and require them as part of the input of the final layer. For example, assume we have these two layers:
+
+```scala mdoc:compile-only
+import zio._
+
+val fooLayer: ZLayer[A    , Throwable, B] = ???   // A     ==> B
+val barLayer: ZLayer[B & C, Throwable, D] = ???   // B & C ==> D
+
+val finalLayer: ZLayer[A & B & C, Throwable, D] = // A & B & C ==> B & D
   fooLayer >>> barLayer
 ```
 
-We can defer the creation of the `C` layer using `ZLayer.service[C]`:
+So we can defer the creation of the `C` layer using `ZLayer.service[C]`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -340,10 +374,12 @@ val fooLayer: ZLayer[A    , Throwable, B] = ??? // A ==> B
 val barLayer: ZLayer[B & C, Throwable, D] = ??? // B & C ==> D
 
 val layer: ZLayer[A & C, Throwable, D] =        // A & C ==> D
-  (fooLayer ++ ZLayer.service[C]) >>> barLayer  // ((A ==> B) ++ (C ==> C)) >>> (B & C ==> D)
-```
+  (fooLayer ++ ZLayer.service[C]) >>> barLayer
 
-We can think of `ZIO.service[C]` is an _identity function_ (`C ==> C`).
+// ((A ==> B) ++ (C ==> C)) >>> (B & C ==> D)
+// (A & C ==> B & C) >>> (B & C ==> D)
+// (A & C ==> D)
+```
 
 ```scala mdoc:invisible:reset
 
@@ -379,19 +415,19 @@ case class AppConfig(poolSize: Int)
 
 object MainApp extends ZIOAppDefault {
 
-  val myApp: ZIO[Console with AppConfig, IOException, Unit] =
+  val myApp: ZIO[Console & AppConfig, IOException, Unit] =
     for {
       config <- ZIO.service[AppConfig]
       _ <- Console.printLine(s"Application config after the update operation: $config")
     } yield ()
 
 
-  val appLayers: ZLayer[Any, Nothing, AppConfig with Console] =
+  val appLayers: ZLayer[Any, Nothing, AppConfig & Console] =
     UIO(AppConfig(5))
       .debug("Application config initialized")
       .toLayer ++ Console.live
 
-  val updatedConfig: ZLayer[Any, Nothing, AppConfig with Console] =
+  val updatedConfig: ZLayer[Any, Nothing, AppConfig & Console] =
     appLayers.update[AppConfig](c =>
       c.copy(poolSize = c.poolSize + 10)
     )
@@ -426,19 +462,19 @@ case class AppConfig(poolSize: Int)
 
 object MainApp extends ZIOAppDefault {
 
-  val myApp: ZIO[Console with AppConfig, IOException, Unit] =
+  val myApp: ZIO[Console & AppConfig, IOException, Unit] =
     for {
       config <- ZIO.service[AppConfig]
       _      <- Console.printLine(s"Application config after the update operation: $config")
     } yield ()
 
 
-  val appLayers: ZLayer[Any, Nothing, AppConfig with Console] =
+  val appLayers: ZLayer[Any, Nothing, AppConfig & Console] =
     UIO(AppConfig(5))
       .debug("Application config initialized")
       .toLayer ++ Console.live
 
-  val updatedConfig: ZLayer[Any, Nothing, AppConfig with Console] =
+  val updatedConfig: ZLayer[Any, Nothing, AppConfig & Console] =
     appLayers ++ ZLayer.succeed(AppConfig(8))
 
   def run = myApp.provide(updatedConfig)
