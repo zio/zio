@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,51 +47,48 @@ trait Random extends Serializable {
 
 object Random extends Serializable {
 
-  val RandomLive: Random =
-    RandomScala(scala.util.Random)
-
-  final case class RandomScala(random: scala.util.Random) extends Random {
+  object RandomLive extends Random {
 
     def nextBoolean(implicit trace: ZTraceElement): UIO[Boolean] =
-      ZIO.succeed(random.nextBoolean())
+      ZIO.succeed(scala.util.Random.nextBoolean())
     def nextBytes(length: => Int)(implicit trace: ZTraceElement): UIO[Chunk[Byte]] =
       ZIO.succeed {
         val array = Array.ofDim[Byte](length)
-        random.nextBytes(array)
+        scala.util.Random.nextBytes(array)
         Chunk.fromArray(array)
       }
     def nextDouble(implicit trace: ZTraceElement): UIO[Double] =
-      ZIO.succeed(random.nextDouble())
+      ZIO.succeed(scala.util.Random.nextDouble())
     def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double)(implicit
       trace: ZTraceElement
     ): UIO[Double] =
       nextDoubleBetweenWith(minInclusive, maxExclusive)(nextDouble)
     def nextFloat(implicit trace: ZTraceElement): UIO[Float] =
-      ZIO.succeed(random.nextFloat())
+      ZIO.succeed(scala.util.Random.nextFloat())
     def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit trace: ZTraceElement): UIO[Float] =
       nextFloatBetweenWith(minInclusive, maxExclusive)(nextFloat)
     def nextGaussian(implicit trace: ZTraceElement): UIO[Double] =
-      ZIO.succeed(random.nextGaussian())
+      ZIO.succeed(scala.util.Random.nextGaussian())
     def nextInt(implicit trace: ZTraceElement): UIO[Int] =
-      ZIO.succeed(random.nextInt())
+      ZIO.succeed(scala.util.Random.nextInt())
     def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit trace: ZTraceElement): UIO[Int] =
       nextIntBetweenWith(minInclusive, maxExclusive)(nextInt, nextIntBounded(_))
     def nextIntBounded(n: => Int)(implicit trace: ZTraceElement): UIO[Int] =
-      ZIO.succeed(random.nextInt(n))
+      ZIO.succeed(scala.util.Random.nextInt(n))
     def nextLong(implicit trace: ZTraceElement): UIO[Long] =
-      ZIO.succeed(random.nextLong())
+      ZIO.succeed(scala.util.Random.nextLong())
     def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit trace: ZTraceElement): UIO[Long] =
       nextLongBetweenWith(minInclusive, maxExclusive)(nextLong, nextLongBounded(_))
     def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): UIO[Long] =
       Random.nextLongBoundedWith(n)(nextLong)
     def nextPrintableChar(implicit trace: ZTraceElement): UIO[Char] =
-      ZIO.succeed(random.nextPrintableChar())
+      ZIO.succeed(scala.util.Random.nextPrintableChar())
     def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String] =
-      ZIO.succeed(random.nextString(length))
+      ZIO.succeed(scala.util.Random.nextString(length))
     def nextUUID(implicit trace: ZTraceElement): UIO[UUID] =
       Random.nextUUIDWith(nextLong)
     def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit] =
-      ZIO.succeed(random.setSeed(seed))
+      ZIO.succeed(scala.util.Random.setSeed(seed))
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
       collection: => Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: ZTraceElement): UIO[Collection[A]] =
@@ -114,7 +111,54 @@ object Random extends Serializable {
     ZLayer {
       for {
         random <- ZIO.service[scala.util.Random]
-      } yield RandomScala(random)
+      } yield new Random {
+        def nextBoolean(implicit trace: ZTraceElement): UIO[Boolean] =
+          ZIO.succeed(random.nextBoolean())
+        def nextBytes(length: => Int)(implicit trace: ZTraceElement): UIO[Chunk[Byte]] =
+          ZIO.succeed {
+            val array = Array.ofDim[Byte](length)
+            random.nextBytes(array)
+            Chunk.fromArray(array)
+          }
+        def nextDouble(implicit trace: ZTraceElement): UIO[Double] =
+          ZIO.succeed(random.nextDouble())
+        def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double)(implicit
+          trace: ZTraceElement
+        ): UIO[Double] =
+          nextDoubleBetweenWith(minInclusive, maxExclusive)(nextDouble)
+        def nextFloat(implicit trace: ZTraceElement): UIO[Float] =
+          ZIO.succeed(random.nextFloat())
+        def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit
+          trace: ZTraceElement
+        ): UIO[Float] =
+          nextFloatBetweenWith(minInclusive, maxExclusive)(nextFloat)
+        def nextGaussian(implicit trace: ZTraceElement): UIO[Double] =
+          ZIO.succeed(random.nextGaussian())
+        def nextInt(implicit trace: ZTraceElement): UIO[Int] =
+          ZIO.succeed(random.nextInt())
+        def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit trace: ZTraceElement): UIO[Int] =
+          nextIntBetweenWith(minInclusive, maxExclusive)(nextInt, nextIntBounded(_))
+        def nextIntBounded(n: => Int)(implicit trace: ZTraceElement): UIO[Int] =
+          ZIO.succeed(random.nextInt(n))
+        def nextLong(implicit trace: ZTraceElement): UIO[Long] =
+          ZIO.succeed(random.nextLong())
+        def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit trace: ZTraceElement): UIO[Long] =
+          nextLongBetweenWith(minInclusive, maxExclusive)(nextLong, nextLongBounded(_))
+        def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): UIO[Long] =
+          Random.nextLongBoundedWith(n)(nextLong)
+        def nextPrintableChar(implicit trace: ZTraceElement): UIO[Char] =
+          ZIO.succeed(random.nextPrintableChar())
+        def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String] =
+          ZIO.succeed(random.nextString(length))
+        def nextUUID(implicit trace: ZTraceElement): UIO[UUID] =
+          Random.nextUUIDWith(nextLong)
+        def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit] =
+          ZIO.succeed(random.setSeed(seed))
+        def shuffle[A, Collection[+Element] <: Iterable[Element]](
+          collection: => Collection[A]
+        )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: ZTraceElement): UIO[Collection[A]] =
+          Random.shuffleWith(nextIntBounded(_), collection)
+      }
     }
   }
 

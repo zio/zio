@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2935,7 +2935,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     succeedWith { (runtimeConfig, _) =>
       try effect
       catch {
-        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Cause.fail(t), trace)
+        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     }
 
@@ -2961,85 +2961,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def attemptBlockingIO[A](effect: => A)(implicit trace: ZTraceElement): IO[IOException, A] =
     attemptBlocking(effect).refineToOrDie[IOException]
-
-  /**
-   * Imports a synchronous effect that does blocking IO into a pure value.
-   *
-   * If the returned `ZIO` is interrupted, the blocked thread running the
-   * synchronous effect will be interrupted via `Thread.interrupt`.
-   *
-   * Note that this adds significant overhead. For performance sensitive
-   * applications consider using `attemptBlocking` or
-   * `attemptBlockingCancelable`.
-   */
-  def attemptBlockingInterrupt[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
-    ZIO.suspendSucceed {
-      import java.util.concurrent.atomic.AtomicReference
-      import java.util.concurrent.locks.ReentrantLock
-
-      import zio.internal.OneShot
-
-      val lock   = new ReentrantLock()
-      val thread = new AtomicReference[Option[Thread]](None)
-      val begin  = OneShot.make[Unit]
-      val end    = OneShot.make[Unit]
-
-      def withMutex[B](b: => B): B =
-        try {
-          lock.lock(); b
-        } finally lock.unlock()
-
-      val interruptThread: UIO[Unit] =
-        ZIO.succeed {
-          begin.get()
-
-          var looping = true
-          var n       = 0L
-          val base    = 2L
-          while (looping) {
-            withMutex(thread.get match {
-              case None         => looping = false; ()
-              case Some(thread) => thread.interrupt()
-            })
-
-            if (looping) {
-              n += 1
-              Thread.sleep(math.min(50, base * n))
-            }
-          }
-
-          end.get()
-        }
-
-      blocking(
-        ZIO.uninterruptibleMask(restore =>
-          for {
-            fiber <- ZIO.suspend {
-                       val current = Some(Thread.currentThread)
-
-                       withMutex(thread.set(current))
-
-                       begin.set(())
-
-                       try {
-                         val a = effect
-
-                         ZIO.succeedNow(a)
-                       } catch {
-                         case _: InterruptedException =>
-                           Thread.interrupted // Clear interrupt status
-                           ZIO.interrupt
-                         case t: Throwable =>
-                           ZIO.fail(t)
-                       } finally {
-                         withMutex { thread.set(None); end.set(()) }
-                       }
-                     }.forkDaemon
-            a <- restore(fiber.join).ensuring(interruptThread)
-          } yield a
-        )
-      )
-    }
 
   /**
    * Locks the specified effect to the blocking thread pool.
@@ -4919,10 +4840,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def provideEnvironment[R, E, A](r: => ZEnvironment[R])(implicit trace: ZTraceElement): ZIO[R, E, A] => IO[E, A] =
     _.provideEnvironment(r)
 
-  def provideLayer[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
+  def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     zio: ZIO[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
-    zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
+    zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
 
   /**
    * Races an `IO[E, A]` against zero or more other effects. Yields either the
@@ -5066,6 +4987,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def runtimeConfig(implicit trace: ZTraceElement): UIO[RuntimeConfig] =
     ZIO.suspendSucceedWith((runtimeConfig, _) => ZIO.succeedNow(runtimeConfig))
+
+  /**
+   * Returns the current fiber's scope.
+   */
+  def scope(implicit trace: ZTraceElement): UIO[ZScope] =
+    descriptorWith(descriptor => ZIO.succeedNow(descriptor.scope))
 
   /**
    * Passes the fiber's scope to the specified function, which creates an effect
@@ -5216,7 +5143,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceedWith { (runtimeConfig, _) =>
       try rio
       catch {
-        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Cause.fail(t), trace)
+        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     }
 
@@ -5251,7 +5178,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceedWith((runtimeConfig, fiberId) =>
       try f(runtimeConfig, fiberId)
       catch {
-        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Cause.fail(t), trace)
+        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     )
 
@@ -6212,7 +6139,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val SetRuntimeConfig       = 29
   }
 
-  private[zio] final case class ZioError[E](cause: Cause[E], trace: ZTraceElement) extends Throwable with NoStackTrace
+  private[zio] final case class ZioError[E, A](exit: Exit[E, A], trace: ZTraceElement)
+      extends Throwable
+      with NoStackTrace
 
   private[zio] trait TracedCont[-A0, -R, +E, +A] extends (A0 => ZIO[R, E, A]) {
     val trace: ZTraceElement

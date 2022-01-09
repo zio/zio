@@ -1,11 +1,11 @@
 package zio.stream
 
 import zio.ZManaged.ReleaseMap
-import zio._
+import zio.{ZIO, _}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
-
 import ChannelExecutor.ChannelState
+import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 
 /**
  * A `ZChannel[In, Env, Err, Out, Z]` is a nexus of I/O operations, which
@@ -190,7 +190,41 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     g: (OutDone2, OutDone2) => OutDone2,
     h: (OutDone2, OutDone) => OutDone3
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
-    ZChannel.ConcatAll(g, h, () => self, f)
+    ZChannel.ConcatAll(
+      g,
+      h,
+      (_: UpstreamPullRequest[OutElem]) => UpstreamPullStrategy.PullAfterNext(None),
+      (_: OutElem2) => ChildExecutorDecision.Continue,
+      () => self,
+      f
+    )
+
+  /**
+   * Returns a new channel whose outputs are fed to the specified factory
+   * function, which creates new channels in response. These new channels are
+   * sequentially concatenated together, and all their outputs appear as outputs
+   * of the newly returned channel. The provided merging function is used to
+   * merge the terminal values of all channels into the single terminal value of
+   * the returned channel.
+   */
+  final def concatMapWithCustom[
+    Env1 <: Env,
+    InErr1 <: InErr,
+    InElem1 <: InElem,
+    InDone1 <: InDone,
+    OutErr1 >: OutErr,
+    OutElem2,
+    OutDone2,
+    OutDone3
+  ](
+    f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone2]
+  )(
+    g: (OutDone2, OutDone2) => OutDone2,
+    h: (OutDone2, OutDone) => OutDone3,
+    onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
+    onEmit: OutElem2 => ChildExecutorDecision
+  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
+    ZChannel.ConcatAll(g, h, onPull, onEmit, () => self, f)
 
   /**
    * Returns a new channel, which is the same as this one, except its outputs
@@ -571,8 +605,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
           exit match {
             case Exit.Success(Right(elem)) =>
-              pull.forkDaemon.map { leftFiber =>
-                ZChannel.write(elem) *> go(both(leftFiber, fiber))
+              ZIO.succeed {
+                ZChannel.write(elem) *> ZChannel.fromZIO(pull.forkDaemon).flatMap { leftFiber =>
+                  go(both(leftFiber, fiber))
+                }
               }
 
             case Exit.Success(Left(z)) =>
@@ -769,11 +805,27 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def pipeToOrFail[Env1 <: Env, OutErr1 >: OutErr, OutElem2, OutDone2](
     that: => ZChannel[Env1, Nothing, OutElem, OutDone, OutErr1, OutElem2, OutDone2]
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] = {
+
     case class ChannelFailure(err: OutErr1) extends Throwable
-    self.catchAll(err => ZChannel.failCause(Cause.die(ChannelFailure(err)))).pipeTo(that).catchAllCause {
-      case Cause.Die(ChannelFailure(err), _) => ZChannel.fail(err)
-      case cause                             => ZChannel.failCause(cause)
-    }
+
+    lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
+      ZChannel.readWith(
+        elem => ZChannel.write(elem) *> reader,
+        err => ZChannel.failCause(Cause.die(ChannelFailure(err))),
+        done => ZChannel.succeedNow(done)
+      )
+
+    lazy val writer: ZChannel[Env1, OutErr1, OutElem2, OutDone2, OutErr1, OutElem2, OutDone2] =
+      ZChannel.readWithCause(
+        elem => ZChannel.write(elem) *> writer,
+        {
+          case Cause.Die(ChannelFailure(err), _) => ZChannel.fail(err)
+          case cause                             => ZChannel.failCause(cause)
+        },
+        done => ZChannel.succeedNow(done)
+      )
+
+    self >>> reader >>> that >>> writer
   }
 
   /**
@@ -786,8 +838,50 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.Provide(() => env, self)
 
-  def repeated(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Nothing] =
-    self *> self.repeated
+  /**
+   * Provides the part of the environment that is not part of the `ZEnv`,
+   * leaving a channel that only depends on the `ZEnv`.
+   */
+  def provideCustomLayer[OutErr1 >: OutErr, Env1](
+    layer: => ZLayer[ZEnv, OutErr1, Env1]
+  )(implicit
+    ev: ZEnv with Env1 <:< Env,
+    tagged: Tag[Env1],
+    trace: ZTraceElement
+  ): ZChannel[ZEnv, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
+    provideSomeLayer[ZEnv](layer)
+
+  /**
+   * Provides a layer to the channel, which translates it to another level.
+   */
+  final def provideLayer[OutErr1 >: OutErr, Env0](
+    layer: => ZLayer[Env0, OutErr1, Env]
+  )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
+    ZChannel.managed(layer.build)(env => self.provideEnvironment(env))
+
+  /**
+   * Transforms the environment being provided to the channel with the specified
+   * function.
+   */
+  final def provideSomeEnvironment[Env0](
+    f: ZEnvironment[Env0] => ZEnvironment[Env]
+  )(implicit ev: NeedsEnv[Env], trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+    ZChannel.environmentWithChannel[Env0] { env =>
+      self.provideEnvironment(f(env))
+    }
+
+  /**
+   * Splits the environment into two parts, providing one part using the
+   * specified layer and leaving the remainder `Env0`.
+   */
+  final def provideSomeLayer[Env0]
+    : ZChannel.ProvideSomeLayer[Env0, Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+    new ZChannel.ProvideSomeLayer[Env0, Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](self)
+
+  def repeated(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Nothing] = {
+    lazy val loop: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Nothing] = self *> loop
+    loop
+  }
 
   def runManaged(implicit
     ev1: Any <:< InElem,
@@ -819,6 +913,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                 interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
               case ChannelState.Done =>
                 ZIO.done(exec.getDone)
+              case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
+                ChannelExecutor.readUpstream[Env, OutErr, OutDone](
+                  r.asInstanceOf[ChannelState.Read[Env, OutErr]],
+                  () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+                )
             }
 
           interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
@@ -836,6 +935,20 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def unit(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit] =
     self.as(())
+
+  /**
+   * Updates a service in the environment of this channel.
+   */
+  final def updateService[Service]
+    : ZChannel.UpdateService[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Service] =
+    new ZChannel.UpdateService[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Service](self)
+
+  /**
+   * Updates a service at the specified key in the environment of this channel.
+   */
+  final def updateServiceAt[Service]
+    : ZChannel.UpdateServiceAt[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Service] =
+    new ZChannel.UpdateServiceAt[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Service](self)
 
   def toPull(implicit trace: ZTraceElement): ZManaged[Env, Nothing, ZIO[Env, OutErr, Either[OutDone, OutElem]]] =
     ZManaged
@@ -866,10 +979,46 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               ZIO.succeed(Right(exec.getEmit))
             case ChannelState.Effect(zio) =>
               zio *> interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+            case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
+              ChannelExecutor.readUpstream[Env, OutErr, Either[OutDone, OutElem]](
+                r.asInstanceOf[ChannelState.Read[Env, OutErr]],
+                () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+              )
           }
 
         ZIO.suspendSucceed(interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]))
       }
+
+  final def toPipeline[In, Out](implicit
+    In: Chunk[In] <:< InElem,
+    Out: OutElem <:< Chunk[Out],
+    InDone: Any <:< InDone,
+    trace: ZTraceElement
+  ): ZPipeline[Env, OutErr, In, Out] =
+    new ZPipeline[Env, OutErr, In, Out](
+      self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], Any]]
+    )
+
+  final def toSink[In, Out](implicit
+    In: Chunk[In] <:< InElem,
+    Out: OutElem <:< Chunk[Out],
+    InDone: Any <:< InDone,
+    trace: ZTraceElement
+  ): ZSink[Env, OutErr, In, Out, OutDone] =
+    new ZSink[Env, OutErr, In, Out, OutDone](
+      self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], OutDone]]
+    )
+
+  final def toStream[Out](implicit
+    Out: OutElem <:< Chunk[Out],
+    InErr: Any <:< InErr,
+    InElem: Any <:< InElem,
+    InDone: Any <:< InDone,
+    trace: ZTraceElement
+  ): ZStream[Env, OutErr, Out] =
+    new ZStream[Env, OutErr, Out](
+      self.asInstanceOf[ZChannel[Env, Any, Any, Any, OutErr, Chunk[Out], Any]]
+    )
 
   def zip[
     Env1 <: Env,
@@ -1014,6 +1163,8 @@ object ZChannel {
   ](
     combineInners: (OutDone, OutDone) => OutDone,
     combineAll: (OutDone, OutDone2) => OutDone3,
+    onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
+    onEmit: OutElem2 => ChildExecutorDecision,
     value: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone2],
     k: OutElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
   ) extends ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone3]
@@ -1178,6 +1329,9 @@ object ZChannel {
     ConcatAll(
       f,
       g,
+      (_: UpstreamPullRequest[ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]) =>
+        UpstreamPullStrategy.PullAfterNext(None),
+      (_: OutElem) => ChildExecutorDecision.Continue,
       () => channels,
       (channel: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]) => channel
     )
@@ -1205,6 +1359,32 @@ object ZChannel {
 
     writer(0, outs.size)
   }
+
+  /**
+   * Accesses the whole environment of the channel.
+   */
+  def environment[Env](implicit
+    trace: ZTraceElement
+  ): ZChannel[Env, Any, Any, Any, Nothing, Nothing, ZEnvironment[Env]] =
+    ZChannel.fromZIO(ZIO.environment)
+
+  /**
+   * Accesses the environment of the channel.
+   */
+  def environmentWith[Env]: ZChannel.EnvironmentWithPartiallyApplied[Env] =
+    new ZChannel.EnvironmentWithPartiallyApplied[Env]
+
+  /**
+   * Accesses the environment of the channel in the context of a channel.
+   */
+  def environmentWithChannel[Env]: ZChannel.EnvironmentWithChannelPartiallyApplied[Env] =
+    new ZChannel.EnvironmentWithChannelPartiallyApplied[Env]
+
+  /**
+   * Accesses the environment of the channel in the context of an effect.
+   */
+  def environmentWithZIO[Env]: ZChannel.EnvironmentWithZIOPartiallyApplied[Env] =
+    new ZChannel.EnvironmentWithZIOPartiallyApplied[Env]
 
   def fail[E](e: => E)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
     failCause(Cause.fail(e))
@@ -1264,7 +1444,15 @@ object ZChannel {
   )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
     acquireReleaseOutExitWith(
       ReleaseMap.make.flatMap { releaseMap =>
-        ZManaged.currentReleaseMap.locally(releaseMap)(m.zio).map { case (_, out) => (out, releaseMap) }
+        ZIO.uninterruptibleMask { restore =>
+          ZManaged.currentReleaseMap
+            .locally(releaseMap)(restore(m.zio))
+            .foldCauseZIO(
+              cause =>
+                releaseMap.releaseAll(Exit.failCause(cause), ExecutionStrategy.Sequential) *> ZIO.failCause(cause),
+              { case (_, out) => ZIO.succeedNow((out, releaseMap)) }
+            )
+        }
       }
     ) { case ((_, releaseMap), exit) =>
       releaseMap.releaseAll(exit, ExecutionStrategy.Sequential)
@@ -1423,6 +1611,15 @@ object ZChannel {
       consumer
     }
 
+  def provideLayer[Env0, Env, Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone](layer: ZLayer[Env0, OutErr, Env])(
+    channel: => ZChannel[Env with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  )(implicit
+    ev: Tag[Env],
+    tag: Tag[Env1],
+    trace: ZTraceElement
+  ): ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+    ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] ++ layer))
+
   def readWithCause[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     halt: Cause[InErr] => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -1445,6 +1642,40 @@ object ZChannel {
 
   def read[In](implicit trace: ZTraceElement): ZChannel[Any, Any, In, Any, None.type, Nothing, In] =
     readOrFail(None)
+
+  /**
+   * Accesses the specified service in the environment of the channel.
+   */
+  def service[Service: Tag: IsNotIntersection](implicit
+    trace: ZTraceElement
+  ): ZChannel[Service, Any, Any, Any, Nothing, Nothing, Service] =
+    ZChannel.fromZIO(ZIO.service)
+
+  /**
+   * Accesses the service corresponding to the specified key in the environment.
+   */
+  def serviceAt[Service]: ZChannel.ServiceAtPartiallyApplied[Service] =
+    new ZChannel.ServiceAtPartiallyApplied[Service]
+
+  /**
+   * Accesses the specified service in the environment of the channel.
+   */
+  def serviceWith[Service]: ZChannel.ServiceWithPartiallyApplied[Service] =
+    new ZChannel.ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Accesses the specified service in the environment of the channel in the
+   * context of a channel.
+   */
+  def serviceWithChannel[Service]: ZChannel.ServiceWithChannelPartiallyApplied[Service] =
+    new ZChannel.ServiceWithChannelPartiallyApplied[Service]
+
+  /**
+   * Accesses the specified service in the environment of the channel in the
+   * context of an effect.
+   */
+  def serviceWithZIO[Service]: ZChannel.ServiceWithZIOPartiallyApplied[Service] =
+    new ZChannel.ServiceWithZIOPartiallyApplied[Service]
 
   def succeed[Z](z: => Z)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
     Succeed(() => z)
@@ -1554,5 +1785,136 @@ object ZChannel {
   object MergeStrategy {
     case object BackPressure  extends MergeStrategy
     case object BufferSliding extends MergeStrategy
+  }
+
+  sealed trait ChildExecutorDecision
+  object ChildExecutorDecision {
+
+    /** Continue executing the current substream */
+    case object Continue extends ChildExecutorDecision
+
+    /**
+     * Close the current substream with a given value and pass execution to the
+     * next substream
+     */
+    final case class Close(value: Any) extends ChildExecutorDecision
+
+    /**
+     * Pass execution to the next substream. This either pulls a new element
+     * from upstream, or yields to an already created active substream.
+     */
+    case object Yield extends ChildExecutorDecision
+  }
+
+  sealed trait UpstreamPullRequest[+A]
+  object UpstreamPullRequest {
+    final case class Pulled[+A](value: A)                   extends UpstreamPullRequest[A]
+    final case class NoUpstream(activeDownstreamCount: Int) extends UpstreamPullRequest[Nothing]
+  }
+
+  sealed trait UpstreamPullStrategy[+A]
+  object UpstreamPullStrategy {
+    final case class PullAfterNext[+A](emitSeparator: Option[A])        extends UpstreamPullStrategy[A]
+    final case class PullAfterAllEnqueued[+A](emitSeparator: Option[A]) extends UpstreamPullStrategy[A]
+  }
+
+  final class EnvironmentWithPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[OutDone](f: ZEnvironment[Env] => OutDone)(implicit
+      trace: ZTraceElement
+    ): ZChannel[Env, Any, Any, Any, Nothing, Nothing, OutDone] =
+      ZChannel.environment.map(f)
+  }
+
+  final class EnvironmentWithChannelPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Env1 <: Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+      f: ZEnvironment[Env] => ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+    )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      ZChannel.environment.flatMap(f)
+  }
+
+  final class EnvironmentWithZIOPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Env1 <: Env, OutErr, OutDone](f: ZEnvironment[Env] => ZIO[Env1, OutErr, OutDone])(implicit
+      trace: ZTraceElement
+    ): ZChannel[Env1, Any, Any, Any, OutErr, Nothing, OutDone] =
+      ZChannel.environment.mapZIO(f)
+  }
+
+  final class ProvideSomeLayer[Env0, -Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone](
+    private val self: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  ) extends AnyVal {
+    def apply[OutErr1 >: OutErr, Env1](
+      layer: => ZLayer[Env0, OutErr1, Env1]
+    )(implicit
+      ev: Env0 with Env1 <:< Env,
+      tagged: Tag[Env1],
+      trace: ZTraceElement
+    ): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
+      self
+        .asInstanceOf[ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
+        .provideLayer(ZLayer.environment[Env0] ++ layer)
+  }
+
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: => Key
+    )(implicit
+      tag: Tag[Map[Key, Service]],
+      trace: ZTraceElement
+    ): ZChannel[Map[Key, Service], Any, Any, Any, Nothing, Nothing, Option[Service]] =
+      ZChannel.environmentWith(_.getAt(key))
+  }
+
+  final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[OutDone](f: Service => OutDone)(implicit
+      ev: IsNotIntersection[Service],
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZChannel[Service, Any, Any, Any, Nothing, Nothing, OutDone] =
+      ZChannel.service[Service].map(f)
+  }
+
+  final class ServiceWithChannelPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Env <: Service, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+      f: Service => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+    )(implicit
+      ev: IsNotIntersection[Service],
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      ZChannel.service[Service].flatMap(f)
+  }
+
+  final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Env <: Service, OutErr, OutDone](f: Service => ZIO[Env, OutErr, OutDone])(implicit
+      ev: IsNotIntersection[Service],
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone] =
+      ZChannel.service[Service].mapZIO(f)
+  }
+
+  final class UpdateService[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone, Service](
+    private val self: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  ) extends AnyVal {
+    def apply[Env1 <: Env with Service](
+      f: Service => Service
+    )(implicit
+      ev: IsNotIntersection[Service],
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      self.provideSomeEnvironment(_.update(f))
+  }
+
+  final class UpdateServiceAt[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone, Service](
+    private val self: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  ) extends AnyVal {
+    def apply[Env1 <: Env with Map[Key, Service], Key](key: => Key)(
+      f: Service => Service
+    )(implicit
+      tag: Tag[Map[Key, Service]],
+      trace: ZTraceElement
+    ): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       },
       supervisor = Supervisor.none,
       loggers = ZLogger.Set.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info),
-      runtimeConfigFlags = RuntimeConfigFlags.empty
+      flags = RuntimeConfigFlags.empty + RuntimeConfigFlag.EnableFiberRoots
     )
 
   /**

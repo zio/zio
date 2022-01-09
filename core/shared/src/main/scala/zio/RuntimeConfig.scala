@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ final case class RuntimeConfig(
   reportFatal: Throwable => Nothing,
   supervisor: Supervisor[Any],
   loggers: ZLogger.Set[String & Cause[Any], Any],
-  runtimeConfigFlags: RuntimeConfigFlags
+  flags: RuntimeConfigFlags
 ) { self =>
   def @@(aspect: RuntimeConfigAspect): RuntimeConfig = aspect(self)
 

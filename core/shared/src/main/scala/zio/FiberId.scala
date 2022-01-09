@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import scala.annotation.tailrec
  */
 sealed trait FiberId extends Serializable { self =>
   import FiberId._
+
+  final def <>(that: FiberId): FiberId = self.combine(that)
 
   final def combine(that: FiberId): FiberId =
     (self, that) match {
@@ -72,7 +74,7 @@ object FiberId {
     fiberIds.foldLeft[FiberId](FiberId.None)(_ combine _)
 
   private[zio] def unsafeMake(): FiberId.Runtime =
-    FiberId.Runtime((java.lang.System.currentTimeMillis / 1000).toInt, _fiberCounter.getAndIncrement())
+    FiberId.Runtime(_fiberCounter.getAndIncrement(), (java.lang.System.currentTimeMillis / 1000).toInt)
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 

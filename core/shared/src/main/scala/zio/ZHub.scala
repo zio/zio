@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2021-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -224,6 +224,18 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     }
 
   /**
+   * Checks whether the hub is currently empty.
+   */
+  final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+    self.size.map(_ == 0)
+
+  /**
+   * Checks whether the hub is currently full.
+   */
+  final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+    self.size.map(_ == capacity)
+
+  /**
    * Transforms messages taken from the hub using the specified function.
    */
   final def map[C](f: B => C): ZHub[RA, RB, EA, EB, A, C] =
@@ -434,7 +446,8 @@ object ZHub {
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
               ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
-                ZIO.succeed(subscription.unsubscribe())
+                ZIO.succeed(subscription.unsubscribe()) *>
+                ZIO.succeed(strategy.unsafeOnHubEmptySpace(hub, subscribers))
             }
             .unit
         }.uninterruptible

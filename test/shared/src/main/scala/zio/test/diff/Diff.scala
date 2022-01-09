@@ -68,6 +68,7 @@ trait DiffInstances extends LowPriDiff {
   implicit def arrayBufferDiff[A: Diff]: Diff[ArrayBuffer[A]] =
     mkSeqDiff("ArrayBuffer")((_: ArrayBuffer[A]).toIndexedSeq)
   implicit def listBufferDiff[A: Diff]: Diff[ListBuffer[A]] = mkSeqDiff("ListBuffer")((_: ListBuffer[A]).toIndexedSeq)
+  implicit def seqDiff[A: Diff]: Diff[Seq[A]]               = mkSeqDiff("Seq")(identity(_))
 
   def mkSeqDiff[F[_], A: Diff](name: String)(f: F[A] => Seq[A]): Diff[F[A]] = (x0: F[A], y0: F[A]) => {
     val x                                          = f(x0)
@@ -104,9 +105,8 @@ trait DiffInstances extends LowPriDiff {
 }
 
 trait LowPriDiff {
-  implicit val anyValDiff: Diff[AnyVal] = anyDiff[AnyVal]
 
-  def anyDiff[A]: Diff[A] = new Diff[A] {
+  implicit def anyDiff[A]: Diff[A] = new Diff[A] {
 
     override def diff(x: A, y: A): DiffResult =
       if (x == y) DiffResult.Identical(x)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       case (self, Chunk.PrependN(end, buffer, bufferUsed, _)) =>
         val chunk = Chunk.fromArray(buffer.asInstanceOf[Array[A1]]).takeRight(bufferUsed)
         self ++ chunk ++ end
+      case (self, Chunk.Empty) => self
+      case (Chunk.Empty, that) => that
       case (self, that) =>
         val diff = that.depth - self.depth
         if (math.abs(diff) <= 1) Chunk.Concat(self, that)
@@ -1356,7 +1358,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       chunk.length
 
     def apply(i: Int): A = {
-      var j = used
+      var j = used - 1
       var a = null.asInstanceOf[A]
       while (j >= 0) {
         if (bufferIndices(j) == i) {
@@ -1380,7 +1382,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         val bufferValues  = Array.ofDim[AnyRef](UpdateBufferSize)
         bufferIndices(0) = i
         bufferValues(0) = a.asInstanceOf[AnyRef]
-        val array = chunk.asInstanceOf[Chunk[AnyRef]].toArray
+        val array = self.asInstanceOf[Chunk[AnyRef]].toArray
         Update(Chunk.fromArray(array.asInstanceOf[Array[A1]]), bufferIndices, bufferValues, 1, new AtomicInteger(1))
       }
 

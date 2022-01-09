@@ -1,6 +1,7 @@
 package zio.stream
 
 import zio._
+import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.test.Assertion._
 import zio.test._
 
@@ -136,6 +137,31 @@ object ZChannelSpec extends ZIOBaseSpec {
             }
 
           }
+        },
+        test("finalizer ordering 2") {
+          for {
+            effects <- Ref.make(List[String]())
+            push     = (i: String) => ZIO.debug(i) *> effects.update(i :: _)
+            _ <- ZChannel
+                   .writeAll(1, 2)
+                   .mapOutZIO(n => push(s"pulled $n").as(n))
+                   .concatMap(n =>
+                     ZChannel
+                       .write(n)
+                       .ensuring(push(s"close $n"))
+                   )
+                   .runDrain
+            result <- effects.get
+          } yield assert(result.reverse)(
+            equalTo(
+              List(
+                "pulled 1",
+                "close 1",
+                "pulled 2",
+                "close 2"
+              )
+            )
+          )
         }
       ),
       suite("ZChannel#mapOut")(
@@ -255,6 +281,89 @@ object ZChannelSpec extends ZIOBaseSpec {
               .concatMapWith(i => ZChannel.write(i).as(List(s"Inner-$i")))(_ ++ _, (_, _))
               .runCollect
           )(equalTo((Chunk(1, 2, 3), (List("Inner-1", "Inner-2", "Inner-3"), List("Outer-0")))))
+        },
+        test("custom 1") {
+          assertM(
+            ZChannel
+              .writeAll(1, 2, 3, 4)
+              .concatMapWithCustom(x =>
+                ZChannel.writeAll(Some((x, 1)), None, Some((x, 2)), None, Some((x, 3)), None, Some((x, 4)))
+              )(
+                (_, _) => (),
+                (_, _) => (),
+                {
+                  case UpstreamPullRequest.Pulled(_)     => UpstreamPullStrategy.PullAfterNext(None)
+                  case UpstreamPullRequest.NoUpstream(_) => UpstreamPullStrategy.PullAfterAllEnqueued(None)
+                },
+                {
+                  case None    => ChildExecutorDecision.Yield
+                  case Some(_) => ChildExecutorDecision.Continue
+                }
+              )
+              .runCollect
+              .map(_._1.flatten)
+          )(
+            equalTo(
+              Chunk(
+                (1, 1),
+                (2, 1),
+                (3, 1),
+                (4, 1),
+                (1, 2),
+                (2, 2),
+                (3, 2),
+                (4, 2),
+                (1, 3),
+                (2, 3),
+                (3, 3),
+                (4, 3),
+                (1, 4),
+                (2, 4),
+                (3, 4),
+                (4, 4)
+              )
+            )
+          )
+        },
+        test("custom 2") {
+          assertM(
+            ZChannel
+              .writeAll(1, 2, 3, 4)
+              .concatMapWithCustom(x =>
+                ZChannel.writeAll(Some((x, 1)), None, Some((x, 2)), None, Some((x, 3)), None, Some((x, 4)))
+              )(
+                (_, _) => (),
+                (_, _) => (),
+                _ => UpstreamPullStrategy.PullAfterAllEnqueued(None),
+                {
+                  case None    => ChildExecutorDecision.Yield
+                  case Some(_) => ChildExecutorDecision.Continue
+                }
+              )
+              .runCollect
+              .map(_._1.flatten)
+          )(
+            equalTo(
+              Chunk(
+                (1, 1),
+                (2, 1),
+                (1, 2),
+                (3, 1),
+                (2, 2),
+                (1, 3),
+                (4, 1),
+                (3, 2),
+                (2, 3),
+                (1, 4),
+                (4, 2),
+                (3, 3),
+                (2, 4),
+                (4, 3),
+                (3, 4),
+                (4, 4)
+              )
+            )
+          )
         }
       ),
       suite("ZChannel#managedOut")(
@@ -596,6 +705,41 @@ object ZChannelSpec extends ZIOBaseSpec {
               v3 <- ZChannel.fromZIO(ZIO.service[Int])
             } yield (v1, v2, v3)).runDrain.provideEnvironment(ZEnvironment(4))
           )(equalTo((4, 2, 4)))
+        }
+      ),
+      suite("stack safety")(
+        test("mapOut is stack safe") {
+          val N = 100000
+          assertM(
+            (1 to N)
+              .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
+                channel.mapOut(_ + n)
+              }
+              .runCollect
+              .map(_._1.head)
+          )(equalTo((1 to N).foldLeft(1L)(_ + _)))
+        },
+        test("concatMap is stack safe") {
+          val N = 100000L
+          assertM(
+            (1L to N)
+              .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
+                channel.concatMap(_ => ZChannel.write(n)).unit
+              }
+              .runCollect
+              .map(_._1.head)
+          )(equalTo(N))
+        },
+        test("flatMap is stack safe") {
+          val N = 100000L
+          assertM(
+            (1L to N)
+              .foldLeft(ZChannel.write(0L)) { case (channel, n) =>
+                channel.flatMap(_ => ZChannel.write(n))
+              }
+              .runCollect
+              .map(_._1)
+          )(equalTo(Chunk.fromIterable(0L to N)))
         }
       ),
       test("cause is propagated on channel interruption") {

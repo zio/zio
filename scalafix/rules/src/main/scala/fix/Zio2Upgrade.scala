@@ -9,7 +9,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val renames =
     Map(
-      "accessM"                -> "accessZIO",
+      "accessM"                -> "environmentWithZIO",
+      "accessZIO"              -> "environmentWithZIO",
       "asEC"                   -> "asExecutionContext",
       "bimap"                  -> "mapBoth",
       "bracket"                -> "acquireReleaseWith",
@@ -98,11 +99,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "validatePar_"           -> "validateParDiscard",
       "validate_"              -> "validateDiscard",
       "whenCaseM"              -> "whenCaseZIO",
-      "whenM"                  -> "whenZIO"
+      "whenM"                  -> "whenZIO",
+      "serviceWith"               -> "serviceWithZIO"
     )
 
   lazy val scopes = List(
     "zio.test.package",
+    "zio.test.Gen",
     "zio.test.DefaultRunnableSpec",
     "zio.Exit",
     "zio.ZIO",
@@ -130,6 +133,18 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.TestFailure",
     "zio.Runtime"
   )
+  /*
+    TODO
+       Sink renames:
+         count/sum => run(ZSink.count)/run(ZSink.Sum)
+         serviceWithStream
+       Semantic:
+         transducer is gone; replaced with Pipeline
+          -Sink might be good
+          ZTransducer.utf32BEDDecode into ZPipeline variations
+        Try to convert these classes:
+          ZStreamSpec, ZSinkSpec
+   */
 
   case class GenericRename(scopes: List[String], oldName: String, newName: String) {
     val companions = scopes.map(_ + ".")
@@ -186,6 +201,76 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "whenM"         -> "whenSTM"
     )
   )
+  
+  val StreamRenames = Renames(
+    List("zio.stream.ZStream"),
+    Map(
+      "access" -> "environment",
+      "accessM" -> "environmentWithZIO",
+      "accessZIO" -> "environmentWithZIO", // RC only
+      "dropWhileM" -> "dropWhileZIO", // RC only, cannot test
+      "findM" -> "findZIO", // RC only, cannot test
+      "fold"         -> "runFold",
+      "foldM"         -> "runFoldZIO", // RC only
+      "foldManaged" -> "runFoldManaged",
+      "foldManagedM"         -> "runFoldManagedZIO",
+      "foldManagedZIO" -> "runFoldManagedZIO",
+      "foldWhile" -> "runFoldWhile",
+      "foldWhileM" -> "runFoldWhileZIO",
+      "foldWhileManagedM" -> "runFoldWhileManagedZIO",
+      "foldWhileManagedZIO" -> "runFoldWhileManagedZIO", // RC only
+      "foldWhileZIO" -> "runFoldWhileZIO", // RC only
+      "foldWhileManaged" -> "runFoldWhileManaged",
+      "foldZIO" -> "runFoldZIO", // RC only
+      "foreachChunk" -> "runForeachChunk",
+      "foreachChunkManaged" -> "runForeachChunkManaged",
+      "foreachManaged" -> "runForeachManaged",
+      "foreachWhile" -> "runForeachWhile",
+      "foreachWhileManaged" -> "runForeachWhileManaged",
+      "mapM"          -> "mapZIO",
+      "collectWhileM" -> "collectWhileZIO",
+      "collectUntilM" -> "collectUntilZIO",
+      "accessStream" -> "environmentWithStream",
+      "runInto" -> "runIntoQueue", // RC only
+      "runIntoElementsManaged" -> "runIntoQueueElementsManaged", // RC only
+      "runFoldM" -> "runFoldZIO", // RC only
+      "runFoldManagedM" -> "runFoldManagedZIO",
+      "runFoldWhileM" -> "runFoldWhileZIO", // RC only
+      "runFoldWhileManagedM" -> "runFoldWhileManagedZIO", // RC only
+      "chunkN" -> "rechunk", // RC only
+      "intoHub" -> "runIntoHub",
+      "intoHubManaged" -> "runIntoHubManaged",
+      "intoManaged" -> "runIntoQueueManaged",
+      "runIntoManaged" -> "runIntoQueueManaged", // RC only
+      "intoQueue" -> "runIntoQueue",
+      "intoQueueManaged" -> "runIntoQueueManaged", // RC only
+      "lock" -> "onExecutor",
+      "mapAccumM" -> "mapAccumZIO",
+      "mapChunksM" -> "mapChunksZIO",
+      "mapConcatChunkM" -> "mapConcatChunkZIO",
+      "mapMPartitioned" -> "mapZIOPartitioned", 
+      "scanM" -> "scanZIO",
+      "scanReduceM" -> "scanReduceZIO",
+      "takeUntilM" -> "takeUntilZIO",
+      "throttleEnforceM" -> "throttleEnforceZIO",
+      "throttleShapeM" -> "throttleShapeZIO",
+      "timeoutError" -> "timeoutFail",
+      "timeoutErrorCause" -> "timeoutFailCause",
+      "timeoutHalt" -> "timeoutFailCause", // RC only
+      "fromInputStreamEffect" -> "fromInputStreamZIO",
+      "fromIteratorEffect" -> "fromIteratorZIO",
+      "fromJavaIteratorEffect" -> "fromJavaIteratorZIO",
+      "fromJavaIteratorTotal" -> "fromJavaIteratorSucceed",
+      "halt" -> "failCause",
+      "repeatEffectChunkOption" -> "repeatZIOChunkOption",
+      "repeatWith" -> "repeatWithSchedule",
+      "unfoldChunkM" -> "unfoldChunkZIO",
+      "whenCaseM" -> "whenCaseZIO",
+      // TODO Look at restructuring calls to ZStream.cross with the method version
+      // TODO Look into fromBlocking* refactors
+      
+    )
+  )
 
   val ScheduleRenames = Renames(
     List("zio.Schedule", "zio.stm.STM"),
@@ -195,6 +280,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "contramapM"    -> "contramapZIO",
       "delayedM"      -> "delayedZIO",
       "dimapM"        -> "dimapZIO",
+      "dropWhileM" -> "dropWhileZIO", // RC only, cannot test
+      "findM" -> "findZIO", // RC only, cannot test
       "foldM"         -> "foldZIO",
       "mapM"          -> "mapZIO",
       "modifyDelayM"  -> "modifyDelayZIO",
@@ -205,8 +292,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "whileOutputM"  -> "whileOutputZIO",
       "collectWhileM" -> "collectWhileZIO",
       "collectUntilM" -> "collectUntilZIO",
-      "recurWhileM"   -> "recureWhileZIO",
-      "recurUntilM"   -> "recureUntilZIO"
+      "recurWhileM"   -> "recurWhileZIO",
+      "recurUntilM"   -> "recurUntilZIO"
     )
   )
 
@@ -234,7 +321,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "someOrElseM"               -> "someOrElseManaged",
       "unlessM"                   -> "unlessManaged",
       "whenCaseM"                 -> "whenCaseManaged",
-      "whenM"                     -> "whenManaged"
+      "whenM"                     -> "whenManaged",
     )
   )
 
@@ -315,6 +402,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.Gen.anyUpperHexChar"            -> "zio.test.Gen.hexCharUpper",
     "zio.test.Gen.anyASCIIString"             -> "zio.test.Gen.asciiString",
     "zio.test.Gen.anyUUID"                    -> "zio.test.Gen.uuid",
+    "zio.test.Gen.anyInstant"                 -> "zio.test.Gen.instant",
     "zio.test.TimeVariants.anyDayOfWeek"      -> "zio.test.Gen.dayOfWeek",
     "zio.test.TimeVariants.anyFiniteDuration" -> "zio.test.Gen.finiteDuration",
     "zio.test.TimeVariants.anyLocalDate"      -> "zio.test.Gen.localDate",
@@ -346,7 +434,21 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   object BuiltInServiceFixer { // TODO Handle all built-in services?
 
     object ImporteeRenamer {
-      def importeeRenames(implicit sdoc: SemanticDocument): PartialFunction[Tree, Option[Patch]] =
+        
+      def importeeRenames(implicit sdoc: SemanticDocument): PartialFunction[Tree, Option[Patch]] = {
+        val pf: SymbolMatcher => PartialFunction[Tree, Patch] =
+          (symbolMatcher: SymbolMatcher) => {
+            case t @ ImporteeNameOrRename(symbolMatcher(_)) =>
+              Patch.removeImportee(t)
+          }
+
+        val pf1:PartialFunction[Tree, Option[Patch]] = { case (_: Tree) => None }
+        val pf2: Function2[PartialFunction[Tree, Option[Patch]], PartialFunction[Tree, Patch], PartialFunction[Tree, Option[Patch]]] = {
+          case (totalPatch, nextPatch) => {
+            case (tree: Tree) => nextPatch.lift(tree).orElse(totalPatch(tree))
+          }
+        }
+
         List(
           randomMigrator,
           systemMigrator,
@@ -363,11 +465,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           testLiveMigrator
         ).foldLeft(List[SymbolMatcher](hasNormalized)) { case (serviceMatchers, serviceMigrator) =>
           serviceMatchers ++ List(serviceMigrator.normalizedOld, serviceMigrator.normalizedOldService)
-        }.map[PartialFunction[Tree, Patch]](symbolMatcher => { case t @ ImporteeNameOrRename(symbolMatcher(_)) =>
-          Patch.removeImportee(t)
-        }).foldLeft[PartialFunction[Tree, Option[Patch]]] { case (_: Tree) => None } { case (totalPatch, nextPatch) =>
-          (tree: Tree) => nextPatch.lift(tree).orElse(totalPatch(tree))
-        }
+        }.map(pf).foldLeft {pf1} {pf2}
+      }
 
       def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
         importeeRenames.apply(tree)
@@ -503,7 +602,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   }
 
   override def fix(implicit doc: SemanticDocument): Patch = {
-    new Zio2ZIOSpec().fix +
+    Zio2ZIOSpec.fix +
     doc.tree.collect {
       case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
 
@@ -511,6 +610,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       case ZManagedRenames.Matcher(patch)  => patch
       case STMRenames.Matcher(patch)       => patch
       case ScheduleRenames.Matcher(patch)  => patch
+      case StreamRenames.Matcher(patch)  => patch
       case UniversalRenames.Matcher(patch) => patch
 
       case BuiltInServiceFixer(patch) => patch
@@ -600,6 +700,31 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     case Some(t: Type.Select) => unwindSelect(t)
     case Some(t: Term.Select) => unwindSelect(t)
     case _                    => t
+  }
+  
+  object Zio2ZIOSpec extends SemanticRule("ZIOSpecMigration"){
+    val zio2UpgradeRule = new Zio2Upgrade()
+    val AbstractRunnableSpecRenames = zio2UpgradeRule.Renames(
+      List("zio.test.DefaultRunnableSpec" /* TODO What other types here? */),
+      Map(
+        "Failure"            -> "Any",
+      )
+    )
+
+    override def fix(implicit doc: SemanticDocument): Patch =
+      doc.tree.collect {
+        case AbstractRunnableSpecRenames.Matcher(patch) => patch
+
+        // TODO Check if we really want to do this, or if we want to keep it now that we might have a
+        //    meaningful Failure type
+        case t @ q"override def spec: $tpe = $body" if tpe.toString().contains("ZSpec[Environment, Failure]") =>
+          Patch.replaceTree(t, s"override def spec = $body")
+      }.asPatch + replaceSymbols
+
+    def replaceSymbols(implicit doc: SemanticDocument) = Patch.replaceSymbols(
+      "zio.test.DefaultRunnableSpec" -> "zio.test.ZIOSpecDefault"
+    )
+
   }
 }
 

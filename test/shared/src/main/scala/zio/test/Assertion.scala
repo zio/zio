@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -206,6 +206,13 @@ object Assertion extends AssertionVariants {
     }
 
   /**
+   * Makes a new assertion that requires an exit value to die with an instance
+   * of given type (or its subtype).
+   */
+  def diesWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
+    dies(isSubtype[E](anything))
+
+  /**
    * Makes a new assertion that requires an exception to have a certain message.
    */
   def hasMessage(message: Assertion[String]): Assertion[Throwable] =
@@ -261,6 +268,13 @@ object Assertion extends AssertionVariants {
       case Exit.Failure(cause) => cause.failures.headOption
       case _                   => None
     }
+
+  /**
+   * Makes a new assertion that requires the expression to fail with an instance
+   * of given type (or its subtype).
+   */
+  def failsWithA[E: ClassTag]: Assertion[Exit[E, Any]] =
+    fails(isSubtype[E](anything))
 
   /**
    * Makes a new assertion that requires an exit value to fail with a cause that

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,8 +72,8 @@ object TestAnnotation {
   /**
    * An annotation for timing.
    */
-  val timing: TestAnnotation[Duration] =
-    TestAnnotation("timing", Duration.Zero, _ + _)
+  val timing: TestAnnotation[TestDuration] =
+    TestAnnotation("timing", TestDuration.zero, _ <> _)
 
   /**
    * An annotation for capturing the trace information, including source

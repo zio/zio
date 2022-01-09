@@ -1,3 +1,19 @@
+/*
+ * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -11,7 +27,7 @@ private[zio] trait PlatformSpecific {
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.
    */
-  def addShutdownHook(action: () => Unit): Unit =
+  final def addShutdownHook(action: () => Unit): Unit =
     java.lang.Runtime.getRuntime.addShutdownHook {
       new Thread {
         override def run() = action()
@@ -19,9 +35,28 @@ private[zio] trait PlatformSpecific {
     }
 
   /**
+   * Adds a signal handler for the specified signal (e.g. "INFO"). This method
+   * never fails even if adding the handler fails.
+   */
+  final def addSignalHandler(signal: String, action: () => Unit): Unit = {
+    import sun.misc.Signal
+    import sun.misc.SignalHandler
+
+    try Signal.handle(
+      new Signal(signal),
+      new SignalHandler {
+        override def handle(sig: Signal): Unit = action()
+      }
+    )
+    catch {
+      case _: Throwable => ()
+    }
+  }
+
+  /**
    * Exits the application with the specified exit code.
    */
-  def exit(code: Int): Unit =
+  final def exit(code: Int): Unit =
     java.lang.System.exit(code)
 
   /**
@@ -34,17 +69,17 @@ private[zio] trait PlatformSpecific {
   /**
    * Returns whether the current platform is ScalaJS.
    */
-  val isJS = false
+  final val isJS = false
 
   /**
    * Returns whether the currently platform is the JVM.
    */
-  val isJVM = true
+  final val isJVM = true
 
   /**
    * Returns whether the currently platform is Scala Native.
    */
-  val isNative = false
+  final val isNative = false
 
   final def newWeakHashMap[A, B](): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())

@@ -551,8 +551,8 @@ val mappedError: IO[Exception, String] =
 >
 > Note that mapping over an effect's success or error channel does not change the success or failure of the effect, in the same way that mapping over an `Either` does not change whether the `Either` is `Left` or `Right`.
 
-### mapEffect
-`mapEffect` returns an effect whose success is mapped by the specified side-effecting `f` function, translating any thrown exceptions into typed failed effects.
+### mapAttempt
+`mapAttempt` returns an effect whose success is mapped by the specified side-effecting `f` function, translating any thrown exceptions into typed failed effects.
 
 Converting literal "Five" String to Int by calling `toInt` is a side effecting because it will throws `NumberFormatException` exception:
 
@@ -560,7 +560,7 @@ Converting literal "Five" String to Int by calling `toInt` is a side effecting b
 val task: RIO[Any, Int] = ZIO.succeed("hello").mapAttempt(_.toInt)
 ```   
 
-`mapEffect` converts an unchecked exception to a checked one by returning the `RIO` effect.
+`mapAttempt` converts an unchecked exception to a checked one by returning the `RIO` effect.
 
 ## Chaining
 
@@ -604,7 +604,7 @@ In any `zip` operation, if either the left or right-hand sides fail, then the co
 
 ### zipLeft and zipRight
 
-Sometimes, when the success value of an effect is not useful (or example, it is `Unit`), it can be more convenient to use the `zipLeft` or `zipRight` functions, which first perform a `zip`, and then map over the tuple to discard one side or the other:
+Sometimes, when the success value of an effect is not useful (for example, it is `Unit`), it can be more convenient to use the `zipLeft` or `zipRight` functions, which first perform a `zip`, and then map over the tuple to discard one side or the other:
 
 ```scala mdoc:silent
 val zipRight1 = 

@@ -1195,6 +1195,13 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(fails(equalTo("fail")))
           } @@ zioTag(errors)
         ),
+        test("execute") {
+          for {
+            ref <- Ref.make(List[Int]())
+            _   <- ZStream.execute(ref.set(List(1))).runDrain
+            l   <- ref.get
+          } yield assert(l)(equalTo(List(1)))
+        },
         test("filter")(check(pureStreamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
           for {
             res1 <- s.filter(p).runCollect
@@ -1292,7 +1299,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- effects.get
             } yield assert(result)(equalTo(List(3, 3, 2, 1, 1)))
           },
-          test("finalizer ordering") {
+          test("finalizer ordering 1") {
             for {
               effects <- Ref.make(List[String]())
               push     = (i: String) => effects.update(i :: _)
@@ -1300,9 +1307,11 @@ object ZStreamSpec extends ZIOBaseSpec {
                          _ <- ZStream.acquireReleaseWith(push("open1"))(_ => push("close1"))
                          _ <- ZStream
                                 .fromChunks(Chunk(()), Chunk(()))
-                                .tap(_ => push("use2"))
+                                .tap(_ => ZIO.debug("use2") *> push("use2"))
                                 .ensuring(push("close2"))
-                         _ <- ZStream.acquireReleaseWith(push("open3"))(_ => push("close3"))
+                         _ <- ZStream.acquireReleaseWith(ZIO.debug("open3") *> push("open3"))(_ =>
+                                ZIO.debug("close3") *> push("close3")
+                              )
                          _ <- ZStream
                                 .fromChunks(Chunk(()), Chunk(()))
                                 .tap(_ => push("use4"))
@@ -1328,6 +1337,33 @@ object ZStreamSpec extends ZIOBaseSpec {
                   "close3",
                   "close2",
                   "close1"
+                )
+              )
+            )
+          },
+          test("finalizer ordering 2") {
+            for {
+              effects <- Ref.make(List[String]())
+              push     = (i: String) => effects.update(i :: _)
+              stream = for {
+                         _ <- ZStream
+                                .fromChunks(Chunk(1), Chunk(2))
+                                .tap(n => ZIO.debug(s">>> use2 $n") *> push("use2"))
+                         _ <- ZStream.acquireReleaseWith(ZIO.debug("open3") *> push("open3"))(_ =>
+                                ZIO.debug("close3") *> push("close3")
+                              )
+                       } yield ()
+              _      <- stream.runDrain
+              result <- effects.get
+            } yield assert(result.reverse)(
+              equalTo(
+                List(
+                  "use2",
+                  "open3",
+                  "close3",
+                  "use2",
+                  "open3",
+                  "close3"
                 )
               )
             )
@@ -2806,7 +2842,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               assert(result)(equalTo(Chunk(1, 1, 1))) && assert(state)(isFalse) && assert(finalState)(isTrue)
             }
           )
-        ) @@ ignore,
+        ),
         suite("scan")(
           test("scan")(check(pureStreamOfInts) { s =>
             for {
@@ -3283,7 +3319,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref      <- Ref.make(0)
               sink      = ZSink.foreach[Any, Nothing, Int](n => ref.update(_ + n))
-              stream    = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink, 8)
+              stream    = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink)
               elements <- stream.runCollect
               done     <- ref.get
             } yield assertTrue(elements == Chunk(1, 1, 2, 3, 5, 8) && done == 20)
@@ -3292,7 +3328,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref      <- Ref.make(0)
               sink      = ZSink.take[Int](3).map(_.sum).mapZIO(n => ref.update(_ + n))
-              stream    = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink, 8)
+              stream    = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink)
               elements <- stream.runCollect
               done     <- ref.get
             } yield assertTrue(elements == Chunk(1, 1, 2, 3, 5, 8) && done == 4)
@@ -3301,10 +3337,19 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref   <- Ref.make(0)
               sink   = ZSink.fail("error")
-              stream = ZStream.never.tapSink(sink, 8)
+              stream = ZStream.never.tapSink(sink)
               error <- stream.runCollect.flip
             } yield assertTrue(error == "error")
-          }
+          },
+          test("does not read ahead") {
+            for {
+              ref    <- Ref.make(0)
+              stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
+              sink    = ZSink.foreach((n: Int) => ref.update(_ + n))
+              _      <- stream.tapSink(sink).take(3).runDrain
+              result <- ref.get
+            } yield assertTrue(result == 6)
+          } @@ nonFlaky
         ),
         suite("throttleEnforce")(
           test("free elements") {
@@ -3867,18 +3912,16 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(equalTo(chars))
           }
         ),
-        test("zipAllSortedByKeyExecWith") {
-          val genExecutionStrategy =
-            Gen.elements(ExecutionStrategy.Parallel, ExecutionStrategy.Sequential)
+        test("zipAllSortedByKeyWith") {
           val genSortedByKey = for {
             map    <- Gen.mapOf(Gen.int(1, 100), Gen.int(1, 100))
             chunk   = Chunk.fromIterable(map).sorted
             chunks <- splitChunks(Chunk(chunk))
           } yield chunks
-          check(genSortedByKey, genSortedByKey, genExecutionStrategy) { (as, bs, exec) =>
+          check(genSortedByKey, genSortedByKey) { (as, bs) =>
             val left   = ZStream.fromChunks(as: _*)
             val right  = ZStream.fromChunks(bs: _*)
-            val actual = left.zipAllSortedByKeyWithExec(right)(exec)(identity, identity)(_ + _)
+            val actual = left.zipAllSortedByKeyWith(right)(identity, identity)(_ + _)
             val expected = Chunk.fromIterable {
               as.flatten.toMap.foldLeft(bs.flatten.toMap) { case (map, (k, v)) =>
                 map.get(k).fold(map + (k -> v))(v1 => map + (k -> (v + v1)))
@@ -4847,13 +4890,19 @@ object ZStreamSpec extends ZIOBaseSpec {
           )(equalTo(Chunk.fromIterable(0 to 9)))
         },
         test("unwrapManaged") {
-          assertM(
+          def stream(promise: Promise[Nothing, Unit]) =
             ZStream.unwrapManaged {
-              ZManaged.succeed {
-                ZStream.fail("error")
-              }
-            }.runCollect.either
-          )(isLeft(equalTo("error")))
+              ZManaged.acquireRelease(Console.print("acquire outer"))(Console.print("release outer").orDie) *>
+                ZManaged.fromZIO(promise.succeed(()) *> ZIO.never) *>
+                ZManaged.succeed(ZStream(1, 2, 3))
+            }
+          for {
+            promise <- Promise.make[Nothing, Unit]
+            fiber   <- stream(promise).runDrain.fork
+            _       <- promise.await
+            _       <- fiber.interrupt
+            output  <- TestConsole.output
+          } yield assertTrue(output == Vector("acquire outer", "release outer"))
         },
         suite("withRuntimeConfig")(
           test("runs the stream on the specified runtime configuration") {

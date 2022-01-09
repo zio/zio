@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -300,6 +300,18 @@ abstract class ZQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
           loop(max, Chunk.empty)
         }
     }
+
+  /**
+   * Checks whether the queue is currently empty.
+   */
+  final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+    self.size.map(_ == 0)
+
+  /**
+   * Checks whether the queue is currently full.
+   */
+  final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+    self.size.map(_ == capacity)
 
   /**
    * Transforms elements dequeued from this queue with a function.

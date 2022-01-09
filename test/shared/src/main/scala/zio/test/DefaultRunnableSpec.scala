@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A default runnable spec that provides testable versions of all of the modules
  * in ZIO (Clock, Random, etc).
  */
-@deprecated("Use ZIOSpecDefault")
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
   override def aspects: List[TestAspectAtLeastR[TestEnvironment]] =

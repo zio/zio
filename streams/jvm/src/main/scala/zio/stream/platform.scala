@@ -1,15 +1,34 @@
+/*
+ * Copyright 2018-2022 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.stream
 
 import zio._
 import zio.stream.compression.{CompressionException, CompressionLevel, CompressionStrategy, FlushMode}
 
 import java.io._
-import java.net.{InetSocketAddress, SocketAddress}
+import java.net.{InetSocketAddress, SocketAddress, URI}
 import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler, FileChannel}
-import java.nio.file.{OpenOption, Path}
 import java.nio.file.StandardOpenOption._
+import java.nio.file.{OpenOption, Path, Paths}
 import java.nio.{Buffer, ByteBuffer}
+import java.security.MessageDigest
+import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
+import scala.annotation.tailrec
 
 trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
@@ -213,9 +232,40 @@ trait ZStreamPlatformSpecificConstructors {
     asyncMaybe(register, outputBuffer)
 
   /**
+   * Creates a stream of bytes from the specified file.
+   */
+  final def fromFile(file: => File, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, Byte] =
+    ZStream
+      .fromZIO(ZIO.attempt(file.toPath))
+      .flatMap(path => self.fromPath(path, chunkSize))
+
+  /**
+   * Creates a stream of bytes from a file at the specified path represented by
+   * a string.
+   */
+  final def fromFileString(name: => String, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, Byte] =
+    ZStream
+      .fromZIO(ZIO.attempt(Paths.get(name)))
+      .flatMap(path => self.fromPath(path, chunkSize))
+
+  /**
+   * Creates a stream of bytes from a file at the specified uri.
+   */
+  final def fromFileURI(uri: => URI, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Throwable, Byte] =
+    ZStream
+      .fromZIO(ZIO.attempt(Paths.get(uri)))
+      .flatMap(path => self.fromPath(path, chunkSize))
+
+  /**
    * Creates a stream of bytes from a file at the specified path.
    */
-  def fromFile(path: => Path, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
+  final def fromPath(path: => Path, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, Byte] =
     ZStream
@@ -553,10 +603,76 @@ trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
 
   /**
-   * Uses the provided `Path` to create a [[ZSink]] that consumes byte chunks
+   * Creates a sink which digests incoming bytes using Java's MessageDigest
+   * class, returning the digest value.
+   */
+  def digest(digest: => MessageDigest): ZSink[Any, Nothing, Byte, Nothing, Chunk[Byte]] =
+    ZSink.suspend {
+
+      def loop(digest: MessageDigest): ZChannel[Any, Nothing, Chunk[Byte], Any, Nothing, Nothing, Chunk[Byte]] =
+        ZChannel.readWithCause[Any, Nothing, Chunk[Byte], Any, Nothing, Nothing, Chunk[Byte]](
+          in =>
+            ZChannel
+              .succeedNow(digest.update(in.toArray))
+              .zipRight[Any, Nothing, Chunk[Byte], Any, Nothing, Nothing, Chunk[Byte]](loop(digest)),
+          cause => ZChannel.failCause(cause),
+          _ => ZChannel.succeedNow(Chunk.fromArray(digest.digest))
+        )
+
+      new ZSink(loop(digest))
+    }
+
+  /**
+   * Uses the provided `File` to create a [[ZSink]] that consumes byte chunks
    * and writes them to the `File`. The sink will yield count of bytes written.
    */
   final def fromFile(
+    file: => File,
+    position: Long = 0L,
+    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Throwable, Byte, Byte, Long] =
+    ZSink
+      .fromZIO(ZIO.attempt(file.toPath))
+      .flatMap(path => self.fromPath(path, position, options))
+
+  /**
+   * Uses the provided `Path` represented as a string to create a [[ZSink]] that
+   * consumes byte chunks and writes them to the `File`. The sink will yield
+   * count of bytes written.
+   */
+  final def fromFileString(
+    name: => String,
+    position: Long = 0L,
+    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Throwable, Byte, Byte, Long] =
+    ZSink
+      .fromZIO(ZIO.attempt(Paths.get(name)))
+      .flatMap(path => self.fromPath(path, position, options))
+
+  /**
+   * Uses the provided `URI` to create a [[ZSink]] that consumes byte chunks and
+   * writes them to the `File`. The sink will yield count of bytes written.
+   */
+  final def fromFileURI(
+    uri: => URI,
+    position: Long = 0L,
+    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Throwable, Byte, Byte, Long] =
+    ZSink
+      .fromZIO(ZIO.attempt(Paths.get(uri)))
+      .flatMap(path => self.fromPath(path, position, options))
+
+  /**
+   * Uses the provided `Path` to create a [[ZSink]] that consumes byte chunks
+   * and writes them to the `File`. The sink will yield count of bytes written.
+   */
+  final def fromPath(
     path: => Path,
     position: => Long = 0L,
     options: => Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)

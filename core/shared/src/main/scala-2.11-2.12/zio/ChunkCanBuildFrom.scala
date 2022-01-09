@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,11 @@ import scala.collection.generic.CanBuildFrom
 
 /**
  * `ChunkCanBuildFrom` provides implicit evidence that a collection of type
- * `Chunk[A]` can be built from elements of type `A`. Since a `Chunk[A]` can
- * be built from elements of type `A` for any type `A`, this implicit
- * evidence always exists. It is used primarily to provide proof that the
- * target type of a collection operation is a `Chunk` to support high
- * performance implementations of transformation operations for chunks.
+ * `Chunk[A]` can be built from elements of type `A`. Since a `Chunk[A]` can be
+ * built from elements of type `A` for any type `A`, this implicit evidence
+ * always exists. It is used primarily to provide proof that the target type of
+ * a collection operation is a `Chunk` to support high performance
+ * implementations of transformation operations for chunks.
  */
 sealed abstract class ChunkCanBuildFrom[A] extends CanBuildFrom[Chunk[Any], A, Chunk[A]] {
   override def apply(from: Chunk[Any]): ChunkBuilder[A]

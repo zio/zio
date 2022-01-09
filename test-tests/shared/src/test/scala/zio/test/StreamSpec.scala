@@ -30,6 +30,7 @@ object StreamSpec extends ZIOBaseSpec {
               (3, 0) -> 1
             )
           )
+//          val stream = flatMapStreamOrig(nats)(a => flatMapStreamOrig(nats)(b => ZStream.succeed(Some((a, b)))))
           val stream = flatMapStream(nats)(a => flatMapStream(nats)(b => ZStream.succeed(Some((a, b)))))
           for {
             actual <- runCollectUnordered(100)(stream)
@@ -51,7 +52,8 @@ object StreamSpec extends ZIOBaseSpec {
             }
           },
           test("right identity") {
-            check(Gen.int, genIntStreamFunction) { (a, f) =>
+            check(Gen.int, Gen.listOf(Gen.option(Gen.int))) { (a, lst) =>
+              val f     = (_: Int) => ZStream.fromIterable(lst)
               val left  = flatMapStream(ZStream(Some(a)))(f)
               val right = f(a)
               assertEqualStream(left, right)

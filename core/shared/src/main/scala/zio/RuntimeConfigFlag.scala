@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2021-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,4 +23,5 @@ object RuntimeConfigFlag {
   case object LogRuntime          extends RuntimeConfigFlag
   case object SuperviseOperations extends RuntimeConfigFlag
   case object TrackRuntimeMetrics extends RuntimeConfigFlag
+  case object EnableFiberRoots    extends RuntimeConfigFlag
 }

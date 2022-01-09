@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018-2022 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.stream
 
 import zio._
@@ -721,8 +737,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A sink that ignores its inputs.
    */
-  def drain(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
-    new ZSink(ZChannel.read[Any].unit.repeated.catchAll(_ => ZChannel.unit))
+  def drain(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] = {
+    lazy val loop: ZChannel[Any, Nothing, Chunk[Any], Any, Nothing, Chunk[Nothing], Unit] =
+      ZChannel
+        .readWith[Any, Nothing, Chunk[Any], Any, Nothing, Chunk[Nothing], Unit](
+          (_: Chunk[Any]) => loop,
+          (error: Nothing) => ZChannel.fail(error),
+          (_: Any) => ZChannel.unit
+        )
+    new ZSink(loop)
+  }
 
   def dropWhile[In](p: In => Boolean)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Any] = {
     lazy val loop: ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
@@ -1368,6 +1392,51 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   @deprecated("use fromZIO", "2.0.0")
   def fromEffect[R, E, Z](b: => ZIO[R, E, Z])(implicit trace: ZTraceElement): ZSink[R, E, Any, Nothing, Z] =
     fromZIO(b)
+
+  /**
+   * Creates a sink from a chunk processing function.
+   */
+  def fromPush[R, E, I, L, Z](
+    push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]]
+  )(implicit trace: ZTraceElement): ZSink[R, E, I, L, Z] = {
+
+    def pull(
+      push: Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
+    ): ZChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z] =
+      ZChannel.readWith[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+        in =>
+          ZChannel
+            .fromZIO(push(Some(in)))
+            .foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+              {
+                case (Left(e), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
+                case (Right(z), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
+              },
+              _ => pull(push)
+            ),
+        err => ZChannel.fail(err),
+        _ =>
+          ZChannel
+            .fromZIO(push(None))
+            .foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+              {
+                case (Left(e), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
+                case (Right(z), leftovers) =>
+                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
+              },
+              _ => ZChannel.fromZIO(ZIO.dieMessage("empty sink"))
+            )
+      )
+
+    new ZSink(
+      ZChannel.unwrapManaged[R, Nothing, Chunk[I], Any, E, Chunk[L], Z] {
+        push.map(pull)
+      }
+    )
+  }
 
   /**
    * Creates a single-value sink produced from an effect

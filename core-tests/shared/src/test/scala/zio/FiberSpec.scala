@@ -111,6 +111,19 @@ object FiberSpec extends ZIOBaseSpec {
           _      <- latch2.await
         } yield assertCompletes
       } @@ zioTag(interruption) @@ nonFlaky,
+      suite("roots")(
+        test("dual roots") {
+          def rootContains(f: Fiber.Runtime[_, _]): UIO[Boolean] =
+            Fiber.roots.map(_.contains(f))
+
+          for {
+            fiber1 <- ZIO.never.forkDaemon
+            fiber2 <- ZIO.never.forkDaemon
+            _      <- (rootContains(fiber1) && rootContains(fiber2)).repeatUntil(_ == true)
+            _      <- fiber1.interrupt *> fiber2.interrupt
+          } yield assertCompletes
+        }
+      ),
       suite("stack safety")(
         test("awaitAll") {
           assertM(Fiber.awaitAll(fibers))(anything)

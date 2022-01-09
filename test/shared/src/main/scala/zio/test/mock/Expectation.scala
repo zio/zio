@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -145,7 +145,7 @@ sealed abstract class Expectation[R: Tag] { self =>
     }
 
   /**
-   * Repeats this expectation withing given bounds, producing a new expectation
+   * Repeats this expectation within given bounds, producing a new expectation
    * to satisfy itself sequentially given number of times.
    *
    * {{{val mockEnv = MockClock.sleep(equalTo(1.second)).repeats(1, 5)}}}

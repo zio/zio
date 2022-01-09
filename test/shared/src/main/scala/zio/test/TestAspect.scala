@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -232,8 +232,18 @@ object TestAspect extends TimeoutVariants {
               (_, _) => dump(label) *> fiber.join
             )
           }
+
         def dump[E, A](label: String): URIO[Live with Annotations, Unit] =
-          Annotations.supervisedFibers.flatMap(fibers => Live.live(Fiber.putDumpStr(label, fibers.toSeq: _*).orDie))
+          Annotations.supervisedFibers.flatMap { fibers =>
+            Live.live(ZIO.foreachDiscard(fibers) { fiber =>
+              for {
+                dump <- fiber.dump
+                str  <- dump.prettyPrint
+                _    <- Console.printLine(str).orDie
+              } yield ()
+            })
+          }
+
         spec.transform[R, TestFailure[E], TestSuccess] {
           case Spec.TestCase(test, annotations) => Spec.TestCase(diagnose("", test), annotations)
           case c                                => c
@@ -455,7 +465,7 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * As aspect that only runs a test if the specified environment variable is
+   * An aspect that only runs a test if the specified environment variable is
    * set.
    */
   def ifEnvSet(env: String): TestAspectAtLeastR[Live with Annotations] =
@@ -472,7 +482,7 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * As aspect that only runs a test if the specified Java property is set.
+   * An aspect that only runs a test if the specified Java property is set.
    */
   def ifPropSet(prop: String): TestAspectAtLeastR[Live with Annotations] =
     ifProp(prop)(_ => true)
@@ -916,8 +926,9 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: Live with Annotations, E](
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
-        Live.withLive(test)(_.either.timed).flatMap { case (duration, result) =>
-          ZIO.fromEither(result).ensuring(Annotations.annotate(TestAnnotation.timing, duration))
+        Live.withLive(test)(_.either.summarized(Clock.instant)(TestDuration.fromInterval)).flatMap {
+          case (duration, result) =>
+            ZIO.fromEither(result).ensuring(Annotations.annotate(TestAnnotation.timing, duration))
         }
     }
 

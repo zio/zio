@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test._
 import zio._
 
-object CyclicBarrierSpec extends ZIOBaseSpec {
+object CyclicBarrierSpec extends ZIOSpecDefault {
   private val parties = 100
 
   val spec =

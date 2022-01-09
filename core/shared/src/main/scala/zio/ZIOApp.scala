@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2021-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,19 +84,36 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * Invokes the main app. Designed primarily for testing.
    */
   final def invoke(args: Chunk[String])(implicit trace: ZTraceElement): ZIO[ZEnv, Any, Any] =
-    ZIO.runtime[ZEnv].flatMap { runtime =>
-      val newRuntime = runtime.mapRuntimeConfig(hook)
-
+    ZIO.suspendSucceed {
       val newLayer =
         ZLayer.environment[ZEnv] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
           layer +!+ ZLayer.environment[ZEnv with ZIOAppArgs]
 
-      newRuntime.run(run.provideLayer(newLayer))
+      for {
+        _          <- installSignalHandlers
+        newRuntime <- ZIO.runtime[ZEnv].map(_.mapRuntimeConfig(hook))
+        result     <- newRuntime.run(run.provideLayer(newLayer))
+      } yield result
     }
 
   def runtime: Runtime[ZEnv] = Runtime.default
+
+  protected def installSignalHandlers(implicit trace: ZTraceElement): UIO[Any] =
+    ZIO.attempt {
+      if (!ZIOApp.installedSignals.getAndSet(true)) {
+        val dumpFibers = () => runtime.unsafeRun(Fiber.dumpAll)
+
+        if (System.os.isWindows) {
+          Platform.addSignalHandler("INT", dumpFibers)
+        } else {
+          Platform.addSignalHandler("INFO", dumpFibers)
+          Platform.addSignalHandler("USR1", dumpFibers)
+        }
+      }
+    }.ignore
 }
 object ZIOApp {
+  private val installedSignals = new java.util.concurrent.atomic.AtomicBoolean(false)
 
   /**
    * A class which can be extended by an object to convert a description of a
