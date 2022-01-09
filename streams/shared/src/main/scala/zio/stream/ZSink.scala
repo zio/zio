@@ -1494,13 +1494,17 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Sets the log level for streams composed after this.
    */
-  def logLevel[R, E, In, L, Z](level: LogLevel)(sink: ZSink[R, E, In, L, Z])(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
+  def logLevel[R, E, In, L, Z](level: LogLevel)(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, In, L, Z] =
     ZSink.unwrapManaged(ZManaged.logLevel(level).as(sink))
 
   /**
    * Adjusts the label for the logging span for streams composed after this.
    */
-  def logSpan[R, E, In, L, Z](label: => String)(sink: ZSink[R, E, In, L, Z])(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
+  def logSpan[R, E, In, L, Z](label: => String)(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, In, L, Z] =
     ZSink.unwrapManaged(ZManaged.logSpan(label).as(sink))
 
   /**
