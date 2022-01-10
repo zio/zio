@@ -317,7 +317,7 @@ val horizontal: ZLayer[A, Throwable, C] =    // A ==> C
   fooLayer >>> barLayer
 ```
 
-#### Hidden and Passed Through Dependencies
+#### Hidden Versus Passed Through Dependencies
 
 By default, the `ZLayer` hides intermediate dependencies when composing vertically. For example, when we compose `fooLayer` with `barLayer` vertically, the output would be a `ZLayer[A, Throwable, C]`. This hides the dependency on the `B` layer.
 
@@ -339,9 +339,11 @@ val finalLayer: ZLayer[A & B, Throwable, C] = // A & B ==> C
 // (A & B ==> C)
 ```
 
-Or we might need to include the middle services in the output channel of the final layer:
+Or we may want to include the middle services in the output channel of the final layer, resulting in a new layer with the inputs of the first layer and the outputs of both layers:
 
-```scala mdoc:compiel-only
+```scala mdoc:compile-only
+import zio._
+
 val fooLayer: ZLayer[A, Throwable, B] = ??? // A  ==> B
 val barLayer: ZLayer[B, Throwable, C] = ??? // B  ==> C
 
@@ -351,6 +353,18 @@ val finalLayer: ZLayer[A, Throwable, B & C] = // A ==> B & C
 // (A ==> B) >>> ((B ==> B) ++ (B ==> C))
 // (A ==> B) >>> (B ==> B & C)
 // (A ==> B & C)
+```
+
+We can do the same with the `>+>` operator:
+
+```scala mdoc:compile-only
+import zio._
+
+val fooLayer: ZLayer[A, Throwable, B] = ??? // A  ==> B
+val barLayer: ZLayer[B, Throwable, C] = ??? // B  ==> C
+
+val finalLayer: ZLayer[A, Throwable, B & C] = // A ==> B & C
+  fooLayer >+> barLayer
 ```
 
 This technique is useful when we want to defer the creation of some intermediate services and require them as part of the input of the final layer. For example, assume we have these two layers:
@@ -380,6 +394,39 @@ val layer: ZLayer[A & C, Throwable, D] =        // A & C ==> D
 // (A & C ==> B & C) >>> (B & C ==> D)
 // (A & C ==> D)
 ```
+
+Here is an example of which path through all requirements to bake a `Cake` so all the requirements are available to all the downstream services: 
+
+```scala mdoc:silent
+import zio._
+
+trait Baker 
+trait Ingredients
+trait Oven
+trait Dough
+trait Cake
+
+lazy val baker      : ZLayer[Any, Nothing, Baker] = ???
+lazy val ingredients: ZLayer[Any, Nothing, Ingredients] = ???
+lazy val oven       : ZLayer[Any, Nothing, Oven] = ???
+lazy val dough      : ZLayer[Baker & Ingredients, Nothing, Dough] = ???
+lazy val cake       : ZLayer[Baker & Oven & Dough, Nothing, Cake] = ???
+
+lazy val all: ZLayer[Any, Nothing, Baker & Ingredients & Oven & Dough & Cake] =
+  baker >+>       // Baker
+  ingredients >+> // Baker & Ingredients
+  oven >+>        // Baker & Ingredients & Oven
+  dough >+>       // Baker & Ingredients & Oven & Dough
+  cake            // Baker & Ingredients & Oven & Dough & Cake
+```
+
+This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it. If we pass through dependencies and later want to hide them we can do so through a simple type ascription:
+
+```scala mdoc:silent
+lazy val hidden: ZLayer[Any, Nothing, Cake] = all
+```
+
+The `ZLayer` makes it easy to mix and match these styles. If we build our dependency graph more explicitly, we can be confident that dependencies used in multiple parts of the dependency graph will only be created once due to memoization and sharing.
 
 ```scala mdoc:invisible:reset
 
@@ -483,6 +530,10 @@ object MainApp extends ZIOAppDefault {
 // Application config initialized: AppConfig(5)
 // Application config after the update operation: AppConfig(8)
 ```
+
+#### Cyclic Dependencies
+
+The `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
 
 ## Dependency Propagation
 
@@ -1066,11 +1117,9 @@ object MainApp extends ZIOAppDefault {
 
 Let's get into an example, assume we have these services with their implementations:
 
-```scala mdoc:invisible:reset
+```scala mdoc:silent
 import zio._
-```
 
-```scala mdoc:silent:nest
 trait Logging
 trait Database
 trait BlobStorage
@@ -1078,15 +1127,21 @@ trait UserRepo
 trait DocRepo
 
 case class LoggerImpl(console: Console) extends Logging
+
 case object DatabaseImp extends Database
-case class UserRepoImpl(logging: Logging, database: Database) extends UserRepo
+
+case class UserRepoImpl(logging: Logging,
+                        database: Database) extends UserRepo
+
 case class BlobStorageImpl(logging: Logging) extends BlobStorage
-case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo
+
+case class DocRepoImpl(logging: Logging,
+                       database: Database,
+                       blobStorage: BlobStorage
+                      ) extends DocRepo
 ```
 
-We can't compose these services together, because their constructors are not value. `ZLayer` can convert these services into values, then we can compose them together.
-
-Let's assume we have lifted these services into `ZLayer`s:
+We can't compose these services together, because their constructors are not value. `ZLayer` can convert these services into values, then we can compose them together. Let's assume we have lifted these services into `ZLayer`s:
 
 ```scala mdoc:silent
 val logging:     URLayer[Console, Logging]                          = (LoggerImpl.apply _).toLayer
@@ -1138,8 +1193,6 @@ And then we can compose the `newLayer` with `userRepo` vertically:
 ```scala mdoc:silent
 val myLayer: ZLayer[Console, Throwable, UserRepo] = newLayer >>> userRepo
 ```
-
-#### Updating Local Dependencies
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -1275,9 +1328,7 @@ val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo {
 val updatedHorizontal2 = horizontal ++ dbLayer
 ```
 
-#### Hidden Versus Passed Through Dependencies
-
-One design decision regarding building dependency graphs is whether to hide or pass through the upstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to pass through dependencies as well.
+One decision regarding building dependency graphs is whether to hide or pass through the upstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to pass through dependencies as well.
 
 To illustrate this, consider the Postgres-based repository discussed above:
 
@@ -1318,38 +1369,4 @@ However, if an upstream dependency is used by many other services, it can be con
 val layer: ZLayer[Any, Nothing, Connection & UserRepo] = connection >+> userRepo
 ```
 
-Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
-
-```scala mdoc
-trait Baker 
-trait Ingredients
-trait Oven
-trait Dough
-trait Cake
-
-lazy val baker: ZLayer[Any, Nothing, Baker] = ???
-lazy val ingredients: ZLayer[Any, Nothing, Ingredients] = ???
-lazy val oven: ZLayer[Any, Nothing, Oven] = ???
-lazy val dough: ZLayer[Baker & Ingredients, Nothing, Dough] = ???
-lazy val cake: ZLayer[Baker & Oven & Dough, Nothing, Cake] = ???
-
-lazy val all: ZLayer[Any, Nothing, Baker & Ingredients & Oven & Dough & Cake] =
-  baker >+>       // Baker
-  ingredients >+> // Baker & Ingredients
-  oven >+>        // Baker & Ingredients & Oven
-  dough >+>       // Baker & Ingredients & Oven & Dough
-  cake            // Baker & Ingredients & Oven & Dough & Cake
-```
-
-`ZLayer` makes it easy to mix and match these styles. If you pass through dependencies and later want to hide them you can do so through a simple type ascription:
-
-```scala mdoc:silent
-lazy val hidden: ZLayer[Any, Nothing, Cake] = all
-```
-
-And if you do build your dependency graph more explicitly, you can be confident that dependencies used in multiple parts of the dependency graph will only be created once due to memoization and sharing.
-
-#### Cyclic Dependencies
-
-The `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
-
+Here, the `Connection` dependency has been passed through, and is available to all downstream services. 
