@@ -1513,7 +1513,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Annotates each log in streams composed after this with the specified log
    * annotation.
    */
-  def logAnnotate[R, E, In, L, Z, V](key: => LogAnnotation[V], value: => V)(sink: ZSink[R, E, In, L, Z])(implicit
+  def logAnnotate[R, E, In, L, Z](key: => String, value: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
     ZSink.unwrapManaged(ZManaged.logAnnotate(key, value).as(sink))
@@ -1521,7 +1521,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Retrieves the log annotations associated with the current scope.
    */
-  def logAnnotations(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, LogAnnotations] =
+  def logAnnotations(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Map[String, String]] =
     ZSink.fromZIO(ZFiberRef.currentLogAnnotations.get)
 
   /**

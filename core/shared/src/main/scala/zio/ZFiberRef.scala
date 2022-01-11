@@ -213,8 +213,8 @@ object ZFiberRef {
   lazy val currentLogSpan: FiberRef.Runtime[List[LogSpan]] =
     FiberRef.unsafeMake(Nil)
 
-  lazy val currentLogAnnotations: FiberRef.Runtime[LogAnnotations] =
-    FiberRef.unsafeMake(LogAnnotations.empty)
+  lazy val currentLogAnnotations: FiberRef.Runtime[Map[String, String]] =
+    FiberRef.unsafeMake(Map.empty)
 
   /**
    * Creates a new `FiberRef` with given initial value.

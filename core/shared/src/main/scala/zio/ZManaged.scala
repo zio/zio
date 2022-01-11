@@ -2667,17 +2667,17 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Annotates each log in managed effects composed after this.
    */
-  def logAnnotate[V](key: => LogAnnotation[V], value: => V)(implicit
+  def logAnnotate(key: => String, value: => String)(implicit
     trace: ZTraceElement
   ): ZManaged[Any, Nothing, Unit] =
     FiberRef.currentLogAnnotations.get.toManaged.flatMap { annotations =>
-      FiberRef.currentLogAnnotations.locallyManaged(annotations.annotate(key, value))
+      FiberRef.currentLogAnnotations.locallyManaged(annotations.updated(key, value))
     }
 
   /**
    * Retrieves current log annotations.
    */
-  def logAnnotations(implicit trace: ZTraceElement): ZManaged[Any, Nothing, LogAnnotations] =
+  def logAnnotations(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Map[String, String]] =
     ZManaged.fromZIO(ZFiberRef.currentLogAnnotations.get)
 
   /**

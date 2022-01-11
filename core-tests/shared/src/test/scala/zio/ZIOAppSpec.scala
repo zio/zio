@@ -42,7 +42,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
           context: Map[zio.FiberRef.Runtime[_], AnyRef],
           spans: List[zio.LogSpan],
           location: ZTraceElement,
-          annotations: LogAnnotations
+          annotations: Map[String, String]
         ): Unit = {
           counter.incrementAndGet()
           ()

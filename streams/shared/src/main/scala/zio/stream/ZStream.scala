@@ -5209,7 +5209,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Annotates each log in streams composed after this with the specified log
    * annotation.
    */
-  def logAnnotate[V](key: => LogAnnotation[V], value: => V)(implicit
+  def logAnnotate(key: => String, value: => String)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Nothing, Unit] =
     ZStream.managed(ZManaged.logAnnotate(key, value))
@@ -5217,7 +5217,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Retrieves the log annotations associated with the current scope.
    */
-  def logAnnotations(implicit trace: ZTraceElement): ZStream[Any, Nothing, LogAnnotations] =
+  def logAnnotations(implicit trace: ZTraceElement): ZStream[Any, Nothing, Map[String, String]] =
     ZStream.fromZIO(ZFiberRef.currentLogAnnotations.get)
 
   /**

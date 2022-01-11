@@ -15,7 +15,7 @@ object LoggingSpec extends ZIOBaseSpec {
     context: Map[FiberRef.Runtime[_], AnyRef],
     spans: List[LogSpan],
     location: ZTraceElement,
-    annotations: LogAnnotations
+    annotations: Map[String, String]
   ) {
     def call[A](zlogger: ZLogger[String, A]): A =
       zlogger(trace, fiberId, logLevel, message, context, spans, location, annotations)
@@ -38,7 +38,7 @@ object LoggingSpec extends ZIOBaseSpec {
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
         location: ZTraceElement,
-        annotations: LogAnnotations
+        annotations: Map[String, String]
       ): Unit = if (logLevel >= LogLevel.Info) {
         val newEntry = LogEntry(trace, fiberId, logLevel, message, context, spans, location, annotations)
 
@@ -110,12 +110,13 @@ object LoggingSpec extends ZIOBaseSpec {
         } yield assertTrue(output.length == 0)
       },
       test("log annotations") {
-        val annotation = LogAnnotation("key", "default")
+        val key   = "key"
+        val value = "value"
         for {
-          _      <- ZIO.logAnnotate(annotation, "value")(ZIO.log("It's alive!"))
+          _      <- ZIO.logAnnotate(key, value)(ZIO.log("It's alive!"))
           output <- logOutput
         } yield assertTrue(output.length == 1) &&
-          assertTrue(output(0).annotations.get(annotation) == "value")
+          assertTrue(output(0).annotations(key) == value)
       }
     ) @@ sequential @@ after(clearOutput) @@ TestAspect.runtimeConfig(
       RuntimeConfigAspect.addLogger(stringLogger)
