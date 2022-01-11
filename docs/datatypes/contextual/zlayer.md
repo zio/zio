@@ -876,7 +876,7 @@ object MainApp extends ZIOAppDefault {
 
 ## Examples
 
-### A ZIO Application with a Simple Dependency
+### An Example of a ZIO Application with a Simple Dependency
 
 This application demonstrates a ZIO program with a single dependency on a simple `AppConfig`:
 
@@ -904,7 +904,7 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
-### A ZIO Application with Multiple dependencies
+### An Example of a ZIO Application with Multiple dependencies
 
 In the following example, our ZIO application has several dependencies:
 - `zio.Clock`
@@ -970,7 +970,7 @@ object MainApp extends ZIOAppDefault {
 // done: v = 10 
 ```
 
-### A ZIO Application with Transitive Dependency
+### An Example of a ZIO Application with Transitive Dependency
 
 In this example, we can see that the `C` service depends upon `A`, `B`, and `Clock`:
 
@@ -1030,68 +1030,255 @@ object MainApp extends ZIOAppDefault {
 // 42
 ```
 
-### A Practical Example of How to Get Fresh Layers
+### An Example of Manually Generating a Dependency Graph
 
-Having covered the topic of [acquiring fresh layers](#acquiring-a-fresh-version), let's see an example of using the `ZLayer#fresh` operator. 
+Suppose we have defined the ‍‍`UserRepo`, `DocumentRepo`, `Database`, `BlobStorage`, and `Cache` services and their respective implementations as follows:
 
-In the following example, we have two services named `DocumentRepo` and `UserRepo`. Both live versions of these services are dependent on an in-memory cache service. While sharing the cache service may cause some problems four our business logic, we should separate cache service for both `DocumentRepo` and `UserRepo` services:
-
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio._
 
-trait User
+case class User(email: String, name: String)
 
 trait UserRepo {
   def save(user: User): Task[Unit]
+
+  def get(email: String): Task[User]
 }
+
+object UserRepo {
+  def save(user: User): ZIO[UserRepo, Throwable, Unit] =
+    ZIO.serviceWithZIO(_.save(user))
+
+  def get(email: String): ZIO[UserRepo, Throwable, User] =
+    ZIO.serviceWithZIO(_.get(email))
+}
+
 case class UserRepoLive(cache: Cache, database: Database) extends UserRepo {
   override def save(user: User): Task[Unit] = ???
+
+  override def get(email: String): Task[User] = ???
 }
+
 object UserRepoLive {
-  val layer: URLayer[Cache & Database, UserRepo] = (UserRepoLive.apply _).toLayer
+  val layer: URLayer[Cache & Database, UserRepo] =
+    (UserRepoLive.apply _).toLayer
 }
 
 trait Database
+
 case class DatabaseLive() extends Database
+
 object DatabaseLive {
-  val layer: ZLayer[Any, Nothing, Database] = (DatabaseLive.apply _).toLayer
+  val layer: ZLayer[Any, Nothing, Database] =
+    (DatabaseLive.apply _).toLayer
 }
 
 trait Cache {
   def save(key: String, value: Array[Byte]): Task[Unit]
+
   def get(key: String): Task[Array[Byte]]
+
   def remove(key: String): Task[Unit]
 }
-object InmemoryCacheLive {
-  val layer: ZLayer[Any, Throwable, Cache] = ZIO(new Cache {
-    override def save(key: String, value: Array[Byte]): Task[Unit] = ???
 
-    override def get(key: String): Task[Array[Byte]] = ???
+class InmemeoryCache() extends Cache {
+  override def save(key: String, value: Array[Byte]): Task[Unit] = ???
 
-    override def remove(key: String): Task[Unit] = ???
-  }).debug("initialized").toLayer
+  override def get(key: String): Task[Array[Byte]] = ???
+
+  override def remove(key: String): Task[Unit] = ???
 }
 
-trait Document
+object InmemoryCache {
+  val layer: ZLayer[Any, Throwable, Cache] =
+    ZIO(new InmemeoryCache)
+      .debug("initialized")
+      .toLayer
+}
+
+class PersistentCache() extends Cache {
+  override def save(key: String, value: Array[Byte]): Task[Unit] = ???
+
+  override def get(key: String): Task[Array[Byte]] = ???
+
+  override def remove(key: String): Task[Unit] = ???
+}
+
+object PersistentCache {
+  val layer: ZLayer[Any, Throwable, Cache] =
+    ZIO(new PersistentCache)
+      .debug("initialized")
+      .toLayer
+}
+
+case class Document(title: String, author: String, body: String)
+
 trait DocumentRepo {
   def save(document: Document): Task[Unit]
+
+  def get(id: String): Task[Document]
 }
+
+object DocumentRepo {
+  def save(document: Document): ZIO[DocumentRepo, Throwable, Unit] =
+    ZIO.serviceWithZIO(_.save(document))
+
+  def get(id: String): ZIO[DocumentRepo, Throwable, Document] =
+    ZIO.serviceWithZIO(_.get(id))
+}
+
 case class DocumentRepoLive(cache: Cache, blobStorage: BlobStorage) extends DocumentRepo {
   override def save(document: Document): Task[Unit] = ???
+
+  override def get(id: String): Task[Document] = ???
 }
+
 object DocumentRepoLive {
-  val layer: ZLayer[Cache & BlobStorage, Nothing, DocumentRepoLive] = (DocumentRepoLive.apply _).toLayer
+  val layer: ZLayer[Cache & BlobStorage, Nothing, DocumentRepo] =
+    (DocumentRepoLive.apply _).toLayer
 }
 
 trait BlobStorage {
   def store(key: String, value: Array[Byte]): Task[Unit]
 }
+
 case class BlobStorageLive() extends BlobStorage {
   override def store(key: String, value: Array[Byte]): Task[Unit] = ???
 }
+
 object BlobStorageLive {
-  val layer = (BlobStorageLive.apply _ ).toLayer
+  val layer: URLayer[Any, BlobStorage] =
+    (BlobStorageLive.apply _).toLayer
 }
+```
+
+And then assume we have the following ZIO application:
+
+```scala mdoc:silent
+import zio._
+
+def myApp: ZIO[DocumentRepo & UserRepo, Throwable, Unit] =
+  for {
+    _ <- UserRepo.save(User("john@doe", "john"))
+    _ <- DocumentRepo.save(Document("introduction to zio", "john", ""))
+    _ <- UserRepo.get("john@doe").debug("retrieved john@doe user")
+    _ <- DocumentRepo.get("introduction to zio").debug("retrieved article about zio")
+  } yield ()
+```
+
+The `myApp` requires `DocumentRepo` and `UserRepo` services to run. So we need to create a `ZLayer` which requires no services and produces `DocumentRepo` and `UserRepo`. We can manually create this layer using [vertical and horizontal layer composition](#vertical-and-horizontal-composition): 
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  val layers: ZLayer[Any, Any, DocumentRepo with UserRepo] =
+    (BlobStorageLive.layer ++ InmemoryCache.layer ++ DatabaseLive.layer) >>>
+      (DocumentRepoLive.layer >+> UserRepoLive.layer)
+
+  def run = myApp.provideLayer(layers)
+}
+```
+
+### An Example of Automatically Generating a Dependency Graph
+
+Instead of creating the required layer manually, we can use the `ZIO#provide`. ZIO internally creates the dependency graph automatically based on all dependencies provided:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  def run =
+    myApp.provide(
+      InmemoryCache.layer,
+      DatabaseLive.layer,
+      UserRepoLive.layer,
+      BlobStorageLive.layer,
+      DocumentRepoLive.layer
+    )
+    
+}
+```
+
+### An Example of Providing Different Implementations of the Same Service
+
+Let's say we want to provide different versions of the same service to different services. In this example, both `UserRepo` and `DocumentRepo` services require the `Cache` service. However, we want to provide different cache implementations for these two services. Our goal is to provide an 'InmemoryCache' layer for `UserRepo` and a `PersistentCache` layer for the `DocumentRepo` service:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  val layers: ZLayer[Any, Throwable, UserRepo with DocumentRepo] =
+    ((InmemoryCache.layer ++ DatabaseLive.layer) >>> UserRepoLive.layer) ++
+      ((PersistentCache.layer ++ BlobStorageLive.layer) >>> DocumentRepoLive.layer)
+
+  def run = myApp.provideLayer(layers)
+}
+
+// Output:
+// initialized: zio.examples.PersistentCache@6e899128
+// initialized: zio.examples.InmemeoryCache@852e20a
+```
+
+### An Example of How to Get Fresh Layers
+
+Having covered the topic of [acquiring fresh layers](#acquiring-a-fresh-version), let's see an example of using the `ZLayer#fresh` operator.
+
+`DocumentRepo` and `UserRepo` services are dependent on an in-memory cache service. On the other hand, let's assume the cache service is quite simple, and we might be prone to cache conflicts between services. While sharing the cache service may cause some problems for our business logic, we should separate the cache service for both DocumentRepo and UserRepo:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  val layers: ZLayer[Any, Throwable, UserRepo & DocumentRepo] =
+    ((InmemoryCache.layer.fresh ++ DatabaseLive.layer) >>> UserRepoLive.layer) ++
+      ((InmemoryCache.layer.fresh ++ BlobStorageLive.layer) >>> DocumentRepoLive.layer)
+
+  def run = myApp.provideLayer(layers)
+}
+
+// Output:
+// initialized: zio.examples.InmemoryCache@13c9672b
+// initialized: zio.examples.InmemoryCache@26d79027
+```
+
+### An Example of Path Through Dependencies
+
+Notice that in the previous examples, both `UserRepo` and `DocuemntRepo` have some [hidden dependencies](#hidden-versus-passed-through-dependencies), such as `Cache`, `Database`, and `BlobStorage`.  So these hidden dependencies are no longer expressed in the type signature of the `layers`. From the perspective of a caller, `layers` just outputs a `UserRepo` and `DocuemntRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` and `DocuemntRepo` are constructed.
+
+An upstream dependency that is used by many other services can be "passed-through" and included in a layer's output. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_.
+
+The following example shows how to path through all dependencies to the final layer:
+
+```scala mdoc:compile-only
+
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  // path through all dependencies
+  val layers: ZLayer[Any, Throwable, Database & BlobStorage & Cache & DocumentRepo & UserRepo] =
+    DatabaseLive.layer >+>
+      BlobStorageLive.layer >+>
+      InmemoryCache.layer >+>
+      DocumentRepoLive.layer >+>
+      UserRepoLive.layer
+
+  // providing all path through dependencies to the ZIO application
+  def run = myApp.provideLayer(layers)
+}
+```
+
+### An Example of Updating Hidden Dependencies
+
+One of the use cases of having explicit all dependencies in the final layer is that we can [update](#updating-local-dependencies) those hidden layers using `ZLayer#update`. In the following example, we are replacing the `InmemoryCache` with another implementation called `PersistentCache`:
+
+```scala mdoc:compile-only
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -1101,272 +1288,20 @@ object MainApp extends ZIOAppDefault {
       _ <- ZIO.service[DocumentRepo]
     } yield ()
 
-  val layers: ZLayer[Any, Throwable, UserRepo & DocumentRepoLive] =
-    ((InmemoryCacheLive.layer.fresh ++ DatabaseLive.layer) >>> UserRepoLive.layer) ++
-      ((InmemoryCacheLive.layer.fresh ++ BlobStorageLive.layer) >>> DocumentRepoLive.layer)
+  val layers: ZLayer[Any, Throwable, Database & BlobStorage & Cache & DocumentRepo & UserRepo] =
+    DatabaseLive.layer >+>
+      BlobStorageLive.layer >+>
+      InmemoryCache.layer >+>
+      DocumentRepoLive.layer >+>
+      UserRepoLive.layer
 
-  def run = myApp.provideLayer(layers)
+  def run =
+    myApp.provideLayer(
+      layers.update[Cache](_ => new PersistentCache)
+    )
 }
 ```
 
 ```scala mdoc:invisible:reset
 
 ```
-
-### Example of Building Dependency Graph
-
-Let's get into an example, assume we have these services with their implementations:
-
-```scala mdoc:silent
-import zio._
-
-trait Logging
-trait Database
-trait BlobStorage
-trait UserRepo
-trait DocRepo
-
-case class LoggerImpl(console: Console) extends Logging
-
-case object DatabaseImp extends Database
-
-case class UserRepoImpl(logging: Logging,
-                        database: Database) extends UserRepo
-
-case class BlobStorageImpl(logging: Logging) extends BlobStorage
-
-case class DocRepoImpl(logging: Logging,
-                       database: Database,
-                       blobStorage: BlobStorage
-                      ) extends DocRepo
-```
-
-We can't compose these services together, because their constructors are not value. `ZLayer` can convert these services into values, then we can compose them together. Let's assume we have lifted these services into `ZLayer`s:
-
-```scala mdoc:silent
-val logging:     URLayer[Console, Logging]                          = (LoggerImpl.apply _).toLayer
-val database:    URLayer[Any, Database]                             = ZLayer.succeed(DatabaseImp)
-val userRepo:    URLayer[Logging & Database, UserRepo]              = (UserRepoImpl(_, _)).toLayer
-val blobStorage: URLayer[Logging, BlobStorage]                      = (BlobStorageImpl(_)).toLayer
-val docRepo:     URLayer[Logging & Database & BlobStorage, DocRepo] = (DocRepoImpl(_, _, _)).toLayer
-```
-
-Please note that the following implementations can be used if the above ones are cryptic:
-
-```scala mdoc:compile-only
-val logging: URLayer[Console, Logging] =
-  ZLayer(ZIO.serviceWith[Console](LoggerImpl))
-
-val database: URLayer[Any, Database] =
-  ZLayer.succeed(DatabaseImp)
-
-val userRepo: URLayer[Logging & Database, UserRepo] =
-  ZLayer {
-    for {
-      database <- ZIO.service[Database]
-      logging  <- ZIO.service[Logging]
-    } yield UserRepoImpl(logging, database)
-  }
-
-val blobStorage: URLayer[Logging, BlobStorage] =
-  ZLayer(ZIO.serviceWith[Logging](BlobStorageImpl))
-
-val docRepo: URLayer[Logging & Database & BlobStorage, DocRepo] = {
-  ZLayer {
-    for {
-      logging     <- ZIO.service[Logging]
-      database    <- ZIO.service[Database]
-      blobStorage <- ZIO.service[BlobStorage]
-    } yield DocRepoImpl(logging, database, blobStorage)
-  }
-}
-```
-
-Now, we can compose logging and database horizontally:
-
-```scala mdoc:silent
-val newLayer: ZLayer[Console, Throwable, Logging & Database] = logging ++ database
-```
-
-And then we can compose the `newLayer` with `userRepo` vertically:
-
-```scala mdoc:silent
-val myLayer: ZLayer[Console, Throwable, UserRepo] = newLayer >>> userRepo
-```
-
-```scala mdoc:invisible:reset
-import zio._
-
-trait DBError
-
-case class User(id: UserId, name: String)
-case class UserId(value: Long)
-
-trait UserRepo {
-  def getUser(userId: UserId): IO[DBError, Option[User]]
-  def createUser(user: User):  IO[DBError, Unit]
-}
-
-object UserRepo {
-  // Accessor Methods
-  def getUser(userId: UserId): ZIO[UserRepo, DBError, Option[User]] =
-    ZIO.serviceWithZIO(_.getUser(userId))
-
-  def createUser(user: User): ZIO[UserRepo, DBError, Unit] =
-    ZIO.serviceWithZIO(_.createUser(user))
-}
-
-case class InmemoryUserRepo() extends UserRepo {
-  override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-  override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
-}
-
-object InmemoryUserRepo {
-  // This simple in-memory version has no dependencies.
-  // This could be useful for tests where we don't want the additional
-  // complexity of having to manage DB Connections.
-  val layer: ZLayer[Any, Nothing, UserRepo] =
-    (InmemoryUserRepo.apply _).toLayer[UserRepo]
-}
-
-trait Logging {
-  def info(s: String): UIO[Unit]
-  def error(s: String): UIO[Unit]
-}
-
-object Logging {
-  //accessor methods
-  def info(s: String): URIO[Logging, Unit] =
-    ZIO.serviceWithZIO(_.info(s))
-
-  def error(s: String): URIO[Logging, Unit] =
-    ZIO.serviceWithZIO(_.error(s))
-}
-
-case class ConsoleLogger(console: Console) extends Logging {
-  def info(s: String): UIO[Unit]  = console.printLine(s"info - $s").orDie
-  def error(s: String): UIO[Unit] = console.printLine(s"error - $s").orDie
-}
-
-object ConsoleLogger {
-  val layer: ZLayer[Console, Nothing, Logging] = 
-    ZLayer {
-      for {
-        console <- ZIO.service[Console] 
-      } yield ConsoleLogger(console) 
-    }
-}
-
-trait Connection {
-  def close(): Unit
-}
-
-object Connection {
-  def makeConnection: UIO[Connection] = UIO(???)
-  
-  val layer: Layer[Nothing, Connection] =
-    ZLayer.fromAcquireRelease(makeConnection)(c => UIO(c.close()))
-}
-
-case class PostgresUserRepo(connection: Connection) extends UserRepo {
-  override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-  override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
-}
-
-object PostgresUserRepo {
-  val layer: ZLayer[Connection, Nothing, UserRepo] =
-    ZLayer {
-      for {
-        connection <- ZIO.service[Connection] 
-      } yield PostgresUserRepo(connection) 
-    }
-}
-
-val fullRepo: Layer[Nothing, UserRepo] = Connection.layer >>> PostgresUserRepo.layer 
-
-val user2: User = User(UserId(123), "Tommy")
-
-val makeUser: ZIO[Logging & UserRepo, DBError, Unit] = 
-  for {
-    _ <- Logging.info(s"inserting user")  // URIO[Logging, Unit]
-    _ <- UserRepo.createUser(user2)       // ZIO[UserRepo, DBError, Unit]
-    _ <- Logging.info(s"user inserted")   // URIO[Logging, Unit]
-  } yield ()
-
-
-// compose horizontally
-val horizontal: ZLayer[Console, Nothing, Logging & UserRepo] = ConsoleLogger.layer ++ InmemoryUserRepo.layer
-
-// fulfill missing services, composing vertically
-val fullLayer: Layer[Nothing, Logging & UserRepo] = Console.live >>> horizontal
-
-// provide the services to the program
-makeUser.provide(fullLayer)
-```
-
-Given a layer, it is possible to update one or more components it provides. We update a dependency in two ways:
-
-1. **Using the `update` Method** — This method allows us to replace one requirement with a different implementation:
-
-```scala mdoc:silent:nest
-val withPostgresService = horizontal.update[UserRepo]{ oldRepo  => 
-    new UserRepo {
-      override def getUser(userId: UserId): IO[DBError, Option[User]] = UIO(???)
-      override def createUser(user: User):  IO[DBError, Unit]         = UIO(???)
-    }
-  }
-```
-
-2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a layer that provides the updated service. The resulting composition will replace the old layer with the new one:
-
-```scala mdoc:silent:nest
-val dbLayer: Layer[Nothing, UserRepo] = ZLayer.succeed(new UserRepo {
-    override def getUser(userId: UserId): IO[DBError, Option[User]] = ???
-    override def createUser(user: User):  IO[DBError, Unit]         = ???
-  })
-
-val updatedHorizontal2 = horizontal ++ dbLayer
-```
-
-One decision regarding building dependency graphs is whether to hide or pass through the upstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to pass through dependencies as well.
-
-To illustrate this, consider the Postgres-based repository discussed above:
-
-```scala mdoc:silent:nest
-val connection: ZLayer[Any, Nothing, Connection]      = Connection.layer
-val userRepo:   ZLayer[Connection, Nothing, UserRepo] = PostgresUserRepo.layer
-val layer:      ZLayer[Any, Nothing, UserRepo]        = Connection.layer >>> userRepo
-```
-
-Notice that in `layer`, the dependency `UserRepo` has on `Connection` has been "hidden", and is no longer expressed in the type signature. From the perspective of a caller, `layer` just outputs a `UserRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` is constructed.
-
-To provide only some inputs, we need to explicitly define what inputs still need to be provided:
-
-```scala mdoc:silent:nest
-trait Configuration
-
-val userRepoWithConfig: ZLayer[Configuration & Connection, Nothing, UserRepo] = 
-  ZLayer.succeed(new Configuration{}) ++ PostgresUserRepo.layer
-  
-val partialLayer: ZLayer[Configuration, Nothing, UserRepo] = 
-  (ZLayer.environment[Configuration] ++ connection) >>> userRepoWithConfig
-``` 
-
-In this example the requirement for a `Connection` has been satisfied, but `Configuration` is still required by `partialLayer`.
-
-This achieves an encapsulation of services and can make it easier to refactor code. For example, say we want to refactor our application to use an in-memory database:
-
-```scala mdoc:silent:nest
-val updatedLayer: ZLayer[Any, Nothing, UserRepo] = dbLayer
-```
-
-No other code will need to be changed, because the previous implementation's dependency upon a `Connection` was hidden from users, and so they were not able to rely on it.
-
-However, if an upstream dependency is used by many other services, it can be convenient to "pass through" that dependency, and include it in the output of a layer. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_.
-
-
-```scala mdoc:silent:nest
-val layer: ZLayer[Any, Nothing, Connection & UserRepo] = connection >+> userRepo
-```
-
-Here, the `Connection` dependency has been passed through, and is available to all downstream services. 
