@@ -66,7 +66,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
         location: ZTraceElement,
-        annotations: LogAnnotations
+        annotations: Map[String, String]
       ) => {
         try {
           // TODO: Improve output & use console.group for spans, etc.
