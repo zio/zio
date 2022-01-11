@@ -9,6 +9,8 @@ import zio._
 
 In this guide we want to introduce the migration process to ZIO 2.x. So if you have a project written in ZIO 1.x and want to migrate that to ZIO 2.x, this article is for you. 
 
+Before you migrate your own codebase, confirm that all of your ZIO-related dependencies have been migrated to ZIO 2.x with our [ZIO Ecosystem Tool](https://zio-ecosystem.herokuapp.com/).
+
 ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
 
 ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to the ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
