@@ -1549,12 +1549,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.fromZIO(ZIO.logFatal(message))
 
   /**
-   * Logs the specified message at the fine log level.
-   */
-  def logFine(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
-    ZSink.fromZIO(ZIO.logFine(message))
-
-  /**
    * Logs the specified message at the informational log level.
    */
   def logInfo(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
@@ -1575,6 +1569,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
     ZSink.unwrapManaged(ZManaged.logSpan(label).as(sink))
+
+  /**
+   * Logs the specified message at the trace log level.
+   */
+  def logTrace(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    ZSink.fromZIO(ZIO.logTrace(message))
 
   /**
    * Logs the specified message at the warning log level.

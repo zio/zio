@@ -2705,12 +2705,6 @@ object ZManaged extends ZManagedPlatformSpecific {
     ZManaged.fromZIO(ZIO.logFatal(message))
 
   /**
-   * Logs the specified message at the fine log level.
-   */
-  def logFine(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZManaged.fromZIO(ZIO.logFine(message))
-
-  /**
    * Logs the specified message at the informational log level.
    */
   def logInfo(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
@@ -2733,6 +2727,12 @@ object ZManaged extends ZManagedPlatformSpecific {
 
       FiberRef.currentLogSpan.locallyManaged(logSpan :: stack)
     }
+
+  /**
+   * Logs the specified message at the trace log level.
+   */
+  def logTrace(message: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    ZManaged.fromZIO(ZIO.logTrace(message))
 
   /**
    * Logs the specified message at the warning log level.

@@ -4562,12 +4562,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new Logged(ZLogger.stringTag, () => message, someFatal, trace = trace)
 
   /**
-   * Logs the specified message at the fine log level.
-   */
-  def logFine(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
-    new Logged(ZLogger.stringTag, () => message, someFine, trace = trace)
-
-  /**
    * Logs the specified message at the informational log level.
    */
   def logInfo(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
@@ -4591,6 +4585,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * }}}
    */
   def logSpan(label: => String): LogSpan = new LogSpan(() => label)
+
+  /**
+   * Logs the specified message at the trace log level.
+   */
+  def logTrace(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+    new Logged(ZLogger.stringTag, () => message, someTrace, trace = trace)
 
   /**
    * Logs the specified message at the warning log level.
@@ -6448,7 +6448,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] val someWarning = Some(LogLevel.Warning)
   private[zio] val someInfo    = Some(LogLevel.Info)
   private[zio] val someDebug   = Some(LogLevel.Debug)
-  private[zio] val someFine    = Some(LogLevel.Fine)
+  private[zio] val someTrace   = Some(LogLevel.Trace)
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.SucceedNow(a)
 
