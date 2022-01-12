@@ -130,6 +130,49 @@ abstract class ZTestTaskPolicy {
 
 case class MergedSpec(spec: ZTestTaskNew, merges: Int)
 
+/*
+  Datastructure that accepts results from Test Suites; only 1 spec can acquire at any time.
+  Opens ports for each Spec, and accepts strings from 1 at a time.
+  sealed trait SpecResult
+  object SpecSummary  extends SpecResult
+  object SpecsComplete  extends SpecResult
+*/
+
+import zio.stm._
+
+case class TestCollectorState[Line, Result](output: Chunk[Line], result: Option[Result])
+
+class TestResultManager[Line, Result](state: TRef[Chunk[TRef[TestCollectorState]]]) {
+  def newCollector: UIO[TestResultCollector] = {
+    val collector = TestCollectorState[Line, Result](Chunk.empty, None)
+    (for {
+      tref <- TRef.make(collector)
+      chunk <- state.get
+      _ <- state.set(chunk:+tref)
+    } yield new TestResultCollector[Line, Result] {
+      def appendOutput(line: Line): UIO[Unit] = tref.update(state => state.copy(output = state.output :+ line))
+      def appendResult(succeeded: Result): UIO[Unit] = tref.update(state => state.copy(result = Some(succeeded)))
+    }).commit
+  }
+  // Outter stream is Specs, Inner stream is result of a single test
+  def subscribe: UStream[UStream[Either[Line, Result]]] =
+    for {
+      currentIndex <- TRef.make(0)
+    } yield ???
+
+  def subscribeAlt(newSpecCallBack: Int => UIO[Unit], newResult: (Int, Either[Line, Result]) => UIO[Unit]): UIO[Unit] =
+    for {
+      currentIndex <- TRef.make(0)
+    } yield ???
+
+  def complete: UIO[Unit] = ???
+}
+
+trait TestResultCollector[Line, Result] {
+  def appendOutput(line: Line): UIO[Unit] // TODO Check param type
+  def appendResult(succeeded: Result): UIO[Unit]
+}
+
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
   override def merge(zioTasks: Array[ZTestTask]): Array[Task] = {
