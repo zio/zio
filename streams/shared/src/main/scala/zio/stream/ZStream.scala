@@ -3950,60 +3950,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def transduce[R1 <: R, E1 >: E, A1 >: A, Z](
     sink: => ZSink[R1, E1, A1, A1, Z]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, Z] =
-    new ZStream(
-      ZChannel.suspend {
-        val leftovers: AtomicReference[Chunk[Chunk[A1]]] = new AtomicReference(Chunk.empty)
-        val upstreamDone: AtomicBoolean                  = new AtomicBoolean(false)
-
-        lazy val buffer: ZChannel[Any, E, Chunk[A1], Any, E, Chunk[A1], Any] =
-          ZChannel.suspend {
-            val l = leftovers.get
-
-            if (l.isEmpty)
-              ZChannel.readWith(
-                (c: Chunk[A1]) => ZChannel.write(c) *> buffer,
-                (e: E) => ZChannel.fail(e),
-                (done: Any) => ZChannel.succeedNow(done)
-              )
-            else {
-              leftovers.set(Chunk.empty)
-              ZChannel.writeChunk(l) *> buffer
-            }
-          }
-
-        def concatAndGet(c: Chunk[Chunk[A1]]): Chunk[Chunk[A1]] = {
-          val ls     = leftovers.get
-          val concat = ls ++ c.filter(_.nonEmpty)
-          leftovers.set(concat)
-          concat
-        }
-
-        lazy val upstreamMarker: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Any] =
-          ZChannel.readWith(
-            (in: Chunk[A]) => ZChannel.write(in) *> upstreamMarker,
-            (err: E) => ZChannel.fail(err),
-            (done: Any) => ZChannel.succeed(upstreamDone.set(true)) *> ZChannel.succeedNow(done)
-          )
-
-        lazy val transducer: ZChannel[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit] =
-          sink.channel.doneCollect.flatMap { case (leftover, z) =>
-            ZChannel
-              .succeed((upstreamDone.get, concatAndGet(leftover)))
-              .flatMap[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit] { case (done, newLeftovers) =>
-                val nextChannel =
-                  if (done && newLeftovers.isEmpty) ZChannel.unit
-                  else transducer
-
-                ZChannel.write(Chunk.single(z)).zipRight[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit](nextChannel)
-              }
-          }
-
-        channel >>>
-          upstreamMarker >>>
-          buffer pipeToOrFail
-          transducer
-      }
-    )
+    self >>> ZPipeline.fromSink(sink)
 
   /**
    * Updates a service in the environment of this effect.

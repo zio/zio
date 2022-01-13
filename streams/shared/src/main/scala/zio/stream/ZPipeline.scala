@@ -21,6 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.internal.CharacterSet.{BOM, CharsetUtf32BE, CharsetUtf32LE}
 
 import java.nio.charset.{Charset, StandardCharsets}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
  * A `ZPipeline[Env, Err, In, Out]` is a polymorphic stream transformer.
@@ -308,6 +309,69 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
     new ZPipeline(channel)
   }
+
+  /**
+   * Creates a pipeline that repeatedly sends all elements through the given
+   * sink.
+   */
+  def fromSink[Env, Err, In, Out](
+    sink: ZSink[Env, Err, In, In, Out]
+  )(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline(
+      ZChannel.suspend {
+        val leftovers: AtomicReference[Chunk[Chunk[In]]] = new AtomicReference(Chunk.empty)
+        val upstreamDone: AtomicBoolean                  = new AtomicBoolean(false)
+
+        lazy val buffer: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
+          ZChannel.suspend {
+            val l = leftovers.get
+
+            if (l.isEmpty)
+              ZChannel.readWith(
+                (c: Chunk[In]) => ZChannel.write(c) *> buffer,
+                (e: Err) => ZChannel.fail(e),
+                (done: Any) => ZChannel.succeedNow(done)
+              )
+            else {
+              leftovers.set(Chunk.empty)
+              ZChannel.writeChunk(l) *> buffer
+            }
+          }
+
+        def concatAndGet(c: Chunk[Chunk[In]]): Chunk[Chunk[In]] = {
+          val ls     = leftovers.get
+          val concat = ls ++ c.filter(_.nonEmpty)
+          leftovers.set(concat)
+          concat
+        }
+
+        lazy val upstreamMarker: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
+          ZChannel.readWith(
+            (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
+            (err: Err) => ZChannel.fail(err),
+            (done: Any) => ZChannel.succeed(upstreamDone.set(true)) *> ZChannel.succeedNow(done)
+          )
+
+        lazy val transducer: ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Unit] =
+          sink.channel.doneCollect.flatMap { case (leftover, z) =>
+            ZChannel
+              .succeed((upstreamDone.get, concatAndGet(leftover)))
+              .flatMap[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Unit] { case (done, newLeftovers) =>
+                val nextChannel =
+                  if (done && newLeftovers.isEmpty) ZChannel.unit
+                  else transducer
+
+                ZChannel
+                  .write(Chunk.single(z))
+                  .zipRight[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Unit](nextChannel)
+              }
+          }
+
+        upstreamMarker >>>
+          buffer pipeToOrFail
+          transducer
+      }
+    )
 
   /**
    * The identity pipeline, which does not modify streams in any way.
