@@ -5497,8 +5497,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     /**
      * Feeds the output services of this layer into the input of the specified
-     * layer, resulting in a new layer with the inputs of this layer as
-     * well as any leftover inputs, and the outputs of the specified layer.
+     * layer, resulting in a new layer with the inputs of this layer as well as
+     * any leftover inputs, and the outputs of the specified layer.
      */
     def >>>[RIn2, E1 >: E, ROut2](
       that: ZLayer[ROut with RIn2, E1, ROut2]
@@ -5507,8 +5507,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     /**
      * Feeds the output services of this layer into the input of the specified
-     * layer, resulting in a new layer with the inputs of this layer as
-     * well as any leftover inputs, and the outputs of the specified layer.
+     * layer, resulting in a new layer with the inputs of this layer as well as
+     * any leftover inputs, and the outputs of the specified layer.
      */
     def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2])(implicit
       trace: ZTraceElement
