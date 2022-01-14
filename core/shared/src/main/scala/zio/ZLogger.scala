@@ -251,9 +251,9 @@ object ZLogger {
 
         val (key, value) = it.next()
 
-        sb.append(key)
+        appendQuoted(key, sb)
         sb.append("=")
-        sb.append(value)
+        appendQuoted(value, sb)
       }
     }
 
