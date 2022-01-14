@@ -397,184 +397,29 @@ val myApp: ZIO[Logging & Console, Throwable, Unit] =
 
 ## ZLayer
 
-Defining service in ZIO is not very different from object-oriented style, it has the same principle; coding to an interface, not an implementation. Therefore, ZIO encourages us to implement this principle by using the _Module Pattern_, which is quite similar to the object-oriented style.
-
-**The `ZLayer` is a data type that plays a key role in writing ZIO services using the _Module Pattern_**. So, before diving into the _Module Pattern_, we need to learn more about it. 
-
 `ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
 
-We can compose `layerA` and `layerB` _horizontally_ to build a layer that has the requirements of both, to provide the capabilities of both, through `layerA ++ layerB`
-
-We can also compose layers _vertically_, meaning the output of one layer is used as input for the subsequent layer, resulting in one layer with the requirement of the first, and the output of the second: `layerA >>> layerB`. When doing this, the first layer must output all the services required by the second layer, but we can defer creating some of these services and require them as part of the input of the final layer using `ZLayer.identity`.
-
-
-### Dependency Injection in ZIO
-
-`ZLayer` combined with the _ZIO Environment_, allow us to use ZIO for dependency injection. There are two parts for dependency injection:
+`ZLayer` combined with the _ZIO Environment_, allow us to use ZIO for _dependency injection_. There are two parts for dependency injection:
 1. **Building Dependency Graph**
 2. **Dependency Propagation**
 
-ZIO has a full solution to the dependency injection problem. It solves the first problem by using compositional properties of `ZLayer`, and solves the second by using ZIO Environment facilities like `ZIO#provide`.
+ZIO has a full solution to the dependency injection problem. It solves the first problem by using [compositional properties](zlayer.md#manual-layer-composition) of `ZLayer`. Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of the application. `ZLayer` is a ZIO solution for this problem. It allows us to build up the whole application dependency graph by composing layers horizontally and vertically. 
 
-The way ZIO manages dependencies between application components gives us extreme power in terms of compositionality and offering the capability to easily change different implementations. This is particularly useful during _testing_ and _mocking_.
-
-By using ZLayer and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. But it doesn't necessary to use it, we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
-
-### Building Dependency Graph
-
-Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically. More information about how to compose layers is on the [ZLayer](zlayer.md) page.
-
-### Dependency Propagation
-
-When we write an application, our application has a lot of dependencies. We need a way to provide implementations and feeding and propagating all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.
-
-During the development of an application, we don't care about implementations. Incrementally, when we use various effects with different requirements on their environment, all part of our application composed together, and at the end of the day we have a ZIO effect which requires some services as an environment. Before running this effect by `unsafeRun` we should provide an implementation of these services into the ZIO Environment of that effect.
-
-ZIO has some facilities for doing this. `ZIO#provide` is the core function that allows us to _feed_ an `R` to an effect that requires an `R`.
-
-Notice that the act of `provide`ing an effect with its environment, eliminates the environment dependency in the resulting effect type, represented by type `Any` of the resulting environment.
-
-#### Using `ZIO#provideEnvironment` Method
-
-The `ZIO#provideEnvironment` takes an instance of `ZEnvironment[R]` and provides it to the `ZIO` effect which eliminates its dependency on `R`:
-
-```scala
-trait ZIO[-R, +E, +A] {
-  def provideEnvironment(r: => ZEnvironment[R]): IO[E, A]
-}
-```
-
-This is similar to dependency injection, and the `provide*` function can be thought of as _inject_.
-
-```scala mdoc:invisible:reset
-import zio._
-```
-
-Assume we have the following services:
-
-```scala mdoc:silent:nest
-trait Logging {
-  def log(str: String): UIO[Unit]
-}
-
-object Logging {
-  def log(line: String) = ZIO.serviceWithZIO[Logging](_.log(line))
-}
-```
-
-Let's write a simple program using `Logging` service:
-
-```scala mdoc:silent:nest
-val app: ZIO[Logging, Nothing, Unit] = Logging.log("Application Started!")
-```
-
-We can `provide` implementation of `Logging` service into the `app` effect:
-
-```scala mdoc:silent:nest
-val loggingImpl = new Logging {
-  override def log(line: String): UIO[Unit] =
-    UIO.succeed(println(line))
-}
-
-val effect = app.provideEnvironment(ZEnvironment(loggingImpl))
-```
-
-Most of the time, we don't use `ZIO#provideEnvironment` directly to provide our services, instead; we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provide`, `ZIO#provideSome` and `ZIO#provideCustom` to propagate dependencies into the environment of our ZIO effect.
-
-#### Using `ZIO#provide` Method
-
-Unlike the `ZIO#provideEnvironment` which takes a `ZEnvironment[R]`, the `ZIO#provide` takes a `ZLayer` to the ZIO effect and translates it to another level.
-
-Assume we have written this piece of program that requires Clock and Console services:
-
-```scala mdoc:silent:nest
-import zio.Clock._
-import zio.Console._
-import zio.Random._
-
-val myApp: ZIO[Random & Console & Clock, Nothing, Unit] = for {
-  random  <- nextInt 
-  _       <- printLine(s"A random number: $random").orDie
-  current <- currentDateTime
-  _       <- printLine(s"Current Data Time: $current").orDie
-} yield ()
-```
-
-We provide implementation of `Random`, `Console` and `Clock` services to the `myApp` effect by using `ZIO#provide` method:
-
-```scala mdoc:silent:nest
-val mainEffect: ZIO[Any, Nothing, Unit] = 
-  myApp.provide(Random.live, Console.live, Clock.live)
-```
-
-As we see, the type of our effect converted from `ZIO[Random & Console & Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
-
-#### Using `ZIO#provideSome` Method
-
-Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSome` to partially apply some layers to the `ZIO` effect.
-
-In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSome`:
-
-```scala
-val mainEffectSome: ZIO[Random & Clock, Nothing, Unit] = 
-  myApp.provideSome[Random & Clock](Console.live)
-```
+ZIO also solves the second problem by using [ZIO Environment facilities like `ZIO#provide`](zlayer.md#dependency-propagation).
 
 > **Note:**
->
-> When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
+> 
+> By using ZLayer and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. Note that it doesn't necessary to use it, and we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
 
-#### Using `ZIO#provideCustom` Method
+## Defining ZIO Services
 
-`ZEnv` is a convenient type alias that provides several built-in ZIO services that are useful in most applications. Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.
+Defining service in ZIO is not very different from object-oriented style, it has the same principle: coding to an interface, not an implementation. Therefore, ZIO encourages us to implement this principle by using the _Module Pattern_, which is quite similar to the object-oriented style.
 
-As `ZEnv` provides us the implementation of built-in services, we just need to provide layers for those services that are not part of the `ZEnv`. The `ZIO#provideCustom` method helps us to do so. It returns an effect that only depends on `ZEnv`.
-
-Let's write an effect that has some built-in services and also has a `Logging` service:
-
-```scala mdoc:invisible:reset
-import zio._
-import zio.Console._
-import zio.Clock._
-```
-
-```scala mdoc:silent
-trait Logging {
-  def log(str: String): UIO[Unit]
-}
-
-object Logging {
-  def log(line: String) = ZIO.serviceWithZIO[Logging](_.log(line))
-}
-
-object LoggingLive {
-  val layer: ULayer[Logging] = ZLayer.succeed {
-    new Logging {
-      override def log(str: String): UIO[Unit] = ???
-    }
-  }
-}
-
-val myApp: ZIO[Logging & Console & Clock, Nothing, Unit] = for {
-  _       <- Logging.log("Application Started!")
-  current <- Clock.currentDateTime
-  _       <- Console.printLine(s"Current Data Time: $current").orDie
-} yield ()
-```
-
-This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
-
-By using `ZIO#provideCustom` we only provide the `Logging` layer, and it returns a `ZIO` effect which only requires `ZEnv`:
-
-```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustom(LoggingLive.layer)
-```
-
-## Defining ZIO Service
+Before diving into writing services in ZIO style, let's review how we define them in an object-oriented fashion in the next section.
 
 ### Defining Services in OOP
 
-Before diving into writing services in ZIO style, let's review how we define them in object-oriented fashion:
+Here are the steps we take to implement a service in object-oriented programming:
 
 1. **Service Definition** — In object-oriented programming, we define services with traits. A service is a bundle of related functionality which are defined in a trait:
 
