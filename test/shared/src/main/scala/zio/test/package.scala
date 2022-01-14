@@ -260,6 +260,12 @@ package object test extends CompileVariants {
     assertMImpl(UIO.succeedNow(true))(Assertion.isTrue)
 
   /**
+   * Asserts that the given test was never completed.
+   */
+  def assertNever(message: String)(implicit trace: ZTraceElement): TestResult =
+    assertImpl(true)(Assertion.isFalse.label(message))
+
+  /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
