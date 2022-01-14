@@ -305,7 +305,9 @@ val horizontal: ZLayer[A & C, Throwable, B & D] =  // A & C ==> B & D
   fooLayer ++ barLayer
 ```
 
-2. **Vertical Composition** — If we have a layer that requires `A` and produces `B`, we can compose this with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another:
+2. **Vertical Composition** — We can also compose layers _vertically_ using the `>>>` operator, meaning the output of one layer is used as input for the subsequent layer, resulting in one layer with the requirement of the first, and the output of the second.  
+
+  For example if we have a layer that requires `A` and produces `B`, we can compose this with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another:
 
 ```scala mdoc:compile-only
 import zio._
