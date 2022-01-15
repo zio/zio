@@ -5694,10 +5694,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](
       f: Service => ZIO[R, E, A]
-    )(implicit ev: IsNotIntersection[Service], tagged: Tag[Service], trace: ZTraceElement): ZIO[R with Service, E, A] = {
+    )(implicit
+      ev: IsNotIntersection[Service],
+      tagged: Tag[Service],
+      trace: ZTraceElement
+    ): ZIO[R with Service, E, A] = {
       implicit val tag = tagged.tag
       ZIO.suspendSucceed {
-        ZFiberRef.currentEnvironment.get.flatMap(environment => f(environment.asInstanceOf[ZEnvironment[R]].get[Service]))
+        ZFiberRef.currentEnvironment.get.flatMap(environment =>
+          f(environment.asInstanceOf[ZEnvironment[R]].get[Service])
+        )
       }
     }
   }
