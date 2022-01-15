@@ -9,6 +9,8 @@ import zio._
 
 In this guide we want to introduce the migration process to ZIO 2.x. So if you have a project written in ZIO 1.x and want to migrate that to ZIO 2.x, this article is for you. 
 
+Before you migrate your own codebase, confirm that all of your ZIO-related dependencies have been migrated to ZIO 2.x with our [ZIO Ecosystem Tool](https://zio-ecosystem.herokuapp.com/).
+
 ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
 
 ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to the ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
@@ -74,6 +76,70 @@ As a contributor to ZIO ecosystem libraries, we also should cover these guidelin
 
 3. We should update names to match [ZIO 2.0 naming conventions](#zio-20-naming-conventions).
 4. ZIO 2.0 introduced [new structured concurrently operators](#compositional-concurrency) which helps us to change the regional parallelism settings of our application. So if applicable, we should use these operators instead of the old parallel operators.
+
+## Has
+
+The Has data type, which was used for combining services, was removed. Therefore, we no longer need to wrap services in the `Has` data type.
+
+For example, in the ZIO 1.x, the following layer denotes this layer requires `Logging`, `Random`, `Database` and produce the `UserRepo`:
+
+```scala
+val userRepo: ZLayer[Has[Logging] with Has[Random] with Has[Database], Throwable, Has[UserRepo]] = ???
+```
+
+In ZIO 2.x, the `Has` has been removed and simplified for better ergonomics:
+
+```scala mdoc:invisible
+trait UserRepo
+trait Database
+trait Logging
+```
+
+```scala mdoc:compile-only
+val userRepo: ZLayer[Logging with Random with Database, Throwable, UserRepo] = ???
+```
+
+Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` backed into the ZIO. Let's see how this changes the way we can provide a service to the environment.
+
+Using the following code snippet, we demonstrate how we used to access and provide instances of `Config` service to the application environment using ZIO 1.x:
+
+```scala
+// ZIO 1.x
+import zio._
+
+case class Config(url: String, port: Int)
+
+object ConfigExample extends zio.App {
+
+  val app: ZIO[Has[console.Console.Service] with Has[Config], Nothing, Unit] = for {
+    config <- ZIO.service[Config]
+    _      <- console.putStrLn(s"application config: $config").orDie
+  } yield ()
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
+
+    app.provideSome[Has[console.Console.Service]](_ ++ Has(Config("localhost", 8080))).exitCode
+  }
+}
+```
+
+To migrate this snippet to ZIO 2.x, we need to remove all the `Has` service wrappers, and finally, we will use the `ZIO#provideSomeEnvironment` method to append the `Config` instance to the `ZEnvironment`:
+
+```scala mdoc:compile-only
+// ZIO 2.x
+import zio._
+
+case class Config(url: String, port: Int)
+
+object ConfigExample extends ZIOAppDefault {
+  val app: ZIO[Console with Config, Nothing, Unit] = for {
+    config <- ZIO.service[Config]
+    _      <- Console.printLine(s"application config: $config").orDie
+  } yield ()
+    
+  def run = 
+    app.provideSomeEnvironment[Console](_ ++ ZEnvironment(Config("localhost", 8080)))
+}
+```
 
 ## ZIO
 
@@ -278,7 +344,7 @@ val zipped = x1 <*> x2 <*> x3 <*> x4
 
 This change is not only for the `ZIO` data type but also for all other data types like `ZManaged`, `ZStream`, `ZSTM`, etc.
 
-As we have compositional zips, we do not longer need higher arity zips in ZIO 1.x like `mapN`, `mapParN`, `Gen#zipN`, and `Gen#crossN`. They are deprecated in ZIO 2.x.
+As we have compositional zips, we no longer need higher arity zips in ZIO 1.x like `mapN`, `mapParN`, `Gen#zipN`, and `Gen#crossN`. They are deprecated in ZIO 2.x.
 
 Here is the list of `zip` variants that are deprecated:
 
@@ -692,7 +758,7 @@ val appLayer: URLayer[Any, DocRepo with UserRepo] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
     
-val res: ZIO[Any, Nothing, Unit] = myApp.provide(appLayer)
+val res: ZIO[Any, Nothing, Unit] = myApp.provideLayer(appLayer)
 ```
 
 As the development of our application progress, the number of layers will grow, and maintaining the dependency graph would be tedious and hard to debug.
@@ -700,7 +766,7 @@ As the development of our application progress, the number of layers will grow, 
 For example, if we miss the `Logging.live` dependency, the compile-time error would be very messy:
 
 ```scala
-myApp.provide(
+myApp.provideLayer(
   ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
     (Database.live >>> UserRepo.live)
 )
@@ -714,7 +780,7 @@ type mismatch;
     ((Database.live ++ BlobStorage.live) >>> DocRepo.live) ++
 ```
 
-In ZIO 2.x, we can automatically construct dependencies with friendly compile-time hints, using `ZIO#inject` operator:
+In ZIO 2.x, we can automatically construct dependencies with friendly compile-time hints, using `ZIO#provide` operator:
 
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
@@ -814,11 +880,11 @@ val app: ZIO[Console, Nothing, Unit] =
   )
 ```
 
-In ZIO 1.x, the `ZIO#provideCustom` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
+In ZIO 1.x, the `ZIO#provideCustomLayer` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
 
 ```scala mdoc:silent:nest
 val app: ZIO[zio.ZEnv, Nothing, Unit] = 
-  myApp.provideCustom(
+  myApp.provideCustomLayer(
     ((Logging.live ++ Database.live ++ (Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
       ((Logging.live ++ Database.live) >>> UserRepo.live)
   )
@@ -838,16 +904,8 @@ val app: ZIO[zio.ZEnv, Nothing, Unit] =
 ```
 
 > Note:
-> All `provide*` methods are not deprecated, and they are still necessary and useful for low-level and custom cases. But, in ZIO 2.x, in most cases, it's easier to use `inject`/`wire` methods.
-
-
-| ZIO 1.x and 2.x (manually)                             | ZIO 2.x (automatically)    |
-|--------------------------------------------------------|----------------------------|
-| `ZIO#provide`                                          | `ZIO#inject`               |
-| `ZIO#provideSomeLayer`                                 | `ZIO#provideSome`          |
-| `ZIO#provideCustom`                                    | `ZIO#provideCustom`        |
-| Composing manually using `ZLayer` combinators          | `ZLayer#wire`              |
-| Composing manually using `ZLayer` combinators          | `ZLayer#wireSome`          |
+> 
+> In ZIO 2.x, the `ZIO#provide` method—and all its variants `ZIO#provideSome`, `ZIO#provideCustom`—is a default and easier way of injecting dependencies to the environmental effect. We do not require creating the dependency graph manually, it will be automatically generated. In contrast, the `ZIO#provideLayer`—and all its variants `ZIO#provideSomeLayer`, `ZIO#provideCustomLayer`—is useful for low-level and custom cases like.
 
 ### ZLayer Debugging
 
@@ -884,6 +942,193 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 [info] Mermaid Live Editor Link
 [info] https://mermaid-js.github.io/mermaid-live-editor/edit/#eyJjb2RlIjoiZ3JhcGhcbiAgICBDb25zb2xlLmxpdmVcbiAgICBCbG9iU3RvcmFnZS5saXZlIC0tPiBMb2dnaW5nLmxpdmVcbiAgICBMb2dnaW5nLmxpdmUgLS0+IENvbnNvbGUubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IExvZ2dpbmcubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IEJsb2JTdG9yYWdlLmxpdmVcbiAgICBEYXRhYmFzZS5saXZlXG4gICAgIiwibWVybWFpZCI6ICJ7XG4gIFwidGhlbWVcIjogXCJkZWZhdWx0XCJcbn0iLCAidXBkYXRlRWRpdG9yIjogdHJ1ZSwgImF1dG9TeW5jIjogdHJ1ZSwgInVwZGF0ZURpYWdyYW0iOiB0cnVlfQ==
 ```
+
+### Descriptive ZIOApp Environment Compiler Errors
+
+In ZIO 1.x, if we mistakenly forget to provide some requirements, we have some complicated compile errors. Assume we have the following example:
+
+```scala
+// ZIO 1.x
+import zio._
+
+case class Config(host: String, port: Int)
+
+trait Logger {
+  def log(line: Any): Task[Unit]
+}
+
+object MainApp extends App {
+  val myApp =
+    for {
+      config <- ZIO.service[Config]
+      logger <- ZIO.service[Logger]
+      _ <- logger.log(s"Application started with the following config: $config")
+    } yield ()
+
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+    myApp.exitCode
+}
+```
+
+This program needs `Config` and `Logger` layers, but we missed them. The compiler prints this mystic error, which is hard to reason about:
+
+```scala
+type mismatch;
+found   : zio.URIO[zio.Has[Config] with zio.Has[Logger] with zio.console.Console,zio.ExitCode]
+(which expands to)  zio.ZIO[zio.Has[Config] with zio.Has[Logger] with zio.Has[zio.console.Console.Service],Nothing,zio.ExitCode]
+required: zio.URIO[zio.ZEnv,zio.ExitCode]
+(which expands to)  zio.ZIO[zio.Has[zio.clock.Clock.Service] with zio.Has[zio.console.Console.Service] with zio.Has[zio.system.System.Service] with zio.Has[zio.random.Random.Service] with zio.Has[zio.blocking.Blocking.Service],Nothing,zio.ExitCode]
+myApp.exitCode
+```
+
+In ZIO 2.x, we have descriptive errors. Let's try the above example in ZIO 2.x:
+
+```scala
+import zio._
+
+case class Config(host: String, port: Int)
+
+trait Logger {
+  def log(line: Any): Task[Unit]
+}
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      config <- ZIO.service[Config]
+      logger <- ZIO.service[Logger]
+      _ <- logger.log(s"Application started with the following config: $config")
+    } yield ()
+}
+```
+
+This will print the following error message:
+
+```
+[error] ──── ZIO APP ERROR ───────────────────────────────────────────────────
+[error] 
+[error]  Your effect requires a service that is not in the environment.
+[error]  Please provide a layer for the following type:
+[error] 
+[error] 
+[error]    1. Logger
+[error] 
+[error] 
+[error]  Call your effect's provide method with the layers you need.
+[error]  You can read more about layers and providing services here:
+[error]  
+[error]    https://zio.dev/version-1.x/datatypes/contextual/index
+[error] 
+[error] ──────────────────────────────────────────────────────────────────────
+[error] 
+[error]       logger <- ZIO.service[Logger]
+[error]              ^
+[error] one error found
+```
+
+It also warns if we provide layers more than needed:
+
+```scala
+import zio._
+
+case class Config(host: String, port: Int)
+
+trait Logger {
+  def log(line: Any): Task[Unit]
+}
+
+case class LoggerLive(console: Console) extends Logger {
+  override def log(line: Any): Task[Unit] =
+    console.printLine(line)
+}
+
+object LoggerLive {
+  val layer = (LoggerLive.apply _).toLayer[Logger]
+}
+
+object MainApp extends ZIOAppDefault {
+  val myApp = for {
+    config <- ZIO.service[Config]
+    _ <- Console.printLine(s"Application started with the following config: $config")
+  } yield ()
+
+  def run =
+    myApp.provide(
+      Console.live,
+      Random.live,
+      ZLayer.succeed(Config("localhost", 8080)),
+      LoggerLive.layer
+    )
+}
+```
+
+It will print the following warning message:
+
+```
+[error] ──── ZLAYER WARNING ──────────────────────────────────────────────────
+[error] 
+[error]  You have provided more than is required.
+[error]  You may remove the following 2 layers:
+[error]    
+[error]    1. Random.live
+[error]    2. LoggerLive.layer
+[error] 
+[error]   
+[error] ──────────────────────────────────────────────────────────────────────
+[error] 
+[error]     myApp.provide(
+[error]                  ^
+[error] one error found
+```
+
+### Eliminators for Environmental Effects
+
+In ZIO 2.x, layers become eliminators for environmental effects:
+
+```scala mdoc:compile-only
+trait Foo
+trait Bar
+
+val fooLayer   : ZLayer[Any, Nothing, Foo]          = ZLayer.succeed(???)
+val fooWithBar : ZIO[Foo with Bar, Throwable, Unit] = ZIO.succeed(???)
+val bar        : ZIO[Bar, Any, Unit]                = fooLayer(fooWithBar)
+```
+
+In this example, by applying the `fooLayer` to the `fooWithBarWithBaz` effect it will eliminate the contextual `Foo` service from the environment of the effect.
+
+Furthermore, we can compose multiple layers together and then eliminate services from the environmental effects:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  val needsClockAndRandomAndConsole: URIO[Console with Clock with Random, Unit] =
+    for {
+      uuid <- Random.nextUUID
+      date <- Clock.localDateTime
+      _ <- Console.printLine(s"$date -- $uuid").orDie
+    } yield ()
+
+  val clockAndRandom: ULayer[Clock with Random] = Clock.live ++ Random.live
+
+  val needsConsole: URIO[Console, Unit] =
+    clockAndRandom(needsClockAndRandomAndConsole)
+
+  def run = needsConsole
+  
+}
+```
+
+It helps us to provide contextual environments like the DSL below:
+
+```scala
+dbTransaction {
+  effect
+}
+```
+
+The `dbTransaction` is a `ZLayer` of type `ZLayer[any, Throwable, Connection]` which can eliminate the `Connection` service from the `effect`.
 
 ### Module Pattern
 
@@ -1194,10 +1439,10 @@ val myApp: ZIO[Console, Nothing, Unit] =
 
 Also, there is a slight change on `TSemaphore#withPermit` method. In ZIO 2.x, instead of accepting `STM` values, it accepts only `ZIO` values and returns the `ZIO` value.
 
-| `withPermit` | Input           | Output         |
-|--------------|-----------------|----------------|
-| ZIO 1.x      | `STM[E, B]`     | `STM[E, B]`    |
-| ZIO 2.x      | `ZIO[R, E, A])` | `ZIO[R, E, A]` |
+| `withPermit` | Input          | Output         |
+|--------------|----------------|----------------|
+| ZIO 1.x      | `STM[E, B]`    | `STM[E, B]`    |
+| ZIO 2.x      | `ZIO[R, E, A]` | `ZIO[R, E, A]` |
 
 ## ZQueue
 
@@ -1228,6 +1473,36 @@ val taken: UIO[Chunk[Int]] = for {
 ```
 
 ## ZIO Test
+
+### Composable Test Apps
+
+In ZIO 2.x, the `DefaultRunnableSpec` deprecated, so in order to write tests, we should extend the `ZIOSpecDefault` abstract class. Due to this change, executable tests can be composed, similar to `ZIOAppDefault`:
+
+```scala mdoc:compile-only
+import zio.ZIOApp
+import zio.test._
+
+object ExampleSpec1 extends ZIOSpecDefault {
+  def spec = suite("suite 1")(
+    test("passing test 1")(assertTrue(true)),
+    test("failing test 2")(assertTrue(false))
+  )
+}
+
+object ExampleSpec2 extends ZIOSpecDefault {
+  def spec = suite("suite 2")(
+    test("passing test")(assertTrue(true))
+  )
+}
+
+object AllSpecs extends ZIOApp.Proxy(ExampleSpec1 <> ExampleSpec2)
+```
+
+To run `AllSpecs` with sbt:
+
+```bash
+sbt Test/runMain AllSpecs
+```
 
 ### Smart Constructors
 
@@ -1730,7 +2005,7 @@ object TracingExample extends ZIOAppDefault {
   def myApp: ZIO[Console, String, Unit] =
     for {
       _ <- Console.printLine("Hello!").orDie
-      _ <- doSomething(5)
+      _ <- doSomething(5)   // line number 15
       _ <- Console.printLine("Bye Bye!").orDie
     } yield ()
 
@@ -1738,68 +2013,19 @@ object TracingExample extends ZIOAppDefault {
 }
 ```
 
-The output is more descriptive than the ZIO 1.x:
+The output is more descriptive than the ZIO 1.x. It is similar to the Java stacktrace:
 
 ```
 Hello!
 Do something 5
-timestamp=2021-10-22T06:24:57.958955503Z level=ERROR thread=#0 message="Fiber failed.
-A checked error was not handled.
-Boom!
-
-Fiber:FiberId(1634883897813,2) was supposed to continue to:
-  a future continuation at 
-  a future continuation at 
-  a future continuation at 
-  a future continuation at 
-  a future continuation at 
-  a future continuation at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:15:9)
-
-Fiber:FiberId(1634883897813,2) execution trace:
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:8:20)
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:9)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:54)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at 
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:7:29)
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:9)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:40)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
-  at <empty>.TracingExample.myApp(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:14:29)
-  at 
+timestamp=2021-12-19T08:25:09.372926403Z level=ERROR thread=#zio-fiber-1639902309 message="Exception in thread "zio-fiber-1639902309" java.lang.String: Boom!
+	at zio.examples.TracingExample.doSomething(TracingExample.scala:8)
+	at zio.examples.TracingExample.myApp(TracingExample.scala:15)"
 ```
 
-As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), line number 8 and column 20:
+As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), which is line number 8.
 
-```
-Fiber:FiberId(1634883897813,2) execution trace:
-  at <empty>.TracingExample.doSomething(/home/user/sources/scala/zio/examples/shared/src/main/scala/TracingExample.scala:8:20)
-```
+In ZIO 2.x, the tracing is not optional, and unlike the ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
 
 Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterward. So it adds a huge amount of complexity at the runtime.
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -258,6 +258,12 @@ package object test extends CompileVariants {
    */
   def assertCompletesM(implicit trace: ZTraceElement): UIO[TestResult] =
     assertMImpl(UIO.succeedNow(true))(Assertion.isTrue)
+
+  /**
+   * Asserts that the given test was never completed.
+   */
+  def assertNever(message: String)(implicit trace: ZTraceElement): TestResult =
+    assertImpl(true)(Assertion.isFalse.label(message))
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.

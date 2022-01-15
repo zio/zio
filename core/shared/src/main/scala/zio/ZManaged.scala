@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3072,10 +3072,10 @@ object ZManaged extends ZManagedPlatformSpecific {
       }
     }
 
-  def provideLayer[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
+  def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     managed: ZManaged[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with RIn2, E, ROut2] =
-    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder)
+    managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.

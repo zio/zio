@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import scala.collection.mutable.Builder
 
 /**
  * A `ZLayer[E, A, B]` describes how to build one or more services in your
- * application. Services can be injected into effects via ZIO#inject. Effects
+ * application. Services can be injected into effects via ZIO#provide. Effects
  * can require services via ZIO.service."
  *
  * Layer can be thought of as recipes for producing bundles of services, given
@@ -108,7 +108,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def catchAll[RIn1 <: RIn, E1, ROut1 >: ROut](
     handler: E => ZLayer[RIn1, E1, ROut1]
   )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
-    foldServices(handler, ZLayer.succeedEnvironment(_))
+    foldLayer(handler, ZLayer.succeedEnvironment(_))
 
   /**
    * Constructs a layer dynamically based on the output of this layer.
@@ -116,7 +116,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def flatMap[RIn1 <: RIn, E1 >: E, ROut2](
     f: ZEnvironment[ROut] => ZLayer[RIn1, E1, ROut2]
   )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut2] =
-    foldServices(ZLayer.fail, f)
+    foldLayer(ZLayer.fail, f)
 
   final def flatten[RIn1 <: RIn, E1 >: E, ROut1 >: ROut, ROut2](implicit
     tag: Tag[ROut1],
@@ -131,18 +131,18 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * the specified `failure` or `success` layers, resulting in a new layer with
    * the inputs of this layer, and the error or outputs of the specified layer.
    */
-  final def foldServices[E1, RIn1 <: RIn, ROut2](
+  final def foldLayer[E1, RIn1 <: RIn, ROut2](
     failure: E => ZLayer[RIn1, E1, ROut2],
     success: ZEnvironment[ROut] => ZLayer[RIn1, E1, ROut2]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn1, E1, ROut2] =
-    foldCauseServices(_.failureOrCause.fold(failure, ZLayer.failCause), success)
+    foldCauseLayer(_.failureOrCause.fold(failure, ZLayer.failCause), success)
 
   /**
    * Feeds the error or output services of this layer into the input of either
    * the specified `failure` or `success` layers, resulting in a new layer with
    * the inputs of this layer, and the error or outputs of the specified layer.
    */
-  final def foldCauseServices[E1, RIn1 <: RIn, ROut2](
+  final def foldCauseLayer[E1, RIn1 <: RIn, ROut2](
     failure: Cause[E] => ZLayer[RIn1, E1, ROut2],
     success: ZEnvironment[ROut] => ZLayer[RIn1, E1, ROut2]
   )(implicit ev: CanFail[E]): ZLayer[RIn1, E1, ROut2] =

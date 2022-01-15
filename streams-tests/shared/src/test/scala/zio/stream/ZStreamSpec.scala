@@ -2715,6 +2715,11 @@ object ZStreamSpec extends ZIOBaseSpec {
           val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
           s1.orElseSucceed(2).runCollect.map(assert(_)(equalTo(Chunk(1, 2))))
         },
+        test("provide") {
+          val stream = ZStream.managed(ZManaged.service[Int])
+          val layer  = ZLayer.succeed(1)
+          assertM(stream.provideLayer(layer).runDrain)(Assertion.anything)
+        },
         suite("repeat")(
           test("repeat")(
             assertM(
@@ -3319,7 +3324,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref      <- Ref.make(0)
               sink      = ZSink.foreach[Any, Nothing, Int](n => ref.update(_ + n))
-              stream    = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink, 8)
+              stream    = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink)
               elements <- stream.runCollect
               done     <- ref.get
             } yield assertTrue(elements == Chunk(1, 1, 2, 3, 5, 8) && done == 20)
@@ -3328,7 +3333,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref      <- Ref.make(0)
               sink      = ZSink.take[Int](3).map(_.sum).mapZIO(n => ref.update(_ + n))
-              stream    = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink, 8)
+              stream    = ZStream(1, 1, 2, 3, 5, 8).tapSink(sink)
               elements <- stream.runCollect
               done     <- ref.get
             } yield assertTrue(elements == Chunk(1, 1, 2, 3, 5, 8) && done == 4)
@@ -3337,10 +3342,19 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               ref   <- Ref.make(0)
               sink   = ZSink.fail("error")
-              stream = ZStream.never.tapSink(sink, 8)
+              stream = ZStream.never.tapSink(sink)
               error <- stream.runCollect.flip
             } yield assertTrue(error == "error")
-          }
+          },
+          test("does not read ahead") {
+            for {
+              ref    <- Ref.make(0)
+              stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
+              sink    = ZSink.foreach((n: Int) => ref.update(_ + n))
+              _      <- stream.tapSink(sink).take(3).runDrain
+              result <- ref.get
+            } yield assertTrue(result == 6)
+          } @@ nonFlaky
         ),
         suite("throttleEnforce")(
           test("free elements") {

@@ -392,16 +392,24 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   )(implicit trace: ZTraceElement): ChannelState.Effect[Env, Any] =
     ChannelState.Effect {
       ZIO.uninterruptibleMask { restore =>
-        restore(bracketOut.acquire()).foldCauseZIO(
+        restore(provide(bracketOut.acquire())).foldCauseZIO(
           cause => UIO { currentChannel = ZChannel.failCause(cause) },
           out =>
             UIO {
-              addFinalizer(bracketOut.finalizer(out, _))
+              addFinalizer(exit => provide(bracketOut.finalizer(out, exit)))
               currentChannel = ZChannel.write(out)
             }
         )
       }
     }
+
+  private def provide[Env, OutErr, OutDone](
+    zio: ZIO[Env, OutErr, OutDone]
+  )(implicit trace: ZTraceElement): ZIO[Env, OutErr, OutDone] =
+    if (providedEnv eq null)
+      zio
+    else
+      zio.provideEnvironment(providedEnv.asInstanceOf[ZEnvironment[Env]])
 
   private[this] def runEnsuring(ensuring: ZChannel.Ensuring[Env, Any, Any, Any, Any, Any, Any]) = {
     addFinalizer(ensuring.finalizer)

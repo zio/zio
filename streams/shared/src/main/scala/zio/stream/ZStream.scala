@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018-2022 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.stream
 
 import zio._
@@ -2576,7 +2592,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A] =
-    self.mergeEither(that).collectLeft
+    self.merge(that.drain)
 
   /**
    * Merges this stream and the specified stream together, discarding the values
@@ -2588,7 +2604,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
-    self.mergeEither(that).collectRight
+    self.drain.merge(that)
 
   /**
    * Merges this stream and the specified stream together to a common element
@@ -3475,11 +3491,21 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * to emitting them.
    */
   final def tapSink[R1 <: R, E1 >: E](
-    sink: => ZSink[R1, E1, A, Any, Any],
-    maximumLag: => Int
+    sink: => ZSink[R1, E1, A, Any, Any]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    ZStream.managed(broadcast(2, maximumLag)).flatMap { streams =>
-      streams(0).mergeLeft(ZStream.fromZIO(streams(1).run(sink)))
+    ZStream.fromZIO(Queue.bounded[Take[E1, A]](1)).flatMap { queue =>
+      val right = ZStream.fromQueueWithShutdown(queue, 1).flattenTake
+      lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
+        ZChannel.readWithCause(
+          chunk =>
+            ZChannel.fromZIO(queue.offer(Take.chunk(chunk))) *>
+              ZChannel.write(chunk) *>
+              loop,
+          cause => ZChannel.fromZIO(queue.offer(Take.failCause(cause))),
+          _ => ZChannel.fromZIO(queue.shutdown)
+        )
+      new ZStream(self.channel >>> loop)
+        .merge(ZStream.execute(right.run(sink)), TerminationStrategy.Both)
     }
 
   /**
@@ -3924,60 +3950,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def transduce[R1 <: R, E1 >: E, A1 >: A, Z](
     sink: => ZSink[R1, E1, A1, A1, Z]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, Z] =
-    new ZStream(
-      ZChannel.suspend {
-        val leftovers: AtomicReference[Chunk[Chunk[A1]]] = new AtomicReference(Chunk.empty)
-        val upstreamDone: AtomicBoolean                  = new AtomicBoolean(false)
-
-        lazy val buffer: ZChannel[Any, E, Chunk[A1], Any, E, Chunk[A1], Any] =
-          ZChannel.suspend {
-            val l = leftovers.get
-
-            if (l.isEmpty)
-              ZChannel.readWith(
-                (c: Chunk[A1]) => ZChannel.write(c) *> buffer,
-                (e: E) => ZChannel.fail(e),
-                (done: Any) => ZChannel.succeedNow(done)
-              )
-            else {
-              leftovers.set(Chunk.empty)
-              ZChannel.writeChunk(l) *> buffer
-            }
-          }
-
-        def concatAndGet(c: Chunk[Chunk[A1]]): Chunk[Chunk[A1]] = {
-          val ls     = leftovers.get
-          val concat = ls ++ c.filter(_.nonEmpty)
-          leftovers.set(concat)
-          concat
-        }
-
-        lazy val upstreamMarker: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Any] =
-          ZChannel.readWith(
-            (in: Chunk[A]) => ZChannel.write(in) *> upstreamMarker,
-            (err: E) => ZChannel.fail(err),
-            (done: Any) => ZChannel.succeed(upstreamDone.set(true)) *> ZChannel.succeedNow(done)
-          )
-
-        lazy val transducer: ZChannel[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit] =
-          sink.channel.doneCollect.flatMap { case (leftover, z) =>
-            ZChannel
-              .succeed((upstreamDone.get, concatAndGet(leftover)))
-              .flatMap[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit] { case (done, newLeftovers) =>
-                val nextChannel =
-                  if (done && newLeftovers.isEmpty) ZChannel.unit
-                  else transducer
-
-                ZChannel.write(Chunk.single(z)).zipRight[R1, Nothing, Chunk[A1], Any, E1, Chunk[Z], Unit](nextChannel)
-              }
-          }
-
-        channel >>>
-          upstreamMarker >>>
-          buffer pipeToOrFail
-          transducer
-      }
-    )
+    self >>> ZPipeline.fromSink(sink)
 
   /**
    * Updates a service in the environment of this effect.
@@ -5271,10 +5244,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   ): ZStream[R, E, A] =
     paginateZIO(s)(f)
 
-  def provideLayer[RIn, E, ROut, RIn2, ROut2](builder: ZLayer[RIn, E, ROut])(
+  def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     stream: => ZStream[ROut with RIn2, E, ROut2]
   )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZStream[RIn with RIn2, E, ROut2] =
-    ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ builder))
+    ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer))
 
   /**
    * Like [[unfoldZIO]], but allows the emission of values to end one step

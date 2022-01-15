@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import java.lang.ref.WeakReference
 
 /**
  * A `ZScope` represents the scope of a fiber lifetime. The scope of a fiber can
- * be retrieved using [[ZIO.descriptor]], and when forking fibers, you can
- * specify a custom scope to fork them on by using the [[ZIO#forkIn]].
+ * be retrieved using [[ZIO.scope]], and when forking fibers, you can specify a
+ * custom scope to fork them on by using the [[ZIO#forkIn]].
  */
 sealed trait ZScope {
   def fiberId: FiberId
@@ -60,7 +60,7 @@ object ZScope {
     }
   }
 
-  final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends ZScope {
+  private final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends ZScope {
     private[zio] def unsafeAdd(runtimeConfig: RuntimeConfig, child: FiberContext[_, _])(implicit
       trace: ZTraceElement
     ): Boolean = {
