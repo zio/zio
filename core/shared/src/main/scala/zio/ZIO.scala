@@ -5701,9 +5701,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ): ZIO[R with Service, E, A] = {
       implicit val tag = tagged.tag
       ZIO.suspendSucceed {
-        ZFiberRef.currentEnvironment.get.flatMap(environment =>
-          f(environment.asInstanceOf[ZEnvironment[R]].get[Service])
-        )
+        ZFiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
       }
     }
   }
