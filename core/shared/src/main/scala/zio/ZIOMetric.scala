@@ -268,7 +268,7 @@ object ZIOMetric {
      * Converts this counter metric to one where the tags depend on the measured
      * effect's result value
      */
-    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+    def taggedWith(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
       new ZIOMetric[A] {
         override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio.tap(changeCounter))
@@ -352,7 +352,7 @@ object ZIOMetric {
      * Converts this gauge metric to one where the tags depend on the measured
      * effect's result value
      */
-    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+    def taggedWith(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
       new ZIOMetric[A] {
         override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio.tap(changeGauge))
@@ -456,7 +456,7 @@ object ZIOMetric {
      * Converts this histogram metric to one where the tags depend on the
      * measured effect's result value
      */
-    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+    def taggedWith(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
       new ZIOMetric[A] {
         override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio.tap(changeHistogram))
@@ -594,7 +594,7 @@ object ZIOMetric {
      * Converts this summary metric to one where the tags depend on the measured
      * effect's result value
      */
-    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+    def taggedWith(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
       new ZIOMetric[A] {
         override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio.tap(changeSummary))
@@ -681,7 +681,7 @@ object ZIOMetric {
      * Converts this set count metric to one where the tags depend on the
      * measured effect's result value
      */
-    def withDynamicTags(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
+    def taggedWith(f: A => Chunk[MetricLabel]): ZIOMetric[A] =
       new ZIOMetric[A] {
         override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
           self.apply(zio.tap(changeSetCount))
