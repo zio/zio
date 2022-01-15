@@ -2715,6 +2715,11 @@ object ZStreamSpec extends ZIOBaseSpec {
           val s1 = ZStream.succeed(1) ++ ZStream.fail("Boom")
           s1.orElseSucceed(2).runCollect.map(assert(_)(equalTo(Chunk(1, 2))))
         },
+        test("provide") {
+          val stream = ZStream.managed(ZManaged.service[Int])
+          val layer  = ZLayer.succeed(1)
+          assertM(stream.provideLayer(layer).runDrain)(Assertion.anything)
+        },
         suite("repeat")(
           test("repeat")(
             assertM(
