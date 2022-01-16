@@ -897,6 +897,24 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
+## Other Operators
+
+### Retrying
+
+We can retry constructing a layer in case of failure:
+
+```scala mdoc:invisible
+trait DatabaseConnection
+```
+
+```scala mdoc:compile-only
+import zio._
+
+val databaseLayer: ZLayer[Any, Throwable, DatabaseConnection]   = ???
+
+val retriedLayer : ZLayer[Clock, Throwable, DatabaseConnection] = databaseLayer.retry(Schedule.fibonacci(1.second))
+```
+
 ## Examples
 
 ### An Example of a ZIO Application with a Simple Dependency
