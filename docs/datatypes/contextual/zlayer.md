@@ -35,6 +35,8 @@ ZLayers are:
 
   For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to block inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
 
+6. **Parallelism** — ZIO layers can be acquired in parallel, unlike class constructors, which do not support parallelism. When we compose multiple layers and then acquire them, the construction of each layer will occur in parallel. This will reduce the initialization time of ZIO applications with a large number of dependencies.
+
   With ZIO ZLayer, our constructor could be asynchronous, and they could also block. We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO. And that is because `ZLayer` has the full power of the `ZIO` data type, and as a result, we have strictly more power on our constructors with `ZLayer`.
 
 Let's see how we can create a layer:
