@@ -29,9 +29,11 @@ ZLayers are:
 
 3. **Composable** — Because of their excellent **composition properties**, layers are the idiomatic way in ZIO to create services that depend on other services. We can define layers that are relying on each other.
 
-4. **Effectful and Resourceful** — The construction of ZIO layers can be effectful and resourceful. They can be acquired effectfully and safely released when the services are done being utilized. For example, to create a recipe for a `Database` service, we should describe how the `Database` will be initialized using an acquisition action. In addition, it may contain information about how the `Database` releases its connection pools.
+4. **Effectful and Resourceful** — The construction of ZIO layers can be effectful and resourceful. They can be acquired effectfully and safely released when the services are done being utilized or even in case of failure, interruption, or defects in the application. 
+  
+  For example, to create a recipe for a `Database` service, we should describe how the `Database` will be initialized using an acquisition action. In addition, it may contain information about how the `Database` releases its connection pools.
 
-5. **Asynchronous** — Unlike class constructors which are blocking, `ZLayer` is fully asynchronous and non-blocking. Note that constructors in classes are always synchronous. This is a drawback for non-blocking applications because sometimes we might want to use something that is blocking the inside constructor.
+6. **Asynchronous** — Unlike class constructors which are blocking, `ZLayer` is fully asynchronous and non-blocking. Note that constructors in classes are always synchronous. This is a drawback for non-blocking applications because sometimes we might want to use something that is blocking the inside constructor.
 
   For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to block inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
 
