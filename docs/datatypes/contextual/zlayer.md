@@ -323,11 +323,11 @@ val horizontal: ZLayer[A, Throwable, C] =    // A ==> C
   fooLayer >>> barLayer
 ```
 
-#### Hidden Versus Passed Through Dependencies
+#### Hidden Versus Passed-through Dependencies
 
 By default, the `ZLayer` hides intermediate dependencies when composing vertically. For example, when we compose `fooLayer` with `barLayer` vertically, the output would be a `ZLayer[A, Throwable, C]`. This hides the dependency on the `B` layer.
 
-One design decision regarding building dependency graphs is whether to hide or pass through the upstream/downstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to pass through dependencies as well.
+One design decision regarding building dependency graphs is whether to hide or passthrough the upstream/downstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to passthrough dependencies as well.
 
 Let's include the `B` service into the upstream dependencies of the final layer using the `ZIO.service[B]`. We can think of `ZIO.service[B]` is an _identity function_ (`B ==> B`).
 
@@ -401,7 +401,7 @@ val layer: ZLayer[A & C, Throwable, D] =        // A & C ==> D
 // (A & C ==> D)
 ```
 
-Here is an example of which path through all requirements to bake a `Cake` so all the requirements are available to all the downstream services: 
+Here is an example of which passthrough all requirements to bake a `Cake` so all the requirements are available to all the downstream services: 
 
 ```scala mdoc:silent
 import zio._
@@ -426,7 +426,7 @@ lazy val all: ZLayer[Any, Nothing, Baker & Ingredients & Oven & Dough & Cake] =
   cake            // Baker & Ingredients & Oven & Dough & Cake
 ```
 
-This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it. If we pass through dependencies and later want to hide them we can do so through a simple type ascription:
+This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it. If we passthrough dependencies and later want to hide them we can do so through a simple type ascription:
 
 ```scala mdoc:silent
 lazy val hidden: ZLayer[Any, Nothing, Cake] = all
@@ -1252,13 +1252,13 @@ object MainApp extends ZIOAppDefault {
 // initialized: zio.examples.InmemoryCache@26d79027
 ```
 
-### An Example of Path Through Dependencies
+### An Example of Pass-through Dependencies
 
 Notice that in the previous examples, both `UserRepo` and `DocuemntRepo` have some [hidden dependencies](#hidden-versus-passed-through-dependencies), such as `Cache`, `Database`, and `BlobStorage`.  So these hidden dependencies are no longer expressed in the type signature of the `layers`. From the perspective of a caller, `layers` just outputs a `UserRepo` and `DocuemntRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` and `DocuemntRepo` are constructed.
 
 An upstream dependency that is used by many other services can be "passed-through" and included in a layer's output. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_.
 
-The following example shows how to path through all dependencies to the final layer:
+The following example shows how to passthrough all dependencies to the final layer:
 
 ```scala mdoc:compile-only
 
@@ -1266,7 +1266,7 @@ import zio._
 
 object MainApp extends ZIOAppDefault {
 
-  // path through all dependencies
+  // passthrough all dependencies
   val layers: ZLayer[Any, Throwable, Database & BlobStorage & Cache & DocumentRepo & UserRepo] =
     DatabaseLive.layer >+>
       BlobStorageLive.layer >+>
@@ -1274,7 +1274,7 @@ object MainApp extends ZIOAppDefault {
       DocumentRepoLive.layer >+>
       UserRepoLive.layer
 
-  // providing all path through dependencies to the ZIO application
+  // providing all passthrough dependencies to the ZIO application
   def run = myApp.provideLayer(layers)
 }
 ```
