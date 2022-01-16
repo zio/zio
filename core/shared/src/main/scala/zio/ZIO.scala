@@ -3632,7 +3632,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * method.
    */
   def fiberId(implicit trace: ZTraceElement): UIO[FiberId] =
-    ZIO.descriptor.map(_.id)
+    descriptorWith(descriptor => succeedNow(descriptor.id))
 
   /**
    * Filters the collection using the specified effectual predicate.
@@ -4313,7 +4313,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * method.
    */
   def interrupt(implicit trace: ZTraceElement): UIO[Nothing] =
-    ZIO.fiberId.flatMap(fiberId => interruptAs(fiberId))
+    descriptorWith(descriptor => interruptAs(descriptor.id))
 
   /**
    * Returns an effect that is interrupted as if by the specified fiber.
