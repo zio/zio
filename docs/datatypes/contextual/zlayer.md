@@ -934,6 +934,24 @@ val connection: ZLayer[DBConfig, Nothing, Connection] =
   ZLayer.service[DBConfig].project(_.connection)
 ```
 
+### Tapping
+
+We can perform a specified effect based on the success or failure result of the layer using `ZLayer#tap`/`ZLayer#tapError`. This would not change the layer's signature:
+
+```scala mdoc:compile-only
+import zio._
+
+val config: ZLayer[Any, Throwable, AppConfig] =
+  ZLayer.fromZIO(
+    ZIO(???) // reading config from a file
+  )
+
+val res: ZLayer[Any, Throwable, AppConfig] =
+  config
+    .tap(cnf => ZIO.debug(s"layer acquisition succeeded with $cnf"))
+    .tapError(err => ZIO.debug(s"error occurred during reading the config $err"))
+```
+
 ## Examples
 
 ### An Example of a ZIO Application with a Simple Dependency
