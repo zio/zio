@@ -325,9 +325,24 @@ val horizontal: ZLayer[A, Throwable, C] =    // A ==> C
 
 #### Hidden Versus Passed-through Dependencies
 
-By default, the `ZLayer` hides intermediate dependencies when composing vertically. For example, when we compose `fooLayer` with `barLayer` vertically, the output would be a `ZLayer[A, Throwable, C]`. This hides the dependency on the `B` layer.
+ZLayer has a `passthrough` operator which returns a new layer that produces the outputs of this layer but also passes-through the inputs:
 
-One design decision regarding building dependency graphs is whether to hide or passthrough the upstream/downstream dependencies of a service. `ZLayer` defaults to hidden dependencies but makes it easy to passthrough dependencies as well.
+```scala mdoc:compile-only
+import zio._
+
+val fooLayer: ZLayer[A, Nothing, B] = ???  // A ==> B
+
+val result1 : ZLayer[A, Nothing, A & B] =  // A ==> A & B
+  fooLayer.passthrough
+  
+val result2 : ZLayer[A, Nothing, A & B] =  // A ==> A & B
+  ZLayer.service[A] ++ fooLayer
+ 
+// (A ==> A) ++ (A ==> B)
+// (A ==> A & B)
+```
+
+By default, the `ZLayer` hides intermediate dependencies when composing vertically. For example, when we compose `fooLayer` with `barLayer` vertically, the output would be a `ZLayer[A, Throwable, C]`. This hides the dependency on the `B` layer. By using the above technique, we can pass through hidden dependencies.
 
 Let's include the `B` service into the upstream dependencies of the final layer using the `ZIO.service[B]`. We can think of `ZIO.service[B]` is an _identity function_ (`B ==> B`).
 
