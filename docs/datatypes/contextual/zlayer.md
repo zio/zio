@@ -915,6 +915,25 @@ val databaseLayer: ZLayer[Any, Throwable, DatabaseConnection]   = ???
 val retriedLayer : ZLayer[Clock, Throwable, DatabaseConnection] = databaseLayer.retry(Schedule.fibonacci(1.second))
 ```
 
+### Layer Projection
+
+We can project out a part of `ZLayer` by providing a projection function to the `ZLayer#project` method:
+
+```scala mdoc:compile-only
+import zio._
+
+case class Connection(host: String, port: Int) 
+case class Login(user: String, password: String)
+
+case class DBConfig(
+  connection: Connection, 
+  login: Login
+)
+
+val connection: ZLayer[DBConfig, Nothing, Connection] = 
+  ZLayer.service[DBConfig].project(_.connection)
+```
+
 ## Examples
 
 ### An Example of a ZIO Application with a Simple Dependency
