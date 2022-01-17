@@ -239,7 +239,7 @@ We can convert the `loggingLive` function to the `ZLayer` using `toLayer` extens
 val layer: ZLayer[Console & Clock, Nothing, Logging] = (loggingLive _).toLayer
 ```
 
-This is the same method we use in Module Pattern:
+This is the same method we use in Service Pattern:
 
 ```scala mdoc:silent
 import zio._

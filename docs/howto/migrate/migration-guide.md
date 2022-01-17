@@ -1130,9 +1130,9 @@ dbTransaction {
 
 The `dbTransaction` is a `ZLayer` of type `ZLayer[any, Throwable, Connection]` which can eliminate the `Connection` service from the `effect`.
 
-### Module Pattern
+### Service Pattern
 
-The _Module Pattern_ is one of the most important changes in ZIO 2.x. Let's take a look at services in ZIO 1.x before discussing changes. Here is a `Logging` service that uses _Module Pattern 1.0_:
+The _Service Pattern_, formerly called "Module Pattern", is one of the most important changes in ZIO 2.x. Let's take a look at services in ZIO 1.x before discussing changes. Here is a `Logging` service that uses _Service Pattern 1.0_:
 
 ```scala
 object logging {
@@ -1167,7 +1167,7 @@ object logging {
 
 The `Logging` service is a logger which depends on the `Console` and `Clock` services.
 
-ZIO 2.x introduces the _Module Pattern 2.0_ which is much more concise and has more ergonomics. Let's see how the `Logging` service can be implemented using this new pattern:
+ZIO 2.x introduces the _Service Pattern 2.0_ which is much more concise and has more ergonomics. Let's see how the `Logging` service can be implemented using this new pattern:
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -1203,11 +1203,11 @@ object LoggingLive {
 
 As we see, we have the following changes:
 
-1. **Deprecation of Type Alias for `Has` Wrappers** — In _Module Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Module Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Console = Has[Console.Service]` removed and the `Console.Service` will just be `Console`.
+1. **Deprecation of Type Alias for `Has` Wrappers** — In _Service Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Service Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Console = Has[Console.Service]` removed and the `Console.Service` will just be `Console`.
 
-2. **Introducing Constructor-based Dependency Injection** — In _Module Pattern 1.0_ when we wanted to create a layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
+2. **Introducing Constructor-based Dependency Injection** — In _Service Pattern 1.0_ when we wanted to create a layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
 
-    In _Module Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we call `toLayer` on the service implementation.
+    In _Service Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we call `toLayer` on the service implementation.
 
     > **_Note:_**
     > 
@@ -1256,23 +1256,23 @@ As we see, we have the following changes:
     > }
     > ```
 
-3. **Separated Interface** — In the _Module Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
+3. **Separated Interface** — In the _Service Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
 
     As our application grows, where we define our layers matters more. _Separated Interface_ is a very useful pattern while we are developing a complex application. It helps us to reduce the coupling between application components. 
 
-    Following two changes in _Module Pattern_ we can define the service definition in one package but its implementations in other packages:
+    Following two changes in _Service Pattern_ we can define the service definition in one package but its implementations in other packages:
     
    1. **Flattened Structure** — In the new pattern, everything is at the top level in a file. So the developer is not limited to package service definition and service implementation in one package.
    
       > **_Note_**:
       > 
-      > Module Pattern 2.0 supports the idea of _Separated Interface_, but it doesn't enforce us grouping them into different packages and modules. The decision is up to us, based on the complexity and requirements of our application.
+      > Service Pattern 2.0 supports the idea of _Separated Interface_, but it doesn't enforce us grouping them into different packages and modules. The decision is up to us, based on the complexity and requirements of our application.
    
    2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting layers in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
    
-    In Module Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
+    In Service Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
 
-4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Module Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
+4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Service Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
 
    We also have accessor methods on the fly, by extending the companion object of the service interface with `Accessible`, e.g. `object Logging extends Accessible[Logging]`. So then we can simply access the `log` method by calling the `Logging(_.log(line))` method:
    
@@ -1293,7 +1293,7 @@ As we see, we have the following changes:
 
 While Scala 3 doesn't support macro annotation like, so instead of using `@accessible`, the `Accessible` trait is a macro-less approach to create accessor methods specially for Scala 3 users.
 
-The _Module Pattern 1.0_ was somehow complicated and had some boilerplates. The _Module Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
+The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The _Service Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
 ### Other Changes
 

@@ -38,7 +38,7 @@ ZIO provide this facility through the following concept and data types:
 2. [ZEnvironment](./zenvironment.md) — Built-in type-level map for maintaining the environment of a `ZIO` data type. 
 3. [ZLayer](./zlayer.md) — Describes how to build one or more services in our application.
 
-Next, we will discuss _ZIO Environment_ and _ZLayer_ and finally how to write ZIO services using _Module Pattern_.
+Next, we will discuss _ZIO Environment_ and _ZLayer_ and finally how to write ZIO services using _Service Pattern_.
 
 ## ZIO Environment
 
@@ -219,7 +219,7 @@ def myApp(s1: Service1, s2: Service2, ..., sn: ServiceN): Task[Unit] =
   } yield ()
 ```
 
-Writing real applications using this technique is tedious and cumbersome because all dependencies have to be passed across all methods. We can simplify the process of writing our application by using the ZIO environment and [Module Pattern](#module-pattern):
+Writing real applications using this technique is tedious and cumbersome because all dependencies have to be passed across all methods. We can simplify the process of writing our application by using the ZIO environment and [Service Pattern](#service-pattern):
 
 ```scala
 def foo(arg1: String, arg2: String, arg3: Int): ZIO[Service1 & Service2 & Service3, Throwable, Int] = 
@@ -330,7 +330,7 @@ for {
 } yield ()
 ```
 
-When creating ZIO layers that have multiple dependencies, this can be helpful. We will discuss this pattern in the [Module Pattern](#module-pattern) section.
+When creating ZIO layers that have multiple dependencies, this can be helpful. We will discuss this pattern in the [Service Pattern](#service-pattern) section.
 
 #### Service Members Accessors
 
@@ -338,7 +338,7 @@ Sometimes instead of accessing a service, we need to access the capabilities (me
 - **ZIO.serviceWith**
 - **ZIO.serviceWithZIO**
 
-In [Module Pattern](#module-pattern), we use these accessors to write "accessor methods" for ZIO services.
+In [Service Pattern](#service-pattern), we use these accessors to write "accessor methods" for ZIO services.
 
 Let's look at each one in more detail:
 
@@ -413,7 +413,7 @@ ZIO also solves the second problem by using [ZIO Environment facilities like `ZI
 
 ## Defining ZIO Services
 
-Defining service in ZIO is not very different from object-oriented style, it has the same principle: coding to an interface, not an implementation. Therefore, ZIO encourages us to implement this principle by using the _Module Pattern_, which is quite similar to the object-oriented style.
+Defining service in ZIO is not very different from object-oriented style, it has the same principle: coding to an interface, not an implementation. Therefore, ZIO encourages us to implement this principle by using the _Service Pattern_, which is quite similar to the object-oriented style.
 
 Before diving into writing services in ZIO style, let's review how we define them in an object-oriented fashion in the next section.
 
@@ -479,7 +479,7 @@ In the functional Scala as well as in object-oriented programming the best pract
 
 * Providing the ability to write more modular applications. So we can plug in different implementations for different purposes without a major modification.
 
-It is not mandatory but ZIO encourages us to follow this principle by bundling related functionality as an interface by using _Module Pattern_.
+It is not mandatory but ZIO encourages us to follow this principle by bundling related functionality as an interface by using _Service Pattern_.
 
 The core idea is that a layer depends upon the interfaces exposed by the layers immediately below itself, but is completely unaware of its dependencies' internal implementations.
 
@@ -489,13 +489,13 @@ In object-oriented programming:
 - **Service Implementation** is done by implementing interfaces using _classes_ or creating _new object_ of the interface.
 - **Defining Dependencies** is done by using _constructors_. They allow us to build classes, give their dependencies. This is called constructor-based dependency injection.
 
-We have a similar analogy in Module Pattern, except instead of using _constructors_ we use **`ZLayer`** to define dependencies. So in ZIO fashion, we can think of `ZLayer` as a service constructor.
+We have a similar analogy in Service Pattern, except instead of using _constructors_ we use **`ZLayer`** to define dependencies. So in ZIO fashion, we can think of `ZLayer` as a service constructor.
 
-### Module Pattern
+### Service Pattern
 
-Writing services in ZIO using _Module Pattern_ is much similar to the object-oriented way of defining services. We use scala traits to define services, classes to implement services, and constructors to define service dependencies. Finally, we lift the class constructor into the `ZLayer`.
+Writing services in ZIO using _Service Pattern_ is much similar to the object-oriented way of defining services. We use scala traits to define services, classes to implement services, and constructors to define service dependencies. Finally, we lift the class constructor into the `ZLayer`.
 
-Let's start learning this module pattern by writing a `Logging` service:
+Let's start learning this service pattern by writing a `Logging` service:
 
 1. **Service Definition** — Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility. We define the service definition with a trait named `Logging`:
 
