@@ -292,20 +292,20 @@ object ZIOMetric {
      * effect's result value
      */
     def taggedWith(f: A => Chunk[MetricLabel]): ZIOMetric[A] = {
-      if (self.counterRef eq null) {
-        self.counterRef = ZFiberRef.unsafeMake(self.counter)
-        self.counter = null
-      }
+      val cloned = copy()
+      cloned.counterRef = ZFiberRef.unsafeMake(cloned.counter)
+      cloned.counter = null
+
       new ZIOMetric[A] {
         override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-          appliedAspect(zio.tap(changeCounter))
+          cloned.appliedAspect(zio.tap(changeCounter))
 
         private def changeCounter(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
-          self.counterRef.update { counter =>
+          cloned.counterRef.update { counter =>
             val extraTags = f(value)
-            val allTags   = self.tags ++ extraTags
+            val allTags   = cloned.tags ++ extraTags
             if (counter.metricKey.tags != allTags) {
-              internal.metrics.Counter(self.name, allTags)
+              internal.metrics.Counter(cloned.name, allTags)
             } else {
               counter
             }

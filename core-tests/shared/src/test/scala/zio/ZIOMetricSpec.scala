@@ -173,9 +173,9 @@ object ZIOMetricSpec extends ZIOBaseSpec {
             case _         => Chunk.empty
           }
         for {
+          _      <- ZIO.succeed("!") @@ c2
           _      <- ZIO.succeed("hello") @@ c1
           _      <- ZIO.succeed("!") @@ c1
-          _      <- ZIO.succeed("!") @@ c2
           states <- UIO(MetricClient.unsafeStates)
           r1 = states
                  .get(MetricKey.Counter("c11", Chunk(MetricLabel("static", "0"))))
