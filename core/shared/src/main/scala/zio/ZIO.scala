@@ -5687,15 +5687,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](
       f: Service => A
-    )(implicit tagged: Tag[Service], trace: ZTraceElement): ZIO[Service, Nothing, A] =
+    )(implicit ev: IsNotIntersection[Service], tagged: Tag[Service], trace: ZTraceElement): ZIO[Service, Nothing, A] =
       ZIO.serviceWithZIO(service => ZIO.succeedNow(f(service)))
   }
 
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](
       f: Service => ZIO[R, E, A]
-    )(implicit tagged: Tag[Service], trace: ZTraceElement): ZIO[R with Service, E, A] = {
-      val tag = tagged.tag
+    )(implicit
+      ev: IsNotIntersection[Service],
+      tagged: Tag[Service],
+      trace: ZTraceElement
+    ): ZIO[R with Service, E, A] = {
+      implicit val tag = tagged.tag
       ZIO.suspendSucceed {
         ZFiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
       }

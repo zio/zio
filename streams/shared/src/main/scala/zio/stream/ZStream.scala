@@ -5676,6 +5676,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: Service => A)(implicit
+      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZStream[Service, Nothing, A] =
@@ -5684,6 +5685,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZIO[R, E, A])(implicit
+      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZStream[R with Service, E, A] =

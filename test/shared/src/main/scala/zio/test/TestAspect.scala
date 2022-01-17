@@ -657,7 +657,7 @@ object TestAspect extends TimeoutVariants {
    * when repeating tests.
    */
   def restore[R0 <: Restorable](implicit tag: Tag[R0], ev: IsNotIntersection[R0]): TestAspectAtLeastR[R0] =
-    aroundWith(ZIO.serviceWithZIO[R0](_.save(ZTraceElement.empty))(Tag[R0], ZTraceElement.empty))(restore => restore)
+    aroundWith(ZIO.serviceWithZIO[R0](_.save(ZTraceElement.empty))(ev, tag, ZTraceElement.empty))(restore => restore)
 
   /**
    * An aspect that restores the [[zio.test.TestClock TestClock]]'s state to its
