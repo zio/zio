@@ -1,6 +1,6 @@
 package zio
 
-import zio.ZIOMetric.Counter
+import zio.ZIOMetric.{Counter, MetricAspect}
 import zio.metrics.{MetricClient, MetricKey, MetricType}
 import zio.test._
 
@@ -11,10 +11,15 @@ object ZIOMetricSpec extends ZIOBaseSpec {
   def spec = suite("ZIOMetric")(
     suite("Counter")(
       test("custom increment as aspect") {
-        val c = new Counter[Any]("c1", labels1) {
-          override def apply[R, E, A1 <: Any](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-            zio.tap(_ => increment)
-        }
+        val c = new Counter[Any](
+          "c1",
+          labels1,
+          metric =>
+            new MetricAspect[Any] {
+              override def apply[R, E, A1 <: Any](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+                zio.tap(_ => metric.increment)
+            }
+        )
         for {
           _      <- ZIO.unit @@ c
           _      <- ZIO.unit @@ c
@@ -23,10 +28,15 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         } yield assertTrue(r == Some(MetricType.Counter(2.0)))
       },
       test("direct increment") {
-        val c = new Counter[Any]("c2", labels1) {
-          override def apply[R, E, A1 <: Any](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-            zio
-        }
+        val c = new Counter[Any](
+          "c2",
+          labels1,
+          _ =>
+            new MetricAspect[Any] {
+              override def apply[R, E, A1 <: Any](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+                zio
+            }
+        )
         for {
           _      <- c.increment
           _      <- c.increment
@@ -35,10 +45,15 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         } yield assertTrue(r == Some(MetricType.Counter(2.0)))
       },
       test("custom increment by value as aspect") {
-        val c = new Counter[Double]("c3", labels1) {
-          override def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-            zio.tap(increment)
-        }
+        val c = new Counter[Double](
+          "c3",
+          labels1,
+          metric =>
+            new MetricAspect[Double] {
+              override def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+                zio.tap(metric.increment)
+            }
+        )
         for {
           _      <- ZIO.succeed(10.0) @@ c
           _      <- ZIO.succeed(5.0) @@ c
@@ -47,10 +62,15 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         } yield assertTrue(r == Some(MetricType.Counter(15.0)))
       },
       test("direct increment by value") {
-        val c = new Counter[Any]("c4", labels1) {
-          override def apply[R, E, A1 <: Any](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-            zio
-        }
+        val c = new Counter[Any](
+          "c4",
+          labels1,
+          _ =>
+            new MetricAspect[Any] {
+              override def apply[R, E, A1 <: Any](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+                zio
+            }
+        )
         for {
           _      <- c.increment(10.0)
           _      <- c.increment(5.0)
@@ -142,6 +162,30 @@ object ZIOMetricSpec extends ZIOBaseSpec {
                 .map(_.details)
         } yield assertTrue(
           r == Some(MetricType.Counter(2.0))
+        )
+      },
+      test("count + taggedWith referential transparency") {
+        val c1 = ZIOMetric
+          .count("c11", MetricLabel("static", "0"))
+        val c2 =
+          c1.taggedWith {
+            case s: String => Chunk(MetricLabel("dyn", s))
+            case _         => Chunk.empty
+          }
+        for {
+          _      <- ZIO.succeed("hello") @@ c1
+          _      <- ZIO.succeed("!") @@ c1
+          _      <- ZIO.succeed("!") @@ c2
+          states <- UIO(MetricClient.unsafeStates)
+          r1 = states
+                 .get(MetricKey.Counter("c11", Chunk(MetricLabel("static", "0"))))
+                 .map(_.details)
+          r2 = states
+                 .get(MetricKey.Counter("c11", Chunk(MetricLabel("static", "0"), MetricLabel("dyn", "!"))))
+                 .map(_.details)
+        } yield assertTrue(
+          r1 == Some(MetricType.Counter(2.0)),
+          r2 == Some(MetricType.Counter(1.0))
         )
       }
     )

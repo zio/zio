@@ -26,44 +26,65 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 sealed trait ZIOMetric[-A] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A]
 
 object ZIOMetric {
+  type MetricAspect[-A] = ZIOAspect[Nothing, Any, Nothing, Any, Nothing, A]
 
   /**
    * A metric aspect that increments the specified counter each time the effect
    * it is applied to succeeds.
    */
   def count(name: String, tags: MetricLabel*): Counter[Any] =
-    new Counter[Any](name, Chunk.fromIterable(tags)) { self =>
-      def apply[R, E, A1](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-        zio.tap(_ => increment)
-    }
+    new Counter[Any](
+      name,
+      Chunk.fromIterable(tags),
+      metric =>
+        new MetricAspect[Any] {
+          def apply[R, E, A1](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+            zio.tap(_ => metric.increment)
+        }
+    )
 
   /**
    * A metric aspect that increments the specified counter by a given value.
    */
   def countValue(name: String, tags: MetricLabel*): Counter[Double] =
-    new Counter[Double](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-        zio.tap(increment)
-    }
+    new Counter[Double](
+      name,
+      Chunk.fromIterable(tags),
+      metric =>
+        new MetricAspect[Double] {
+          def apply[R, E, A1 <: Double](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+            zio.tap(metric.increment)
+        }
+    )
 
   /**
    * A metric aspect that increments the specified counter by a given value.
    */
   def countValueWith[A](name: String, tags: MetricLabel*)(f: A => Double): Counter[A] =
-    new Counter[A](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-        zio.tap(a => increment(f(a)))
-    }
+    new Counter[A](
+      name,
+      Chunk.fromIterable(tags),
+      metric =>
+        new MetricAspect[A] {
+          def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+            zio.tap(a => metric.increment(f(a)))
+        }
+    )
 
   /**
    * A metric aspect that increments the specified counter each time the effect
    * it is applied to fails.
    */
   def countErrors(name: String, tags: MetricLabel*): Counter[Any] =
-    new Counter[Any](name, Chunk.fromIterable(tags)) {
-      def apply[R, E, A1](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-        zio.tapError(_ => increment)
-    }
+    new Counter[Any](
+      name,
+      Chunk.fromIterable(tags),
+      metric =>
+        new MetricAspect[Any] {
+          def apply[R, E, A1](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+            zio.tapError(_ => metric.increment)
+        }
+    )
 
   /**
    * A metric aspect that sets a gauge each time the effect it is applied to
@@ -214,36 +235,35 @@ object ZIOMetric {
    * of interest is the cumulative value over time, as opposed to a gauge where
    * the quantity of interest is the value as of a specific point in time.
    */
-  abstract class Counter[A](final val name: String, final val tags: Chunk[MetricLabel]) extends ZIOMetric[A] { self =>
+  final class Counter[A](val name: String, val tags: Chunk[MetricLabel], aspect: Counter[A] => MetricAspect[A])
+      extends ZIOMetric[A] { self =>
+
+    private val appliedAspect                                  = aspect(this)
     private[zio] var counter                                   = internal.metrics.Counter(name, tags)
     private var counterRef: FiberRef[internal.metrics.Counter] = _
 
     private def withCounter[A](f: internal.metrics.Counter => UIO[A])(implicit trace: ZTraceElement): UIO[A] =
       if (counter ne null) f(counter) else counterRef.getWith(f)
 
-    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1]
+    def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+      appliedAspect.apply(zio)
 
     /**
      * Returns a copy of this counter with the specified name and tags.
      */
-    final def copy(name: String = name, tags: Chunk[MetricLabel] = tags): Counter[A] =
-      new Counter[A](name, tags) {
-        def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-          self.apply(zio)
-        override protected lazy val metricType =
-          self.metricType
-      }
+    def copy(name: String = name, tags: Chunk[MetricLabel] = tags): Counter[A] =
+      new Counter[A](name, tags, aspect)
 
     /**
      * Returns the current value of this counter.
      */
-    final def count(implicit trace: ZTraceElement): UIO[Double] =
+    def count(implicit trace: ZTraceElement): UIO[Double] =
       withCounter(_.count)
 
     /**
      * Returns whether this counter is equal to the specified counter.
      */
-    override final def equals(that: Any): Boolean = that match {
+    override def equals(that: Any): Boolean = that match {
       case that: Counter[_] if (self.metricType == that.metricType) =>
         self.name == that.name && self.tags == that.tags
       case _ => false
@@ -252,19 +272,19 @@ object ZIOMetric {
     /**
      * Returns the hash code of this counter.
      */
-    override final def hashCode: Int =
+    override def hashCode: Int =
       (metricType, name, tags).hashCode
 
     /**
      * Increments this counter by the specified amount.
      */
-    final def increment(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
+    def increment(value: Double)(implicit trace: ZTraceElement): UIO[Any] =
       withCounter(_.increment(value))
 
     /**
      * Increments this counter by one.
      */
-    final def increment(implicit trace: ZTraceElement): UIO[Any] =
+    def increment(implicit trace: ZTraceElement): UIO[Any] =
       withCounter(_.increment(1.0))
 
     /**
@@ -278,7 +298,7 @@ object ZIOMetric {
       }
       new ZIOMetric[A] {
         override def apply[R, E, A1 <: A](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-          self.apply(zio.tap(changeCounter))
+          appliedAspect(zio.tap(changeCounter))
 
         private def changeCounter(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
           self.counterRef.update { counter =>
