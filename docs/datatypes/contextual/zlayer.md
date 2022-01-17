@@ -682,7 +682,7 @@ Required by Chocolate.live
 ──────────────────────────────────────────────────────────────────────
 ```
 
-Finally, our application compiles:
+Finally, our application compiles without any errors: 
 
 ```scala mdoc
 import zio._
@@ -699,18 +699,20 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Let's compare the automatic layer construction with the manual one:
+Note that the order of dependencies doesn't matter. We can provide them in any order.
+
+Now, let's compare the automatic layer construction with the manual one:
 
 ```scala mdoc:compile-only
 import zio._
 
 object MainApp extends ZIOAppDefault {
+
   val layers: ULayer[Console with Cake] =
     Console.live ++
       (((Spoon.live >>> Chocolate.live) ++ (Spoon.live >>> Flour.live)) >>> Cake.live)
 
-  def run =
-    myApp.provideLayer(layers)
+  def run = myApp.provideLayer(layers)
 
 }
 ``` 
