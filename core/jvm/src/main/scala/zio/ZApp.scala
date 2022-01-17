@@ -42,7 +42,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * }
  * }}}
  */
-@deprecated("2.0.0", "Use zio.ZIOApp")
+@deprecated("Use zio.ZIOApp", "2.0.0")
 trait ZApp[R] extends ZBootstrapRuntime[R] {
 
   /**
