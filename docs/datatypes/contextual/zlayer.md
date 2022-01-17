@@ -278,7 +278,7 @@ val layer: ZLayer[Console & Clock, Nothing, Logging] =
 
 The `ZLayer` offers various operators for composing layers together to build the dependency graph required by our application. In this section, we will learn more about these operators.
 
-### Manual Layer Composition
+### Manual Layer Construction
 
 We said that we can think of the `ZLayer` as a more powerful _constructor_. Constructors are not composable, because they are not values. While a constructor is not composable, `ZLayer` has a nice facility to compose with other `ZLayer`s. So we can say that a `ZLayer` turns a constructor into values.
 
@@ -557,6 +557,163 @@ object MainApp extends ZIOAppDefault {
 #### Cyclic Dependencies
 
 The `ZLayer` mechanism makes it impossible to build cyclic dependencies, making the initialization process very linear, by construction.
+
+### Automatic Layer Construction
+
+ZIO also has an automatic layer construction facility, which takes care of building dependency graphs from the individual layers and building blocks. So instead of manually composing layers together to build the final layer, we can only provide individual layers to the ZIO application, and it will do the rest.
+
+The automatic layer construction takes place at the _compile-time_, so if there is a problem in providing a layer, we will receive an error or warning message. So it helps us to diagnose the problem.
+
+Assume we have written the following services (`Cake`, `Chocolate`, `Flour`, and `Spoon`):
+
+```scala mdoc:silent
+import zio._
+
+trait Cake
+
+object Cake {
+  val live: ZLayer[Chocolate & Flour, Nothing, Cake] =
+    for {
+      _ <- ZLayer.environment[Chocolate & Flour]
+      cake <- ZLayer.succeed(new Cake {})
+    } yield cake
+}
+
+trait Spoon
+
+object Spoon {
+  val live: ULayer[Spoon] =
+    ZLayer.succeed(new Spoon {})
+}
+
+trait Chocolate
+
+object Chocolate {
+  val live: ZLayer[Spoon, Nothing, Chocolate] =
+    ZLayer.service[Spoon].project(_ => new Chocolate {})
+}
+
+trait Flour
+
+object Flour {
+  val live: ZLayer[Spoon, Nothing, Flour] =
+    ZLayer.service[Spoon].project(_ => new Flour {})
+}
+```
+
+The `Cake` service has the following dependency graph:
+
+```
+          Cake
+          /   \
+   Chocolate   Flour
+       |         |
+     Spoon     Spoon
+```
+
+Now we can write an application that uses the `Cake` service as below:
+
+```scala mdoc:silent
+import zio._
+
+import java.io.IOException
+
+val myApp: ZIO[Console with Cake, IOException, Unit] = for {
+  cake <- ZIO.service[Cake]
+  _    <- Console.printLine(s"Yay! I baked a cake with flour and chocolate: $cake")
+} yield ()
+```
+
+The type of `myApp` indicates we should provide `Console` and `Cake` to this ZIO application to run it. Let's give it those and see what happens:
+
+```scala mdoc:fail
+object MainApp extends ZIOAppDefault {
+  def run =
+    myApp.provide(
+      Cake.live,
+      Console.live
+    )
+}
+```
+
+Here are the errors that will be printed:
+
+```
+──── ZLAYER ERROR ────────────────────────────────────────────────────
+
+ Please provide layers for the following 2 types:
+
+   Required by Cake.live
+   1. Chocolate
+   2. Flour
+   
+──────────────────────────────────────────────────────────────────────
+```
+
+It says that we missed providing `Chocolate` and `Flour` layers. Now let's add these two missing layers:
+
+```scala mdoc:fail
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    myApp.provide(
+      Cake.live,
+      Console.live,
+      Chocolate.live,
+      Flour.live
+    )
+}
+```
+
+Again, the compiler asks us to provide another dependency called `Spoon`:
+
+```
+──── ZLAYER ERROR ────────────────────────────────────────────────────
+
+Please provide a layer for the following type:
+
+Required by Flour.live
+1. Spoon
+
+Required by Chocolate.live
+1. Spoon
+
+──────────────────────────────────────────────────────────────────────
+```
+
+Finally, our application compiles:
+
+```scala mdoc
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    myApp.provide(
+      Cake.live,
+      Console.live,
+      Chocolate.live,
+      Flour.live,
+      Spoon.live  
+    )
+}
+```
+
+Let's compare the automatic layer construction with the manual one:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val layers: ULayer[Console with Cake] =
+    Console.live ++
+      (((Spoon.live >>> Chocolate.live) ++ (Spoon.live >>> Flour.live)) >>> Cake.live)
+
+  def run =
+    myApp.provideLayer(layers)
+
+}
+``` 
 
 ## Dependency Propagation
 

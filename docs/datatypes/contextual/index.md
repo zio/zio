@@ -403,7 +403,7 @@ val myApp: ZIO[Logging & Console, Throwable, Unit] =
 1. **Building Dependency Graph**
 2. **Dependency Propagation**
 
-ZIO has a full solution to the dependency injection problem. It solves the first problem by using [compositional properties](zlayer.md#manual-layer-composition) of `ZLayer`. Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of the application. `ZLayer` is a ZIO solution for this problem. It allows us to build up the whole application dependency graph by composing layers horizontally and vertically. 
+ZIO has a full solution to the dependency injection problem. It solves the first problem by using [compositional properties](zlayer.md#manual-layer-construction) of `ZLayer`. Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of the application. `ZLayer` is a ZIO solution for this problem. It allows us to build up the whole application dependency graph by composing layers horizontally and vertically. 
 
 ZIO also solves the second problem by using [ZIO Environment facilities like `ZIO#provide`](zlayer.md#dependency-propagation).
 
