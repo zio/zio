@@ -1483,6 +1483,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.suspendSucceed(layer.build.use(r => self.provideEnvironment(r)))
 
   /**
+   * Provides the `ZIO` effect with the single service it requires. If the
+   * effect requires multiple services use `provideEnvironment` instead.
+   */
+  final def provideService[Service <: R](
+    service: => Service
+  )(implicit ev1: NeedsEnv[R], ev2: IsNotIntersection[Service], tag: Tag[Service], trace: ZTraceElement): IO[E, A] =
+    provideEnvironment(ZEnvironment(service))
+
+  /**
    * Transforms the environment being provided to this effect with the specified
    * function.
    */
