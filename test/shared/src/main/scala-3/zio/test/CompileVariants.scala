@@ -44,7 +44,7 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  private[test] def assertImpl[A](
+  private[zio] def assertImpl[A](
     value: => A,
     expression: Option[String] = None
   )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult

@@ -1,9 +1,9 @@
 package zio.examples.test
 
+import zio.mock.Expectation.{unit, value, valueF}
+import zio.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.Assertion._
 import zio.test.junit.JUnitRunnableSpec
-import zio.test.mock.Expectation.{unit, value, valueF}
-import zio.test.mock.{MockClock, MockConsole, MockRandom}
 import zio.test.assertM
 import zio.{Console, Random, Clock}
 

@@ -109,7 +109,7 @@ libraryDependencies += "dev.zio" %% "zio-test" % "<zio-version>"
 The `@mockable[A]` generates _capability tags_ and _mock layer_ into annotated object.
 
 ```scala
-import zio.test.mock.mockable
+import zio.mock.mockable
 
 @mockable[AccountObserver.Service]
 object AccountObserverMock
@@ -119,7 +119,7 @@ Will result in:
 
 ```scala
 import zio.{ Has, UIO, URLayer, ZLayer }
-import zio.test.mock.{ Mock, Proxy }
+import zio.mock.{ Mock, Proxy }
 
 object AccountObserverMock extends Mock[Has[AccountObserver.Service]] {
 

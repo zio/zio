@@ -1,6 +1,6 @@
 package zio.examples.test
 
-import zio.test.mock.mockable
+import zio.mock.mockable
 import zio.{IO, Tag, Task, UIO, URIO}
 
 object DifferentScopeExample {

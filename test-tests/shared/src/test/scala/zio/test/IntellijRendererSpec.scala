@@ -40,18 +40,6 @@ object IntellijRendererSpec extends ZIOBaseSpec {
       },
       test("correctly reports negated failures") {
         runLog(test8).map(str => assertTrue(str == test8Expected.mkString))
-      },
-      test("correctly reports mock failure of invalid call") {
-        assertM(runLog(mock1))(equalTo(mock1Expected.mkString))
-      },
-      test("correctly reports mock failure of unmet expectations") {
-        assertM(runLog(mock2))(equalTo(mock2Expected.mkString))
-      },
-      test("correctly reports mock failure of unexpected call") {
-        assertM(runLog(mock3))(equalTo(mock3Expected.mkString))
-      },
-      test("correctly reports mock failure of invalid range") {
-        assertM(runLog(mock4))(equalTo(mock4Expected.mkString))
       }
     ) @@ silent
 
@@ -169,62 +157,6 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         ),
         withOffset(2)(assertSourceLocation()),
         "\n"
-      )
-    )
-  )
-
-  def mock1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
-    testStarted("Invalid call"),
-    testFailed(
-      "Invalid call",
-      Vector(
-        withOffset(2)(s"${red("- could not find a matching expectation")}\n"),
-        withOffset(4)(
-          s"${red("- zio.test.mock.module.PureModuleMock.ParameterizedCommand called with invalid arguments")}\n"
-        ),
-        withOffset(6)(s"${blue("2")} did not satisfy ${cyan("equalTo(1)")}\n"),
-        withOffset(6)(assertSourceLocation() + "\n"),
-        withOffset(4)("\n"),
-        withOffset(4)(s"${red("- invalid call to zio.test.mock.module.PureModuleMock.SingleParam")}\n"),
-        withOffset(6)(
-          s"expected zio.test.mock.module.PureModuleMock.ParameterizedCommand with arguments ${cyan("equalTo(1)")}"
-        )
-      )
-    )
-  )
-
-  def mock2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
-    testStarted("Unsatisfied expectations"),
-    testFailed(
-      "Unsatisfied expectations",
-      Vector(
-        withOffset(2)(s"${red("- unsatisfied expectations")}\n"),
-        withOffset(4)(s"in sequential order\n"),
-        withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(2)")}\n"""),
-        withOffset(6)(s"""zio.test.mock.module.PureModuleMock.SingleParam with arguments ${cyan("equalTo(3)")}""")
-      )
-    )
-  )
-
-  def mock3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
-    testStarted("Extra calls"),
-    testFailed(
-      "Extra calls",
-      Vector(
-        withOffset(2)(
-          s"${red("- unexpected call to zio.test.mock.module.PureModuleMock.ManyParams with arguments")}\n"
-        ),
-        withOffset(4)(s"${cyan("(2,3,4)")}")
-      )
-    )
-  )
-
-  def mock4Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
-    testStarted("Invalid range"),
-    testFailed(
-      "Invalid range",
-      Vector(
-        withOffset(2)(s"""${red("- invalid repetition range 4 to 2 by -1")}""")
       )
     )
   )

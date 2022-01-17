@@ -239,7 +239,7 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  override private[test] def assertImpl[A](
+  override private[zio] def assertImpl[A](
     value: => A,
     expression: Option[String] = None
   )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult = {
