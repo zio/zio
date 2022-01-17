@@ -941,6 +941,8 @@ We can perform a specified effect based on the success or failure result of the 
 ```scala mdoc:compile-only
 import zio._
 
+case class AppConfig(host: String, port: Int)
+
 val config: ZLayer[Any, Throwable, AppConfig] =
   ZLayer.fromZIO(
     ZIO(???) // reading config from a file
