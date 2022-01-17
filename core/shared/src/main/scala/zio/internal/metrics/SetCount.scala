@@ -49,6 +49,8 @@ private[zio] trait SetCount {
   private[zio] def unsafeOccurrences: Chunk[(String, Long)]
 
   private[zio] def unsafeOccurrences(word: String): Long
+
+  private[zio] def metricKey: MetricKey.SetCount
 }
 
 private[zio] object SetCount {

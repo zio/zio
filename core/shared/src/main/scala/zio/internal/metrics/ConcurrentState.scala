@@ -102,6 +102,8 @@ private[zio] class ConcurrentState {
         val (v, d) = counter.increment(value)
         listener.unsafeCounterObserved(key, v, d)
       }
+
+      override private[zio] def metricKey: MetricKey.Counter = key
     }
   }
 
@@ -126,6 +128,8 @@ private[zio] class ConcurrentState {
         }
       def value(implicit trace: ZTraceElement): UIO[Double] =
         ZIO.succeed(gauge.get)
+
+      override private[zio] def metricKey: MetricKey.Gauge = key
     }
   }
 
@@ -159,6 +163,8 @@ private[zio] class ConcurrentState {
         histogram.observe(value)
         listener.unsafeHistogramObserved(key, value)
       }
+
+      override private[zio] def metricKey: MetricKey.Histogram = key
     }
   }
 
@@ -188,6 +194,8 @@ private[zio] class ConcurrentState {
         ZIO.succeed(summary.summary.snapshot(Instant.now))
       def sum(implicit trace: ZTraceElement): zio.UIO[Double] =
         ZIO.succeed(summary.summary.getSum())
+
+      override private[zio] def metricKey: MetricKey.Summary = key
     }
   }
 
@@ -223,6 +231,8 @@ private[zio] class ConcurrentState {
 
       private[zio] def unsafeOccurrences(word: String): Long =
         setCount.setCount.getCount(word)
+
+      override private[zio] def metricKey: MetricKey.SetCount = key
     }
   }
 }

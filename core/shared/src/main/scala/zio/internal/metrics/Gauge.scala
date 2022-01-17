@@ -43,6 +43,8 @@ private[zio] trait Gauge {
    * The current value of the gauge.
    */
   def value(implicit trace: ZTraceElement): UIO[Double]
+
+  private[zio] def metricKey: MetricKey.Gauge
 }
 
 private[zio] object Gauge {

@@ -52,6 +52,7 @@ private[zio] trait Summary {
    */
   def sum(implicit trace: ZTraceElement): UIO[Double]
 
+  private[zio] def metricKey: MetricKey.Summary
 }
 
 private[zio] object Summary {
