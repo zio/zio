@@ -41,7 +41,7 @@ ZLayers are:
 
   With ZIO ZLayer, our constructor could be asynchronous, and they could also block. We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO. And that is because `ZLayer` has the full power of the `ZIO` data type, and as a result, we have strictly more power on our constructors with `ZLayer`.
 
-7. **Resilience** — Layer construction can be resilient. So if the acquiring phase fails, we can have a schedule to retry the acquiring stage.
+7. **Resilient** — Layer construction can be resilient. So if the acquiring phase fails, we can have a schedule to retry the acquiring stage. This helps us write apps that are error-proof and respond appropriately to failures.
 
 Let's see how we can create a layer:
 
