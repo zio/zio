@@ -1032,7 +1032,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * Like fork but handles an error with the provided handler.
    */
-  final def forkWithErrorHandler(handler: E => UIO[Any])(implicit trace: ZTraceElement): URIO[R, Fiber.Runtime[E, A]] =
+  final def forkWithErrorHandler[R1 <: R](handler: E => URIO[R1, Any])(implicit
+    trace: ZTraceElement
+  ): URIO[R1, Fiber.Runtime[E, A]] =
     onError(c => c.failureOrCause.fold(handler, ZIO.failCause(_))).fork
 
   /**
