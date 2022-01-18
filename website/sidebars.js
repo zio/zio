@@ -228,7 +228,6 @@ module.exports = {
     "How to": [
       "howto/handle-errors",
       "howto/access-system-information",
-      "howto/use-zio-macros"
     ],
     "Interop": [
       "howto/interop/with-cats-effect",
