@@ -34,7 +34,7 @@ trait AccountObserver {
 
 ```scala mdoc:compile-only
 import zio._
-import zio.test.mock.{Mock, Proxy}
+import zio.mock.{Mock, Proxy}
 
 object AccountObserverMock extends Mock[AccountObserver] {
   object ProcessEvent extends Effect[AccountEvent, Nothing, Unit]
