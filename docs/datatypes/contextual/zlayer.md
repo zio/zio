@@ -564,7 +564,13 @@ ZIO also has an automatic layer construction facility, which takes care of build
 
 The automatic layer construction takes place at the _compile-time_, so if there is a problem in providing a layer, we will receive an error or warning message. So it helps us to diagnose the problem. Additionally, it has a way to print the dependency graph using built-in debug layers.
 
-When we use automatic layer construction, we provide individual layers using `ZIO#provide`, `ZIO#provideCustom`, or `ZIO#provideSome`. ZIO automatically will create the dependency graph from the provided layers. We have a [separate section](#dependency-propagation) describes different methods for providing layers to the ZIO application.
+### Providing Individual Layers to a ZIO Application
+
+When we provide individual layers using `ZIO#provide`, `ZIO#provideCustom`, or `ZIO#provideSome` to a ZIO application, the compiler will create the dependency graph automatically from the provided layers:
+
+> **Note:**
+> 
+> We have a [separate section](#dependency-propagation) that describes different methods for providing layers to the ZIO application.
 
 Assume we have written the following services (`Cake`, `Chocolate`, `Flour`, and `Spoon`):
 
@@ -717,7 +723,65 @@ object MainApp extends ZIOAppDefault {
   def run = myApp.provideLayer(layers)
 
 }
-``` 
+```
+
+### Automatically Assembling Layers
+
+1. **ZLayer.make[R]** — Using `ZLayer.make[R]`, we can provide a type `R` and then provide individual layers as arguments, it will automatically assemble these layers to create a layer of type `R`.
+
+For example, we can create a `Cake` layer as below:
+
+```scala mdoc:compile-only
+import zio._
+
+val cakeLayer: ZLayer[Any, Nothing, Cake] =
+  ZLayer.make[Cake](
+    Cake.live,
+    Chocolate.live,
+    Flour.live,
+    Spoon.live
+  )
+```
+
+We can also create a layer for intersections of services:
+
+```scala mdoc:compile-only
+import zio._
+
+val chocolateAndFlourLayer: ZLayer[Any, Nothing, Chocolate & Flour] =
+  ZLayer.make[Chocolate & Flour](
+    Chocolate.live,
+    Flour.live,
+    Spoon.live
+  )
+```
+
+2. **ZLayer.makeSome[R0, R]** — Automatically constructs a layer for the provided type `R`, leaving a remainder `R0`:
+
+```scala mdoc:compile-only
+import zio._
+
+val cakeLayer: ZLayer[Spoon, Nothing, Cake] =
+  ZLayer.makeSome[Spoon, Cake](
+    Cake.live,
+    Chocolate.live,
+    Flour.live
+  )
+```
+
+3. **ZLayer.makeCustom[R]** — Automatically constructs a layer for the provided type `R`, leaving a remainder `ZEnv`:
+
+```scala mdoc:compile-only
+import zio._
+
+val cakeLayer: ZLayer[ZEnv, Nothing, Console & Random & Cake] =
+  ZLayer.makeCustom[Console & Random & Cake](
+    Cake.live,
+    Chocolate.live,
+    Flour.live,
+    Spoon.live
+  )
+```
 
 ### ZLayer Debugging
 
