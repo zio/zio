@@ -1,0 +1,4 @@
+2 different approaches for getting Spec results as they occur:
+
+1. We re-arrange ZIOSpec to manage a Stream[ExecutedSpec[Any]] that can be logged where appropriate.
+2. In `ZTestRunner.merge`, we only combine the layers into 1 big instance, and then pass that back into the individual Specs, which will each get executed as an SBT task

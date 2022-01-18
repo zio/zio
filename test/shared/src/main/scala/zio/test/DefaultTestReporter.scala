@@ -135,7 +135,7 @@ object DefaultTestReporter {
   ): TestReporter[E] = { (duration: Duration, executedSpec: ExecutedSpec[E]) =>
     val rendered = testRenderer.render(render(executedSpec, true), testAnnotationRenderer)
     val stats    = testRenderer.render(logStats(duration, executedSpec) :: Nil, testAnnotationRenderer)
-    TestLogger.logLine((rendered ++ stats).mkString("\n"))
+    TestLogger.logLine((rendered ++ stats).mkString("\n")) // Ensures 1 big string is reported per ExecutedSpec
   }
 
   private def logStats[E](duration: Duration, executedSpec: ExecutedSpec[E]): ExecutionResult = {

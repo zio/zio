@@ -32,6 +32,8 @@ object TestExecutor {
   def default[R <: Annotations, E](
     env: Layer[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
+    // TODO Instead of building an ExecutedSpec, we want to write results to our new structure.
+    //      Will return a UIO[Unit]
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]] =
       spec.annotated
         .provideLayer(environment)
