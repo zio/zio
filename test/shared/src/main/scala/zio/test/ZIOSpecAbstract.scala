@@ -66,7 +66,8 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
           res1 <- self.runSpecInner(self.spec, testArgs, sendSummary)
           res2 <- that.runSpecInner(that.spec, testArgs, sendSummary)
         } yield {
-          ExecutedSpec.multiple(Chunk(res1, res2))
+          ExecutedSpec.labeled("single", res1)
+          // ExecutedSpec.multiple(Chunk(res1, res2))
         }
       def tag: EnvironmentTag[Environment] = {
         implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
