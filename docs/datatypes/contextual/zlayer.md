@@ -1241,7 +1241,7 @@ object TemplateEngineLive {
 ```scala
 object MainApp extends ZIOAppDefault {
 
-  val httpServer =
+  val httpServer: ZLayer[Any, Nothing, HttpServer] =
     ZLayer.make[HttpServer](
       Console.live,
       System.live,
