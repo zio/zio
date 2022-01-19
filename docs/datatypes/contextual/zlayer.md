@@ -1218,6 +1218,46 @@ val databaseLayer: ZLayer[Any, Throwable, Database] =
   postgresDatabaseLayer.orElse(inmemoryDatabaseLayer)
 ```
 
+### Converting a Layer to a ZIO Application
+
+Sometimes our entire application is a ZIO Layer, e.g. an HTTP Server, so by calling the `ZLayer#launch` we can convert that to a ZIO application. This will build the layer and use it until it is interrupted.
+
+```scala mdoc:invisible
+import zio._
+
+trait HttpServer
+trait JsonParser
+trait TemplateEngine
+
+object JsonParserLive {
+  val layer: ULayer[JsonParser] = ZLayer.succeed(???)
+}
+
+object TemplateEngineLive {
+  val layer: ULayer[TemplateEngine] = ZLayer.succeed(???)
+}
+```
+
+```scala
+object MainApp extends ZIOAppDefault {
+
+  val httpServer =
+    ZLayer.make[HttpServer](
+      Console.live,
+      System.live,
+      JsonParserLive.layer,
+      TemplateEngineLive.layer 
+    )
+
+  def run = httpServer.launch
+
+}
+``` 
+
+```scala mdoc:invisible:reset
+
+```
+
 ### Retrying
 
 We can retry constructing a layer in case of failure:
