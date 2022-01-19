@@ -57,7 +57,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       def tag: EnvironmentTag[Environment] = {
         implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
         implicit val thatTag: EnvironmentTag[that.Environment] = that.tag
-        val _                                       = (selfTag, thatTag)
+        val _                                                  = (selfTag, thatTag)
         EnvironmentTag[Environment]
       }
     }
