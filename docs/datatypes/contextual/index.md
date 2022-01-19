@@ -35,8 +35,8 @@ val eliminated: ZIO[Any, IOException, String] =
 
 ZIO provide this facility through the following concept and data types:
 1. [ZIO Environment](#zio-environment) — The `R` type parameter of `ZIO[R, E, A]` data type.
-2. [ZEnvironment](./zenvironment.md) — Built-in type-level map for maintaining the environment of a `ZIO` data type. 
-3. [ZLayer](./zlayer.md) — Describes how to build one or more services in our application.
+2. [ZEnvironment](zenvironment.md) — Built-in type-level map for maintaining the environment of a `ZIO` data type. 
+3. [ZLayer](zlayer.md) — Describes how to build one or more services in our application.
 
 Next, we will discuss _ZIO Environment_ and _ZLayer_ and finally how to write ZIO services using _Service Pattern_.
 
