@@ -414,14 +414,17 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           )
         for {
           // NOTE: observeDurations always uses real clock
+          start  <- ZIO.attempt(java.lang.System.nanoTime())
           _      <- (Clock.sleep(1.second) @@ h).provide(Clock.live)
           _      <- (Clock.sleep(3.seconds) @@ h).provide(Clock.live)
+          end    <- ZIO.attempt(java.lang.System.nanoTime())
+          elapsed = (end - start) / 1e9
           states <- UIO(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Histogram(h.name, h.boundaries, h.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.DoubleHistogram].count == 2L,
-          r.get.asInstanceOf[MetricType.DoubleHistogram].sum > 3.5,
-          r.get.asInstanceOf[MetricType.DoubleHistogram].sum < 4.5
+          r.get.asInstanceOf[MetricType.DoubleHistogram].sum > 3.9,
+          r.get.asInstanceOf[MetricType.DoubleHistogram].sum <= elapsed
         )
       },
       test("observeHistogram") {
