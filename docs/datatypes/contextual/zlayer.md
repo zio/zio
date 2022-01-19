@@ -1178,6 +1178,30 @@ object MainApp extends ZIOAppDefault {
 
 ## Other Operators
 
+### Converting a Layer to a Managed Value
+
+Every `ZLayer` can be converted to a `ZManaged` by using `ZLayer.build`:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Database {
+  def close: UIO[Unit]
+}
+
+object Database {
+  def connect: ZIO[Any, Throwable, Database] = ???
+}
+
+val database: ZLayer[Any, Throwable, Database] =
+  ZLayer.fromAcquireRelease(
+    Database.connect.debug("connecting to the database")
+  )(_.close)
+
+val managedDatabase: ZManaged[Any, Throwable, ZEnvironment[Database]] =
+  database.build
+```
+
 ### Falling Back to an Alternate Layer
 
 If a layer fails, we can provide an alternative layer by using `ZLayer#orElse` so it will fall back to the second layer:
