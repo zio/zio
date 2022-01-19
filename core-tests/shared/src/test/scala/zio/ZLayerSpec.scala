@@ -345,154 +345,153 @@ object ZLayerSpec extends ZIOBaseSpec {
           result <- ref.get
         } yield assert(result)(hasSize(equalTo(8)))
       } @@ nonFlaky,
-      // test("preserves identity of acquired resources") {
-      //   val x: ZIO[Any, Nothing, TestResult] = for {
-      //     testRef <- Ref.make(Vector[String]())
-      //     layer = ZLayer {
-      //               for {
-      //                 ref <-
-      //                   Ref.make[Vector[String]](Vector()).toManagedWith(ref => ref.get.flatMap(testRef.set))
-      //                 _ <- ZManaged.unit
-      //               } yield ref
-      //             }
-      //     _      <- layer.build.use(_.get[Ref[Vector[String]]].update(_ :+ "test"))
-      //     result <- testRef.get
-      //   } yield assert(result)(equalTo(Vector("test")))
-      //   x
-      // },
-      // test("retry") {
-      //   for {
-      //     ref    <- Ref.make(0)
-      //     effect  = ref.update(_ + 1) *> ZIO.fail("fail")
-      //     layer   = ZLayer.fromZIOEnvironment(effect).retry(Schedule.recurs(3))
-      //     _      <- layer.build.useNow.ignore
-      //     result <- ref.get
-      //   } yield assert(result)(equalTo(4))
-      // },
-      // test("error handling") {
-      //   val sleep  = ZIO.sleep(100.milliseconds).provide(Clock.live)
-      //   val layer1 = ZLayer.fail("foo")
-      //   val layer2 = ZLayer.succeed("bar")
-      //   val layer3 = ZLayer.succeed("baz")
-      //   val layer4 = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toLayer
-      //   val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-      //   assertM(ZIO.unit.provideCustomLayer(env).exit)(fails(equalTo("foo")))
-      // },
-      // test("project") {
-      //   final case class Person(name: String, age: Int)
-      //   val personLayer = ZLayer.succeed(Person("User", 42))
-      //   val ageLayer    = personLayer.project(_.age)
-      //   assertM(ZIO.service[Int].provide(ageLayer))(equalTo(42))
-      // },
-      // test("tap") {
-      //   for {
-      //     ref   <- Ref.make("foo")
-      //     layer  = ZLayer.succeed("bar").tap(r => ref.set(r.get[String]))
-      //     _     <- layer.build.useNow
-      //     value <- ref.get
-      //   } yield assert(value)(equalTo("bar"))
-      // },
-      // test("provides a partial environment to an effect") {
-      //   val needsIntAndString = ZIO.environment[Int & String]
-      //   val providesInt       = ZLayer.succeed(10)
-      //   val needsString       = ZIO.provideLayer(providesInt)(needsIntAndString)
-      //   needsString
-      //     .provide(ZLayer.succeed("hi"))
-      //     .map { result =>
-      //       assertTrue(
-      //         result.get[Int] == 10,
-      //         result.get[String] == "hi"
-      //       )
-      //     }
-      // },
-      // test(">>> provides a partial environment to another layer") {
-      //   final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
-      //     def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
-      //   }
-      //   val fooBuilder    = (FooService.apply _).toLayer
-      //   val provideRefInt = Ref.make(10).toLayer
+      test("preserves identity of acquired resources") {
+        for {
+          testRef <- Ref.make(Vector[String]())
+          layer = ZLayer {
+                    for {
+                      ref <-
+                        Ref.make[Vector[String]](Vector()).toManagedWith(ref => ref.get.flatMap(testRef.set))
+                      _ <- ZManaged.unit
+                    } yield ref
+                  }
+          _      <- layer.build.use(_.get[Ref[Vector[String]]].update(_ :+ "test"))
+          result <- testRef.get
+        } yield assert(result)(equalTo(Vector("test")))
+      },
+      test("retry") {
+        for {
+          ref    <- Ref.make(0)
+          effect  = ref.update(_ + 1) *> ZIO.fail("fail")
+          layer   = ZLayer.fromZIOEnvironment(effect).retry(Schedule.recurs(3))
+          _      <- layer.build.useNow.ignore
+          result <- ref.get
+        } yield assert(result)(equalTo(4))
+      },
+      test("error handling") {
+        val sleep  = ZIO.sleep(100.milliseconds).provide(Clock.live)
+        val layer1 = ZLayer.fail("foo")
+        val layer2 = ZLayer.succeed("bar")
+        val layer3 = ZLayer.succeed("baz")
+        val layer4 = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toLayer
+        val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
+        assertM(ZIO.unit.provideCustomLayer(env).exit)(fails(equalTo("foo")))
+      },
+      test("project") {
+        final case class Person(name: String, age: Int)
+        val personLayer = ZLayer.succeed(Person("User", 42))
+        val ageLayer    = personLayer.project(_.age)
+        assertM(ZIO.service[Int].provide(ageLayer))(equalTo(42))
+      },
+      test("tap") {
+        for {
+          ref   <- Ref.make("foo")
+          layer  = ZLayer.succeed("bar").tap(r => ref.set(r.get[String]))
+          _     <- layer.build.useNow
+          value <- ref.get
+        } yield assert(value)(equalTo("bar"))
+      },
+      test("provides a partial environment to an effect") {
+        val needsIntAndString = ZIO.environment[Int & String]
+        val providesInt       = ZLayer.succeed(10)
+        val needsString       = ZIO.provideLayer(providesInt)(needsIntAndString)
+        needsString
+          .provide(ZLayer.succeed("hi"))
+          .map { result =>
+            assertTrue(
+              result.get[Int] == 10,
+              result.get[String] == "hi"
+            )
+          }
+      },
+      test(">>> provides a partial environment to another layer") {
+        final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
+          def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
+        }
+        val fooBuilder    = (FooService.apply _).toLayer[FooService]
+        val provideRefInt = Ref.make(10).toLayer[Ref[Int]]
 
-      //   val needsStringAndBoolean = provideRefInt >>> fooBuilder
+        val needsStringAndBoolean = provideRefInt >>> fooBuilder
 
-      //   ZIO
-      //     .serviceWithZIO[FooService](_.get)
-      //     .provide(needsStringAndBoolean, ZLayer.succeed("hi"), ZLayer.succeed(true))
-      //     .map { case (int, string, boolean) =>
-      //       assertTrue(
-      //         int == 10,
-      //         string == "hi",
-      //         boolean == true
-      //       )
-      //     }
-      // },
-      // test(">+> provides a partial environment to another layer") {
-      //   final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
-      //     def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
-      //   }
-      //   val fooBuilder    = (FooService.apply _).toLayer
-      //   val provideRefInt = Ref.make(10).toLayer
+        ZIO
+          .serviceWithZIO[FooService](_.get)
+          .provideLayer((ZLayer.succeed("hi") ++ ZLayer.succeed(true)) >>> needsStringAndBoolean)
+          .map { case (int, string, boolean) =>
+            assertTrue(
+              int == 10,
+              string == "hi",
+              boolean == true
+            )
+          }
+      },
+      test(">+> provides a partial environment to another layer") {
+        final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
+          def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
+        }
+        val fooBuilder    = (FooService.apply _).toLayer[FooService]
+        val provideRefInt = Ref.make(10).toLayer[Ref[Int]]
 
-      //   val needsStringAndBoolean = provideRefInt >+> fooBuilder
+        val needsStringAndBoolean = provideRefInt >+> fooBuilder
 
-      //   ZIO
-      //     .serviceWithZIO[FooService](_.get)
-      //     .zip(ZIO.serviceWithZIO[Ref[Int]](_.get))
-      //     .provide(needsStringAndBoolean, ZLayer.succeed("hi"), ZLayer.succeed(true))
-      //     .map { case (int, string, boolean, int2) =>
-      //       assertTrue(
-      //         int == 10,
-      //         int2 == 10,
-      //         string == "hi",
-      //         boolean == true
-      //       )
-      //     }
-      // },
-      // test("apply provides an effect with part of its required environment") {
-      //   val needsIntAndString = ZIO.environment[Int & String]
-      //   val providesInt       = ZLayer.succeed(10)
-      //   val needsString       = providesInt(needsIntAndString)
-      //   needsString
-      //     .provideLayer(ZLayer.succeed("hi"))
-      //     .map { result =>
-      //       assertTrue(
-      //         result.get[Int] == 10,
-      //         result.get[String] == "hi"
-      //       )
-      //     }
-      // },
-      // test("apply provides a managed effect with part of its required environment") {
-      //   val needsIntAndString = ZManaged.environment[Int & String]
-      //   val providesInt       = ZLayer.succeed(10)
-      //   val needsString       = providesInt(needsIntAndString)
-      //   needsString
-      //     .provideLayer(ZLayer.succeed("hi"))
-      //     .useNow
-      //     .map { result =>
-      //       assertTrue(
-      //         result.get[Int] == 10,
-      //         result.get[String] == "hi"
-      //       )
-      //     }
-      // },
-      // test("caching values in dependencies") {
-      //   case class Config(value: Int)
-      //   case class A(value: Int)
-      //   val aLayer = ((conf: Config) => A(conf.value)).toLayer
+        ZIO
+          .serviceWithZIO[FooService](_.get)
+          .zip(ZIO.serviceWithZIO[Ref[Int]](_.get))
+          .provideLayer((ZLayer.succeed("hi") ++ ZLayer.succeed(true)) >>> needsStringAndBoolean)
+          .map { case (int, string, boolean, int2) =>
+            assertTrue(
+              int == 10,
+              int2 == 10,
+              string == "hi",
+              boolean == true
+            )
+          }
+      },
+      test("apply provides an effect with part of its required environment") {
+        val needsIntAndString = ZIO.environment[Int & String]
+        val providesInt       = ZLayer.succeed(10)
+        val needsString       = providesInt(needsIntAndString)
+        needsString
+          .provideLayer(ZLayer.succeed("hi"))
+          .map { result =>
+            assertTrue(
+              result.get[Int] == 10,
+              result.get[String] == "hi"
+            )
+          }
+      },
+      test("apply provides a managed effect with part of its required environment") {
+        val needsIntAndString = ZManaged.environment[Int & String]
+        val providesInt       = ZLayer.succeed(10)
+        val needsString       = providesInt(needsIntAndString)
+        needsString
+          .provideLayer(ZLayer.succeed("hi"))
+          .useNow
+          .map { result =>
+            assertTrue(
+              result.get[Int] == 10,
+              result.get[String] == "hi"
+            )
+          }
+      },
+      test("caching values in dependencies") {
+        case class Config(value: Int)
+        case class A(value: Int)
+        val aLayer = ((conf: Config) => A(conf.value)).toLayer[A]
 
-      //   case class B(value: Int)
-      //   val bLayer = ((a: A) => B(a.value)).toLayer
+        case class B(value: Int)
+        val bLayer = ((a: A) => B(a.value)).toLayer[B]
 
-      //   case class C(value: Int)
-      //   val cLayer = ((a: A) => C(a.value)).toLayer
+        case class C(value: Int)
+        val cLayer = ((a: A) => C(a.value)).toLayer[C]
 
-      //   val fedB = (ZLayer.succeed(Config(1)) >>> aLayer) >>> bLayer
-      //   val fedC = (ZLayer.succeed(Config(2)) >>> aLayer) >>> cLayer
-      //   for {
-      //     (b, c) <- (fedB ++ fedC).build.useNow.map(v => (v.get[B], v.get[C]))
-      //   } yield {
-      //     assert(b.value)(equalTo(1)) &&
-      //     assert(c.value)(equalTo(1))
-      //   }
-      // }
+        val fedB = (ZLayer.succeed(Config(1)) >>> aLayer) >>> bLayer
+        val fedC = (ZLayer.succeed(Config(2)) >>> aLayer) >>> cLayer
+        for {
+          (b, c) <- (fedB ++ fedC).build.useNow.map(v => (v.get[B], v.get[C]))
+        } yield {
+          assert(b.value)(equalTo(1)) &&
+          assert(c.value)(equalTo(1))
+        }
+      }
     )
 }
