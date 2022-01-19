@@ -789,7 +789,7 @@ To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.t
 
 Let's include the `ZLayer.Debug.tree` layer into the layer construction:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 
 object MainApp extends ZIOAppDefault {
@@ -1177,6 +1177,22 @@ object MainApp extends ZIOAppDefault {
 ```
 
 ## Other Operators
+
+### Falling Back to an Alternate Layer
+
+If a layer fails, we can provide an alternative layer by using `ZLayer#orElse` so it will fall back to the second layer:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Database
+
+val postgresDatabaseLayer: ZLayer[Any, Throwable, Database] = ???
+val inmemoryDatabaseLayer: ZLayer[Any, Throwable, Database] = ???
+
+val databaseLayer: ZLayer[Any, Throwable, Database] =
+  postgresDatabaseLayer.orElse(inmemoryDatabaseLayer)
+```
 
 ### Retrying
 
