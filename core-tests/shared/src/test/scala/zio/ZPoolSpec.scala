@@ -1,7 +1,7 @@
 package zio
 
-import zio.test.*
-import zio.duration.*
+import zio.test._
+import zio.duration._
 import zio.test.TestAspect.nonFlaky
 import zio.test.environment.{Live, TestClock}
 
