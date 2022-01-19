@@ -221,6 +221,6 @@ object ZEnvironment {
       System.SystemLive
     )
 
-  private val TaggedAnyRef: Tag[AnyRef] =
+  private lazy val TaggedAnyRef: Tag[AnyRef] =
     implicitly[Tag[AnyRef]]
 }
