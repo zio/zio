@@ -10,7 +10,7 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
       test("Issue #4802") {
         ZIO
           .serviceWithZIO[Ref[Int]](_.get)
-          .provide(Ref.make(10).toLayer)
+          .provideLayer(Ref.make(10).toLayer)
           .map { int =>
             assertTrue(int == 10)
           }

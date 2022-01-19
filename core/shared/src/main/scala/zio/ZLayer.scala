@@ -229,9 +229,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
       }
 
     def loop(s: schedule.State): ZLayer[RIn1, E, ROut] =
-      self.catchAll(update(_, s).flatMap(environment => loop(environment.get.state).fresh))
+      self.catchAll(update(_, s).flatMap(environment => loop(environment.get[State].state).fresh))
 
-    ZLayer.succeed(State(schedule.initial)).flatMap(environment => loop(environment.get.state))
+    ZLayer.succeed(State(schedule.initial)).flatMap(environment => loop(environment.get[State].state))
   }
 
   /**
@@ -485,8 +485,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     trace: ZTraceElement
   ): ZLayer[R, E, Collection[B]] =
     in.foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeed(bf.newBuilder(in)))((io, a) =>
-      io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
-    ).map(environment => ZEnvironment(environment.get.result()))
+      io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get[Builder[B, Collection[B]]] += right.get[B]))
+    ).map(environment => ZEnvironment(environment.get[Builder[B, Collection[B]]].result()))
 
   /**
    * Constructs a layer from acquire and release actions. The acquire and

@@ -92,7 +92,7 @@ object AutoWireSpec extends ZIOBaseSpec {
       ),
       suite(".provideShared") {
         val addOne   = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
-        val refLayer = Ref.make(1).toLayer
+        val refLayer = Ref.make(1).toLayer[Ref[Int]]
 
         suite("layers are shared between tests and suites")(
           suite("suite 1")(
@@ -103,7 +103,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 3")(assertM(addOne)(equalTo(3))),
             test("test 4")(assertM(addOne)(equalTo(4)))
           )
-        ).provideShared(refLayer) @@ TestAspect.sequential
+        ).provideLayerShared(refLayer) @@ TestAspect.sequential
       },
       suite(".provideCustomShared") {
         case class IntService(ref: Ref[Int]) {
@@ -132,7 +132,7 @@ object AutoWireSpec extends ZIOBaseSpec {
       suite(".provideSomeShared") {
         val addOne =
           ZIO.service[Ref[Int]].zip(Random.nextIntBounded(2)).flatMap { case (ref, int) => ref.getAndUpdate(_ + int) }
-        val refLayer = Ref.make(1).toLayer
+        val refLayer = Ref.make(1).toLayer[Ref[Int]]
 
         suite("layers are shared between tests and suites")(
           suite("suite 1")(
@@ -143,7 +143,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 3")(assertM(addOne)(equalTo(2))),
             test("test 4")(assertM(addOne)(equalTo(3)))
           )
-        ).provideSomeShared[Random](refLayer) @@ TestAspect.sequential
+        ).provideSomeLayerShared[Random](refLayer) @@ TestAspect.sequential
       },
       suite(".provideSome") {
         test("automatically constructs a layer, leaving off TestEnvironment") {
