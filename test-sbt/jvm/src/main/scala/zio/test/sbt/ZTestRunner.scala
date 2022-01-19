@@ -26,14 +26,16 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     extends Runner {
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
-  val sendSummary: SendSummary = SendSummary.fromSendM(summary =>
-    ZIO.succeed {
-      summaries.updateAndGet(_ :+ summary)
-      ()
-    }
+  val sendSummary: SendSummary = SendSummary.fromSendM(summary => ZIO.debug("Summary: " + summary)
+  // *> ZIO.succeed {
+  //   summaries.updateAndGet(_ :+ summary)
+  //   ()
+  // }
   )
 
-  def done(): String = {
+  def done(): String = "Done without tracking summaries along the way"
+
+  def doneOld(): String = {
     val allSummaries = summaries.get
 
     val total  = allSummaries.map(_.total).sum
@@ -129,7 +131,6 @@ abstract class ZTestTaskPolicy {
 }
 
 case class MergedSpec(spec: ZTestTaskNew, merges: Int)
-
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
