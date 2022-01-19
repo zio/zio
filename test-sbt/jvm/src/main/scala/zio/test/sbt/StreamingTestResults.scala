@@ -37,7 +37,7 @@ class TestResultManager(state: TRef[Chunk[TestCollectorState]]) {
               trefState <- tref.get
               _         <- trefState.output.update(outputSoFar => outputSoFar :+ line)
             } yield ()).commit
-            // tref.update(state => state.copy(output = state.output :+ line)).commit
+          // tref.update(state => state.copy(output = state.output :+ line)).commit
           def complete(succeeded: ResultT): UIO[Unit] =
             (
               for {
