@@ -1555,8 +1555,7 @@ object ZSTM {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag]
-    : ZSTM[A with B with C, Nothing, (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag]: ZSTM[A with B with C, Nothing, (A, B, C)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
