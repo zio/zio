@@ -351,7 +351,7 @@ object ZPool {
         } yield ()
       }
       override def run(state: (Clock, Ref[java.time.Instant]), getExcess: UIO[Int], shrink: UIO[Any]): UIO[Unit] = {
-        import duration.*
+        import duration._
 
         val (clock, ref) = state
         getExcess.flatMap { excess =>
