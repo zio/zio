@@ -1464,10 +1464,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     layer: => ZLayer[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
-    tagged: Tag[R1],
+    tagged: EnvironmentTag[R1],
     trace: ZTraceElement
   ): ZIO[ZEnv, E1, A] =
-    provideSomeLayer[ZEnv](layer)
+    provideSomeLayer[ZEnv](layer)(ev, tagged, trace)
 
   /**
    * Provides the `ZIO` effect with its required environment, which eliminates
@@ -4817,7 +4817,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     zio: ZIO[ROut with RIn2, E, ROut2]
-  )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
+  )(implicit ev: EnvironmentTag[RIn2], tag: EnvironmentTag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
     zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
 
   /**
@@ -5535,7 +5535,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
+    )(implicit ev: R0 with R1 <:< R, tagged: EnvironmentTag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
       self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
   }
 
@@ -5701,7 +5701,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       tagged: Tag[Service],
       trace: ZTraceElement
     ): ZIO[R with Service, E, A] = {
-      implicit val tag = tagged.tag
+      implicit val tag = tagged.typeTag.tag
       ZIO.suspendSucceed {
         ZFiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
       }

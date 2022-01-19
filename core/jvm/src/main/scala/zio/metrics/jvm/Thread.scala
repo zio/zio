@@ -8,7 +8,7 @@ import java.lang.management.{ManagementFactory, ThreadMXBean}
 
 trait Thread extends JvmMetrics {
   override type Feature = Thread
-  override val featureTag: Tag[Thread] = Tag[Thread]
+  override val featureTag: EnvironmentTag[Thread] = EnvironmentTag[Thread]
 
   /** Current thread count of a JVM */
   private val threadsCurrent: Gauge[Int] =

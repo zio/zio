@@ -12,7 +12,7 @@ import scala.collection.JavaConverters._
 
 trait MemoryPools extends JvmMetrics {
   override type Feature = MemoryPools
-  override val featureTag: Tag[MemoryPools] = Tag[MemoryPools]
+  override val featureTag: EnvironmentTag[MemoryPools] = EnvironmentTag[MemoryPools]
 
   sealed private trait Area { val label: String }
   private case object Heap    extends Area { override val label: String = "heap"    }

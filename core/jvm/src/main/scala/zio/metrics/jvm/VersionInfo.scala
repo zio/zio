@@ -6,7 +6,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait VersionInfo extends JvmMetrics {
   override type Feature = VersionInfo
-  override val featureTag: Tag[VersionInfo] = Tag[VersionInfo]
+  override val featureTag: EnvironmentTag[VersionInfo] = EnvironmentTag[VersionInfo]
 
   /** JVM version info */
   def jvmInfo(version: String, vendor: String, runtime: String): Gauge[Unit] =

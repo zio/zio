@@ -824,7 +824,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     layer: => ZLayer[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
-    tagged: Tag[R1],
+    tagged: EnvironmentTag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
@@ -1527,7 +1527,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       layer: => ZLayer[R0, E1, R1]
     )(implicit
       ev: R0 with R1 <:< R,
-      tagged: Tag[R1],
+      tagged: EnvironmentTag[R1],
       trace: ZTraceElement
     ): ZManaged[R0, E1, A] =
       self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
@@ -3076,7 +3076,11 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     managed: ZManaged[ROut with RIn2, E, ROut2]
-  )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with RIn2, E, ROut2] =
+  )(implicit
+    ev: EnvironmentTag[RIn2],
+    tag: EnvironmentTag[ROut],
+    trace: ZTraceElement
+  ): ZManaged[RIn with RIn2, E, ROut2] =
     managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
 
   /**

@@ -21,7 +21,7 @@ If the job of the _capability_ is to call on another _capability_, how should we
 
 Let's say we have a `Userservice` defined as follows:
 
-```scala mdoc:silent
+```scala
 import zio._
 
 trait UserService {
@@ -36,7 +36,7 @@ object UserService {
 
 The live implementation of the `UserService` has two collaborators, `EmailService` and `UserRepository`:
 
-```scala mdoc:silent
+```scala
 trait EmailService {
   def send(to: String, body: String): IO[String, Unit]
 }
@@ -50,7 +50,7 @@ trait UserRepository {
 
 Following is how the live version of `UserService` is implemented:
 
-```scala mdoc:silent
+```scala
 case class UserServiceLive(emailService: EmailService, userRepository: UserRepository) extends UserService {
   override def register(username: String, age: Int, email: String): IO[String, Unit] =
     if (age < 18) {
@@ -115,7 +115,7 @@ For example, to encode the `send` capability of `EmailService` we need to extend
 
 Let's see how we can mock the `EmailService`:
 
-```scala mdoc:silent
+```scala
 // Test Sources
 import zio.mock._
 
@@ -137,7 +137,7 @@ object MockEmailService extends Mock[EmailService] {
 
 And, here is the mock version of the `UserRepository`:
 
-```scala mdoc:silent
+```scala
 import zio._
 import zio.mock._
 
@@ -163,7 +163,7 @@ After writing the mock version of collaborators, now we can use their _capabilit
 
 For example, we can create an expectation from the `Send` capability tag of the `MockEmailService`:
 
-```scala mdoc:compile-only
+```scala
 import zio.test._
 
 val sendEmailExpectation: Expectation[EmailService] =
@@ -177,7 +177,7 @@ The `sendEmailExpectation` is an expectation, which requires a call to `send` me
 
 There is an extension method called `Expectation#toLayer` which implicitly converts an expectation to the `ZLayer` environment:
 
-```scala mdoc:compile-only
+```scala
 import zio.test._
 
 val mockEmailService: ULayer[EmailService] =
@@ -193,7 +193,7 @@ So we do not require to convert them to `ZLayer` explicitly. It will convert the
 
 > If we register a user with an age of less than 18, we expect that the `save` method of `UserRepository` shouldn't be called. Additionally, we expect that the `send` method of `EmailService` will be called with the following content: "You are not eligible to register."
 
-```scala mdoc:compile-only
+```scala
 import zio.test._
 
 test("non-adult registration") {
@@ -217,7 +217,7 @@ We used `MockUserRepository.empty` since we expect no call to the `UserRepositor
 
 > If we register a user with a username of "admin", we expect that both `UserRepository` and `EmailService` should not be called. Instead, we expect that the `register` call will be failed with a proper failure value: "The admin user is already registered!"
 
-```scala mdoc:compile-only
+```scala
 import zio.test._
 
 test("user cannot register pre-defined admin user") {
@@ -246,7 +246,7 @@ test("user cannot register pre-defined admin user") {
 > We expect that the `save` method of `UserRepository` will be called with the corresponding `User` object, and the `send` method of `EmailService` will be called with this content: "Congratulation, you are registered!".
 
 
-```scala mdoc:compile-only
+```scala
 import zio.test._
 
 test("a valid user can register to the user service") {
@@ -285,7 +285,7 @@ In order to create a mock object, we should define an object which implements th
 
 Capabilities are service functionalities that are accessible from the client-side. For example, in the following service the `send` method is a service capability:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 
 trait UserService {
@@ -309,7 +309,7 @@ We can have 4 types of capabilities inside a service:
 
 Let's say we have the following service:
 
-```scala mdoc:silent
+```scala
 import zio._
 import zio.mock._
 import zio.stream._
@@ -324,7 +324,7 @@ trait ExampleService {
 
 Therefore, the mock service should have the following _capability tags_:
 
-```scala mdoc:compile-only
+```scala
 import zio.mock._
 
 object MockExampleService extends Mock[ExampleService] {
@@ -351,7 +351,7 @@ We encode service capabilities according to the following scheme:
 
 For zero arguments the type is `Unit`
 
-```scala mdoc:silent
+```scala
 import zio._
 
 trait ZeroParamService {
@@ -361,7 +361,7 @@ trait ZeroParamService {
 
 So the capability tag of `zeroParams` should be:
 
-```scala mdoc:compile-only
+```scala
 import zio.mock._
 
 object MockZeroParamService extends Mock[ZeroParamService] {
@@ -385,7 +385,7 @@ For one or more arguments, regardless of how many parameter lists, the type is a
 
 If the capability has more than one argument, we should encode the argument types in the `Tuple` data type. For example, if we have the following service:
 
-```scala mdoc:silent
+```scala
 import zio._
 
 trait ManyParamsService {
@@ -396,7 +396,7 @@ trait ManyParamsService {
 
 We should encode that with the following capability tag:
 
-```scala mdoc:compile-only
+```scala
 import zio.mock._
 
 trait MockExampleService extends Mock[ManyParamsService] {
@@ -411,7 +411,7 @@ trait MockExampleService extends Mock[ManyParamsService] {
 
 For overloaded methods, we nest a list of numbered objects, each representing subsequent overloads:
 
-```scala mdoc:silent
+```scala
 // Main sources
 
 import zio._
@@ -425,7 +425,7 @@ trait OverloadedService {
 
 We encode both overloaded capabilities by using numbered objects inside a nested object:
 
-```scala mdoc:silent
+```scala
 // Test sources
 
 import zio._
@@ -449,7 +449,7 @@ object MockOervloadedService extends Mock[OverloadedService] {
 
 Mocking polymorphic methods is also supported, but the interface must require `zio.Tag` implicit evidence for each type parameter:
 
-```scala mdoc:silent
+```scala
 // main sources
 import zio._
 
@@ -463,7 +463,7 @@ trait PolyService {
 
 In the test sources we construct partially applied _capability tags_ by extending `Method.Poly` family. The unknown types must be provided at call site. To produce a final monomorphic `Method` tag we must use the `of` combinator and pass the missing types:
 
-```scala mdoc:silent
+```scala
 // test sources
 import zio.mock._
 
@@ -491,7 +491,7 @@ object MockPolyService extends Mock[PolyService] {
 
 Similarly, we use the same `of` combinator to refer to concrete monomorphic call in our test suite when building expectations:
 
-```scala mdoc:silent
+```scala
 import zio.test._
 import MockPolyService._
 
@@ -528,7 +528,7 @@ Finally, we need to define a _compose layer_ that can create our environment fro
 
 So again, assume we have the following service:
 
-```scala mdoc:silent
+```scala
 import zio._
 import zio.mock._
 
@@ -542,7 +542,7 @@ trait ExampleService {
 
 In this step, we need to provide a layer in which used to construct the mocked object. To do that, we should obtain the `Proxy` data type from the environment and then implement the service interface by wrapping all capability tags with proxy:
 
-```scala mdoc:compile-only
+```scala
 import zio.mock._
 
 object MockExampleService extends Mock[ExampleService] {
@@ -586,7 +586,7 @@ A reference to this layer is passed to _capability tags_, so it can be used to a
 trait AccountEvent
 ```
 
-```scala mdoc:silent
+```scala
 // main sources
 
 import zio._
@@ -622,7 +622,7 @@ object AccountObserverLive {
 }
 ```
 
-```scala mdoc:silent
+```scala
 // test sources
 
 object AccountObserverMock extends Mock[AccountObserver] {
@@ -668,7 +668,7 @@ An `Expectation[R]` is an immutable tree structure that represents expectations 
 
 ZIO Test has a variety of expectations, such as `value`, `unit`, `failure`, and `never`. In this section we are going to learn each of these expectations and their variant, by mocking the `UserService` service. So let's assume we have the following service:
 
-```scala mdoc:silent
+```scala
 import zio._
 import zio.mock._
 import zio.test._
@@ -703,7 +703,7 @@ object UserService {
 
 We can write the mock version of this class as below:
 
-```scala mdoc:silent
+```scala
 
 object MockUserService extends Mock[UserService] {
 
@@ -732,7 +732,7 @@ To create expectations we use the previously defined _capability tags_.
 
 1. For methods that take input, the first argument will be an assertion on input, and the second the predefined result.
 
-```scala mdoc:compile-only
+```scala
 import zio.mock._
 import zio.test._
 
@@ -744,13 +744,13 @@ val exp01 = MockUserService.RecentUsers( // capability to build an expectation f
 
 2. For methods that take no input, we only define the expected output:
 
-```scala mdoc:compile-only
+```scala
 val exp02 = MockUserService.TotalUsers(Expectation.value(42))
 ```
 
 3. For methods that may return `Unit`, we may skip the predefined result (it will default to successful value) or use `unit` helper:
 
-```scala mdoc:compile-only
+```scala
 val exp03 = MockUserService.Remove(
   Assertion.equalTo("1"),
   Expectation.unit
@@ -759,7 +759,7 @@ val exp03 = MockUserService.Remove(
 
 4. For methods that may return `Unit` and take no input we can skip both:
 
-```scala mdoc:compile-only
+```scala
 val exp04 = MockUserService.RemoveAll()
 ```
 
@@ -767,7 +767,7 @@ val exp04 = MockUserService.RemoveAll()
 
 Each expectation can be taught of a mocked environment. They can be converted to a `ZLayer` implicitly. Therefore, we can compose them together and provide them to the environment of the SUT (System Under Test).
 
-```scala mdoc:compile-only
+```scala
 import zio.test._
 
 import zio._
@@ -787,7 +787,7 @@ test("expecting simple value on call to nextInt") {
 
 Often the dependency on a collaborator is only in some branches of the code. To test the correct behaviour of branches without dependencies, we still have to provide it to the environment, but we would like to assert it was never called. With the `Mock.empty` method we can obtain a `ZLayer` with an empty service (no calls expected):
 
-```scala mdoc:compile-only
+```scala
 import zio.mock._
 import zio.test._
 
@@ -819,7 +819,7 @@ object MaybeConsoleSpec extends MockSpecDefault {
 
 In some cases we have more than one collaborating service being called. We can create mocks for rich environments and as you enrich the environment by using _capability tags_ from another service, the underlying mocked layer will be updated.
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -857,7 +857,7 @@ In the most robust example, the result can be either a successful value or a fai
 
 Expecting a simple value:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -875,7 +875,7 @@ test("expecting simple value") {
 
 Expecting a value based on input arguments:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -899,7 +899,7 @@ test("an expectation based on input arguments") {
 
 Expecting a value based on the input arguments and also the result of an effectful operation:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -928,7 +928,7 @@ test("effectful expectation") {
 
 Expecting simple unit value:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -955,7 +955,7 @@ test("expecting unit") {
 
 Expecting a failure:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -983,7 +983,7 @@ There are also `failureF` and `failureM` variants like what we described for `va
 
 This expectation simulates a never-ending loop:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -1010,7 +1010,7 @@ We can combine our expectation to build complex scenarios using combinators defi
 
 The `and` (alias `&&`) operator composes two expectations, producing a new expectation to **satisfy both in any order**:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -1033,7 +1033,7 @@ test("satisfy both expectations with a logical `and` operator") {
 
 The `or` (alias `||`) operator composes two expectations, producing a new expectation to **satisfy only one of them**:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -1056,7 +1056,7 @@ test("satisfy one of expectations with a logical `or` operator") {
 
 The `andThen` (alias `++`) operator composes two expectations, producing a new expectation to **satisfy both sequentially**:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -1080,7 +1080,7 @@ In the example above, changing the SUT to `UserService.totalUsers *> UserService
 
 1. **`exactly`** — Produces a new expectation to satisfy itself exactly the given number of times:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -1103,7 +1103,7 @@ test("satisfying exact repetition of a method call") {
 
 1. **`Expectation#repeats(range: Range)`** — Repeats this expectation within given bounds, producing a new expectation to **satisfy itself sequentially given number of times**:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -1122,7 +1122,7 @@ In the example above, if we repeat `nextInt` less than 2 or over 4 times, the te
 
 Another note on repetitions is that, if we compose expectations with `andThen`/`++`, once another repetition starts executing, it must be completed in order to satisfy the composite expectation. For example `(A ++ B).repeats(1, 2)` will be satisfied by either `A->B` (one repetition) or `A->B->A->B` (two repetitions), but will fail on `A->B->A` (incomplete second repetition):
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.mock.Expectation._
@@ -1147,7 +1147,7 @@ test("if another repetition starts executing, it must be completed") {
 
 Here is an example of mocking `Clock.nanoTime` capability:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.mock.Expectation._
@@ -1165,7 +1165,7 @@ test("calling mocked nanoTime should return expected time") {
 
 Here is an example of mocking `Console.readLine` capability:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -1183,7 +1183,7 @@ test("calling mocked readline should return expected value") {
 
 Here's how we can mock the `MockRandom.nextIntBounded` capability:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}
@@ -1204,7 +1204,7 @@ test("expect call with input satisfying assertion and transforming it into outpu
 
 Here's how we can mock the `MockSystem.property` capability:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock._
 import zio.test.{test, _}

@@ -24,14 +24,14 @@ final class ZEnvironment[+R] private (
   private var cache: Map[LightTypeTag, Any] = Map.empty
 ) extends Serializable { self =>
 
-  def ++[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+  def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
 
   /**
    * Adds a service to the environment.
    */
   def add[A](a: A)(implicit ev: IsNotIntersection[A], tagged: Tag[A]): ZEnvironment[R with A] =
-    new ZEnvironment(self.map + (taggedTagType(tagged) -> (a -> index)), index + 1)
+    new ZEnvironment(self.map + (taggedTagType(tagged.typeTag) -> (a -> index)), index + 1)
 
   override def equals(that: Any): Boolean = that match {
     case that: ZEnvironment[_] => self.map == that.map
@@ -42,14 +42,14 @@ final class ZEnvironment[+R] private (
    * Retrieves a service from the environment.
    */
   def get[A >: R](implicit ev: IsNotIntersection[A], tagged: Tag[A]): A =
-    unsafeGet(taggedTagType(tagged))
+    unsafeGet(taggedTagType(tagged.typeTag))
 
   /**
    * Retrieves a service from the environment corresponding to the specified
    * key.
    */
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: Tag[Map[K, V]]): Option[V] =
-    unsafeGet[Map[K, V]](taggedTagType(tagged)).get(k)
+    unsafeGet[Map[K, V]](taggedTagType(tagged.typeTag)).get(k)
 
   override def hashCode: Int =
     map.hashCode
@@ -58,7 +58,7 @@ final class ZEnvironment[+R] private (
    * Prunes the environment to the set of services statically known to be
    * contained within it.
    */
-  def prune[R1 >: R](implicit tagged: Tag[R1]): ZEnvironment[R1] = {
+  def prune[R1 >: R](implicit tagged: EnvironmentTag[R1]): ZEnvironment[R1] = {
     val tag = taggedTagType(tagged)
     val set = taggedGetServices(tag)
 
@@ -88,7 +88,7 @@ final class ZEnvironment[+R] private (
   /**
    * Combines this environment with the specified environment.
    */
-  def union[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+  def union[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.unionAll[R1](that.prune)
 
   /**
@@ -136,7 +136,7 @@ final class ZEnvironment[+R] private (
    * Updates a service in the environment correponding to the specified key.
    */
   def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
-    self.add[Map[K, V]](unsafeGet[Map[K, V]](taggedTagType(tag)).updated(k, f(getAt(k).get)))
+    self.add[Map[K, V]](unsafeGet[Map[K, V]](taggedTagType(tag.typeTag)).updated(k, f(getAt(k).get)))
 
   /**
    * Filters a map by retaining only keys satisfying a predicate.
@@ -221,6 +221,6 @@ object ZEnvironment {
       System.SystemLive
     )
 
-  private val TaggedAnyRef: Tag[AnyRef] =
-    implicitly[Tag[AnyRef]]
+  private lazy val TaggedAnyRef: izumi.reflect.Tag[AnyRef] =
+    izumi.reflect.Tag.tagFromTagMacro[AnyRef]
 }

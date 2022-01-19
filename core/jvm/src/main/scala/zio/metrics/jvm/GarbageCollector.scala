@@ -12,7 +12,7 @@ import scala.collection.JavaConverters._
 
 trait GarbageCollector extends JvmMetrics {
   override type Feature = GarbageCollector
-  override val featureTag: zio.Tag[GarbageCollector] = Tag[GarbageCollector]
+  override val featureTag: EnvironmentTag[GarbageCollector] = EnvironmentTag[GarbageCollector]
 
   /** Time spent in a given JVM garbage collector in seconds. */
   private def gcCollectionSecondsSum(gc: String): Gauge[Long] =

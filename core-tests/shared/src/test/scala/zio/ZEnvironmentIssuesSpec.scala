@@ -26,7 +26,7 @@ object ZEnvironmentIssuesSpec extends ZIOSpecDefault {
         val _ = value
         tag
       }
-      assertTrue(tagForThing(Clock.ClockLive).tag <:< Tag[Clock].tag)
+      assertTrue(tagForThing(Clock.ClockLive).typeTag.tag <:< Tag[Clock].typeTag.tag)
     } @@ exceptScala3
   )
 }
