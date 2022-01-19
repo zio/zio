@@ -166,42 +166,42 @@ object AccessibleSpecFlat extends ZIOSpecDefault {
           """
         })(isRight(anything))
       },
-      test("generates accessor for service with two type params and type bounds") {
-        assertM(typeCheck {
-          """
-             trait Foo
-             trait Bar
+      // test("generates accessor for service with two type params and type bounds") {
+      //   assertM(typeCheck {
+      //     """
+      //        trait Foo
+      //        trait Bar
 
-             @accessible
-             trait Module[T <: Foo, U >: Bar] {
-               val v: Task[T]
-               def f1: UIO[U]
-               def f2(): UIO[U]
-               def f3(t: T): UIO[U]
-               def f4(t: T)(u: U): UIO[U]
-               def f5(t: T)(implicit u: U): UIO[U]
-               def f6(t: T*): UIO[U]
-             }
+      //        @accessible
+      //        trait Module[T <: Foo, U >: Bar] {
+      //          val v: Task[T]
+      //          def f1: UIO[U]
+      //          def f2(): UIO[U]
+      //          def f3(t: T): UIO[U]
+      //          def f4(t: T)(u: U): UIO[U]
+      //          def f5(t: T)(implicit u: U): UIO[U]
+      //          def f6(t: T*): UIO[U]
+      //        }
 
-             object Check {
-               def v[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module[T, U], Throwable, T] =
-                 Module.v[T, U]
-               def f1[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module[T, U], Nothing, U] =
-                 Module.f1[T, U]
-               def f2[T <: Foo: Tag, U >: Bar: Tag](): ZIO[Module[T, U], Nothing, U] =
-                 Module.f2[T, U]()
-               def f3[T <: Foo: Tag, U >: Bar: Tag](t: T): ZIO[Module[T, U], Nothing, U] =
-                 Module.f3[T, U](t)
-               def f4[T <: Foo: Tag, U >: Bar: Tag](t: T)(u: U): ZIO[Module[T, U], Nothing, U] =
-                 Module.f4[T, U](t)(u)
-               def f5[T <: Foo: Tag, U >: Bar: Tag](t: T)(implicit u: U): ZIO[Module[T, U], Nothing, U] =
-                 Module.f5[T, U](t)
-               def f6[T <: Foo: Tag, U >: Bar: Tag](t: T*): ZIO[Module[T, U], Nothing, U] =
-                 Module.f6[T, U](t: _*)
-             }
-          """
-        })(isRight(anything))
-      },
+      //        object Check {
+      //          def v[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module[T, U], Throwable, T] =
+      //            Module.v[T, U]
+      //          def f1[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module[T, U], Nothing, U] =
+      //            Module.f1[T, U]
+      //          def f2[T <: Foo: Tag, U >: Bar: Tag](): ZIO[Module[T, U], Nothing, U] =
+      //            Module.f2[T, U]()
+      //          def f3[T <: Foo: Tag, U >: Bar: Tag](t: T): ZIO[Module[T, U], Nothing, U] =
+      //            Module.f3[T, U](t)
+      //          def f4[T <: Foo: Tag, U >: Bar: Tag](t: T)(u: U): ZIO[Module[T, U], Nothing, U] =
+      //            Module.f4[T, U](t)(u)
+      //          def f5[T <: Foo: Tag, U >: Bar: Tag](t: T)(implicit u: U): ZIO[Module[T, U], Nothing, U] =
+      //            Module.f5[T, U](t)
+      //          def f6[T <: Foo: Tag, U >: Bar: Tag](t: T*): ZIO[Module[T, U], Nothing, U] =
+      //            Module.f6[T, U](t: _*)
+      //        }
+      //     """
+      //   })(isRight(anything))
+      // },
       test("generates accessors for all capabilities") {
         assertM(typeCheck {
           """

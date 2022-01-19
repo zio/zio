@@ -226,11 +226,11 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           accessorTypeParams.map(tp => TypeDef(Modifiers(Flag.PARAM), tp.name, tp.tparams, tp.rhs)) ::: typeParams
         paramLists match {
           case Nil =>
-            q"def $name[..$allTypeParams](implicit ev: _root_.izumi.reflect.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
+            q"def $name[..$allTypeParams](implicit ev: _root_.zio.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
           case List(Nil) =>
-            q"def $name[..$allTypeParams]()(implicit ev: _root_.izumi.reflect.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
+            q"def $name[..$allTypeParams]()(implicit ev: _root_.zio.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
           case _ =>
-            q"def $name[..$allTypeParams](...$paramLists)(implicit ev: _root_.izumi.reflect.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
+            q"def $name[..$allTypeParams](...$paramLists)(implicit ev: _root_.zio.Tag[$serviceName[..$serviceTypeArgs]]): $returnType = $returnValue"
         }
       }
     }

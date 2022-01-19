@@ -222,61 +222,61 @@ object AccessibleMMSpec extends ZIOSpecDefault {
           """
         })(isRight(anything))
       },
-      test("generates accessor for service with contravariant type param") {
-        assertM(typeCheck {
-          """
-             @accessibleMM[RIO]
-             object Module {
-               trait Service[-A, F[_, _]] {
-                 val v: F[A, Int]
-               }
-             }
+      // test("generates accessor for service with contravariant type param") {
+      //   assertM(typeCheck {
+      //     """
+      //        @accessibleMM[RIO]
+      //        object Module {
+      //          trait Service[-A, F[_, _]] {
+      //            val v: F[A, Int]
+      //          }
+      //        }
 
-             object Check {
-               def v[A: Tag]: ZIO[Module.Service[A, RIO] with A, Throwable, Int] =
-                 Module.v[A]
-             }
-          """
-        })(isRight(anything))
-      },
-      test("generates accessor for service with two type params and type bounds") {
-        assertM(typeCheck {
-          """
-             trait Foo
-             trait Bar
+      //        object Check {
+      //          def v[A: Tag]: ZIO[Module.Service[A, RIO] with A, Throwable, Int] =
+      //            Module.v[A]
+      //        }
+      //     """
+      //   })(isRight(anything))
+      // },
+      // test("generates accessor for service with two type params and type bounds") {
+      //   assertM(typeCheck {
+      //     """
+      //        trait Foo
+      //        trait Bar
 
-             @accessibleMM[IO]
-             object Module {
-               trait Service[T <: Foo, M[_, _], U >: Bar] {
-                 val v: M[U, T]
-                 def f1: M[T, U]
-                 def f2(): M[T, U]
-                 def f3(t: T): M[T, U]
-                 def f4(t: T)(u: U): M[T, U]
-                 def f5(t: T)(implicit u: U): M[T, U]
-                 def f6(t: T*): M[T, U]
-               }
-             }
+      //        @accessibleMM[IO]
+      //        object Module {
+      //          trait Service[T <: Foo, M[_, _], U >: Bar] {
+      //            val v: M[U, T]
+      //            def f1: M[T, U]
+      //            def f2(): M[T, U]
+      //            def f3(t: T): M[T, U]
+      //            def f4(t: T)(u: U): M[T, U]
+      //            def f5(t: T)(implicit u: U): M[T, U]
+      //            def f6(t: T*): M[T, U]
+      //          }
+      //        }
 
-             object Check {
-               def v[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module.Service[T, IO, U], U, T] =
-                 Module.v[T, U]
-               def f1[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module.Service[T, IO, U], T, U] =
-                 Module.f1[T, U]
-               def f2[T <: Foo: Tag, U >: Bar: Tag](): ZIO[Module.Service[T, IO, U], T, U] =
-                 Module.f2[T, U]()
-               def f3[T <: Foo: Tag, U >: Bar: Tag](t: T): ZIO[Module.Service[T, IO, U], T, U] =
-                 Module.f3[T, U](t)
-               def f4[T <: Foo: Tag, U >: Bar: Tag](t: T)(u: U): ZIO[Module.Service[T, IO, U], T, U] =
-                 Module.f4[T, U](t)(u)
-               def f5[T <: Foo: Tag, U >: Bar: Tag](t: T)(implicit u: U): ZIO[Module.Service[T, IO, U], T, U] =
-                 Module.f5[T, U](t)
-               def f6[T <: Foo: Tag, U >: Bar: Tag](t: T*): ZIO[Module.Service[T, IO, U], T, U] =
-                 Module.f6[T, U](t: _*)
-             }
-          """
-        })(isRight(anything))
-      },
+      //        object Check {
+      //          def v[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module.Service[T, IO, U], U, T] =
+      //            Module.v[T, U]
+      //          def f1[T <: Foo: Tag, U >: Bar: Tag]: ZIO[Module.Service[T, IO, U], T, U] =
+      //            Module.f1[T, U]
+      //          def f2[T <: Foo: Tag, U >: Bar: Tag](): ZIO[Module.Service[T, IO, U], T, U] =
+      //            Module.f2[T, U]()
+      //          def f3[T <: Foo: Tag, U >: Bar: Tag](t: T): ZIO[Module.Service[T, IO, U], T, U] =
+      //            Module.f3[T, U](t)
+      //          def f4[T <: Foo: Tag, U >: Bar: Tag](t: T)(u: U): ZIO[Module.Service[T, IO, U], T, U] =
+      //            Module.f4[T, U](t)(u)
+      //          def f5[T <: Foo: Tag, U >: Bar: Tag](t: T)(implicit u: U): ZIO[Module.Service[T, IO, U], T, U] =
+      //            Module.f5[T, U](t)
+      //          def f6[T <: Foo: Tag, U >: Bar: Tag](t: T*): ZIO[Module.Service[T, IO, U], T, U] =
+      //            Module.f6[T, U](t: _*)
+      //        }
+      //     """
+      //   })(isRight(anything))
+      // },
       test("generates accessors for ZIO capabilities") {
         assertM(typeCheck {
           """
