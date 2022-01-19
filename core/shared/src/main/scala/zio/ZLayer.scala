@@ -120,11 +120,10 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   final def flatten[RIn1 <: RIn, E1 >: E, ROut1 >: ROut, ROut2](implicit
     tag: Tag[ROut1],
-    ev1: ROut1 <:< ZLayer[RIn1, E1, ROut2],
-    ev2: IsNotIntersection[ROut1],
+    ev: ROut1 <:< ZLayer[RIn1, E1, ROut2],
     trace: ZTraceElement
   ): ZLayer[RIn1, E1, ROut2] =
-    flatMap(environment => ev1(environment.get[ROut1]))
+    flatMap(environment => ev(environment.get[ROut1]))
 
   /**
    * Feeds the error or output services of this layer into the input of either
@@ -271,7 +270,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Updates one of the services output by this layer.
    */
-  final def update[A >: ROut: Tag: IsNotIntersection](
+  final def update[A >: ROut: Tag](
     f: A => A
   )(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
     map(_.update[A](f))
@@ -356,7 +355,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from a managed resource.
    */
-  def apply[RIn, E, ROut: Tag: IsNotIntersection](managed: ZManaged[RIn, E, ROut])(implicit
+  def apply[RIn, E, ROut: Tag](managed: ZManaged[RIn, E, ROut])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromManaged(managed)
@@ -364,7 +363,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from an effectual resource.
    */
-  def apply[RIn, E, ROut: Tag: IsNotIntersection](zio: ZIO[RIn, E, ROut])(implicit
+  def apply[RIn, E, ROut: Tag](zio: ZIO[RIn, E, ROut])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
@@ -406,7 +405,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * }}}
      */
     val tree: ULayer[Debug] =
-      ZLayer.succeed[Debug](Debug.Tree)(Tag[Debug], IsNotIntersection[Debug], Tracer.newTrace)
+      ZLayer.succeed[Debug](Debug.Tree)(Tag[Debug], Tracer.newTrace)
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
@@ -440,17 +439,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * }}}
      */
     val mermaid: ULayer[Debug] =
-      ZLayer.succeed[Debug](Debug.Mermaid)(Tag[Debug], IsNotIntersection[Debug], Tracer.newTrace)
+      ZLayer.succeed[Debug](Debug.Mermaid)(Tag[Debug], Tracer.newTrace)
   }
 
   /**
    * Gathers up the ZLayer inside of the given collection, and combines them
    * into a single ZLayer containing an equivalent collection of results.
    */
-  def collectAll[R, E, A: Tag: IsNotIntersection, Collection[+Element] <: Iterable[Element]](
+  def collectAll[R, E, A: Tag, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZLayer[R, E, A]]
   )(implicit
-    ev: IsNotIntersection[Collection[A]],
     tag: Tag[Collection[A]],
     bf: BuildFrom[Collection[ZLayer[R, E, A]], A, Collection[A]],
     trace: ZTraceElement
@@ -479,10 +477,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Applies the function `f` to each element of the `Collection[A]` and returns
    * the results in a new `Collection[B]`.
    */
-  def foreach[R, E, A, B: Tag: IsNotIntersection, Collection[+Element] <: Iterable[Element]](
+  def foreach[R, E, A, B: Tag, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZLayer[R, E, B])(implicit
-    ev: IsNotIntersection[Collection[B]],
     tag: Tag[Collection[B]],
     bf: BuildFrom[Collection[A], B, Collection[B]],
     trace: ZTraceElement
@@ -495,7 +492,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from acquire and release actions. The acquire and
    * release actions will be performed uninterruptibly.
    */
-  def fromAcquireRelease[R, E, A: Tag: IsNotIntersection](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
+  def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     fromManaged(ZManaged.acquireReleaseWith(acquire)(release))
@@ -527,7 +524,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified effect.
    */
   @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A: Tag: IsNotIntersection](zio: ZIO[R, E, A])(implicit
+  def fromEffect[R, E, A: Tag](zio: ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     fromZIO(zio)
@@ -545,7 +542,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from the environment using the specified function.
    */
-  def fromFunction[A, B: Tag: IsNotIntersection](f: ZEnvironment[A] => B)(implicit
+  def fromFunction[A, B: Tag](f: ZEnvironment[A] => B)(implicit
     trace: ZTraceElement
   ): ZLayer[A, Nothing, B] =
     fromFunctionZIO(a => ZIO.succeedNow(f(a)))
@@ -582,7 +579,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * function.
    */
   @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[A, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => IO[E, B])(implicit
+  def fromFunctionM[A, E, B: Tag](f: ZEnvironment[A] => IO[E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, E, B] =
     fromFunctionZIO(f)
@@ -591,7 +588,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the environment using the specified effectful
    * resourceful function.
    */
-  def fromFunctionManaged[A, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => ZManaged[Any, E, B])(implicit
+  def fromFunctionManaged[A, E, B: Tag](f: ZEnvironment[A] => ZManaged[Any, E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, E, B] =
     fromManaged(ZManaged.environmentWithManaged(f))
@@ -641,7 +638,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the environment using the specified effectful
    * function.
    */
-  def fromFunctionZIO[A, E, B: Tag: IsNotIntersection](f: ZEnvironment[A] => IO[E, B])(implicit
+  def fromFunctionZIO[A, E, B: Tag](f: ZEnvironment[A] => IO[E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, E, B] =
     fromFunctionManaged(a => f(a).toManaged)
@@ -650,7 +647,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that purely depends on the specified service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromService[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](f: A => B)(implicit
+  def fromService[A: Tag, B: Tag](f: A => B)(implicit
     trace: ZTraceElement
   ): ZLayer[A, Nothing, B] =
     fromServiceM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
@@ -659,7 +656,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that purely depends on the specified services.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServices[A0: Tag: IsNotIntersection, A1: Tag: IsNotIntersection, B: Tag: IsNotIntersection](
+  def fromServices[A0: Tag, A1: Tag, B: Tag](
     f: (A0, A1) => B
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1, Nothing, B] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -671,10 +668,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2) => B
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2, Nothing, B] = {
@@ -687,11 +684,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3) => B
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2 with A3, Nothing, B] = {
@@ -704,12 +701,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4) => B
   )(implicit
@@ -724,13 +721,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5) => B
   )(implicit
@@ -745,14 +742,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6, Nothing, B] = {
@@ -765,15 +762,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
   )(implicit
@@ -788,16 +785,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
   )(implicit
@@ -812,17 +809,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
   )(implicit
@@ -837,18 +834,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -865,19 +862,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -894,20 +891,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -924,21 +921,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -955,22 +952,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -987,23 +984,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1020,24 +1017,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1054,25 +1051,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1089,26 +1086,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1125,27 +1122,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1162,28 +1159,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1200,29 +1197,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
-    A21: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1238,7 +1235,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that effectfully depends on the specified service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceM[A: Tag: IsNotIntersection, R, E, B: Tag: IsNotIntersection](f: A => ZIO[R, E, B])(implicit
+  def fromServiceM[A: Tag, R, E, B: Tag](f: A => ZIO[R, E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
     fromServiceManaged[A, R, E, B](a => f(a).toManaged)
@@ -1247,7 +1244,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that effectfully depends on the specified services.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[A0: Tag: IsNotIntersection, A1: Tag: IsNotIntersection, R, E, B: Tag: IsNotIntersection](
+  def fromServicesM[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1259,12 +1256,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] = {
@@ -1277,13 +1274,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   )(implicit
@@ -1298,14 +1295,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   )(implicit
@@ -1320,15 +1317,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   )(implicit
@@ -1343,16 +1340,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] = {
@@ -1365,17 +1362,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
   )(implicit
@@ -1390,18 +1387,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
   )(implicit
@@ -1416,19 +1413,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
   )(implicit
@@ -1443,20 +1440,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1473,21 +1470,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1504,22 +1501,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1536,23 +1533,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1569,24 +1566,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1603,25 +1600,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1638,26 +1635,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1674,27 +1671,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1711,28 +1708,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1749,29 +1746,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1788,30 +1785,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1828,31 +1825,31 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
-    A21: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (
       A0,
@@ -1892,7 +1889,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * the specified service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceManaged[A: Tag: IsNotIntersection, R, E, B: Tag: IsNotIntersection](f: A => ZManaged[R, E, B])(implicit
+  def fromServiceManaged[A: Tag, R, E, B: Tag](f: A => ZManaged[R, E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
     fromServiceManyManaged[A, R, E, B](a => f(a).asService)
@@ -1902,7 +1899,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * the specified services.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesManaged[A0: Tag: IsNotIntersection, A1: Tag: IsNotIntersection, R, E, B: Tag: IsNotIntersection](
+  def fromServicesManaged[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1915,12 +1912,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] = {
@@ -1934,13 +1931,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
   )(implicit
@@ -1956,14 +1953,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
   )(implicit
@@ -1979,15 +1976,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
   )(implicit
@@ -2003,16 +2000,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] = {
@@ -2026,17 +2023,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
   )(implicit
@@ -2052,18 +2049,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
   )(implicit
@@ -2079,19 +2076,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
   )(implicit
@@ -2107,20 +2104,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2138,21 +2135,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2170,22 +2167,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2203,23 +2200,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2237,24 +2234,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2272,25 +2269,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2308,26 +2305,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2345,27 +2342,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2383,28 +2380,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2422,29 +2419,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2462,30 +2459,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (
       A0,
@@ -2550,31 +2547,31 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
-    A21: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     R,
     E,
-    B: Tag: IsNotIntersection
+    B: Tag
   ](
     f: (
       A0,
@@ -2615,7 +2612,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * single service see `fromService`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceMany[A: Tag: IsNotIntersection, B](f: A => ZEnvironment[B])(implicit
+  def fromServiceMany[A: Tag, B](f: A => ZEnvironment[B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, Nothing, B] =
     fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
@@ -2626,7 +2623,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * a single service see `fromService`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[A0: Tag: IsNotIntersection, A1: Tag: IsNotIntersection, B](
+  def fromServicesMany[A0: Tag, A1: Tag, B](
     f: (A0, A1) => ZEnvironment[B]
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1, Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2639,7 +2636,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * a single service see `fromService`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[A0: Tag: IsNotIntersection, A1: Tag: IsNotIntersection, A2: Tag: IsNotIntersection, B](
+  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, B](
     f: (A0, A1, A2) => ZEnvironment[B]
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2, Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2653,10 +2650,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     B
   ](
     f: (A0, A1, A2, A3) => ZEnvironment[B]
@@ -2672,11 +2669,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4) => ZEnvironment[B]
@@ -2694,12 +2691,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5) => ZEnvironment[B]
@@ -2717,13 +2714,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZEnvironment[B]
@@ -2739,14 +2736,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZEnvironment[B]
@@ -2764,15 +2761,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZEnvironment[B]
@@ -2790,16 +2787,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZEnvironment[B]
@@ -2817,17 +2814,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZEnvironment[B]
@@ -2847,18 +2844,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZEnvironment[B]
@@ -2878,19 +2875,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZEnvironment[B]
@@ -2910,20 +2907,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZEnvironment[B]
@@ -2943,21 +2940,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZEnvironment[B]
@@ -2977,22 +2974,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZEnvironment[B]
@@ -3012,23 +3009,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZEnvironment[B]
@@ -3048,24 +3045,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZEnvironment[B]
@@ -3085,25 +3082,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZEnvironment[B]
@@ -3123,26 +3120,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZEnvironment[B]
@@ -3162,27 +3159,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZEnvironment[
@@ -3204,28 +3201,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
-    A21: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     B
   ](
     f: (
@@ -3267,7 +3264,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * a single service see `fromServiceM`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceManyM[A: Tag: IsNotIntersection, R, E, B](f: A => ZIO[R, E, ZEnvironment[B]])(implicit
+  def fromServiceManyM[A: Tag, R, E, B](f: A => ZIO[R, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
     fromServiceManyManaged[A, R, E, B](a => f(a).toManaged)
@@ -3278,7 +3275,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * returns a single service see `fromServiceM`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[A0: Tag: IsNotIntersection, A1: Tag: IsNotIntersection, R, E, B](
+  def fromServicesManyM[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZIO[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -3291,7 +3288,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * returns a single service see `fromServiceM`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[A0: Tag: IsNotIntersection, A1: Tag: IsNotIntersection, A2: Tag: IsNotIntersection, R, E, B](
+  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZIO[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -3305,10 +3302,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     R,
     E,
     B
@@ -3326,11 +3323,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     R,
     E,
     B
@@ -3350,12 +3347,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     R,
     E,
     B
@@ -3375,13 +3372,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     R,
     E,
     B
@@ -3399,14 +3396,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     R,
     E,
     B
@@ -3426,15 +3423,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     R,
     E,
     B
@@ -3454,16 +3451,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     R,
     E,
     B
@@ -3483,17 +3480,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     R,
     E,
     B
@@ -3515,18 +3512,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     R,
     E,
     B
@@ -3548,19 +3545,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     R,
     E,
     B
@@ -3582,20 +3579,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     R,
     E,
     B
@@ -3617,21 +3614,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     R,
     E,
     B
@@ -3653,22 +3650,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     R,
     E,
     B
@@ -3690,23 +3687,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     R,
     E,
     B
@@ -3728,24 +3725,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     R,
     E,
     B
@@ -3767,25 +3764,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     R,
     E,
     B
@@ -3827,26 +3824,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     R,
     E,
     B
@@ -3889,27 +3886,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     R,
     E,
     B
@@ -3953,28 +3950,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
-    A21: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     R,
     E,
     B
@@ -4018,7 +4015,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * common variant that returns a single service see `fromServiceManaged`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceManyManaged[A: Tag: IsNotIntersection, R, E, B](f: A => ZManaged[R, E, ZEnvironment[B]])(implicit
+  def fromServiceManyManaged[A: Tag, R, E, B](f: A => ZManaged[R, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
     ZLayer.fromManagedMany(ZManaged.serviceWithManaged[A](f))
@@ -4029,7 +4026,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * common variant that returns a single service see `fromServiceManaged`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyManaged[A0: Tag: IsNotIntersection, A1: Tag: IsNotIntersection, R, E, B](
+  def fromServicesManyManaged[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZManaged[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] =
     ZLayer.fromManagedMany {
@@ -4047,9 +4044,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
     R,
     E,
     B
@@ -4072,10 +4069,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     R,
     E,
     B
@@ -4099,11 +4096,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     R,
     E,
     B
@@ -4130,12 +4127,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     R,
     E,
     B
@@ -4163,13 +4160,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     R,
     E,
     B
@@ -4196,14 +4193,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     R,
     E,
     B
@@ -4233,15 +4230,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     R,
     E,
     B
@@ -4272,16 +4269,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     R,
     E,
     B
@@ -4313,17 +4310,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     R,
     E,
     B
@@ -4356,18 +4353,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     R,
     E,
     B
@@ -4403,19 +4400,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     R,
     E,
     B
@@ -4452,20 +4449,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     R,
     E,
     B
@@ -4503,21 +4500,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     R,
     E,
     B
@@ -4556,22 +4553,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     R,
     E,
     B
@@ -4611,23 +4608,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     R,
     E,
     B
@@ -4668,24 +4665,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     R,
     E,
     B
@@ -4746,25 +4743,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     R,
     E,
     B
@@ -4827,26 +4824,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     R,
     E,
     B
@@ -4911,27 +4908,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     R,
     E,
     B
@@ -4998,28 +4995,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: Tag: IsNotIntersection,
-    A1: Tag: IsNotIntersection,
-    A2: Tag: IsNotIntersection,
-    A3: Tag: IsNotIntersection,
-    A4: Tag: IsNotIntersection,
-    A5: Tag: IsNotIntersection,
-    A6: Tag: IsNotIntersection,
-    A7: Tag: IsNotIntersection,
-    A8: Tag: IsNotIntersection,
-    A9: Tag: IsNotIntersection,
-    A10: Tag: IsNotIntersection,
-    A11: Tag: IsNotIntersection,
-    A12: Tag: IsNotIntersection,
-    A13: Tag: IsNotIntersection,
-    A14: Tag: IsNotIntersection,
-    A15: Tag: IsNotIntersection,
-    A16: Tag: IsNotIntersection,
-    A17: Tag: IsNotIntersection,
-    A18: Tag: IsNotIntersection,
-    A19: Tag: IsNotIntersection,
-    A20: Tag: IsNotIntersection,
-    A21: Tag: IsNotIntersection,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     R,
     E,
     B
@@ -5084,7 +5081,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from a managed resource.
    */
-  def fromManaged[R, E, A: Tag: IsNotIntersection](m: ZManaged[R, E, A])(implicit
+  def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     ZLayer.fromManagedEnvironment(m.map(ZEnvironment(_)))
@@ -5111,7 +5108,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from the specified effect.
    */
-  def fromZIO[R, E, A: Tag: IsNotIntersection](zio: ZIO[R, E, A])(implicit
+  def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     fromZIOEnvironment(zio.map(ZEnvironment(_)))
@@ -5161,13 +5158,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that accesses and returns the specified service from the
    * environment.
    */
-  def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
+  def service[A: Tag](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
     ZLayer.fromManaged(ZManaged.service[A])
 
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: Tag: IsNotIntersection](a: A)(implicit trace: ZTraceElement): ULayer[A] =
+  def succeed[A: Tag](a: A)(implicit trace: ZTraceElement): ULayer[A] =
     ZLayer.fromManagedEnvironment(ZManaged.succeedNow(ZEnvironment(a)))
 
   /**
@@ -5214,9 +5211,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Projects out part of one of the services output by this layer using the
      * specified function.
      */
-    def project[B: Tag: IsNotIntersection](
+    def project[B: Tag](
       f: A => B
-    )(implicit ev: IsNotIntersection[A], tag: Tag[A], trace: ZTraceElement): ZLayer[R, E, B] =
+    )(implicit tag: Tag[A], trace: ZTraceElement): ZLayer[R, E, B] =
       self.map(environment => ZEnvironment(f(environment.get)))
   }
 

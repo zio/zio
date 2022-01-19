@@ -1315,7 +1315,7 @@ object URIO {
    * @see
    *   See [[zio.ZIO.service]]
    */
-  def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URIO[A, A] =
+  def service[A: Tag](implicit trace: ZTraceElement): URIO[A, A] =
     ZIO.service[A]
 
   /**
@@ -1330,7 +1330,7 @@ object URIO {
    *   See [[zio.ZIO.services[A,B]*]]
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag](implicit
     trace: ZTraceElement
   ): URIO[A with B, (A, B)] =
     ZIO.services[A, B]
@@ -1340,7 +1340,7 @@ object URIO {
    *   See [[zio.ZIO.services[A,B,C]*]]
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag, C: Tag](implicit
     trace: ZTraceElement
   ): URIO[A with B with C, (A, B, C)] =
     ZIO.services[A, B, C]
@@ -1351,10 +1351,10 @@ object URIO {
    */
   @deprecated("use service", "2.0.0")
   def services[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag
   ](implicit
     trace: ZTraceElement
   ): URIO[A with B with C with D, (A, B, C, D)] =
