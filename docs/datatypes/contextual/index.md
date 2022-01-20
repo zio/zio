@@ -759,7 +759,9 @@ Also, to enable macro expansion we need to setup our project:
 > 
 > At the moment these are only available for Scala versions `2.x`, however their equivalents for Scala 3 are on our roadmap.
 
-Now we can use the `@accessible` macro to generate _capability accessors_:
+#### Monomorphic Services
+
+We can `@accessible` macro to generate _capability accessors_:
 
 ```scala
 import zio._
@@ -814,6 +816,150 @@ object ServiceC {
     ZIO.serviceWithZIO[ServiceC](s => ZIO(s.impureMethod(input)))
 }
 ```
+
+#### Writing Polymorphic Services
+
+##### With Proper Type Parameters
+
+If the service is polymorphic for some proper types, we can use the `@accessible` macro like previous examples.
+
+Assume we have a `KeyValueStore` like below, as we will see using `@accessible` will generate us the accessor methods:
+
+```scala
+import zio._
+import zio.macros.accessible
+
+
+@accessible
+trait KeyValueStore[K, V] {
+  def set(key: K, value: V): Task[V]
+
+  def get(key: K): Task[V]
+}
+
+
+case class InmemoryKeyValueStore(map: Ref[Map[String, Int]])
+  extends KeyValueStore[String, Int] {
+  override def set(key: String, value: Int): Task[Int] =
+    map.update(_.updated(key, value)).map(_ => value)
+
+  override def get(key: String): Task[Int] =
+    map.get.map(_.get(key)).someOrFailException
+}
+
+object InmemoryKeyValueStore {
+  val layer: ULayer[KeyValueStore[String, Int]] =
+    ZLayer {
+      for {
+        map <- ZRef.make(Map[String, Int]())
+      } yield InmemoryKeyValueStore(map)
+    }
+}
+
+object MainApp extends ZIOAppDefault {
+  val myApp =
+    for {
+      _ <- KeyValueStore.set("key", 5)
+      key <- KeyValueStore.get[String, Int]("key")
+    } yield key
+
+  def run = myApp.provide(InmemoryKeyValueStore.layer).debug
+}
+```
+
+##### With Higher-Kinded Type Parameters (`F[_]`)
+
+If a service has a higher-kinded type parameter like `F[_]` we should use the `accessibleM` macro. Here is an example of such a service:
+
+```scala
+import zio._
+import zio.macros.accessibleM
+
+@accessibleM[Task]
+trait KeyValueStore[K, V, F[_]] {
+  def set(key: K, value: V): F[V]
+
+  def get(key: K): F[V]
+}
+
+case class InmemoryKeyValueStore(map: Ref[Map[String, Int]])
+  extends KeyValueStore[String, Int, Task] {
+  override def set(key: String, value: Int): Task[Int] =
+    map.update(_.updated(key, value)).map(_ => value)
+
+  override def get(key: String): Task[Int] =
+    map.get.map(_.get(key)).someOrFailException
+
+}
+
+object InmemoryKeyValueStore {
+  val layer: ULayer[KeyValueStore[String, Int, Task]] =
+    ZLayer {
+      for {
+        map <- ZRef.make(Map[String, Int]())
+      } yield InmemoryKeyValueStore(map)
+    }
+}
+
+
+object MainApp extends ZIOAppDefault {
+  val myApp =
+    for {
+      key <- KeyValueStore.set[String, Int]("key", 5)
+      _   <- KeyValueStore.get[String, Int]("key")
+    } yield key
+
+  def run = myApp.provide(InmemoryKeyValueStore.layer).debug
+}
+
+```
+
+##### With Higher-Kinded Type Parameters (`F[_, _]`)
+
+If the service has a higher-kinded type parameter like `F[_, _]` we should use the `accessibleMM` macro. Let's see an example:
+
+```scala
+import zio._
+import zio.macros.accessibleMM
+
+@accessibleMM[IO]
+trait KeyValueStore[K, V, E, F[_, _]] {
+  def set(key: K, value: V): F[E, V]
+
+  def get(key: K): F[E, V]
+}
+
+case class InmemoryKeyValueStore(map: Ref[Map[String, Int]])
+  extends KeyValueStore[String, Int, String, IO] {
+  override def set(key: String, value: Int): IO[String, Int] =
+    map.update(_.updated(key, value)).map(_ => value)
+
+  override def get(key: String): IO[String, Int] =
+    map.get.map(_.get(key)).someOrFail(s"key not found: $key")
+}
+
+object InmemoryKeyValueStore {
+  val layer: ULayer[KeyValueStore[String, Int, String, IO]] =
+    ZLayer {
+      for {
+        map <- ZRef.make(Map[String, Int]())
+      } yield InmemoryKeyValueStore(map)
+    }
+}
+
+object MainApp extends ZIOAppDefault {
+  val myApp =
+    for {
+      _   <- KeyValueStore.set[String, Int, String]("key", 5)
+      key <- KeyValueStore.get[String, Int, String]("key")
+    } yield key
+
+  def run = myApp.provide(InmemoryKeyValueStore.layer).debug
+
+}
+```
+
+#### Support for Scala 3
 
 As we’ve already mentioned, currently we have no macro support for Scala 3, instead we provide the `Accessible` trait that is a macro-less means of creating accessors from services. We can simply extend the companion object with `Accessible[ServiceName]` and then call `Companion(_.someMethod)` to return a ZIO effect that requires the service in its environment:
 
