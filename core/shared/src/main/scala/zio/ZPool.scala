@@ -336,32 +336,39 @@ object ZPool {
      * pool have not been used for the specified duration.
      */
     final case class TimeToLive(timeToLive: Duration) extends Strategy[Clock, Any, Any] {
-      type State = (Clock, Ref[java.time.Instant])
+      type State = (Clock.Service, Ref[java.time.Instant])
+
       override def initial: URIO[Clock, State] =
         for {
           clock <- ZIO.service[Clock.Service]
           now   <- clock.instant
           ref   <- Ref.make(now)
-        } yield (Has(clock), ref)
-      override def track(state: (Clock, Ref[java.time.Instant]))(attempted: Exit[Any, Any]): UIO[Unit] = {
+        } yield (clock, ref)
+
+      override def track(state: (Clock.Service, Ref[java.time.Instant]))(attempted: Exit[Any, Any]): UIO[Unit] = {
         val (clock, ref) = state
         for {
-          now <- clock.get.instant
+          now <- clock.instant
           _   <- ref.set(now)
         } yield ()
       }
-      override def run(state: (Clock, Ref[java.time.Instant]), getExcess: UIO[Int], shrink: UIO[Any]): UIO[Unit] = {
+
+      override def run(
+        state: (Clock.Service, Ref[java.time.Instant]),
+        getExcess: UIO[Int],
+        shrink: UIO[Any]
+      ): UIO[Unit] = {
         import duration._
 
         val (clock, ref) = state
         getExcess.flatMap { excess =>
           if (excess <= 0)
-            clock.get.sleep(timeToLive) *> run(state, getExcess, shrink)
+            clock.sleep(timeToLive) *> run(state, getExcess, shrink)
           else
-            ref.get.zip(clock.get.instant).flatMap { case (start, end) =>
+            ref.get.zip(clock.instant).flatMap { case (start, end) =>
               val duration: Duration = java.time.Duration.between(start, end)
               if (duration >= timeToLive) shrink *> run(state, getExcess, shrink)
-              else clock.get.sleep(timeToLive) *> run(state, getExcess, shrink)
+              else clock.sleep(timeToLive) *> run(state, getExcess, shrink)
             }
         }
       }
