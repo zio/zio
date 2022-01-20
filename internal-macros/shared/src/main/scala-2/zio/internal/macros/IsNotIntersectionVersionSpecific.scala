@@ -15,21 +15,13 @@ class InternalMacros(val c: blackbox.Context) {
         } catch {
           case _: Throwable =>
             try {
-//              println(s"CREATING A SERVICE TAG ${x}")
-
-              val intersectionType = c.typecheck(q"_root_.zio.IsNotIntersection[$x]").tpe
-              c.inferImplicitValue(intersectionType, silent = false)
+              val intersectionType      = c.typecheck(q"_root_.zio.IsNotIntersection[$x]").tpe
+              val isNotIntersectionTree = c.inferImplicitValue(intersectionType, silent = false)
 
               val tagType = c.typecheck(q"_root_.zio.Tag[$x]").tpe
               val tagTree = c.inferImplicitValue(tagType, silent = false)
 
-              q"""
-                 new _root_.zio.ServiceTag[$tpe] {
-                   def tag = $tagTree.tag
-                   
-                   def closestClass = null
-                 }
-                 """
+              q"_root_.zio.ServiceTag[$tpe]($tagTree, $isNotIntersectionTree)"
             } catch {
               case _: Throwable =>
                 c.abort(c.enclosingPosition, s"Cannot find implicit for ServiceTag[$x]")

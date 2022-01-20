@@ -1724,16 +1724,14 @@ object ZSTM {
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: Service => A)(implicit
-      ev: IsNotIntersection[Service],
-      tag: Tag[Service]
+      tag: ServiceTag[Service]
     ): ZSTM[Service, Nothing, A] =
       ZSTM.service[Service].map(f)
   }
 
   final class ServiceWithSTMPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZSTM[R, E, A])(implicit
-      ev: IsNotIntersection[Service],
-      tag: Tag[Service]
+      tag: ServiceTag[Service]
     ): ZSTM[R with Service, E, A] =
       ZSTM.service[Service].flatMap(f)
   }
@@ -1749,7 +1747,7 @@ object ZSTM {
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
-    def apply[R1 <: R with M](f: M => M)(implicit ev: IsNotIntersection[M], tag: Tag[M]): ZSTM[R1, E, A] =
+    def apply[R1 <: R with M](f: M => M)(implicit tag: ServiceTag[M]): ZSTM[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 

@@ -96,11 +96,11 @@ package object zio
   }
 
   object ServiceTag extends ServiceTagVersionSpecific {
-    def apply[A: IsNotIntersection](implicit tag0: Tag[A]): ServiceTag[A] =
+    def apply[A](implicit tag0: Tag[A], isNotIntersection: IsNotIntersection[A]): ServiceTag[A] =
       new ServiceTag[A] {
         def tag: zio.LightTypeTag = tag0.tag
 
-        override def closestClass: Class[_] = null
+        override def closestClass: Class[_] = tag0.closestClass
       }
   }
 

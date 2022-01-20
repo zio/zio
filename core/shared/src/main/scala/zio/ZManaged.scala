@@ -1540,7 +1540,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   final class UpdateService[-R, +E, +A, M](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
-    )(implicit ev: IsNotIntersection[M], tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
+    )(implicit tag: ServiceTag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 

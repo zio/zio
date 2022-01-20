@@ -45,6 +45,6 @@ import scala.annotation.implicitNotFound
 trait Accessible[R] {
   def apply[R1 <: R, E, A](
     f: R => ZIO[R1, E, A]
-  )(implicit ev: IsNotIntersection[R], tag: Tag[R], trace: ZTraceElement): ZIO[R1, E, A] =
+  )(implicit tag: ServiceTag[R], trace: ZTraceElement): ZIO[R1, E, A] =
     ZIO.serviceWithZIO[R](f)
 }

@@ -120,9 +120,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     foldLayer(ZLayer.fail, f)
 
   final def flatten[RIn1 <: RIn, E1 >: E, ROut1 >: ROut, ROut2](implicit
-    tag: Tag[ROut1],
+    tag: ServiceTag[ROut1],
     ev1: ROut1 <:< ZLayer[RIn1, E1, ROut2],
-    ev2: IsNotIntersection[ROut1],
     trace: ZTraceElement
   ): ZLayer[RIn1, E1, ROut2] =
     flatMap(environment => ev1(environment.get[ROut1]))
@@ -460,8 +459,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def collectAll[R, E, A: ServiceTag, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZLayer[R, E, A]]
   )(implicit
-    ev: IsNotIntersection[Collection[A]],
-    tag: Tag[Collection[A]],
+    tag: ServiceTag[Collection[A]],
     bf: BuildFrom[Collection[ZLayer[R, E, A]], A, Collection[A]],
     trace: ZTraceElement
   ): ZLayer[R, E, Collection[A]] =
@@ -492,8 +490,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def foreach[R, E, A, B: ServiceTag, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZLayer[R, E, B])(implicit
-    ev: IsNotIntersection[Collection[B]],
-    tag: Tag[Collection[B]],
+    tag: ServiceTag[Collection[B]],
     bf: BuildFrom[Collection[A], B, Collection[B]],
     trace: ZTraceElement
   ): ZLayer[R, E, Collection[B]] = {
@@ -5237,7 +5234,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      */
     def project[B: ServiceTag](
       f: A => B
-    )(implicit ev: IsNotIntersection[A], tag: Tag[A], trace: ZTraceElement): ZLayer[R, E, B] =
+    )(implicit tag: ServiceTag[A], trace: ZTraceElement): ZLayer[R, E, B] =
       self.map(environment => ZEnvironment(f(environment.get)))
   }
 
