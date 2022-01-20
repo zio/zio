@@ -40,7 +40,7 @@ ZIO provide this facility through the following concept and data types:
 
 Next, we will discuss _ZIO Environment_ and _ZLayer_ and finally how to write ZIO services using _Service Pattern_.
 
-## ZIO Environment
+## 1. ZIO Environment
 
 The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
 
@@ -395,7 +395,11 @@ val myApp: ZIO[Logging & Console, Throwable, Unit] =
   } yield ()
 ```
 
-## ZLayer
+## 2. ZEnvironment
+
+`ZEnvironment` is a built-in type-level map for maintaining the environment of a `ZIO` data type. We don't typically use this data type directly. It's okay to skip learning it at the moment. We have a [separate article](zenvironment.md) about this data type.
+
+## 3. ZLayer
 
 `ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
 
