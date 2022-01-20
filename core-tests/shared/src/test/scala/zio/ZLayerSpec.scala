@@ -22,37 +22,25 @@ object ZLayerSpec extends ZIOBaseSpec {
   val release2 = "Releasing Module 2"
   val release3 = "Releasing Module 3"
 
-  type Module1 = Module1.Service
+  trait Service1
 
-  object Module1 {
-    trait Service
-  }
-
-  def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module1] =
+  def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service1] =
     ZLayer {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(new Module1.Service {}))(_ => ref.update(_ :+ release1))
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(new Service1 {}))(_ => ref.update(_ :+ release1))
     }
 
-  type Module2 = Module2.Service
+  trait Service2
 
-  object Module2 {
-    trait Service
-  }
-
-  def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module2] =
+  def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service2] =
     ZLayer {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(new Module2.Service {}))(_ => ref.update(_ :+ release2))
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(new Service2 {}))(_ => ref.update(_ :+ release2))
     }
 
-  type Module3 = Module3.Service
+  trait Service3
 
-  object Module3 {
-    trait Service
-  }
-
-  def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Module3] =
+  def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service3] =
     ZLayer {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(new Module3.Service {}))(_ => ref.update(_ :+ release3))
+      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(new Service3 {}))(_ => ref.update(_ :+ release3))
     }
 
   def makeRef: UIO[Ref[Vector[String]]] =
@@ -101,7 +89,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
       test("sharing itself with ++") {
-        val m1     = new Module1.Service {}
+        val m1     = new Service1 {}
         val layer1 = ZLayer.succeed(m1)
         val env    = layer1 ++ (layer1 ++ layer1)
         env.build.use(m => ZIO(assert(m.get)(equalTo(m1))))
@@ -274,8 +262,8 @@ object ZLayerSpec extends ZIOBaseSpec {
           memoized = makeLayer1(ref).memoize
           _ <- memoized.use { layer =>
                  for {
-                   _ <- ZIO.environment[Module1].provideLayer(layer)
-                   _ <- ZIO.environment[Module1].provideLayer(layer)
+                   _ <- ZIO.environment[Service1].provideLayer(layer)
+                   _ <- ZIO.environment[Service1].provideLayer(layer)
                  } yield ()
                }
           actual <- ref.get
