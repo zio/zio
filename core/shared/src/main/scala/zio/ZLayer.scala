@@ -20,6 +20,7 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZManaged.ReleaseMap
 
+import scala.collection.mutable
 import scala.collection.mutable.Builder
 
 /**
@@ -334,19 +335,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     failure: Cause[E] => ZLayer[RIn, E2, ROut2],
     success: ZEnvironment[ROut] => ZLayer[RIn, E2, ROut2]
   ) extends ZLayer[RIn, E2, ROut2]
+
   private final case class Fresh[RIn, E, ROut](self: ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
+
   private final case class Managed[-RIn, +E, +ROut](self: ZManaged[RIn, E, ZEnvironment[ROut]])
       extends ZLayer[RIn, E, ROut]
+
   private final case class Suspend[-RIn, +E, +ROut](self: () => ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
+
   private final case class To[RIn, E, ROut, ROut1](
     self: ZLayer[RIn, E, ROut],
     that: ZLayer[ROut, E, ROut1]
   ) extends ZLayer[RIn, E, ROut1]
+
   private final case class ZipWith[-RIn, +E, ROut, ROut2, ROut3](
     self: ZLayer[RIn, E, ROut],
     that: ZLayer[RIn, E, ROut2],
     f: (ZEnvironment[ROut], ZEnvironment[ROut2]) => ZEnvironment[ROut3]
   ) extends ZLayer[RIn, E, ROut3]
+
   private final case class ZipWithPar[-RIn, +E, ROut, ROut2, ROut3](
     self: ZLayer[RIn, E, ROut],
     that: ZLayer[RIn, E, ROut2],
@@ -373,8 +380,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
   object Debug {
     private[zio] type Tree = Tree.type
+
     private[zio] case object Tree extends Debug
+
     private[zio] type Mermaid = Mermaid.type
+
     private[zio] case object Mermaid extends Debug
 
     /**
@@ -486,10 +496,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     tag: Tag[Collection[B]],
     bf: BuildFrom[Collection[A], B, Collection[B]],
     trace: ZTraceElement
-  ): ZLayer[R, E, Collection[B]] =
-    in.foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeed(bf.newBuilder(in)))((io, a) =>
-      io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
-    ).map(environment => ZEnvironment(environment.get.result()))
+  ): ZLayer[R, E, Collection[B]] = {
+    val builder: mutable.Builder[B, Collection[B]] = bf.newBuilder(in)
+//    implicit val tag2: Tag[mutable.Builder[B, Collection[B]]] = ???
+//    val cool                                                  = 3
+    in
+      .foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeed(builder))((io, a) =>
+        io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
+      )
+      .map(environment => ZEnvironment(environment.get.result()))
+  }
 
   /**
    * Constructs a layer from acquire and release actions. The acquire and
@@ -2607,6 +2623,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
     layer
+  }
+
+  def example[A: ServiceTag] = {
+    val int  = 3
+    val cool = implicitly[ServiceTag[List[A]]]
   }
 
   /**

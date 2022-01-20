@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
+import zio.ServiceTagVersionSpecific
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+import scala.reflect.ClassTag
 
 package object zio
     extends BuildFromCompat
@@ -87,6 +90,19 @@ package object zio
   type Semaphore = stm.TSemaphore
 
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
+
+  trait ServiceTag[A] extends Tag[A] {
+    def tag: LightTypeTag
+  }
+
+  object ServiceTag extends ServiceTagVersionSpecific {
+    def apply[A: IsNotIntersection](implicit tag0: Tag[A]): ServiceTag[A] =
+      new ServiceTag[A] {
+        def tag: zio.LightTypeTag = tag0.tag
+
+        override def closestClass: Class[_] = null
+      }
+  }
 
   trait IsNotIntersection[A] extends Serializable
 

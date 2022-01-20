@@ -41,8 +41,8 @@ final class ZEnvironment[+R] private (
   /**
    * Retrieves a service from the environment.
    */
-  def get[A >: R](implicit ev: IsNotIntersection[A], tagged: Tag[A]): A =
-    unsafeGet(taggedTagType(tagged))
+  def get[A >: R](implicit tag: ServiceTag[A]): A =
+    unsafeGet(tag.tag)
 
   /**
    * Retrieves a service from the environment corresponding to the specified
@@ -221,6 +221,6 @@ object ZEnvironment {
       System.SystemLive
     )
 
-  private val TaggedAnyRef: Tag[AnyRef] =
+  private lazy val TaggedAnyRef: Tag[AnyRef] =
     implicitly[Tag[AnyRef]]
 }
