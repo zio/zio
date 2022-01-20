@@ -817,6 +817,49 @@ object ServiceC {
 }
 ```
 
+Below is a fully working example:
+
+```scala
+import zio._
+import zio.macros.accessible
+
+@accessible
+trait KeyValueStore {
+  def set(key: String, value: Int): Task[Int]
+
+  def get(key: String): Task[Int]
+}
+
+
+case class InmemoryKeyValueStore(map: Ref[Map[String, Int]])
+  extends KeyValueStore {
+  override def set(key: String, value: Int): Task[Int] =
+    map.update(_.updated(key, value)).map(_ => value)
+
+  override def get(key: String): Task[Int] =
+    map.get.map(_.get(key)).someOrFailException
+}
+
+object InmemoryKeyValueStore {
+  val layer: ULayer[KeyValueStore] =
+    ZLayer {
+      for {
+        map <- ZRef.make(Map[String, Int]())
+      } yield InmemoryKeyValueStore(map)
+    }
+}
+
+object MainApp extends ZIOAppDefault {
+  val myApp =
+    for {
+      _   <- KeyValueStore.set("key", 5)
+      key <- KeyValueStore.get("key")
+    } yield key
+    
+  def run = myApp.provide(InmemoryKeyValueStore.layer).debug
+}
+```
+
 #### Writing Polymorphic Services
 
 ##### With Proper Type Parameters
