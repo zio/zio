@@ -731,7 +731,7 @@ object KeyValueStore {
 
 ```
 
-### Macros for Generating Accessor Methods
+### Generating Accessor Methods Using Macros
 
 Writing accessor methods is a repetitive task and would be cumbersome in services with many methods. We can automate the generation of accessor methods using `zio-macro` module. 
 
