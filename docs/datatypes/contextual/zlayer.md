@@ -276,7 +276,11 @@ val layer: ZLayer[Console & Clock, Nothing, Logging] =
 
 ## Building Dependency Graph
 
-The `ZLayer` offers various operators for composing layers together to build the dependency graph required by our application. In this section, we will learn more about these operators.
+We have two options to build a dependency graph:
+1. Manual layer construction
+2. Automatic layer construction
+
+The first method uses ZIO's composition operators such as horizontal (`++`) and vertical (`>>>`) compositions. The second one uses macro and automatically creates the dependency graph at compile time.
 
 ## Manual Layer Construction
 
