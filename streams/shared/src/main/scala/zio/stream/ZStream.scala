@@ -5797,14 +5797,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
-    )(implicit ev: IsNotIntersection[M], tag: Tag[M], trace: ZTraceElement): ZStream[R1, E, A] =
+    )(implicit tag: ServiceTag[M], trace: ZTraceElement): ZStream[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZStream[R1, E, A] =
+    )(implicit tag: ServiceTag[Map[Key, Service]], trace: ZTraceElement): ZStream[R1, E, A] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 

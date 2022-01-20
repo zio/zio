@@ -662,14 +662,14 @@ object Spec {
   final class UpdateService[-R, +E, +T, M](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
-    )(implicit ev: IsNotIntersection[M], tag: Tag[M], trace: ZTraceElement): Spec[R1, E, T] =
+    )(implicit tag: ServiceTag[M], trace: ZTraceElement): Spec[R1, E, T] =
       self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +T, Service](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): Spec[R1, E, T] =
+    )(implicit tag: ServiceTag[Map[Key, Service]], trace: ZTraceElement): Spec[R1, E, T] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 }

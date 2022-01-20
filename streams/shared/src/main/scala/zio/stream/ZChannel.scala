@@ -1908,7 +1908,7 @@ object ZChannel {
     def apply[Env1 <: Env with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit
-      tag: Tag[Map[Key, Service]],
+      tag: ServiceTag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       self.provideSomeEnvironment(_.updateAt(key)(f))

@@ -5548,7 +5548,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZIO[R1, E, A] =
+    )(implicit tag: ServiceTag[Map[Key, Service]], trace: ZTraceElement): ZIO[R1, E, A] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 

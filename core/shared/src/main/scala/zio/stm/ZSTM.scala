@@ -1754,7 +1754,7 @@ object ZSTM {
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
+    )(implicit tag: ServiceTag[Map[Key, Service]]): ZSTM[R1, E, A] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 

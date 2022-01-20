@@ -1547,7 +1547,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): ZManaged[R1, E, A] =
+    )(implicit tag: ServiceTag[Map[Key, Service]], trace: ZTraceElement): ZManaged[R1, E, A] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 

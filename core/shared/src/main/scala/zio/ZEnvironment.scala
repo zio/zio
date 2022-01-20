@@ -135,7 +135,7 @@ final class ZEnvironment[+R] private (
   /**
    * Updates a service in the environment correponding to the specified key.
    */
-  def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
+  def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: ServiceTag[Map[K, V]]): ZEnvironment[R] =
     self.add[Map[K, V]](unsafeGet[Map[K, V]](taggedTagType(tag)).updated(k, f(getAt(k).get)))
 
   /**
