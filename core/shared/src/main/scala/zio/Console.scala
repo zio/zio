@@ -53,10 +53,10 @@ trait Console extends Serializable {
 object Console extends Serializable {
 
   val any: ZLayer[Console, Nothing, Console] =
-    ZLayer.service[Console](Tag[Console], IsNotIntersection[Console], Tracer.newTrace)
+    ZLayer.service[Console](ServiceTag[Console], Tracer.newTrace)
 
   val live: Layer[Nothing, Console] =
-    ZLayer.succeed[Console](ConsoleLive)(Tag[Console], IsNotIntersection[Console], Tracer.newTrace)
+    ZLayer.succeed[Console](ConsoleLive)(ServiceTag[Console], Tracer.newTrace)
 
   object ConsoleLive extends Console {
 

@@ -8,7 +8,7 @@ import com.github.ghik.silencer.silent
 
 trait JvmMetrics { self =>
   type Feature
-  val featureTag: Tag[Feature]
+  val featureTag: ServiceTag[Feature]
 
   protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit]
 
@@ -20,7 +20,7 @@ trait JvmMetrics { self =>
    */
   lazy val live: ZLayer[Clock with System, Throwable, Feature] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    collectMetrics.toLayer(featureTag, IsNotIntersection[Feature], trace)
+    collectMetrics.toLayer(featureTag, trace)
   }
 
   /** A ZIO application that periodically updates the JVM metrics */

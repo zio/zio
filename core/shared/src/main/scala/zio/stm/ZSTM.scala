@@ -1535,7 +1535,7 @@ object ZSTM {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: Tag: IsNotIntersection]: ZSTM[A, Nothing, A] =
+  def service[A: ServiceTag]: ZSTM[A, Nothing, A] =
     ZSTM.environmentWith(_.get[A])
 
   /**
@@ -1548,15 +1548,14 @@ object ZSTM {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection]: ZSTM[A with B, Nothing, (A, B)] =
+  def services[A: ServiceTag, B: ServiceTag]: ZSTM[A with B, Nothing, (A, B)] =
     ZSTM.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection]
-    : ZSTM[A with B with C, Nothing, (A, B, C)] =
+  def services[A: ServiceTag, B: ServiceTag, C: ServiceTag]: ZSTM[A with B with C, Nothing, (A, B, C)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
@@ -1564,10 +1563,10 @@ object ZSTM {
    */
   @deprecated("use service", "2.0.0")
   def services[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection
+    A: ServiceTag,
+    B: ServiceTag,
+    C: ServiceTag,
+    D: ServiceTag
   ]: ZSTM[A with B with C with D, Nothing, (A, B, C, D)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 

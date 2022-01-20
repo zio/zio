@@ -1646,7 +1646,7 @@ object ZChannel {
   /**
    * Accesses the specified service in the environment of the channel.
    */
-  def service[Service: Tag: IsNotIntersection](implicit
+  def service[Service: ServiceTag](implicit
     trace: ZTraceElement
   ): ZChannel[Service, Any, Any, Any, Nothing, Nothing, Service] =
     ZChannel.fromZIO(ZIO.service)

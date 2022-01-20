@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
 
 trait BufferPools extends JvmMetrics {
   override type Feature = BufferPools
-  override val featureTag: Tag[BufferPools] = Tag[BufferPools]
+  override val featureTag = ServiceTag[BufferPools]
 
   /** Used bytes of a given JVM buffer pool. */
   private def bufferPoolUsedBytes(pool: String): ZIOMetric.Gauge[Long] =
