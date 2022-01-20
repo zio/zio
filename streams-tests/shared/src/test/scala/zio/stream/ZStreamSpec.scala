@@ -335,7 +335,11 @@ object ZStreamSpec extends ZIOBaseSpec {
                               .runCollect
                               .map(_.head)
             } yield assert(leftAssoc -> rightAssoc)(equalTo(true -> true))
-          )
+          ),
+          test("propagates errors") {
+            val stream = ZStream.acquireReleaseWith(ZIO.unit)(_ => ZIO.dieMessage("die"))
+            assertM(stream.runCollect.exit)(dies(anything))
+          }
         ),
         suite("branchAfter")(
           test("switches pipelines") {
