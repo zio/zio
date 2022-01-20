@@ -8,10 +8,6 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  trait Animal
-  trait Dog extends Animal
-  trait Cat extends Animal
-
   def testSize[R](layer: Layer[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
     layer.build.use(env => ZIO.succeed(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label)))
 
