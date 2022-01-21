@@ -37,7 +37,7 @@ object ZStreamPieces {
   stream.timeoutFail(???)(???)
   stream.timeoutFailCause(???)(???)
   stream.whenZIO(???)
-  ZStream.environment[String]
+  ZStream.environmentWith[String]
   ZStream.environmentWithZIO[String]
   ZStream.acquireReleaseWith(???)(???)
   ZStream.acquireReleaseExitWith(???)(???)
@@ -56,4 +56,8 @@ object ZStreamPieces {
   ZStream.unfoldChunkZIO(???)(???)
   ZStream.unfoldZIO(???)(???)
   ZStream.whenCaseZIO(???)
+
+  ZStream.environmentWith
+  ZStream.environmentWithZIO
+  ZStream.environmentWithStream
 }

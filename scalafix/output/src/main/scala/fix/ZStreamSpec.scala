@@ -56,7 +56,7 @@ object ZStreamSpec extends ZIOSpecDefault {
         ) @@ TestAspect.jvmOnly, // This is horrendously slow on Scala.js for some reason
         test("access") {
           for {
-            result <- ZStream.environment[String](identity).provide("test").runHead.get
+            result <- ZStream.environmentWith[String](identity).provide("test").runHead.get
 
           } yield assert(result)(equalTo("test"))
         },
@@ -3586,7 +3586,7 @@ object ZStreamSpec extends ZIOSpecDefault {
       suite("Constructors")(
         test("access") {
           for {
-            result <- ZStream.environment[String](identity).provide("test").runCollect.map(_.head)
+            result <- ZStream.environmentWith[String](identity).provide("test").runCollect.map(_.head)
           } yield assert(result)(equalTo("test"))
         },
         suite("accessM")(
