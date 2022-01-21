@@ -34,7 +34,7 @@ val eliminated: ZIO[Any, IOException, String] =
 ```
 
 ZIO provide this facility through the following concept and data types:
-1. [ZIO Environment](#zio-environment) — The `R` type parameter of `ZIO[R, E, A]` data type.
+1. [ZIO Environment](#1-zio-environment) — The `R` type parameter of `ZIO[R, E, A]` data type.
 2. [ZEnvironment](zenvironment.md) — Built-in type-level map for maintaining the environment of a `ZIO` data type. 
 3. [ZLayer](zlayer.md) — Describes how to build one or more services in our application.
 
