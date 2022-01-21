@@ -664,7 +664,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         Patch.replaceTree(t, "FiberId") +
           Patch.addGlobalImport(Symbol("zio/FiberId#"))
 
-      // TODO Safe to do for many similar types?
       case t @ q"import zio.duration.Duration" =>
         Patch.replaceTree(t, "import zio.Duration")
 
