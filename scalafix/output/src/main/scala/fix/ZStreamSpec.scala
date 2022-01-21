@@ -14,7 +14,7 @@ import zio.test._
 import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
-import zio.Clock
+import zio.{ Clock, ZEnvironment }
 import zio.test.{ Gen, TestClock, ZIOSpecDefault }
 
 object ZStreamSpec extends ZIOSpecDefault {
@@ -56,31 +56,31 @@ object ZStreamSpec extends ZIOSpecDefault {
         ) @@ TestAspect.jvmOnly, // This is horrendously slow on Scala.js for some reason
         test("access") {
           for {
-            result <- ZStream.environmentWith[String](identity).provide("test").runHead.get
+            result <- ZStream.environmentWith[String](identity).provideEnvironment(ZEnvironment("test")).runHead.get
 
           } yield assert(result)(equalTo("test"))
         },
         suite("accessM")(
           test("accessM") {
             for {
-              result <- ZStream.environmentWithZIO[String](ZIO.succeed(_)).provide("test").runHead.get
+              result <- ZStream.environmentWithZIO[String](ZIO.succeed(_)).provideEnvironment(ZEnvironment("test")).runHead.get
             } yield assert(result)(equalTo("test"))
           },
           test("accessM fails") {
             for {
-              result <- ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provide(0).runHead.exit
+              result <- ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provideEnvironment(ZEnvironment(0)).runHead.exit
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
         suite("accessStream")(
           test("accessStream") {
             for {
-              result <- ZStream.environmentWithStream[String](ZStream.succeed(_)).provide("test").runHead.get
+              result <- ZStream.environmentWithStream[String](ZStream.succeed(_)).provideEnvironment(ZEnvironment("test")).runHead.get
             } yield assert(result)(equalTo("test"))
           },
           test("accessStream fails") {
             for {
-              result <- ZStream.environmentWithStream[Int](_ => ZStream.fail("fail")).provide(0).runHead.exit
+              result <- ZStream.environmentWithStream[Int](_ => ZStream.fail("fail")).provideEnvironment(ZEnvironment(0)).runHead.exit
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
@@ -3540,7 +3540,7 @@ object ZStreamSpec extends ZIOSpecDefault {
             val b: ZIO[R, E, A]                            = ZIO.succeed(new A {})
             val pf: PartialFunction[A, ZStream[R1, E1, O]] = { case _ => ZStream(o) }
             val s: ZStream[R1, E1, O]                      = ZStream.whenCaseZIO(b)(pf)
-            assertM(s.runDrain.provide(new R1 {}))(isUnit)
+            assertM(s.runDrain.provideEnvironment(ZEnvironment(new R1 {})))(isUnit)
           }
         ),
         suite("whenM")(
@@ -3579,14 +3579,14 @@ object ZStreamSpec extends ZIOSpecDefault {
             val stream: ZStream[R1, E1, O] = ZStream(o)
             val s1: ZStream[R1, E1, O]     = ZStream.whenZIO(b)(stream)
             val s2: ZStream[R1, E1, O]     = stream.whenZIO(b)
-            assertM((s1 ++ s2).runDrain.provide(new R1 {}))(isUnit)
+            assertM((s1 ++ s2).runDrain.provideEnvironment(ZEnvironment(new R1 {})))(isUnit)
           }
         )
       ),
       suite("Constructors")(
         test("access") {
           for {
-            result <- ZStream.environmentWith[String](identity).provide("test").runCollect.map(_.head)
+            result <- ZStream.environmentWith[String](identity).provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
           } yield assert(result)(equalTo("test"))
         },
         suite("accessM")(
@@ -3594,14 +3594,14 @@ object ZStreamSpec extends ZIOSpecDefault {
             for {
               result <- ZStream
                           .environmentWithZIO[String](ZIO.succeedNow)
-                          .provide("test")
+                          .provideEnvironment(ZEnvironment("test"))
                           .runCollect
                           .map(_.head)
             } yield assert(result)(equalTo("test"))
           },
           test("accessM fails") {
             for {
-              result <- ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provide(0).runCollect.exit
+              result <- ZStream.environmentWithZIO[Int](_ => ZIO.fail("fail")).provideEnvironment(ZEnvironment(0)).runCollect.exit
             } yield assert(result)(fails(equalTo("fail")))
           }
         ),
@@ -3610,7 +3610,7 @@ object ZStreamSpec extends ZIOSpecDefault {
             for {
               result <- ZStream
                           .environmentWithStream[String](ZStream.succeed(_))
-                          .provide("test")
+                          .provideEnvironment(ZEnvironment("test"))
                           .runCollect
                           .map(_.head)
             } yield assert(result)(equalTo("test"))
@@ -3619,7 +3619,7 @@ object ZStreamSpec extends ZIOSpecDefault {
             for {
               result <- ZStream
                           .environmentWithStream[Int](_ => ZStream.fail("fail"))
-                          .provide(0)
+                          .provideEnvironment(ZEnvironment(0))
                           .runCollect
                           .exit
             } yield assert(result)(fails(equalTo("fail")))
@@ -3648,7 +3648,7 @@ object ZStreamSpec extends ZIOSpecDefault {
         },
         test("environment") {
           for {
-            result <- ZStream.environment[String].provide("test").runCollect.map(_.head)
+            result <- ZStream.environment[String].provideEnvironment(ZEnvironment("test")).runCollect.map(_.head)
           } yield assert(result)(equalTo("test"))
         },
         suite("finalizer")(

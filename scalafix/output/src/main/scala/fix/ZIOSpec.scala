@@ -11,7 +11,7 @@ import zio.test._
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
-import zio.{ Clock, FiberId, Random, Random, _ }
+import zio.{ Clock, FiberId, Random, Random, ZEnvironment, _ }
 import zio.test.{ Gen, Live, Sized, ZIOSpecDefault }
 
 object ZIOSpec extends ZIOSpecDefault {
@@ -3041,7 +3041,7 @@ object ZIOSpec extends ZIOSpecDefault {
         val zio =
           for {
             v1 <- ZIO.environment[Int]
-            v2 <- ZIO.environment[Int].provide(2)
+            v2 <- ZIO.environment[Int].provideEnvironment(ZEnvironment(2))
             v3 <- ZIO.environment[Int]
           } yield (v1, v2, v3)
 

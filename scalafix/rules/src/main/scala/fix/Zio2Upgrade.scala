@@ -690,7 +690,46 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
       case t @ ImporteeNameOrRename(FiberId_Old(_)) => Patch.removeImportee(t)
 
-    }.asPatch + replaceSymbols
+    }.asPatch + replaceSymbols + doc.tree.collect {
+      case t @ Term.Apply(
+      Term.Select(
+      a @ Term.Select(_, _),
+      p @ Term.Name("provide")
+      ),
+      List(args)
+      ) if a.symbol.owner.value.startsWith("zio") => {
+        val  output = s"ZEnvironment($args)"
+        Patch.addGlobalImport(Symbol("zio/ZEnvironment#")) +
+          Patch.replaceTree(p, "provideEnvironment") +
+          Patch.replaceTree(args, output)
+      }
+      case t @ Term.Apply(
+      Term.Select(
+      a @ Term.ApplyType(_, _),
+      p @ Term.Name("provide")
+      ),
+      List(args)
+      ) if a.symbol.owner.value.startsWith("zio") => {
+        val  output = s"ZEnvironment($args)"
+        Patch.addGlobalImport(Symbol("zio/ZEnvironment#")) +
+          Patch.replaceTree(p, "provideEnvironment") +
+          Patch.replaceTree(args, output)
+      }
+      case t @ Term.Apply(
+      Term.Select(
+      a @ Term.Apply(_, _),
+                      p @ Term.Name("provide")
+                    ),
+                    List(args)
+                  ) if a.symbol.owner.value.startsWith("zio") => {
+        val  output = s"ZEnvironment($args)"
+        Patch.addGlobalImport(Symbol("zio/ZEnvironment#")) +
+          Patch.replaceTree(p, "provideEnvironment") +
+          Patch.replaceTree(args, output)
+      }
+
+
+    }.asPatch
   }
 
   private def wildcardImport(ref: Term.Ref): Importer =
