@@ -40,3 +40,11 @@ for {
          }
 } yield ()
 ```
+
+## Miscellaneous
+
+With the `lineSeparator` method, we can determine the line separator for the underlying platform:
+
+```scala mdoc
+System.lineSeparator
+```

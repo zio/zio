@@ -227,7 +227,6 @@ module.exports = {
     "Overview": ["howto/index"],
     "How to": [
       "howto/handle-errors",
-      "howto/access-system-information",
     ],
     "Interop": [
       "howto/interop/with-cats-effect",
