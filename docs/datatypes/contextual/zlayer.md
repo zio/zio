@@ -1413,66 +1413,6 @@ object MainApp extends ZIOAppDefault {
 // done: v = 10 
 ```
 
-### An Example of a ZIO Application with Transitive Dependency
-
-In this example, we can see that the `C` service depends upon `A`, `B`, and `Clock`:
-
-```scala mdoc:compile-only
-import zio._
-
-trait A
-
-object A {
-  val live: ZLayer[Any, Nothing, A] =
-    ZLayer.succeed(new A {})
-}
-
-trait B
-
-object B {
-  val live: ZLayer[Any, Nothing, B] =
-    ZLayer.succeed(new B {})
-}
-
-trait C {
-  def foo: UIO[Int]
-}
-
-case class CLive(a: A, b: B) extends C {
-  val foo: UIO[Int] = {
-    // In real application we use A and B services to implement the C service
-    val _ = a
-    val _ = b
-    UIO.succeed(42)
-  }
-}
-
-object C {
-  val live: ZLayer[A & B & Clock, Nothing, C] =
-    ZLayer {
-      for {
-        a <- ZIO.service[A]
-        b <- ZIO.service[B]
-      } yield CLive(a, b)
-    }
-
-  val foo: URIO[C, Int] = ZIO.serviceWithZIO(_.foo)
-}
-
-object MainApp extends ZIOAppDefault {
-  val myApp = 
-    for {
-      r <- C.foo
-      _ <- Console.printLine(r)
-    } yield ()
-
-  def run = myApp.provideCustom(A.live, B.live, C.live)
-}
-
-// The Output:
-// 42
-```
-
 ### An Example of Manually Generating a Dependency Graph
 
 Suppose we have defined the ‍‍`UserRepo`, `DocumentRepo`, `Database`, `BlobStorage`, and `Cache` services and their respective implementations as follows:
