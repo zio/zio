@@ -404,7 +404,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   final def provideService[Service <: R](service: Service)(implicit
     ev1: NeedsEnv[R],
-    ev2: IsNotIntersection[Service],
     tag: Tag[Service],
     trace: ZTraceElement
   ): Spec[Any, E, T] =

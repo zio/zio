@@ -2865,7 +2865,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     service: Service
   )(implicit
     ev1: NeedsEnv[R],
-    ev2: IsNotIntersection[Service],
     tag: Tag[Service],
     trace: ZTraceElement
   ): ZStream[Any, E, A] =

@@ -843,7 +843,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def provideService[Service <: R](service: Service)(implicit
     ev1: NeedsEnv[R],
-    ev2: IsNotIntersection[Service],
     tag: Tag[Service],
     trace: ZTraceElement
   ): Managed[E, A] =

@@ -865,7 +865,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def provideService[Service <: Env](service: => Service)(implicit
     ev1: NeedsEnv[Env],
-    ev2: IsNotIntersection[Service],
     tag: Tag[Service],
     trace: ZTraceElement
   ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =

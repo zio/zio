@@ -565,7 +565,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
    */
   def provideService[Service <: R](
     service: Service
-  )(implicit tag: Tag[Service], ev: IsNotIntersection[Service]): STM[E, A] =
+  )(implicit tag: Tag[Service]): STM[E, A] =
     provideEnvironment(ZEnvironment(service))
 
   /**
