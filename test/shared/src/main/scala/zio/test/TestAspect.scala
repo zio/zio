@@ -656,7 +656,7 @@ object TestAspect extends TimeoutVariants {
    * to its starting state after the test is run. Note that this is only useful
    * when repeating tests.
    */
-  def restore[R0 <: Restorable](implicit tag: ServiceTag[R0]): TestAspectAtLeastR[R0] =
+  def restore[R0 <: Restorable](implicit tag: Tag[R0]): TestAspectAtLeastR[R0] =
     aroundWith(ZIO.serviceWithZIO[R0](_.save(ZTraceElement.empty))(tag, ZTraceElement.empty))(restore => restore)
 
   /**

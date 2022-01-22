@@ -1,7 +1,7 @@
 package zio.examples.test
 
 import zio.mock.mockable
-import zio.{IO, Tag, Task, UIO, URIO}
+import zio.{IO, EnvironmentTag, Task, UIO, URIO}
 
 object DifferentScopeExample {
 
@@ -17,16 +17,16 @@ object DifferentScopeExample {
     def task: Task[Long]
     def uio: UIO[Long]
     def urio: URIO[String, Long]
-    def poly1[A: Tag](a: A): UIO[Unit]
-    def poly2[A: Tag]: IO[A, Unit]
-    def poly3[A: Tag]: UIO[A]
-    def poly4[A: Tag, B: Tag](a: A): IO[B, Unit]
-    def poly5[A: Tag, B: Tag](a: A): IO[Unit, B]
-    def poly6[A: Tag, B: Tag]: IO[A, B]
-    def poly7[A: Tag, B: Tag, C: Tag](a: A): IO[B, C]
-    def poly8[A: Tag]: UIO[(A, String)]
-    def poly9[A <: Foo: Tag]: UIO[A]
-    def poly10[A: Tag](a: Wrapped[A]): UIO[A]
+    def poly1[A: EnvironmentTag](a: A): UIO[Unit]
+    def poly2[A: EnvironmentTag]: IO[A, Unit]
+    def poly3[A: EnvironmentTag]: UIO[A]
+    def poly4[A: EnvironmentTag, B: EnvironmentTag](a: A): IO[B, Unit]
+    def poly5[A: EnvironmentTag, B: EnvironmentTag](a: A): IO[Unit, B]
+    def poly6[A: EnvironmentTag, B: EnvironmentTag]: IO[A, B]
+    def poly7[A: EnvironmentTag, B: EnvironmentTag, C: EnvironmentTag](a: A): IO[B, C]
+    def poly8[A: EnvironmentTag]: UIO[(A, String)]
+    def poly9[A <: Foo: EnvironmentTag]: UIO[A]
+    def poly10[A: EnvironmentTag](a: Wrapped[A]): UIO[A]
   }
 }
 

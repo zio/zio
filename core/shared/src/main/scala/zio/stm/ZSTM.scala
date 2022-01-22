@@ -1535,7 +1535,7 @@ object ZSTM {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: ServiceTag]: ZSTM[A, Nothing, A] =
+  def service[A: Tag]: ZSTM[A, Nothing, A] =
     ZSTM.environmentWith(_.get[A])
 
   /**
@@ -1548,14 +1548,14 @@ object ZSTM {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: ServiceTag, B: ServiceTag]: ZSTM[A with B, Nothing, (A, B)] =
+  def services[A: Tag, B: Tag]: ZSTM[A with B, Nothing, (A, B)] =
     ZSTM.access(r => (r.get[A], r.get[B]))
 
   /**
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: ServiceTag, B: ServiceTag, C: ServiceTag]: ZSTM[A with B with C, Nothing, (A, B, C)] =
+  def services[A: Tag, B: Tag, C: Tag]: ZSTM[A with B with C, Nothing, (A, B, C)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C]))
 
   /**
@@ -1563,10 +1563,10 @@ object ZSTM {
    */
   @deprecated("use service", "2.0.0")
   def services[
-    A: ServiceTag,
-    B: ServiceTag,
-    C: ServiceTag,
-    D: ServiceTag
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag
   ]: ZSTM[A with B with C with D, Nothing, (A, B, C, D)] =
     ZSTM.access(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
@@ -1718,20 +1718,20 @@ object ZSTM {
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
-    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[Map[Key, Service], Nothing, Option[Service]] =
+    )(implicit tag: EnvironmentTag[Map[Key, Service]]): ZSTM[Map[Key, Service], Nothing, Option[Service]] =
       ZSTM.environmentWith(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: Service => A)(implicit
-      tag: ServiceTag[Service]
+      tag: Tag[Service]
     ): ZSTM[Service, Nothing, A] =
       ZSTM.service[Service].map(f)
   }
 
   final class ServiceWithSTMPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZSTM[R, E, A])(implicit
-      tag: ServiceTag[Service]
+      tag: Tag[Service]
     ): ZSTM[R with Service, E, A] =
       ZSTM.service[Service].flatMap(f)
   }
@@ -1747,14 +1747,14 @@ object ZSTM {
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
-    def apply[R1 <: R with M](f: M => M)(implicit tag: ServiceTag[M]): ZSTM[R1, E, A] =
+    def apply[R1 <: R with M](f: M => M)(implicit tag: Tag[M]): ZSTM[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit tag: ServiceTag[Map[Key, Service]]): ZSTM[R1, E, A] =
+    )(implicit tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 

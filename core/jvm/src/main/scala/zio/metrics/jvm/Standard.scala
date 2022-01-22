@@ -11,7 +11,7 @@ import scala.util.{Failure, Success, Try}
 
 trait Standard extends JvmMetrics {
   override type Feature = Standard
-  override val featureTag = ServiceTag[Standard]
+  override val featureTag = Tag[Standard]
 
   /** Total user and system CPU time spent in seconds. */
   private val cpuSecondsTotal: Gauge[Long] =

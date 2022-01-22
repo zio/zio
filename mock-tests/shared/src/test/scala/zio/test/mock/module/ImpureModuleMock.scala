@@ -2,7 +2,7 @@ package zio.mock.module
 
 import com.github.ghik.silencer.silent
 import zio.mock.{Mock, Proxy}
-import zio.{Tag, URLayer, ZIO}
+import zio.{EnvironmentTag, URLayer, ZIO}
 
 /**
  * Example module used for testing ZIO Mock framework.
@@ -49,22 +49,24 @@ object ImpureModuleMock extends Mock[ImpureModule] {
             def manyParamLists(a: Int)(b: String)(c: Long): String = rts.unsafeRunTask(proxy(ManyParamLists, a, b, c))
             @silent("side-effecting nullary methods")
             def command: Unit = rts.unsafeRunTask(proxy(Command))
-            def parameterizedCommand(a: Int): Unit                = rts.unsafeRunTask(proxy(ParameterizedCommand, a))
-            def overloaded(n: Int): String                        = rts.unsafeRunTask(proxy(Overloaded._0, n))
-            def overloaded(n: Long): String                       = rts.unsafeRunTask(proxy(Overloaded._1, n))
-            def polyInput[I: Tag](v: I): String                   = rts.unsafeRunTask(proxy(PolyInput.of[I], v))
-            def polyError[E <: Throwable: Tag](v: String): String = rts.unsafeRunTask(proxy(PolyError.of[E], v))
-            def polyOutput[A: Tag](v: String): A                  = rts.unsafeRunTask(proxy(PolyOutput.of[A], v))
-            def polyInputError[I: Tag, E <: Throwable: Tag](v: I): String =
+            def parameterizedCommand(a: Int): Unit         = rts.unsafeRunTask(proxy(ParameterizedCommand, a))
+            def overloaded(n: Int): String                 = rts.unsafeRunTask(proxy(Overloaded._0, n))
+            def overloaded(n: Long): String                = rts.unsafeRunTask(proxy(Overloaded._1, n))
+            def polyInput[I: EnvironmentTag](v: I): String = rts.unsafeRunTask(proxy(PolyInput.of[I], v))
+            def polyError[E <: Throwable: EnvironmentTag](v: String): String =
+              rts.unsafeRunTask(proxy(PolyError.of[E], v))
+            def polyOutput[A: EnvironmentTag](v: String): A = rts.unsafeRunTask(proxy(PolyOutput.of[A], v))
+            def polyInputError[I: EnvironmentTag, E <: Throwable: EnvironmentTag](v: I): String =
               rts.unsafeRunTask(proxy(PolyInputError.of[I, E], v))
-            def polyInputOutput[I: Tag, A: Tag](v: I): A = rts.unsafeRunTask(proxy(PolyInputOutput.of[I, A], v))
-            def polyErrorOutput[E <: Throwable: Tag, A: Tag](v: String): A =
+            def polyInputOutput[I: EnvironmentTag, A: EnvironmentTag](v: I): A =
+              rts.unsafeRunTask(proxy(PolyInputOutput.of[I, A], v))
+            def polyErrorOutput[E <: Throwable: EnvironmentTag, A: EnvironmentTag](v: String): A =
               rts.unsafeRunTask(proxy(PolyErrorOutput.of[E, A], v))
-            def polyInputErrorOutput[I: Tag, E <: Throwable: Tag, A: Tag](v: I): A =
+            def polyInputErrorOutput[I: EnvironmentTag, E <: Throwable: EnvironmentTag, A: EnvironmentTag](v: I): A =
               rts.unsafeRunTask(proxy(PolyInputErrorOutput.of[I, E, A], v))
-            def polyMixed[A: Tag]: (A, String)      = rts.unsafeRunTask(proxy(PolyMixed.of[(A, String)]))
-            def polyBounded[A <: AnyVal: Tag]: A    = rts.unsafeRunTask(proxy(PolyBounded.of[A]))
-            def varargs(a: Int, b: String*): String = rts.unsafeRunTask(proxy(Varargs, (a, b)))
+            def polyMixed[A: EnvironmentTag]: (A, String)   = rts.unsafeRunTask(proxy(PolyMixed.of[(A, String)]))
+            def polyBounded[A <: AnyVal: EnvironmentTag]: A = rts.unsafeRunTask(proxy(PolyBounded.of[A]))
+            def varargs(a: Int, b: String*): String         = rts.unsafeRunTask(proxy(Varargs, (a, b)))
             def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): String =
               rts.unsafeRunTask(proxy(CurriedVarargs, (a, b, c, d)))
             def byName(a: => Int): String = rts.unsafeRunTask(proxy(ByName, a))

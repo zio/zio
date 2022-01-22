@@ -19,7 +19,7 @@ package zio.mock.internal
 import zio.mock.{Capability, Expectation, Proxy}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
-import zio.{IO, Tag, ULayer, ZIO, ZLayer, ZTraceElement}
+import zio.{IO, EnvironmentTag, ULayer, ZIO, ZLayer, ZTraceElement}
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -35,7 +35,7 @@ object ProxyFactory {
   /**
    * Given initial `MockState[R]`, constructs a `Proxy` running that state.
    */
-  def mockProxy[R: Tag](state: MockState[R])(implicit trace: ZTraceElement): ULayer[Proxy] =
+  def mockProxy[R: EnvironmentTag](state: MockState[R])(implicit trace: ZTraceElement): ULayer[Proxy] =
     ZLayer.succeed(new Proxy {
       def invoke[RIn, ROut, I, E, A](invoked: Capability[RIn, I, E, A], args: I): ZIO[ROut, E, A] = {
         sealed trait MatchResult

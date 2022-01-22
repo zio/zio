@@ -18,7 +18,7 @@ package zio.mock
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion
-import zio.{=!=, IO, LightTypeTag, Tag, taggedIsSubtype, taggedTagType}
+import zio.{=!=, IO, LightTypeTag, EnvironmentTag, taggedIsSubtype, taggedTagType}
 
 import java.util.UUID
 
@@ -35,12 +35,13 @@ import java.util.UUID
  * extend publicly available `Effect`, `Method`, `Sink` or `Stream` type
  * members.
  */
-protected[mock] abstract class Capability[R: Tag, I: Tag, E: Tag, A: Tag](val mock: Mock[R])
-    extends Capability.Base[R] { self =>
+protected[mock] abstract class Capability[R: EnvironmentTag, I: EnvironmentTag, E: EnvironmentTag, A: EnvironmentTag](
+  val mock: Mock[R]
+) extends Capability.Base[R] { self =>
 
-  val inputTag: LightTypeTag  = taggedTagType(implicitly[Tag[I]])
-  val errorTag: LightTypeTag  = taggedTagType(implicitly[Tag[E]])
-  val outputTag: LightTypeTag = taggedTagType(implicitly[Tag[A]])
+  val inputTag: LightTypeTag  = taggedTagType(implicitly[EnvironmentTag[I]])
+  val errorTag: LightTypeTag  = taggedTagType(implicitly[EnvironmentTag[E]])
+  val outputTag: LightTypeTag = taggedTagType(implicitly[EnvironmentTag[A]])
 
   def apply()(implicit ev1: I =:= Unit, ev2: A <:< Unit): Expectation[R] =
     Expectation.Call[R, I, E, A](
@@ -88,68 +89,77 @@ object Capability {
 
   sealed abstract class Unknown
 
-  protected[mock] abstract class Poly[R: Tag, I, E, A] extends Base[R]
+  protected[mock] abstract class Poly[R: EnvironmentTag, I, E, A] extends Base[R]
 
   object Poly {
 
     /**
      * Represents capability of environment `R` polymorphic in its input type.
      */
-    protected[mock] abstract class Input[R: Tag, E: Tag, A: Tag](val mock: Mock[R]) extends Poly[R, Unknown, E, A] {
+    protected[mock] abstract class Input[R: EnvironmentTag, E: EnvironmentTag, A: EnvironmentTag](val mock: Mock[R])
+        extends Poly[R, Unknown, E, A] {
       self =>
 
-      def of[I: Tag]: Capability[R, I, E, A] =
+      def of[I: EnvironmentTag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      def of[I: Tag](assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
+      def of[I: EnvironmentTag](assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      def of[I: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit ev: I =!= Unit): Expectation[R] =
+      def of[I: EnvironmentTag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+        ev: I =!= Unit
+      ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      def of[I: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
+      def of[I: EnvironmentTag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
 
     /**
      * Represents capability of environment `R` polymorphic in its error type.
      */
-    protected[mock] abstract class Error[R: Tag, I: Tag, A: Tag, E1](val mock: Mock[R]) extends Poly[R, I, Unknown, A] {
+    protected[mock] abstract class Error[R: EnvironmentTag, I: EnvironmentTag, A: EnvironmentTag, E1](val mock: Mock[R])
+        extends Poly[R, I, Unknown, A] {
       self =>
 
-      def of[E <: E1: Tag]: Capability[R, I, E, A] =
+      def of[E <: E1: EnvironmentTag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      def of[E <: E1: Tag](assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
+      def of[E <: E1: EnvironmentTag](
+        assertion: Assertion[I]
+      )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      def of[E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+      def of[E <: E1: EnvironmentTag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      def of[E <: E1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
+      def of[E <: E1: EnvironmentTag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
 
     /**
      * Represents capability of environment `R` polymorphic in its output type.
      */
-    protected[mock] abstract class Output[R: Tag, I: Tag, E: Tag, A1](val mock: Mock[R])
-        extends Poly[R, I, E, Unknown] { self =>
+    protected[mock] abstract class Output[R: EnvironmentTag, I: EnvironmentTag, E: EnvironmentTag, A1](
+      val mock: Mock[R]
+    ) extends Poly[R, I, E, Unknown] { self =>
 
-      def of[A <: A1: Tag]: Capability[R, I, E, A] =
+      def of[A <: A1: EnvironmentTag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      def of[A <: A1: Tag](assertion: Assertion[I])(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
+      def of[A <: A1: EnvironmentTag](
+        assertion: Assertion[I]
+      )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      def of[A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+      def of[A <: A1: EnvironmentTag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      def of[A <: A1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
+      def of[A <: A1: EnvironmentTag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
 
@@ -157,23 +167,25 @@ object Capability {
      * Represents capability of environment `R` polymorphic in its input and
      * error types.
      */
-    protected[mock] abstract class InputError[R: Tag, A: Tag, E1](val mock: Mock[R])
+    protected[mock] abstract class InputError[R: EnvironmentTag, A: EnvironmentTag, E1](val mock: Mock[R])
         extends Poly[R, Unknown, Unknown, A] { self =>
 
-      def of[I: Tag, E <: E1: Tag]: Capability[R, I, E, A] =
+      def of[I: EnvironmentTag, E <: E1: EnvironmentTag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      def of[I: Tag, E <: E1: Tag](
+      def of[I: EnvironmentTag, E <: E1: EnvironmentTag](
         assertion: Assertion[I]
       )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      def of[I: Tag, E <: E1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+      def of[I: EnvironmentTag, E <: E1: EnvironmentTag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      def of[I: Tag, E <: E1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
+      def of[I: EnvironmentTag, E <: E1: EnvironmentTag](returns: Result[I, E, A])(implicit
+        ev: I <:< Unit
+      ): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
 
@@ -181,23 +193,25 @@ object Capability {
      * Represents capability of environment `R` polymorphic in its input and
      * output types.
      */
-    protected[mock] abstract class InputOutput[R: Tag, E: Tag, A1](val mock: Mock[R])
+    protected[mock] abstract class InputOutput[R: EnvironmentTag, E: EnvironmentTag, A1](val mock: Mock[R])
         extends Poly[R, Unknown, E, Unknown] { self =>
 
-      def of[I: Tag, A <: A1: Tag]: Capability[R, I, E, A] =
+      def of[I: EnvironmentTag, A <: A1: EnvironmentTag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      def of[I: Tag, A <: A1: Tag](
+      def of[I: EnvironmentTag, A <: A1: EnvironmentTag](
         assertion: Assertion[I]
       )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      def of[I: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+      def of[I: EnvironmentTag, A <: A1: EnvironmentTag](assertion: Assertion[I], result: Result[I, E, A])(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      def of[I: Tag, A <: A1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
+      def of[I: EnvironmentTag, A <: A1: EnvironmentTag](returns: Result[I, E, A])(implicit
+        ev: I <:< Unit
+      ): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
 
@@ -205,23 +219,25 @@ object Capability {
      * Represents capability of environment `R` polymorphic in its error and
      * output types.
      */
-    protected[mock] abstract class ErrorOutput[R: Tag, I: Tag, E1, A1](val mock: Mock[R])
+    protected[mock] abstract class ErrorOutput[R: EnvironmentTag, I: EnvironmentTag, E1, A1](val mock: Mock[R])
         extends Poly[R, I, Unknown, Unknown] { self =>
 
-      def of[E <: E1: Tag, A <: A1: Tag]: Capability[R, I, E, A] =
+      def of[E <: E1: EnvironmentTag, A <: A1: EnvironmentTag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      def of[E <: E1: Tag, A <: A1: Tag](
+      def of[E <: E1: EnvironmentTag, A <: A1: EnvironmentTag](
         assertion: Assertion[I]
       )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      def of[E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
-        ev: I =!= Unit
+      def of[E <: E1: EnvironmentTag, A <: A1: EnvironmentTag](assertion: Assertion[I], result: Result[I, E, A])(
+        implicit ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      def of[E <: E1: Tag, A <: A1: Tag](returns: Result[I, E, A])(implicit ev: I <:< Unit): Expectation[R] =
+      def of[E <: E1: EnvironmentTag, A <: A1: EnvironmentTag](returns: Result[I, E, A])(implicit
+        ev: I <:< Unit
+      ): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
 
@@ -229,29 +245,32 @@ object Capability {
      * Represents capability of environment `R` polymorphic in its input, error
      * and output types.
      */
-    protected[mock] abstract class InputErrorOutput[R: Tag, E1, A1](val mock: Mock[R])
+    protected[mock] abstract class InputErrorOutput[R: EnvironmentTag, E1, A1](val mock: Mock[R])
         extends Poly[R, Unknown, Unknown, Unknown] { self =>
 
-      def of[I: Tag, E <: E1: Tag, A <: A1: Tag]: Capability[R, I, E, A] =
+      def of[I: EnvironmentTag, E <: E1: EnvironmentTag, A <: A1: EnvironmentTag]: Capability[R, I, E, A] =
         toMethod[R, I, E, A](self)
 
-      def of[I: Tag, E <: E1: Tag, A <: A1: Tag](
+      def of[I: EnvironmentTag, E <: E1: EnvironmentTag, A <: A1: EnvironmentTag](
         assertion: Assertion[I]
       )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion)
 
-      def of[I: Tag, E <: E1: Tag, A <: A1: Tag](assertion: Assertion[I], result: Result[I, E, A])(implicit
+      def of[I: EnvironmentTag, E <: E1: EnvironmentTag, A <: A1: EnvironmentTag](
+        assertion: Assertion[I],
+        result: Result[I, E, A]
+      )(implicit
         ev: I =!= Unit
       ): Expectation[R] =
         toExpectation[R, I, E, A](self, assertion, result)
 
-      def of[I: Tag, E <: E1: Tag, A <: A1: Tag](
+      def of[I: EnvironmentTag, E <: E1: EnvironmentTag, A <: A1: EnvironmentTag](
         returns: Result[I, E, A]
       )(implicit ev: I <:< Unit): Expectation[R] =
         toExpectation[R, I, E, A](self, returns)
     }
 
-    private def toExpectation[R: Tag, I: Tag, E: Tag, A: Tag](
+    private def toExpectation[R: EnvironmentTag, I: EnvironmentTag, E: EnvironmentTag, A: EnvironmentTag](
       poly: Poly[R, _, _, _],
       assertion: Assertion[I]
     )(implicit ev1: I =!= Unit, ev2: A <:< Unit): Expectation[R] =
@@ -261,20 +280,20 @@ object Capability {
         ((_: I) => IO.unit).asInstanceOf[I => IO[E, A]]
       )
 
-    private def toExpectation[R: Tag, I: Tag, E: Tag, A: Tag](
+    private def toExpectation[R: EnvironmentTag, I: EnvironmentTag, E: EnvironmentTag, A: EnvironmentTag](
       poly: Poly[R, _, _, _],
       assertion: Assertion[I],
       result: Result[I, E, A]
     )(implicit ev: I =!= Unit): Expectation[R] =
       Expectation.Call[R, I, E, A](toMethod[R, I, E, A](poly), assertion, result.io)
 
-    private def toExpectation[R: Tag, I: Tag, E: Tag, A: Tag](
+    private def toExpectation[R: EnvironmentTag, I: EnvironmentTag, E: EnvironmentTag, A: EnvironmentTag](
       poly: Poly[R, _, _, _],
       returns: Result[I, E, A]
     )(implicit ev: I <:< Unit): Expectation[R] =
       Expectation.Call[R, I, E, A](toMethod[R, I, E, A](poly), Assertion.isUnit.asInstanceOf[Assertion[I]], returns.io)
 
-    private def toMethod[R: Tag, I: Tag, E: Tag, A: Tag](
+    private def toMethod[R: EnvironmentTag, I: EnvironmentTag, E: EnvironmentTag, A: EnvironmentTag](
       poly: Poly[R, _, _, _]
     ): Capability[R, I, E, A] = new Capability[R, I, E, A](poly.mock) {
       override val id: UUID         = poly.id

@@ -21,7 +21,7 @@ import zio.test._
 import zio.test.render._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-abstract class MockSpec[R: Tag] extends ZIOSpec[R] { self =>
+abstract class MockSpec[R: EnvironmentTag] extends ZIOSpec[R] { self =>
 
   override final def testReporter(testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
     trace: ZTraceElement

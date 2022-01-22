@@ -8,7 +8,7 @@ import java.lang.management.{ClassLoadingMXBean, ManagementFactory}
 
 trait ClassLoading extends JvmMetrics {
   override type Feature = ClassLoading
-  override val featureTag = ServiceTag[ClassLoading]
+  override val featureTag = Tag[ClassLoading]
 
   /** The number of classes that are currently loaded in the JVM */
   private val loadedClassCount: Gauge[Int] =

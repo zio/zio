@@ -1,6 +1,6 @@
 package zio.mock.module
 
-import zio.{IO, Tag, URIO, ZIO}
+import zio.{IO, EnvironmentTag, URIO, ZIO}
 
 import scala.reflect.ClassTag
 
@@ -20,15 +20,15 @@ trait PureModule {
   def looped(a: Int): IO[Nothing, Nothing]
   def overloaded(n: Int): IO[String, String]
   def overloaded(n: Long): IO[String, String]
-  def polyInput[I: Tag](v: I): IO[String, String]
-  def polyError[E: Tag](v: String): IO[E, String]
-  def polyOutput[A: Tag](v: String): IO[String, A]
-  def polyInputError[I: Tag, E: Tag](v: I): IO[E, String]
-  def polyInputOutput[I: Tag, A: Tag](v: I): IO[String, A]
-  def polyErrorOutput[E: Tag, A: Tag](v: String): IO[E, A]
-  def polyInputErrorOutput[I: Tag, E: Tag, A: Tag](v: I): IO[E, A]
-  def polyMixed[A: Tag]: IO[String, (A, String)]
-  def polyBounded[A <: AnyVal: Tag]: IO[String, A]
+  def polyInput[I: EnvironmentTag](v: I): IO[String, String]
+  def polyError[E: EnvironmentTag](v: String): IO[E, String]
+  def polyOutput[A: EnvironmentTag](v: String): IO[String, A]
+  def polyInputError[I: EnvironmentTag, E: EnvironmentTag](v: I): IO[E, String]
+  def polyInputOutput[I: EnvironmentTag, A: EnvironmentTag](v: I): IO[String, A]
+  def polyErrorOutput[E: EnvironmentTag, A: EnvironmentTag](v: String): IO[E, A]
+  def polyInputErrorOutput[I: EnvironmentTag, E: EnvironmentTag, A: EnvironmentTag](v: I): IO[E, A]
+  def polyMixed[A: EnvironmentTag]: IO[String, (A, String)]
+  def polyBounded[A <: AnyVal: EnvironmentTag]: IO[String, A]
   def varargs(a: Int, b: String*): IO[String, String]
   def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): IO[String, String]
   def byName(a: => Int): IO[String, String]
@@ -86,25 +86,25 @@ object PureModule {
     ZIO.serviceWithZIO[PureModule](_.overloaded(n))
   def overloaded(n: Long): ZIO[PureModule, String, String] =
     ZIO.serviceWithZIO[PureModule](_.overloaded(n))
-  def polyInput[I: NotAnyKind: Tag](v: I): ZIO[PureModule, String, String] =
+  def polyInput[I: NotAnyKind: EnvironmentTag](v: I): ZIO[PureModule, String, String] =
     ZIO.serviceWithZIO[PureModule](_.polyInput[I](v))
-  def polyError[E: NotAnyKind: Tag](v: String): ZIO[PureModule, E, String] =
+  def polyError[E: NotAnyKind: EnvironmentTag](v: String): ZIO[PureModule, E, String] =
     ZIO.serviceWithZIO[PureModule](_.polyError[E](v))
-  def polyOutput[A: NotAnyKind: Tag](v: String): ZIO[PureModule, String, A] =
+  def polyOutput[A: NotAnyKind: EnvironmentTag](v: String): ZIO[PureModule, String, A] =
     ZIO.serviceWithZIO[PureModule](_.polyOutput[A](v))
-  def polyInputError[I: NotAnyKind: Tag, E: NotAnyKind: Tag](v: I): ZIO[PureModule, E, String] =
+  def polyInputError[I: NotAnyKind: EnvironmentTag, E: NotAnyKind: EnvironmentTag](v: I): ZIO[PureModule, E, String] =
     ZIO.serviceWithZIO[PureModule](_.polyInputError[I, E](v))
-  def polyInputOutput[I: NotAnyKind: Tag, A: NotAnyKind: Tag](v: I): ZIO[PureModule, String, A] =
+  def polyInputOutput[I: NotAnyKind: EnvironmentTag, A: NotAnyKind: EnvironmentTag](v: I): ZIO[PureModule, String, A] =
     ZIO.serviceWithZIO[PureModule](_.polyInputOutput[I, A](v))
-  def polyErrorOutput[E: NotAnyKind: Tag, A: NotAnyKind: Tag](v: String): ZIO[PureModule, E, A] =
+  def polyErrorOutput[E: NotAnyKind: EnvironmentTag, A: NotAnyKind: EnvironmentTag](v: String): ZIO[PureModule, E, A] =
     ZIO.serviceWithZIO[PureModule](_.polyErrorOutput[E, A](v))
-  def polyInputErrorOutput[I: NotAnyKind: Tag, E: NotAnyKind: Tag, A: NotAnyKind: Tag](
+  def polyInputErrorOutput[I: NotAnyKind: EnvironmentTag, E: NotAnyKind: EnvironmentTag, A: NotAnyKind: EnvironmentTag](
     v: I
   ): ZIO[PureModule, E, A] =
     ZIO.serviceWithZIO[PureModule](_.polyInputErrorOutput[I, E, A](v))
-  def polyMixed[A: NotAnyKind: Tag]: ZIO[PureModule, String, (A, String)] =
+  def polyMixed[A: NotAnyKind: EnvironmentTag]: ZIO[PureModule, String, (A, String)] =
     ZIO.serviceWithZIO[PureModule](_.polyMixed[A])
-  def polyBounded[A <: AnyVal: NotAnyKind: Tag]: ZIO[PureModule, String, A] =
+  def polyBounded[A <: AnyVal: NotAnyKind: EnvironmentTag]: ZIO[PureModule, String, A] =
     ZIO.serviceWithZIO[PureModule](_.polyBounded[A])
   def varargs(a: Int, b: String*): ZIO[PureModule, String, String] =
     ZIO.serviceWithZIO[PureModule](_.varargs(a, b: _*))

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import zio.ServiceTagVersionSpecific
+import zio.TagVersionSpecific
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -91,13 +91,13 @@ package object zio
 
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
 
-  trait ServiceTag[A] extends Tag[A] {
+  trait Tag[A] extends EnvironmentTag[A] {
     def tag: LightTypeTag
   }
 
-  object ServiceTag extends ServiceTagVersionSpecific {
-    def apply[A](implicit tag0: Tag[A], isNotIntersection: IsNotIntersection[A]): ServiceTag[A] =
-      new ServiceTag[A] {
+  object Tag extends TagVersionSpecific {
+    def apply[A](implicit tag0: EnvironmentTag[A], isNotIntersection: IsNotIntersection[A]): Tag[A] =
+      new Tag[A] {
         def tag: zio.LightTypeTag = tag0.tag
 
         override def closestClass: Class[_] = tag0.closestClass

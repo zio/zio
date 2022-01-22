@@ -78,6 +78,6 @@ object ZState {
   /**
    * Creates a layer that outputs an initial state with the specified value.
    */
-  def makeLayer[S: Tag](s: => S)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, ZState[S]] =
+  def makeLayer[S: EnvironmentTag](s: => S)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, ZState[S]] =
     make(s).toLayer
 }

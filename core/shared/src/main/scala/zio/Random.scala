@@ -96,11 +96,11 @@ object Random extends Serializable {
   }
 
   val any: ZLayer[Random, Nothing, Random] = {
-    ZLayer.service[Random](ServiceTag[Random], Tracer.newTrace)
+    ZLayer.service[Random](Tag[Random], Tracer.newTrace)
   }
 
   val live: Layer[Nothing, Random] = {
-    ZLayer.succeed[Random](RandomLive)(ServiceTag[Random], Tracer.newTrace)
+    ZLayer.succeed[Random](RandomLive)(Tag[Random], Tracer.newTrace)
   }
 
   /**

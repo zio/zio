@@ -15,7 +15,7 @@ import scala.collection.JavaConverters._
 
 trait MemoryAllocation extends JvmMetrics {
   override type Feature = MemoryAllocation
-  override val featureTag           = ServiceTag[MemoryAllocation]
+  override val featureTag           = Tag[MemoryAllocation]
   implicit val trace: ZTraceElement = ZTraceElement.empty
 
   /**

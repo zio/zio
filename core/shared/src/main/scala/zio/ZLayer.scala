@@ -63,7 +63,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+  )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.zipWithPar(that)(_.union[ROut2](_))
 
   /**
@@ -79,7 +79,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit tag: Tag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+  )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.++[E1, RIn2, ROut1, ROut2](that)
 
   /**
@@ -88,7 +88,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
   )(implicit
-    tagged: Tag[ROut2],
+    tagged: EnvironmentTag[ROut2],
     trace: ZTraceElement
   ): ZLayer[RIn, E1, ROut1 with ROut2] =
     self.>+>[E1, RIn2, ROut1, ROut2](that)
@@ -120,7 +120,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     foldLayer(ZLayer.fail, f)
 
   final def flatten[RIn1 <: RIn, E1 >: E, ROut1 >: ROut, ROut2](implicit
-    tag: ServiceTag[ROut1],
+    tag: Tag[ROut1],
     ev1: ROut1 <:< ZLayer[RIn1, E1, ROut2],
     trace: ZTraceElement
   ): ZLayer[RIn1, E1, ROut2] =
@@ -271,7 +271,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Updates one of the services output by this layer.
    */
-  final def update[A >: ROut: ServiceTag](
+  final def update[A >: ROut: Tag](
     f: A => A
   )(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
     map(_.update[A](f))
@@ -362,7 +362,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from a managed resource.
    */
-  def apply[RIn, E, ROut: ServiceTag](managed: ZManaged[RIn, E, ROut])(implicit
+  def apply[RIn, E, ROut: Tag](managed: ZManaged[RIn, E, ROut])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromManaged(managed)
@@ -370,7 +370,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from an effectual resource.
    */
-  def apply[RIn, E, ROut: ServiceTag](zio: ZIO[RIn, E, ROut])(implicit
+  def apply[RIn, E, ROut: Tag](zio: ZIO[RIn, E, ROut])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
@@ -415,7 +415,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * }}}
      */
     val tree: ULayer[Debug] =
-      ZLayer.succeed[Debug](Debug.Tree)(ServiceTag[Debug], Tracer.newTrace)
+      ZLayer.succeed[Debug](Debug.Tree)(Tag[Debug], Tracer.newTrace)
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
@@ -449,17 +449,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * }}}
      */
     val mermaid: ULayer[Debug] =
-      ZLayer.succeed[Debug](Debug.Mermaid)(ServiceTag[Debug], Tracer.newTrace)
+      ZLayer.succeed[Debug](Debug.Mermaid)(Tag[Debug], Tracer.newTrace)
   }
 
   /**
    * Gathers up the ZLayer inside of the given collection, and combines them
    * into a single ZLayer containing an equivalent collection of results.
    */
-  def collectAll[R, E, A: ServiceTag, Collection[+Element] <: Iterable[Element]](
+  def collectAll[R, E, A: Tag, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZLayer[R, E, A]]
   )(implicit
-    tag: ServiceTag[Collection[A]],
+    tag: Tag[Collection[A]],
     bf: BuildFrom[Collection[ZLayer[R, E, A]], A, Collection[A]],
     trace: ZTraceElement
   ): ZLayer[R, E, Collection[A]] =
@@ -487,10 +487,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Applies the function `f` to each element of the `Collection[A]` and returns
    * the results in a new `Collection[B]`.
    */
-  def foreach[R, E, A, B: ServiceTag, Collection[+Element] <: Iterable[Element]](
+  def foreach[R, E, A, B: Tag, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
   )(f: A => ZLayer[R, E, B])(implicit
-    tag: ServiceTag[Collection[B]],
+    tag: Tag[Collection[B]],
     bf: BuildFrom[Collection[A], B, Collection[B]],
     trace: ZTraceElement
   ): ZLayer[R, E, Collection[B]] = {
@@ -508,7 +508,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from acquire and release actions. The acquire and
    * release actions will be performed uninterruptibly.
    */
-  def fromAcquireRelease[R, E, A: ServiceTag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
+  def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     fromManaged(ZManaged.acquireReleaseWith(acquire)(release))
@@ -540,7 +540,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified effect.
    */
   @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A: ServiceTag](zio: ZIO[R, E, A])(implicit
+  def fromEffect[R, E, A: Tag](zio: ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     fromZIO(zio)
@@ -558,7 +558,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from the environment using the specified function.
    */
-  def fromFunction[A, B: ServiceTag](f: ZEnvironment[A] => B)(implicit
+  def fromFunction[A, B: Tag](f: ZEnvironment[A] => B)(implicit
     trace: ZTraceElement
   ): ZLayer[A, Nothing, B] =
     fromFunctionZIO(a => ZIO.succeedNow(f(a)))
@@ -595,7 +595,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * function.
    */
   @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[A, E, B: ServiceTag](f: ZEnvironment[A] => IO[E, B])(implicit
+  def fromFunctionM[A, E, B: Tag](f: ZEnvironment[A] => IO[E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, E, B] =
     fromFunctionZIO(f)
@@ -604,7 +604,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the environment using the specified effectful
    * resourceful function.
    */
-  def fromFunctionManaged[A, E, B: ServiceTag](f: ZEnvironment[A] => ZManaged[Any, E, B])(implicit
+  def fromFunctionManaged[A, E, B: Tag](f: ZEnvironment[A] => ZManaged[Any, E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, E, B] =
     fromManaged(ZManaged.environmentWithManaged(f))
@@ -654,7 +654,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the environment using the specified effectful
    * function.
    */
-  def fromFunctionZIO[A, E, B: ServiceTag](f: ZEnvironment[A] => IO[E, B])(implicit
+  def fromFunctionZIO[A, E, B: Tag](f: ZEnvironment[A] => IO[E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, E, B] =
     fromFunctionManaged(a => f(a).toManaged)
@@ -663,7 +663,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that purely depends on the specified service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromService[A: ServiceTag, B: ServiceTag](f: A => B)(implicit
+  def fromService[A: Tag, B: Tag](f: A => B)(implicit
     trace: ZTraceElement
   ): ZLayer[A, Nothing, B] =
     fromServiceM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
@@ -672,7 +672,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that purely depends on the specified services.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServices[A0: ServiceTag, A1: ServiceTag, B: ServiceTag](
+  def fromServices[A0: Tag, A1: Tag, B: Tag](
     f: (A0, A1) => B
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1, Nothing, B] = {
     val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
@@ -684,10 +684,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2) => B
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2, Nothing, B] = {
@@ -700,11 +700,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3) => B
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2 with A3, Nothing, B] = {
@@ -717,12 +717,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4) => B
   )(implicit
@@ -737,13 +737,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5) => B
   )(implicit
@@ -758,14 +758,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => B
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6, Nothing, B] = {
@@ -778,15 +778,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
   )(implicit
@@ -801,16 +801,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
   )(implicit
@@ -825,17 +825,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
   )(implicit
@@ -850,18 +850,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -878,19 +878,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -907,20 +907,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -937,21 +937,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -968,22 +968,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1000,23 +1000,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1033,24 +1033,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1067,25 +1067,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1102,26 +1102,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1138,27 +1138,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1175,28 +1175,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1213,29 +1213,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServices[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
-    A21: ServiceTag,
-    B: ServiceTag
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1251,7 +1251,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that effectfully depends on the specified service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceM[A: ServiceTag, R, E, B: ServiceTag](f: A => ZIO[R, E, B])(implicit
+  def fromServiceM[A: Tag, R, E, B: Tag](f: A => ZIO[R, E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
     fromServiceManaged[A, R, E, B](a => f(a).toManaged)
@@ -1260,7 +1260,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that effectfully depends on the specified services.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[A0: ServiceTag, A1: ServiceTag, R, E, B: ServiceTag](
+  def fromServicesM[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] = {
     val layer = fromServicesManaged(andThen(f)(_.toManaged))
@@ -1272,12 +1272,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] = {
@@ -1290,13 +1290,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   )(implicit
@@ -1311,14 +1311,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   )(implicit
@@ -1333,15 +1333,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   )(implicit
@@ -1356,16 +1356,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] = {
@@ -1378,17 +1378,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
   )(implicit
@@ -1403,18 +1403,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
   )(implicit
@@ -1429,19 +1429,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
   )(implicit
@@ -1456,20 +1456,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1486,21 +1486,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1517,22 +1517,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1549,23 +1549,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1582,24 +1582,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1616,25 +1616,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1651,26 +1651,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1687,27 +1687,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1724,28 +1724,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1762,29 +1762,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1801,30 +1801,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -1841,31 +1841,31 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
-    A21: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (
       A0,
@@ -1905,7 +1905,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * the specified service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceManaged[A: ServiceTag, R, E, B: ServiceTag](f: A => ZManaged[R, E, B])(implicit
+  def fromServiceManaged[A: Tag, R, E, B: Tag](f: A => ZManaged[R, E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
     fromServiceManyManaged[A, R, E, B](a => f(a).asService)
@@ -1915,7 +1915,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * the specified services.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesManaged[A0: ServiceTag, A1: ServiceTag, R, E, B: ServiceTag](
+  def fromServicesManaged[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.asService))
@@ -1928,12 +1928,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] = {
@@ -1947,13 +1947,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3) => ZManaged[R, E, B]
   )(implicit
@@ -1969,14 +1969,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
   )(implicit
@@ -1992,15 +1992,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
   )(implicit
@@ -2016,16 +2016,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] = {
@@ -2039,17 +2039,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
   )(implicit
@@ -2065,18 +2065,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
   )(implicit
@@ -2092,19 +2092,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
   )(implicit
@@ -2120,20 +2120,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2151,21 +2151,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2183,22 +2183,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2216,23 +2216,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2250,24 +2250,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2285,25 +2285,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2321,26 +2321,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2358,27 +2358,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2396,28 +2396,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2435,29 +2435,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
   )(implicit trace: ZTraceElement): ZLayer[
@@ -2475,30 +2475,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (
       A0,
@@ -2563,31 +2563,31 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
-    A21: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     R,
     E,
-    B: ServiceTag
+    B: Tag
   ](
     f: (
       A0,
@@ -2622,18 +2622,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     layer
   }
 
-  def example[A: ServiceTag] = {
-    val int  = 3
-    val cool = implicitly[ServiceTag[List[A]]]
-  }
-
   /**
    * Constructs a layer that purely depends on the specified service, which must
    * return one or more services. For the more common variant that returns a
    * single service see `fromService`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceMany[A: ServiceTag, B](f: A => ZEnvironment[B])(implicit
+  def fromServiceMany[A: Tag, B](f: A => ZEnvironment[B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, Nothing, B] =
     fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
@@ -2644,7 +2639,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * a single service see `fromService`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[A0: ServiceTag, A1: ServiceTag, B](
+  def fromServicesMany[A0: Tag, A1: Tag, B](
     f: (A0, A1) => ZEnvironment[B]
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1, Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2657,7 +2652,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * a single service see `fromService`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[A0: ServiceTag, A1: ServiceTag, A2: ServiceTag, B](
+  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, B](
     f: (A0, A1, A2) => ZEnvironment[B]
   )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2, Nothing, B] = {
     val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
@@ -2671,10 +2666,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     B
   ](
     f: (A0, A1, A2, A3) => ZEnvironment[B]
@@ -2690,11 +2685,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4) => ZEnvironment[B]
@@ -2712,12 +2707,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5) => ZEnvironment[B]
@@ -2735,13 +2730,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZEnvironment[B]
@@ -2757,14 +2752,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZEnvironment[B]
@@ -2782,15 +2777,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZEnvironment[B]
@@ -2808,16 +2803,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZEnvironment[B]
@@ -2835,17 +2830,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZEnvironment[B]
@@ -2865,18 +2860,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZEnvironment[B]
@@ -2896,19 +2891,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZEnvironment[B]
@@ -2928,20 +2923,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZEnvironment[B]
@@ -2961,21 +2956,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZEnvironment[B]
@@ -2995,22 +2990,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZEnvironment[B]
@@ -3030,23 +3025,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZEnvironment[B]
@@ -3066,24 +3061,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZEnvironment[B]
@@ -3103,25 +3098,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZEnvironment[B]
@@ -3141,26 +3136,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZEnvironment[B]
@@ -3180,27 +3175,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZEnvironment[
@@ -3222,28 +3217,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesMany[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
-    A21: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     B
   ](
     f: (
@@ -3285,7 +3280,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * a single service see `fromServiceM`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceManyM[A: ServiceTag, R, E, B](f: A => ZIO[R, E, ZEnvironment[B]])(implicit
+  def fromServiceManyM[A: Tag, R, E, B](f: A => ZIO[R, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
     fromServiceManyManaged[A, R, E, B](a => f(a).toManaged)
@@ -3296,7 +3291,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * returns a single service see `fromServiceM`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[A0: ServiceTag, A1: ServiceTag, R, E, B](
+  def fromServicesManyM[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZIO[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -3309,7 +3304,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * returns a single service see `fromServiceM`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[A0: ServiceTag, A1: ServiceTag, A2: ServiceTag, R, E, B](
+  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZIO[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] = {
     val layer = fromServicesManyManaged(andThen(f)(_.toManaged))
@@ -3323,10 +3318,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     R,
     E,
     B
@@ -3344,11 +3339,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     R,
     E,
     B
@@ -3368,12 +3363,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     R,
     E,
     B
@@ -3393,13 +3388,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     R,
     E,
     B
@@ -3417,14 +3412,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     R,
     E,
     B
@@ -3444,15 +3439,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     R,
     E,
     B
@@ -3472,16 +3467,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     R,
     E,
     B
@@ -3501,17 +3496,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     R,
     E,
     B
@@ -3533,18 +3528,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     R,
     E,
     B
@@ -3566,19 +3561,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     R,
     E,
     B
@@ -3600,20 +3595,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     R,
     E,
     B
@@ -3635,21 +3630,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     R,
     E,
     B
@@ -3671,22 +3666,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     R,
     E,
     B
@@ -3708,23 +3703,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     R,
     E,
     B
@@ -3746,24 +3741,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     R,
     E,
     B
@@ -3785,25 +3780,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     R,
     E,
     B
@@ -3845,26 +3840,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     R,
     E,
     B
@@ -3907,27 +3902,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     R,
     E,
     B
@@ -3971,28 +3966,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
-    A21: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     R,
     E,
     B
@@ -4036,7 +4031,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * common variant that returns a single service see `fromServiceManaged`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServiceManyManaged[A: ServiceTag, R, E, B](f: A => ZManaged[R, E, ZEnvironment[B]])(implicit
+  def fromServiceManyManaged[A: Tag, R, E, B](f: A => ZManaged[R, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
     ZLayer.fromManagedMany(ZManaged.serviceWithManaged[A](f))
@@ -4047,7 +4042,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * common variant that returns a single service see `fromServiceManaged`.
    */
   @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyManaged[A0: ServiceTag, A1: ServiceTag, R, E, B](
+  def fromServicesManyManaged[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZManaged[R, E, ZEnvironment[B]]
   )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] =
     ZLayer.fromManagedMany {
@@ -4065,9 +4060,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
     R,
     E,
     B
@@ -4090,10 +4085,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
     R,
     E,
     B
@@ -4117,11 +4112,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
     R,
     E,
     B
@@ -4148,12 +4143,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
     R,
     E,
     B
@@ -4181,13 +4176,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
     R,
     E,
     B
@@ -4214,14 +4209,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
     R,
     E,
     B
@@ -4251,15 +4246,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
     R,
     E,
     B
@@ -4290,16 +4285,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
     R,
     E,
     B
@@ -4331,17 +4326,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
     R,
     E,
     B
@@ -4374,18 +4369,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
     R,
     E,
     B
@@ -4421,19 +4416,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
     R,
     E,
     B
@@ -4470,20 +4465,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
     R,
     E,
     B
@@ -4521,21 +4516,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
     R,
     E,
     B
@@ -4574,22 +4569,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
     R,
     E,
     B
@@ -4629,23 +4624,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
     R,
     E,
     B
@@ -4686,24 +4681,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
     R,
     E,
     B
@@ -4764,25 +4759,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
     R,
     E,
     B
@@ -4845,26 +4840,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
     R,
     E,
     B
@@ -4929,27 +4924,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
     R,
     E,
     B
@@ -5016,28 +5011,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyManaged[
-    A0: ServiceTag,
-    A1: ServiceTag,
-    A2: ServiceTag,
-    A3: ServiceTag,
-    A4: ServiceTag,
-    A5: ServiceTag,
-    A6: ServiceTag,
-    A7: ServiceTag,
-    A8: ServiceTag,
-    A9: ServiceTag,
-    A10: ServiceTag,
-    A11: ServiceTag,
-    A12: ServiceTag,
-    A13: ServiceTag,
-    A14: ServiceTag,
-    A15: ServiceTag,
-    A16: ServiceTag,
-    A17: ServiceTag,
-    A18: ServiceTag,
-    A19: ServiceTag,
-    A20: ServiceTag,
-    A21: ServiceTag,
+    A0: Tag,
+    A1: Tag,
+    A2: Tag,
+    A3: Tag,
+    A4: Tag,
+    A5: Tag,
+    A6: Tag,
+    A7: Tag,
+    A8: Tag,
+    A9: Tag,
+    A10: Tag,
+    A11: Tag,
+    A12: Tag,
+    A13: Tag,
+    A14: Tag,
+    A15: Tag,
+    A16: Tag,
+    A17: Tag,
+    A18: Tag,
+    A19: Tag,
+    A20: Tag,
+    A21: Tag,
     R,
     E,
     B
@@ -5102,7 +5097,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from a managed resource.
    */
-  def fromManaged[R, E, A: ServiceTag](m: ZManaged[R, E, A])(implicit
+  def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     ZLayer.fromManagedEnvironment(m.map(ZEnvironment(_)))
@@ -5129,7 +5124,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from the specified effect.
    */
-  def fromZIO[R, E, A: ServiceTag](zio: ZIO[R, E, A])(implicit
+  def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     fromZIOEnvironment(zio.map(ZEnvironment(_)))
@@ -5157,7 +5152,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * with respect to the `++` operator when the environment type is `Any`.
    */
   @deprecated("use environment", "2.0.0")
-  def identity[A: Tag](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
+  def identity[A: EnvironmentTag](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
     ZLayer.environment[A]
 
   /**
@@ -5165,7 +5160,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * output.
    */
   @deprecated("use environment", "2.0.0")
-  def requires[A: Tag](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
+  def requires[A: EnvironmentTag](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
     ZLayer.environment[A]
 
   /**
@@ -5179,13 +5174,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer that accesses and returns the specified service from the
    * environment.
    */
-  def service[A: ServiceTag](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
+  def service[A: Tag](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
     ZLayer.fromManaged(ZManaged.service[A])
 
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: ServiceTag](a: A)(implicit trace: ZTraceElement): ULayer[A] =
+  def succeed[A: Tag](a: A)(implicit trace: ZTraceElement): ULayer[A] =
     ZLayer.fromManagedEnvironment(ZManaged.succeedNow(ZEnvironment(a)))
 
   /**
@@ -5219,8 +5214,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * passes through the inputs.
      */
     def passthrough(implicit
-      in: Tag[RIn],
-      out: Tag[ROut],
+      in: EnvironmentTag[RIn],
+      out: EnvironmentTag[ROut],
       trace: ZTraceElement
     ): ZLayer[RIn, E, RIn with ROut] =
       ZLayer.environment[RIn] ++ self
@@ -5232,9 +5227,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Projects out part of one of the services output by this layer using the
      * specified function.
      */
-    def project[B: ServiceTag](
+    def project[B: Tag](
       f: A => B
-    )(implicit tag: ServiceTag[A], trace: ZTraceElement): ZLayer[R, E, B] =
+    )(implicit tag: Tag[A], trace: ZTraceElement): ZLayer[R, E, B] =
       self.map(environment => ZEnvironment(f(environment.get)))
   }
 
@@ -5501,7 +5496,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      */
     final def apply[R, E1 >: E, A](
       zio: ZIO[ROut with R, E1, A]
-    )(implicit ev1: Tag[R], ev2: Tag[ROut], trace: ZTraceElement): ZIO[RIn with R, E1, A] =
+    )(implicit ev1: EnvironmentTag[R], ev2: EnvironmentTag[ROut], trace: ZTraceElement): ZIO[RIn with R, E1, A] =
       ZIO.provideLayer[RIn, E1, ROut, R, A](self)(zio)
 
     /**
@@ -5510,7 +5505,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      */
     final def apply[R, E1 >: E, A](
       managed: ZManaged[ROut with R, E1, A]
-    )(implicit ev1: Tag[R], ev2: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with R, E1, A] =
+    )(implicit ev1: EnvironmentTag[R], ev2: EnvironmentTag[ROut], trace: ZTraceElement): ZManaged[RIn with R, E1, A] =
       ZManaged.provideLayer[RIn, E1, ROut, R, A](self)(managed)
 
     /**
@@ -5520,7 +5515,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      */
     def >>>[RIn2, E1 >: E, ROut2](
       that: ZLayer[ROut with RIn2, E1, ROut2]
-    )(implicit tag: Tag[ROut], trace: ZTraceElement): ZLayer[RIn with RIn2, E1, ROut2] =
+    )(implicit tag: EnvironmentTag[ROut], trace: ZTraceElement): ZLayer[RIn with RIn2, E1, ROut2] =
       ZLayer.To(ZLayer.environment[RIn2] ++ self, that)
 
     /**
@@ -5541,8 +5536,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def >+>[RIn2, E1 >: E, ROut2](
       that: ZLayer[ROut with RIn2, E1, ROut2]
     )(implicit
-      tagged: Tag[ROut],
-      tagged2: Tag[ROut2],
+      tagged: EnvironmentTag[ROut],
+      tagged2: EnvironmentTag[ROut2],
       trace: ZTraceElement
     ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
       self ++ self.>>>[RIn2, E1, ROut2](that)
@@ -5555,7 +5550,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
       that: ZLayer[RIn2, E1, ROut2]
     )(implicit
-      tagged: Tag[ROut2],
+      tagged: EnvironmentTag[ROut2],
       trace: ZTraceElement
     ): ZLayer[RIn, E1, ROut1 with ROut2] =
       self.zipWithPar(self >>> that)(_.union[ROut2](_))

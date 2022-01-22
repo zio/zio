@@ -1,6 +1,6 @@
 package zio.mock
 
-import zio.{IO, Tag, UIO, ZIO}
+import zio.{IO, EnvironmentTag, UIO, ZIO}
 import zio.stream.ZStream
 
 /**
@@ -75,30 +75,30 @@ object modules {
   type PolyPureDefsModule = PolyPureDefsModule.Service
   object PolyPureDefsModule {
     trait Service {
-      def polyInput[I: Tag](v: I): IO[String, String]
-      def polyError[E: Tag](v: String): IO[E, String]
-      def polyOutput[A: Tag](v: String): IO[String, A]
-      def polyInputError[I: Tag, E: Tag](v: I): IO[E, String]
-      def polyInputOutput[I: Tag, A: Tag](v: I): IO[String, A]
-      def polyErrorOutput[E: Tag, A: Tag](v: String): IO[E, A]
-      def polyInputErrorOutput[I: Tag, E: Tag, A: Tag](v: I): IO[E, A]
-      def polyMixed[A: Tag]: IO[String, (A, String)]
-      def polyBounded[A <: AnyVal: Tag]: IO[String, A]
+      def polyInput[I: EnvironmentTag](v: I): IO[String, String]
+      def polyError[E: EnvironmentTag](v: String): IO[E, String]
+      def polyOutput[A: EnvironmentTag](v: String): IO[String, A]
+      def polyInputError[I: EnvironmentTag, E: EnvironmentTag](v: I): IO[E, String]
+      def polyInputOutput[I: EnvironmentTag, A: EnvironmentTag](v: I): IO[String, A]
+      def polyErrorOutput[E: EnvironmentTag, A: EnvironmentTag](v: String): IO[E, A]
+      def polyInputErrorOutput[I: EnvironmentTag, E: EnvironmentTag, A: EnvironmentTag](v: I): IO[E, A]
+      def polyMixed[A: EnvironmentTag]: IO[String, (A, String)]
+      def polyBounded[A <: AnyVal: EnvironmentTag]: IO[String, A]
     }
   }
 
   type PolyImpureDefsModule = PolyImpureDefsModule.Service
   object PolyImpureDefsModule {
     trait Service {
-      def polyInput[I: Tag](v: I): String
-      def polyError[E <: Throwable: Tag](v: String): String
-      def polyOutput[A: Tag](v: String): A
-      def polyInputError[I: Tag, E <: Throwable: Tag](v: I): String
-      def polyInputOutput[I: Tag, A: Tag](v: I): A
-      def polyErrorOutput[E <: Throwable: Tag, A: Tag](v: String): A
-      def polyInputErrorOutput[I: Tag, E <: Throwable: Tag, A: Tag](v: I): A
-      def polyMixed[A: Tag]: (A, String)
-      def polyBounded[A <: AnyVal: Tag]: A
+      def polyInput[I: EnvironmentTag](v: I): String
+      def polyError[E <: Throwable: EnvironmentTag](v: String): String
+      def polyOutput[A: EnvironmentTag](v: String): A
+      def polyInputError[I: EnvironmentTag, E <: Throwable: EnvironmentTag](v: I): String
+      def polyInputOutput[I: EnvironmentTag, A: EnvironmentTag](v: I): A
+      def polyErrorOutput[E <: Throwable: EnvironmentTag, A: EnvironmentTag](v: String): A
+      def polyInputErrorOutput[I: EnvironmentTag, E <: Throwable: EnvironmentTag, A: EnvironmentTag](v: I): A
+      def polyMixed[A: EnvironmentTag]: (A, String)
+      def polyBounded[A <: AnyVal: EnvironmentTag]: A
     }
   }
 

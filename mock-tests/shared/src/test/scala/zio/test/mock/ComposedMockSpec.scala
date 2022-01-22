@@ -10,7 +10,7 @@ object ComposedMockSpec extends ZIOBaseSpec {
   import Assertion._
   import Expectation._
 
-  private def testValueComposed[R1: Tag, E, A](name: String)(
+  private def testValueComposed[R1: EnvironmentTag, E, A](name: String)(
     mock: ULayer[R1],
     app: ZIO[R1, E, A],
     check: Assertion[A]

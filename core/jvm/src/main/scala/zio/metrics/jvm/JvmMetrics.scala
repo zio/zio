@@ -8,7 +8,7 @@ import com.github.ghik.silencer.silent
 
 trait JvmMetrics { self =>
   type Feature
-  val featureTag: ServiceTag[Feature]
+  val featureTag: Tag[Feature]
 
   protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit]
 
@@ -25,9 +25,9 @@ trait JvmMetrics { self =>
 
   /** A ZIO application that periodically updates the JVM metrics */
   lazy val app: ZIOApp = new ZIOApp {
-    @silent private implicit val ftag: zio.Tag[Feature] = featureTag
-    private implicit val trace: ZTraceElement           = Tracer.newTrace
-    override val tag: Tag[Environment]                  = Tag[Environment]
+    @silent private implicit val ftag: zio.EnvironmentTag[Feature] = featureTag
+    private implicit val trace: ZTraceElement                      = Tracer.newTrace
+    override val tag: EnvironmentTag[Environment]                  = EnvironmentTag[Environment]
     override type Environment = Clock with System with Feature
     override val layer: ZLayer[ZIOAppArgs, Any, Environment] = {
       Clock.live ++ System.live >+> live

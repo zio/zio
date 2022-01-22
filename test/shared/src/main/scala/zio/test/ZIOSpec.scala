@@ -19,10 +19,10 @@ package zio.test
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-abstract class ZIOSpec[R: Tag] extends ZIOSpecAbstract { self =>
+abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract { self =>
   type Environment = R
 
-  final val tag: Tag[R] = Tag[R]
+  final val tag: EnvironmentTag[R] = EnvironmentTag[R]
 
   /**
    * Builds a spec with a single test.

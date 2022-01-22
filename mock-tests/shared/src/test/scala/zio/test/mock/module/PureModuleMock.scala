@@ -2,7 +2,7 @@ package zio.mock.module
 
 import com.github.ghik.silencer.silent
 import zio.mock.{Mock, Proxy}
-import zio.{IO, Tag, UIO, URLayer, ZIO}
+import zio.{IO, EnvironmentTag, UIO, URLayer, ZIO}
 
 /**
  * Example pure module used for testing ZIO Mock framework.
@@ -56,17 +56,20 @@ object PureModuleMock extends Mock[PureModule] {
             def looped(a: Int): UIO[Nothing]                                   = proxy(Looped, a)
             def overloaded(n: Int): IO[String, String]                         = proxy(Overloaded._0, n)
             def overloaded(n: Long): IO[String, String]                        = proxy(Overloaded._1, n)
-            def polyInput[I: Tag](v: I): IO[String, String]                    = proxy(PolyInput.of[I], v)
-            def polyError[E: Tag](v: String): IO[E, String]                    = proxy(PolyError.of[E], v)
-            def polyOutput[A: Tag](v: String): IO[String, A]                   = proxy(PolyOutput.of[A], v)
-            def polyInputError[I: Tag, E: Tag](v: I): IO[E, String]            = proxy(PolyInputError.of[I, E], v)
-            def polyInputOutput[I: Tag, A: Tag](v: I): IO[String, A]           = proxy(PolyInputOutput.of[I, A], v)
-            def polyErrorOutput[E: Tag, A: Tag](v: String): IO[E, A]           = proxy(PolyErrorOutput.of[E, A], v)
-            def polyInputErrorOutput[I: Tag, E: Tag, A: Tag](v: I): IO[E, A] =
+            def polyInput[I: EnvironmentTag](v: I): IO[String, String]         = proxy(PolyInput.of[I], v)
+            def polyError[E: EnvironmentTag](v: String): IO[E, String]         = proxy(PolyError.of[E], v)
+            def polyOutput[A: EnvironmentTag](v: String): IO[String, A]        = proxy(PolyOutput.of[A], v)
+            def polyInputError[I: EnvironmentTag, E: EnvironmentTag](v: I): IO[E, String] =
+              proxy(PolyInputError.of[I, E], v)
+            def polyInputOutput[I: EnvironmentTag, A: EnvironmentTag](v: I): IO[String, A] =
+              proxy(PolyInputOutput.of[I, A], v)
+            def polyErrorOutput[E: EnvironmentTag, A: EnvironmentTag](v: String): IO[E, A] =
+              proxy(PolyErrorOutput.of[E, A], v)
+            def polyInputErrorOutput[I: EnvironmentTag, E: EnvironmentTag, A: EnvironmentTag](v: I): IO[E, A] =
               proxy(PolyInputErrorOutput.of[I, E, A], v)
-            def polyMixed[A: Tag]: IO[String, (A, String)]      = proxy(PolyMixed.of[(A, String)])
-            def polyBounded[A <: AnyVal: Tag]: IO[String, A]    = proxy(PolyBounded.of[A])
-            def varargs(a: Int, b: String*): IO[String, String] = proxy(Varargs, (a, b))
+            def polyMixed[A: EnvironmentTag]: IO[String, (A, String)]   = proxy(PolyMixed.of[(A, String)])
+            def polyBounded[A <: AnyVal: EnvironmentTag]: IO[String, A] = proxy(PolyBounded.of[A])
+            def varargs(a: Int, b: String*): IO[String, String]         = proxy(Varargs, (a, b))
             def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): IO[String, String] =
               proxy(CurriedVarargs, (a, b, c, d))
             def byName(a: => Int): IO[String, String] = proxy(ByName, a)

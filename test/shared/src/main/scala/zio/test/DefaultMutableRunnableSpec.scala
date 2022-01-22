@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.internal.stacktracer.Tracer
-import zio.{ServiceTag, ZLayer}
+import zio.{Tag, ZLayer}
 
 /**
  * Syntax for writing test like
@@ -38,6 +38,6 @@ import zio.{ServiceTag, ZLayer}
 @deprecated("use DefaultRunnableSpec", "2.0.0")
 class DefaultMutableRunnableSpec
     extends MutableRunnableSpec[Any](
-      ZLayer.succeed[Any](())(ServiceTag[Any], Tracer.newTrace),
+      ZLayer.succeed[Any](())(Tag[Any], Tracer.newTrace),
       TestAspect.identity
     )

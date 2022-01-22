@@ -1,7 +1,7 @@
 package zio.mock.module
 
 import com.github.ghik.silencer.silent
-import zio.{Tag, URIO, ZIO}
+import zio.{EnvironmentTag, URIO, ZIO}
 
 /**
  * Example of impure module used for testing ZIO Mock framework.
@@ -17,15 +17,15 @@ trait ImpureModule {
   def parameterizedCommand(a: Int): Unit
   def overloaded(n: Int): String
   def overloaded(n: Long): String
-  def polyInput[I: Tag](v: I): String
-  def polyError[E <: Throwable: Tag](v: String): String
-  def polyOutput[A: Tag](v: String): A
-  def polyInputError[I: Tag, E <: Throwable: Tag](v: I): String
-  def polyInputOutput[I: Tag, A: Tag](v: I): A
-  def polyErrorOutput[E <: Throwable: Tag, A: Tag](v: String): A
-  def polyInputErrorOutput[I: Tag, E <: Throwable: Tag, A: Tag](v: I): A
-  def polyMixed[A: Tag]: (A, String)
-  def polyBounded[A <: AnyVal: Tag]: A
+  def polyInput[I: EnvironmentTag](v: I): String
+  def polyError[E <: Throwable: EnvironmentTag](v: String): String
+  def polyOutput[A: EnvironmentTag](v: String): A
+  def polyInputError[I: EnvironmentTag, E <: Throwable: EnvironmentTag](v: I): String
+  def polyInputOutput[I: EnvironmentTag, A: EnvironmentTag](v: I): A
+  def polyErrorOutput[E <: Throwable: EnvironmentTag, A: EnvironmentTag](v: String): A
+  def polyInputErrorOutput[I: EnvironmentTag, E <: Throwable: EnvironmentTag, A: EnvironmentTag](v: I): A
+  def polyMixed[A: EnvironmentTag]: (A, String)
+  def polyBounded[A <: AnyVal: EnvironmentTag]: A
   def varargs(a: Int, b: String*): String
   def curriedVarargs(a: Int, b: String*)(c: Long, d: Char*): String
   def byName(a: => Int): String
@@ -69,22 +69,24 @@ object ImpureModule {
     ZIO.service[ImpureModule].map(_.parameterizedCommand(a))
   def overloaded(n: Int): URIO[ImpureModule, String]  = ZIO.service[ImpureModule].map(_.overloaded(n))
   def overloaded(n: Long): URIO[ImpureModule, String] = ZIO.service[ImpureModule].map(_.overloaded(n))
-  def polyInput[I: Tag](v: I): URIO[ImpureModule, String] =
+  def polyInput[I: EnvironmentTag](v: I): URIO[ImpureModule, String] =
     ZIO.service[ImpureModule].map(_.polyInput(v))
-  def polyError[E <: Throwable: Tag](v: String): URIO[ImpureModule, String] =
+  def polyError[E <: Throwable: EnvironmentTag](v: String): URIO[ImpureModule, String] =
     ZIO.service[ImpureModule].map(_.polyError(v))
-  def polyOutput[A: Tag](v: String): URIO[ImpureModule, A] =
+  def polyOutput[A: EnvironmentTag](v: String): URIO[ImpureModule, A] =
     ZIO.service[ImpureModule].map(_.polyOutput(v))
-  def polyInputError[I: Tag, E <: Throwable: Tag](v: I): URIO[ImpureModule, String] =
+  def polyInputError[I: EnvironmentTag, E <: Throwable: EnvironmentTag](v: I): URIO[ImpureModule, String] =
     ZIO.service[ImpureModule].map(_.polyInputError[I, E](v))
-  def polyInputOutput[I: Tag, A: Tag](v: I): URIO[ImpureModule, A] =
+  def polyInputOutput[I: EnvironmentTag, A: EnvironmentTag](v: I): URIO[ImpureModule, A] =
     ZIO.service[ImpureModule].map(_.polyInputOutput[I, A](v))
-  def polyErrorOutput[E <: Throwable: Tag, A: Tag](v: String): URIO[ImpureModule, A] =
+  def polyErrorOutput[E <: Throwable: EnvironmentTag, A: EnvironmentTag](v: String): URIO[ImpureModule, A] =
     ZIO.service[ImpureModule].map(_.polyErrorOutput[E, A](v))
-  def polyInputErrorOutput[I: Tag, E <: Throwable: Tag, A: Tag](v: I): URIO[ImpureModule, A] =
+  def polyInputErrorOutput[I: EnvironmentTag, E <: Throwable: EnvironmentTag, A: EnvironmentTag](
+    v: I
+  ): URIO[ImpureModule, A] =
     ZIO.service[ImpureModule].map(_.polyInputErrorOutput[I, E, A](v))
-  def polyMixed[A: Tag]: URIO[ImpureModule, (A, String)] = ZIO.service[ImpureModule].map(_.polyMixed[A])
-  def polyBounded[A <: AnyVal: Tag]: URIO[ImpureModule, A] =
+  def polyMixed[A: EnvironmentTag]: URIO[ImpureModule, (A, String)] = ZIO.service[ImpureModule].map(_.polyMixed[A])
+  def polyBounded[A <: AnyVal: EnvironmentTag]: URIO[ImpureModule, A] =
     ZIO.service[ImpureModule].map(_.polyBounded[A])
   def varargs(a: Int, b: String*): URIO[ImpureModule, String] =
     ZIO.service[ImpureModule].map(_.varargs(a, b: _*))
