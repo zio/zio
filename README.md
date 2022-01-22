@@ -65,6 +65,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Conduktor](https://www.conduktor.io)
 * [Contramap](https://www.contramap.dev)
 * [Coralogix](https://coralogix.com)
+* [Credit Karma](https://creditkarma.com)
 * [CurrencyCloud](https://www.currencycloud.com/)
 * [D.E.Solution](https://de-solution.com/)
 * [DataChef](https://datachef.co)
