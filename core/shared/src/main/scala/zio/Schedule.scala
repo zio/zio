@@ -618,11 +618,14 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * this schedule.
    */
   def jittered(implicit trace: ZTraceElement): Schedule.WithState[self.State, Env with Random, In, Out] =
-    jittered(0.0, 1.0)
+    jittered(0.8, 1.2)
 
   /**
    * Returns a new schedule that randomly modifies the size of the intervals of
    * this schedule.
+   *
+   * The new interval size is between `min * old interval size` and `max * old
+   * interval size`.
    */
   def jittered(min: Double, max: Double)(implicit
     trace: ZTraceElement
