@@ -21,22 +21,25 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     val currInput = input
     input = prev
 
-    currInput.close(exit)
+    if (currInput ne null) currInput.close(exit) else ZIO.unit
   }
 
   private[this] final def popAllFinalizers(
     exit: Exit[Any, Any]
-  )(implicit trace: ZTraceElement): URIO[Env, Exit[Any, Any]] = {
+  )(implicit trace: ZTraceElement): URIO[Env, Any] = {
 
     @tailrec
-    def unwind(acc: ZIO[Env, Any, Any], conts: List[ErasedContinuation[Env]]): ZIO[Env, Any, Any] =
+    def unwind(
+      acc: ZIO[Env, Nothing, Exit[Nothing, Any]],
+      conts: List[ErasedContinuation[Env]]
+    ): ZIO[Env, Nothing, Exit[Nothing, Any]] =
       conts match {
         case Nil                                => acc
         case ZChannel.Fold.K(_, _) :: rest      => unwind(acc, rest)
         case ZChannel.Fold.Finalizer(f) :: rest => unwind(acc *> f(exit).exit, rest)
       }
 
-    val effect = unwind(ZIO.unit, doneStack).exit
+    val effect = unwind(ZIO.succeed(Exit.unit), doneStack).flatMap(ZIO.done(_))
     doneStack = Nil
     storeInProgressFinalizer(effect)
     effect
@@ -58,15 +61,15 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     builder.result()
   }
 
-  private[this] final def storeInProgressFinalizer(finalizer: URIO[Env, Exit[Any, Any]]): Unit =
+  private[this] final def storeInProgressFinalizer(finalizer: URIO[Env, Any]): Unit =
     inProgressFinalizer = finalizer
 
   private[this] final def clearInProgressFinalizer(): Unit =
     inProgressFinalizer = null
 
   def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): ZIO[Env, Nothing, Any] = {
-    def ifNotNull[R, E](zio: URIO[R, Exit[E, Any]]): URIO[R, Exit[E, Any]] =
-      if (zio ne null) zio else UIO.succeed(Exit.unit)
+    def ifNotNull[R](zio: URIO[R, Any]): URIO[R, Any] =
+      if (zio ne null) zio else ZIO.unit
 
     val runInProgressFinalizers = {
       val finalizer = inProgressFinalizer
@@ -80,7 +83,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       if (activeSubexecutor eq null) null
       else activeSubexecutor.close(ex)
 
-    val closeSelf: URIO[Env, Exit[Any, Any]] = {
+    val closeSelf: URIO[Env, Any] = {
       val selfFinalizers = popAllFinalizers(ex)
 
       if (selfFinalizers ne null)
@@ -91,10 +94,10 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     if ((closeSubexecutors eq null) && (runInProgressFinalizers eq null) && (closeSelf eq null)) null
     else
       (
-        ifNotNull(closeSubexecutors) <*>
-          ifNotNull(runInProgressFinalizers) <*>
-          ifNotNull(closeSelf)
-      ).map { case (a, b, c) => a *> b *> c }.uninterruptible
+        ifNotNull(closeSubexecutors).exit <*>
+          ifNotNull(runInProgressFinalizers).exit <*>
+          ifNotNull(closeSelf).exit
+      ).map { case (a, b, c) => a *> b *> c }.uninterruptible.flatMap(ZIO.done(_))
   }
 
   def getDone: Exit[OutErr, OutDone] = done.asInstanceOf[Exit[OutErr, OutDone]]
@@ -302,7 +305,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private[this] var emitted: Any = _
 
   @volatile
-  private[this] var inProgressFinalizer: URIO[Env, Exit[Any, Any]] = _
+  private[this] var inProgressFinalizer: URIO[Env, Any] = _
 
   @volatile
   var input: ErasedExecutor[Env] = _
@@ -421,12 +424,13 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private[this] def runFinalizers(finalizers: List[Finalizer[Env]], ex: Exit[Any, Any])(implicit
     trace: ZTraceElement
-  ): URIO[Env, Exit[Any, Any]] =
+  ): URIO[Env, Any] =
     if (finalizers.isEmpty) null
     else
       ZIO
         .foreach(finalizers)(_.apply(ex).exit)
         .map(results => Exit.collectAll(results) getOrElse Exit.unit)
+        .flatMap(ZIO.done(_))
 
   private[this] def runSubexecutor()(implicit trace: ZTraceElement): ChannelState[Env, Any] =
     activeSubexecutor match {
@@ -802,7 +806,7 @@ object ChannelExecutor {
     else r.exit
 
   sealed abstract class Subexecutor[R] {
-    def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]]
+    def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Any]
 
     def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R]
   }
@@ -822,17 +826,19 @@ object ChannelExecutor {
       onPull: UpstreamPullRequest[Any] => UpstreamPullStrategy[Any],
       onEmit: Any => ChildExecutorDecision
     ) extends Subexecutor[R] { self =>
-      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] = {
+      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Any] = {
         val fin1 = upstreamExecutor.close(ex)
         val fins =
           activeChildExecutors.map(child => if (child != null) child.childExecutor.close(ex) else null).enqueue(fin1)
 
-        fins.foldLeft[URIO[R, Exit[Any, Any]]](null) { case (acc, next) =>
-          if ((acc eq null) && (next eq null)) null
-          else if (acc eq null) next.exit
-          else if (next eq null) acc
-          else acc.zipWith(next.exit)(_ *> _)
-        }
+        fins
+          .foldLeft[URIO[R, Exit[Nothing, Any]]](null) { case (acc, next) =>
+            if ((acc eq null) && (next eq null)) null
+            else if (acc eq null) next.exit
+            else if (next eq null) acc
+            else acc.zipWith(next.exit)(_ *> _)
+          }
+          .flatMap(ZIO.done(_))
       }
 
       override def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R] =
@@ -848,13 +854,13 @@ object ChannelExecutor {
       parentSubexecutor: Subexecutor[R],
       onEmit: Any => ChildExecutorDecision
     ) extends Subexecutor[R] {
-      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] = {
+      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Any] = {
         val fin1 = childExecutor.close(ex)
         val fin2 = parentSubexecutor.close(ex)
 
         if ((fin1 eq null) && (fin2 eq null)) null
-        else if ((fin1 ne null) && (fin2 ne null)) fin1.exit.zipWith(fin2)(_ *> _)
-        else if (fin1 ne null) fin1.exit
+        else if ((fin1 ne null) && (fin2 ne null)) fin1.exit.zipWith(fin2.exit)(_ *> _).flatMap(ZIO.done(_))
+        else if (fin1 ne null) fin1
         else fin2
       }
 
@@ -893,7 +899,7 @@ object ChannelExecutor {
     }
 
     final case class Emit[R](value: Any, next: Subexecutor[R]) extends Subexecutor[R] {
-      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] =
+      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Any] =
         next.close(ex)
 
       override def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R] =

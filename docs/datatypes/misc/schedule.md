@@ -257,6 +257,8 @@ val jitteredExp = Schedule.exponential(10.milliseconds).jittered
 
 When a resource is out of service due to overload or contention, retrying and backing off doesn't help us. If all failed API calls are backed off to the same point of time, they cause another overload or contention. Jitter adds some amount of randomness to the delay of the schedule. This helps us to avoid ending up accidentally synchronizing and taking the service down by accident.
 
+The form with parameters `min` and `max` creates a new schedule where the new interval size is randomly distributed between `min * old interval` and `max * old interval`.
+
 ### Collecting
 A `collectAll` is a combinator that when we call it on a schedule, produces a new schedule that collects the outputs of the first schedule into a chunk.
 

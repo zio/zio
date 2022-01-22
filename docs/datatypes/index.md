@@ -28,6 +28,7 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  - **[Cause](core/cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
 
 ## Contextual Data Types
+- **[ZEnvironment](contextual/zenvironment.md)** — A `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect.
 - **[ZLayer](contextual/zlayer.md)** — The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
     + **[RLayer](contextual/rlayer.md)** — `RLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Throwable, ROut]`, which represents a layer that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
     + **[ULayer](contextual/ulayer.md)** — ULayer[+ROut] is a type alias for ZLayer[Any, Nothing, ROut], which represents a layer that doesn't require any services as its input, it can't fail, and returns ROut as its output.

@@ -14,10 +14,11 @@ object LoggingSpec extends ZIOBaseSpec {
     message: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
     spans: List[LogSpan],
-    location: ZTraceElement
+    location: ZTraceElement,
+    annotations: Map[String, String]
   ) {
     def call[A](zlogger: ZLogger[String, A]): A =
-      zlogger(trace, fiberId, logLevel, message, context, spans, location)
+      zlogger(trace, fiberId, logLevel, message, context, spans, location, annotations)
   }
 
   val _logOutput = new java.util.concurrent.atomic.AtomicReference[Vector[LogEntry]](Vector.empty)
@@ -36,14 +37,15 @@ object LoggingSpec extends ZIOBaseSpec {
         message: () => String,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
-        location: ZTraceElement
+        location: ZTraceElement,
+        annotations: Map[String, String]
       ): Unit = if (logLevel >= LogLevel.Info) {
-        val newEntry = LogEntry(trace, fiberId, logLevel, message, context, spans, location)
+        val newEntry = LogEntry(trace, fiberId, logLevel, message, context, spans, location, annotations)
 
         val oldState = _logOutput.get
 
         if (!_logOutput.compareAndSet(oldState, oldState :+ newEntry))
-          apply(trace, fiberId, logLevel, message, context, spans, location)
+          apply(trace, fiberId, logLevel, message, context, spans, location, annotations)
         else ()
       }
     }
@@ -106,6 +108,15 @@ object LoggingSpec extends ZIOBaseSpec {
           _      <- ZIO.log("It's alive!") @@ disableLogging
           output <- logOutput
         } yield assertTrue(output.length == 0)
+      },
+      test("log annotations") {
+        val key   = "key"
+        val value = "value"
+        for {
+          _      <- ZIO.logAnnotate(key, value)(ZIO.log("It's alive!"))
+          output <- logOutput
+        } yield assertTrue(output.length == 1) &&
+          assertTrue(output(0).annotations(key) == value)
       }
     ) @@ sequential @@ after(clearOutput) @@ TestAspect.runtimeConfig(
       RuntimeConfigAspect.addLogger(stringLogger)

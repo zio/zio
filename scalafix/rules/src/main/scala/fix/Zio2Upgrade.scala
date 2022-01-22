@@ -9,6 +9,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val renames =
     Map(
+      "access"          -> "environment",
+      "accessManaged"          -> "environmentWithManaged",
       "accessM"                -> "environmentWithZIO",
       "accessZIO"              -> "environmentWithZIO",
       "asEC"                   -> "asExecutionContext",
@@ -188,8 +190,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "collectAll_"   -> "collectAllDiscard",
       "foldM"         -> "foldSTM",
       "foreach_"      -> "foreachDiscard",
-      "fromFunction"  -> "access",
-      "fromFunctionM" -> "accessSTM",
+      "fromFunction"  -> "environmentWith", // TODO Check STM specifics
+      "fromFunctionM" -> "environmentWithSTM", // TODO Check STM specifics
       "ifM"           -> "ifSTM",
       "loop_"         -> "loopDiscard",
       "partial"       -> "attempt",
@@ -205,7 +207,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   val StreamRenames = Renames(
     List("zio.stream.ZStream"),
     Map(
-      "access" -> "environment",
+      "access" -> "environmentWith",
       "accessM" -> "environmentWithZIO",
       "accessZIO" -> "environmentWithZIO", // RC only
       "dropWhileM" -> "dropWhileZIO", // RC only, cannot test
@@ -304,8 +306,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "foldCauseM"                -> "foldCauseManaged",
       "foldM"                     -> "foldManaged",
       "fromEffectUninterruptible" -> "fromZIOUninterruptible",
-      "fromFunction"              -> "access",
-      "fromFunctionM"             -> "accessManaged",
+      "fromFunction"              -> "environmentWith",
+      "fromFunctionM"             -> "environmentWithManaged",
       "ifM"                       -> "ifManaged",
       "make"                      -> "acquireReleaseWith",
       "makeEffect"                -> "acquireReleaseAttemptWith",
@@ -662,7 +664,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         Patch.replaceTree(t, "FiberId") +
           Patch.addGlobalImport(Symbol("zio/FiberId#"))
 
-      // TODO Safe to do for many similar types?
       case t @ q"import zio.duration.Duration" =>
         Patch.replaceTree(t, "import zio.Duration")
 

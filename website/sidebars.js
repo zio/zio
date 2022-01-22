@@ -38,9 +38,10 @@ module.exports = {
     ],
     "Contextual Types": [
         "datatypes/contextual/index",
+        "datatypes/contextual/zenvironment",
         {
             type: "category",
-            label: "ZIO Dependencies",
+            label: "ZIO Layers",
             items: [
                 "datatypes/contextual/zlayer",
                 "datatypes/contextual/rlayer",
@@ -226,8 +227,6 @@ module.exports = {
     "Overview": ["howto/index"],
     "How to": [
       "howto/handle-errors",
-      "howto/access-system-information",
-      "howto/use-zio-macros"
     ],
     "Interop": [
       "howto/interop/with-cats-effect",

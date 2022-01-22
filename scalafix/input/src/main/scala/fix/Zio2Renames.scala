@@ -98,6 +98,7 @@ object Zio2Renames {
   
   ZManaged.fromFunction( (x: Int) => x)
   ZManaged.fromFunctionM( (x: Int) => ZManaged.succeed(x))
-  
+  ZManaged.accessManaged( (x: Int) => ZManaged.succeed(x))
+
   ZIO.serviceWith
 }

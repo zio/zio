@@ -399,6 +399,18 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     provideSomeEnvironment(_ => r)
 
   /**
+   * Provides each test in this spec with the single service it requires. If
+   * this spec requires multiple services use `provideEnvironment` instead.
+   */
+  final def provideService[Service <: R](service: Service)(implicit
+    ev1: NeedsEnv[R],
+    ev2: IsNotIntersection[Service],
+    tag: Tag[Service],
+    trace: ZTraceElement
+  ): Spec[Any, E, T] =
+    provideEnvironment(ZEnvironment(service))
+
+  /**
    * Provides a layer to the spec, translating it up a level.
    */
   final def provideLayer[E1 >: E, R0](

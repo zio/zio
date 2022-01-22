@@ -59,4 +59,8 @@ object ZStreamPieces {
   ZStream.unfoldChunkM(???)(???)
   ZStream.unfoldM(???)(???)
   ZStream.whenCaseM(???)
+
+  ZStream.access
+  ZStream.accessM
+  ZStream.accessStream
 }

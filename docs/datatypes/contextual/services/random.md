@@ -5,25 +5,27 @@ title: "Random"
 
 Random service provides utilities to generate random numbers. It's a functional wrapper of `scala.util.Random`. This service contains various different pseudo-random generators like `nextInt`, `nextBoolean` and `nextDouble`. Each random number generator functions return a `URIO[Random, T]` value.
 
-```scala mdoc:silent
-import zio.Random._
-import zio.Console._
+```scala mdoc:compile-only
+import zio._
+
 for {
-  randomInt <- nextInt
-  _ <- printLine(s"A random Int: $randomInt")
-  randomChar <- nextPrintableChar
-  _ <- printLine(s"A random Char: $randomChar")
-  randomDouble <- nextDoubleBetween(1.0, 5.0)
-  _ <- printLine(s"A random double between 1.0 and 5.0: $randomDouble")
+  randomInt    <- Random.nextInt
+  _            <- Console.printLine(s"A random Int: $randomInt")
+  randomChar   <- Random.nextPrintableChar
+  _            <- Console.printLine(s"A random Char: $randomChar")
+  randomDouble <- Random.nextDoubleBetween(1.0, 5.0)
+  _            <- Console.printLine(s"A random double between 1.0 and 5.0: $randomDouble")
 } yield ()
 ```
 
 Random service has a `setSeed` which helps us to alter the state of the random generator. It is useful when writing the test version of Random service when we need a generation of the same sequence of numbers.
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 for {
-  _ <- setSeed(0)
-  nextInts <- (nextInt zip nextInt)
+  _        <- Random.setSeed(0)
+  nextInts <- (Random.nextInt zip Random.nextInt)
 } yield assert(nextInts == (-1155484576,-723955400))
 ```
 

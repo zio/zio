@@ -95,8 +95,9 @@ object Zio2Renames {
 
   ZIO.executor.map(_.asExecutionContext)
   
-  ZManaged.access( (x: Int) => x)
-  ZManaged.accessManaged( (x: Int) => ZManaged.succeed(x))
-  
+  ZManaged.environmentWith( (x: Int) => x)
+  ZManaged.environmentWithManaged( (x: Int) => ZManaged.succeed(x))
+  ZManaged.environmentWithManaged( (x: Int) => ZManaged.succeed(x))
+
   ZIO.serviceWithZIO
 }
