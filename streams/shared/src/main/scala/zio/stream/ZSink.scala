@@ -1503,6 +1503,85 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def leftover[L](c: => Chunk[L])(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, L, Unit] =
     new ZSink(ZChannel.suspend(ZChannel.write(c)))
 
+  /**
+   * Logs the specified message at the current log level.
+   */
+  def log(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    ZSink.fromZIO(ZIO.log(message))
+
+  /**
+   * Annotates each log in streams composed after this with the specified log
+   * annotation.
+   */
+  def logAnnotate[R, E, In, L, Z](key: => String, value: => String)(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, In, L, Z] =
+    ZSink.unwrapManaged(ZManaged.logAnnotate(key, value).as(sink))
+
+  /**
+   * Retrieves the log annotations associated with the current scope.
+   */
+  def logAnnotations(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Map[String, String]] =
+    ZSink.fromZIO(ZFiberRef.currentLogAnnotations.get)
+
+  /**
+   * Logs the specified message at the debug log level.
+   */
+  def logDebug(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    ZSink.fromZIO(ZIO.logDebug(message))
+
+  /**
+   * Logs the specified message at the error log level.
+   */
+  def logError(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    ZSink.fromZIO(ZIO.logError(message))
+
+  /**
+   * Logs the specified cause as an error.
+   */
+  def logErrorCause(cause: => Cause[Any])(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    ZSink.fromZIO(ZIO.logErrorCause(cause))
+
+  /**
+   * Logs the specified message at the fatal log level.
+   */
+  def logFatal(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    ZSink.fromZIO(ZIO.logFatal(message))
+
+  /**
+   * Logs the specified message at the informational log level.
+   */
+  def logInfo(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    ZSink.fromZIO(ZIO.logInfo(message))
+
+  /**
+   * Sets the log level for streams composed after this.
+   */
+  def logLevel[R, E, In, L, Z](level: LogLevel)(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, In, L, Z] =
+    ZSink.unwrapManaged(ZManaged.logLevel(level).as(sink))
+
+  /**
+   * Adjusts the label for the logging span for streams composed after this.
+   */
+  def logSpan[R, E, In, L, Z](label: => String)(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, In, L, Z] =
+    ZSink.unwrapManaged(ZManaged.logSpan(label).as(sink))
+
+  /**
+   * Logs the specified message at the trace log level.
+   */
+  def logTrace(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    ZSink.fromZIO(ZIO.logTrace(message))
+
+  /**
+   * Logs the specified message at the warning log level.
+   */
+  def logWarning(message: => String)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] =
+    ZSink.fromZIO(ZIO.logWarning(message))
+
   def mkString(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, String] =
     ZSink.suspend {
       val builder = new StringBuilder()

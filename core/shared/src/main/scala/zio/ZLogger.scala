@@ -11,7 +11,8 @@ trait ZLogger[-Message, +Output] { self =>
     message: () => Message,
     context: Map[FiberRef.Runtime[_], AnyRef],
     spans: List[LogSpan],
-    location: ZTraceElement
+    location: ZTraceElement,
+    annotations: Map[String, String]
   ): Output
 
   /**
@@ -29,11 +30,12 @@ trait ZLogger[-Message, +Output] { self =>
         message: () => M,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
-        location: ZTraceElement
+        location: ZTraceElement,
+        annotations: Map[String, String]
       ): zippable.Out =
         zippable.zip(
-          self(trace, fiberId, logLevel, message, context, spans, location),
-          that(trace, fiberId, logLevel, message, context, spans, location)
+          self(trace, fiberId, logLevel, message, context, spans, location, annotations),
+          that(trace, fiberId, logLevel, message, context, spans, location, annotations)
         )
     }
 
@@ -50,8 +52,9 @@ trait ZLogger[-Message, +Output] { self =>
         message: () => Message1,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
-        location: ZTraceElement
-      ): Output = self(trace, fiberId, logLevel, () => f(message()), context, spans, location)
+        location: ZTraceElement,
+        annotations: Map[String, String]
+      ): Output = self(trace, fiberId, logLevel, () => f(message()), context, spans, location, annotations)
     }
 
   /**
@@ -67,10 +70,11 @@ trait ZLogger[-Message, +Output] { self =>
         message: () => Message,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
-        location: ZTraceElement
+        location: ZTraceElement,
+        annotations: Map[String, String]
       ): Option[Output] =
         if (f(logLevel)) {
-          Some(self(trace, fiberId, logLevel, message, context, spans, location))
+          Some(self(trace, fiberId, logLevel, message, context, spans, location, annotations))
         } else None
     }
 
@@ -83,12 +87,22 @@ trait ZLogger[-Message, +Output] { self =>
         message: () => Message,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
-        location: ZTraceElement
-      ): B = f(self(trace, fiberId, logLevel, message, context, spans, location))
+        location: ZTraceElement,
+        annotations: Map[String, String]
+      ): B = f(self(trace, fiberId, logLevel, message, context, spans, location, annotations))
     }
 
   final def test(input: => Message): Output =
-    apply(ZTraceElement.empty, FiberId.None, LogLevel.Info, () => input, Map(), Nil, ZTraceElement.empty)
+    apply(
+      ZTraceElement.empty,
+      FiberId.None,
+      LogLevel.Info,
+      () => input,
+      Map(),
+      Nil,
+      ZTraceElement.empty,
+      Map.empty
+    )
 
   final def toSet[Message1 <: Message](implicit tag: Tag[Message1]): ZLogger.Set[Message1, Output] =
     ZLogger.Set(self: ZLogger[Message1, Output])
@@ -168,7 +182,8 @@ object ZLogger {
     message0: () => String,
     context: Map[FiberRef.Runtime[_], AnyRef],
     spans0: List[LogSpan],
-    location: ZTraceElement
+    location: ZTraceElement,
+    annotations: Map[String, String]
   ) => {
     val sb = new StringBuilder()
 
@@ -221,6 +236,27 @@ object ZLogger {
       case _ =>
     }
 
+    if (annotations.nonEmpty) {
+      sb.append(" ")
+
+      val it    = annotations.iterator
+      var first = true
+
+      while (it.hasNext) {
+        if (first) {
+          first = false
+        } else {
+          sb.append(" ")
+        }
+
+        val (key, value) = it.next()
+
+        appendQuoted(key, sb)
+        sb.append("=")
+        appendQuoted(value, sb)
+      }
+    }
+
     sb.toString()
   }
 
@@ -237,7 +273,8 @@ object ZLogger {
       message: () => Any,
       context: Map[FiberRef.Runtime[_], AnyRef],
       spans: List[LogSpan],
-      location: ZTraceElement
+      location: ZTraceElement,
+      annotations: Map[String, String]
     ): Unit =
       ()
   }
@@ -251,7 +288,8 @@ object ZLogger {
         message: () => A,
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
-        location: ZTraceElement
+        location: ZTraceElement,
+        annotations: Map[String, String]
       ): B =
         log(message())
     }

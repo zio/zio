@@ -4537,6 +4537,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new Logged(ZLogger.stringTag, () => message, trace = trace)
 
   /**
+   * Annotates each log in this effect with the specified log annotation.
+   */
+  def logAnnotate(key: => String, value: => String): LogAnnotate =
+    new LogAnnotate(() => key, () => value)
+
+  /**
+   * Retrieves the log annotations associated with the current scope.
+   */
+  def logAnnotations(implicit trace: ZTraceElement): UIO[Map[String, String]] =
+    ZFiberRef.currentLogAnnotations.get
+
+  /**
    * Logs the specified message at the debug log level.
    */
   def logDebug(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
@@ -4566,7 +4578,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def logInfo(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
     new Logged(ZLogger.stringTag, () => message, someInfo, trace = trace)
 
-  def logLevel(level: LogLevel): LogLevel = level
+  /**
+   * Sets the log level for this effect.
+   * {{{
+   * ZIO.logLevel(LogLevel.Warning) {
+   *   ZIO.log("The response time exceeded its threshold!")
+   * }
+   * }}}
+   */
+  def logLevel(level: LogLevel): LogLevel =
+    level
 
   /**
    * Adjusts the label for the current logging span.
@@ -4575,6 +4596,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * }}}
    */
   def logSpan(label: => String): LogSpan = new LogSpan(() => label)
+
+  /**
+   * Logs the specified message at the trace log level.
+   */
+  def logTrace(message: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+    new Logged(ZLogger.stringTag, () => message, someTrace, trace = trace)
 
   /**
    * Logs the specified message at the warning log level.
@@ -5734,6 +5761,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
   }
 
+  final class LogAnnotate(val key: () => String, val value: () => String) {
+    def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      FiberRef.currentLogAnnotations.get.flatMap { annotations =>
+        FiberRef.currentLogAnnotations.locally(annotations.updated(key(), value()))(zio)
+      }
+  }
+
   @inline
   private def succeedLeft[E, A]: E => UIO[Either[E, A]] =
     _succeedLeft.asInstanceOf[E => UIO[Either[E, A]]]
@@ -6429,6 +6463,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] val someWarning = Some(LogLevel.Warning)
   private[zio] val someInfo    = Some(LogLevel.Info)
   private[zio] val someDebug   = Some(LogLevel.Debug)
+  private[zio] val someTrace   = Some(LogLevel.Trace)
 
   private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.SucceedNow(a)
 
