@@ -141,6 +141,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Valamis Group](https://valamis.com)
 * [VirtusLab](https://virtuslab.com/)
 * [Vish](https://getvish.com)
+* [Vivid Money](https://vivid.money)
 * [Zalando](https://zalando.com/)
 * [Zooz](https://zooz.com/)
 
