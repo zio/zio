@@ -23,7 +23,7 @@ object AccountObserverMock
 
 Will result in:
 
-```scala mdoc:invisible
+```scala
 import zio._
 
 trait AccountEvent
@@ -32,7 +32,7 @@ trait AccountObserver {
 }
 ```
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.mock.{Mock, Proxy}
 
