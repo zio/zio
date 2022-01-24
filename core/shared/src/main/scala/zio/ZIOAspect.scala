@@ -59,6 +59,28 @@ trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
 object ZIOAspect {
 
   /**
+   * An aspect that annotates each log in this effect with the specified log
+   * annotation.
+   */
+  def annotated(key: String, value: String): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        ZIO.logAnnotate(key, value)(zio)
+    }
+
+  /**
+   * An aspect that annotates each log in this effect with the specified log
+   * annotations.
+   */
+  def annotated(annotations: (String, String)*): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        annotations.foldLeft(zio) { case (zio, (key, value)) =>
+          ZIO.logAnnotate(key, value)(zio)
+        }
+    }
+
+  /**
    * An aspect that prints the results of effects to the console for debugging
    * purposes.
    */

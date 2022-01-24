@@ -29,10 +29,10 @@ title:  "Videos"
 - [Error Management: Future vs ZIO](https://www.youtube.com/watch?v=mGxcaQs3JWI) by John De Goes and Kai (May 2019), [slide](https://www.slideshare.net/jdegoes/error-management-future-vs-zio)
 - Systematic error management in application - We ported Rudder to ZIO: [video in French](https://www.youtube.com/watch?v=q0PlcgR5M1Q), [slides in English](https://speakerdeck.com/fanf42/systematic-error-management-we-ported-rudder-to-zio) by François Armand (Scala.io, October 2019)
 
-## ZIO Module Pattern
+## ZIO Service Pattern
 - [ZLayers by example](https://www.youtube.com/watch?v=u5IrfkAo6nk) by Wiem Zine El Abidine (December 2020)
 - [ZIO inception: Journey through layers and intersection types](https://www.youtube.com/watch?v=vNQFlq1SvaE) by Vladimir Pavkin (July 2020)
-- [ZIO WORLD - ZLayer](https://www.youtube.com/watch?v=B3bAcU2-TGI) by Kit Langton (March 2021) — In this presentation, Kit Langton demonstrated a significant simplification of the module pattern that makes it familiar to OOP programmers, & showed how ZIO 2.0 will auto-wire ZLayers & guide users with rich & actionable error messages.
+- [ZIO WORLD - ZLayer](https://www.youtube.com/watch?v=B3bAcU2-TGI) by Kit Langton (March 2021) — In this presentation, Kit Langton demonstrated a significant simplification of the service pattern that makes it familiar to OOP programmers, & showed how ZIO 2.0 will auto-wire ZLayers & guide users with rich & actionable error messages.
 
 ## ZIO Schedule
 - [ZIO Schedule: Conquering Flakiness and Recurrence with Pure Functional Programming](https://www.youtube.com/watch?v=onQSHiafAY8&t=1s) by John De Goes (October 2018)

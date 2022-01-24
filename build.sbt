@@ -32,7 +32,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;mockTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile;concurrentJVM/test:compile"
+  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile;concurrentJVM/test:compile"
 )
 addCommandAlias(
   "testNative",
@@ -40,31 +40,31 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;mockTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test;concurrentJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test;concurrentJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;mockTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test:compile;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test:compile;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test"
 )
 addCommandAlias(
   "testJVMDotty",
-  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;mockTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test"
 )
 addCommandAlias(
   "testJSDotty",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;mockTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;concurrentJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;concurrentJS/test"
 )
 addCommandAlias(
   "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;mockTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test;concurrentJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test;concurrentJVM/test"
 )
 addCommandAlias(
   "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;mockTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test;concurrentJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test;concurrentJS/test"
 )
 addCommandAlias(
   "testJS211",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;mockTestsJS/test;examplesJS/test:compile;macrosJS/test;concurrentJS/test"
+  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test;concurrentJS/test"
 )
 addCommandAlias(
   "mimaChecks",
@@ -107,11 +107,6 @@ lazy val root = project
     macrosNative,
     macrosTestsJS,
     macrosTestsJVM,
-    mockJS,
-    mockJVM,
-    mockNative,
-    mockTestsJS,
-    mockTestsJVM,
     scalafixTests,
     stacktracerJS,
     stacktracerJVM,
@@ -350,59 +345,6 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
 lazy val testTestsJS  = testTests.js.settings(dottySettings)
 
-lazy val mock = crossProject(JSPlatform, JVMPlatform, NativePlatform)
-  .in(file("mock"))
-  .dependsOn(core, streams, test)
-  .settings(stdSettings("mock-test"))
-  .settings(crossProjectSettings)
-  .settings(macroDefinitionSettings)
-  .settings(macroExpansionSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.1")
-        .cross(CrossVersion.for3Use2_13)
-    )
-  )
-  .settings(
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3)
-        Seq.empty
-      else
-        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
-    }
-  )
-
-lazy val mockJVM = mock.jvm
-  .settings(dottySettings)
-  // No bincompat on zio-test yet
-  .settings(mimaSettings(failOnProblem = false))
-lazy val mockJS = test.js
-  .settings(dottySettings)
-  .settings(
-    libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
-    )
-  )
-lazy val mockNative = test.native
-  .settings(nativeSettings)
-  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.5")
-
-lazy val mockTests = crossProject(JSPlatform, JVMPlatform)
-  .in(file("mock-tests"))
-  .dependsOn(mock)
-  .settings(stdSettings("mock-tests"))
-  .settings(crossProjectSettings)
-  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testRunner)
-  .settings(buildInfoSettings("zio.test"))
-  .settings(publish / skip := true)
-  .settings(macroExpansionSettings)
-  .enablePlugins(BuildInfoPlugin)
-
-lazy val mockTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val mockTestsJS  = testTests.js.settings(dottySettings)
-
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
   .dependsOn(test)
@@ -615,7 +557,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(macroExpansionSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(publish / skip := true)
-  .dependsOn(macros, mock, testRunner)
+  .dependsOn(macros, testRunner)
 
 lazy val examplesJS = examples.js
   .settings(dottySettings)
@@ -748,7 +690,6 @@ lazy val docs = project.module
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
       coreJVM,
-      mockJVM,
       streamsJVM,
       testJVM,
       testMagnoliaJVM,
@@ -835,5 +776,5 @@ lazy val docs = project.module
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, mockJVM, streamsJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
+  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
