@@ -24,14 +24,14 @@ final class ZEnvironment[+R] private (
   private var cache: Map[LightTypeTag, Any] = Map.empty
 ) extends Serializable { self =>
 
-  def ++[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+  def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
 
   /**
    * Adds a service to the environment.
    */
-  def add[A](a: A)(implicit ev: IsNotIntersection[A], tagged: Tag[A]): ZEnvironment[R with A] =
-    new ZEnvironment(self.map + (taggedTagType(tagged) -> (a -> index)), index + 1)
+  def add[A](a: A)(implicit tag: Tag[A]): ZEnvironment[R with A] =
+    new ZEnvironment(self.map + (tag.tag -> (a -> index)), index + 1)
 
   override def equals(that: Any): Boolean = that match {
     case that: ZEnvironment[_] => self.map == that.map
@@ -41,14 +41,14 @@ final class ZEnvironment[+R] private (
   /**
    * Retrieves a service from the environment.
    */
-  def get[A >: R](implicit ev: IsNotIntersection[A], tagged: Tag[A]): A =
-    unsafeGet(taggedTagType(tagged))
+  def get[A >: R](implicit tag: Tag[A]): A =
+    unsafeGet(tag.tag)
 
   /**
    * Retrieves a service from the environment corresponding to the specified
    * key.
    */
-  def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: Tag[Map[K, V]]): Option[V] =
+  def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: EnvironmentTag[Map[K, V]]): Option[V] =
     unsafeGet[Map[K, V]](taggedTagType(tagged)).get(k)
 
   override def hashCode: Int =
@@ -58,7 +58,7 @@ final class ZEnvironment[+R] private (
    * Prunes the environment to the set of services statically known to be
    * contained within it.
    */
-  def prune[R1 >: R](implicit tagged: Tag[R1]): ZEnvironment[R1] = {
+  def prune[R1 >: R](implicit tagged: EnvironmentTag[R1]): ZEnvironment[R1] = {
     val tag = taggedTagType(tagged)
     val set = taggedGetServices(tag)
 
@@ -88,7 +88,7 @@ final class ZEnvironment[+R] private (
   /**
    * Combines this environment with the specified environment.
    */
-  def union[R1: Tag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+  def union[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.unionAll[R1](that.prune)
 
   /**
@@ -129,7 +129,7 @@ final class ZEnvironment[+R] private (
   /**
    * Updates a service in the environment.
    */
-  def update[A >: R: Tag: IsNotIntersection](f: A => A): ZEnvironment[R] =
+  def update[A >: R: Tag](f: A => A): ZEnvironment[R] =
     self.add[A](f(get[A]))
 
   /**
@@ -152,21 +152,21 @@ object ZEnvironment {
   /**
    * Constructs a new environment holding the single service.
    */
-  def apply[A: Tag: IsNotIntersection](a: A): ZEnvironment[A] =
+  def apply[A: Tag](a: A): ZEnvironment[A] =
     empty.add[A](a)
 
   /**
    * Constructs a new environment holding the specified services. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](a: A, b: B): ZEnvironment[A with B] =
+  def apply[A: Tag, B: Tag](a: A, b: B): ZEnvironment[A with B] =
     ZEnvironment(a).add[B](b)
 
   /**
    * Constructs a new environment holding the specified services. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](
+  def apply[A: Tag, B: Tag, C: Tag](
     a: A,
     b: B,
     c: C
@@ -177,7 +177,7 @@ object ZEnvironment {
    * Constructs a new environment holding the specified services. The service
    * must be monomorphic. Parameterized services are not supported.
    */
-  def apply[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection, D: Tag: IsNotIntersection](
+  def apply[A: Tag, B: Tag, C: Tag, D: Tag](
     a: A,
     b: B,
     c: C,
@@ -190,11 +190,11 @@ object ZEnvironment {
    * must be monomorphic. Parameterized services are not supported.
    */
   def apply[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag
   ](
     a: A,
     b: B,
@@ -221,6 +221,6 @@ object ZEnvironment {
       System.SystemLive
     )
 
-  private lazy val TaggedAnyRef: Tag[AnyRef] =
-    implicitly[Tag[AnyRef]]
+  private lazy val TaggedAnyRef: EnvironmentTag[AnyRef] =
+    implicitly[EnvironmentTag[AnyRef]]
 }

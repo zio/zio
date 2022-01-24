@@ -768,7 +768,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def provideService[Service <: Env](
     service: Service
-  )(implicit tag: Tag[Service], ev: IsNotIntersection[Service]): Schedule.WithState[self.State, Any, In, Out] =
+  )(implicit tag: Tag[Service]): Schedule.WithState[self.State, Any, In, Out] =
     provideEnvironment(ZEnvironment(service))
 
   /**

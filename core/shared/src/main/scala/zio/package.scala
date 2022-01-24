@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
+import zio.TagVersionSpecific
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+import scala.reflect.ClassTag
 
 package object zio
     extends BuildFromCompat
@@ -87,6 +90,19 @@ package object zio
   type Semaphore = stm.TSemaphore
 
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
+
+  trait Tag[A] extends EnvironmentTag[A] {
+    def tag: LightTypeTag
+  }
+
+  object Tag extends TagVersionSpecific {
+    def apply[A](implicit tag0: EnvironmentTag[A], isNotIntersection: IsNotIntersection[A]): Tag[A] =
+      new Tag[A] {
+        def tag: zio.LightTypeTag = tag0.tag
+
+        override def closestClass: Class[_] = tag0.closestClass
+      }
+  }
 
   trait IsNotIntersection[A] extends Serializable
 

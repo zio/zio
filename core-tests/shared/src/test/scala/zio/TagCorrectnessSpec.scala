@@ -79,7 +79,9 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
             def provide: IO[Throwable, D]
           }
 
-          def layer[A: Tag, D <: Container[A]: Tag](container: D): ULayer[ContainerProvider[A, D]] =
+          def layer[A: Tag, D <: Container[A]: Tag](
+            container: D
+          ): ULayer[ContainerProvider[A, D]] =
             ZLayer.succeed {
               new Service[A, D] {
                 def provide: IO[Throwable, D] = IO.succeed(container)
@@ -132,7 +134,9 @@ object HigherKindedTagCorrectness extends ZIOSpecDefault {
     def get[F[_], K, V](key: K)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, F[V]] =
       ZIO.serviceWithZIO(_.get(key))
 
-    def put[F[_], K, V](key: K, value: V)(implicit tag: Tag[Cache[F, K, V]]): ZIO[Cache[F, K, V], Nothing, Unit] =
+    def put[F[_], K, V](key: K, value: V)(implicit
+      tag: Tag[Cache[F, K, V]]
+    ): ZIO[Cache[F, K, V], Nothing, Unit] =
       ZIO.serviceWithZIO(_.put(key, value))
   }
 

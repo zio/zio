@@ -104,12 +104,12 @@ trait ZLogger[-Message, +Output] { self =>
       Map.empty
     )
 
-  final def toSet[Message1 <: Message](implicit tag: Tag[Message1]): ZLogger.Set[Message1, Output] =
+  final def toSet[Message1 <: Message](implicit tag: EnvironmentTag[Message1]): ZLogger.Set[Message1, Output] =
     ZLogger.Set(self: ZLogger[Message1, Output])
 }
 object ZLogger {
-  private[zio] val stringTag: LightTypeTag = Tag[String].tag
-  private[zio] val causeTag: LightTypeTag  = Tag[Cause[Any]].tag
+  private[zio] val stringTag: LightTypeTag = EnvironmentTag[String].tag
+  private[zio] val causeTag: LightTypeTag  = EnvironmentTag[Cause[Any]].tag
 
   import Predef.{Set => ScalaSet, _}
 
@@ -120,12 +120,13 @@ object ZLogger {
   sealed abstract case class Set[+A, +B] private (map: Map[LightTypeTag, ZLogger[_, B]]) { self =>
     private var cache: Map[LightTypeTag, ScalaSet[ZLogger[_, Any]]] = Map()
 
-    final def +[C, B1 >: B](that: ZLogger[C, B1])(implicit tag: Tag[C]): Set[A with C, B1] =
+    final def +[C, B1 >: B](that: ZLogger[C, B1])(implicit tag: EnvironmentTag[C]): Set[A with C, B1] =
       new Set(map + (tag.tag -> that)) {}
 
     final def ++[A2, B1 >: B](that: Set[A2, B1]): Set[A with A2, B1] = new Set(self.map ++ that.map) {}
 
-    final def add[C, B1 >: B](that: ZLogger[C, B1])(implicit tag: Tag[C]): Set[A with C, B1] = self.+[C, B1](that)
+    final def add[C, B1 >: B](that: ZLogger[C, B1])(implicit tag: EnvironmentTag[C]): Set[A with C, B1] =
+      self.+[C, B1](that)
 
     final def addAll[A2, B1 >: B](that: Set[A2, B1]): Set[A with A2, B1] = self.++[A2, B1](that)
 
@@ -149,13 +150,13 @@ object ZLogger {
       }
     }
 
-    final def getAll[C](implicit tag: Tag[C]): ScalaSet[_ <: ZLogger[C, B]] =
+    final def getAll[C](implicit tag: EnvironmentTag[C]): ScalaSet[_ <: ZLogger[C, B]] =
       getAllDynamic(tag.tag).asInstanceOf[ScalaSet[ZLogger[C, B]]]
 
     final def map[C](f: B => C): Set[A, C] =
       new Set[A, C](map.map { case (k, v) => k -> v.asInstanceOf[ZLogger[Any, B]].map(f) }) {}
 
-    final def toLoggerWith[C, B1 >: B](b: B1)(f: (B1, B1) => B1)(implicit tag: Tag[C]): ZLogger[C, B1] =
+    final def toLoggerWith[C, B1 >: B](b: B1)(f: (B1, B1) => B1)(implicit tag: EnvironmentTag[C]): ZLogger[C, B1] =
       getAll[C].fold[ZLogger[C, B1]](ZLogger.succeed(b)) { case (acc, logger) =>
         (acc ++ logger).map(f.tupled)
       }
@@ -166,11 +167,11 @@ object ZLogger {
 
     def empty[A]: Set[Any, A] = new Set(Map()) {}
 
-    def apply[A, B](logger: ZLogger[A, B])(implicit tag: Tag[A]): Set[A, B] = empty[B].add[A, B](logger)
+    def apply[A, B](logger: ZLogger[A, B])(implicit tag: EnvironmentTag[A]): Set[A, B] = empty[B].add[A, B](logger)
 
     def apply[A, B, Z](logger1: ZLogger[A, Z], logger2: ZLogger[B, Z])(implicit
-      tag1: Tag[A],
-      tag2: Tag[B]
+      tag1: EnvironmentTag[A],
+      tag2: EnvironmentTag[B]
     ): Set[A & B, Z] =
       empty[Z].add[A, Z](logger1).add[B, Z](logger2)
   }

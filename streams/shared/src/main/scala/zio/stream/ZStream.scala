@@ -2843,7 +2843,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     layer: => ZLayer[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
-    tagged: Tag[R1],
+    tagged: EnvironmentTag[R1],
     trace: ZTraceElement
   ): ZStream[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
@@ -2865,7 +2865,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     service: Service
   )(implicit
     ev1: NeedsEnv[R],
-    ev2: IsNotIntersection[Service],
     tag: Tag[Service],
     trace: ZTraceElement
   ): ZStream[Any, E, A] =
@@ -5335,7 +5334,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     stream: => ZStream[ROut with RIn2, E, ROut2]
-  )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZStream[RIn with RIn2, E, ROut2] =
+  )(implicit
+    ev: EnvironmentTag[RIn2],
+    tag: EnvironmentTag[ROut],
+    trace: ZTraceElement
+  ): ZStream[RIn with RIn2, E, ROut2] =
     ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer))
 
   /**
@@ -5489,7 +5492,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZStream[A, Nothing, A] =
+  def service[A: Tag](implicit trace: ZTraceElement): ZStream[A, Nothing, A] =
     ZStream.serviceWith(identity)
 
   /**
@@ -5502,7 +5505,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag](implicit
     trace: ZTraceElement
   ): ZStream[A with B, Nothing, (A, B)] =
     ZStream.environmentWith(r => (r.get[A], r.get[B]))
@@ -5511,7 +5514,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag, C: Tag](implicit
     trace: ZTraceElement
   ): ZStream[A with B with C, Nothing, (A, B, C)] =
     ZStream.environmentWith(r => (r.get[A], r.get[B], r.get[C]))
@@ -5521,10 +5524,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   @deprecated("use service", "2.0.0")
   def services[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag
   ](implicit
     trace: ZTraceElement
   ): ZStream[A with B with C with D, Nothing, (A, B, C, D)] =
@@ -5757,7 +5760,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[Key](
       key: => Key
     )(implicit
-      tag: Tag[Map[Key, Service]],
+      tag: EnvironmentTag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZStream[Map[Key, Service], Nothing, Option[Service]] =
       ZStream.environmentWith(_.getAt(key))
@@ -5765,7 +5768,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: Service => A)(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZStream[Service, Nothing, A] =
@@ -5774,7 +5776,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZIO[R, E, A])(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZStream[R with Service, E, A] =
@@ -5783,7 +5784,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZStream[R, E, A])(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZStream[R with Service, E, A] =
@@ -5880,7 +5880,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       layer: => ZLayer[R0, E1, R1]
     )(implicit
       ev: R0 with R1 <:< R,
-      tagged: Tag[R1],
+      tagged: EnvironmentTag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
       self.asInstanceOf[ZStream[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
@@ -5889,7 +5889,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
-    )(implicit ev: IsNotIntersection[M], tag: Tag[M], trace: ZTraceElement): ZStream[R1, E, A] =
+    )(implicit tag: Tag[M], trace: ZTraceElement): ZStream[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 

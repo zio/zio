@@ -19,7 +19,7 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait FunctionToLayerSyntax {
-  implicit final class Function0ToLayerOps[A: Tag: IsNotIntersection](self: () => A) {
+  implicit final class Function0ToLayerOps[A: Tag](self: () => A) {
 
     /**
      * Converts this function to a Layer.
@@ -31,11 +31,11 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URLayer[Any, A1] =
+    def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): URLayer[Any, A1] =
       UIO(self()).toLayer
   }
 
-  implicit final class Function1ToLayerOps[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](
+  implicit final class Function1ToLayerOps[A: Tag, B: Tag](
     self: A => B
   ) {
 
@@ -49,14 +49,14 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[B1 >: B: Tag: IsNotIntersection](implicit trace: ZTraceElement): URLayer[A, B1] =
+    def toLayer[B1 >: B: Tag](implicit trace: ZTraceElement): URLayer[A, B1] =
       ZIO.serviceWith[A](self).toLayer
   }
 
   implicit final class Function2ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag
   ](
     self: (A, B) => C
   ) {
@@ -71,7 +71,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[C1 >: C: Tag: IsNotIntersection](implicit
+    def toLayer[C1 >: C: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B, C1] = {
       for {
@@ -82,10 +82,10 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function3ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag
   ](self: (A, B, C) => D) {
 
     /**
@@ -98,7 +98,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[D1 >: D: Tag: IsNotIntersection](implicit
+    def toLayer[D1 >: D: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C, D1] = {
       for {
@@ -110,11 +110,11 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function4ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag
   ](
     self: (A, B, C, D) => E
   ) {
@@ -129,7 +129,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[E1 >: E: Tag: IsNotIntersection](implicit
+    def toLayer[E1 >: E: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D, E1] = {
       for {
@@ -142,12 +142,12 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function5ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag
   ](
     self: (A, B, C, D, E) => F
   ) {
@@ -162,7 +162,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[F1 >: F: Tag: IsNotIntersection](implicit
+    def toLayer[F1 >: F: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D with E, F1] = {
       for {
@@ -176,13 +176,13 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function6ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag
   ](
     self: (A, B, C, D, E, F) => G
   ) {
@@ -197,7 +197,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[G1 >: G: Tag: IsNotIntersection](implicit
+    def toLayer[G1 >: G: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D with E with F, G1] = {
       for {
@@ -212,14 +212,14 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function7ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag
   ](
     self: (A, B, C, D, E, F, G) => H
   ) {
@@ -234,7 +234,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[H1 >: H: Tag: IsNotIntersection](implicit
+    def toLayer[H1 >: H: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D with E with F with G, H1] = {
       for {
@@ -250,15 +250,15 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function8ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag
   ](
     self: (A, B, C, D, E, F, G, H) => I
   ) {
@@ -273,7 +273,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[I1 >: I: Tag: IsNotIntersection](implicit
+    def toLayer[I1 >: I: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D with E with F with G with H, I1] = {
       for {
@@ -290,16 +290,16 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function9ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I) => J
   ) {
@@ -314,7 +314,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[J1 >: J: Tag: IsNotIntersection](implicit
+    def toLayer[J1 >: J: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D with E with F with G with H with I, J1] = {
       for {
@@ -332,17 +332,17 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function10ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J) => K
   ) {
@@ -357,7 +357,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[K1 >: K: Tag: IsNotIntersection](implicit
+    def toLayer[K1 >: K: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D with E with F with G with H with I with J, K1] = {
       for {
@@ -376,18 +376,18 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function11ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K) => L
   ) {
@@ -402,7 +402,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[L1 >: L: Tag: IsNotIntersection](implicit
+    def toLayer[L1 >: L: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D with E with F with G with H with I with J with K, L1] = {
       for {
@@ -422,19 +422,19 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function12ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L) => M
   ) {
@@ -449,7 +449,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[M1 >: M: Tag: IsNotIntersection](implicit
+    def toLayer[M1 >: M: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D with E with F with G with H with I with J with K with L, M1] = {
       for {
@@ -469,20 +469,20 @@ trait FunctionToLayerSyntax {
     }.toLayer
   }
   implicit final class Function13ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection,
-    N: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N
   ) {
@@ -497,7 +497,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[N1 >: N: Tag: IsNotIntersection](implicit
+    def toLayer[N1 >: N: Tag](implicit
       trace: ZTraceElement
     ): URLayer[A with B with C with D with E with F with G with H with I with J with K with L with M, N1] = {
       for {
@@ -519,21 +519,21 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function14ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection,
-    N: Tag: IsNotIntersection,
-    O: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O
   ) {
@@ -548,7 +548,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[O1 >: O: Tag: IsNotIntersection](implicit
+    def toLayer[O1 >: O: Tag](implicit
       trace: ZTraceElement
     ): URLayer[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N,
@@ -574,22 +574,22 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function15ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection,
-    N: Tag: IsNotIntersection,
-    O: Tag: IsNotIntersection,
-    P: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P
   ) {
@@ -604,7 +604,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[P1 >: P: Tag: IsNotIntersection](implicit
+    def toLayer[P1 >: P: Tag](implicit
       trace: ZTraceElement
     ): URLayer[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
@@ -631,23 +631,23 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function16ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection,
-    N: Tag: IsNotIntersection,
-    O: Tag: IsNotIntersection,
-    P: Tag: IsNotIntersection,
-    Q: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q
   ) {
@@ -662,7 +662,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[Q1 >: Q: Tag: IsNotIntersection](implicit
+    def toLayer[Q1 >: Q: Tag](implicit
       trace: ZTraceElement
     ): URLayer[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
@@ -690,24 +690,24 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function17ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection,
-    N: Tag: IsNotIntersection,
-    O: Tag: IsNotIntersection,
-    P: Tag: IsNotIntersection,
-    Q: Tag: IsNotIntersection,
-    R: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R
   ) {
@@ -722,7 +722,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[R1 >: R: Tag: IsNotIntersection](implicit
+    def toLayer[R1 >: R: Tag](implicit
       trace: ZTraceElement
     ): URLayer[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
@@ -751,25 +751,25 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function18ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection,
-    N: Tag: IsNotIntersection,
-    O: Tag: IsNotIntersection,
-    P: Tag: IsNotIntersection,
-    Q: Tag: IsNotIntersection,
-    R: Tag: IsNotIntersection,
-    S: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S
   ) {
@@ -784,7 +784,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[S1 >: S: Tag: IsNotIntersection](implicit
+    def toLayer[S1 >: S: Tag](implicit
       trace: ZTraceElement
     ): URLayer[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
@@ -814,26 +814,26 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function19ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection,
-    N: Tag: IsNotIntersection,
-    O: Tag: IsNotIntersection,
-    P: Tag: IsNotIntersection,
-    Q: Tag: IsNotIntersection,
-    R: Tag: IsNotIntersection,
-    S: Tag: IsNotIntersection,
-    T: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T
   ) {
@@ -848,7 +848,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[T1 >: T: Tag: IsNotIntersection](implicit
+    def toLayer[T1 >: T: Tag](implicit
       trace: ZTraceElement
     ): URLayer[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
@@ -879,27 +879,27 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function20ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection,
-    N: Tag: IsNotIntersection,
-    O: Tag: IsNotIntersection,
-    P: Tag: IsNotIntersection,
-    Q: Tag: IsNotIntersection,
-    R: Tag: IsNotIntersection,
-    S: Tag: IsNotIntersection,
-    T: Tag: IsNotIntersection,
-    U: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag,
+    U: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U
   ) {
@@ -914,7 +914,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[U1 >: U: Tag: IsNotIntersection](implicit
+    def toLayer[U1 >: U: Tag](implicit
       trace: ZTraceElement
     ): URLayer[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
@@ -946,28 +946,28 @@ trait FunctionToLayerSyntax {
   }
 
   implicit final class Function21ToLayerOps[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection,
-    E: Tag: IsNotIntersection,
-    F: Tag: IsNotIntersection,
-    G: Tag: IsNotIntersection,
-    H: Tag: IsNotIntersection,
-    I: Tag: IsNotIntersection,
-    J: Tag: IsNotIntersection,
-    K: Tag: IsNotIntersection,
-    L: Tag: IsNotIntersection,
-    M: Tag: IsNotIntersection,
-    N: Tag: IsNotIntersection,
-    O: Tag: IsNotIntersection,
-    P: Tag: IsNotIntersection,
-    Q: Tag: IsNotIntersection,
-    R: Tag: IsNotIntersection,
-    S: Tag: IsNotIntersection,
-    T: Tag: IsNotIntersection,
-    U: Tag: IsNotIntersection,
-    V: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag,
+    U: Tag,
+    V: Tag
   ](
     self: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V
   ) {
@@ -982,7 +982,7 @@ trait FunctionToLayerSyntax {
      *   FooLive.toLayer
      * }}}
      */
-    def toLayer[V1 >: V: Tag: IsNotIntersection](implicit
+    def toLayer[V1 >: V: Tag](implicit
       trace: ZTraceElement
     ): URLayer[
       A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,

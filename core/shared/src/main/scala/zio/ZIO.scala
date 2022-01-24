@@ -313,7 +313,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Maps the success value of this effect to a service.
    */
   @deprecated("use toLayer", "2.0.0")
-  final def asService[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZIO[R, E, ZEnvironment[A1]] =
+  final def asService[A1 >: A: Tag](implicit trace: ZTraceElement): ZIO[R, E, ZEnvironment[A1]] =
     map(ZEnvironment[A1](_))
 
   /**
@@ -1464,7 +1464,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     layer: => ZLayer[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
-    tagged: Tag[R1],
+    tagged: EnvironmentTag[R1],
     trace: ZTraceElement
   ): ZIO[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
@@ -1490,7 +1490,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def provideService[Service <: R](
     service: => Service
-  )(implicit ev1: NeedsEnv[R], ev2: IsNotIntersection[Service], tag: Tag[Service], trace: ZTraceElement): IO[E, A] =
+  )(implicit ev1: NeedsEnv[R], tag: Tag[Service], trace: ZTraceElement): IO[E, A] =
     provideEnvironment(ZEnvironment(service))
 
   /**
@@ -2338,8 +2338,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Constructs a layer from this effect.
    */
   final def toLayer[A1 >: A](implicit
-    ev1: Tag[A1],
-    ev2: IsNotIntersection[A1],
+    tag: Tag[A1],
     trace: ZTraceElement
   ): ZLayer[R, E, A1] =
     ZLayer.fromZIO[R, E, A1](self)
@@ -4280,7 +4279,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Gets a state from the environment.
    */
-  def getState[S: Tag](implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, S] =
+  def getState[S: EnvironmentTag](implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, S] =
     ZIO.serviceWithZIO(_.get)
 
   /**
@@ -4853,7 +4852,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     zio: ZIO[ROut with RIn2, E, ROut2]
-  )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
+  )(implicit ev: EnvironmentTag[RIn2], tag: EnvironmentTag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
     zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
 
   /**
@@ -5022,7 +5021,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Sets a state in the environment to the specified value.
    */
-  def setState[S: Tag](s: => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
+  def setState[S: EnvironmentTag](s: => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.serviceWith(_.set(s))
 
   /**
@@ -5034,7 +5033,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URIO[A, A] =
+  def service[A: Tag](implicit trace: ZTraceElement): URIO[A, A] =
     serviceWith(identity)
 
   /**
@@ -5047,7 +5046,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag](implicit
     trace: ZTraceElement
   ): URIO[A with B, (A, B)] =
     ZIO.environmentWith(r => (r.get[A], r.get[B]))
@@ -5056,7 +5055,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag, C: Tag](implicit
     trace: ZTraceElement
   ): URIO[A with B with C, (A, B, C)] =
     ZIO.environmentWith(r => (r.get[A], r.get[B], r.get[C]))
@@ -5066,10 +5065,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   @deprecated("use service", "2.0.0")
   def services[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag
   ](implicit
     trace: ZTraceElement
   ): URIO[A with B with C with D, (A, B, C, D)] =
@@ -5272,7 +5271,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Updates a state in the environment with the specified function.
    */
-  def updateState[S: Tag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
+  def updateState[S: EnvironmentTag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.serviceWithZIO(_.update(f))
 
   /**
@@ -5571,14 +5570,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: Tag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
+    )(implicit ev: R0 with R1 <:< R, tagged: EnvironmentTag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
       self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
-    )(implicit ev: IsNotIntersection[M], tag: Tag[M], trace: ZTraceElement): ZIO[R1, E, A] =
+    )(implicit tag: Tag[M], trace: ZTraceElement): ZIO[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 
@@ -5718,14 +5717,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
-    )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): URIO[Map[Key, Service], Option[Service]] =
+    )(implicit tag: EnvironmentTag[Map[Key, Service]], trace: ZTraceElement): URIO[Map[Key, Service], Option[Service]] =
       ZIO.environmentWith(_.getAt(key))
   }
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](
       f: Service => A
-    )(implicit ev: IsNotIntersection[Service], tagged: Tag[Service], trace: ZTraceElement): ZIO[Service, Nothing, A] =
+    )(implicit tagged: Tag[Service], trace: ZTraceElement): ZIO[Service, Nothing, A] =
       ZIO.serviceWithZIO(service => ZIO.succeedNow(f(service)))
   }
 
@@ -5733,7 +5732,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[R <: Service, E, A](
       f: Service => ZIO[R, E, A]
     )(implicit
-      ev: IsNotIntersection[Service],
       tagged: Tag[Service],
       trace: ZTraceElement
     ): ZIO[R with Service, E, A] = {
@@ -5745,7 +5743,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: S => A)(implicit tag: Tag[S], trace: ZTraceElement): ZIO[ZState[S], Nothing, A] =
+    def apply[A](f: S => A)(implicit tag: EnvironmentTag[S], trace: ZTraceElement): ZIO[ZState[S], Nothing, A] =
       ZIO.serviceWithZIO(_.get.map(f))
   }
 

@@ -16,9 +16,8 @@
 
 package zio.test
 
-import zio.{Tag, IsNotIntersection, ZLayer}
 import zio.internal.stacktracer.Tracer
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.{Tag, ZLayer}
 
 /**
  * Syntax for writing test like
@@ -39,6 +38,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 @deprecated("use DefaultRunnableSpec", "2.0.0")
 class DefaultMutableRunnableSpec
     extends MutableRunnableSpec[Any](
-      ZLayer.succeed[Any](())(Tag[Any], IsNotIntersection[Any], Tracer.newTrace),
+      ZLayer.succeed[Any](())(Tag[Any], Tracer.newTrace),
       TestAspect.identity
     )

@@ -22,11 +22,11 @@ object ZEnvironmentIssuesSpec extends ZIOSpecDefault {
       }
     } @@ ignore,
     test("tags") {
-      def tagForThing[A](value: A)(implicit tag: Tag[A]): Tag[A] = {
+      def tagForThing[A](value: A)(implicit tag: EnvironmentTag[A]): EnvironmentTag[A] = {
         val _ = value
         tag
       }
-      assertTrue(tagForThing(Clock.ClockLive).tag <:< Tag[Clock].tag)
+      assertTrue(tagForThing(Clock.ClockLive).tag <:< EnvironmentTag[Clock].tag)
     } @@ exceptScala3
   )
 }

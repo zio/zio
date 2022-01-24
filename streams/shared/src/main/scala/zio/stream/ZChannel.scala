@@ -846,7 +846,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     layer: => ZLayer[ZEnv, OutErr1, Env1]
   )(implicit
     ev: ZEnv with Env1 <:< Env,
-    tagged: Tag[Env1],
+    tagged: EnvironmentTag[Env1],
     trace: ZTraceElement
   ): ZChannel[ZEnv, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
     provideSomeLayer[ZEnv](layer)
@@ -865,7 +865,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def provideService[Service <: Env](service: => Service)(implicit
     ev1: NeedsEnv[Env],
-    ev2: IsNotIntersection[Service],
     tag: Tag[Service],
     trace: ZTraceElement
   ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
@@ -1626,8 +1625,8 @@ object ZChannel {
   def provideLayer[Env0, Env, Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone](layer: ZLayer[Env0, OutErr, Env])(
     channel: => ZChannel[Env with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   )(implicit
-    ev: Tag[Env],
-    tag: Tag[Env1],
+    ev: EnvironmentTag[Env],
+    tag: EnvironmentTag[Env1],
     trace: ZTraceElement
   ): ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] ++ layer))
@@ -1658,7 +1657,7 @@ object ZChannel {
   /**
    * Accesses the specified service in the environment of the channel.
    */
-  def service[Service: Tag: IsNotIntersection](implicit
+  def service[Service: Tag](implicit
     trace: ZTraceElement
   ): ZChannel[Service, Any, Any, Any, Nothing, Nothing, Service] =
     ZChannel.fromZIO(ZIO.service)
@@ -1858,7 +1857,7 @@ object ZChannel {
       layer: => ZLayer[Env0, OutErr1, Env1]
     )(implicit
       ev: Env0 with Env1 <:< Env,
-      tagged: Tag[Env1],
+      tagged: EnvironmentTag[Env1],
       trace: ZTraceElement
     ): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
       self
@@ -1870,7 +1869,7 @@ object ZChannel {
     def apply[Key](
       key: => Key
     )(implicit
-      tag: Tag[Map[Key, Service]],
+      tag: EnvironmentTag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZChannel[Map[Key, Service], Any, Any, Any, Nothing, Nothing, Option[Service]] =
       ZChannel.environmentWith(_.getAt(key))
@@ -1878,7 +1877,6 @@ object ZChannel {
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[OutDone](f: Service => OutDone)(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZChannel[Service, Any, Any, Any, Nothing, Nothing, OutDone] =
@@ -1889,7 +1887,6 @@ object ZChannel {
     def apply[Env <: Service, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       f: Service => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
     )(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
@@ -1898,7 +1895,6 @@ object ZChannel {
 
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Env <: Service, OutErr, OutDone](f: Service => ZIO[Env, OutErr, OutDone])(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone] =
@@ -1911,7 +1907,6 @@ object ZChannel {
     def apply[Env1 <: Env with Service](
       f: Service => Service
     )(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =

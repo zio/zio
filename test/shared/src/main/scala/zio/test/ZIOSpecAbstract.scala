@@ -54,11 +54,11 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
         self.runSpec.zipPar(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =
         self.spec + that.spec
-      def tag: Tag[Environment] = {
-        implicit val selfTag: Tag[self.Environment] = self.tag
-        implicit val thatTag: Tag[that.Environment] = that.tag
-        val _                                       = (selfTag, thatTag)
-        Tag[Environment]
+      def tag: EnvironmentTag[Environment] = {
+        implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
+        implicit val thatTag: EnvironmentTag[that.Environment] = that.tag
+        val _                                                  = (selfTag, thatTag)
+        EnvironmentTag[Environment]
       }
     }
 

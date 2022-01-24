@@ -173,7 +173,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Maps the success value of this effect to a service.
    */
   @deprecated("use toLayer", "2.0.0")
-  def asService[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZManaged[R, E, ZEnvironment[A1]] =
+  def asService[A1 >: A: Tag](implicit trace: ZTraceElement): ZManaged[R, E, ZEnvironment[A1]] =
     map(ZEnvironment[A1](_))
 
   /**
@@ -824,7 +824,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     layer: => ZLayer[ZEnv, E1, R1]
   )(implicit
     ev: ZEnv with R1 <:< R,
-    tagged: Tag[R1],
+    tagged: EnvironmentTag[R1],
     trace: ZTraceElement
   ): ZManaged[ZEnv, E1, A] =
     provideSomeLayer[ZEnv](layer)
@@ -843,7 +843,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def provideService[Service <: R](service: Service)(implicit
     ev1: NeedsEnv[R],
-    ev2: IsNotIntersection[Service],
     tag: Tag[Service],
     trace: ZTraceElement
   ): Managed[E, A] =
@@ -1171,7 +1170,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   /**
    * Constructs a layer from this managed resource.
    */
-  def toLayer[A1 >: A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZLayer[R, E, A1] =
+  def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): ZLayer[R, E, A1] =
     ZLayer.fromManaged[R, E, A1](self)
 
   /**
@@ -1484,7 +1483,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[Key](
       key: => Key
     )(implicit
-      tag: Tag[Map[Key, Service]],
+      tag: EnvironmentTag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZManaged[Map[Key, Service], Nothing, Option[Service]] =
       ZManaged.environmentWith(_.getAt(key))
@@ -1492,7 +1491,6 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: Service => A)(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[Service, Nothing, A] =
@@ -1501,7 +1499,6 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZIO[R, E, A])(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[R with Service, E, A] =
@@ -1510,7 +1507,6 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   final class ServiceWithManagedPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[R <: Service, E, A](f: Service => ZManaged[R, E, A])(implicit
-      ev: IsNotIntersection[Service],
       tag: Tag[Service],
       trace: ZTraceElement
     ): ZManaged[R with Service, E, A] =
@@ -1540,7 +1536,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       layer: => ZLayer[R0, E1, R1]
     )(implicit
       ev: R0 with R1 <:< R,
-      tagged: Tag[R1],
+      tagged: EnvironmentTag[R1],
       trace: ZTraceElement
     ): ZManaged[R0, E1, A] =
       self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
@@ -1556,7 +1552,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   final class UpdateService[-R, +E, +A, M](private val self: ZManaged[R, E, A]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
-    )(implicit ev: IsNotIntersection[M], tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
+    )(implicit tag: Tag[M], trace: ZTraceElement): ZManaged[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 
@@ -3171,7 +3167,11 @@ object ZManaged extends ZManagedPlatformSpecific {
 
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     managed: ZManaged[ROut with RIn2, E, ROut2]
-  )(implicit ev: Tag[RIn2], tag: Tag[ROut], trace: ZTraceElement): ZManaged[RIn with RIn2, E, ROut2] =
+  )(implicit
+    ev: EnvironmentTag[RIn2],
+    tag: EnvironmentTag[ROut],
+    trace: ZTraceElement
+  ): ZManaged[RIn with RIn2, E, ROut2] =
     managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
 
   /**
@@ -3287,7 +3287,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   /**
    * Accesses the specified service in the environment of the effect.
    */
-  def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): ZManaged[A, Nothing, A] =
+  def service[A: Tag](implicit trace: ZTraceElement): ZManaged[A, Nothing, A] =
     ZManaged.environmentWith(_.get[A])
 
   /**
@@ -3300,7 +3300,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag](implicit
     trace: ZTraceElement
   ): ZManaged[A with B, Nothing, (A, B)] =
     ZManaged.access(r => (r.get[A], r.get[B]))
@@ -3309,7 +3309,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Accesses the specified services in the environment of the effect.
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag, C: Tag](implicit
     trace: ZTraceElement
   ): ZManaged[A with B with C, Nothing, (A, B, C)] =
     ZManaged.access(r => (r.get[A], r.get[B], r.get[C]))
@@ -3319,10 +3319,10 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   @deprecated("use service", "2.0.0")
   def services[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag
   ](implicit
     trace: ZTraceElement
   ): ZManaged[A with B with C with D, Nothing, (A, B, C, D)] =

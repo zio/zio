@@ -5,6 +5,35 @@ import scala.reflect.macros.blackbox
 class InternalMacros(val c: blackbox.Context) {
   import c.universe._
 
+  def materializeTag[A: c.WeakTypeTag]: c.Tree = {
+    val tpe = c.weakTypeOf[A]
+    tpe.widen.dealias match {
+      case x if x.typeSymbol.isParameter =>
+        try {
+          val serviceTagType = c.typecheck(q"_root_.zio.Tag[$x]").tpe
+          c.inferImplicitValue(serviceTagType, silent = false, true)
+        } catch {
+          case _: Throwable =>
+            try {
+              val intersectionType      = c.typecheck(q"_root_.zio.IsNotIntersection[$x]").tpe
+              val isNotIntersectionTree = c.inferImplicitValue(intersectionType, silent = false)
+
+              val envTagType = c.typecheck(q"_root_.zio.EnvironmentTag[$x]").tpe
+              val envTagTree = c.inferImplicitValue(envTagType, silent = false)
+
+              q"_root_.zio.Tag[$tpe]($envTagTree, $isNotIntersectionTree)"
+            } catch {
+              case _: Throwable =>
+                c.abort(c.enclosingPosition, s"Cannot find implicit for Tag[$x]")
+            }
+        }
+      case tpe if isIntersection(tpe) =>
+        c.abort(c.enclosingPosition, s"A Tag may not contain an intersection type, yet have provided: $tpe")
+      case _ =>
+        q"_root_.zio.Tag[$tpe]"
+    }
+  }
+
   def materializeIsNotIntersection[A: c.WeakTypeTag]: c.Tree = {
     val tpe = c.weakTypeOf[A]
     tpe.widen.dealias match {

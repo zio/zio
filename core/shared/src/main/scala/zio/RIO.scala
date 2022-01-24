@@ -1093,7 +1093,7 @@ object RIO {
    * @see
    *   See [[zio.ZIO.getState]]
    */
-  def getState[S: Tag](implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, S] =
+  def getState[S: EnvironmentTag](implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, S] =
     ZIO.getState
 
   /**
@@ -1479,14 +1479,14 @@ object RIO {
    * @see
    *   See [[zio.ZIO.setState]]
    */
-  def setState[S: Tag](s: => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
+  def setState[S: EnvironmentTag](s: => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.setState(s)
 
   /**
    * @see
    *   See [[zio.ZIO.service]]
    */
-  def service[A: Tag: IsNotIntersection](implicit trace: ZTraceElement): URIO[A, A] =
+  def service[A: Tag](implicit trace: ZTraceElement): URIO[A, A] =
     ZIO.service[A]
 
   /**
@@ -1501,7 +1501,7 @@ object RIO {
    *   See [[zio.ZIO.services[A,B]*]]
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag](implicit
     trace: ZTraceElement
   ): URIO[A with B, (A, B)] =
     ZIO.services[A, B]
@@ -1511,7 +1511,7 @@ object RIO {
    *   See [[zio.ZIO.services[A,B,C]*]]
    */
   @deprecated("use service", "2.0.0")
-  def services[A: Tag: IsNotIntersection, B: Tag: IsNotIntersection, C: Tag: IsNotIntersection](implicit
+  def services[A: Tag, B: Tag, C: Tag](implicit
     trace: ZTraceElement
   ): URIO[A with B with C, (A, B, C)] =
     ZIO.services[A, B, C]
@@ -1522,10 +1522,10 @@ object RIO {
    */
   @deprecated("use service", "2.0.0")
   def services[
-    A: Tag: IsNotIntersection,
-    B: Tag: IsNotIntersection,
-    C: Tag: IsNotIntersection,
-    D: Tag: IsNotIntersection
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag
   ](implicit
     trace: ZTraceElement
   ): URIO[A with B with C with D, (A, B, C, D)] =
@@ -1662,7 +1662,7 @@ object RIO {
    * @see
    *   See [[zio.ZIO.updateState]]
    */
-  def updateState[S: Tag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
+  def updateState[S: EnvironmentTag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.updateState(f)
 
   /**
