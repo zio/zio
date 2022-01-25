@@ -40,6 +40,11 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
       test("correctly reports labeled failures") {
         assertM(runLog(test7))(equalTo(test7Expected.mkString + "\n" + reportStats(0, 0, 1)))
       },
+      test("correctly reports labeled failures for assertTrue") {
+        for {
+          log <- runLog(test9)
+        } yield assertTrue(log.contains("""?? "third""""), log.contains("""?? "fourth""""))
+      },
       test("correctly reports negated failures") {
         assertM(runLog(test8))(equalTo(test8Expected.mkString + "\n" + reportStats(0, 0, 1)))
       }

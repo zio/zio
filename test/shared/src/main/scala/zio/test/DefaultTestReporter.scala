@@ -85,10 +85,10 @@ object DefaultTestReporter {
               result
                 .fold[Option[TestResult]] {
                   case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
-                  case AssertionResult.TraceResult(trace, genFailureDetails) =>
+                  case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
                     Trace
                       .prune(trace, false)
-                      .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails)))
+                      .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails, label)))
                 }(
                   {
                     case (Some(a), Some(b)) => Some(a && b)
@@ -185,12 +185,12 @@ object DefaultTestReporter {
 
   def renderAssertionResult(assertionResult: AssertionResult, offset: Int): Message =
     assertionResult match {
-      case AssertionResult.TraceResult(trace, genFailureDetails) =>
+      case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
         val failures = FailureCase.fromTrace(trace)
         failures
           .map(fc =>
             renderGenFailureDetails(genFailureDetails, offset) ++
-              Message(renderFailureCase(fc, offset))
+              Message(renderFailureCase(fc, offset, label))
           )
           .foldLeft(Message.empty)(_ ++ _)
 
@@ -199,7 +199,7 @@ object DefaultTestReporter {
           renderFailureDetails(failureDetails, offset)
     }
 
-  def renderFailureCase(failureCase: FailureCase, offset: Int): Chunk[Line] =
+  def renderFailureCase(failureCase: FailureCase, offset: Int, testLabel: Option[String]): Chunk[Line] =
     failureCase match {
       case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
         val errorMessageLines =
@@ -210,8 +210,8 @@ object DefaultTestReporter {
 
         val result =
           errorMessageLines ++
-            Chunk(Line.fromString(codeString)) ++
-            nested.flatMap(renderFailureCase(_, offset)).map(_.withOffset(1)) ++
+            Chunk(Line.fromString(testLabel.fold(codeString)(l => s"""$codeString ?? "$l""""))) ++
+            nested.flatMap(renderFailureCase(_, offset, None)).map(_.withOffset(1)) ++
             Chunk.fromIterable(path.flatMap { case (label, value) =>
               Chunk.fromIterable(PrettyPrint(value).split("\n").map(primary(_).toLine)) match {
                 case head +: lines => (dim(s"${label.trim} = ") +: head) +: lines

@@ -156,6 +156,13 @@ object ReportingTestUtils {
     withOffset(2)(assertSourceLocation() + "\n")
   )
 
+  def test9(implicit trace: ZTraceElement): ZSpec[Any, Nothing] = test("labeled failures") {
+    assertTrue(1 == 1).map(_.label("first")) &&
+    assertTrue(1 == 1).map(_.label("second")) &&
+    assertTrue(1 == 0).map(_.label("third")) &&
+    assertTrue(1 == 0).map(_.label("fourth"))
+  }
+
   def suite1(implicit trace: ZTraceElement): Spec[Any, TestFailure[Nothing], TestSuccess] =
     suite("Suite1")(test1, test2)
   def suite1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(

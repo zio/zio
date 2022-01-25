@@ -12,7 +12,7 @@ sealed trait AssertionResult { self =>
       case result: FailureDetailsResult =>
         result.copy(failureDetails = result.failureDetails.label(label))
       case result: AssertionResult.TraceResult =>
-        result
+        result.copy(label = Some(label))
     }
 
   def setGenFailureDetails(details: GenFailureDetails): AssertionResult =
@@ -27,6 +27,9 @@ sealed trait AssertionResult { self =>
 object AssertionResult {
   case class FailureDetailsResult(failureDetails: FailureDetails, genFailureDetails: Option[GenFailureDetails] = None)
       extends AssertionResult
-  case class TraceResult(trace: Trace[Boolean], genFailureDetails: Option[GenFailureDetails] = None)
-      extends AssertionResult
+  case class TraceResult(
+    trace: Trace[Boolean],
+    genFailureDetails: Option[GenFailureDetails] = None,
+    label: Option[String] = None
+  ) extends AssertionResult
 }
