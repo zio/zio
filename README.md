@@ -127,6 +127,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Stuart](https://stuart.com/)
 * [Teads](https://teads.com)
 * [TomTom](https://tomtom.com)
+* [Tinka](https://www.tinka.com/)
 * [Tinkoff](https://tinkoff.ru)
 * [Tranzzo](https://tranzzo.com)
 * [Tweddle Group](https://tweddle.com)
