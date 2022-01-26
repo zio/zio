@@ -4561,6 +4561,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.suspend(streams.foldLeft[ZStream[R, E, O]](empty)(_ ++ _))
 
   /**
+   * Prints the specified message to the console for debugging purposes.
+   */
+  def debug(value: => Any)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
+    ZStream.fromZIO(ZIO.debug(value))
+
+  /**
    * The stream that dies with the `ex`.
    */
   def die(ex: => Throwable)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Nothing] =
