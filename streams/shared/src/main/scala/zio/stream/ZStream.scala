@@ -4564,7 +4564,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Prints the specified message to the console for debugging purposes.
    */
   def debug(value: => Any)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
-    ZStream.fromZIO(ZIO.debug(println(value)))
+    ZStream.fromZIO(ZIO.debug(value))
 
   /**
    * The stream that dies with the `ex`.
