@@ -1,6 +1,5 @@
 package zio
 
-import com.github.ghik.silencer.silent
 import zio.Cause.Interrupt
 import zio.Exit.Failure
 import zio.ZManaged.ReleaseMap
@@ -13,7 +12,6 @@ import zio.test.environment._
 
 import scala.concurrent.ExecutionContext
 
-@silent("The global execution context in Scala.js is based on JS Promises (microtasks).")
 object ZManagedSpec extends ZIOBaseSpec {
 
   import ZIOTag._

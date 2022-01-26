@@ -1,6 +1,5 @@
 package zio
 
-import com.github.ghik.silencer.silent
 import zio.Cause._
 import zio.LatchOps._
 import zio.clock.Clock
@@ -15,7 +14,6 @@ import zio.test.environment.{Live, TestClock}
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-@silent("The global execution context in Scala.js is based on JS Promises (microtasks).")
 object ZIOSpec extends ZIOBaseSpec {
 
   import ZIOTag._
