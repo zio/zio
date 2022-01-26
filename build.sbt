@@ -248,6 +248,7 @@ lazy val streamsTestsJVM = streamsTests.jvm
 
 lazy val streamsTestsJS = streamsTests.js
   .settings(dottySettings)
+  .settings(scalacOptions += "-P:scalajs:nowarnGlobalExecutionContext")
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
