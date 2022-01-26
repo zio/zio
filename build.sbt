@@ -178,7 +178,15 @@ lazy val coreTestsJVM = coreTests.jvm
 
 lazy val coreTestsJS = coreTests.js
   .settings(dottySettings)
-  .settings(scalacOptions += "-P:scalajs:nowarnGlobalExecutionContext")
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros"))
@@ -248,7 +256,15 @@ lazy val streamsTestsJVM = streamsTests.jvm
 
 lazy val streamsTestsJS = streamsTests.js
   .settings(dottySettings)
-  .settings(scalacOptions += "-P:scalajs:nowarnGlobalExecutionContext")
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
