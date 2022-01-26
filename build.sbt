@@ -269,8 +269,8 @@ lazy val testJS = test.js
   .settings(dottySettings)
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M1",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M1"
     )
   )
 lazy val testNative = test.native
@@ -593,14 +593,11 @@ lazy val docs = project.module
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     libraryDependencies ++= Seq(
-      "commons-io"          % "commons-io"                % "2.11.0" % "provided",
-      "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
-      "io.7mind.izumi"     %% "logstage-core"             % "1.0.8",
-      "org.jsoup"           % "jsoup"                     % "1.14.3" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
-      /* to evict 1.3.0 brought in by mdoc-js */
-      "org.scala-js"                   % "scalajs-compiler"              % scalaJSVersion cross CrossVersion.full,
-      "org.scala-js"                  %% "scalajs-linker"                % scalaJSVersion,
+      "commons-io"                     % "commons-io"                    % "2.11.0" % "provided",
+      "io.7mind.izumi"                %% "distage-core"                  % "1.0.8",
+      "io.7mind.izumi"                %% "logstage-core"                 % "1.0.8",
+      "org.jsoup"                      % "jsoup"                         % "1.14.3" % "provided",
+      "org.reactivestreams"            % "reactive-streams-examples"     % "1.0.3"  % "provided",
       "org.typelevel"                 %% "cats-effect"                   % catsEffectV,
       "dev.zio"                       %% "zio-actors"                    % zioActorsV,
       "dev.zio"                       %% "zio-akka-cluster"              % "0.2.0",
