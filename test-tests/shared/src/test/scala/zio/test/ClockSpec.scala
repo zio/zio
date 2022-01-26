@@ -175,6 +175,12 @@ object ClockSpec extends ZIOBaseSpec {
           _      <- TestClock.adjust(1.second)
           result <- fiber.join
         } yield assert(result)(equalTo(List(0 -> 0, 0 -> 1, 1 -> 1, 1 -> 2)))
+      },
+      test("adjustWith runs the specified effect and advances the clock") {
+        val zio = ZIO.sleep(1.hour)
+        for {
+          _ <- TestClock.adjustWith(1.hour)(zio)
+        } yield assertCompletes
       }
     ) @@ TestAspect.fibers
 }
