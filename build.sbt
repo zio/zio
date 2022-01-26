@@ -178,6 +178,7 @@ lazy val coreTestsJVM = coreTests.jvm
 
 lazy val coreTestsJS = coreTests.js
   .settings(dottySettings)
+  .settings(scalacOptions += "-P:scalajs:nowarnGlobalExecutionContext")
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros"))
