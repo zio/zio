@@ -16,6 +16,7 @@
 
 package zio.internal
 
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import zio.internal.stacktracer.Tracer
 import zio.internal.tracing.TracingConfig
 import zio.{Cause, Supervisor}
@@ -64,7 +65,7 @@ private[internal] trait PlatformSpecific {
   /**
    * A `Platform` created from Scala's global execution context.
    */
-  lazy val global: Platform = fromExecutionContext(ExecutionContext.global)
+  lazy val global: Platform = fromExecutionContext(MacrotaskExecutor)
 
   /**
    * Creates a platform from an `Executor`.
@@ -116,7 +117,7 @@ private[internal] trait PlatformSpecific {
    * Makes a new default platform. This is a side-effecting method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
-    fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))
+    fromExecutor(Executor.fromExecutionContext(yieldOpCount)(MacrotaskExecutor))
 
   final def newWeakSet[A](): JSet[A] = new HashSet[A]()
 

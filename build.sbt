@@ -146,6 +146,7 @@ lazy val coreJVM = core.jvm
 
 lazy val coreJS = core.js
   .settings(dottySettings)
+  .settings(libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "1.0.0")
 
 lazy val coreNative = core.native
   .settings(nativeSettings)
