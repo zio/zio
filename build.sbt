@@ -36,7 +36,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";coreNative/test;stacktracerNative/test;streamsNative/test;testNative/test;testRunnerNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
 )
 addCommandAlias(
   "testJVM",
@@ -93,6 +93,7 @@ lazy val root = project
     coreNative,
     coreTestsJS,
     coreTestsJVM,
+    coreTestsNative,
     docs,
     examplesJS,
     examplesJVM,
@@ -108,6 +109,7 @@ lazy val root = project
     streamsNative,
     streamsTestsJS,
     streamsTestsJVM,
+    streamsTestsNative,
     testJS,
     testJVM,
     testNative,
@@ -126,7 +128,8 @@ lazy val root = project
     testScalaCheckJVM,
     testScalaCheckNative,
     testTestsJS,
-    testTestsJVM
+    testTestsJVM,
+    testTestsNative
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -155,7 +158,7 @@ lazy val coreNative = core.native
     )
   )
 
-lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
+lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core-tests"))
   .dependsOn(core)
   .dependsOn(test)
@@ -177,6 +180,9 @@ lazy val coreTestsJVM = coreTests.jvm
 
 lazy val coreTestsJS = coreTests.js
   .settings(dottySettings)
+
+lazy val coreTestsNative = coreTests.native
+  .settings(nativeSettings)
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros"))
@@ -225,7 +231,7 @@ lazy val streamsJS = streams.js
 lazy val streamsNative = streams.native
   .settings(nativeSettings)
 
-lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
+lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams-tests"))
   .dependsOn(streams)
   .dependsOn(coreTests % "test->test;compile->compile")
@@ -246,6 +252,8 @@ lazy val streamsTestsJVM = streamsTests.jvm
 
 lazy val streamsTestsJS = streamsTests.js
   .settings(dottySettings)
+
+lazy val streamsTestsNative = streamsTests.native
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
@@ -282,7 +290,7 @@ lazy val testNative = test.native
     )
   )
 
-lazy val testTests = crossProject(JSPlatform, JVMPlatform)
+lazy val testTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-tests"))
   .dependsOn(test)
   .settings(stdSettings("test-tests"))
@@ -294,8 +302,9 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(dottySettings)
+lazy val testTestsJVM    = testTests.jvm.settings(dottySettings)
+lazy val testTestsJS     = testTests.js.settings(dottySettings)
+lazy val testTestsNative = testTests.native
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
