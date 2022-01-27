@@ -86,6 +86,7 @@ import scala.collection.immutable.SortedSet
  */
 trait TestClock extends Clock with Restorable {
   def adjust(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit]
+  def adjustWith[R, E, A](duration: Duration)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
   def setDateTime(dateTime: OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit]
   def setTime(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit]
   def setTimeZone(zone: ZoneId)(implicit trace: ZTraceElement): UIO[Unit]
@@ -112,6 +113,14 @@ object TestClock extends Serializable {
      */
     def adjust(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       warningDone *> run(_ + duration)
+
+    /**
+     * Increments the current clock time by the specified duration. Any effects
+     * that were scheduled to occur on or before the new time will be run in
+     * order.
+     */
+    def adjustWith[R, E, A](duration: Duration)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      zio <& adjust(duration)
 
     /**
      * Returns the current clock time as an `OffsetDateTime`.
@@ -396,6 +405,11 @@ object TestClock extends Serializable {
    */
   def adjust(duration: => Duration)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
     ZIO.serviceWithZIO(_.adjust(duration))
+
+  def adjustWith[R, E, A](duration: => Duration)(zio: ZIO[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZIO[R with TestClock, E, A] =
+    ZIO.serviceWithZIO[TestClock](_.adjustWith(duration)(zio))
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock
