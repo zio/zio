@@ -122,6 +122,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [SecurityScorecard](https://www.securityscorecard.io/)
 * [SentinelOne](https://www.sentinelone.com/)
 * [Signicat](https://www.signicat.com/)
+* [Société Générale Corporate and Investment Banking](https://info.sgmarkets.com/en/)
 * [SoftwareMill](https://softwaremill.com/)
 * [StreamWeaver](https://www.streamweaver.com/)
 * [Stuart](https://stuart.com/)
