@@ -194,15 +194,6 @@ object ZIOAspect {
     }
 
   /**
-   * An aspect that times out effects.
-   */
-  def timeoutFail[E1](e: => E1)(d: Duration): ZIOAspect[Nothing, Clock, E1, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Clock, E1, Any, Nothing, Any] {
-      def apply[R <: Clock, E >: E1, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.timeoutFail(e)(d)
-    }
-
-  /**
    * An aspect that runs effects with the runtime configuration modified with
    * the specified `RuntimeConfigAspect`.
    */
@@ -210,5 +201,14 @@ object ZIOAspect {
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         ZIO.runtimeConfig.flatMap(runtimeConfig => zio.withRuntimeConfig(runtimeConfigAspect(runtimeConfig)))
+    }
+
+  /**
+   * An aspect that times out effects.
+   */
+  def timeoutFail[E1](e: => E1)(d: Duration): ZIOAspect[Nothing, Clock, E1, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Clock, E1, Any, Nothing, Any] {
+      def apply[R <: Clock, E >: E1, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.timeoutFail(e)(d)
     }
 }
