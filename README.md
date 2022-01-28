@@ -139,6 +139,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Vakantiediscounter](https://www.vakantiediscounter.nl)
 * [Verbund AG](https://www.verbund.com)
 * [Wehkamp](https://www.wehkamp.nl)
+* [Waylay](https://www.waylay.io/)
 * [Wolt](https://www.wolt.com/)
 * [Yandex.Classifieds](https://o.yandex.ru)
 * [Audela](https://audela.ca)
