@@ -5,7 +5,7 @@ title: "ZIO Users"
 
 Following is a partial list of companies happily using ZIO in production to craft concurrent applications.
 
-Want to see your company here? Submit a PR!
+Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/series/2.x/docs/about/users.md)!
 
 
 | Company                                                          | Logo                                                              |
