@@ -31,7 +31,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/ser
 | [Colisweb](https://www.colisweb.com/en)                          | <img src="/img/users/colisweb.png" width="30%" />                 |
 | [Collibra](https://www.collibra.com/)                            | <img src="/img/users/collibra.svg" width="100%" />                |
 | [Compellon](https://www.compellon.com/)                          | <img src="/img/users/compellon.png" width="100%" />               |
-| [Complicated Robot](https://www.complicatedrobot.com/)           | <img src="/img/users/complicatedrobot.png" width="100%" />        |
+| [Complicated Robot](https://www.complicatedrobot.com/)           |                                                                   |
 | [Conduktor](https://www.conduktor.io)                            | <img src="/img/users/conduktor.svg" width="100%" />               |
 | [Coralogix](https://coralogix.com)                               | <img src="/img/users/coralogix.svg" width="100%" />               |
 | [CurrencyCloud](https://www.currencycloud.com/)                  | <img src="/img/users/currencycloud.svg" width="40%" />            |
@@ -97,11 +97,11 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/ser
 | [Univalence](https://univalence.io)                              | <img src="/img/users/univalence.png" width="100%" />              |
 | [Vakantiediscounter](https://www.vakantiediscounter.nl)          | <img src="/img/users/vakantiediscounter.svg" width="100%" />      |
 | [Verbund AG](https://www.verbund.com)                            | <img src="/img/users/verbund.svg" width="100%" />                 |
-| [Wehkamp](https://www.wehkamp.nl)                                | <img src="/img/users/wehkamp.png" width="100%" />                 |
-| [Wolt](https://www.wolt.com/)                                    | <img src="/img/users/wolt.png" width="100%" />                    |
+| [Wehkamp](https://www.wehkamp.nl)                                | <img src="/img/users/wehkamp.png" width="60%" />                  |
+| [Wolt](https://www.wolt.com/)                                    | <img src="/img/users/wolt.png" width="70%" />                     |
 | [Audela](https://audela.ca)                                      | <img src="/img/users/audela.png" width="100%" />                  |
-| [Valamis Group](https://valamis.com)                             | <img src="/img/users/valamis.png" width="100%" />                 |
-| [VirtusLab](https://virtuslab.com/)                              | <img src="/img/users/virtuslab.svg" width="90%" />                |
+| [Valamis Group](https://valamis.com)                             | <img src="/img/users/valamis.png" width="70%" />                  |
+| [VirtusLab](https://virtuslab.com/)                              | <img src="/img/users/virtuslab.svg" width="70%" />                |
 | [Vish](https://getvish.com)                                      | <img src="/img/users/vish.svg" width="70%" />                     |
 | [Zalando](https://zalando.com/)                                  | <img src="/img/users/zalando.svg" width="100%" />                 |
 | [Zooz](https://zooz.com/)                                        | <img src="/img/users/zooz.svg" width="20%" />                     |
