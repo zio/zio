@@ -75,6 +75,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "paginateM"              -> "paginateZIO",
       "partitionPar_"          -> "partitionParDiscard",
       "partition_"             -> "partitionDiscard",
+      "provide"                -> "provideService",
       "rejectM"                -> "rejectZIO",
       "repeatEffect"           -> "repeatZIO",
       "repeatEffectChunk"      -> "repeatZIOChunk",
@@ -690,10 +691,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
       case t @ ImporteeNameOrRename(FiberId_Old(_)) => Patch.removeImportee(t)
 
-    }.asPatch + replaceSymbols + fixProvides
+    }.asPatch + replaceSymbols
   }
 
   /*
+     Since this is now just a simple rename, I'm keeping this around a bit longer
+     to reference for future migrations.
+
       Transforms
         ZIO(foo).provide(bar)
       into
