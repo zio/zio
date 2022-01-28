@@ -194,6 +194,16 @@ object ZIOAspect {
     }
 
   /**
+   * An aspect that runs effects with the runtime configuration modified with
+   * the specified `RuntimeConfigAspect`.
+   */
+  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        ZIO.runtimeConfig.flatMap(runtimeConfig => zio.withRuntimeConfig(runtimeConfigAspect(runtimeConfig)))
+    }
+
+  /**
    * An aspect that times out effects.
    */
   def timeoutFail[E1](e: => E1)(d: Duration): ZIOAspect[Nothing, Clock, E1, Any, Nothing, Any] =
