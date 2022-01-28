@@ -176,6 +176,16 @@ object SpecSpec extends ZIOBaseSpec {
           ).provideCustomLayerShared(ZManaged.acquireReleaseWith(Ref.make(0))(_.set(-1)).toLayer)
         assertM(succeeded(spec))(isTrue)
       }
-    )
+    ),
+    suite("iterable constructor") {
+      Chunk(
+        test("some test") {
+          assert(true)(isTrue)
+        },
+        test("some other test") {
+          assert(false)(isFalse)
+        }
+      )
+    }
   )
 }
