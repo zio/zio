@@ -3041,15 +3041,15 @@ object ZIOSpec extends ZIOSpecDefault {
         val zio =
           for {
             v1 <- ZIO.environment[Int]
-            v2 <- ZIO.environment[Int].provide(2)
+            v2 <- ZIO.environment[Int].provideService(2)
             v3 <- ZIO.environment[Int]
           } yield (v1, v2, v3)
 
-        assertM(zio.provide(4))(equalTo((4, 2, 4)))
+        assertM(zio.provideService(4))(equalTo((4, 2, 4)))
       },
       test("effectAsync can use environment") {
         val zio = ZIO.async[Int, Nothing, Int](cb => cb(ZIO.environment[Int]))
-        assertM(zio.provide(10))(equalTo(10))
+        assertM(zio.provideService(10))(equalTo(10))
       }
     ),
     suite("RTS forking inheritability")(

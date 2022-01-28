@@ -75,6 +75,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "paginateM"              -> "paginateZIO",
       "partitionPar_"          -> "partitionParDiscard",
       "partition_"             -> "partitionDiscard",
+      "provide"                -> "provideService",
       "rejectM"                -> "rejectZIO",
       "repeatEffect"           -> "repeatZIO",
       "repeatEffectChunk"      -> "repeatZIOChunk",
@@ -692,6 +693,30 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
     }.asPatch + replaceSymbols
   }
+
+  /*
+     Since this is now just a simple rename, I'm keeping this around a bit longer
+     to reference for future migrations.
+
+      Transforms
+        ZIO(foo).provide(bar)
+      into
+        ZIO(foo).provideEnvironment(ZEnvironment(bar))
+   */
+  def fixProvides(implicit doc: SemanticDocument): Patch =
+    doc.tree.collect {
+      case Term.Apply(
+          Term.Select(
+            // TODO Keep an eye out for more Term types that `a` might be
+            a @ (Term.ApplyType(_, _) | Term.Select(_, _) | Term.Apply(_, _)) ,
+            p @ Term.Name("provide")
+          ),
+          List(args)
+        ) if a.symbol.owner.value.startsWith("zio") =>
+        Patch.addGlobalImport(Symbol("zio/ZEnvironment#")) +
+          Patch.replaceTree(p, "provideEnvironment") +
+          Patch.replaceTree(args, s"ZEnvironment($args)")
+    }.asPatch
 
   private def wildcardImport(ref: Term.Ref): Importer =
     Importer(ref, List(Importee.Wildcard()))
