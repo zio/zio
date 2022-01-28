@@ -74,7 +74,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/ser
 | [Optrak](https://optrak.com)                                     | <img src="/img/users/optrak.jpg" width="100%" />                  |
 | [Performance Immo](https://www.performance-immo.com/)            | <img src="/img/users/performance-immo.png" width="30%" />         |
 | [Playtika](https://www.playtika.com)                             | <img src="/img/users/playtika.png" width="100%" />                |
-| [PPC Samurai](https://ppcsamurai.com/)                           | <img src="/img/users/ppcsamurai.jpg" width="60%" />              |
+| [PPC Samurai](https://ppcsamurai.com/)                           | <img src="/img/users/ppcsamurai.jpg" width="60%" />               |
 | [Randstad Groep Nederland](https://www.werkenbijrandstad.nl)     | <img src="/img/users/werkenbijrandstad.svg" width="100%" />       |
 | [PIM Solutions](https://pimsolutions.ru/)                        | <img src="/img/users/pimsolutions.svg" width="30%" />             |
 | [Risk Ident](https://riskident.com/)                             | <img src="/img/users/riskident.svg" width="100%" />               |
@@ -104,5 +104,5 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/ser
 | [VirtusLab](https://virtuslab.com/)                              | <img src="/img/users/virtuslab.svg" width="90%" />                |
 | [Vish](https://getvish.com)                                      | <img src="/img/users/vish.svg" width="70%" />                     |
 | [Zalando](https://zalando.com/)                                  | <img src="/img/users/zalando.svg" width="100%" />                 |
-| [Zooz](https://zooz.com/)                                        | <img src="/img/users/zooz.svg" width="20%" />     |
+| [Zooz](https://zooz.com/)                                        | <img src="/img/users/zooz.svg" width="20%" />                     |
 
