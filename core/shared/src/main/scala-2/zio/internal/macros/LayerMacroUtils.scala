@@ -14,12 +14,14 @@ private[zio] trait LayerMacroUtils {
   type LayerExpr = c.Expr[ZLayer[_, _, _]]
 
   def generateExprGraph(
-    layer: Seq[LayerExpr]
+    layer: Seq[LayerExpr],
+    provideMethod: ProvideMethod[LayerExpr]
   ): ZLayerExprBuilder[c.Type, LayerExpr] =
-    generateExprGraph(layer.map(getNode).toList)
+    generateExprGraph(layer.map(getNode).toList, provideMethod)
 
   def generateExprGraph(
-    nodes: List[Node[c.Type, LayerExpr]]
+    nodes: List[Node[c.Type, LayerExpr]],
+    provideMethod: ProvideMethod[LayerExpr]
   ): ZLayerExprBuilder[c.Type, LayerExpr] =
     ZLayerExprBuilder[c.Type, LayerExpr](
       graph = Graph(
@@ -34,7 +36,8 @@ private[zio] trait LayerMacroUtils {
       warn = c.warning(c.enclosingPosition, _),
       emptyExpr = reify(ZLayer.succeed(())),
       composeH = (lhs, rhs) => c.Expr(q"""$lhs ++ $rhs"""),
-      composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
+      composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs"""),
+      provideMethod = provideMethod
     )
 
   def buildMemoizedLayer(
@@ -42,7 +45,7 @@ private[zio] trait LayerMacroUtils {
     requirements: List[c.Type]
   ): LayerExpr = {
     // This is run for its side effects: Reporting compile errors with the original source names.
-    val _ = exprGraph.buildLayerFor(requirements)
+    val _: LayerExpr = exprGraph.buildLayerFor(requirements, true)
 
     val nodes = exprGraph.graph.nodes
     val memoizedNodes = nodes.map { node =>
@@ -52,6 +55,7 @@ private[zio] trait LayerMacroUtils {
     }
 
     val definitions = memoizedNodes.zip(nodes).map { case (memoizedNode, node) =>
+      // val layer0 = intLayer
       ValDef(Modifiers(), TermName(memoizedNode.value.tree.toString()), TypeTree(), node.value.tree)
     }
     val layerExpr = exprGraph
@@ -76,43 +80,113 @@ private[zio] trait LayerMacroUtils {
     getRequirements(weakTypeOf[T])
 
   def provideBaseImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
-    layer: Seq[c.Expr[ZLayer[_, E, _]]],
-    method: String
+    layers: Seq[c.Expr[ZLayer[_, E, _]]],
+    method: String,
+    isProvideSome: Boolean = false
   ): c.Expr[F[R0, E, A]] = {
-    val expr = constructLayer[R0, R, E](layer)
+
+    val targetTypes    = getRequirements[R]
+    val remainderTypes = getRequirements[R0]
+
+    val debugMap: PartialFunction[LayerExpr, ZLayer.Debug] =
+      ((_: LayerExpr).tree match {
+        case q"zio.ZLayer.Debug.tree"    => Some(ZLayer.Debug.Tree)
+        case q"zio.ZLayer.Debug.mermaid" => Some(ZLayer.Debug.Mermaid)
+        case _                           => None
+      }).unlift
+
+    val builder = LayerBuilder[c.Type, LayerExpr](
+      target = targetTypes,
+      remainder = remainderTypes,
+      providedLayers0 = layers.toList,
+      debugMap = debugMap,
+      typeEquals = _ <:< _,
+      foldTree = buildFinalTree,
+      method = if (isProvideSome) Method.ProvideSome else Method.ProvideCustom,
+      exprToNode = getNode,
+      typeToNode = tpe => Node(Nil, List(tpe), c.Expr[ZLayer[_, E, _]](q"ZLayer.environment[$tpe]")),
+      showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
+      showType = _.toString,
+      reportWarn = c.warning(c.enclosingPosition, _),
+      reportError = c.abort(c.enclosingPosition, _)
+    )
+
+    val expr = builder.build
     c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}(${expr.tree})")
   }
 
-  def constructLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
-    layer0: Seq[c.Expr[ZLayer[_, E, _]]]
-  ): c.Expr[ZLayer[Any, E, R]] = {
-    assertProperVarArgs(layer0)
+  private def buildFinalTree(tree: LayerTree[LayerExpr]) = {
+    val memoMap =
+      tree.toList.map { node =>
+        val freshName = c.freshName("layer")
+        val termName  = TermName(freshName)
+        node -> c.Expr[ZLayer[_, _, _]](q"$termName")
+      }.toMap
 
-    val debug = layer0.collectFirst {
+    val definitions = memoMap.map { case (expr, memoizedNode) =>
+      ValDef(
+        Modifiers(),
+        TermName(memoizedNode.tree.toString()),
+        TypeTree(),
+        expr.tree
+      )
+    }
+
+    val layerExpr = tree.fold[LayerExpr](
+      z = reify(ZLayer.succeed(())),
+      value = memoMap(_),
+      composeH = (lhs, rhs) => c.Expr(q"""$lhs ++ $rhs"""),
+      composeV = (lhs, rhs) => c.Expr(q"""$lhs >>> $rhs""")
+    )
+
+    c.Expr(q"""
+    ..$definitions
+    ${layerExpr.tree}
+    """)
+  }
+
+  def constructLayer[R0: c.WeakTypeTag, R: c.WeakTypeTag, E](
+    layers0: Seq[c.Expr[ZLayer[_, E, _]]],
+    isProvideSome: Boolean = false
+  ): c.Expr[ZLayer[Any, E, R]] = {
+    assertProperVarArgs(layers0)
+
+    val maybeDebug = layers0.collectFirst {
       _.tree match {
         case q"zio.ZLayer.Debug.tree"    => ZLayer.Debug.Tree
         case q"zio.ZLayer.Debug.mermaid" => ZLayer.Debug.Mermaid
       }
     }
-    val layer = layer0.filter {
+    val layers = layers0.filter {
       _.tree match {
         case q"zio.ZLayer.Debug.tree" | q"zio.ZLayer.Debug.mermaid" => false
         case _                                                      => true
       }
     }
 
-    val remainderExpr =
-      if (weakTypeOf[R0] =:= weakTypeOf[ZEnv]) reify(ZEnv.any)
-      else reify(ZLayer.environment[R0])
-    val remainderNode =
-      if (weakTypeOf[R0] =:= weakTypeOf[Any]) List.empty
-      else List(Node(List.empty, getRequirements[R0], remainderExpr))
-    val nodes = remainderNode ++ layer.map(getNode)
+    val remainderNodes =
+      getRequirements[R0].map { tpe =>
+        Node(
+          List.empty,
+          List(tpe),
+          c.Expr[ZLayer[_, E, _]](q"_root_.zio.ZLayer.environment[$tpe]")
+        )
+      }
 
-    val graph        = generateExprGraph(nodes)
+    val provideMethod: ProvideMethod[c.Expr[ZLayer[_, E, _]]] =
+      if (isProvideSome)
+        ProvideMethod.ProvideSome(remainderNodes.map(_.value))
+      else ProvideMethod.Provide
+
+//      if (weakTypeOf[R0] =:= weakTypeOf[Any]) List.empty
+//      else List(Node(List.empty, getRequirements[R0], remainderExpr))
+
+    val nodes = remainderNodes ++ layers.map(getNode)
+
+    val graph        = generateExprGraph(nodes, provideMethod)
     val requirements = getRequirements[R]
     val expr         = buildMemoizedLayer(graph, requirements)
-    debug.foreach { debug =>
+    maybeDebug.foreach { debug =>
       debugLayer(debug, graph, requirements)
     }
     expr.asInstanceOf[c.Expr[ZLayer[Any, E, R]]]

@@ -33,7 +33,8 @@ object TerminalRendering {
 
   def missingLayersError(
     toplevel: List[String],
-    transitive: Map[String, List[String]] = Map.empty
+    transitive: Map[String, List[String]] = Map.empty,
+    isUsingProvideSome: Boolean = true
   ) = {
 
     println(toplevel.mkString("\n"))
@@ -71,6 +72,20 @@ object TerminalRendering {
         s"Please provide a layer for the following type:"
       }
 
+    val allMissingTypes = (toplevel ++ transitive.values.flatten).distinct
+
+    val provideSomeSuggestion =
+      if (isUsingProvideSome) {
+        s"""
+ Alternatively, you may add them to the remainder type ascription:
+ 
+   ${methodName("provideSome")}[${allMissingTypes.map(_.magenta.bold).mkString(" & ")}]
+"""
+
+      } else {
+        ""
+      }
+
     s"""
        |
        |${title("ZLayer Error").red}
@@ -78,7 +93,7 @@ object TerminalRendering {
        | ${message.bold}
        |
        |$errors
-       |       
+       |$provideSomeSuggestion      
        |${line.red}
        |
        |""".stripMargin
@@ -138,36 +153,85 @@ object TerminalRendering {
        |""".stripMargin
   }
 
-  def provideSomeNothingEnvError: String = {
-    val message = s"You must provide a type to ${"provideSome".green}.".bold
-    val A       = "A".cyan
-    val B       = "B".magenta
-    val C       = "C".cyan
-    val example = s"effect" + s".provideSome[$B".green + "]".green + "(layer)"
-    s"""${title("ZLayer Error").red}
+  def unusedProvideSomeLayersError(types: List[String]) = {
+
+    val typeStrings = types.zipWithIndex.map { case (tpe, index) =>
+      val i = s"${index + 1}.".faint
+      s"$i ${tpe.magenta}"
+    }.mkString("\n").indent(3)
+
+    s"""
+       |${title("ZLayer Warning").yellow}
        |
-       | $message
-       | Specify the types of the leftover services, e.g.:
-       | 
-       |   val effect: URIO[$A & $B & $C, Unit] = ???
+       | ${s"You have provided more arguments to ${methodName("provideSome")} than is required.".bold}
+       | You may remove the following ${pluralizeTypes(types.size).bold}:
        |   
-       |   val layer: ULayer[$A & $C] = ???
-       | 
-       |   $example 
-       |       
-       |${line.red}
+       |$typeStrings
+       |  
+       |${line.yellow}
+       |
        |""".stripMargin
   }
 
-  def example(): Unit = {
+  def ambiguousLayersError(duplicates: List[(String, List[String])]): String = {
+
+    val duplicatesString = duplicates.map { case (tpe, layers) =>
+      // each layer numbered on its own line:
+      val numberedLayers = layers.zipWithIndex.map { case (l, i) =>
+        val idx = s"${i + 1}.".faint
+        s"$idx ${l.cyan}"
+      }.mkString("\n")
+
+      s"${tpe.magenta} is provided by:\n${numberedLayers.indent(3)}"
+    }.mkString("\n\n").indent(3)
+
+    val message =
+      if (duplicates.size > 1)
+        s"You have provided more than one layer for the following ${duplicates.size.toString.underlined} types:"
+      else
+        s"You have provided more than one layer for the following type:"
+
+    s"""
+       |${title("ZLayer Error").red}
+       |
+       | ${"Ambiguous layers! I cannot decide which to use.".bold}
+       | ${message}
+       |
+       |$duplicatesString
+       |
+       |${line.red}
+       |
+       |""".stripMargin
+  }
+
+  def provideSomeNothingEnvError: String =
+    s"""${title("ZLayer Warning").yellow}
+
+ ${s"You are using ${methodName("provideSome")} unnecessarily.".bold}
+ The layer does not need any additional services.
+ Simply, use ${methodName("provide")} instead.
+       
+${line.yellow}
+""".stripMargin
+
+  def main(args: Array[String]): Unit = {
     val missing = Map(
       "UserService.live" -> List("zio.Clock", "example.UserService"),
       "Database.live"    -> List("java.sql.Connection"),
       "Logger.live"      -> List("zio.Console")
     )
-    println(missingLayersError(List("java.lang.String", "List[Boolean]"), missing))
-    println(unusedLayersError(List("java.lang.String", "List[Boolean]", "zio.Console")))
+    println(missingLayersError(List("Clock", "Database"), missing))
+    println(unusedLayersError(List("Clock.live", "UserService.live", "Console.test")))
     println(provideSomeNothingEnvError)
+    println(unusedProvideSomeLayersError(List("java.lang.String", "List[Boolean]")))
+    println(
+      ambiguousLayersError(
+        List(
+          ("java.lang.String", List("aGreatStringLayer", "myStringLayer")),
+          ("List[Boolean]", List("someBooleansLayer", "booleanLayer1", "booleanLayer2"))
+        )
+      )
+    )
   }
 
   /**
@@ -183,6 +247,15 @@ object TerminalRendering {
    */
   def pluralizeLayers(n: Int): String =
     pluralize(n, "layer", "layers")
+
+  def pluralizeTypes(n: Int): String =
+    pluralize(n, "type", "types")
+
+  /**
+   * Styles a method name.
+   */
+  private def methodName(string: String): String =
+    string.green
 
   private val width = 70
 
