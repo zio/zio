@@ -18,11 +18,11 @@ private[zio] trait LayerMacroUtils {
     val remainderTypes = getRequirements[R0]
 
     val debugMap: PartialFunction[LayerExpr, ZLayer.Debug] =
-      ((_: LayerExpr).tree match {
+      scala.Function.unlift((_: LayerExpr).tree match {
         case q"zio.ZLayer.Debug.tree"    => Some(ZLayer.Debug.Tree)
         case q"zio.ZLayer.Debug.mermaid" => Some(ZLayer.Debug.Mermaid)
         case _                           => None
-      }).unlift
+      })
 
     val builder = LayerBuilder[c.Type, LayerExpr](
       target = targetTypes,

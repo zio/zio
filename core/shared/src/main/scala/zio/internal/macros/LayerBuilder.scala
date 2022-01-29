@@ -8,6 +8,7 @@ import zio.internal.ansi.AnsiStringOps
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import scala.annotation.tailrec
 
 sealed trait ProvideMethod extends Product with Serializable {
   def isProvideSome: Boolean = this == ProvideMethod.ProvideSome
@@ -80,9 +81,9 @@ final case class LayerBuilder[Type, Expr](
    */
   def assertNoAmbiguity(): Unit = {
     val typesToExprs: Map[String, List[String]] =
-      providedLayerNodes.flatMap { node =>
+      groupMap(providedLayerNodes.flatMap { node =>
         node.outputs.map(output => showType(output) -> showExpr(node.value))
-      }.groupMap(_._1)(_._2)
+      })(_._1)(_._2)
 
     val duplicates: List[(String, List[String])] =
       typesToExprs.toList.filter { case (_, list) => list.size > 1 }
@@ -253,6 +254,20 @@ final case class LayerBuilder[Type, Expr](
 
     val mermaidLink = s"https://mermaid-js.github.io/mermaid-live-editor/edit/#$encodedMermaidGraph"
     mermaidLink
+  }
+
+  def groupMap[A, K, B](as: List[A])(key: A => K)(f: A => B): Map[K, List[B]] = {
+    @tailrec
+    def loop(as: List[A], acc: Map[K, List[B]]): Map[K, List[B]] =
+      as match {
+        case a :: as =>
+          val k = key(a)
+          loop(as, acc.updated(k, f(a) :: acc.getOrElse(k, List.empty)))
+        case Nil =>
+          acc
+      }
+
+    loop(as, Map.empty[K, List[B]])
   }
 
 }
