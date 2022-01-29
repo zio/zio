@@ -11,7 +11,6 @@ import java.util.Base64
 
 sealed trait ProvideMethod extends Product with Serializable {
   def isProvideSome: Boolean = this == ProvideMethod.ProvideSome
-
 }
 
 object ProvideMethod {
@@ -20,51 +19,18 @@ object ProvideMethod {
   case object ProvideCustom extends ProvideMethod
 }
 
-/**
- * Process:
- *   - filter and extract Debug layers
- *   - implement this in Scala 3
- *   - replace all instances of old implementation
- *
- * Edge Cases:
- *
- *   - provideSome/Custom
- *     - layer is fully satisfied
- *       - suggest removing provideSome/Custom
- *     - layer is partially satisfied
- *       - missing types are all part of ZEnv
- *         - suggest using provideCustom (if Some)
- *       - suggest user adds missing types to provideSome call
- *         - give copy-paste-able type list
- *         - suggest using provideSome (if Custom)
- *   - provide
- *     - missing types are all part of ZEnv
- *       - suggest using provideCustom
- */
-
 final case class LayerBuilder[Type, Expr](
-  // The target is my goal
   target: List[Type],
-  // The remainder is what's been specified by provideSome[Remainder]
-  // or by provideCustom (ZEnv)
   remainder: List[Type],
-  // The provided layers by the user. .provide(layer1, layer2, layer3)
   providedLayers0: List[Expr],
-  // THIS MIGHT HAVE TO CHANGE
   debugMap: PartialFunction[Expr, Debug],
-  // Build the final layer Expr
   typeEquals: (Type, Type) => Boolean,
-  // How to fold the LayerTree into the final Layer Expr
   foldTree: LayerTree[Expr] => Expr,
   method: ProvideMethod,
   exprToNode: Expr => Node[Type, Expr],
   typeToNode: Type => Node[Type, Expr],
-
-  // Shows Exprs and Types as strings.
   showExpr: Expr => String,
   showType: Type => String,
-
-  // Reports warnings and errors at compile time.
   reportWarn: String => Unit,
   reportError: String => Nothing
 ) {

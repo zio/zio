@@ -55,13 +55,9 @@ object ZManagedMacros {
 
   def provideImpl[R0: Type, R: Type, E: Type, A: Type](schedule: Expr[ZManaged[R, E, A]], layer: Expr[Seq[ZLayer[_, E, _]]])(using Quotes):
   Expr[ZManaged[R0, E, A]] = {
-    val layerExpr = LayerMacros.fromAutoImpl[R0, R, E](layer)
+    val layerExpr = LayerMacros.constructLayer[R0, R, E](layer)
     '{
       $schedule.provideLayer($layerExpr.asInstanceOf[ZLayer[R0, E, R]])
     }
   }
 }
-
-
-
-
