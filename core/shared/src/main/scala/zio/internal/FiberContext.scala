@@ -457,7 +457,7 @@ private[zio] final class FiberContext[E, A](
 
                     unsafeAddFinalizer(ZIO.succeed(unsafeSetRef(forkScopeOverride, oldForkScopeOverride))(zio.trace))
 
-                    curZio = zio.zio
+                    curZio = zio.zio()
 
                   case ZIO.Tags.Ensuring =>
                     val zio = curZio.asInstanceOf[ZIO.Ensuring[Any, Any, Any]]
