@@ -74,9 +74,9 @@ final case class LayerBuilder[Type, Expr](
 
   /**
    * Checks to see if any type is provided by multiple layers. If so, this will
-   * report a compilation error, warning about ambiguous layers. This is because
-   * our algorithm would arbitrarily choose one of the layers to satisfy the
-   * type, possibly confusing the user and breaking stuff.
+   * report a compilation error about ambiguous layers. Otherwise, our algorithm
+   * would arbitrarily choose one of the layers to satisfy the type, possibly
+   * confusing the user and breaking stuff.
    */
   def assertNoAmbiguity(): Unit = {
     val typesToExprs: Map[String, List[String]] =
@@ -107,11 +107,11 @@ final case class LayerBuilder[Type, Expr](
       reportWarn(message)
     }
 
-    // 1. warn about all unused used-provided layers
+    val unusedRemainderLayers = remainderNodes.filterNot(node => usedLayers(node.value))
+
     method match {
       case ProvideMethod.Provide => ()
       case ProvideMethod.ProvideSome =>
-        val unusedRemainderLayers = remainderNodes.filterNot(node => usedLayers(node.value))
         if (unusedRemainderLayers.nonEmpty) {
           val message = "\n" + TerminalRendering.unusedProvideSomeLayersError(
             unusedRemainderLayers.map(node => showType(node.outputs.head))
@@ -124,8 +124,10 @@ final case class LayerBuilder[Type, Expr](
           reportWarn(message)
         }
       case ProvideMethod.ProvideCustom =>
-        // TODO: Add helpful message when not using any ZEnv layers.
-        ()
+        if (unusedRemainderLayers.sizeIs == remainderNodes.length) {
+          val message = "\n" + TerminalRendering.superfluousProvideCustomError
+          reportWarn(message)
+        }
     }
   }
 

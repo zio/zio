@@ -208,8 +208,18 @@ object TerminalRendering {
     s"""${title("ZLayer Warning").yellow}
 
  ${s"You are using ${methodName("provideSome")} unnecessarily.".bold}
- The layer does not need any additional services.
- Simply, use ${methodName("provide")} instead.
+ The layer is fully satisfied.
+ Simply use ${methodName("provide")} instead.
+       
+${line.yellow}
+""".stripMargin
+
+  def superfluousProvideCustomError: String =
+    s"""${title("ZLayer Warning").yellow}
+
+ ${s"You are using ${methodName("provideCustom")} unnecessarily.".bold}
+ None of the default services are required.
+ Simply use ${methodName("provide")} instead.
        
 ${line.yellow}
 """.stripMargin
