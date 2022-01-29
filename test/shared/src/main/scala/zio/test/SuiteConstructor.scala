@@ -44,6 +44,19 @@ trait SuiteConstructorLowPriority1 extends SuiteConstructorLowPriority2 {
 
 trait SuiteConstructorLowPriority2 extends SuiteConstructorLowPriority3 {
 
+  implicit def IterableConstructor[R, E, T, Collection[+Element] <: Iterable[Element]]
+    : SuiteConstructor.WithOut[Collection[Spec[R, E, T]], R, E, T] =
+    new SuiteConstructor[Collection[Spec[R, E, T]]] {
+      type OutEnvironment = R
+      type OutError       = E
+      type OutSuccess     = T
+      def apply(spec: Collection[Spec[R, E, T]])(implicit trace: ZTraceElement): Spec[R, E, T] =
+        Spec.multiple(Chunk.fromIterable(spec))
+    }
+}
+
+trait SuiteConstructorLowPriority3 extends SuiteConstructorLowPriority4 {
+
   implicit def ZIOConstructor[R, R1, E <: E2, E1 <: E2, E2, T, Collection[+Element] <: Iterable[Element]]
     : SuiteConstructor.WithOut[ZIO[R, E, Collection[Spec[R1, E1, T]]], R with R1, E2, T] =
     new SuiteConstructor[ZIO[R, E, Collection[Spec[R1, E1, T]]]] {
@@ -55,7 +68,7 @@ trait SuiteConstructorLowPriority2 extends SuiteConstructorLowPriority3 {
     }
 }
 
-trait SuiteConstructorLowPriority3 extends SuiteConstructorLowPriority4 {
+trait SuiteConstructorLowPriority4 extends SuiteConstructorLowPriority5 {
 
   implicit def ZManagedConstructor[R, R1, E <: E2, E1 <: E2, E2, T, Collection[+Element] <: Iterable[Element]]
     : SuiteConstructor.WithOut[ZManaged[R, E, Collection[Spec[R1, E1, T]]], R with R1, E2, T] =
@@ -70,7 +83,7 @@ trait SuiteConstructorLowPriority3 extends SuiteConstructorLowPriority4 {
     }
 }
 
-trait SuiteConstructorLowPriority4 {
+trait SuiteConstructorLowPriority5 {
 
   implicit def ZSTMConstructor[R, R1, E <: E2, E1 <: E2, E2, T, Collection[+Element] <: Iterable[Element]]
     : SuiteConstructor.WithOut[ZSTM[R, E, Collection[Spec[R1, E1, T]]], R with R1, E2, T] =
