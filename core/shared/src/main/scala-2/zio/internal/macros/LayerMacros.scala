@@ -28,17 +28,17 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
   def provideImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[Any, E, A]] =
-    provideBaseImpl[F, Any, R, E, A](layer, "provideLayer")
+    provideBaseImpl[F, Any, R, E, A](layer, "provideLayer", ProvideMethod.Provide)
 
-  // ZIO[R, E, A]
-  // ZManaged[R, E, A]
-  // ZStream[R, E, A]
-  // R0 remainder
   def provideSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
   ): c.Expr[F[R0, E, A]] =
-//    assertEnvIsNotNothing[R0]()
-    provideBaseImpl[F, R0, R, E, A](layer, "provideLayer", true)
+    provideBaseImpl[F, R0, R, E, A](layer, "provideLayer", ProvideMethod.ProvideSome)
+
+  def provideCustomImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
+    layer: c.Expr[ZLayer[_, E, _]]*
+  ): c.Expr[F[R0, E, A]] =
+    provideBaseImpl[F, R0, R, E, A](layer, "provideLayer", ProvideMethod.ProvideCustom)
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
     c.Expr[List[String]](q"${getRequirements[R]}")

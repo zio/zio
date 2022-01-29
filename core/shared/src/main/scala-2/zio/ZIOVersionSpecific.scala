@@ -36,7 +36,7 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * }}}
    */
   def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
-    macro LayerMacros.provideSomeImpl[ZIO, ZEnv, R, E1, A]
+    macro LayerMacros.provideCustomImpl[ZIO, ZEnv, R, E1, A]
 
   /**
    * Splits the environment into two parts, assembling one part using the

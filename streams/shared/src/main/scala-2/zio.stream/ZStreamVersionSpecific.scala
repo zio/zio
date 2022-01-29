@@ -21,7 +21,7 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
    * }}}
    */
   def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[ZEnv, E1, O] =
-    macro LayerMacros.provideSomeImpl[ZStream, ZEnv, R, E1, O]
+    macro LayerMacros.provideCustomImpl[ZStream, ZEnv, R, E1, O]
 
   /**
    * Splits the environment into two parts, assembling one part using the

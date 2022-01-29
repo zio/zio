@@ -51,7 +51,7 @@ object AutoWireSpec extends ZIOBaseSpec {
               typeCheck("ZIO.service[Int].provide(ZLayer.succeed(12), ZLayer.succeed(13))")
             assertM(checked)(
               isLeft(
-                containsStringWithoutAnsi("Int is provided by multiple layers") &&
+                containsStringWithoutAnsi("Ambiguous layers!") &&
                   containsStringWithoutAnsi("ZLayer.succeed(12)") &&
                   containsStringWithoutAnsi("ZLayer.succeed(13)")
               )
@@ -119,7 +119,8 @@ object AutoWireSpec extends ZIOBaseSpec {
         suite("provideCustom")(
           test("automatically constructs a layer, leaving off ZEnv") {
             val stringLayer = Console.readLine.orDie.toLayer
-            val program     = ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
+            val program: ZIO[Random with String, Nothing, String] =
+              ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
               program.provideCustom(stringLayer)
 

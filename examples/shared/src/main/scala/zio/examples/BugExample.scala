@@ -6,12 +6,7 @@ object Main extends ZIOAppDefault {
   val program: ZIO[Int, Nothing, Unit] =
     ZIO.service[Int].unit
 
-  // - tree
-  //   - tree
-  //     - myLayer
-  //   - tree
-  //     - myLayer
-  val myLayer: URLayer[Boolean, Int] =
+  val myLayer: URLayer[Console, Int] =
     ZLayer.succeed(11)
 
   val stringLayer: URLayer[Double, String] =
@@ -30,11 +25,13 @@ object Main extends ZIOAppDefault {
   // You can use `provide`
   // OR You can use `provideSome[Boolean]`
   // remainder: List[Type]
-  val program2 = {
-    program.provideSome[Int with Boolean](myLayer) //
 
-    // program.provide(myLayer, ZLayer.environment[String with Boolean])
-  }
+//  val huh = ZLayer.make(myLayer) //
+
+  val program2 =
+    program.provideSome(myLayer) //
+
+  // program.provide(myLayer, ZLayer.environment[String with Boolean])
 
   def run =
     ZIO.unit

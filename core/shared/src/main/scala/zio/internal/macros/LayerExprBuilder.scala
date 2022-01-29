@@ -9,15 +9,15 @@ import zio.internal.ansi.AnsiStringOps
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
-sealed trait Method extends Product with Serializable {
-  def isProvideSome: Boolean = this == Method.ProvideSome
+sealed trait ProvideMethod extends Product with Serializable {
+  def isProvideSome: Boolean = this == ProvideMethod.ProvideSome
 
 }
 
-object Method {
-  case object Provide       extends Method
-  case object ProvideSome   extends Method
-  case object ProvideCustom extends Method
+object ProvideMethod {
+  case object Provide       extends ProvideMethod
+  case object ProvideSome   extends ProvideMethod
+  case object ProvideCustom extends ProvideMethod
 }
 
 /**
@@ -56,7 +56,7 @@ final case class LayerBuilder[Type, Expr](
   typeEquals: (Type, Type) => Boolean,
   // How to fold the LayerTree into the final Layer Expr
   foldTree: LayerTree[Expr] => Expr,
-  method: Method,
+  method: ProvideMethod,
   exprToNode: Expr => Node[Type, Expr],
   typeToNode: Type => Node[Type, Expr],
 
@@ -75,16 +75,13 @@ final case class LayerBuilder[Type, Expr](
   val (providedLayers, maybeDebug): (List[Expr], Option[ZLayer.Debug]) = {
     val maybeDebug = providedLayers0.collectFirst(debugMap)
     val layers     = providedLayers0.filterNot(debugMap.isDefinedAt)
-
-    println(maybeDebug)
     (layers.distinct, maybeDebug)
   }
 
   val providedLayerNodes: List[Node[Type, Expr]] = providedLayers.map(exprToNode)
 
   def build: Expr = {
-    // Make sure that no two provided layers have the same type in their output
-    assertNoDuplicateOutputs()
+    assertNoAmbiguity()
 
     /**
      * Build the layer tree. This represents the structure of a successfully
@@ -115,7 +112,7 @@ final case class LayerBuilder[Type, Expr](
    * our algorithm would arbitrarily choose one of the layers to satisfy the
    * type, possibly confusing the user and breaking stuff.
    */
-  def assertNoDuplicateOutputs(): Unit = {
+  def assertNoAmbiguity(): Unit = {
     val typesToExprs: Map[String, List[String]] =
       providedLayerNodes.flatMap { node =>
         node.outputs.map(output => showType(output) -> showExpr(node.value))
@@ -146,8 +143,8 @@ final case class LayerBuilder[Type, Expr](
 
     // 1. warn about all unused used-provided layers
     method match {
-      case Method.Provide => ()
-      case Method.ProvideSome =>
+      case ProvideMethod.Provide => ()
+      case ProvideMethod.ProvideSome =>
         val unusedRemainderLayers = remainderNodes.filterNot(node => usedLayers(node.value))
         if (unusedRemainderLayers.nonEmpty) {
           val message = "\n" + TerminalRendering.unusedProvideSomeLayersError(
@@ -160,7 +157,7 @@ final case class LayerBuilder[Type, Expr](
           val message = "\n" + TerminalRendering.provideSomeNothingEnvError
           reportWarn(message)
         }
-      case Method.ProvideCustom =>
+      case ProvideMethod.ProvideCustom =>
         // TODO: Add helpful message when not using any ZEnv layers.
         ()
     }
@@ -291,180 +288,3 @@ final case class LayerBuilder[Type, Expr](
   }
 
 }
-
-sealed trait ProvideMethod[+A] extends Product with Serializable {
-  def nodes: List[A]
-}
-
-object ProvideMethod {
-  case object Provide extends ProvideMethod[Nothing] {
-    def nodes: List[Nothing] = List.empty
-  }
-  // But you're missing a ZEnv component. The error message can recommend `use provideCustom`
-  // Use `provideSome[Leftovers]`
-  case class ProvideSome[A](nodes: List[A])   extends ProvideMethod[A]
-  case class ProvideCustom[A](nodes: List[A]) extends ProvideMethod[A]
-}
-
-final case class ZLayerExprBuilder[Key, A](
-  graph: Graph[Key, A],
-  showKey: Key => String,
-  showExpr: A => String,
-  abort: String => Nothing,
-  warn: String => Unit,
-  emptyExpr: A,
-  composeH: (A, A) => A,
-  composeV: (A, A) => A,
-  provideMethod: ProvideMethod[A]
-) {
-
-  def buildLayerFor(output: List[Key], assert: Boolean = false): A =
-    output match {
-      case Nil => emptyExpr
-      case output =>
-        assertNoDuplicateOutputs()
-
-        graph.buildComplete(output) match {
-          case Left(errors) => reportGraphErrors(errors)
-
-          case Right(composed) =>
-            if (assert) warnUnused(composed, provideMethod)
-
-            composed.fold(emptyExpr, identity, composeH, composeV)
-        }
-    }
-
-  private def warnUnused(layerCompose: LayerTree[A], provideMethod: ProvideMethod[A]): Unit = {
-    val provideSomeNodes = provideMethod.nodes.toSet
-
-    val used                  = layerCompose.toSet
-    val userProvidedLeftovers = graph.nodes.map(_.value).toSet -- used -- provideSomeNodes
-
-    if (userProvidedLeftovers.nonEmpty) {
-      val message = "\n" + TerminalRendering.unusedLayersError(userProvidedLeftovers.map(showExpr).toList)
-      warn(message)
-    }
-
-    provideMethod match {
-      case ProvideMethod.Provide =>
-      case ProvideMethod.ProvideSome(nodes) =>
-        val leftovers = (nodes.toSet -- used)
-        val tpes =
-          leftovers.flatMap { expr =>
-            val huh = graph.nodes.find(_.value == expr)
-            huh.map(_.outputs.head).map(showKey)
-          }
-        warn(s"Here are the provide some leftovers:\n ${tpes.mkString("\n")}")
-
-      case ProvideMethod.ProvideCustom(nodes) =>
-        val leftovers = (nodes.toSet -- used)
-        warn(s"Here are the provide custom leftovers:\n ${leftovers.map(showExpr).mkString("\n")}")
-
-    }
-  }
-
-  private def assertNoDuplicateOutputs(): Unit = {
-    val outputMap: Map[Key, List[Node[Key, A]]] = (for {
-      node   <- graph.nodes
-      output <- node.outputs
-    } yield output -> node)
-      .groupBy(_._1)
-      .map { case (key, value) => key -> value.map(_._2) }
-      .filter(_._2.length >= 2)
-
-    if (outputMap.nonEmpty) {
-      val message = outputMap.map { case (output, nodes) =>
-        s"${output.toString.cyan} is provided by multiple layers:\n" +
-          nodes.map(node => "— " + showExpr(node.value).bold.cyan).mkString("\n")
-      }
-        .mkString("\n")
-
-      reportErrorMessage(message)
-    }
-  }
-
-  private def reportErrorMessage(errorMessage: String): Nothing = {
-    val body = errorMessage
-      .split("\n")
-      .map { line =>
-        if (line.forall(_.isWhitespace)) line
-        else "❯ ".red + line
-      }
-      .mkString("\n")
-
-    abort(s"""
-
-${s"  ZLayer Wiring Error  ".red.inverted.bold}
-
-$body
-
-""")
-  }
-
-  private def reportGraphErrors(errors: ::[GraphError[Key, A]]): Nothing = {
-    val allErrors = sortErrors(errors).map(renderError).toList
-
-    val topLevelErrors = allErrors.collect { case top: LayerWiringError.MissingTopLevel =>
-      top.layer
-    }
-
-    val transitive = allErrors.collect { case LayerWiringError.MissingTransitive(layer, deps) =>
-      layer -> deps
-    }.groupBy(_._1).map { case (key, value) => key -> value.flatMap(_._2) }
-
-    val circularErrors = allErrors.collect { case LayerWiringError.Circular(layer, dep) =>
-      layer -> dep
-    }
-
-    if (circularErrors.nonEmpty)
-      abort(TerminalRendering.circularityError(circularErrors))
-    else
-      abort(TerminalRendering.missingLayersError(topLevelErrors, transitive))
-  }
-
-  /**
-   * Return only the first level of circular dependencies, as these will be the
-   * most relevant.
-   */
-  private def sortErrors(errors: ::[GraphError[Key, A]]): Chunk[GraphError[Key, A]] = {
-    val (circularDependencyErrors, otherErrors) =
-      NonEmptyChunk.fromIterable(errors.head, errors.tail).distinct.partitionMap {
-        case circularDependency: GraphError.CircularDependency[Key, A] => Left(circularDependency)
-        case other                                                     => Right(other)
-      }
-    val sorted                = circularDependencyErrors.sortBy(_.depth)
-    val initialCircularErrors = sorted.takeWhile(_.depth == sorted.headOption.map(_.depth).getOrElse(0))
-
-    val (transitiveDepErrors, remainingErrors) = otherErrors.partitionMap {
-      case es: GraphError.MissingTransitiveDependencies[Key, A] => Left(es)
-      case other                                                => Right(other)
-    }
-
-    val groupedTransitiveErrors = transitiveDepErrors.groupBy(_.node).map { case (node, errors) =>
-      val layer = errors.flatMap(_.dependency)
-      GraphError.MissingTransitiveDependencies(node, layer)
-    }
-
-    initialCircularErrors ++ groupedTransitiveErrors ++ remainingErrors
-  }
-
-  private def renderError(error: GraphError[Key, A]): LayerWiringError =
-    error match {
-      case GraphError.MissingTransitiveDependencies(node, dependencies) =>
-        LayerWiringError.MissingTransitive(showExpr(node.value), dependencies.map(showKey).toList)
-
-      case GraphError.MissingTopLevelDependency(dependency) =>
-        LayerWiringError.MissingTopLevel(showKey(dependency))
-
-      case GraphError.CircularDependency(node, dependency, _) =>
-        LayerWiringError.Circular(showExpr(node.value), showExpr(dependency.value))
-      //        val styledNode       = showExpr(node.value).blue.bold
-      //        val styledDependency = showExpr(dependency.value).blue
-      //        s"""
-      //${"Circular Dependency".blue}
-      //$styledNode both requires ${"and".bold} is transitively required by $styledDependency"""
-      //    }
-    }
-}
-
-object ZLayerExprBuilder extends ExprGraphCompileVariants {}

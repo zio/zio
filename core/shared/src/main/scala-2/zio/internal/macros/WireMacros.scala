@@ -18,7 +18,7 @@ final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
   ): c.Expr[ZLayer[R0, E, R]] = {
     val _ = (dummyK, dummyKRemainder)
     assertEnvIsNotNothing[R]()
-    constructLayer[R0, R, E](layer)
+    constructLayer[R0, R, E](layer, ProvideMethod.Provide)
   }
 
   /**
@@ -33,7 +33,7 @@ final class WireMacros(val c: blackbox.Context) extends LayerMacroUtils {
         s"""
 ${"  ZLayer Wiring Error  ".red.bold.inverted}
         
-You must provide a type to ${"wire".cyan.bold} (e.g. ${"ZLayer.make".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
+You must provide a type to ${"make".cyan.bold} (e.g. ${"ZLayer.make".cyan.bold}${"[A with B]".cyan.bold.underlined}${"(A.live, B.live)".cyan.bold})
 
 """
       c.abort(c.enclosingPosition, errorMessage)

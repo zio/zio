@@ -30,7 +30,7 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * }}}
    */
   def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
-    macro LayerMacros.provideSomeImpl[Spec, TestEnvironment, R, E1, T]
+    macro LayerMacros.provideCustomImpl[Spec, TestEnvironment, R, E1, T]
 
   /**
    * Splits the environment into two parts, providing each test with one part
