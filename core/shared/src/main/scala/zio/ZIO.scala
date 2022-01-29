@@ -1433,7 +1433,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * fibers forked within the original effect.
    */
   final def overrideForkScope(scope: => ZScope)(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    new ZIO.OverrideForkScope(self, () => Some(scope), trace)
+    new ZIO.OverrideForkScope(() => self, () => Some(scope), trace)
 
   /**
    * Exposes all parallel errors in a single call
@@ -1522,7 +1522,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * supervise any fibers forked within the original effect.
    */
   final def resetForkScope(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    new ZIO.OverrideForkScope(self, () => None, trace)
+    new ZIO.OverrideForkScope(() => self, () => None, trace)
 
   /**
    * Returns an effect that races this effect with the specified effect,
@@ -5619,12 +5619,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class Grafter(private val scope: ZScope) extends AnyVal {
     def apply[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      new ZIO.OverrideForkScope(zio, () => Some(scope), trace)
+      new ZIO.OverrideForkScope(() => zio, () => Some(scope), trace)
   }
 
   final class InterruptStatusRestore private (private val flag: zio.InterruptStatus) extends AnyVal {
     def apply[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      zio.interruptStatus(flag)
+      ZIO.suspendSucceed(zio).interruptStatus(flag)
 
     /**
      * Returns a new effect that, if the parent region is uninterruptible, can
@@ -5633,8 +5633,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      * foreground.
      */
     def force[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      if (flag == _root_.zio.InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
-      else zio.interruptStatus(flag)
+      ZIO.suspendSucceed {
+        if (flag == _root_.zio.InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
+        else zio.interruptStatus(flag)
+      }
   }
   object InterruptStatusRestore {
     val restoreInterruptible   = new InterruptStatusRestore(zio.InterruptStatus.Interruptible)
@@ -6413,7 +6415,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class OverrideForkScope[R, E, A](
-    val zio: ZIO[R, E, A],
+    val zio: () => ZIO[R, E, A],
     val forkScope: () => Option[ZScope],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
