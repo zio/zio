@@ -125,7 +125,7 @@ final case class LayerBuilder[Type, Expr](
           reportWarn(message)
         }
       case ProvideMethod.ProvideCustom =>
-        if (unusedRemainderLayers.sizeIs == remainderNodes.length) {
+        if (unusedRemainderLayers.length == remainderNodes.length) {
           val message = "\n" + TerminalRendering.superfluousProvideCustomError
           reportWarn(message)
         }
