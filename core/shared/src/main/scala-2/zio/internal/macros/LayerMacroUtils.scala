@@ -28,12 +28,12 @@ private[zio] trait LayerMacroUtils {
       target = targetTypes,
       remainder = remainderTypes,
       providedLayers0 = layers.toList,
-      debugMap = debugMap,
+      layerToDebug = debugMap,
       typeEquals = _ <:< _,
       foldTree = buildFinalTree,
       method = provideMethod,
       exprToNode = getNode,
-      typeToNode = tpe => Node(Nil, List(tpe), c.Expr[ZLayer[_, E, _]](q"ZLayer.environment[$tpe]")),
+      typeToNode = tpe => Node(Nil, List(tpe), c.Expr[ZLayer[_, E, _]](q"_root_.zio.ZLayer.environment[$tpe]")),
       showExpr = expr => CleanCodePrinter.show(c)(expr.tree),
       showType = _.toString,
       reportWarn = c.warning(c.enclosingPosition, _),
@@ -48,7 +48,6 @@ private[zio] trait LayerMacroUtils {
     method: String,
     provideMethod: ProvideMethod
   ): c.Expr[F[R0, E, A]] = {
-
     val expr = constructLayer[R0, R, E](layers, provideMethod)
     c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}(${expr.tree})")
   }

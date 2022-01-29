@@ -8,7 +8,7 @@ import zio._
 object SpecLayerMacros {
   def provideImpl[R0: Type, R: Type, E: Type, T: Type]
   (spec: Expr[Spec[R, E, T]], layer: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[Spec[R0, E, T]] = {
-    val expr = LayerMacros.constructLayer[R0, R, E](layer).asInstanceOf[Expr[ZLayer[R0, E, R]]]
+    val expr = LayerMacros.constructLayer[R0, R, E](layer)
     '{$spec.provideLayer($expr)}
   }
 

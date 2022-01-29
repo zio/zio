@@ -25,7 +25,8 @@ object AutoWireSpec extends ZIOBaseSpec {
           test("automatically constructs a layer") {
             val program = ZIO.environment[ZEnv] *> ZIO.service[Int]
             assertM(program)(equalTo(128))
-          }.provideCustom(doubleLayer, stringLayer, intLayer)
+          }
+            .provideCustom(doubleLayer, stringLayer, intLayer)
         },
         test("reports missing top-level dependencies") {
           val program: URIO[String with Int, String] = UIO("test")

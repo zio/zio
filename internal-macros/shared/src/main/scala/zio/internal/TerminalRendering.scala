@@ -126,7 +126,7 @@ object TerminalRendering {
        | Call your effect's ${"provide".green.bold} method with the layers you need.
        | You can read more about layers and providing services here:
        | 
-       |   https://zio.dev/version-1.x/datatypes/contextual/index
+       |   https://zio.dev/next/datatypes/contextual/
        |
        |${line.red}
        |

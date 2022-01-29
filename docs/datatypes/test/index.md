@@ -159,7 +159,7 @@ val test3 = test("kafkatest")(assertTrue(true))
 
 ```scala mdoc:compile-only
 suite("a test suite with shared kafka layer")(test1, test2, test3)
-  .provideCustomShared(kafkaLayer)
+  .provideCustomLayerShared(kafkaLayer)
 ```
 
 This layer going to get acquired once, then we have access to that service within all these three tests within the suite and then it is guaranteed to be released at the end of our tests.

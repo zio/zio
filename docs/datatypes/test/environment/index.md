@@ -21,7 +21,8 @@ If we are using ZIO Test and extending `ZIOSpecDefault` a `TestEnvironment` cont
 
 ```scala mdoc:invisible:nest
 import zio.test._
-val myProgram = test("my suite")(assertTrue(true))
+val myProgram: ZSpec[TestEnvironment, Nothing] =
+  test("my suite")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only
@@ -38,7 +39,7 @@ val myProgram: ZSpec[TestConsole, Nothing] = test("my suite")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only
-myProgram.provideLayer(TestConsole.make(TestConsole.Data()))
+myProgram.provideCustom(TestConsole.make(TestConsole.Data()))
 ```
 
 Finally, we can create a `Test` object that implements the test interface directly using the `makeTest` method. This can be useful when we want to access some testing functionality without using the environment type:

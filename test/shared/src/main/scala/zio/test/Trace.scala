@@ -213,7 +213,8 @@ object Trace {
   def fail(message: ErrorMessage): Trace[Nothing] = Node(Result.Fail, message = message)
   def succeed[A](value: A): Trace[A]              = Node(Result.succeed(value))
 
-  def boolean(value: Boolean)(message: ErrorMessage): Trace[Boolean] = Node(Result.succeed(value), message = message)
+  def boolean(value: Boolean)(message: ErrorMessage): Trace[Boolean] =
+    Node(Result.succeed(value), message = message)
 
   def die(throwable: Throwable): Trace[Nothing] =
     Node(Result.die(throwable), message = ErrorMessage.throwable(throwable))

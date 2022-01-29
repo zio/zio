@@ -178,7 +178,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val program = ZIO.service[Int]
 
             val layer =
-              ZLayer.makeSome[Double with Boolean, Int](intLayer, stringLayer)
+              ZLayer.makeSome[Double, Int](intLayer, stringLayer)
             val provided =
               program.provideLayer(
                 ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer

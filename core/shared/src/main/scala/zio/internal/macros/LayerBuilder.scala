@@ -9,22 +9,48 @@ import zio.internal.ansi.AnsiStringOps
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 import scala.annotation.tailrec
+import scala.collection.mutable.{Builder, ListBuffer}
+import scala.collection.{immutable, mutable}
 
-sealed trait ProvideMethod extends Product with Serializable {
-  def isProvideSome: Boolean = this == ProvideMethod.ProvideSome
-}
-
-object ProvideMethod {
-  case object Provide       extends ProvideMethod
-  case object ProvideSome   extends ProvideMethod
-  case object ProvideCustom extends ProvideMethod
-}
-
+/**
+ * LayerBuilder houses the core logic for compile-time layer construction. It is
+ * parameterized by `Type` and `Expr` such that it can be shared across Scala 2
+ * and 3, which have incompatible macro libraries.
+ *
+ * @param target
+ *   A list of types indicating the intended output of the final layer. This is
+ *   generally determined by the `R` of the effect that [[ZIO.provide]] is
+ *   called on.
+ * @param remainder
+ *   A list of types indicating the input of the final layer. This would be the
+ *   parameter of [[ZIO.provideSome]]
+ * @param providedLayers0
+ *   A list of layers ASTs that have been provided by the user.
+ * @param layerToDebug
+ *   A method which allows LayerBuilder to filter/extract the special
+ *   ZLayer.Debug layers from the provided layers.
+ * @param typeEquals
+ *   A method for comparing types: Used in the construction of the final layer
+ * @param foldTree
+ *   A method for folding a tree of layers into the final layer.
+ * @param method
+ *   The sort of method that is being called: `provide`, `provideSome`, or
+ *   `provideCustom`. This is used to provide improved compilation warnings.
+ * @param exprToNode
+ *   A method for converting an Expr into a Node for use in the graph traversal.
+ * @param typeToNode
+ *   A method for converting a leftover type into a Node to be used in the graph
+ *   traversal.
+ * @param showExpr
+ * @param showType
+ * @param reportWarn
+ * @param reportError
+ */
 final case class LayerBuilder[Type, Expr](
   target: List[Type],
   remainder: List[Type],
   providedLayers0: List[Expr],
-  debugMap: PartialFunction[Expr, Debug],
+  layerToDebug: PartialFunction[Expr, Debug],
   typeEquals: (Type, Type) => Boolean,
   foldTree: LayerTree[Expr] => Expr,
   method: ProvideMethod,
@@ -36,16 +62,16 @@ final case class LayerBuilder[Type, Expr](
   reportError: String => Nothing
 ) {
 
-  lazy val remainderNodes: List[Node[Type, Expr]] =
+  private lazy val remainderNodes: List[Node[Type, Expr]] =
     remainder.map(typeToNode).distinct
 
-  val (providedLayers, maybeDebug): (List[Expr], Option[ZLayer.Debug]) = {
-    val maybeDebug = providedLayers0.collectFirst(debugMap)
-    val layers     = providedLayers0.filterNot(debugMap.isDefinedAt)
+  private val (providedLayers, maybeDebug): (List[Expr], Option[ZLayer.Debug]) = {
+    val maybeDebug = providedLayers0.collectFirst(layerToDebug)
+    val layers     = providedLayers0.filterNot(layerToDebug.isDefinedAt)
     (layers.distinct, maybeDebug)
   }
 
-  val providedLayerNodes: List[Node[Type, Expr]] = providedLayers.map(exprToNode)
+  private val providedLayerNodes: List[Node[Type, Expr]] = providedLayers.map(exprToNode)
 
   def build: Expr = {
     assertNoAmbiguity()
@@ -79,7 +105,7 @@ final case class LayerBuilder[Type, Expr](
    * would arbitrarily choose one of the layers to satisfy the type, possibly
    * confusing the user and breaking stuff.
    */
-  def assertNoAmbiguity(): Unit = {
+  private def assertNoAmbiguity(): Unit = {
     val typesToExprs: Map[String, List[String]] =
       groupMap(providedLayerNodes.flatMap { node =>
         node.outputs.map(output => showType(output) -> showExpr(node.value))
@@ -100,15 +126,18 @@ final case class LayerBuilder[Type, Expr](
    * actually required, in the case of provideSome/provideCustom.
    */
   private def warnUnused(tree: LayerTree[Expr]): Unit = {
-    val usedLayers       = tree.toSet
-    val unusedUserLayers = providedLayers.toSet -- usedLayers -- remainderNodes.map(_.value)
+    val usedLayers =
+      tree.map(showExpr).toSet
+
+    val unusedUserLayers =
+      providedLayers.map(showExpr).toSet -- usedLayers -- remainderNodes.map(n => showExpr(n.value))
 
     if (unusedUserLayers.nonEmpty) {
-      val message = "\n" + TerminalRendering.unusedLayersError(unusedUserLayers.map(showExpr).toList)
+      val message = "\n" + TerminalRendering.unusedLayersError(unusedUserLayers.toList)
       reportWarn(message)
     }
 
-    val unusedRemainderLayers = remainderNodes.filterNot(node => usedLayers(node.value))
+    val unusedRemainderLayers = remainderNodes.filterNot(node => usedLayers(showExpr(node.value)))
 
     method match {
       case ProvideMethod.Provide => ()
@@ -256,18 +285,30 @@ final case class LayerBuilder[Type, Expr](
     mermaidLink
   }
 
-  def groupMap[A, K, B](as: List[A])(key: A => K)(f: A => B): Map[K, List[B]] = {
-    @tailrec
-    def loop(as: List[A], acc: Map[K, List[B]]): Map[K, List[B]] =
-      as match {
-        case a :: as =>
-          val k = key(a)
-          loop(as, acc.updated(k, f(a) :: acc.getOrElse(k, List.empty)))
-        case Nil =>
-          acc
-      }
-
-    loop(as, Map.empty[K, List[B]])
+  // Backwards compatibility for 2.11/2.12
+  private def groupMap[A, K, B](as: List[A])(key: A => K)(f: A => B): Map[K, List[B]] = {
+    val m = mutable.Map.empty[K, Builder[B, List[B]]]
+    for (elem <- as) {
+      val k    = key(elem)
+      val bldr = m.getOrElseUpdate(k, new ListBuffer[B])
+      bldr += f(elem)
+    }
+    var result = immutable.Map.empty[K, List[B]]
+    m.foreach { case (k, v) =>
+      result = result + ((k, v.result()))
+    }
+    result
   }
 
+}
+
+sealed trait ProvideMethod extends Product with Serializable {
+  def isProvideSome: Boolean = this == ProvideMethod.ProvideSome
+
+}
+
+object ProvideMethod {
+  case object Provide       extends ProvideMethod
+  case object ProvideSome   extends ProvideMethod
+  case object ProvideCustom extends ProvideMethod
 }

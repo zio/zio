@@ -12,7 +12,6 @@ import java.util.Base64
 import LayerMacroUtils._
 
 object LayerMacros {
-
   def constructLayer[R0: Type, R: Type, E: Type](layers: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZLayer[R0,E,R]] = 
     layers match {
       case Varargs(layers) =>
@@ -21,12 +20,8 @@ object LayerMacros {
 
 
   def provideImpl[R0: Type, R: Type, E: Type, A: Type](zio: Expr[ZIO[R,E,A]], layer: Expr[Seq[ZLayer[_,E,_]]])(using Quotes): Expr[ZIO[R0,E,A]] = {
-    val layerExpr = 
-      layer match {
-        case Varargs(layers) =>
-          LayerMacroUtils.constructLayer[R0, R, E](layers, ProvideMethod.Provide)
-      }
-    '{$zio.provideLayer($layerExpr.asInstanceOf[ZLayer[R0,E,R]])}
+    val layerExpr = constructLayer[R0, R, E](layer)
+    '{$zio.provideLayer($layerExpr)}
   }
 }
 
