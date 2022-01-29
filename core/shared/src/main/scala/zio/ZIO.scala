@@ -5624,7 +5624,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class InterruptStatusRestore private (private val flag: zio.InterruptStatus) extends AnyVal {
     def apply[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      zio.interruptStatus(flag)
+      ZIO.suspendSucceed(zio).interruptStatus(flag)
 
     /**
      * Returns a new effect that, if the parent region is uninterruptible, can
@@ -5633,8 +5633,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      * foreground.
      */
     def force[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      if (flag == _root_.zio.InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
-      else zio.interruptStatus(flag)
+      ZIO.suspendSucceed {
+        if (flag == _root_.zio.InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
+        else zio.interruptStatus(flag)
+      }
   }
   object InterruptStatusRestore {
     val restoreInterruptible   = new InterruptStatusRestore(zio.InterruptStatus.Interruptible)
