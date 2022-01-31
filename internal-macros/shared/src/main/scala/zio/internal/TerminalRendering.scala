@@ -32,8 +32,8 @@ object TerminalRendering {
   }
 
   def missingLayersError(
-    toplevel: List[String],
-    transitive: Map[String, List[String]] = Map.empty,
+    toplevel: Set[String],
+    transitive: Map[String, Set[String]] = Map.empty,
     isUsingProvideSome: Boolean = true
   ) = {
 
@@ -72,7 +72,7 @@ object TerminalRendering {
         s"Please provide a layer for the following type:"
       }
 
-    val allMissingTypes = (toplevel ++ transitive.values.flatten).distinct
+    val allMissingTypes = (toplevel ++ transitive.values.flatten)
 
     val provideSomeSuggestion =
       if (isUsingProvideSome) {
@@ -226,11 +226,11 @@ ${line.yellow}
 
   def main(args: Array[String]): Unit = {
     val missing = Map(
-      "UserService.live" -> List("zio.Clock", "example.UserService"),
-      "Database.live"    -> List("java.sql.Connection"),
-      "Logger.live"      -> List("zio.Console")
+      "UserService.live" -> Set("zio.Clock", "example.UserService"),
+      "Database.live"    -> Set("java.sql.Connection"),
+      "Logger.live"      -> Set("zio.Console")
     )
-    println(missingLayersError(List("Clock", "Database"), missing))
+    println(missingLayersError(Set("Clock", "Database"), missing))
     println(unusedLayersError(List("Clock.live", "UserService.live", "Console.test")))
     println(provideSomeNothingEnvError)
     println(unusedProvideSomeLayersError(List("java.lang.String", "List[Boolean]")))

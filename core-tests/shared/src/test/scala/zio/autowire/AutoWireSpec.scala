@@ -312,6 +312,23 @@ object AutoWireSpec extends ZIOBaseSpec {
                 }
             }.provideSome[Console](TestRandom.make(TestRandom.Data(10, 10)))
           }
+        ),
+        suite(".sideEffect")(
+          test("run layers for their side effects and suppresses unused layer warnings") {
+            def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, String] =
+              ref.update(_ + 1).as("Howdy").toLayer
+
+            for {
+              ref <- Ref.make(0)
+              _ <- ZIO
+                     .service[Int]
+                     .provide(
+                       sideEffectingLayer(ref).sideEffect,
+                       ZLayer.succeed(12)
+                     )
+              result <- ref.get
+            } yield assertTrue(result == 1)
+
           }
         )
       )
