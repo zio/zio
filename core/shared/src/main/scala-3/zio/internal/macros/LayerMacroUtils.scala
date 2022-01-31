@@ -7,73 +7,106 @@ import zio.internal.macros.StringUtils.StringOps
 import zio.internal.ansi.AnsiStringOps
 
 private [zio] object LayerMacroUtils {
-  type LayerExpr = Expr[ZLayer[_,_,_]]
+  type LayerExpr[E] = Expr[ZLayer[_,E,_]]
 
   def renderExpr[A](expr: Expr[A])(using Quotes): String = {
     import quotes.reflect._
     scala.util.Try(expr.asTerm.pos.sourceCode).toOption.flatten.getOrElse(expr.show)
   }
 
-  def buildMemoizedLayer(ctx: Quotes)(exprGraph: ZLayerExprBuilder[ctx.reflect.TypeRepr, LayerExpr], requirements: List[ctx.reflect.TypeRepr]) : LayerExpr = {
+  def constructLayer[R0: Type, R: Type, E: Type](using ctx: Quotes)(
+    layers: Seq[Expr[ZLayer[_, E, _]]],
+    provideMethod: ProvideMethod
+  ): Expr[ZLayer[R0, E, R]] = {
+
     import ctx.reflect._
 
-    // This is run for its side effects: Reporting compile errors with the original source names.
-    val _ = exprGraph.buildLayerFor(requirements)
+    val targetTypes    = getRequirements[R]
+    val remainderTypes = getRequirements[R0]
 
-    val layerExprs = exprGraph.graph.nodes.map(_.value)
+    val layerToDebug: PartialFunction[LayerExpr[E], ZLayer.Debug] =
+      ((_: LayerExpr[E]) match {
+        case '{zio.ZLayer.Debug.tree}    => Some(ZLayer.Debug.Tree)
+        case '{zio.ZLayer.Debug.mermaid} => Some(ZLayer.Debug.Mermaid)
+        case _                           => None
+      }).unlift
+
+
+    val builder = LayerBuilder[TypeRepr, LayerExpr[E]](
+      target = targetTypes,
+      remainder = remainderTypes,
+      providedLayers0 = layers.toList,
+      layerToDebug = layerToDebug,
+      typeEquals = _ <:< _,
+      foldTree = buildFinalTree,
+      method = provideMethod,
+      exprToNode = getNode,
+      typeToNode = tpe => Node(Nil, List(tpe), tpe.asType match { case '[t] => '{ZLayer.service[t]} }),
+      showExpr = expr => scala.util.Try(expr.asTerm.pos.sourceCode).toOption.flatten.getOrElse(expr.show),
+      showType = _.show,
+      reportWarn = report.warning(_),
+      reportError = report.errorAndAbort(_)
+    )
+
+    builder.build.asExprOf[ZLayer[R0, E, R]]
+  }
+
+  def buildFinalTree[E: Type](tree: LayerTree[LayerExpr[E]])(using ctx: Quotes): LayerExpr[E] = {
+    import ctx.reflect._
+
+    val empty: LayerExpr[E] = '{ZLayer.succeed(())}
+
+    def composeH(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
+      lhs match {
+        case '{$lhs: ZLayer[i, e, o]} =>
+          rhs match {
+            case '{$rhs: ZLayer[i2, e2, o2]} =>
+              '{$lhs.++($rhs)}
+          }
+      }
+
+    def composeV(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
+      lhs match {
+        case '{$lhs: ZLayer[i, E, o]} =>
+          rhs match {
+            case '{$rhs: ZLayer[`o`, E, o2]} =>
+              '{$lhs to $rhs}
+          }
+      }
+
+    val layerExprs: List[LayerExpr[E]] = tree.toList
 
     ValDef.let(Symbol.spliceOwner, layerExprs.map(_.asTerm)) { idents =>
       val exprMap = layerExprs.zip(idents).toMap
-      val valGraph = exprGraph.copy( graph =
-        exprGraph.graph.map { node =>
-          val ident = exprMap(node)
-          ident.asExpr.asInstanceOf[LayerExpr]
-        }
-      )
-      valGraph.buildLayerFor(requirements).asTerm
-    }.asExpr.asInstanceOf[LayerExpr]
+
+      tree.fold[LayerExpr[E]](
+        empty,
+        exprMap(_).asExpr.asInstanceOf[LayerExpr[E]],
+        composeH,
+        composeV
+      ).asTerm
+
+    }.asExpr.asInstanceOf[LayerExpr[E]]
+
   }
 
-  def getNodes(layer: Expr[Seq[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
+  def getNode[E: Type](layer: LayerExpr[E])(using ctx: Quotes): Node[ctx.reflect.TypeRepr, LayerExpr[E]] = {
     import quotes.reflect._
     layer match {
-      case Varargs(layer) =>
-        getNodes(layer)
-
-      case other =>
-        report.errorAndAbort(
-          "  ZLayer Wiring Error  ".yellow.inverted + "\n" +
-          "Auto-construction cannot work with `someList: _*` syntax.\nPlease pass the layers themselves into this method."
-        )
+      case '{ $layer: ZLayer[in, e, out] } =>
+        val inputs = getRequirements[in]
+        val outputs = getRequirements[out]
+        Node(inputs, outputs, layer)
     }
   }
 
-
-  def getNodes(layer: Seq[Expr[ZLayer[_,_,_]]])(using ctx:Quotes): List[Node[ctx.reflect.TypeRepr, LayerExpr]] = {
-    import quotes.reflect._
-    layer.map {
-      case '{$layer: ZLayer[in, e, out]} =>
-      val inputs = getRequirements[in]("Input for " + layer.show.cyan.bold)
-      val outputs = getRequirements[out]("Output for " + layer.show.cyan.bold)
-      Node(inputs, outputs, layer)
-    }.toList
-  }
-
-  def getRequirements[T: Type](description: String)(using ctx: Quotes): List[ctx.reflect.TypeRepr] = {
-    import quotes.reflect._
-
-    val requirements = intersectionTypes[T]
-
-    requirements
-  }
-
-  def intersectionTypes[T: Type](using ctx: Quotes) : List[ctx.reflect.TypeRepr] = {
+  def getRequirements[T: Type](using ctx: Quotes) : List[ctx.reflect.TypeRepr] = {
     import ctx.reflect._
 
-    def go(tpe: TypeRepr): List[TypeRepr] =
+    def loop(tpe: TypeRepr): List[TypeRepr] =
       tpe.dealias.simplified match {
         case AndType(lhs, rhs) =>
-          go(lhs) ++ go(rhs)
+          loop(lhs) ++ loop(rhs)
 
         case AppliedType(_, TypeBounds(_,_) :: _) =>
           List.empty
@@ -82,22 +115,12 @@ private [zio] object LayerMacroUtils {
           List.empty
 
         case other if other.dealias.simplified != other =>
-          go(other)
+          loop(other)
 
         case other =>
           List(other.dealias)
       }
 
-    go(TypeRepr.of[T])
+    loop(TypeRepr.of[T])
   }
-}
-
-private[zio] object MacroUnitTestUtils {
-//  def getRequirements[R]: List[String] = '{
-//    LayerMacros.debugGetRequirements[R]
-//  }
-//
-//  def showTree(any: Any): String = '{
-//    LayerMacros.debugShowTree
-//  }
 }

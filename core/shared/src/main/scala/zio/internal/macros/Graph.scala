@@ -1,9 +1,9 @@
 package zio.internal.macros
 
-import zio.internal.macros.LayerCompose._
+import zio.internal.macros.LayerTree._
 
 final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) => Boolean) {
-  def buildComplete(outputs: List[Key]): Either[::[GraphError[Key, A]], LayerCompose[A]] =
+  def buildComplete(outputs: List[Key]): Either[::[GraphError[Key, A]], LayerTree[A]] =
     forEach(outputs) { output =>
       getNodeWithOutput[GraphError[Key, A]](output, error = GraphError.MissingTopLevelDependency(output))
         .flatMap(node => buildNode(node, Set(node)))
@@ -19,7 +19,7 @@ final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) 
   private def buildNode(
     node: Node[Key, A],
     seen: Set[Node[Key, A]]
-  ): Either[::[GraphError[Key, A]], LayerCompose[A]] =
+  ): Either[::[GraphError[Key, A]], LayerTree[A]] =
     forEach(node.inputs) { input =>
       for {
         out    <- getNodeWithOutput(input, error = GraphError.missingTransitiveDependency(node, input))
@@ -27,7 +27,7 @@ final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) 
         result <- buildNode(out, seen + out)
       } yield result
     }.map {
-      _.distinct.combineHorizontally >>> LayerCompose.succeed(node.value)
+      _.distinct.combineHorizontally >>> LayerTree.succeed(node.value)
     }
 
   private def assertNonCircularDependency(

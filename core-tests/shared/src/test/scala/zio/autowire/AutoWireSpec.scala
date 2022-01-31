@@ -51,7 +51,7 @@ object AutoWireSpec extends ZIOBaseSpec {
               typeCheck("ZIO.service[Int].provide(ZLayer.succeed(12), ZLayer.succeed(13))")
             assertM(checked)(
               isLeft(
-                containsStringWithoutAnsi("Int is provided by multiple layers") &&
+                containsStringWithoutAnsi("Ambiguous layers!") &&
                   containsStringWithoutAnsi("ZLayer.succeed(12)") &&
                   containsStringWithoutAnsi("ZLayer.succeed(13)")
               )
@@ -119,7 +119,8 @@ object AutoWireSpec extends ZIOBaseSpec {
         suite("provideCustom")(
           test("automatically constructs a layer, leaving off ZEnv") {
             val stringLayer = Console.readLine.orDie.toLayer
-            val program     = ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
+            val program: ZIO[Random with String, Nothing, String] =
+              ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
             val provided = TestConsole.feedLines("Your Lucky Number is:") *>
               program.provideCustom(stringLayer)
 
@@ -177,7 +178,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val program = ZIO.service[Int]
 
             val layer =
-              ZLayer.makeSome[Double with Boolean, Int](intLayer, stringLayer)
+              ZLayer.makeSome[Double, Int](intLayer, stringLayer)
             val provided =
               program.provideLayer(
                 ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer
@@ -284,6 +285,14 @@ object AutoWireSpec extends ZIOBaseSpec {
               program.provideCustom(stringLayer)
 
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
+          },
+          test("gives precedence to provided layers") {
+            {
+              Console.printLine("Hello") *>
+                Random.nextInt.map { i =>
+                  assertTrue(i == 1094383425)
+                }
+            }.provideCustom(TestRandom.make(TestRandom.Data(10, 10)))
           }
         ),
         suite("provideSome")(
@@ -294,6 +303,14 @@ object AutoWireSpec extends ZIOBaseSpec {
               program.provideSome[Random with Console](stringLayer)
 
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
+          },
+          test("gives precedence to provided layers") {
+            {
+              Console.printLine("Hello") *>
+                Random.nextInt.map { i =>
+                  assertTrue(i == 1094383425)
+                }
+            }.provideSome[Console](TestRandom.make(TestRandom.Data(10, 10)))
           }
         )
       )

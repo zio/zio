@@ -48,7 +48,7 @@ sealed trait TestArrow[-A, +B] { self =>
         location = meta.location.orElse(location)
       )
     case _ =>
-      Meta(assert = self, span = span, parentSpan = parentSpan, code = code, location = location)
+      Meta(arrow = self, span = span, parentSpan = parentSpan, code = code, location = location)
   }
 
   def span(span: (Int, Int)): TestArrow[A, B] =
@@ -67,7 +67,8 @@ sealed trait TestArrow[-A, +B] { self =>
   def withParentSpan(span: (Int, Int)): TestArrow[A, B] =
     meta(parentSpan = Some(Span(span._1, span._2)))
 
-  def >>>[C](that: TestArrow[B, C]): TestArrow[A, C] = AndThen[A, B, C](self, that)
+  def >>>[C](that: TestArrow[B, C]): TestArrow[A, C] =
+    AndThen[A, B, C](self, that)
 
   def &&(that: TestArrow[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): TestArrow[Any, Boolean] =
     And(self.asInstanceOf[TestArrow[Any, Boolean]], that)
@@ -102,8 +103,8 @@ object TestArrow {
       case Success(value)     => value
     }
 
-  def run[A, B](assert: TestArrow[A, B], in: Either[Throwable, A]): Trace[B] = attempt {
-    assert match {
+  def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): Trace[B] = attempt {
+    arrow match {
       case TestArrowF(f) =>
         f(in)
 
@@ -121,8 +122,8 @@ object TestArrow {
       case Or(lhs, rhs) =>
         run(lhs, in) || run(rhs, in)
 
-      case Not(assert) =>
-        !run(assert, in)
+      case Not(arrow) =>
+        !run(arrow, in)
 
       case Suspend(f) =>
         in match {
@@ -132,8 +133,8 @@ object TestArrow {
             run(f(value), in)
         }
 
-      case Meta(assert, span, parentSpan, code, location) =>
-        run(assert, in)
+      case Meta(arrow, span, parentSpan, code, location) =>
+        run(arrow, in)
           .withSpan(span)
           .withCode(code)
           .withParentSpan(parentSpan)
@@ -143,20 +144,19 @@ object TestArrow {
 
   case class Span(start: Int, end: Int) {
     def substring(str: String): String = str.substring(start, end)
-
   }
 
   case class Meta[-A, +B](
-    assert: TestArrow[A, B],
+    arrow: TestArrow[A, B],
     span: Option[Span],
     parentSpan: Option[Span],
     code: Option[String],
     location: Option[String]
   ) extends TestArrow[A, B]
-  case class TestArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])            extends TestArrow[A, B] {}
+  case class TestArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])            extends TestArrow[A, B]
   case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])           extends TestArrow[A, C]
   case class And(left: TestArrow[Any, Boolean], right: TestArrow[Any, Boolean]) extends TestArrow[Any, Boolean]
   case class Or(left: TestArrow[Any, Boolean], right: TestArrow[Any, Boolean])  extends TestArrow[Any, Boolean]
-  case class Not(assert: TestArrow[Any, Boolean])                               extends TestArrow[Any, Boolean]
+  case class Not(arrow: TestArrow[Any, Boolean])                                extends TestArrow[Any, Boolean]
   case class Suspend[A, B](f: A => TestArrow[Any, B])                           extends TestArrow[A, B]
 }

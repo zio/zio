@@ -58,8 +58,8 @@ object ProvideSomeSpec extends ZIOSpecDefault {
           )
           .provideSome[Console](Clock.live)
       },
-      test("wireSome") {
-        testCase("wireSome").provideSomeLayer[Console](partialLayer)
+      test("makeSome") {
+        testCase("makeSome").provideSome[Console](partialLayer)
       }
     ) @@ TestAspect.silent
 }

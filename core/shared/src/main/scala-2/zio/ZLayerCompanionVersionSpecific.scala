@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.macros.{DummyK, WireMacros}
+import zio.internal.macros.{DummyK, ZLayerMakeMacros}
 
 private[zio] trait ZLayerCompanionVersionSpecific {
 
@@ -27,8 +27,8 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * ZLayer.make[Car](carLayer, wheelsLayer, engineLayer)
    * }}}
    */
-  def make[R]: WirePartiallyApplied[R] =
-    new WirePartiallyApplied[R]
+  def make[R]: MakePartiallyApplied[R] =
+    new MakePartiallyApplied[R]
 
   /**
    * Automatically constructs a layer for the provided type `R`, leaving a
@@ -41,8 +41,8 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * val layer = ZLayer.makeSome[Engine, Car](carLayer, wheelsLayer)
    * }}}
    */
-  def makeSome[R0, R]: WireSomePartiallyApplied[R0, R] =
-    new WireSomePartiallyApplied[R0, R]
+  def makeSome[R0, R]: MakeSomePartiallyApplied[R0, R] =
+    new MakeSomePartiallyApplied[R0, R]
 
   /**
    * Automatically constructs a layer for the provided type `R`, leaving a
@@ -57,23 +57,32 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * val layer : ZLayer[ZEnv, Nothing, OldLady] = ZLayer.makeCustom[OldLady](oldLadyLayer, flyLayer)
    * }}}
    */
-  def makeCustom[R]: WireSomePartiallyApplied[ZEnv, R] =
-    new WireSomePartiallyApplied[ZEnv, R]
+  def makeCustom[R]: MakeCustomPartiallyApplied[R] =
+    new MakeCustomPartiallyApplied[R]
 
 }
 
-private[zio] final class WirePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
+private[zio] final class MakePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
   def apply[E](
     layer: ZLayer[_, E, _]*
   )(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZLayer[Any, E, R] =
-    macro WireMacros.makeImpl[E, Any, R]
+    macro ZLayerMakeMacros.makeImpl[E, Any, R]
 }
 
-private[zio] final class WireSomePartiallyApplied[R0, R](
+private[zio] final class MakeSomePartiallyApplied[R0, R](
   val dummy: Boolean = true
 ) extends AnyVal {
   def apply[E](
     layer: ZLayer[_, E, _]*
   )(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZLayer[R0, E, R] =
-    macro WireMacros.makeImpl[E, R0, R]
+    macro ZLayerMakeMacros.makeSomeImpl[E, R0, R]
+}
+
+private[zio] final class MakeCustomPartiallyApplied[R](
+  val dummy: Boolean = true
+) extends AnyVal {
+  def apply[E](
+    layer: ZLayer[_, E, _]*
+  )(implicit dummyK: DummyK[R]): ZLayer[ZEnv, E, R] =
+    macro ZLayerMakeMacros.makeCustomImpl[E, R]
 }
