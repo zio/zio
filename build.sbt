@@ -152,7 +152,7 @@ lazy val coreJS = core.js
       if (scalaVersion.value == Scala3) {
         List()
       } else {
-        // Temporarily disable warning to use `MacrotaskExecutor`
+        // Temporarily disable warning to use `MacrotaskExecutor` https://github.com/zio/zio/issues/6308
         List("-P:scalajs:nowarnGlobalExecutionContext")
       }
     }
