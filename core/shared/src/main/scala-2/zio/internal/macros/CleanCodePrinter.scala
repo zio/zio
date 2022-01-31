@@ -15,7 +15,7 @@ private[zio] object CleanCodePrinter {
 
   def show(c: blackbox.Context)(expr: c.Tree): String = {
     import c.universe._
-    postProcess(showCode(clean(c)(expr, CleanContext())))
+    postProcess(showCode(clean(c)(cleanImplicits(c)(expr), CleanContext())))
   }
 
   private def postProcess(code: String): String =
@@ -117,5 +117,34 @@ private[zio] object CleanCodePrinter {
       case Select(nested @ Select(_, _), n: Name)                => packageSelects(c)(nested).map(_ => n.decodedName.toString)
       case _                                                     => None
     }
+  }
+
+  /**
+   * Remove all implicit parameter lists from the Tree
+   */
+  private def cleanImplicits(c: blackbox.Context)(expr: c.Tree): c.Tree = {
+    import c.universe._
+    val tracerType = c.weakTypeOf[zio.internal.stacktracer.Tracer.instance.Type]
+    val tagType    = c.weakTypeOf[zio.Tag[_]]
+
+    def loop(expr: c.Tree): c.Tree =
+      expr match {
+        case Apply(t, args) if args.exists(t => t.tpe <:< tracerType || t.tpe <:< tagType) =>
+          loop(t)
+        case Apply(t, args) =>
+          Apply(loop(t), args.map(t => loop(t)))
+        case Select(t, name) =>
+          Select(loop(t), name)
+        case TypeApply(t, args) =>
+          TypeApply(loop(t), args.map(t => loop(t)))
+        case Block(stats, expr) =>
+          Block(stats.map(t => loop(t)), loop(expr))
+        case Typed(t1, t2) =>
+          Typed(loop(t1), loop(t2))
+        case _ =>
+          expr
+      }
+
+    loop(expr)
   }
 }
