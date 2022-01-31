@@ -101,6 +101,8 @@ trait DiffInstances extends LowPriDiff {
     DiffResult.Nested("Set", fields)
   }
 
+  implicit val nothingDiff: Diff[Nothing] =
+    (x: Nothing, _: Nothing) => DiffResult.Identical(x)
 }
 
 trait LowPriDiff {
