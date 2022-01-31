@@ -146,20 +146,32 @@ object AutoWireSpec extends ZIOBaseSpec {
           )
         ).provideSomeShared[Random](refLayer) @@ TestAspect.sequential
       },
-      suite(".provideSome") {
+      suite(".provideSome")(
         test("automatically constructs a layer, leaving off TestEnvironment") {
           for {
             result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
           } yield assertTrue(result == "Your Lucky Number is -1295463240")
-        }.provideSome[Random](ZLayer.succeed("Your Lucky Number is"))
-      },
-      suite(".provideCustom") {
+        }.provideSome[Random](ZLayer.succeed("Your Lucky Number is")),
+        test("gives precedence to provided layers") {
+          Console.printLine("Hello") *>
+            Random.nextInt.map { i =>
+              assertTrue(i == 1094383425)
+            }
+        }.provideSome[Console](TestRandom.make(TestRandom.Data(10, 10)))
+      ),
+      suite(".provideCustom")(
         test("automatically constructs a layer, leaving off TestEnvironment") {
           for {
             result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
           } yield assertTrue(result == "Your Lucky Number is -1295463240")
-        }.provideCustom(ZLayer.succeed("Your Lucky Number is"))
-      } @@ TestAspect.exceptScala3
+        }.provideCustom(ZLayer.succeed("Your Lucky Number is")),
+        test("gives precedence to provided layers") {
+          Console.printLine("Hello") *>
+            Random.nextInt.map { i =>
+              assertTrue(i == 1094383425)
+            }
+        }.provideCustom(TestRandom.make(TestRandom.Data(10, 10)))
+      ) @@ TestAspect.exceptScala3
     )
 
   object TestLayer {
