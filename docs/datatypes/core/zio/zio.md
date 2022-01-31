@@ -11,9 +11,7 @@ A value of type `ZIO[R, E, A]` is like an effectful version of the following fun
 R => Either[E, A]
 ```
 
-This function, which requires an `R`, might produce either an `E`, representing failure, or an `A`, representing success. ZIO effects are not actually functions, of course, because they model complex effects, like asynchronous and concurrent effects.
-
-ZIO effects model resourceful interaction with the outside world, including synchronous, asynchronous, concurrent, and parallel interaction.
+This function, which requires an `R`, might produce either an `E`, representing failure, or an `A`, representing success. ZIO effects are not actually functions, of course, they can model synchronous, asynchronous, concurrent, parallel, and resourceful computations.
 
 ZIO effects use a fiber-based concurrency model, with built-in support for
 scheduling, fine-grained interruption, structured concurrency, and high scalability.
@@ -88,7 +86,7 @@ val f2 = Task.fail(new Exception("Uh oh!"))
 Note that unlike the other effect companion objects, the `UIO` companion object does not have `UIO.fail`, because `UIO` values cannot fail.
 
 ### From Values
-ZIO contains several constructors which help us to convert various data types into the `ZIO` effect.
+ZIO contains several constructors which help us to convert various data types into `ZIO` effects.
 
 #### Option
 
@@ -138,7 +136,7 @@ val result: IO[Throwable, Option[(User, Team)]] = (for {
 |--------------|----------------|---------------------------|
 | `fromEither` | `Either[E, A]` | `IO[E, A]`                |
 | `left`       | `A`            | `UIO[Either[A, Nothing]]` |
-| `right`      | `A`            | `UIO[Either[Nothing, B]]` |
+| `right`      | `A`            | `UIO[Either[Nothing, A]]` |
 
 An `Either` can be converted into a ZIO effect using `ZIO.fromEither`:
 
@@ -668,17 +666,17 @@ If an effect times out, then instead of continuing to execute in the background,
 
 | Function      | Input Type                | Output Type             |
 |---------------|---------------------------|-------------------------|
-| `ZIO#either`  |                           | `URIO[R, Either[E, A]]` |
+| `ZIO#either`  | `ZIO[R, E, A]`            | `URIO[R, Either[E, A]]` |
 | `ZIO.absolve` | `ZIO[R, E, Either[E, A]]` | `ZIO[R, E, A]`          |
 
-We can surface failures with `ZIO#either`, which takes an `ZIO[R, E, A]` and produces an `ZIO[R, Nothing, Either[E, A]]`.
+We can surface failures with `ZIO#either`, which takes an `ZIO[R, E, A]` and produces a `ZIO[R, Nothing, Either[E, A]]`.
 
 ```scala mdoc:silent:nest
 val zeither: UIO[Either[String, Int]] = 
   IO.fail("Uh oh!").either
 ```
 
-We can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns an `ZIO[R, Nothing, Either[E, A]]` into a `ZIO[R, E, A]`:
+We can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns a `ZIO[R, Nothing, Either[E, A]]` into a `ZIO[R, E, A]`:
 
 ```scala mdoc:silent
 def sqrt(io: UIO[Double]): IO[String, Double] =
@@ -762,7 +760,7 @@ val primaryOrBackupData: IO[IOException, Array[Byte]] =
 
 Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
 
-The first fold method, `fold`, lets us non-effectfully handle both failure and success, by supplying a non-effectful handler for each case:
+The first fold method, `fold`, lets us non-effectfully handle both failure and success by supplying a non-effectful handler for each case:
 
 ```scala mdoc:silent
 lazy val DefaultData: Array[Byte] = Array(0, 0)
@@ -773,7 +771,7 @@ val primaryOrDefaultData: UIO[Array[Byte]] =
     data => data)
 ```
 
-The second fold method, `foldZIO`, lets us effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
+The second fold method, `foldZIO`, lets us effectfully handle both failure and success by supplying an effectful (but still pure) handler for each case:
 
 ```scala mdoc:silent
 val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
@@ -820,14 +818,14 @@ When we are building applications we want to be resilient in the face of a trans
 
 There are a number of useful methods on the ZIO data type for retrying failed effects. 
 
-The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails, according to the specified policy:
+The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails according to the specified policy:
 
 ```scala mdoc:silent
 val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
   readFile("primary.data").retry(Schedule.recurs(5))
 ```
 
-The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:
+The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use if the effect does not succeed with the specified policy:
 
 ```scala mdoc:silent
 readFile("primary.data").retryOrElse(
@@ -847,7 +845,7 @@ ZIO's resource management features work across synchronous, asynchronous, concur
 Scala has a `try` / `finally` construct which helps us to make sure we don't leak resources because no matter what happens in the try, the `finally` block will be executed. So we can open files in the try block, and then we can close them in the `finally` block, and that gives us the guarantee that we will not leak resources.
 
 #### Asynchronous Try / Finally
-The problem with the `try` / `finally` construct is that it only applies with synchronous code, they don't work for asynchronous code. ZIO gives us a method called `ensuring` that works with either synchronous or asynchronous actions. So we have a functional try/finally but across the async region of our code, also our finalizer could have async regions.
+The problem with the `try` / `finally` construct is that it only applies to synchronous code, meaning it doesn't work for asynchronous code. ZIO gives us a method called `ensuring` that works with either synchronous or asynchronous actions. So we have a functional try/finally but across the async region of our code, also our finalizer could have async regions.
 
 Like `try` / `finally`, the `ensuring` operation guarantees that if an effect begins executing and then terminates (for whatever reason), then the finalizer will begin executing:
 
@@ -1052,7 +1050,7 @@ The order of aspect composition matters. Therefore, if we change the order, the 
 
 ## Debugging
 
-When we are writing an application using the ZIO effect we are writing workflows as data transformers. So there are lots of cases we need to debug our application by seeing how the data transformed through the workflow. We can add or remove debugging capability without changing the signature of our effect:
+When we are writing an application using the ZIO effect, we are writing workflows as data transformers. So there are lots of cases where we need to debug our application by seeing how the data transformed through the workflow. We can add or remove debugging capability without changing the signature of our effect:
 
 ```scala mdoc:silent:nest
 ZIO.ifZIO(
