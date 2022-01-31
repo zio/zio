@@ -147,6 +147,16 @@ lazy val coreJVM = core.jvm
 lazy val coreJS = core.js
   .settings(dottySettings)
   .settings(libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "1.0.0")
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        // Temporarily disable warning to use `MacrotaskExecutor`
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val coreNative = core.native
   .settings(nativeSettings)
