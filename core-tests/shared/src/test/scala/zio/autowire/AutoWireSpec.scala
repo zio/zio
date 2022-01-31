@@ -285,6 +285,14 @@ object AutoWireSpec extends ZIOBaseSpec {
               program.provideCustom(stringLayer)
 
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
+          },
+          test("gives precedence to provided layers") {
+            {
+              Console.printLine("Hello") *>
+                Random.nextInt.map { i =>
+                  assertTrue(i == 1094383425)
+                }
+            }.provideCustom(TestRandom.make(TestRandom.Data(10, 10)))
           }
         ),
         suite("provideSome")(
@@ -295,6 +303,14 @@ object AutoWireSpec extends ZIOBaseSpec {
               program.provideSome[Random with Console](stringLayer)
 
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
+          },
+          test("gives precedence to provided layers") {
+            {
+              Console.printLine("Hello") *>
+                Random.nextInt.map { i =>
+                  assertTrue(i == 1094383425)
+                }
+            }.provideSome[Console](TestRandom.make(TestRandom.Data(10, 10)))
           }
         )
       )
