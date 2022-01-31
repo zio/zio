@@ -65,7 +65,7 @@ private[internal] trait PlatformSpecific {
   /**
    * A `Platform` created from Scala's global execution context.
    */
-  lazy val global: Platform = fromExecutionContext(MacrotaskExecutor)
+  lazy val global: Platform = fromExecutionContext(ExecutionContext.global)
 
   /**
    * Creates a platform from an `Executor`.
@@ -117,7 +117,7 @@ private[internal] trait PlatformSpecific {
    * Makes a new default platform. This is a side-effecting method.
    */
   final def makeDefault(yieldOpCount: Int = defaultYieldOpCount): Platform =
-    fromExecutor(Executor.fromExecutionContext(yieldOpCount)(MacrotaskExecutor))
+    fromExecutor(Executor.fromExecutionContext(yieldOpCount)(ExecutionContext.global))
 
   final def newWeakSet[A](): JSet[A] = new HashSet[A]()
 
