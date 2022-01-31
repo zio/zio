@@ -477,7 +477,13 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("reports source location of actual usage") {
         customAssertion("hello")
       } @@ failing
-    )
+    ),
+    suite("miscellaneous issues") {
+      test("implicit Diff between Option[Nothing] and None is resolved") {
+        val option: Option[Nothing] = Option.empty
+        assertTrue(option == None)
+      }
+    }
   )
 
   // The implicit SourceLocation will be used by assertTrue to report the
