@@ -33,6 +33,7 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
     val testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
     for {
       results <- runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
+      // TODO What do we want to do here?
       hasFailures = results.exists {
                       case ExecutedSpec.TestCase(test, _) => test.isLeft
                       case _                              => false

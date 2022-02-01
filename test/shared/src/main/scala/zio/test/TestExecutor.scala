@@ -25,10 +25,10 @@ import java.util.UUID
  * A `TestExecutor[R, E]` is capable of executing specs that require an
  * environment `R` and may fail with an `E`.
  */
-abstract class TestExecutor[+R, E] {
-  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]]
-  def environment: Layer[Nothing, R]
-}
+//abstract class TestExecutor[+R, E] {
+//  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]]
+//  def environment: Layer[Nothing, R]
+//}
 
 trait ExecutionEventSink {
   def process(event: ExecutionEvent): UIO[Unit]
@@ -91,15 +91,15 @@ object ExecutionEventSink {
 
 }
 
-abstract class TestExecutor2[+R, E] {
+abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): ZIO[ExecutionEventSink, Nothing, Unit]
   def environment: Layer[Nothing, R]
 }
 
-object TestExecutor2 {
+object TestExecutor {
   def default[R <: Annotations, E](
                                     env: Layer[Nothing, R]
-                                  ): TestExecutor2[R, E] = new TestExecutor2[R, E] {
+                                  ): TestExecutor[R, E] = new TestExecutor[R, E] {
     // TODO Instead of building an ExecutedSpec, we want to write results to our new structure.
     //      Will return a UIO[Unit]
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement):ZIO[ExecutionEventSink, Nothing, Unit] = {
@@ -150,6 +150,7 @@ object TestExecutor2 {
   }
 }
 
+/*
 object TestExecutor {
   def default[R <: Annotations, E](
     env: Layer[Nothing, R]
@@ -186,3 +187,6 @@ object TestExecutor {
     val environment = env
   }
 }
+
+
+ */

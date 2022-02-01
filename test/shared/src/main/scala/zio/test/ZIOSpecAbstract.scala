@@ -77,7 +77,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       }
     }
 
-  protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] = {
+  protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger with ExecutionEventSink, Any, Any] = {
     implicit val trace = Tracer.newTrace
     for {
       _            <- UIO(println("runSpec"))
@@ -122,7 +122,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     sendSummary: URIO[Summary, Unit]
   )(implicit
     trace: ZTraceElement
-  ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, ExecutedSpec[Any]] = {
+  ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Unit] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
