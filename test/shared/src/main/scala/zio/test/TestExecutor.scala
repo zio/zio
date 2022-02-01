@@ -49,6 +49,8 @@ object ExecutionEventSink {
       sectionState <- Ref.make(Map.empty[UUID, SectionState])
       env <- ZIO.environment[R]
     } yield new ExecutionEventSink {
+      // TODO When to collect results VS when to report
+      // TODO Fail parent suite when inner suite fails
       override def process(event: ExecutionEvent): UIO[Unit] = {
         event match {
           case testEvent @ ExecutionEvent.Test(labelsReversed, test, annotations, ancestors) =>
