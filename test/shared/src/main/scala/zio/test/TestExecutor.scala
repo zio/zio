@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ExecutionStrategy, Layer, Random, Ref, UIO, ZEnvironment, ZIO, ZManaged, ZTraceElement}
+import zio.{Chunk, ExecutionStrategy, Layer, Random, Ref, UIO, ZEnvironment, ZIO, ZManaged, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.UUID
@@ -33,6 +33,62 @@ abstract class TestExecutor[+R, E] {
 trait ExecutionEventSink {
   def process(event: ExecutionEvent): UIO[Unit]
 }
+sealed trait ReporterEvent
+case class SectionState(results: Chunk[ExecutionEvent.Test[_]]) extends ReporterEvent
+case class Failure[E](
+                    labelsReversed: List[String],
+                    failure: TestFailure[E],
+                    ancestors: List[UUID]
+                  ) extends ReporterEvent
+
+object ExecutionEventSink {
+  def make[R](stateReporter: ReporterEvent => ZIO[R, Nothing, Any])(implicit
+                                                                    trace: ZTraceElement
+  ): ZIO[R, Nothing, ExecutionEventSink] = { 
+    for {
+      sectionState <- Ref.make(Map.empty[UUID, SectionState])
+      env <- ZIO.environment[R]
+    } yield new ExecutionEventSink {
+      override def process(event: ExecutionEvent): UIO[Unit] = {
+        event match {
+          case testEvent @ ExecutionEvent.Test(labelsReversed, test, annotations, ancestors) =>
+            ancestors match {
+              case Nil => 
+                stateReporter(SectionState(Chunk(testEvent))).provideEnvironment(env).unit
+              case head :: _ =>
+                sectionState.update( curState =>
+                  curState.get(head) match {
+                    case Some(SectionState(results)) =>
+                      val newResults = results :+ testEvent
+                      curState.updated(head, SectionState(newResults))
+                    case None =>
+                      curState.updated(head, SectionState(Chunk(testEvent)))
+                  }
+                )
+            }
+          case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) => 
+            sectionState.update(curState => curState.updated(id, SectionState(Chunk.empty)))
+          case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) => 
+            sectionState.modify( curState =>
+              curState.get(id) match {
+                case Some(sectionState) =>
+                  (sectionState, curState - id)
+                case None =>
+                  (SectionState(Chunk.empty), curState)
+              }
+            ).flatMap(finalSectionState =>
+              stateReporter(finalSectionState).provideEnvironment(env).unit
+            )
+          case ExecutionEvent.Failure(labelsReversed, failure, ancestors) => 
+            stateReporter(Failure(labelsReversed, failure, ancestors)).provideEnvironment(env).unit
+        }
+        
+      }
+    }
+  }
+
+}
+
 abstract class TestExecutor2[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): ZIO[ExecutionEventSink, Nothing, Unit]
   def environment: Layer[Nothing, R]
