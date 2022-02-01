@@ -42,11 +42,13 @@ case class Failure[E](
                   ) extends ReporterEvent
 
 object ExecutionEventSink {
-  def make[R](stateReporter: ReporterEvent => ZIO[R, Nothing, Any])(implicit
+  def make[R](stateReporter: ReporterEvent => ZIO[R, Nothing, Any], summary: Ref[Summary], hasFailures: Ref[Boolean])(implicit
                                                                     trace: ZTraceElement
   ): ZIO[R, Nothing, ExecutionEventSink] = { 
     for {
       sectionState <- Ref.make(Map.empty[UUID, SectionState])
+
+//      final case class Summary(success: Int, fail: Int, ignore: Int, summary: String) {
       env <- ZIO.environment[R]
     } yield new ExecutionEventSink {
       // TODO When to collect results VS when to report

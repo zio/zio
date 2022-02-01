@@ -30,6 +30,87 @@ import scala.util.Try
 
 // TODO Needs to be completely re-written for new streaming behavior
 object DefaultTestReporter {
+  def render(
+              reporterEvent: ReporterEvent,
+              includeCause: Boolean
+            ): Seq[ExecutionResult] =
+    reporterEvent match {
+      case SectionState(results) =>
+        results.map(executionEventTest =>
+          ExecutionResult(
+            ResultType.Suite,
+            executionEventTest.labels.headOption.getOrElse(""),
+            executionEventTest.test match {
+              case Left(value) => Status.Failed
+              case Right(value) => Status.Passed
+            },
+            2,
+            List(executionEventTest.annotations), {
+              val depth= executionEventTest.ancestors.length
+              
+              val renderedResult = executionEventTest.test match {
+                case Right(TestSuccess.Succeeded(_)) =>
+                  Some(
+                    rendered(Test, executionEventTest.labels.reverse.mkString(" - "), Passed, depth, fr(executionEventTest.labels.reverse.mkString(" - ")).toLine)
+                  )
+                case Right(TestSuccess.Ignored) =>
+                  Some(
+                    rendered(
+                      Test,
+                      executionEventTest.labels.reverse.mkString(" - "),
+                      Ignored,
+                      depth,
+                      warn(executionEventTest.labels.reverse.mkString(" - ")).toLine
+                    )
+                  )
+                case Left(TestFailure.Assertion(result)) =>
+                  result
+                    .fold[Option[TestResult]] {
+                      case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
+                      case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
+                        Trace
+                          .prune(trace, false)
+                          .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails, label)))
+                    }(
+                      {
+                        case (Some(a), Some(b)) => Some(a && b)
+                        case (Some(a), None)    => Some(a)
+                        case (None, Some(b))    => Some(b)
+                        case _                  => None
+                      },
+                      {
+                        case (Some(a), Some(b)) => Some(a || b)
+                        case (Some(a), None)    => Some(a)
+                        case (None, Some(b))    => Some(b)
+                        case _                  => None
+                      },
+                      _.map(!_)
+                    )
+                    .map {
+                      _.fold(details =>
+                        rendered(
+                          Test,
+                          executionEventTest.labels.reverse.mkString(" - "),
+                          Failed,
+                          depth,
+                          renderFailure(executionEventTest.labels.reverse.mkString(" - "), depth, details).lines: _*
+                        )
+                      )(
+                        _ && _,
+                        _ || _,
+                        !_
+                      )
+                    }
+
+                case Left(TestFailure.Runtime(cause)) =>
+                  Some(renderRuntimeCause(cause, executionEventTest.labels.reverse.mkString(" - "), depth, includeCause))
+              }
+            }
+          )
+        )
+      case Failure(labelsReversed, failure, ancestors) => ???
+    }
+
   def render[E](
     executedSpec: ExecutedSpec[E],
     includeCause: Boolean

@@ -20,4 +20,14 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 final case class Summary(success: Int, fail: Int, ignore: Int, summary: String) {
   def total: Int = success + fail + ignore
+  def add(testResult: ExecutionEvent.Test[_]): Summary = {
+    testResult.test match {
+      // TODO pull logic from SummaryBuilder
+      case Left(value) => 
+        ???
+      case Right(value) => 
+        ???
+    }
+    ???
+  }
 }

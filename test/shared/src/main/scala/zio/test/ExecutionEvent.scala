@@ -4,6 +4,7 @@ import java.util.UUID
 
 object ExecutionEvent {
 
+  // TODO store ancestor annotations
   final case class Test[+E](
     labelsReversed: List[String],
     test: Either[TestFailure[E], TestSuccess],
