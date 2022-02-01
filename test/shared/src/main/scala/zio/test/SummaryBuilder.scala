@@ -20,6 +20,7 @@ import zio.{Chunk, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ConsoleRenderer
 
+// TODO Needs to be completely re-written for new streaming behavior
 object SummaryBuilder {
   def buildSummary[E](executedSpec: ExecutedSpec[E])(implicit trace: ZTraceElement): Summary = {
     val success = countTestResults(executedSpec) {

@@ -39,9 +39,10 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
   final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {
     implicit val trace = Tracer.newTrace
+    val newSink: Layer[Nothing, ExecutionEventSink] = ???
 
     runSpec.provideSomeLayer[ZEnv with ZIOAppArgs](
-      ZLayer.environment[ZEnv with ZIOAppArgs] ++ (TestEnvironment.live ++ layer ++ TestLogger.fromConsole)
+      ZLayer.environment[ZEnv with ZIOAppArgs] ++ (TestEnvironment.live ++ layer ++ TestLogger.fromConsole ++ newSink)
     )
   }
 
@@ -50,8 +51,8 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       type Environment = self.Environment with that.Environment
       def layer: ZLayer[ZIOAppArgs, Any, Environment] =
         self.layer +!+ that.layer
-      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] =
-        self.runSpec.zip(ZIO.debug("Next spec: " + that.spec.caseValue)).zip(that.runSpec)
+//      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] =
+//        self.runSpec.zip(ZIO.debug("Next spec: " + that.spec.caseValue)).zip(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =
         self.spec + that.spec
 
@@ -101,19 +102,18 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     sys.env.exists { case (k, v) =>
       k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
     }
-
-  def runSpecInner(
-    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
-    testArgs: TestArgs,
-    sendSummary: URIO[Summary, Unit]
-  )(implicit
-    trace: ZTraceElement
-  ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Unit] = {
+  
+  private[zio] def runSpec(
+                            spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
+                            testArgs: TestArgs,
+                            sendSummary: URIO[Summary, Unit]
+                          )(implicit
+                            trace: ZTraceElement
+                          ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Unit] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
       env <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
-      _   <- env.get[TestLogger].logLine("running a spec...")
       runner =
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any](
@@ -121,12 +121,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
           )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
-      _           <- ZIO.debug("runSpec.before")
       results <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
-      _ <- ZIO.debug("runSpec.after")
 
-      // TODO We need to dump this out as we go.
       summary = SummaryBuilder.buildSummary(results)
       _      <- sendSummary.provideEnvironment(ZEnvironment(summary))
     } yield results

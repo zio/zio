@@ -28,6 +28,7 @@ import java.util.regex.Pattern
 import scala.annotation.tailrec
 import scala.util.Try
 
+// TODO Needs to be completely re-written for new streaming behavior
 object DefaultTestReporter {
   def render[E](
     executedSpec: ExecutedSpec[E],
