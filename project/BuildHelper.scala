@@ -278,7 +278,6 @@ object BuildHelper {
     Test / test             := (Test / compile).value,
     doc / skip              := true,
     Compile / doc / sources := Seq.empty,
-    crossScalaVersions -= Scala3
   )
 
   def welcomeMessage = onLoadMessage := {
