@@ -33,9 +33,10 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   // }
   )
 
-  def done(): String = "Done without tracking summaries along the way"
+  def doneNew(): String = "Done without tracking summaries along the way"
 
-  def doneOld(): String = {
+  def done(): String = {
+    val x: TestResultManager = ???
     val allSummaries = summaries.get
 
     val total  = allSummaries.map(_.total).sum
