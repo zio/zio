@@ -16,8 +16,10 @@
 
 package zio.test
 
-import zio.{ExecutionStrategy, Layer, UIO, ZIO, ZManaged, ZTraceElement}
+import zio.{ExecutionStrategy, Layer, Random, Ref, UIO, ZEnvironment, ZIO, ZManaged, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+
+import java.util.UUID
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -26,6 +28,68 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]]
   def environment: Layer[Nothing, R]
+}
+
+trait ExecutionEventSink {
+  def process(event: ExecutionEvent): UIO[Unit]
+}
+abstract class TestExecutor2[+R, E] {
+  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): ZIO[ExecutionEventSink, Nothing, Unit]
+  def environment: Layer[Nothing, R]
+}
+
+object TestExecutor2 {
+  def default[R <: Annotations, E](
+                                    env: Layer[Nothing, R]
+                                  ): TestExecutor2[R, E] = new TestExecutor2[R, E] {
+    // TODO Instead of building an ExecutedSpec, we want to write results to our new structure.
+    //      Will return a UIO[Unit]
+    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement):ZIO[ExecutionEventSink, Nothing, Unit] = {
+      def loop(labels: List[String], spec: Spec[R, Annotated[TestFailure[E]], Annotated[TestSuccess]], exec: ExecutionStrategy, sink: ExecutionEventSink, ancestors: List[UUID]):ZIO[R with Random, Nothing, Unit]   = {
+        spec.caseValue match {
+          case Spec.ExecCase(exec, spec) => loop(labels, spec, exec, sink, ancestors)
+
+          case Spec.LabeledCase(label, spec) =>
+            loop(label :: labels, spec, exec, sink, ancestors)
+          case Spec.ManagedCase(managed) =>
+            managed
+              .use(loop(labels, _, exec, sink, ancestors))
+              .catchAll(
+                e =>
+                  sink.process(ExecutionEvent.Failure(labels, e._1, ancestors))
+              )
+
+          case Spec.MultipleCase(specs) =>
+            ZIO.uninterruptibleMask(restore => for {
+              uuid <- Random.nextUUID
+              _ <- sink.process(ExecutionEvent.SectionStart(labels, uuid, ancestors))
+              newAncestors = uuid :: ancestors
+              _ <- restore(ZIO.foreachExec(specs)(exec)(loop(labels, _, exec, sink, newAncestors))).ensuring(
+                sink.process(ExecutionEvent.SectionEnd(labels, uuid, ancestors))
+              )
+            } yield ())
+          case Spec.TestCase(test: ZIO[R, Annotated[TestFailure[E]], Annotated[TestSuccess]], staticAnnotations) =>
+            for {
+              result <- test.either
+              _ <- result match {
+                case Left((testFailure: TestFailure[E], annotations)) =>
+                  sink.process(ExecutionEvent.Test(labels, Left(testFailure), staticAnnotations ++ annotations, ancestors))
+                case Right((testSuccess, annotations)) =>
+                  sink.process(ExecutionEvent.Test(labels, Right(testSuccess), staticAnnotations ++ annotations, ancestors))
+              }
+            } yield ()
+        }
+      }
+      for {
+        sink <- ZIO.service[ExecutionEventSink]
+        //        _ <- Random.live(loop(List.empty, spec.annotated, defExec, sink, List.empty))
+        _ <- loop(List.empty, spec.annotated, defExec, sink, List.empty).provide(Random.live, env)
+      } yield  ()
+    }
+
+
+    val environment = env
+  }
 }
 
 object TestExecutor {
