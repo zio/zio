@@ -50,25 +50,11 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       type Environment = self.Environment with that.Environment
       def layer: ZLayer[ZIOAppArgs, Any, Environment] =
         self.layer +!+ that.layer
-//      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] =
-//        self.runSpec.zip(ZIO.debug("Next spec: " + that.spec.caseValue)).zip(that.runSpec)
+      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] =
+        self.runSpec.zip(ZIO.debug("Next spec: " + that.spec.caseValue)).zip(that.runSpec)
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =
         self.spec + that.spec
 
-      override def runSpecInner(
-        spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
-        testArgs: TestArgs,
-        sendSummary: URIO[Summary, Unit]
-      )(implicit
-        trace: ZTraceElement
-      ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, ExecutedSpec[Any]] =
-        for {
-          res1 <- self.runSpecInner(self.spec, testArgs, sendSummary)
-          res2 <- that.runSpecInner(that.spec, testArgs, sendSummary)
-        } yield {
-          ExecutedSpec.labeled("single", res1)
-          // ExecutedSpec.multiple(Chunk(res1, res2))
-        }
       def tag: EnvironmentTag[Environment] = {
         implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
         implicit val thatTag: EnvironmentTag[that.Environment] = that.tag
@@ -83,7 +69,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       _            <- UIO(println("runSpec"))
       args         <- ZIO.service[ZIOAppArgs]
       testArgs      = TestArgs.parse(args.getArgs.toArray)
-      executedSpec <- runSpecInner(spec, testArgs, ZIO.unit)
+      executedSpec <- runSpec(spec, testArgs, ZIO.unit)
       hasFailures = executedSpec.exists {
                       case ExecutedSpec.TestCase(test, _) => test.isLeft
                       case _                              => false
