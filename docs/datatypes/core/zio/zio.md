@@ -415,6 +415,47 @@ So for ZIO, expected errors are reflected in the type of the ZIO effect, whereas
 
 That is the best practice. It helps us write better code. The code that we can reason about its error properties and potential expected errors. We can look at the ZIO effect and know how it is supposed to fail.
 
+### Error Management Best Practices
+
+#### Don't Type Unexpected Errors
+
+When we first discover typed errors, it may be tempting to put every error into the error type parameter. That is a mistake because we can't recover from all types of errors. When we encounter unexpected errors we can't do anything in those cases. We should let the application die. Let it crash is the erlang philosophy. It is a good philosophy for all unexpected errors. At best, we can sandbox it, but we should let it crash.
+
+If we have an effect that fails for some `Throwable` we can pick certain recoverable errors out of that, and then we can just let the rest of them kill the fiber that is running that effect. The ZIO effect has a method called `ZIO#refineOrDie` that allows us to do that.
+
+In the following example, calling `ZIO#refineOrDie` on an effect that has an error type `Throwable` allows us to refine it to have an error type of `TemporaryUnavailable`:
+
+```scala mdoc:invisible
+import java.net.URL
+trait TemporaryUnavailable extends Throwable
+
+trait Response
+
+object httpClient {
+  def fetchUrl(url: URL): Response = ???
+}
+
+val url = new URL("https://zio.dev")
+```
+
+```scala mdoc:compile-only
+import zio._
+
+val response: ZIO[Clock, Nothing, Response] =
+  ZIO.attemptBlocking(httpClient.fetchUrl(url)) // ZIO[Any, Throwable, Response]
+    .refineOrDie[TemporaryUnavailable] {
+      case e: TemporaryUnavailable => e
+    }                                      // ZIO[Any, TemporaryUnavailable, Response]
+    .retry(
+      Schedule.fibonacci(1.second)
+    )                                      // ZIO[Clock, TemporaryUnavailable, Response]
+    .orDie                                 // ZIO[Clock, Nothing, Response]
+```
+
+In this example, we are importing the `fetchUrl` which is a blocking operation into a `ZIO` value. We know that in case of a service outage it will throw the `TemporaryUnavailable` exception. This is an expected error, so we want that to be typed. We are going to reflect that in the error type. We only expect it, so we know how to recover from it.
+
+Also, this operation may throw unexpected errors like `OutOfMemoryError`, `StackOverflowError`, and so forth. Therefore, we don't include these errors since we won't be handling them at runtime. They are defects, and in case of unexpected errors, we should let the application crash.
+
 ## Lossless Error Model
 
 ZIO holds onto errors, that would otherwise be lost, using `try finally`. If the `try` block throws an exception, and the `finally` block throws an exception as well, then, if these are caught at a higher level, only the finalizer's exception will be caught normally, not the exception from the try block.
