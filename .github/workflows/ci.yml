@@ -119,7 +119,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['11', '17']
+        java: ['8', '11']
         platform: ['JVM']
     steps:
       - name: Checkout current branch
