@@ -439,22 +439,25 @@ val url = new URL("https://zio.dev")
 ```
 
 ```scala mdoc:compile-only
-import zio._
-
 val response: ZIO[Clock, Nothing, Response] =
-  ZIO.attemptBlocking(httpClient.fetchUrl(url)) // ZIO[Any, Throwable, Response]
+  ZIO
+    .attemptBlocking(
+      httpClient.fetchUrl(url)
+    ) // ZIO[Any, Throwable, Response]
     .refineOrDie[TemporaryUnavailable] {
       case e: TemporaryUnavailable => e
-    }                                      // ZIO[Any, TemporaryUnavailable, Response]
+    } // ZIO[Any, TemporaryUnavailable, Response]
     .retry(
       Schedule.fibonacci(1.second)
-    )                                      // ZIO[Clock, TemporaryUnavailable, Response]
-    .orDie                                 // ZIO[Clock, Nothing, Response]
+    ) // ZIO[Clock, TemporaryUnavailable, Response]
+    .orDie // ZIO[Clock, Nothing, Response]
 ```
 
 In this example, we are importing the `fetchUrl` which is a blocking operation into a `ZIO` value. We know that in case of a service outage it will throw the `TemporaryUnavailable` exception. This is an expected error, so we want that to be typed. We are going to reflect that in the error type. We only expect it, so we know how to recover from it.
 
 Also, this operation may throw unexpected errors like `OutOfMemoryError`, `StackOverflowError`, and so forth. Therefore, we don't include these errors since we won't be handling them at runtime. They are defects, and in case of unexpected errors, we should let the application crash.
+
+Therefore, it is quite common to import a code that may throw exceptions, whether that uses expected errors for error handling or can fail for a wide variety of unexpected errors like disk unavailable, service unavailable, and so on. Generally, importing these operations end up represented as a `Task` (`ZIO[Any, Throwable, A]`). So in order to make recoverable errors typed, we use the `ZIO#refineOrDie` method.
 
 ## Lossless Error Model
 
