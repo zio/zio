@@ -57,7 +57,7 @@ jobs:
         uses: actions/setup-java@v2.5.0
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 8
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
@@ -177,7 +177,7 @@ jobs:
         uses: actions/setup-java@v2.5.0
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 8
           check-latest: true
       - name: Release
         run: ./sbt ci-release
