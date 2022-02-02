@@ -21,6 +21,7 @@ import _root_.java.util.concurrent.{CompletableFuture, CompletionException, Comp
 import zio._
 import zio.blocking.{Blocking, blocking}
 
+import java.util.concurrent.CancellationException
 import scala.concurrent.ExecutionException
 
 private[zio] object javaz {
@@ -50,6 +51,8 @@ private[zio] object javaz {
     case e: ExecutionException =>
       Task.fail(e.getCause)
     case _: InterruptedException =>
+      Task.interrupt
+    case _: CancellationException =>
       Task.interrupt
     case e if !isFatal(e) =>
       Task.fail(e)
