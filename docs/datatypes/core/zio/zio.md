@@ -500,7 +500,38 @@ val myApp: IO[Exception, Receipt] =
 
 In this example, the flatMap operations auto widens the error type to the most specific error type possible. As a result, the inferred error type of this for-comprehension will be `Exception` which gives us the best information we could hope to get out of this. We have lost information about the particulars of this. We no longer know which of these error types it is. We know it is some type of `Exception` which is more information than nothing. 
 
-In scala 3, we have an exciting new future called union types. That enables us to have even more precise information and remove the requirement to extend some sort of common error types like `Exception` or `Throwable`. 
+In Scala 3, we have an exciting new feature called union types. By using the union operator, we can encode multiple error types. Using this facility, we can have more precise information on typed errors. 
+
+Let's see an example of `Storage` service which have `upload`, `download` and `delete` api:
+
+```scala
+import zio._
+
+type Name = String
+
+enum StorageError extends Exception {
+  case ObjectExist(name: Name)            extends StorageError
+  case ObjectNotExist(name: Name)         extends StorageError
+  case PermissionDenied(cause: String)    extends StorageError
+  case StorageLimitExceeded(limit: Int)   extends StorageError
+  case BandwidthLimitExceeded(limit: Int) extends StorageError
+}
+
+import StorageError.*
+
+trait Storage {
+  def upload(
+      name: Name,
+      obj: Array[Byte]
+  ): ZIO[Any, ObjectExist | StorageLimitExceeded, Unit]
+
+  def download(
+      name: Name
+  ): ZIO[Any, ObjectNotExist | BandwidthLimitExceeded, Array[Byte]]
+
+  def delete(name: Name): ZIO[Any, ObjectNotExist | PermissionDenied, Unit]
+}
+```
 
 ## Lossless Error Model
 
