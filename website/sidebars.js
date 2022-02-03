@@ -324,7 +324,8 @@ module.exports = {
       "about/coding-guidelines",
       "about/contributing",
       "about/contributing-to-documentation",
-      "about/code-of-conduct"
+      "about/code-of-conduct",
+      "about/users",
     ]
   }
 }
