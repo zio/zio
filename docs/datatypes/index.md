@@ -52,8 +52,14 @@ ZIO contains a few data types that can help you solve complex problems in asynch
     + **[Ref.Synchronized](concurrency/refsynchronized.md)** — `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
 - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
 - **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
- - **[Hub](concurrency/hub.md)** - A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
+- **[Hub](concurrency/hub.md)** - A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
 - **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
+
+### Synchronization aids
+- **[ConcurrentMap](sync/concurrentmap.md)** — A Map wrapper over `java.util.concurrent.ConcurrentHashMap`
+- **[ConcurrentSet](sync/concurrentset.md)** — A Set implementation over `java.util.concurrent.ConcurrentHashMap`
+- **[CountdownLatch](sync/countdownlatch.md)** — A synchronization aid that allows one or more fibers to wait until a set of operations being performed in other fibers completes.
+- **[CyclicBarrier](sync/cyclicbarrier.md)** — A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
 
 ### STM
  - **[STM](stm/stm.md)** - An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
