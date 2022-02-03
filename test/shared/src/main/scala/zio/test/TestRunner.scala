@@ -35,7 +35,9 @@ final case class TestRunner[R, E](
   bootstrap: Layer[Nothing, TestLogger with Clock with ExecutionEventSink] ={
     
     implicit val questionableNewTrace = Tracer.newTrace
-    val sinkLayer: Layer[Nothing, ExecutionEventSink] = ExecutionEventSink.make(x=>ZIO.debug(x)).toLayer
+    val summaryRef: Ref[Summary] = ???
+    val hasFailures: Ref[Boolean] = ???
+    val sinkLayer: Layer[Nothing, ExecutionEventSink] = ExecutionEventSink.make(x=>ZIO.debug(x), summaryRef, hasFailures).toLayer
     (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(ZTraceElement.empty)) ++ Clock.live ++ sinkLayer
   }
       
@@ -48,7 +50,9 @@ final case class TestRunner[R, E](
    */
   def run(spec: ZSpec[R, E])(implicit trace: ZTraceElement): URIO[TestLogger with Clock with ExecutionEventSink, Unit] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, results) =>
-      reporter(duration, results).as(results)
+      // TODO Should the reporter action be passed into .run? Maybe this can just go away?
+//      reporter(duration, ???).as(results)
+     ZIO.unit
     }
 
   /**

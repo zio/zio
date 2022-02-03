@@ -101,7 +101,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       val instrumented: ZSpec[spec.Environment with TestEnvironment with ZIOAppArgs, Any] =
         instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec
-        .runSpecInner(
+        .runSpec(
           instrumented,
           TestArgs.empty,
           ZIO.unit

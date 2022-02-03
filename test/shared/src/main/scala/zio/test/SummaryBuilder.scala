@@ -22,7 +22,7 @@ import zio.test.render.ConsoleRenderer
 
 // TODO Needs to be completely re-written for new streaming behavior
 object SummaryBuilder {
-  def buildSummary[E](executedSpec: ExecutedSpec[E])(implicit trace: ZTraceElement): Summary = {
+  def buildSummary[E](executedSpec: ReporterEvent)(implicit trace: ZTraceElement): Summary = {
     val success = countTestResults(executedSpec) {
       case Right(TestSuccess.Succeeded(_)) => true
       case _                               => false
@@ -41,25 +41,33 @@ object SummaryBuilder {
   }
 
   private def countTestResults[E](
-    executedSpec: ExecutedSpec[E]
+    executedSpec: ReporterEvent
   )(pred: Either[TestFailure[E], TestSuccess] => Boolean): Int =
-    executedSpec.fold[Int] { c =>
-      c match {
-        case ExecutedSpec.LabeledCase(_, count) => count
-        case ExecutedSpec.MultipleCase(counts)  => counts.sum
-        case ExecutedSpec.TestCase(test, _)     => if (pred(test)) 1 else 0
-      }
+    executedSpec match {
+      case SectionState(results) =>
+        results.count(test =>
+          test.test.isLeft
+        )
+      case Failure(labelsReversed, failure, ancestors) =>
+        0
     }
+//      executedSpec match {
+//        case start: ExecutionEvent.SectionStart => ???
+//        case end: ExecutionEvent.SectionEnd => 0
+//        case test: ExecutionEvent.Test[_] => 0
+//        case failure: ExecutionEvent.Failure[_] => 0
+//      }
 
-  private def extractFailures[E](executedSpec: ExecutedSpec[E]): Seq[ExecutedSpec[E]] =
-    executedSpec.fold[Seq[ExecutedSpec[E]]] { c =>
-      c match {
-        case ExecutedSpec.LabeledCase(label, specs) =>
-          specs.map(spec => ExecutedSpec.labeled(label, spec))
-        case ExecutedSpec.MultipleCase(specs) =>
-          val newSpecs = specs.flatMap(Chunk.fromIterable)
-          if (newSpecs.nonEmpty) Seq(ExecutedSpec(ExecutedSpec.MultipleCase(newSpecs))) else Seq.empty
-        case c @ ExecutedSpec.TestCase(test, _) => if (test.isLeft) Seq(ExecutedSpec(c)) else Seq.empty
-      }
-    }
+  private def extractFailures[E](executedSpec: ReporterEvent): Seq[ReporterEvent] =
+    ???
+    // executedSpec.fold[Seq[ExecutionEvent]] { c =>
+    //   c match {
+    //     case ExecutedSpec.LabeledCase(label, specs) =>
+    //       specs.map(spec => ExecutedSpec.labeled(label, spec))
+    //     case ExecutedSpec.MultipleCase(specs) =>
+    //       val newSpecs = specs.flatMap(Chunk.fromIterable)
+    //       if (newSpecs.nonEmpty) Seq(ExecutedSpec(ExecutedSpec.MultipleCase(newSpecs))) else Seq.empty
+    //     case c @ ExecutedSpec.TestCase(test, _) => if (test.isLeft) Seq(ExecutedSpec(c)) else Seq.empty
+    //   }
+    // }
 }

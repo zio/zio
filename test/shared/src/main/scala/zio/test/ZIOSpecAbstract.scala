@@ -70,13 +70,15 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       _            <- UIO(println("runSpec"))
       args         <- ZIO.service[ZIOAppArgs]
       testArgs      = TestArgs.parse(args.getArgs.toArray)
+      // TODO Make Ref[Boolean] for hasFailures tracking?
       executedSpec <- runSpec(spec, testArgs, ZIO.unit)
-      hasFailures = executedSpec.exists {
-                      case ExecutedSpec.TestCase(test, _) => test.isLeft
-                      case _                              => false
-                    }
-      exitCode = if (hasFailures) 1 else 0
-      _       <- doExit(exitCode)
+//      hasFailures = executedSpec.exists {
+//                      case ExecutedSpec.TestCase(test, _) => test.isLeft
+//                      case _                              => false
+//                    }
+//      exitCode = if (hasFailures) 1 else 0
+//      _       <- doExit(exitCode)
+      _       <- doExit(0)
     } yield ()
   }
 
@@ -104,19 +106,19 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     }
   
   private[zio] def runSpec(
-                            spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
+                            spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock with ExecutionEventSink, Any],
                             testArgs: TestArgs,
                             sendSummary: URIO[Summary, Unit]
                           )(implicit
                             trace: ZTraceElement
-                          ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Unit] = {
+                          ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger with ExecutionEventSink, Unit] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
-      env <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
+      env <- ZIO.environment[Environment with TestEnvironment with ZIOAppArgs with TestLogger with ExecutionEventSink]
       runner =
         TestRunner(
-          TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any](
+          TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger with ExecutionEventSink, Any](
             ZLayer.succeedEnvironment(env) +!+ testEnvironment
           )
         )
@@ -124,8 +126,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       results <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
 
-      summary = SummaryBuilder.buildSummary(results)
-      _      <- sendSummary.provideEnvironment(ZEnvironment(summary))
+      // TODO These should be handled inside the running spec. I think
+//      summary = SummaryBuilder.buildSummary(results)
+//      _      <- sendSummary.provideEnvironment(ZEnvironment(summary))
     } yield results
   }
 }

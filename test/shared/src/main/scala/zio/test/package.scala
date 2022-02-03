@@ -57,13 +57,14 @@ package object test extends CompileVariants {
   type AssertResult  = BoolAlgebra[AssertionValue]
 
   type TestEnvironment =
-    Annotations with Live with Sized with TestClock with TestConfig with TestConsole with TestRandom with TestSystem
+    Annotations with Live with Sized with TestClock with TestConfig with TestConsole with TestRandom with TestSystem with ExecutionEventSink
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
     val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
+      val sinkLayer: ULayer[ExecutionEventSink] = ???
       Annotations.live ++
         Live.default ++
         Sized.live(100) ++
@@ -71,7 +72,8 @@ package object test extends CompileVariants {
         TestConfig.live(100, 100, 200, 1000) ++
         (Live.default >>> TestConsole.debug) ++
         TestRandom.deterministic ++
-        TestSystem.default
+        TestSystem.default ++
+        sinkLayer
     }
   }
 
@@ -132,7 +134,7 @@ package object test extends CompileVariants {
    * A `TestReporter[E]` is capable of reporting test results with error type
    * `E`.
    */
-  type TestReporter[-E] = (Duration, ExecutedSpec[E]) => URIO[TestLogger, Unit]
+  type TestReporter[-E] = (Duration, ReporterEvent) => URIO[TestLogger, Unit]
 
   object TestReporter {
 

@@ -30,10 +30,19 @@ import scala.util.Try
 
 // TODO Needs to be completely re-written for new streaming behavior
 object DefaultTestReporter {
+  def apply[E](testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
+    trace: ZTraceElement
+  ): TestReporter[E] = { (duration: Duration, executedSpec: ReporterEvent) =>
+    // val rendered = testRenderer.render(render(executedSpec, true), testAnnotationRenderer)
+    // val stats    = testRenderer.render(logStats(duration, executedSpec) :: Nil, testAnnotationRenderer)
+    val rendered = List.empty
+    val stats = List.empty
+    TestLogger.logLine((rendered ++ stats).mkString("\n")) // Ensures 1 big string is reported per ExecutedSpec
+  }
   def render(
               reporterEvent: ReporterEvent,
               includeCause: Boolean
-            ): Seq[ExecutionResult] =
+            )(implicit trace: ZTraceElement): Seq[ExecutionResult] =
     reporterEvent match {
       case SectionState(results) =>
         results.map(executionEventTest =>
@@ -105,12 +114,14 @@ object DefaultTestReporter {
                 case Left(TestFailure.Runtime(cause)) =>
                   Some(renderRuntimeCause(cause, executionEventTest.labels.reverse.mkString(" - "), depth, includeCause))
               }
+              renderedResult.map(r => r.lines.toList).getOrElse(Nil)
             }
           )
         )
       case Failure(labelsReversed, failure, ancestors) => ???
     }
 
+    /*
   def render[E](
     executedSpec: ExecutedSpec[E],
     includeCause: Boolean
@@ -241,6 +252,7 @@ object DefaultTestReporter {
 
     rendered(ResultType.Other, "", Status.Passed, 0, stats.toLine)
   }
+  */
 
   private def renderSuiteIgnored(label: String, offset: Int) =
     rendered(Suite, label, Ignored, offset, warn(s"- $label").toLine)

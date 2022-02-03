@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{ExecutedSpec, TestAnnotation, TestFailure, TestSuccess}
+//import zio.test.{TestFailure, TestSuccess}
 
 final case class ZTestEvent(
   fullyQualifiedName: String,
@@ -17,34 +17,38 @@ final case class ZTestEvent(
 object ZTestEvent {
 
   def from[E](
-    executedSpec: ExecutedSpec[E],
+//    executedSpec: ExecutedSpec[E], // TODO How do we want to construct ZTestEvents now?
     fullyQualifiedName: String,
     fingerprint: Fingerprint
   ): Seq[ZTestEvent] = {
+    assert(fullyQualifiedName != null)
+    assert(fingerprint != null)
 
-    def loop(executedSpec: ExecutedSpec[E], labels: List[String]): Seq[ZTestEvent] =
-      executedSpec.caseValue match {
-        case ExecutedSpec.LabeledCase(label, spec) => loop(spec, label :: labels)
-        case ExecutedSpec.MultipleCase(specs)      => specs.flatMap(spec => loop(spec, labels))
-        case ExecutedSpec.TestCase(result, annotations) =>
-          Seq(
-            ZTestEvent(
-              fullyQualifiedName,
-              new TestSelector(labels.headOption.getOrElse("")),
-              toStatus(result),
-              None,
-              annotations.get(TestAnnotation.timing).toMillis,
-              fingerprint
-            )
-          )
-      }
+//    def loop(executedSpec: ExecutedSpec[E], labels: List[String]): Seq[ZTestEvent] =
+//      executedSpec.caseValue match {
+//        case ExecutedSpec.LabeledCase(label, spec) => loop(spec, label :: labels)
+//        case ExecutedSpec.MultipleCase(specs)      => specs.flatMap(spec => loop(spec, labels))
+//        case ExecutedSpec.TestCase(result, annotations) =>
+//          Seq(
+//            ZTestEvent(
+//              fullyQualifiedName,
+//              new TestSelector(labels.headOption.getOrElse("")),
+//              toStatus(result),
+//              None,
+//              annotations.get(TestAnnotation.timing).toMillis,
+//              fingerprint
+//            )
+//          )
+//      }
 
-    loop(executedSpec, List.empty)
+//    loop(executedSpec, List.empty)
+    Seq.empty
   }
 
-  private def toStatus[E](result: Either[TestFailure[E], TestSuccess]) = result match {
-    case Left(_)                         => Status.Failure
-    case Right(TestSuccess.Succeeded(_)) => Status.Success
-    case Right(TestSuccess.Ignored)      => Status.Ignored
-  }
+//  private def toStatus[E](result: Either[TestFailure[E], TestSuccess]) = result match {
+//    case Left(_)                         => Status.Failure
+//    case Right(TestSuccess.Succeeded(_)) => Status.Success
+//    case Right(TestSuccess.Ignored)      => Status.Ignored
+//  }
+
 }

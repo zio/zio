@@ -28,20 +28,22 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
 
   private def run(spec: ZSpec[Environment, Failure], testArgs: TestArgs)(implicit
     trace: ZTraceElement
-  ): URIO[TestLogger with Clock, Int] = {
+  ): URIO[TestLogger with Clock with ExecutionEventSink, Int] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
     val testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
     for {
       results <- runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
       // TODO What do we want to do here?
-      hasFailures = results.exists {
-                      case ExecutedSpec.TestCase(test, _) => test.isLeft
-                      case _                              => false
-                    }
-      _ <- TestLogger
-             .logLine(SummaryBuilder.buildSummary(results).summary)
-             .when(testArgs.printSummary)
-    } yield if (hasFailures) 1 else 0
+//      hasFailures = results.exists {
+//                      case ExecutedSpec.TestCase(test, _) => test.isLeft
+//                      case _                              => false
+//                    }
+//      _ <- TestLogger
+//             .logLine(SummaryBuilder.buildSummary(results).summary)
+//             .when(testArgs.printSummary)
+    } yield
+//      if (hasFailures) 1 else 0
+    0
   }
 
   /**
