@@ -459,6 +459,49 @@ Also, this operation may throw unexpected errors like `OutOfMemoryError`, `Stack
 
 Therefore, it is quite common to import a code that may throw exceptions, whether that uses expected errors for error handling or can fail for a wide variety of unexpected errors like disk unavailable, service unavailable, and so on. Generally, importing these operations end up represented as a `Task` (`ZIO[Any, Throwable, A]`). So in order to make recoverable errors typed, we use the `ZIO#refineOrDie` method.
 
+### Model Domain Errors Using Algebraic Data Types
+
+It is best to use _algebraic data types (ADTs)_ when modeling errors within the same domain or subdomain.
+
+Sealed traits allow us to introduce an error type as a common supertype and all errors within a domain are part of that error type by extending that:
+
+```scala
+sealed trait UserServiceError extends Exception
+case class InvalidUserId(id: ID) extends UserServiceError
+case class ExpiredAuth(id: ID)   extends UserServiceError
+```
+
+
+In this case, the super error type is `UserServiceError`. We sealed that trait, and we extend it by two cases, `InvalidUserId` and `ExpiredAuth`. Because it is sealed, if we have a reference to a `UserServiceError` we can match against it and the Scala compiler knows there are two possibilities for a `UserServiceError`:
+
+```scala
+userServiceError match {
+  case InvalidUserId(id) => ???
+  case ExpiredAuth(id)   => ???
+}
+```
+
+This is a sum type, and also an enumeration. The Scala compiler knows only two of these `UserServiceError` exist. If we don't match on all of them, it is going to warn us. We can add the `-Xfatal-warnings` compiler option which treats warnings as errors. By turning on the fatal warning, we will have type-safety control on expected errors. So sealing these traits gives us great power. 
+
+Also extending all of our errors from a common supertype helps the ZIO's combinators like flatMap to auto widen to the most specific error type.
+
+Let's say we have this for-comprehension here that calls the `userAuth` function, and it can fail with `ExpiredAuth`, and then we call `userProfile` that fails with `InvalidUserID`, and then we call `generateEmail` that can't fail at all, and finally we call `sendEmail` which can fail with `EmailDeliveryError`. We have got a lot of different errors here:
+
+```scala
+val myApp: IO[Exception, Receipt] = 
+  for {
+    service <- userAuth(token)                // IO[ExpiredAuth, UserService]
+    profile <- service.userProfile(userId)    // IO[InvalidUserId, Profile]
+    body    <- generateEmail(orderDetails)    // IO[Nothing, String]
+    receipt <- sendEmail("Your order detail", 
+       body, profile.email)                   // IO[EmailDeliveryError, Unit]
+  } yield receipt
+```
+
+In this example, the flatMap operations auto widens the error type to the most specific error type possible. As a result, the inferred error type of this for-comprehension will be `Exception` which gives us the best information we could hope to get out of this. We have lost information about the particulars of this. We no longer know which of these error types it is. We know it is some type of `Exception` which is more information than nothing. 
+
+In scala 3, we have an exciting new future called union types. That enables us to have even more precise information and remove the requirement to extend some sort of common error types like `Exception` or `Throwable`. 
+
 ## Lossless Error Model
 
 ZIO holds onto errors, that would otherwise be lost, using `try finally`. If the `try` block throws an exception, and the `finally` block throws an exception as well, then, if these are caught at a higher level, only the finalizer's exception will be caught normally, not the exception from the try block.
