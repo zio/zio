@@ -192,6 +192,11 @@ object TestAspectSpec extends ZIOBaseSpec {
       val result = if (TestPlatform.isJVM) succeeded(spec) else isIgnored(spec)
       assertM(result)(isTrue)
     },
+    test("live runs tests with the live environment") {
+      for {
+        _ <- ZIO.sleep(1.nanosecond)
+      } yield assertCompletes
+    } @@ live,
     test("native applies test aspect only on ScalaNative") {
       for {
         ref    <- Ref.make(false)
