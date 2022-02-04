@@ -415,9 +415,7 @@ So for ZIO, expected errors are reflected in the type of the ZIO effect, whereas
 
 That is the best practice. It helps us write better code. The code that we can reason about its error properties and potential expected errors. We can look at the ZIO effect and know how it is supposed to fail.
 
-### Error Management Best Practices
-
-#### Don't Type Unexpected Errors
+## Don't Type Unexpected Errors
 
 When we first discover typed errors, it may be tempting to put every error into the error type parameter. That is a mistake because we can't recover from all types of errors. When we encounter unexpected errors we can't do anything in those cases. We should let the application die. Let it crash is the erlang philosophy. It is a good philosophy for all unexpected errors. At best, we can sandbox it, but we should let it crash.
 
@@ -459,7 +457,7 @@ Also, this operation may throw unexpected errors like `OutOfMemoryError`, `Stack
 
 Therefore, it is quite common to import a code that may throw exceptions, whether that uses expected errors for error handling or can fail for a wide variety of unexpected errors like disk unavailable, service unavailable, and so on. Generally, importing these operations end up represented as a `Task` (`ZIO[Any, Throwable, A]`). So in order to make recoverable errors typed, we use the `ZIO#refineOrDie` method.
 
-### Model Domain Errors Using Algebraic Data Types
+## Model Domain Errors Using Algebraic Data Types
 
 It is best to use _algebraic data types (ADTs)_ when modeling errors within the same domain or subdomain.
 
@@ -500,6 +498,8 @@ val myApp: IO[Exception, Receipt] =
 
 In this example, the flatMap operations auto widens the error type to the most specific error type possible. As a result, the inferred error type of this for-comprehension will be `Exception` which gives us the best information we could hope to get out of this. We have lost information about the particulars of this. We no longer know which of these error types it is. We know it is some type of `Exception` which is more information than nothing. 
 
+## Use Union Types to Be More Specific About Error Types
+
 In Scala 3, we have an exciting new feature called union types. By using the union operator, we can encode multiple error types. Using this facility, we can have more precise information on typed errors. 
 
 Let's see an example of `Storage` service which have `upload`, `download` and `delete` api:
@@ -531,6 +531,26 @@ trait Storage {
 
   def delete(name: Name): ZIO[Any, ObjectNotExist | PermissionDenied, Unit]
 }
+```
+
+Union types allow us to get rid of the requirement to extend some sort of common error types like `Exception` or `Throwable`. This allows us to have completely unrelated error types.
+
+In the following example, the `FooError` and `BarError` are two distinct error. They have no super common type like `FooBarError` and also they are not extending `Exception` or `Throwable` classes:
+
+```scala
+import zio.*
+
+// Two unrelated errors without having a common supertype
+trait FooError
+trait BarError
+
+def foo: IO[FooError, Nothing] = ZIO.fail(new FooError {})
+def bar: IO[BarError, Nothing] = ZIO.fail(new BarError {})
+
+val myApp: ZIO[Any, FooError | BarError, Unit] = for {
+  _ <- foo
+  _ <- bar
+} yield ()
 ```
 
 ## Lossless Error Model
