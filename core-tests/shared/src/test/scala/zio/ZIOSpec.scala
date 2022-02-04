@@ -3776,41 +3776,6 @@ object ZIOSpec extends ZIOBaseSpec {
         ZIO.succeed(assertCompletes)
       }
     ),
-    suite("withFilter")(
-      test("tuple value is extracted correctly from task") {
-        for {
-          (i, j, k) <- Task((1, 2, 3))
-        } yield assert((i, j, k))(equalTo((1, 2, 3)))
-      },
-      test("condition in for-comprehension syntax works correctly for task") {
-        for {
-          n <- Task(3) if n > 0
-        } yield assert(n)(equalTo(3))
-      },
-      test("unsatisfied condition should fail with NoSuchElementException") {
-        val task =
-          for {
-            n <- Task(3) if n > 10
-          } yield n
-        assertM(task.exit)(fails(isSubtype[NoSuchElementException](anything)))
-      },
-      test("withFilter doesn't compile with IO that fails with type other than Throwable") {
-        val result = typeCheck {
-          """
-            import zio._
-            val io: IO[String, Int] = IO.succeed(1)
-            for {
-              n <- io if n > 0
-            } yield n
-              """
-        }
-
-        val expected =
-          "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has String for the error type."
-        if (TestVersion.isScala2) assertM(result)(isLeft(equalTo(expected)))
-        else assertM(result)(isLeft(anything))
-      }
-    ),
     test("zip is compositional") {
       lazy val x1: Task[Int]                          = ???
       lazy val x2: Task[Unit]                         = ???
