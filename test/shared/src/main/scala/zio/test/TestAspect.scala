@@ -516,15 +516,6 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
-   * An aspect that runs tests with the live environment.
-   */
-  val live: TestAspectAtLeastR[Live] =
-    new TestAspectAtLeastR[Live] {
-      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
-        spec.provideSomeLayer[R](ZLayer.fromZIOEnvironment(Live.live(ZIO.environment)))
-    }
-
-  /**
    * An aspect that runs only on operating systems accepted by the specified
    * predicate.
    */
@@ -983,6 +974,15 @@ object TestAspect extends TimeoutVariants {
    * Runs only on Windows operating systems.
    */
   val windows: TestAspectAtLeastR[Annotations] = os(_.isWindows)
+
+  /**
+   * An aspect that runs tests with the live environment.
+   */
+  val withLiveEnvironment: TestAspectAtLeastR[Live] =
+    new TestAspectAtLeastR[Live] {
+      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+        spec.provideSomeLayer[R](ZLayer.fromZIOEnvironment(Live.live(ZIO.environment)))
+    }
 
   abstract class PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
 
