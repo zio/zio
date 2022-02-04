@@ -41,6 +41,7 @@ A `ConcurrentMap` is a wrapper over `java.util.concurrent.ConcurrentHashMap`.
 ## Example Usage
 
 Given:
+
 ```scala mdoc:silent
 import zio._
 

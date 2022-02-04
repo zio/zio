@@ -56,10 +56,13 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 - **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
 
 ### Synchronization aids
+
 - **[ConcurrentMap](sync/concurrentmap.md)** — A Map wrapper over `java.util.concurrent.ConcurrentHashMap`
 - **[ConcurrentSet](sync/concurrentset.md)** — A Set implementation over `java.util.concurrent.ConcurrentHashMap`
-- **[CountdownLatch](sync/countdownlatch.md)** — A synchronization aid that allows one or more fibers to wait until a set of operations being performed in other fibers completes.
-- **[CyclicBarrier](sync/cyclicbarrier.md)** — A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
+- **[CountdownLatch](sync/countdownlatch.md)** — A synchronization aid that allows one or more fibers to wait until a
+  set of operations being performed in other fibers completes.
+- **[CyclicBarrier](sync/cyclicbarrier.md)** — A synchronization aid that allows a set of fibers to all wait for each
+  other to reach a common barrier point.
 
 ### STM
  - **[STM](stm/stm.md)** - An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
