@@ -16,9 +16,10 @@
 
 package zio.test.magnolia
 
+import zio.Chunk
+
 import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.UUID
-
 import scala.compiletime.{erasedValue, summonInline}
 import scala.deriving._
 import zio.random.Random
@@ -29,7 +30,7 @@ trait DeriveGen[A] {
 }
 
 object DeriveGen {
-    def apply[A](using DeriveGen[A]): Gen[Random with Sized, A] = 
+    def apply[A](using DeriveGen[A]): Gen[Random with Sized, A] =
         summon[DeriveGen[A]].derive
 
     inline def instance[A](gen: => Gen[Random with Sized, A]): DeriveGen[A] =
@@ -52,7 +53,7 @@ object DeriveGen {
     given DeriveGen[LocalDateTime] = instance(Gen.anyLocalDateTime)
     given DeriveGen[LocalDate] = instance(Gen.anyLocalDateTime.map(_.toLocalDate()))
     given DeriveGen[BigDecimal] = instance(Gen.bigDecimal(
-        BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue), 
+        BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),
         BigDecimal(Double.MaxValue) * BigDecimal(Double.MaxValue)
     ))
 
@@ -64,6 +65,8 @@ object DeriveGen {
         instance(Gen.oneOf(Gen.listOf(a.derive), Gen.vectorOf(a.derive), Gen.setOf(a.derive)))
     given [A] (using a: DeriveGen[A]): DeriveGen[List[A]] =
         instance(Gen.listOf(a.derive))
+    given [A] (using a: DeriveGen[A]): DeriveGen[Chunk[A]] =
+        instance(Gen.chunkOf(a.derive))
     given [A, B] (using a: DeriveGen[A], b: DeriveGen[B]): DeriveGen[Map[A, B]] =
         instance(Gen.mapOf(a.derive, b.derive))
     given [A] (using a: => DeriveGen[A]): DeriveGen[Option[A]] =

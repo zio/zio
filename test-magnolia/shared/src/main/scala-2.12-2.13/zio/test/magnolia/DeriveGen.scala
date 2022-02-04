@@ -18,6 +18,7 @@ package zio.test.magnolia
 
 import _root_.zio.test.{Gen, Sized}
 import magnolia._
+import zio.Chunk
 import zio.random.Random
 
 import java.time.{Instant, LocalDate, LocalDateTime}
@@ -97,6 +98,9 @@ object DeriveGen {
 
   implicit def genList[A](implicit ev: DeriveGen[A]): DeriveGen[List[A]] =
     instance(Gen.listOf(ev.derive))
+
+  implicit def genChunk[A](implicit ev: DeriveGen[A]): DeriveGen[Chunk[A]] =
+    instance(Gen.chunkOf(ev.derive))
 
   implicit def genMap[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[Map[A, B]] =
     instance(Gen.mapOf(ev1.derive, ev2.derive))
