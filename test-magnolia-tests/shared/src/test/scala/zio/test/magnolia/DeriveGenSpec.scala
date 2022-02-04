@@ -1,5 +1,6 @@
 package zio.test.magnolia
 
+import zio.Chunk
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
@@ -69,6 +70,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       test("int")(assertDeriveGen[Int]),
       test("iterable")(assertDeriveGen[Iterable[Int]]),
       test("list")(assertDeriveGen[List[Int]]),
+      test("chunk")(assertDeriveGen[Chunk[Int]]),
       test("long")(assertDeriveGen[Long]),
       test("map")(assertDeriveGen[Map[Int, Int]]),
       test("option")(assertDeriveGen[Option[Int]]),
