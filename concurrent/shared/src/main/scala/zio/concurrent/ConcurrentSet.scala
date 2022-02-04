@@ -8,7 +8,8 @@ import java.util.function.{Consumer, Predicate}
 import scala.collection.JavaConverters._
 
 /**
- * A `ConcurrentSet` is a Set wrapper over `java.util.concurrent.ConcurrentHashMap`.
+ * A `ConcurrentSet` is a Set wrapper over
+ * `java.util.concurrent.ConcurrentHashMap`.
  */
 final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.KeySetView[A, java.lang.Boolean])
     extends AnyVal {
@@ -26,7 +27,8 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.addAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   /**
-   * Finds the first element of a set for which the partial function is defined and applies the function to it.
+   * Finds the first element of a set for which the partial function is defined
+   * and applies the function to it.
    */
   def collectFirst[B](pf: PartialFunction[A, B]): UIO[Option[B]] =
     UIO {
@@ -42,7 +44,8 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     }
 
   /**
-   * Tests whether a given predicate holds true for at least one element in the set.
+   * Tests whether a given predicate holds true for at least one element in the
+   * set.
    */
   def exists(p: A => Boolean): UIO[Boolean] =
     UIO {
@@ -101,13 +104,15 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     }
 
   /**
-   * Removes the entry for the given value if it is mapped to an existing element.
+   * Removes the entry for the given value if it is mapped to an existing
+   * element.
    */
   def remove(x: A): UIO[Boolean] =
     UIO(underlying.remove(x))
 
   /**
-   * Removes all the entries for the given values if they are mapped to an existing element.
+   * Removes all the entries for the given values if they are mapped to an
+   * existing element.
    */
   def removeAll(xs: Iterable[A]): UIO[Boolean] =
     UIO(underlying.removeAll(xs.asJavaCollection): @silent("JavaConverters"))
@@ -119,7 +124,8 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.removeIf(makePredicate(a => !p(a))))
 
   /**
-   * Retain all the entries for the given values if they are mapped to an existing element.
+   * Retain all the entries for the given values if they are mapped to an
+   * existing element.
    */
   def retainAll(xs: Iterable[A]): UIO[Boolean] =
     UIO(underlying.retainAll(xs.asJavaCollection): @silent("JavaConverters"))
