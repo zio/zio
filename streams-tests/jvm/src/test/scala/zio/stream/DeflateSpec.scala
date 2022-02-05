@@ -11,13 +11,13 @@ object DeflateSpec extends ZIOSpecDefault {
   override def spec =
     suite("DeflateSpec")(
       test("JDK inflates what was deflated")(
-        check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
-          case (input, n, bufferSize) =>
-            assertM(for {
-              (deflated, _) <-
-                (ZStream.fromIterable(input).rechunk(n).channel >>> Deflate.makeDeflater(bufferSize)).runCollect
-              inflated <- jdkInflate(deflated.flatten, noWrap = false)
-            } yield inflated)(equalTo(input))
+        check(Gen.listOfBounded(0, `1K`)(Gen.byte), Gen.int(1, `1K`), Gen.int(1, `1K`)) { (input, n, bufferSize) =>
+          for {
+            tuple <-
+              (ZStream.fromIterable(input).rechunk(n).channel >>> Deflate.makeDeflater(bufferSize)).runCollect
+            (deflated, _) = tuple
+            inflated     <- jdkInflate(deflated.flatten, noWrap = false)
+          } yield assert(inflated)(equalTo(input))
         }
       ),
       test("deflate empty bytes, small buffer")(

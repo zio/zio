@@ -471,11 +471,9 @@ object ZLayerSpec extends ZIOBaseSpec {
         val fedB = (ZLayer.succeed(Config(1)) >>> aLayer) >>> bLayer
         val fedC = (ZLayer.succeed(Config(2)) >>> aLayer) >>> cLayer
         for {
-          (b, c) <- (fedB ++ fedC).build.useNow.map(v => (v.get[B], v.get[C]))
-        } yield {
-          assert(b.value)(equalTo(1)) &&
-          assert(c.value)(equalTo(1))
-        }
+          tuple <- (fedB ++ fedC).build.useNow.map(v => (v.get[B], v.get[C]))
+          (a, b) = tuple
+        } yield assert(a.value)(equalTo(b.value))
       }
     )
 }
