@@ -649,7 +649,7 @@ val catsEffectV = "3.2.9"
 val zioActorsV  = "0.0.9"
 
 lazy val scalafixSettings = List(
-  scalaVersion := "2.13.7",
+  scalaVersion := "2.13.8",
   addCompilerPlugin(scalafixSemanticdb),
   crossScalaVersions --= List(Scala211, Scala212, Scala3),
   scalacOptions ++= List(
@@ -663,7 +663,7 @@ lazy val scalafixRules = project.module
   .settings(
     scalafixSettings,
     semanticdbEnabled                      := true, // enable SemanticDB
-    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.32"
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.34"
   )
 
 val zio1Version = "1.0.12"
