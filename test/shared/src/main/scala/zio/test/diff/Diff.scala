@@ -104,7 +104,6 @@ trait DiffInstances extends LowPriDiff {
 
   implicit val nothingDiff: Diff[Nothing] =
     (x: Nothing, _: Nothing) => DiffResult.Identical(x)
-
 }
 
 trait LowPriDiff {
