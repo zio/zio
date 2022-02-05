@@ -649,7 +649,7 @@ val catsEffectV = "3.2.9"
 val zioActorsV  = "0.0.9"
 
 lazy val scalafixSettings = List(
-  scalaVersion := "2.13.7",
+  scalaVersion := Scala213,
   addCompilerPlugin(scalafixSemanticdb),
   crossScalaVersions --= List(Scala211, Scala212, Scala3),
   scalacOptions ++= List(
