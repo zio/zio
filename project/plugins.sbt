@@ -14,6 +14,6 @@ addSbtPlugin("org.scalameta"                     % "sbt-mdoc"                   
 addSbtPlugin("org.scalameta"                     % "sbt-scalafmt"                  % "2.4.3")
 addSbtPlugin("pl.project13.scala"                % "sbt-jcstress"                  % "0.2.0")
 addSbtPlugin("pl.project13.scala"                % "sbt-jmh"                       % "0.4.3")
-addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.32")
+addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.9.34")
 
 libraryDependencies += "org.snakeyaml" % "snakeyaml-engine" % "2.3"

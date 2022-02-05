@@ -649,7 +649,7 @@ val catsEffectV = "3.2.9"
 val zioActorsV  = "0.0.9"
 
 lazy val scalafixSettings = List(
-  scalaVersion := "2.13.7",
+  scalaVersion := Scala213,
   addCompilerPlugin(scalafixSemanticdb),
   crossScalaVersions --= List(Scala211, Scala212, Scala3),
   scalacOptions ++= List(
@@ -663,7 +663,7 @@ lazy val scalafixRules = project.module
   .settings(
     scalafixSettings,
     semanticdbEnabled                      := true, // enable SemanticDB
-    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.32"
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.34"
   )
 
 val zio1Version = "1.0.12"
@@ -691,7 +691,7 @@ lazy val scalafixTests = project
   .settings(
     scalafixSettings,
     publish / skip                        := true,
-    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.9.32" % Test cross CrossVersion.full,
+    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.9.34" % Test cross CrossVersion.full,
     Compile / compile :=
       (Compile / compile).dependsOn(scalafixInput / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=
@@ -730,14 +730,11 @@ lazy val docs = project.module
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     libraryDependencies ++= Seq(
-      "commons-io"          % "commons-io"                % "2.11.0" % "provided",
-      "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
-      "io.7mind.izumi"     %% "logstage-core"             % "1.0.8",
-      "org.jsoup"           % "jsoup"                     % "1.14.3" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
-      /* to evict 1.3.0 brought in by mdoc-js */
-      "org.scala-js"           % "scalajs-compiler"            % scalaJSVersion cross CrossVersion.full,
-      "org.scala-js"          %% "scalajs-linker"              % scalaJSVersion,
+      "commons-io"             % "commons-io"                  % "2.11.0" % "provided",
+      "io.7mind.izumi"        %% "distage-core"                % "1.0.8",
+      "io.7mind.izumi"        %% "logstage-core"               % "1.0.8",
+      "org.jsoup"              % "jsoup"                       % "1.14.3" % "provided",
+      "org.reactivestreams"    % "reactive-streams-examples"   % "1.0.3"  % "provided",
       "org.typelevel"         %% "cats-effect"                 % catsEffectV,
       "dev.zio"               %% "zio-actors"                  % zioActorsV,
       "dev.zio"               %% "zio-akka-cluster"            % "0.2.0",
