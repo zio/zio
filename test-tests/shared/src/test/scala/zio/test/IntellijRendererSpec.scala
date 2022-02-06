@@ -192,7 +192,7 @@ object IntelliJRenderUtils {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
              .provideLayer[Nothing, TestEnvironment](
-               TestLogger.fromConsole ++ TestClock.default
+               TestLogger.fromConsole ++ TestClock.default ++ ExecutionEventSink.minimalLayer
              )
       output <- TestConsole.output
     } yield output.mkString

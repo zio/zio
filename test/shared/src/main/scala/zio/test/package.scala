@@ -64,7 +64,7 @@ package object test extends CompileVariants {
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
     val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
-      val sinkLayer: ULayer[ExecutionEventSink] = ???
+      val sinkLayer: ULayer[ExecutionEventSink] = ExecutionEventSink.minimalLayer
       Annotations.live ++
         Live.default ++
         Sized.live(100) ++

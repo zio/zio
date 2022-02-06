@@ -1,10 +1,22 @@
 package zio.test
 
-import zio.{Chunk, Ref, UIO, ZIO, ZTraceElement}
+import zio.{Chunk, ZLayer, Ref, UIO, ZIO, ZTraceElement}
 
 import java.util.UUID
+import zio.ULayer
+
+trait ExecutionEventSink {
+  def process(event: ExecutionEvent): UIO[Unit]
+}
 
 object ExecutionEventSink {
+  private def minimal = new ExecutionEventSink {
+    override def process(event: ExecutionEvent): UIO[Unit] = 
+      ZIO.debug("Should actually do stuff with this ExecutionEvent: " + event)
+  }
+  val minimalLayer: ULayer[ExecutionEventSink] =
+    ZLayer.succeed(minimal)
+
   def make[R](stateReporter: ReporterEvent => ZIO[R, Nothing, Any], summary: Ref[Summary], hasFailures: Ref[Boolean])(implicit
                                                                                                                       trace: ZTraceElement
   ): ZIO[R, Nothing, ExecutionEventSink] = {
@@ -64,7 +76,3 @@ object ExecutionEventSink {
 //  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]]
 //  def environment: Layer[Nothing, R]
 //}
-
-trait ExecutionEventSink {
-  def process(event: ExecutionEvent): UIO[Unit]
-}

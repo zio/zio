@@ -35,10 +35,7 @@ final case class TestRunner[R, E](
   bootstrap: Layer[Nothing, TestLogger with Clock with ExecutionEventSink] ={
     
     implicit val questionableNewTrace = Tracer.newTrace
-    val summaryRef: Ref[Summary] = ???
-    val hasFailures: Ref[Boolean] = ???
-    val sinkLayer: Layer[Nothing, ExecutionEventSink] = ExecutionEventSink.make(x=>ZIO.debug(x), summaryRef, hasFailures).toLayer
-    (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(ZTraceElement.empty)) ++ Clock.live ++ sinkLayer
+    (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(ZTraceElement.empty)) ++ Clock.live ++ ExecutionEventSink.minimalLayer
   }
       
 ) { self =>

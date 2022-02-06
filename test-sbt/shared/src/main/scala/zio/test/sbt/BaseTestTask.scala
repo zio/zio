@@ -65,12 +65,11 @@ abstract class BaseTestTask(
   protected def sbtTestLayer(
     loggers: Array[Logger]
   ): Layer[Nothing, TestLogger with Clock with ExecutionEventSink] = {
-    val sinkLayer: ULayer[ExecutionEventSink] = ???
     ZLayer.succeed[TestLogger](new TestLogger {
       def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
 //        ZIO.debug(line) *>
         ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
-    }) ++ Clock.live ++ sinkLayer
+    }) ++ Clock.live ++ ExecutionEventSink.minimalLayer
   }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
