@@ -375,6 +375,131 @@ val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
 ```
 
+## Imperative vs. Functional Error Handling
+
+When practicing imperative programming in Scala, we have the `try`/`catch` language construct for handling errors. Using them, we can wrap regions that may throw exceptions, and handle them in the catch block.
+
+Let's try an example. In the following code we have an age validation function that may throw two exceptions:
+
+```scala mdoc:silent
+sealed trait AgeValidationException extends Exception
+case class NegativeAgeException(age: Int) extends AgeValidationException
+case class IllegalAgeException(age: Int)  extends AgeValidationException
+
+def validate(age: Int): Int = {
+  if (age < 0)
+    throw NegativeAgeException(age)
+  else if (age < 18) 
+    throw IllegalAgeException(age)
+  else age
+}
+```
+
+Using `try`/`catch` we can handle exceptions: 
+
+```scala
+try {
+  validate(17)
+} catch {
+  case NegativeAgeException(age) => ???
+  case IllegalAgeException(age) =>  ???
+}
+```
+
+There are some issues with error handling using exceptions and `try`/`catch`/`finally` statement:
+
+1. **It lacks type safety on errors** — There is no way to know what errors can be thrown by looking the function signature. The only way to find out in which circumstance a method may throw an exception is to read and investigate its implementation. So the compiler cannot prevent us from type errors. It is also hard for a developer to read the documentation event through reading the documentation is not suffice as it may be obsolete, or it may don't reflect the exact exceptions.
+
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:silent
+import zio._
+
+sealed trait AgeValidationException extends Exception
+case class NegativeAgeException(age: Int) extends AgeValidationException
+case class IllegalAgeException(age: Int)  extends AgeValidationException
+
+def validate(age: Int): ZIO[Any, AgeValidationException, Int] =
+  if (age < 0)
+    ZIO.fail(NegativeAgeException(age))
+  else if (age < 18)
+    ZIO.fail(IllegalAgeException(age))
+  else ZIO.succeed(age)
+```
+
+We can handle errors using `catchAll`/`catchSome` methods:
+
+```scala mdoc:compile-only
+validate(17).catchAll {
+  case NegativeAgeException(age) => ???
+  case IllegalAgeException(age)  => ???
+}
+```
+
+2. **It doesn't help us to write total functions** — When we use `try`/`catch` the compiler doesn't know about errors at compile-time, so if we forgot to handle one of the exceptions the compiler doesn't help us to write total functions. This code will crash at runtime because we forgot to handle the `IllegalAgeException` case:
+
+```scala
+try {
+  validate(17)
+} catch {
+  case NegativeAgeException(age) => ???
+  //  case IllegalAgeException(age) => ???
+}
+```
+
+When we are using typed errors we can have exhaustive checking support of the compiler. So, for example, when we are catching all errors if we forgot to handle one of the cases, the compiler warns us about that:
+
+```scala mdoc:compile-only
+validate(17).catchAll {
+  case NegativeAgeException(age) => ???
+}
+
+// match may not be exhaustive.
+// It would fail on the following input: IllegalAgeException(_)
+```
+
+This helps us cover all cases and write _total functions_ easily.
+
+> **Note:**
+>
+> When a function is defined for all possible input values, it is called a _total function_ in functional programming.
+
+3. **Its error model is broken and lossy** — The error model based on the `try`/`catch`/`finally` statement is broken. Because if we have the combinations of these statements we can throw many exceptions, and then we are only able to catch one of them. All the other ones are lost. They are swallowed into a black hole, and also the one that we catch is the wrong one. It is not the primary cause of the failure.
+
+In the following example, we are going to show this behavior:
+
+```scala mdoc:silent
+ try {
+    try throw new Error("e1")
+    finally throw new Error("e2")
+ } catch {
+   case e: Error => println(e) 
+ }
+ 
+// Output:
+// e2
+```
+
+The above program just prints the `e2`, which is lossy. The `e2` is not the primary cause of failure.
+
+In ZIO, all the errors will still be reported. So even though we are only able to catch one error, the other ones will be reported which we have full control over them. They don't get lost.
+
+Let's write a ZIO version:
+
+```scala mdoc:silent
+ZIO.fail("e1")
+  .ensuring(ZIO.succeed(throw new Exception("e2")))
+  .catchAll {
+    case "e1" => Console.printLine("e1")
+    case "e2" => Console.printLine("e2")
+  }
+
+// Output:
+// e1
+```
+
 ## Expected Errors (Errors) vs Unexpected Errors (Defects)
 
 Inside an application, there are two distinct categories of errors:
@@ -414,6 +539,11 @@ Note that _defects_, can creep silently to higher levels in our application, and
 So for ZIO, expected errors are reflected in the type of the ZIO effect, whereas unexpected errors are not so reflective, and that is the distinction.
 
 That is the best practice. It helps us write better code. The code that we can reason about its error properties and potential expected errors. We can look at the ZIO effect and know how it is supposed to fail.
+
+So to summarize
+1. Unexpected errors are impossible to recover and they will eventually shut down the application but expected errors can be recovered by handling them.
+2. We do not type unexpected errors, but we type expected errors either explicitly or using general `Throwable` error type.
+3. Unexpected errors mostly is a sign of programming errors, but expected errors part of domain errors.
 
 ## Don't Type Unexpected Errors
 
@@ -570,9 +700,9 @@ case class StorageLimitExceeded(limit: Int) extends UploadError
  */ 
 def upload(name: String): Task[Unit] = {
     if (...)  
-      ZIO.fail(new FileExist(name))
+      ZIO.fail(FileExist(name))
     else if (...)
-      ZIO.fail(new StorageLimitExceeded(limit)) // This error is undocumented unintentionally
+      ZIO.fail(StorageLimitExceeded(limit)) // This error is undocumented unintentionally
     else
       ZIO.attempt(...)
 }
@@ -713,8 +843,10 @@ By default, when we convert a blocking operation into the ZIO effects using `att
 Let's create a blocking effect from an endless loop:
 
 ```scala mdoc:silent:nest
+import zio._
+
 for {
-  _ <- printLine("Starting a blocking operation")
+  _ <- Console.printLine("Starting a blocking operation")
   fiber <- ZIO.attemptBlocking {
     while (true) {
       Thread.sleep(1000)
@@ -737,7 +869,7 @@ Instead, we should use `attemptBlockingInterrupt` to create interruptible blocki
 
 ```scala mdoc:silent:nest
 for {
-  _ <- printLine("Starting a blocking operation")
+  _ <- Console.printLine("Starting a blocking operation")
   fiber <- ZIO.attemptBlockingInterrupt {
     while(true) {
       Thread.sleep(1000)
@@ -896,7 +1028,7 @@ Sometimes, when the success value of an effect is not useful (for example, it is
 
 ```scala mdoc:silent
 val zipRight1 = 
-  Console.printLine("What is your name?").zipRight(readLine)
+  Console.printLine("What is your name?").zipRight(Console.readLine)
 ```
 
 The `zipRight` and `zipLeft` functions have symbolic aliases, known as `*>` and `<*`, respectively. Some developers find these operators easier to read:
@@ -1267,35 +1399,6 @@ object Main extends ZIOAppDefault {
 }
 ```
 
-## Unswallowed Exceptions
-
-The Java and Scala error models are broken. Because if we have the right combinations of `try`/`finally`/`catch`es we can actually throw many exceptions, and then we are only able to catch one of them. All the other ones are lost. They are swallowed into a black hole, and also the one that we catch is the wrong one. It is not the primary cause of the failure. 
-
-In the following example, we are going to show this behavior:
-
-```scala mdoc:silent
- try {
-    try throw new Error("e1")
-    finally throw new Error("e2")
- } catch {
-   case e: Error => println(e) 
- }
-```
-
-The above program just prints the `e2`, which is lossy and, also is not the primary cause of failure.
-
-But in the ZIO version, all the errors will still be reported. So even though we are only able to catch one error, the other ones will be reported which we have full control over them. They don't get lost.
-
-Let's write a ZIO version:
-
-```scala mdoc:silent
-IO.fail("e1")
-  .ensuring(IO.succeed(throw new Exception("e2")))
-  .catchAll {
-    case "e1" => Console.printLine("e1")
-    case "e2" => Console.printLine("e2")
-  }
-```
 
 ## ZIO Aspect
 
