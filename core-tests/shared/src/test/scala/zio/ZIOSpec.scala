@@ -1039,6 +1039,16 @@ object ZIOSpec extends ZIOBaseSpec {
           _      <- fiber.interrupt
           value  <- ref.get
         } yield assert(value)(equalTo(0))
+      },
+      test("infers correctly with error type") {
+        for {
+          ref    <- Ref.make(0)
+          worker  = ZIO.fail(new RuntimeException("fail")).forever
+          workers = List.fill(4)(worker)
+          fiber  <- ZIO.forkAll(workers)
+          _      <- fiber.interrupt
+          value  <- ref.get
+        } yield assert(value)(equalTo(0))
       }
     ),
     suite("forkWithErrorHandler")(
