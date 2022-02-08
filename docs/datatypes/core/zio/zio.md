@@ -451,7 +451,7 @@ try {
 
 When we are using typed errors we can have exhaustive checking support of the compiler. So, for example, when we are catching all errors if we forgot to handle one of the cases, the compiler warns us about that:
 
-```scala mdoc:compile-only
+```scala mdoc:warn
 validate(17).catchAll {
   case NegativeAgeException(age) => ???
 }
@@ -768,6 +768,47 @@ def acquireReleaseWith[R, E, A, B](
   release: A => URIO[R, Any],
   use: A => ZIO[R, E, B]
 ): ZIO[R, E, B]
+```
+
+## `ZIO#either` and `ZIO#absolve`
+
+The `ZIO#either` convert a `ZIO[R, E, A]` effect to another effect in which its failure (`E`) and success (`A`) channel have been lifted into an `Either[E, A]` data type as success channel of the `ZIO` data type:
+
+```scala mdoc:compile-only
+val age: Int = ???
+
+val res: URIO[Any, Either[AgeValidationException, Int]] = validate(age).either 
+```
+
+The resulting effect is an unexceptional effect and cannot fail, because the failure case has been exposed as part of the `Either` success case. The error parameter of the returned `ZIO` is `Nothing`, since it is guaranteed the `ZIO` effect does not model failure.
+
+This method is useful for recovering from `ZIO` effects that may fail:
+
+```scala mdoc:compile-only
+import zio._
+import java.io.IOException
+
+val myApp: ZIO[Console, IOException, Unit] =
+  for {
+    _ <- Console.print("Please enter your age: ")
+    age <- Console.readLine.map(_.toInt)
+    res <- validate(age).either
+    _ <- res match {
+      case Left(error) => ZIO.debug(s"validation failed: $error")
+      case Right(age) => ZIO.debug(s"The $age validated!")
+    }
+  } yield ()
+```
+
+The `ZIO#abolve` operator does the inverse. It submerges the error case of an `Either` into the `ZIO`:
+
+```scala mdoc:compile-only
+import zio._
+
+val age: Int = ???
+validate(age) // ZIO[Any, AgeValidationException, Int]
+  .either     // ZIO[Any, Either[AgeValidationException, Int]]
+  .absolve    // ZIO[Any, AgeValidationException, Int]
 ```
 
 ## Transform `Option` and `Either` values
