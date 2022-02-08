@@ -137,6 +137,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Tweddle Group](https://tweddle.com)
 * [Unit](https://unit.co)
 * [Univalence](https://univalence.io)
+* [Unzer](https://www.unzer.com)
 * [Vakantiediscounter](https://www.vakantiediscounter.nl)
 * [Verbund AG](https://www.verbund.com)
 * [Waylay](https://www.waylay.io/)
