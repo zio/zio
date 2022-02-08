@@ -120,6 +120,8 @@ Breaks on party interruption:
 ```scala mdoc:silent
 import zio.concurrent.CyclicBarrier
 import zio._
+import zio.duration._
+import zio.test.environment.TestClock
 
 for {
   barrier   <- CyclicBarrier.make(100)
@@ -128,7 +130,7 @@ for {
   _         <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
   _         <- f2.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
   isBroken1 <- barrier.isBroken
-  _         <- zio.test.TestClock.adjust(1.second)
+  _         <- TestClock.adjust(1.second)
   isBroken2 <- barrier.isBroken
   res1      <- f1.await
   res2      <- f2.await
