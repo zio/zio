@@ -466,7 +466,9 @@ This helps us cover all cases and write _total functions_ easily.
 >
 > When a function is defined for all possible input values, it is called a _total function_ in functional programming.
 
-3. **Its error model is broken and lossy** — The error model based on the `try`/`catch`/`finally` statement is broken. Because if we have the combinations of these statements we can throw many exceptions, and then we are only able to catch one of them. All the other ones are lost. They are swallowed into a black hole, and also the one that we catch is the wrong one. It is not the primary cause of the failure.
+3. **Its error model is broken and lossy** — The error model based on the `try`/`catch`/`finally` statement is broken. Because if we have the combinations of these statements we can throw many exceptions, and then we are only able to catch one of them. All the other ones are lost. They are swallowed into a black hole, and also the one that we catch is the wrong one. It is not the primary cause of the failure. 
+
+To be more specific, if the `try` block throws an exception, and the `finally` block throws an exception as well, then, if these are caught at a higher level, only the finalizer's exception will be caught normally, not the exception from the try block.
 
 In the following example, we are going to show this behavior:
 
@@ -499,6 +501,8 @@ ZIO.fail("e1")
 // Output:
 // e1
 ```
+
+ZIO guarantees that no errors are lost. It has a _lossless error model_. This guarantee is provided via a hierarchy of supervisors and information made available via data types such as `Exit` and `Cause`. All errors will be reported. If there's a bug in the code, ZIO enables us to find about it.
 
 ## Expected Errors (Errors) vs Unexpected Errors (Defects)
 
@@ -765,12 +769,6 @@ def acquireReleaseWith[R, E, A, B](
   use: A => ZIO[R, E, B]
 ): ZIO[R, E, B]
 ```
-
-## Lossless Error Model
-
-ZIO holds onto errors, that would otherwise be lost, using `try finally`. If the `try` block throws an exception, and the `finally` block throws an exception as well, then, if these are caught at a higher level, only the finalizer's exception will be caught normally, not the exception from the try block.
-
-Whereas, ZIO guarantees that no errors are lost. This guarantee is provided via a hierarchy of supervisors and information made available via datatypes such as `Exit` & `Cause`. All errors will be reported. If there's a bug in the code, zio enables us to find about it.
 
 ## Transform `Option` and `Either` values
 
