@@ -1242,7 +1242,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case None =>
                 IO.succeedNow(s1)
             },
-            (ch: Chunk[O]) => ch.foldM(s1)(f).flatMap(loop)
+            (ch: Chunk[O]) => ch.foldWhileM(s1)(cont)(f).flatMap(loop)
           )
 
       ZManaged.fromEffect(loop(s))
