@@ -553,6 +553,17 @@ So to summarize
 
 When we first discover typed errors, it may be tempting to put every error into the error type parameter. That is a mistake because we can't recover from all types of errors. When we encounter unexpected errors we can't do anything in those cases. We should let the application die. Let it crash is the erlang philosophy. It is a good philosophy for all unexpected errors. At best, we can sandbox it, but we should let it crash.
 
+The context of a domain determines whether an error is expected or unexpected. When using typed errors, sometimes it is necessary to make a typed-error un-typed because in that case, we can't handle the error, and we should let the application crash.
+
+For example, in the following example, we don't want to handle the `IOException` so we can call `ZIO#orDie` to make the effect's failure unchecked. This will translate effect's failure to the death of the fiber running it:
+
+```scala mdoc:compile-only
+import zio._
+
+Console.printLine("Hello, World") // ZIO[Console, IOException, Unit]
+  .orDie                          // ZIO[Console, Nothing, Unit]
+```
+
 If we have an effect that fails for some `Throwable` we can pick certain recoverable errors out of that, and then we can just let the rest of them kill the fiber that is running that effect. The ZIO effect has a method called `ZIO#refineOrDie` that allows us to do that.
 
 In the following example, calling `ZIO#refineOrDie` on an effect that has an error type `Throwable` allows us to refine it to have an error type of `TemporaryUnavailable`:
