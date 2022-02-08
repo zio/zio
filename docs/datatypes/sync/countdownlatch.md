@@ -21,29 +21,31 @@ reach zero before proceeding, it simply prevents any fiber from proceeding past 
 
 ### Creation
 
-| Method                                                      | Definition                    | 
-|-------------------------------------------------------------|-------------------------------| 
+| Method                                                      | Definition                    |
+|-------------------------------------------------------------|-------------------------------|
 | `make(n: Int): IO[Option[Nothing], CountdownLatch]`         | Makes a new `CountdownLatch`. |
 
 ### Use
 
-| Method                 | Definition                                                          | 
-|------------------------|---------------------------------------------------------------------| 
-| `await: UIO[Unit]`     | Causes the current fiber to wait until the latch has counted down to zero.|
+| Method                 | Definition                                                                                 |
+|------------------------|--------------------------------------------------------------------------------------------|
+| `await: UIO[Unit]`     | Causes the current fiber to wait until the latch has counted down to zero.                 |
 | `countDown: UIO[Unit]` | Decrements the count of the latch, releasing all waiting fibers if the count reaches zero. |
-| `count: UIO[Int]`      | Returns the current count. | 
+| `count: UIO[Int]`      | Returns the current count.                                                                 |
 
 ## Example Usage
 
 ```scala mdoc:silent
+import zio._
+import zio.concurrent.CountdownLatch
 
-val latch  = CountdownLatch.make(100)
-val count  = Ref.make(0)
-val ps     = ZIO.collectAll(List.fill(10)(Promise.make[Nothing, Unit]))
-ZIO.forkAll(ps.map(p => latch.await *> count.update(_ + 1) *> p.succeed(())))
-latch.countDown.repeat(Schedule.recurs(99))
-ZIO.foreachDiscard(ps)(_.await)
-val result = count.get
-
-// result is 10
+for {
+  latch  <- CountdownLatch.make(100)
+  count  <- Ref.make(0)
+  ps     <- ZIO.collectAll(List.fill(10)(Promise.make[Nothing, Unit]))
+  _      <- ZIO.forkAll(ps.map(p => latch.await *> count.update(_ + 1) *> p.succeed(())))
+  _      <- latch.countDown.repeat(Schedule.recurs(99))
+  _      <- ZIO.foreachDiscard(ps)(_.await)
+  result <- count.get
+} yield assert(result == 10)
 ```

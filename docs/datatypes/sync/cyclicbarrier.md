@@ -15,99 +15,122 @@ the parties continue.
 
 ### Creation
 
-| Method                                                      | Definition                                       | 
-|-------------------------------------------------------------|--------------------------------------------------| 
+| Method                                                      | Definition                                       |
+|-------------------------------------------------------------|--------------------------------------------------|
 | `make(parties: Int): UIO[CyclicBarrier]`                    | Makes an `CyclicBarrier` with n parties          | 
 | `make(parties: Int, action: UIO[Any]): UIO[CyclicBarrier]`  | Makes an `CyclicBarrier` with parties and action | 
 
 ### Use
 
-| Method                  | Definition                                                                                 | 
-|-------------------------|--------------------------------------------------------------------------------------------| 
-| `parties: Int`          | The number of parties required to trip this barrier.                                       |
-| `waiting: UIO[Int]`     | The number of parties currently waiting at the barrier.                                    |
-| `await: IO[Unit, Int]`  | Waits until all parties have invoked await on this barrier. Fails if the barrier is broken.|
-| `reset: UIO[Unit]`      | Resets the barrier to its initial state. Breaks any waiting party.                         |
-| `isBroken: UIO[Boolean]`| Queries if this barrier is in a broken state.                                              |
+| Method                   | Definition                                                                                  |
+|--------------------------|---------------------------------------------------------------------------------------------|
+| `parties: Int`           | The number of parties required to trip this barrier.                                        |
+| `waiting: UIO[Int]`      | The number of parties currently waiting at the barrier.                                     |
+| `await: IO[Unit, Int]`   | Waits until all parties have invoked await on this barrier. Fails if the barrier is broken. |
+| `reset: UIO[Unit]`       | Resets the barrier to its initial state. Breaks any waiting party.                          |
+| `isBroken: UIO[Boolean]` | Queries if this barrier is in a broken state.                                               |
 
 ## Example Usage
 
 Construction:
 
 ```scala mdoc:silent
-val barrier  = CyclicBarrier.make(parties)
-val isBroken = barrier.isBroken   // false
-val waiting  = barrier.waiting  // 0
+import zio.concurrent.CyclicBarrier
+
+for {
+  barrier  <- CyclicBarrier.make(100)
+  isBroken <- barrier.isBroken  
+  waiting  <- barrier.waiting
+} yield assert(!isBroken && waiting == 0)
 ```
 
 Releasing the barrier:
 
 ```scala mdoc:silent
-val barrier = CyclicBarrier.make(2)
-val f1      = barrier.await.fork
-f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-val f2      = barrier.await.fork
-val ticket1 = f1.join  // 1
-val ticket2 = f2.join  // 0
+import zio.concurrent.CyclicBarrier
+import zio._
+
+for {
+  barrier <- CyclicBarrier.make(2)
+  f1      <- barrier.await.fork
+  _       <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+  f2      <- barrier.await.fork
+  ticket1 <- f1.join
+  ticket2 <- f2.join
+} yield assert(ticket1 == 1 && ticket2 == 0)
 ```
 
 Releasing the barrier and performing the action:
 
 ```scala mdoc:silent
-val promise    = Promise.make[Nothing, Unit]
-val barrier    = CyclicBarrier.make(2, promise.succeed(()))
-val f1         = barrier.await.fork
-f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-val f2         = barrier.await.fork
-f1.join
-f2.join
-isComplete = promise.isDone  // true
+import zio.concurrent.CyclicBarrier
+import zio._
+
+for {
+  promise <- Promise.make[Nothing, Unit]
+  barrier <- CyclicBarrier.make(2, promise.succeed(()))
+  f1      <- barrier.await.fork
+  _       <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+  f2      <- barrier.await.fork
+  _       <- f1.join
+  _       <- f2.join
+  isComplete <- promise.isDone
+} yield assert(isComplete)
 ```
 
 Releases the barrier and cycles:
 
 ```scala mdoc:silent
-val barrier = CyclicBarrier.make(2)
-val f1      = barrier.await.fork
-f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-val f2      = barrier.await.fork
-val ticket1 = f1.join
-val ticket2 = f2.join
-val f3      = barrier.await.fork
-f3.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-val f4      = barrier.await.fork
-val ticket3 = f3.join  // 1  
-val ticket4 = f4.join  // 0
-// here ticket1 is 1
-// here ticket2 is 0
+import zio.concurrent.CyclicBarrier
+
+for {
+  barrier <- CyclicBarrier.make(2)
+  f1      <- barrier.await.fork
+  _       <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+  f2      <- barrier.await.fork
+  ticket1 <- f1.join
+  ticket2 <- f2.join
+  f3      <- barrier.await.fork
+  _       <- f3.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+  f4      <- barrier.await.fork
+  ticket3 <- f3.join
+  ticket4 <- f4.join
+} yield assert(ticket1 == 1 && ticket2 == 0 && ticket3 == 1 && ticket4 == 0)
 ```
 
 Breaks on reset:
 
 ```scala mdoc:silent
-val barrier = CyclicBarrier.make(parties)
-val f1      = barrier.await.fork
-val f2      = barrier.await.fork
-f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-f2.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-barrier.reset
-val res1    = f1.await
-val res2    = f2.await
+import zio.concurrent.CyclicBarrier
+
+for {
+  barrier <- CyclicBarrier.make(100)
+  f1      <- barrier.await.fork
+  f2      <- barrier.await.fork
+  _       <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+  _       <- f2.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+  _       <- barrier.reset
+  res1    <- f1.await
+  res2    <- f2.await
+} yield ()
 ```
 
 Breaks on party interruption:
 
 ```scala mdoc:silent
-val barrier   = CyclicBarrier.make(parties)
-val f1        = barrier.await.timeout(1.second).fork
-val f2        = barrier.await.fork
-f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-f2.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-val isBroken1 = barrier.isBroken
-TestClock.adjust(1.second)
-val isBroken2 = barrier.isBroken
-val res1      = f1.await
-val res2      = f2.await
-// here isBroken1 is false
-// here isBroken2 is true
+import zio.concurrent.CyclicBarrier
+import zio._
+
+for {
+  barrier   <- CyclicBarrier.make(100)
+  f1        <- barrier.await.timeout(1.second).fork
+  f2        <- barrier.await.fork
+  _         <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+  _         <- f2.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+  isBroken1 <- barrier.isBroken
+  _         <- zio.test.TestClock.adjust(1.second)
+  isBroken2 <- barrier.isBroken
+  res1      <- f1.await
+  res2      <- f2.await
+} yield assert(!isBroken1 && isBroken2)
 ```
