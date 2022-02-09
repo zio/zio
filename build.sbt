@@ -502,26 +502,6 @@ lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
         .value
   )
 
-lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
-  .in(file("concurrent"))
-  .dependsOn(core)
-  .settings(stdSettings("zio-concurrent"))
-  .settings(crossProjectSettings)
-  .settings(buildInfoSettings("zio.stream"))
-  .enablePlugins(BuildInfoPlugin)
-  .dependsOn(testRunner % Test)
-  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-
-lazy val concurrentJVM = concurrent.jvm
-  .settings(dottySettings)
-  .settings(mimaSettings(failOnProblem = false))
-
-lazy val concurrentJS = concurrent.js
-  .settings(dottySettings)
-
-lazy val concurrentNative = concurrent.native
-  .settings(nativeSettings)
-
 /**
  * Examples sub-project that is not included in the root project.
  *
