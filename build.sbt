@@ -691,5 +691,5 @@ lazy val docs = project.module
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
+  .dependsOn(coreJVM, streamsJVM, concurrentJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
