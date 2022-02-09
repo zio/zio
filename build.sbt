@@ -85,6 +85,9 @@ lazy val root = project
   )
   .aggregate(
     benchmarks,
+    concurrentJS,
+    concurrentJVM,
+    concurrentNative,
     coreJS,
     coreJVM,
     coreNative,
