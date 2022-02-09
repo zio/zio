@@ -7,7 +7,7 @@ import zio.test.GenUtils._
 import zio.test.magnolia.DeriveGen._
 import zio.test.{Sized, _}
 
-import java.time.{Instant, LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.UUID
 
 object DeriveGenSpec extends DefaultRunnableSpec {
@@ -94,6 +94,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       test("instant")(assertDeriveGen[Instant]),
       test("localDateTime")(assertDeriveGen[LocalDateTime]),
       test("localDate")(assertDeriveGen[LocalDate]),
+      test("localTime")(assertDeriveGen[LocalTime]),
       test("bigDecimal")(assertDeriveGen[BigDecimal])
     ),
     suite("shrinking")(
