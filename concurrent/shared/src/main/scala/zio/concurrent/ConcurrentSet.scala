@@ -27,6 +27,12 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.addAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   /**
+   * Removes all elements.
+   */
+  def clear: UIO[Unit] =
+    UIO(underlying.clear())
+
+  /**
    * Finds the first element of a set for which the partial function is defined
    * and applies the function to it.
    */
@@ -44,6 +50,18 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     }
 
   /**
+   * Tests whether if the element is in the set.
+   */
+  def contains(x: A): UIO[Boolean] =
+    UIO(underlying.contains(x))
+
+  /**
+   * Tests if the elements in the collection are a subset of the set.
+   */
+  def containsAll(xs: Iterable[A]): UIO[Boolean] =
+    UIO(xs.forall(x => underlying.contains(x)))
+
+  /**
    * Tests whether a given predicate holds true for at least one element in the
    * set.
    */
@@ -54,6 +72,21 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
         makeConsumer { (a: A) =>
           if (!result && p(a))
             result = true
+        }
+      }
+      result
+    }
+
+  /**
+   * Retrieves the elements in which predicate is satisfied.
+   */
+  def find[B](p: A => Boolean): UIO[Option[A]] =
+    UIO {
+      var result = Option.empty[A]
+      underlying.forEach {
+        makeConsumer { (a: A) =>
+          if (result.isEmpty && p(a))
+            result = Some(a)
         }
       }
       result
@@ -89,19 +122,10 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     }
 
   /**
-   * Retrieves the elements in which predicate is satisfied.
+   * True if there are no elements in the set.
    */
-  def find[B](p: A => Boolean): UIO[Option[A]] =
-    UIO {
-      var result = Option.empty[A]
-      underlying.forEach {
-        makeConsumer { (a: A) =>
-          if (result.isEmpty && p(a))
-            result = Some(a)
-        }
-      }
-      result
-    }
+  def isEmpty: UIO[Boolean] =
+    UIO(underlying.isEmpty)
 
   /**
    * Removes the entry for the given value if it is mapped to an existing
@@ -137,34 +161,10 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     UIO(underlying.removeIf(makePredicate(p)))
 
   /**
-   * Removes all elements.
-   */
-  def clear: UIO[Unit] =
-    UIO(underlying.clear())
-
-  /**
-   * Tests whether if the element is in the set.
-   */
-  def contains(x: A): UIO[Boolean] =
-    UIO(underlying.contains(x))
-
-  /**
-   * Tests if the elements in the collection are a subset of the set.
-   */
-  def containsAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(xs.forall(x => underlying.contains(x)))
-
-  /**
    * Number of elements in the set.
    */
   def size: UIO[Int] =
     UIO(underlying.size())
-
-  /**
-   * True if there are no elements in the set.
-   */
-  def isEmpty: UIO[Boolean] =
-    UIO(underlying.isEmpty)
 
   /**
    * Create a concurrent set from a set.
