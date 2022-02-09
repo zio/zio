@@ -79,7 +79,7 @@ object DeriveGen {
   implicit val genUUID: DeriveGen[UUID]                   = instance(Gen.anyUUID)
   implicit val genInstant: DeriveGen[Instant]             = instance(Gen.anyInstant)
   implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.anyLocalDateTime)
-  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.anyLocalDateTime.map(_.toLocalDate()))
+  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.anyLocalDate)
   implicit val genLocalTime: DeriveGen[LocalTime]         = instance(Gen.anyLocalTime)
   implicit val genBigDecimal: DeriveGen[BigDecimal] = instance(
     Gen.bigDecimal(
