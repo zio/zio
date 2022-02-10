@@ -101,6 +101,32 @@ object ZPipelineSpec extends ZIOBaseSpec {
             ZStream(1, 2, 3, 4, 5).via(ZPipeline.take(100)).runCollect
           )(equalTo(Chunk(1, 2, 3, 4, 5)))
         }
+      ),
+      suite("fromSinkAndSplit")(
+        test("should split a stream on predicate and run each part into the sink") {
+          val in = ZStream(1, 2, 3, 4, 5, 6, 7, 8)
+          for {
+            res <- in.via(ZPipeline.fromSinkAndSplit(ZSink.collectAll[Int])((i: Int) => i % 2 == 0)).runCollect
+          } yield {
+            assertTrue(res == Chunk(Chunk(1), Chunk(2, 3), Chunk(4, 5), Chunk(6, 7), Chunk(8)))
+          }
+        },
+        test("should split a stream on predicate and run each part into the sink, in several chunks") {
+          val in = ZStream.fromChunks(Chunk(1, 2, 3, 4), Chunk(5, 6, 7, 8))
+          for {
+            res <- in.via(ZPipeline.fromSinkAndSplit(ZSink.collectAll[Int])((i: Int) => i % 2 == 0)).runCollect
+          } yield {
+            assertTrue(res == Chunk(Chunk(1), Chunk(2, 3), Chunk(4, 5), Chunk(6, 7), Chunk(8)))
+          }
+        },
+        test("not yield an empty sink if split on the first element") {
+          val in = ZStream(1, 2, 3, 4, 5, 6, 7, 8)
+          for {
+            res <- in.via(ZPipeline.fromSinkAndSplit(ZSink.collectAll[Int])((i: Int) => i % 2 != 0)).runCollect
+          } yield {
+            assertTrue(res == Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6), Chunk(7, 8)))
+          }
+        }
       )
     )
 

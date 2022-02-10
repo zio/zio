@@ -374,6 +374,69 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     )
 
   /**
+   * Creates a pipeline that repeatedly sends all elements through the given
+   * sink, by finishing and re-starting the sink whenever [splitWhen] returns
+   * true.
+   *
+   * The sink is not expected to close itself, other than as a result of the
+   * incoming stream finishing. Hence, it is not allowed to have any leftover.
+   */
+  def fromSinkAndSplit[Env, Err, In, Out](
+    sink: ZSink[Env, Err, In, Nothing, Out]
+  )(splitWhen: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
+    ZPipeline.suspend {
+      // FIXME: Should we use RefM here, since we read from the buffer in two places?
+      val buffer = new AtomicReference[Chunk[In]](Chunk.empty)
+
+      /**
+       * Reads from [buffer] if any values are available, or passes through its
+       * input otherwise.
+       */
+      lazy val readBuffer: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] =
+        ZChannel.suspend {
+          val l = buffer.get
+
+          if (l.isEmpty)
+            ZChannel.readWith(
+              (c: Chunk[In]) => ZChannel.write(c) *> readBuffer,
+              (e: Err) => ZChannel.fail(e),
+              (done: Any) => ZChannel.succeedNow(done)
+            )
+          else {
+            buffer.set(Chunk.empty)
+            ZChannel.write(l) *> readBuffer
+          }
+        }
+
+      /**
+       * Scans incoming elements for when [splitWhen] returns true. If it does,
+       * send the previous part downstream, and close the current stream (after
+       * saving any remainder in [buf]).
+       */
+      lazy val channel: ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[In], Any] = ZChannel.readWith(
+        (in: Chunk[In]) =>
+          in.indexWhere(splitWhen, from = 1) match {
+            case -1 =>
+              ZChannel.write(in) *> channel
+            case idx =>
+              buffer.set(in.drop(idx))
+              ZChannel.write(in.take(idx))
+          },
+        (err: Err) => ZChannel.fail(err),
+        (done: Any) => ZChannel.succeedNow(done)
+      )
+
+      // We need to read the buffer in two places:
+      // - At the beginning of the entire pipeline, to make sure we empty it before finishing the pipeline
+      // - At the beginning of the sink, to make sure we empty it when ZPipeline.fromSink restarts the sink
+      new ZPipeline(
+        (readBuffer pipeToOrFail ZPipeline
+          .fromSink(new ZSink(readBuffer pipeToOrFail channel pipeToOrFail sink.channel.mapOut(_ => Chunk[In]())))
+          .channel)
+      )
+    }
+
+  /**
    * The identity pipeline, which does not modify streams in any way.
    */
   def identity[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
