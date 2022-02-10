@@ -602,6 +602,40 @@ Also, this operation may throw unexpected errors like `OutOfMemoryError`, `Stack
 
 Therefore, it is quite common to import a code that may throw exceptions, whether that uses expected errors for error handling or can fail for a wide variety of unexpected errors like disk unavailable, service unavailable, and so on. Generally, importing these operations end up represented as a `Task` (`ZIO[Any, Throwable, A]`). So in order to make recoverable errors typed, we use the `ZIO#refineOrDie` method.
 
+## Sandboxing
+
+To expose full cause of a failure we can use `ZIO#sandbox` operator:
+
+```scala mdoc:silent
+import zio._
+def validateCause(age: Int) =
+  validate(age) // ZIO[Any, AgeValidationException, Int]
+    .sandbox    // ZIO[Any, Cause[AgeValidationException], Int]
+```
+
+Now we can see all the failures that occurred, as a type of `Case[E]` at the error channel of the `ZIO` data type. So we can use normal error-handling operators:
+
+```scala mdoc:compile-only
+import zio._
+
+validateCause(17).catchAll {
+  case Cause.Fail(error: AgeValidationException, _) => ZIO.debug("Caught AgeValidationException failure")
+  case Cause.Die(otherDefects, _)                   => ZIO.debug(s"Caught unknown defects: $otherDefects")
+  case Cause.Interrupt(fiberId, _)                  => ZIO.debug(s"Caught interruption of a fiber with id: $fiberId")
+  case otherCauses                                  => ZIO.debug(s"Caught other causes: $otherCauses")
+}
+```
+
+Using the `sandbox` operation we are exposing the full cause of an effect. So then we have access to the underlying cause in more detail. After accessing and using causes, we can undo the `sandbox` operation using the `unsandbox` operation. It will submerge the full cause (`Case[E]`) again:
+
+```scala mdoc:compile-only
+import zio._
+
+validate(17)  // ZIO[Any, AgeValidationException, Int]
+  .sandbox    // ZIO[Any, Cause[AgeValidationException], Int]
+  .unsandbox  // ZIO[Any, AgeValidationException, Int]
+```
+
 ## Model Domain Errors Using Algebraic Data Types
 
 It is best to use _algebraic data types (ADTs)_ when modeling errors within the same domain or subdomain.
