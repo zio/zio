@@ -3249,6 +3249,12 @@ object ZManaged extends ZManagedPlatformSpecific {
   def runtime[R](implicit trace: ZTraceElement): ZManaged[R, Nothing, Runtime[R]] =
     ZManaged.fromZIO(ZIO.runtime[R])
 
+  /**
+   * Retrieves the current runtime configuration.
+   */
+  def runtimeConfig(implicit trace: ZTraceElement): ZManaged[Any, Nothing, RuntimeConfig] =
+    ZManaged.fromZIO(ZIO.runtimeConfig)
+
   def sandbox[R, E, A](v: ZManaged[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, Cause[E], A] =
     ZManaged.suspend(v.sandbox)
 
