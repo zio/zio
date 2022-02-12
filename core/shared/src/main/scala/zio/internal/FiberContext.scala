@@ -252,7 +252,7 @@ private[zio] final class FiberContext[E, A](
                     val fastPathTrace = if (extraTrace == emptyTraceElement) Nil else extraTrace :: Nil
                     extraTrace = emptyTraceElement
 
-                    val cause = zio.cause()
+                    val cause = zio.cause
                     val tracedCause =
                       if (cause.isTraced) cause
                       else cause.traced(unsafeCaptureTrace(zio.trace :: fastPathTrace))
@@ -305,7 +305,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.InterruptStatus =>
                     val zio = curZio.asInstanceOf[ZIO.InterruptStatus[Any, Any, Any]]
 
-                    val boolFlag = zio.flag().toBoolean
+                    val boolFlag = zio.flag.toBoolean
 
                     if (interruptStatus.peekOrElse(true) != boolFlag) {
                       interruptStatus.push(boolFlag)
@@ -328,7 +328,7 @@ private[zio] final class FiberContext[E, A](
                     asyncEpoch = epoch + 1
 
                     // Enter suspended state:
-                    unsafeEnterAsync(epoch, zio.register, zio.blockingOn())
+                    unsafeEnterAsync(epoch, zio.register, zio.blockingOn)
 
                     val k = zio.register
 
@@ -348,7 +348,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Fork =>
                     val zio = curZio.asInstanceOf[ZIO.Fork[Any, Any, Any]]
 
-                    curZio = unsafeNextEffect(unsafeFork(zio.zio, zio.scope())(zio.trace))
+                    curZio = unsafeNextEffect(unsafeFork(zio.zio, zio.scope)(zio.trace))
 
                   case ZIO.Tags.Descriptor =>
                     val zio = curZio.asInstanceOf[ZIO.Descriptor[Any, Any, Any]]
@@ -359,7 +359,7 @@ private[zio] final class FiberContext[E, A](
 
                   case ZIO.Tags.Shift =>
                     val zio      = curZio.asInstanceOf[ZIO.Shift]
-                    val executor = zio.executor()
+                    val executor = zio.executor
 
                     def doShift(implicit trace: ZTraceElement): UIO[Unit] =
                       ZIO.succeed(unsafeSetRef(currentExecutor, Some(executor))) *> ZIO.yieldNow
@@ -433,7 +433,7 @@ private[zio] final class FiberContext[E, A](
                     val zio = curZio.asInstanceOf[ZIO.Supervise[Any, Any, Any]]
 
                     val oldSupervisor = runtimeConfig.supervisor
-                    val newSupervisor = zio.supervisor() ++ oldSupervisor
+                    val newSupervisor = zio.supervisor ++ oldSupervisor
 
                     runtimeConfig = runtimeConfig.copy(supervisor = newSupervisor)
 
@@ -453,16 +453,16 @@ private[zio] final class FiberContext[E, A](
 
                     val oldForkScopeOverride = unsafeGetRef(forkScopeOverride)
 
-                    unsafeSetRef(forkScopeOverride, zio.forkScope())
+                    unsafeSetRef(forkScopeOverride, zio.forkScope)
 
                     unsafeAddFinalizer(ZIO.succeed(unsafeSetRef(forkScopeOverride, oldForkScopeOverride))(zio.trace))
 
-                    curZio = zio.zio()
+                    curZio = zio.zio
 
                   case ZIO.Tags.Ensuring =>
                     val zio = curZio.asInstanceOf[ZIO.Ensuring[Any, Any, Any]]
 
-                    unsafeAddFinalizer(zio.finalizer())
+                    unsafeAddFinalizer(zio.finalizer)
 
                     curZio = zio.zio
 
@@ -483,7 +483,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.SetRuntimeConfig =>
                     val zio = curZio.asInstanceOf[ZIO.SetRuntimeConfig]
 
-                    runtimeConfig = zio.runtimeConfig()
+                    runtimeConfig = zio.runtimeConfig
 
                     curZio = ZIO.unit
                 }
@@ -928,9 +928,9 @@ private[zio] final class FiberContext[E, A](
 
     val raceIndicator = new AtomicBoolean(true)
 
-    val scope = race.scope()
-    val left  = unsafeFork[EL, A](eraseR(race.left()), scope)
-    val right = unsafeFork[ER, B](eraseR(race.right()), scope)
+    val scope = race.scope
+    val left  = unsafeFork[EL, A](eraseR(race.left), scope)
+    val right = unsafeFork[ER, B](eraseR(race.right), scope)
 
     ZIO
       .async[R, E, C](
