@@ -686,6 +686,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   /**
+   * Taps the stream, printing the result of calling `.toString` on the emitted
+   * values.
+   */
+  final def debug(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    self
+      .tap(a => ZIO.debug(a))
+      .tapError(e => ZIO.debug(s"<FAIL>: $e"))
+
+  /**
+   * Taps the stream, printing the result of calling `.toString` on the emitted
+   * values. Prefixes the output with the given label.
+   */
+  final def debug(label: String)(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    self
+      .tap(a => ZIO.debug(s"$label: $a"))
+      .tapError(e => ZIO.debug(s"<FAIL> $label: $e"))
+
+  /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
    */
   final def groupAdjacentBy[K](
