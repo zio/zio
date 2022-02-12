@@ -12,13 +12,13 @@ object LoggingSpec extends ZIOBaseSpec {
     fiberId: FiberId,
     logLevel: LogLevel,
     message: () => String,
+    cause: Cause[Any],
     context: Map[FiberRef.Runtime[_], AnyRef],
     spans: List[LogSpan],
-    location: ZTraceElement,
     annotations: Map[String, String]
   ) {
     def call[A](zlogger: ZLogger[String, A]): A =
-      zlogger(trace, fiberId, logLevel, message, context, spans, location, annotations)
+      zlogger(trace, fiberId, logLevel, message, cause, context, spans, annotations)
   }
 
   val _logOutput = new java.util.concurrent.atomic.AtomicReference[Vector[LogEntry]](Vector.empty)
@@ -27,7 +27,7 @@ object LoggingSpec extends ZIOBaseSpec {
 
   val clearOutput: UIO[Unit] = UIO(_logOutput.set(Vector.empty))
 
-  val stringLogger: ZLogger[String, Unit] =
+  val testLogger: ZLogger[String, Unit] =
     new ZLogger[String, Unit] {
       @tailrec
       def apply(
@@ -35,25 +35,20 @@ object LoggingSpec extends ZIOBaseSpec {
         fiberId: FiberId,
         logLevel: LogLevel,
         message: () => String,
+        cause: Cause[Any],
         context: Map[FiberRef.Runtime[_], AnyRef],
         spans: List[LogSpan],
-        location: ZTraceElement,
         annotations: Map[String, String]
       ): Unit = if (logLevel >= LogLevel.Info) {
-        val newEntry = LogEntry(trace, fiberId, logLevel, message, context, spans, location, annotations)
+        val newEntry = LogEntry(trace, fiberId, logLevel, message, cause, context, spans, annotations)
 
         val oldState = _logOutput.get
 
         if (!_logOutput.compareAndSet(oldState, oldState :+ newEntry))
-          apply(trace, fiberId, logLevel, message, context, spans, location, annotations)
+          apply(trace, fiberId, logLevel, message, cause, context, spans, annotations)
         else ()
       }
     }
-
-  val causeLogger: ZLogger[Cause[Any], Unit] = stringLogger.contramap((cause: Cause[Any]) => cause.prettyPrint)
-
-  val testLoggers: ZLogger.Set[String & Cause[Any], Unit] =
-    ZLogger.Set(stringLogger, causeLogger)
 
   def spec: ZSpec[Any, Any] =
     suite("LoggingSpec")(
@@ -100,7 +95,7 @@ object LoggingSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.logSpan("test span")(ZIO.log("It's alive!"))
           output <- logOutput
-          _      <- ZIO.debug(output(0).call(ZLogger.defaultString))
+          _      <- ZIO.debug(output(0).call(ZLogger.default))
         } yield assertTrue(true)
       },
       test("none") {
@@ -119,6 +114,6 @@ object LoggingSpec extends ZIOBaseSpec {
           assertTrue(output(0).annotations(key) == value)
       }
     ) @@ sequential @@ after(clearOutput) @@ TestAspect.runtimeConfig(
-      RuntimeConfigAspect.addLogger(stringLogger)
-    ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.addLogger(causeLogger))
+      RuntimeConfigAspect.addLogger(testLogger)
+    )
 }

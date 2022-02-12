@@ -26,8 +26,8 @@ final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
 }
 object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeConfigAspect) {
 
-  def addLogger[A: EnvironmentTag](logger: ZLogger[A, Any]): RuntimeConfigAspect =
-    RuntimeConfigAspect(self => self.copy(loggers = self.loggers + logger))
+  def addLogger(logger: ZLogger[String, Any]): RuntimeConfigAspect =
+    RuntimeConfigAspect(self => self.copy(logger = self.logger +> logger))
 
   def addReportFatal(f: Throwable => Nothing): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(reportFatal = t => { self.reportFatal(t); f(t) }))

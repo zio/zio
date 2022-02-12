@@ -27,7 +27,7 @@ trait GenZIO {
   final def causes[R <: Random with Sized, E](e: Gen[R, E], t: Gen[R, Throwable])(implicit
     trace: ZTraceElement
   ): Gen[R, Cause[E]] = {
-    val fiberId           = Gen.int.zipWith(Gen.int)(FiberId(_, _))
+    val fiberId           = (Gen.int zip Gen.int zip Gen.const(ZTraceElement.empty)).map { case (a, b, c) => FiberId(a, b, c) }
     val zTraceElement     = Gen.string.map(_.asInstanceOf[ZTraceElement])
     val zTrace            = fiberId.zipWith(Gen.chunkOf(zTraceElement))(ZTrace(_, _))
     val failure           = e.zipWith(zTrace)(Cause.fail(_, _))

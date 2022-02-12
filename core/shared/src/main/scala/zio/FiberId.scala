@@ -31,12 +31,12 @@ sealed trait FiberId extends Serializable { self =>
 
   final def combine(that: FiberId): FiberId =
     (self, that) match {
-      case (None, that)                                 => that
-      case (that, None)                                 => that
-      case (Composite(self), Composite(that))           => Composite(self | that)
-      case (Composite(self), that @ Runtime(_, _))      => Composite(self + that)
-      case (self @ Runtime(_, _), Composite(that))      => Composite(that + self)
-      case (self @ Runtime(_, _), that @ Runtime(_, _)) => Composite(Set(self, that))
+      case (None, that)                                       => that
+      case (that, None)                                       => that
+      case (Composite(self), Composite(that))                 => Composite(self | that)
+      case (Composite(self), that @ Runtime(_, _, _))         => Composite(self + that)
+      case (self @ Runtime(_, _, _), Composite(that))         => Composite(that + self)
+      case (self @ Runtime(_, _, _), that @ Runtime(_, _, _)) => Composite(Set(self, that))
     }
 
   final def getOrElse(that: => FiberId): FiberId = if (isNone) that else self
@@ -44,7 +44,7 @@ sealed trait FiberId extends Serializable { self =>
   final def ids: Set[Int] =
     self match {
       case None                => Set.empty
-      case Runtime(id, _)      => Set(id)
+      case Runtime(id, _, _)   => Set(id)
       case Composite(fiberIds) => fiberIds.map(_.id)
     }
 
@@ -67,18 +67,18 @@ sealed trait FiberId extends Serializable { self =>
 
 object FiberId {
 
-  def apply(id: Int, startTimeSeconds: Int): FiberId =
-    Runtime(id, startTimeSeconds)
+  def apply(id: Int, startTimeSeconds: Int, location: ZTraceElement): FiberId =
+    Runtime(id, startTimeSeconds, location)
 
   def combineAll(fiberIds: Set[FiberId]): FiberId =
     fiberIds.foldLeft[FiberId](FiberId.None)(_ combine _)
 
-  private[zio] def unsafeMake(): FiberId.Runtime =
-    FiberId.Runtime(_fiberCounter.getAndIncrement(), (java.lang.System.currentTimeMillis / 1000).toInt)
+  private[zio] def unsafeMake(location: ZTraceElement): FiberId.Runtime =
+    FiberId.Runtime(_fiberCounter.getAndIncrement(), (java.lang.System.currentTimeMillis / 1000).toInt, location)
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 
-  case object None                                           extends FiberId
-  final case class Runtime(id: Int, startTimeSeconds: Int)   extends FiberId
-  final case class Composite(fiberIds: Set[FiberId.Runtime]) extends FiberId
+  case object None                                                                  extends FiberId
+  final case class Runtime(id: Int, startTimeSeconds: Int, location: ZTraceElement) extends FiberId
+  final case class Composite(fiberIds: Set[FiberId.Runtime])                        extends FiberId
 }
