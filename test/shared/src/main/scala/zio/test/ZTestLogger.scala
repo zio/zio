@@ -38,11 +38,9 @@ object ZTestLogger {
   val default: ZLayer[Any, Nothing, Any] =
     ZLayer {
       for {
-        runtimeConfig              <- ZManaged.runtimeConfig
-        testLoggers                <- ZTestLogger.make.toManaged
-        (stringLogger, causeLogger) = testLoggers
-        runtimeConfigAspect         = RuntimeConfigAspect.addLogger(stringLogger) >>> RuntimeConfigAspect.addLogger(causeLogger)
-        _                          <- ZManaged.withRuntimeConfig(runtimeConfigAspect(runtimeConfig))
+        runtimeConfig <- ZManaged.runtimeConfig.fl
+        testLogger    <- ZTestLogger.make.toManaged
+        _             <- ZManaged.withRuntimeConfig(runtimeConfig.copy(logger = testLogger))
       } yield ()
     }
 
@@ -51,12 +49,10 @@ object ZTestLogger {
    */
   val logOutput: UIO[Chunk[ZTestLogger.LogEntry]] =
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.loggers
-        .getAll[String]
-        .collectFirst { case testLogger: ZTestLogger[_, _] =>
-          testLogger.logOutput
-        }
-        .getOrElse(ZIO.dieMessage("Defect: ZTestLogger is missing"))
+      runtimeConfig.logger match {
+        case testLogger: ZTestLogger[_, _] => testLogger.logOutput
+        case _                             => ZIO.dieMessage("Defect: ZTestLogger is missing")
+      }
     }
 
   /**
@@ -68,51 +64,45 @@ object ZTestLogger {
     fiberId: FiberId,
     logLevel: LogLevel,
     message: () => String,
+    cause: Cause[Any],
     context: Map[FiberRef.Runtime[_], AnyRef],
     spans: List[LogSpan],
-    location: ZTraceElement,
     annotations: Map[String, String]
   ) {
     def call[A](zlogger: ZLogger[String, A]): A =
-      zlogger(trace, fiberId, logLevel, message, context, spans, location, annotations)
+      zlogger(trace, fiberId, logLevel, message, cause, context, spans, annotations)
   }
 
   /**
    * Constructs a `ZTestLogger`.
    */
-  private def make: UIO[(ZLogger[String, Unit], ZLogger[Cause[Any], Unit])] =
+  private def make: UIO[ZLogger[String, Unit]] =
     ZIO.succeed {
 
       val _logOutput = new java.util.concurrent.atomic.AtomicReference[Chunk[LogEntry]](Chunk.empty)
 
-      val stringLogger: ZTestLogger[String, Unit] =
-        new ZTestLogger[String, Unit] {
-          @tailrec
-          def apply(
-            trace: ZTraceElement,
-            fiberId: FiberId,
-            logLevel: LogLevel,
-            message: () => String,
-            context: Map[FiberRef.Runtime[_], AnyRef],
-            spans: List[LogSpan],
-            location: ZTraceElement,
-            annotations: Map[String, String]
-          ): Unit = {
-            val newEntry = LogEntry(trace, fiberId, logLevel, message, context, spans, location, annotations)
+      new ZTestLogger[String, Unit] {
+        @tailrec
+        def apply(
+          trace: ZTraceElement,
+          fiberId: FiberId,
+          logLevel: LogLevel,
+          message: () => String,
+          cause: Cause[Any],
+          context: Map[FiberRef.Runtime[_], AnyRef],
+          spans: List[LogSpan],
+          annotations: Map[String, String]
+        ): Unit = {
+          val newEntry = LogEntry(trace, fiberId, logLevel, message, cause, context, spans, annotations)
 
-            val oldState = _logOutput.get
+          val oldState = _logOutput.get
 
-            if (!_logOutput.compareAndSet(oldState, oldState :+ newEntry))
-              apply(trace, fiberId, logLevel, message, context, spans, location, annotations)
-            else ()
-          }
-          val logOutput: UIO[Chunk[LogEntry]] =
-            UIO(_logOutput.get)
+          if (!_logOutput.compareAndSet(oldState, oldState :+ newEntry))
+            apply(trace, fiberId, logLevel, message, cause, context, spans, annotations)
+          else ()
         }
-
-      val causeLogger: ZLogger[Cause[Any], Unit] =
-        stringLogger.contramap((cause: Cause[Any]) => cause.prettyPrint)
-
-      (stringLogger, causeLogger)
+        val logOutput: UIO[Chunk[LogEntry]] =
+          UIO(_logOutput.get)
+      }
     }
 }

@@ -50,7 +50,7 @@ object LoggingSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.logSpan("test span")(ZIO.log("It's alive!"))
           output <- ZTestLogger.logOutput
-          _      <- ZIO.debug(output(0).call(ZLogger.defaultString))
+          _      <- ZIO.debug(output(0).call(ZLogger.default))
         } yield assertTrue(true)
       },
       test("none") {

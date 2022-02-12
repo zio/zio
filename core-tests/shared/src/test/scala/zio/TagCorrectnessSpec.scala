@@ -65,8 +65,9 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
             environment.get
           }
 
-        val layer = testBaseLayer[Any, String] >>> testSecondLayer[String]
-        ZIO.unit.provideCustomLayer(layer).as(assertTrue(true))
+        val layer                                  = testBaseLayer[Any, String] >>> testSecondLayer[String]
+        val zio: ZIO[Svc[String], Nothing, String] = ZIO.succeed("a")
+        zio.provideCustomLayer(layer).as(assertCompletes)
       },
       // https://github.com/zio/zio/issues/3816
       test("Issue #3816") {
