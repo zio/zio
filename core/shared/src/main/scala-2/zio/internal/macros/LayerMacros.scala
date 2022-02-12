@@ -27,18 +27,18 @@ private[zio] class LayerMacros(val c: blackbox.Context) extends LayerMacroUtils 
 
   def provideImpl[F[_, _, _], R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
-  ): c.Expr[F[Any, E, A]] =
-    provideBaseImpl[F, Any, R, E, A](layer, "provideLayer", ProvideMethod.Provide)
+  )(ev: c.Tree): c.Expr[F[Any, E, A]] =
+    provideBaseImpl[F, Any, R, E, A](layer, "provideLayer", ProvideMethod.Provide)(ev)
 
   def provideSomeImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
-  ): c.Expr[F[R0, E, A]] =
-    provideBaseImpl[F, R0, R, E, A](layer, "provideLayer", ProvideMethod.ProvideSome)
+  )(ev: c.Tree): c.Expr[F[R0, E, A]] =
+    provideBaseImpl[F, R0, R, E, A](layer, "provideLayer", ProvideMethod.ProvideSome)(ev)
 
   def provideCustomImpl[F[_, _, _], R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
-  ): c.Expr[F[R0, E, A]] =
-    provideBaseImpl[F, R0, R, E, A](layer, "provideLayer", ProvideMethod.ProvideCustom)
+  )(ev: c.Tree): c.Expr[F[R0, E, A]] =
+    provideBaseImpl[F, R0, R, E, A](layer, "provideLayer", ProvideMethod.ProvideCustom)(ev)
 
   def debugGetRequirements[R: c.WeakTypeTag]: c.Expr[List[String]] =
     c.Expr[List[String]](q"${getRequirements[R]}")

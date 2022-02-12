@@ -17,7 +17,7 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  inline def provideCustom[E1 >: E](inline layer: ZLayer[_,E1,_]*): ZIO[ZEnv, E1, A] =
+  inline def provideCustom[E1 >: E](inline layer: ZLayer[_,E1,_]*)(using ev: NeedsEnv[R]): ZIO[ZEnv, E1, A] =
     ${LayerMacros.provideImpl[ZEnv, R, E1,A]('self, 'layer)}
 
   /**
@@ -39,12 +39,12 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * Automatically assembles a layer for the ZIO effect, which
    * translates it to another level.
    */
-  inline def provide[E1 >: E](inline layer: ZLayer[_,E1,_]*): ZIO[Any, E1, A] =
+  inline def provide[E1 >: E](inline layer: ZLayer[_,E1,_]*)(using ev: NeedsEnv[R]): ZIO[Any, E1, A] =
     ${LayerMacros.provideImpl[Any,R,E1, A]('self, 'layer)}
 
 }
 
 private final class provideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
-  inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
-  ${LayerMacros.provideImpl[R0, R, E1, A]('self, 'layer)}
+  inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*)(using ev: NeedsEnv[R]): ZIO[R0, E1, A] =
+    ${LayerMacros.provideImpl[R0, R, E1, A]('self, 'layer)}
 }

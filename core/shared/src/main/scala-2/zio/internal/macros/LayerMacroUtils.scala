@@ -47,7 +47,7 @@ private[zio] trait LayerMacroUtils {
     layers: Seq[c.Expr[ZLayer[_, E, _]]],
     method: String,
     provideMethod: ProvideMethod
-  ): c.Expr[F[R0, E, A]] = {
+  )(ev: c.Tree): c.Expr[F[R0, E, A]] = {
     val expr = constructLayer[R0, R, E](layers, provideMethod)
     c.Expr[F[R0, E, A]](q"${c.prefix}.${TermName(method)}(${expr.tree})")
   }

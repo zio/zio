@@ -1,6 +1,6 @@
 package zio.stream
 
-import zio.{ZLayer, ZEnv}
+import zio.{ZLayer, ZEnv, NeedsEnv}
 import zio.internal.macros.LayerMacros
 
 trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
@@ -18,14 +18,14 @@ trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
    * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  inline def provideCustom[E1 >: E](inline layer: ZLayer[_,E1,_]*): ZStream[ZEnv, E1, O] =
+  inline def provideCustom[E1 >: E](inline layer: ZLayer[_,E1,_]*)(using ev: NeedsEnv[R]): ZStream[ZEnv, E1, O] =
     ${ZStreamProvideMacro.provideImpl[ZEnv, R, E1, O]('self, 'layer)}
 
   /**
    * Automatically assembles a layer for the ZStream effect,
    * which translates it to another level.
    */
-  inline def provide[E1 >: E](inline layer: ZLayer[_,E1,_]*): ZStream[Any, E1, O] =
+  inline def provide[E1 >: E](inline layer: ZLayer[_,E1,_]*)(using ev: NeedsEnv[R]): ZStream[Any, E1, O] =
     ${ZStreamProvideMacro.provideImpl[Any, R, E1, O]('self, 'layer)}
 
 }
