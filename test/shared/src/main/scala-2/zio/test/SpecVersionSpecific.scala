@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{ZLayer, NeedsEnv}
+import zio.ZLayer
 import zio.internal.macros.LayerMacros
 
 private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
@@ -8,7 +8,7 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
   /**
    * Automatically assembles a layer for the spec, translating it up a level.
    */
-  def provide[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
+  def provide[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
     macro LayerMacros.provideImpl[Spec, R, E1, T]
 
   /**
@@ -29,7 +29,7 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    *   spec.provideCustom(userRepoLayer, databaseLayer)
    * }}}
    */
-  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): Spec[TestEnvironment, E1, T] =
+  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
     macro LayerMacros.provideCustomImpl[Spec, TestEnvironment, R, E1, T]
 
   /**
@@ -50,7 +50,7 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * Automatically assembles a layer for the spec, sharing services between all
    * tests.
    */
-  def provideShared[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): Spec[Any, E1, T] =
+  def provideShared[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
     macro SpecLayerMacros.provideSharedImpl[R, E1, T]
 
   /**
@@ -72,7 +72,7 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    *   spec.provideCustomShared(userRepoLayer, databaseLayer)
    * }}}
    */
-  def provideCustomShared[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): Spec[TestEnvironment, E1, T] =
+  def provideCustomShared[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
     macro SpecLayerMacros.provideCustomSharedImpl[R, E1, T]
 
   /**
@@ -95,10 +95,10 @@ private final class provideSomePartiallyApplied[R0, -R, +E, +T](val self: Spec[R
 
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
-  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
+  ): Spec[R0, E1, T] =
     self.provideLayer(layer)
 
-  def apply[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
     macro LayerMacros.provideSomeImpl[Spec, R0, R, E1, T]
 }
 
@@ -106,9 +106,9 @@ private final class provideSomeSharedPartiallyApplied[R0, -R, +E, +T](val self: 
 
   def provideLayerShared[E1 >: E](
     layer: ZLayer[R0, E1, R]
-  )(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
+  ): Spec[R0, E1, T] =
     self.provideLayerShared(layer)
 
-  def apply[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): Spec[R0, E1, T] =
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
     macro SpecLayerMacros.provideSomeSharedImpl[R0, R, E1, T]
 }

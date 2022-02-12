@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.internal.macros.LayerMacros
-import zio.{NeedsEnv, ZEnv, ZLayer}
+import zio.{ZEnv, ZLayer}
 
 private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
 
@@ -20,7 +20,7 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
    * val stream2 : ZStream[ZEnv, Nothing, Unit] = stream.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): ZStream[ZEnv, E1, O] =
+  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[ZEnv, E1, O] =
     macro LayerMacros.provideCustomImpl[ZStream, ZEnv, R, E1, O]
 
   /**
@@ -41,7 +41,7 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
   /**
    * Automatically assembles a layer for the ZStream effect.
    */
-  def provide[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): ZStream[Any, E1, O] =
+  def provide[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[Any, E1, O] =
     macro LayerMacros.provideImpl[ZStream, R, E1, O]
 
 }
@@ -51,9 +51,9 @@ private final class ProvideSomeLayerStreamPartiallyApplied[R0, -R, +E, +O](
 ) extends AnyVal {
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
-  )(implicit ev: NeedsEnv[R]): ZStream[R0, E1, O] =
+  ): ZStream[R0, E1, O] =
     self.provideLayer(layer)
 
-  def apply[E1 >: E](layer: ZLayer[_, E1, _]*)(implicit ev: NeedsEnv[R]): ZStream[R0, E1, O] =
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[R0, E1, O] =
     macro LayerMacros.provideSomeImpl[ZStream, R0, R, E1, O]
 }

@@ -17,7 +17,7 @@ trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
    * val managed2 : ZManaged[ZEnv, Nothing, Unit] = managed.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  inline def provideCustom[E1 >: E](inline layer: ZLayer[_,E1,_]*)(using ev: NeedsEnv[R]): ZManaged[ZEnv, E1, A] =
+  inline def provideCustom[E1 >: E](inline layer: ZLayer[_,E1,_]*): ZManaged[ZEnv, E1, A] =
     ${ZManagedMacros.provideImpl[ZEnv, R, E1, A]('self, 'layer)}
 
 
@@ -40,12 +40,12 @@ trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
    * Automatically assembles a layer for the ZManaged effect,
    * which translates it to another level.
    */
-  inline def provide[E1 >: E](inline layer: ZLayer[_,E1,_]*)(using ev: NeedsEnv[R]): ZManaged[Any, E1, A] =
+  inline def provide[E1 >: E](inline layer: ZLayer[_,E1,_]*): ZManaged[Any, E1, A] =
     ${ZManagedMacros.provideImpl[Any, R, E1, A]('self, 'layer)}
 }
 
 private final class provideSomeZManagedPartiallyApplied[R0, -R, +E, +A](val self: ZManaged[R, E, A]) extends AnyVal {
-  inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*)(using ev: NeedsEnv[R]): ZManaged[R0, E1, A] =
+  inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
     ${ZManagedMacros.provideImpl[R0, R, E1, A]('self, 'layer)}
 }
 

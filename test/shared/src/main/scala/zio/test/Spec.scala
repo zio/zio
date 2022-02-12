@@ -91,7 +91,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   final def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[R0, E, T] =
+  )(implicit trace: ZTraceElement): Spec[R0, E, T] =
     transform[R0, E, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
@@ -395,7 +395,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Provides each test in this spec with its required environment
    */
-  final def provideEnvironment(r: ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Spec[Any, E, T] =
+  final def provideEnvironment(r: ZEnvironment[R])(implicit trace: ZTraceElement): Spec[Any, E, T] =
     provideSomeEnvironment(_ => r)
 
   /**
@@ -403,7 +403,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * this spec requires multiple services use `provideEnvironment` instead.
    */
   final def provideService[Service <: R](service: Service)(implicit
-    ev1: NeedsEnv[R],
     tag: Tag[Service],
     trace: ZTraceElement
   ): Spec[Any, E, T] =

@@ -833,7 +833,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * dependency on `Env`.
    */
   final def provideEnvironment(env: => ZEnvironment[Env])(implicit
-    ev: NeedsEnv[Env],
     trace: ZTraceElement
   ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.Provide(() => env, self)
@@ -864,7 +863,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * requires multiple services use `provideEnvironment` instead.
    */
   final def provideService[Service <: Env](service: => Service)(implicit
-    ev1: NeedsEnv[Env],
     tag: Tag[Service],
     trace: ZTraceElement
   ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
@@ -876,7 +874,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def provideSomeEnvironment[Env0](
     f: ZEnvironment[Env0] => ZEnvironment[Env]
-  )(implicit ev: NeedsEnv[Env], trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+  )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.environmentWithChannel[Env0] { env =>
       self.provideEnvironment(f(env))
     }
@@ -1856,7 +1854,7 @@ object ZChannel {
     def apply[OutErr1 >: OutErr, Env1](
       layer: => ZLayer[Env0, OutErr1, Env1]
     )(implicit
-      ev0: NeedsEnv[Env],
+
       ev: Env0 with Env1 <:< Env,
       tagged: EnvironmentTag[Env1],
       trace: ZTraceElement

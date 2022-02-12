@@ -2854,7 +2854,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def provideEnvironment(
     r: => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[Any, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[Any, E, A] =
     new ZStream(channel.provideEnvironment(r))
 
   /**
@@ -2864,7 +2864,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def provideService[Service <: R](
     service: Service
   )(implicit
-    ev1: NeedsEnv[R],
     tag: Tag[Service],
     trace: ZTraceElement
   ): ZStream[Any, E, A] =
@@ -2886,7 +2885,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def provideSomeEnvironment[R0](
     env: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZStream[R0, E, A] =
+  )(implicit trace: ZTraceElement): ZStream[R0, E, A] =
     ZStream.environmentWithStream[R0] { r0 =>
       self.provideEnvironment(env(r0))
     }
@@ -5889,7 +5888,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
     )(implicit
-      ev0: NeedsEnv[R],
       ev: R0 with R1 <:< R,
       tagged: EnvironmentTag[R1],
       trace: ZTraceElement

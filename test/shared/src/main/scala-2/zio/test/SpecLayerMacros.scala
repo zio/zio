@@ -9,16 +9,16 @@ import scala.reflect.macros.blackbox
 class SpecLayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
   def provideSharedImpl[R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
-  )(ev: c.Tree): c.Expr[Spec[Any, E, A]] =
-    provideBaseImpl[Spec, Any, R, E, A](layer, "provideLayerShared", ProvideMethod.Provide)(ev)
+  ): c.Expr[Spec[Any, E, A]] =
+    provideBaseImpl[Spec, Any, R, E, A](layer, "provideLayerShared", ProvideMethod.Provide)
 
   def provideCustomSharedImpl[R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
-  )(ev: c.Tree): c.Expr[Spec[TestEnvironment, E, A]] =
-    provideBaseImpl[Spec, TestEnvironment, R, E, A](layer, "provideLayerShared", ProvideMethod.ProvideCustom)(ev)
+  ): c.Expr[Spec[TestEnvironment, E, A]] =
+    provideBaseImpl[Spec, TestEnvironment, R, E, A](layer, "provideLayerShared", ProvideMethod.ProvideCustom)
 
   def provideSomeSharedImpl[R0: c.WeakTypeTag, R: c.WeakTypeTag, E, A](
     layer: c.Expr[ZLayer[_, E, _]]*
-  )(ev: c.Tree): c.Expr[Spec[R0, E, A]] =
-    provideBaseImpl[Spec, R0, R, E, A](layer, "provideLayerShared", ProvideMethod.ProvideSome)(ev)
+  ): c.Expr[Spec[R0, E, A]] =
+    provideBaseImpl[Spec, R0, R, E, A](layer, "provideLayerShared", ProvideMethod.ProvideSome)
 }
