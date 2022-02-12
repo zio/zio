@@ -975,6 +975,15 @@ object TestAspect extends TimeoutVariants {
    */
   val windows: TestAspectAtLeastR[Annotations] = os(_.isWindows)
 
+  /**
+   * An aspect that runs tests with the live environment.
+   */
+  val withLiveEnvironment: TestAspectAtLeastR[Live] =
+    new TestAspectAtLeastR[Live] {
+      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+        spec.provideSomeLayer[R](ZLayer.fromZIOEnvironment(Live.live(ZIO.environment)))
+    }
+
   abstract class PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
 
     def perTest[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
