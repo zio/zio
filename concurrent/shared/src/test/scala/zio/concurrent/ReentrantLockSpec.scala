@@ -1,0 +1,91 @@
+package zio.concurrent
+
+import zio.test.Assertion._
+import zio.test._
+import zio._
+
+object ReentrantLockSpec extends DefaultRunnableSpec {
+  val spec =
+    suite("ReentrantLockSpec")(
+      testM("1 lock") {
+        for {
+          lock  <- ReentrantLock.make(false)
+          count <- lock.withLock.use(UIO.succeed(_))
+        } yield assert(count)(equalTo(1))
+      },
+      testM("2 locks") {
+        for {
+          lock  <- ReentrantLock.make(false)
+          count <- lock.withLock.use(_ => lock.withLock.use(UIO.succeed(_)))
+        } yield assert(count)(equalTo(2))
+      },
+      testM("2 locks from different fibers") {
+        for {
+          lock    <- ReentrantLock.make(false)
+          mlatch  <- Promise.make[Nothing, Unit]
+          wlatch  <- Promise.make[Nothing, Unit]
+          _       <- lock.withLock.use(count => mlatch.succeed(()) as count).fork
+          _       <- mlatch.await
+          reader2 <- lock.withLock.use(count => wlatch.succeed(()) as count).fork
+          _       <- wlatch.await
+          count2  <- reader2.join
+        } yield assert(count2)(equalTo(1))
+      },
+      testM("Fairness assigns lock to fibers in order") {
+        val f1 = (x: Int) => x * 2
+        val f2 = (x: Int) => x - 10
+        val f3 = (x: Int) => x / 4
+        val f4 = (x: Int) => x + 100
+
+        val f = f1.andThen(f2).andThen(f3).andThen(f4)
+
+        for {
+          lock  <- ReentrantLock.make(true)
+          ref   <- Ref.make(1)
+          p0    <- Promise.make[Nothing, Unit]
+          _     <- lock.withLock.use(_ => p0.await).fork
+          p1    <- Promise.make[Nothing, Unit]
+          f1    <- (p1.succeed(()) *> lock.withLock.use(_ => ref.update(f1))).fork
+          p2    <- Promise.make[Nothing, Unit]
+          f2    <- (p1.await *> p2.succeed(()) *> lock.withLock.use(_ => ref.update(f2))).fork
+          p3    <- Promise.make[Nothing, Unit]
+          f3    <- (p2.await *> p3.succeed(()) *> lock.withLock.use(_ => ref.update(f3))).fork
+          f4    <- (p3.await *> lock.withLock.use(_ => ref.update(f4))).fork
+          fibers = List(f1, f2, f3, f4)
+          _     <- p0.succeed(())
+          _     <- ZIO.foreach_(fibers)(_.join)
+          x     <- ref.get
+        } yield assert(x)(equalTo(f(1)))
+      },
+      testM("Assigns lock to fibers randomly") {
+        val f1 = (x: Int) => x * 2
+        val f2 = (x: Int) => x - 10
+        val f3 = (x: Int) => x / 4
+        val f4 = (x: Int) => x + 100
+
+        val f = f1.andThen(f2).andThen(f3).andThen(f4)
+
+        val program = for {
+          lock  <- ReentrantLock.make(false)
+          ref   <- Ref.make(1)
+          p0    <- Promise.make[Nothing, Unit]
+          _     <- lock.withLock.use(_ => p0.await).fork
+          p1    <- Promise.make[Nothing, Unit]
+          f1    <- (p1.succeed(()) *> lock.withLock.use(_ => ref.update(f1))).fork
+          p2    <- Promise.make[Nothing, Unit]
+          f2    <- (p1.await *> p2.succeed(()) *> lock.withLock.use(_ => ref.update(f2))).fork
+          p3    <- Promise.make[Nothing, Unit]
+          f3    <- (p2.await *> p3.succeed(()) *> lock.withLock.use(_ => ref.update(f3))).fork
+          f4    <- (p3.await *> lock.withLock.use(_ => ref.update(f4))).fork
+          fibers = List(f1, f2, f3, f4)
+          _     <- p0.succeed(())
+          _     <- ZIO.foreach_(fibers)(_.join)
+          x     <- ref.get
+        } yield x == f(1)
+
+        for {
+          results <- ZIO.collectAll(ZIO.replicate(100)(program))
+        } yield assert(results.collect { case true => true }.size)(isLessThan(100))
+      }
+    )
+}
