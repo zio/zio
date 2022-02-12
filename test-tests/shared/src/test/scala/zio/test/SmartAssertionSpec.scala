@@ -380,7 +380,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           assertTrue(cause.is(_.failure) == "UH OH")
         },
         test("interrupted") {
-          val cause: Cause[Int] = Cause.interrupt(FiberId(123, 1))
+          val cause: Cause[Int] = Cause.interrupt(FiberId(123, 1, ZTraceElement.empty))
           assertTrue(!cause.is(_.interrupted))
         }
       ),
@@ -394,7 +394,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           assertTrue(exit.is(_.failure) == 88)
         },
         test("interrupted") {
-          val exit: Exit[Int, String] = Exit.interrupt(FiberId(123, 1))
+          val exit: Exit[Int, String] = Exit.interrupt(FiberId(123, 1, ZTraceElement.empty))
           assertTrue(!exit.is(_.interrupted))
         },
         test("success") {
