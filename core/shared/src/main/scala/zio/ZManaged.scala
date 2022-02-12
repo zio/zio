@@ -833,7 +833,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Provides the `ZManaged` effect with its required environment, which
    * eliminates its dependency on `R`.
    */
-  def provideEnvironment(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Managed[E, A] =
+  def provideEnvironment(r: => ZEnvironment[R])(implicit trace: ZTraceElement): Managed[E, A] =
     provideSomeEnvironment(_ => r)
 
   /**
@@ -842,7 +842,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * instead.
    */
   def provideService[Service <: R](service: Service)(implicit
-    ev1: NeedsEnv[R],
     tag: Tag[Service],
     trace: ZTraceElement
   ): Managed[E, A] =
@@ -862,7 +861,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R0, E, A] =
     ZManaged(zio.provideSomeEnvironment(f))
 
   /**
@@ -1535,7 +1534,6 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
     )(implicit
-      ev0: NeedsEnv[R],
       ev: R0 with R1 <:< R,
       tagged: EnvironmentTag[R1],
       trace: ZTraceElement

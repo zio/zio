@@ -1473,7 +1473,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Provides the `ZIO` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
-  final def provideEnvironment(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): IO[E, A] =
+  final def provideEnvironment(r: => ZEnvironment[R])(implicit trace: ZTraceElement): IO[E, A] =
     ZFiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
@@ -1490,7 +1490,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def provideService[Service <: R](
     service: => Service
-  )(implicit ev1: NeedsEnv[R], tag: Tag[Service], trace: ZTraceElement): IO[E, A] =
+  )(implicit tag: Tag[Service], trace: ZTraceElement): IO[E, A] =
     provideEnvironment(ZEnvironment(service))
 
   /**
@@ -1499,7 +1499,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZIO[R0, E, A] =
+  )(implicit trace: ZTraceElement): ZIO[R0, E, A] =
     ZIO.environmentWithZIO(r0 => self.provideEnvironment(f(r0)))
 
   /**
@@ -5579,7 +5579,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
     )(implicit
-      ev0: NeedsEnv[R],
       ev: R0 with R1 <:< R,
       tagged: EnvironmentTag[R1],
       trace: ZTraceElement

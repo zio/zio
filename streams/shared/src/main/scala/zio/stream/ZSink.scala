@@ -653,7 +653,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    */
   def provideEnvironment(
     r: => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZSink[Any, E, In, L, Z] =
+  )(implicit trace: ZTraceElement): ZSink[Any, E, In, L, Z] =
     new ZSink(channel.provideEnvironment(r))
 }
 
