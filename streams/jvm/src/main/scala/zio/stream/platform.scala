@@ -234,7 +234,7 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream of bytes from the specified file.
    */
-  final def fromFile(file: => File, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+  final def fromFile(file: => File, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, Byte] =
     ZStream
@@ -245,7 +245,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream of bytes from a file at the specified path represented by
    * a string.
    */
-  final def fromFileString(name: => String, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+  final def fromFileString(name: => String, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, Byte] =
     ZStream
@@ -255,7 +255,7 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream of bytes from a file at the specified uri.
    */
-  final def fromFileURI(uri: => URI, chunkSize: Int = ZStream.DefaultChunkSize)(implicit
+  final def fromFileURI(uri: => URI, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, Byte] =
     ZStream
@@ -628,8 +628,8 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromFile(
     file: => File,
-    position: Long = 0L,
-    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+    position: => Long = 0L,
+    options: => Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
   )(implicit
     trace: ZTraceElement
   ): ZSink[Any, Throwable, Byte, Byte, Long] =
@@ -644,8 +644,8 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromFileString(
     name: => String,
-    position: Long = 0L,
-    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+    position: => Long = 0L,
+    options: => Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
   )(implicit
     trace: ZTraceElement
   ): ZSink[Any, Throwable, Byte, Byte, Long] =
@@ -659,8 +659,8 @@ trait ZSinkPlatformSpecificConstructors {
    */
   final def fromFileURI(
     uri: => URI,
-    position: Long = 0L,
-    options: Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
+    position: => Long = 0L,
+    options: => Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
   )(implicit
     trace: ZTraceElement
   ): ZSink[Any, Throwable, Byte, Byte, Long] =

@@ -409,7 +409,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.Ensuring(self, finalizer)
 
   final def ensuring[Env1 <: Env](
-    finalizer: URIO[Env1, Any]
+    finalizer: => URIO[Env1, Any]
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ensuringWith(_ => finalizer)
 

@@ -84,7 +84,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Symbolic alias for [[ZStream#via]].
    */
-  def >>>[R1 <: R, E1 >: E, B](pipeline: ZPipeline[R1, E1, A, B])(implicit
+  def >>>[R1 <: R, E1 >: E, B](pipeline: => ZPipeline[R1, E1, A, B])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, B] =
     via(pipeline)
@@ -3980,8 +3980,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Threads the stream through a transformation pipeline.
    */
-  def via[R1 <: R, E1 >: E, B](pipeline: ZPipeline[R1, E1, A, B])(implicit trace: ZTraceElement): ZStream[R1, E1, B] =
-    pipeline(self)
+  def via[R1 <: R, E1 >: E, B](pipeline: => ZPipeline[R1, E1, A, B])(implicit
+    trace: ZTraceElement
+  ): ZStream[R1, E1, B] =
+    ZStream.suspend(pipeline(self))
 
   /**
    * Threads the stream through the transformation function `f`.
@@ -4443,7 +4445,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a single value that will get cleaned up after the
    * stream is consumed
    */
-  def acquireReleaseWith[R, E, A](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
+  def acquireReleaseWith[R, E, A](acquire: => ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
     managed(ZManaged.acquireReleaseWith(acquire)(release))
@@ -4453,7 +4455,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * stream is consumed
    */
   def acquireReleaseExitWith[R, E, A](
-    acquire: ZIO[R, E, A]
+    acquire: => ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => URIO[R, Any])(implicit trace: ZTraceElement): ZStream[R, E, A] =
     managed(ZManaged.acquireReleaseExitWith(acquire)(release))
 
@@ -4467,7 +4469,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * streams that are composed after this one will automatically be shifted back
    * to the previous executor.
    */
-  def blocking[R, E, A](stream: ZStream[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+  def blocking[R, E, A](stream: => ZStream[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.blockingExecutor).flatMap(stream.onExecutor(_))
 
   /**
@@ -4878,40 +4880,42 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromIterableZIO[R, E, O](iterable: => ZIO[R, E, Iterable[O]])(implicit trace: ZTraceElement): ZStream[R, E, O] =
     fromZIO(iterable).mapConcat(identity)
 
-  def fromIterator[A](iterator: => Iterator[A], maxChunkSize: Int = DefaultChunkSize)(implicit
+  def fromIterator[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, A] =
-    if (maxChunkSize == 1) fromIteratorSingle(iterator)
-    else {
-      object StreamEnd extends Throwable
+    ZStream.succeed(maxChunkSize).flatMap { maxChunkSize =>
+      if (maxChunkSize == 1) fromIteratorSingle(iterator)
+      else {
+        object StreamEnd extends Throwable
 
-      ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any] <*> UIO(ChunkBuilder.make[A](maxChunkSize))).flatMap {
-        case (it, rt, builder) =>
-          ZStream.repeatZIOChunkOption {
-            Task {
-              builder.clear()
-              var count = 0
+        ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any] <*> UIO(ChunkBuilder.make[A](maxChunkSize))).flatMap {
+          case (it, rt, builder) =>
+            ZStream.repeatZIOChunkOption {
+              Task {
+                builder.clear()
+                var count = 0
 
-              try {
-                while (count < maxChunkSize && it.hasNext) {
-                  builder += it.next()
-                  count += 1
+                try {
+                  while (count < maxChunkSize && it.hasNext) {
+                    builder += it.next()
+                    count += 1
+                  }
+                } catch {
+                  case e: Throwable if !rt.runtimeConfig.fatal(e) =>
+                    throw e
                 }
-              } catch {
-                case e: Throwable if !rt.runtimeConfig.fatal(e) =>
-                  throw e
-              }
 
-              if (count > 0) {
-                builder.result()
-              } else {
-                throw StreamEnd
+                if (count > 0) {
+                  builder.result()
+                } else {
+                  throw StreamEnd
+                }
+              }.mapError {
+                case StreamEnd => None
+                case e         => Some(e)
               }
-            }.mapError {
-              case StreamEnd => None
-              case e         => Some(e)
             }
-          }
+        }
       }
     }
 
