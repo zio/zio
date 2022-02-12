@@ -1535,6 +1535,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
     )(implicit
+      ev0: NeedsEnv[R],
       ev: R0 with R1 <:< R,
       tagged: EnvironmentTag[R1],
       trace: ZTraceElement
