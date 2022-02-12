@@ -1854,7 +1854,6 @@ object ZChannel {
     def apply[OutErr1 >: OutErr, Env1](
       layer: => ZLayer[Env0, OutErr1, Env1]
     )(implicit
-
       ev: Env0 with Env1 <:< Env,
       tagged: EnvironmentTag[Env1],
       trace: ZTraceElement
