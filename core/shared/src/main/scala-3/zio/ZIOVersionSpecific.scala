@@ -46,5 +46,5 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 private final class provideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
-  ${LayerMacros.provideImpl[R0, R, E1, A]('self, 'layer)}
+    ${LayerMacros.provideImpl[R0, R, E1, A]('self, 'layer)}
 }

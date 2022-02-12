@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.internal.macros.LayerMacros
-import zio.{NeedsEnv, ZEnv, ZLayer}
+import zio.{ZEnv, ZLayer}
 
 private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
 
@@ -51,7 +51,7 @@ private final class ProvideSomeLayerStreamPartiallyApplied[R0, -R, +E, +O](
 ) extends AnyVal {
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
-  )(implicit ev: NeedsEnv[R]): ZStream[R0, E1, O] =
+  ): ZStream[R0, E1, O] =
     self.provideLayer(layer)
 
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZStream[R0, E1, O] =

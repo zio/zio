@@ -2515,7 +2515,17 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .runCollect
                 .either
             )(isLeft(equalTo("Boom")))
-          } @@ flaky(1000) // TODO Restore to non-flaky
+          } @@ flaky(1000), // TODO Restore to non-flaky
+          test("propagates error of original stream") {
+            for {
+              fiber <- (ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) ++ ZStream.fail(new Throwable("Boom")))
+                         .mapZIOPar(2)(_ => ZIO.sleep(1.second))
+                         .runDrain
+                         .fork
+              _    <- TestClock.adjust(5.seconds)
+              exit <- fiber.await
+            } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
+          }
         ),
         suite("mapZIOParUnordered")(
           test("mapping with failure is failure") {

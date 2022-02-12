@@ -392,6 +392,25 @@ trait ZStream[-R, +E, +O] {
 
 There is an `intoHubManaged` variant of this if you want to send values to the hub in the context of a `ZManaged` instead of a `ZIO` effect.
 
+Here is the example above adapted to publish values from a stream to the hub:
+
+```scala mdoc:silent
+for {
+  promise <- Promise.make[Nothing, Unit]
+  hub     <- Hub.bounded[Take[Nothing, String]](2)
+  managed  = ZStream.fromHubManaged(hub).tapZIO(_ => promise.succeed(()))
+  stream   = ZStream.unwrapManaged(managed).flattenTake
+  fiber   <- stream.take(2).runCollect.fork
+  _       <- promise.await
+  _       <- ZStream("Hello", "World").runIntoHub(hub)
+  _       <- fiber.join
+} yield ()
+```
+
+Notice that we created a `Hub` of `Take` values this time. `Take` is an algebraic data type that represents the different potential results of pulling from a stream, including the stream emitting a chunk of values, failing with an error, or being done.
+
+Here we automatically unwrapped the `Take` values using the `flattenTake` operator on `ZStream`. In other cases where the subscriber was not a `ZStream` the `Take` value would allow the subscriber to observe whether the stream had emitted a value, failed with an error, or ended, and handle it appropriately.
+
 You can also create a sink that sends values to a hub.
 
 ```scala mdoc

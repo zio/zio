@@ -331,7 +331,7 @@ package object test extends CompileVariants {
     rv4: Gen[R, D],
     rv5: Gen[R, F]
   )(
-    test: (A, B, C, D, F) => TestResult
+    test: (A, B, C, D, F) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
     trace: ZTraceElement
@@ -349,7 +349,7 @@ package object test extends CompileVariants {
     rv5: Gen[R, F],
     rv6: Gen[R, G]
   )(
-    test: (A, B, C, D, F, G) => TestResult
+    test: (A, B, C, D, F, G) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
     trace: ZTraceElement

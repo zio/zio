@@ -328,7 +328,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
         ZManaged.succeed(memoMap =>
           memoMap
             .getOrElseMemoize(self)
-            .flatMap(r => memoMap.getOrElseMemoize(that).provideEnvironment(r)(NeedsEnv.needsEnv, trace))
+            .flatMap(r => memoMap.getOrElseMemoize(that).provideEnvironment(r)(trace))
         )
       case ZLayer.ZipWith(self, that, f) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))

@@ -32,8 +32,8 @@ object TerminalRendering {
   }
 
   def missingLayersError(
-    toplevel: Set[String],
-    transitive: Map[String, Set[String]] = Map.empty,
+    toplevel: List[String],
+    transitive: Map[String, List[String]] = Map.empty,
     isUsingProvideSome: Boolean = true
   ) = {
 
@@ -230,7 +230,7 @@ ${line.yellow}
       "Database.live"    -> Set("java.sql.Connection"),
       "Logger.live"      -> Set("zio.Console")
     )
-    println(missingLayersError(Set("Clock", "Database"), missing))
+    println(missingLayersError(List("Clock", "Database"), missing))
     println(unusedLayersError(List("Clock.live", "UserService.live", "Console.test")))
     println(provideSomeNothingEnvError)
     println(unusedProvideSomeLayersError(List("java.lang.String", "List[Boolean]")))

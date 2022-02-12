@@ -833,7 +833,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Provides the `ZManaged` effect with its required environment, which
    * eliminates its dependency on `R`.
    */
-  def provideEnvironment(r: => ZEnvironment[R])(implicit ev: NeedsEnv[R], trace: ZTraceElement): Managed[E, A] =
+  def provideEnvironment(r: => ZEnvironment[R])(implicit trace: ZTraceElement): Managed[E, A] =
     provideSomeEnvironment(_ => r)
 
   /**
@@ -842,7 +842,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * instead.
    */
   def provideService[Service <: R](service: Service)(implicit
-    ev1: NeedsEnv[R],
     tag: Tag[Service],
     trace: ZTraceElement
   ): Managed[E, A] =
@@ -862,7 +861,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R0, E, A] =
     ZManaged(zio.provideSomeEnvironment(f))
 
   /**
@@ -3249,6 +3248,12 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def runtime[R](implicit trace: ZTraceElement): ZManaged[R, Nothing, Runtime[R]] =
     ZManaged.fromZIO(ZIO.runtime[R])
+
+  /**
+   * Retrieves the current runtime configuration.
+   */
+  def runtimeConfig(implicit trace: ZTraceElement): ZManaged[Any, Nothing, RuntimeConfig] =
+    ZManaged.fromZIO(ZIO.runtimeConfig)
 
   def sandbox[R, E, A](v: ZManaged[R, E, A])(implicit trace: ZTraceElement): ZManaged[R, Cause[E], A] =
     ZManaged.suspend(v.sandbox)

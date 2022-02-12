@@ -69,6 +69,7 @@ object DeriveGenSpec extends ZIOSpecDefault {
       test("int")(assertDeriveGen[Int]),
       test("iterable")(assertDeriveGen[Iterable[Int]]),
       test("list")(assertDeriveGen[List[Int]]),
+      test("chunk")(assertDeriveGen[Chunk[Int]]),
       test("long")(assertDeriveGen[Long]),
       test("map")(assertDeriveGen[Map[Int, Int]]),
       test("option")(assertDeriveGen[Option[Int]]),

@@ -29,7 +29,7 @@ private[zio] trait BuildFromCompat {
     : BuildFrom[Collection[Any], Element, Collection[Element]] =
     scala.collection.BuildFrom.buildFromIterableOps[Collection, Any, Element]
 
-  implicit def buildFromNothing[A, Collection[+Element] <: Iterable[Element] with IterableOps[A, Collection, _]]
-    : BuildFrom[Collection[A], Nothing, Collection[Nothing]] =
-    scala.collection.BuildFrom.buildFromIterableOps[Collection, A, Nothing]
+  implicit def buildFromNothing[Collection[+Element] <: Iterable[Element] with IterableOps[Any, Collection, _]]
+    : BuildFrom[Collection[Any], Nothing, Collection[Nothing]] =
+    scala.collection.BuildFrom.buildFromIterableOps[Collection, Any, Nothing]
 }

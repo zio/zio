@@ -61,8 +61,8 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val fatal = (t: Throwable) => t.isInstanceOf[VirtualMachineError]
 
-    val loggers =
-      ZLogger.Set.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info)
+    val logger =
+      ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info)
 
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()
@@ -80,7 +80,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       fatal,
       reportFatal,
       supervisor,
-      loggers,
+      logger,
       RuntimeConfigFlags.empty + RuntimeConfigFlag.EnableFiberRoots
     )
   }

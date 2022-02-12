@@ -296,7 +296,12 @@ object TestAspectSpec extends ZIOBaseSpec {
                ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
         result <- succeeded(spec)
       } yield assert(result)(isFalse)
-    }
+    },
+    test("withLiveEnvironment runs tests with the live environment") {
+      for {
+        _ <- ZIO.sleep(1.nanosecond)
+      } yield assertCompletes
+    } @@ withLiveEnvironment
   )
 
   def diesWithSubtypeOf[E](implicit ct: ClassTag[E]): TestFailure[E] => Boolean =

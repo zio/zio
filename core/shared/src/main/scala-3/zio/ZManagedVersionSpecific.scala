@@ -18,7 +18,7 @@ trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
    * }}}
    */
   inline def provideCustom[E1 >: E](inline layer: ZLayer[_,E1,_]*): ZManaged[ZEnv, E1, A] =
-  ${ZManagedMacros.provideImpl[ZEnv, R, E1, A]('self, 'layer)}
+    ${ZManagedMacros.provideImpl[ZEnv, R, E1, A]('self, 'layer)}
 
 
   /**

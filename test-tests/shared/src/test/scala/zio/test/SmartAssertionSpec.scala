@@ -1,7 +1,7 @@
 package zio.test
 
-import zio.test.SmartTestTypes._
 import zio._
+import zio.test.SmartTestTypes._
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
@@ -380,7 +380,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           assertTrue(cause.is(_.failure) == "UH OH")
         },
         test("interrupted") {
-          val cause: Cause[Int] = Cause.interrupt(FiberId(123, 1))
+          val cause: Cause[Int] = Cause.interrupt(FiberId(123, 1, ZTraceElement.empty))
           assertTrue(!cause.is(_.interrupted))
         }
       ),
@@ -394,7 +394,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           assertTrue(exit.is(_.failure) == 88)
         },
         test("interrupted") {
-          val exit: Exit[Int, String] = Exit.interrupt(FiberId(123, 1))
+          val exit: Exit[Int, String] = Exit.interrupt(FiberId(123, 1, ZTraceElement.empty))
           assertTrue(!exit.is(_.interrupted))
         },
         test("success") {
@@ -470,13 +470,19 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         final case class Foo(string: String, int: Int)
         assertTrue(Foo(null, 1) == Foo("a", 1))
       } @@ failing
-    )
+    ),
+    suite("miscellaneous issues") {
+      test("implicit Diff between Option[Nothing] and None is resolved") {
+        val option: Option[Nothing] = Option.empty
+        assertTrue(option == None)
+      }
+    }
   )
 
   // The implicit trace will be used by assertTrue to report the
   // actual location.
   def customAssertion(string: String)(implicit trace: ZTraceElement): Assert =
-    assertTrue(string == "coool")
+    assertTrue(string == "cool")
 
   // Test Types
   sealed private trait Color

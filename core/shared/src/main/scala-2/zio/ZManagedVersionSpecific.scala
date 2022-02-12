@@ -67,7 +67,7 @@ private final class ProvideSomeLayerManagedPartiallyApplied[R0, -R, +E, +A](
 
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZManaged[R0, E1, A] =
+  )(implicit trace: ZTraceElement): ZManaged[R0, E1, A] =
     self.provideLayer(layer)
 
   def provideSomeLayer[R0]: ZManaged.ProvideSomeLayer[R0, R, E, A] =

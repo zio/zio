@@ -39,9 +39,9 @@ object ZIOAppSpec extends ZIOBaseSpec {
           fiberId: zio.FiberId,
           logLevel: zio.LogLevel,
           message: () => Any,
+          cause: Cause[Any],
           context: Map[zio.FiberRef.Runtime[_], AnyRef],
           spans: List[zio.LogSpan],
-          location: ZTraceElement,
           annotations: Map[String, String]
         ): Unit = {
           counter.incrementAndGet()

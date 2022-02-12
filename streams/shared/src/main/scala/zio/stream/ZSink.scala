@@ -549,6 +549,60 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     untilOutputZIO(f)
 
   /**
+   * Splits the sink on the specified predicate, returning a new sink that
+   * consumes elements until an element after the first satisfies the specified
+   * predicate.
+   */
+  def splitWhere[In1 <: In](
+    f: In1 => Boolean
+  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R, E, In1, In1, Z] = {
+
+    def splitter(
+      written: Boolean,
+      leftovers: Ref[Chunk[In1]]
+    ): ZChannel[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Any] =
+      ZChannel.readWithCause[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Any](
+        in =>
+          if (in.isEmpty) splitter(written, leftovers)
+          else if (written) {
+            val index = in.indexWhere(f)
+            if (index == -1)
+              ZChannel.write(in).zipRight[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Any](splitter(true, leftovers))
+            else {
+              val (left, right) = in.splitAt(index)
+              ZChannel.write(left) *> ZChannel.fromZIO(leftovers.set(right))
+            }
+          } else {
+            val index = in.indexWhere(f, 1)
+            if (index == -1)
+              ZChannel.write(in).zipRight[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Any](splitter(true, leftovers))
+            else {
+              val (left, right) = in.splitAt(index max 1)
+              ZChannel.write(left) *> ZChannel.fromZIO(leftovers.set(right))
+            }
+          },
+        err => ZChannel.failCause(err),
+        done => ZChannel.succeed(done)
+      )
+
+    new ZSink(
+      ZChannel.fromZIO(Ref.make[Chunk[In1]](Chunk.empty)).flatMap[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Z] {
+        ref =>
+          splitter(false, ref)
+            .pipeToOrFail(self.channel)
+            .doneCollect
+            .flatMap[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Z] { case (leftovers, z) =>
+              ZChannel.fromZIO(ref.get).flatMap[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Z] { leftover =>
+                ZChannel
+                  .write(leftover ++ leftovers.flatten.map(ev))
+                  .zipRight[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Z](ZChannel.succeed(z))
+              }
+            }
+      }
+    )
+  }
+
+  /**
    * Creates a sink that produces values until one verifies the predicate `f`.
    */
   def untilOutputZIO[R1 <: R, E1 >: E](
@@ -599,7 +653,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
    */
   def provideEnvironment(
     r: => ZEnvironment[R]
-  )(implicit ev: NeedsEnv[R], trace: ZTraceElement): ZSink[Any, E, In, L, Z] =
+  )(implicit trace: ZTraceElement): ZSink[Any, E, In, L, Z] =
     new ZSink(channel.provideEnvironment(r))
 }
 

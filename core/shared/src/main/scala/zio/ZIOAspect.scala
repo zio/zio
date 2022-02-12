@@ -97,7 +97,7 @@ object ZIOAspect {
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         ZIO.runtimeConfig.flatMap { runtimeConfig =>
-          zio.withRuntimeConfig(runtimeConfig.copy(loggers = ZLogger.none.toSet))
+          zio.withRuntimeConfig(runtimeConfig.copy(logger = ZLogger.none))
         }
     }
 

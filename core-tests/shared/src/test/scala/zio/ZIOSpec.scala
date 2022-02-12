@@ -432,7 +432,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("done")(
       test("Check done lifts exit result into IO") {
 
-        val fiberId = FiberId(0, 123)
+        val fiberId = FiberId(0, 123, ZTraceElement.empty)
         val error   = exampleError
 
         for {
@@ -1034,6 +1034,16 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(0)
           worker  = ZIO.never
+          workers = List.fill(4)(worker)
+          fiber  <- ZIO.forkAll(workers)
+          _      <- fiber.interrupt
+          value  <- ref.get
+        } yield assert(value)(equalTo(0))
+      },
+      test("infers correctly with error type") {
+        for {
+          ref    <- Ref.make(0)
+          worker  = ZIO.fail(new RuntimeException("fail")).forever
           workers = List.fill(4)(worker)
           fiber  <- ZIO.forkAll(workers)
           _      <- fiber.interrupt
@@ -1649,7 +1659,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("orElse")(
       test("does not recover from defects") {
         val ex               = new Exception("Died")
-        val fiberId          = FiberId(0, 123)
+        val fiberId          = FiberId(0, 123, ZTraceElement.empty)
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> IO.unit).exit
@@ -3774,41 +3784,6 @@ object ZIOSpec extends ZIOBaseSpec {
         val zio: ZIO[R1, E1, A]   = ZIO.succeed(new A {})
         val _                     = ZIO.whenZIO(b)(zio)
         ZIO.succeed(assertCompletes)
-      }
-    ),
-    suite("withFilter")(
-      test("tuple value is extracted correctly from task") {
-        for {
-          (i, j, k) <- Task((1, 2, 3))
-        } yield assert((i, j, k))(equalTo((1, 2, 3)))
-      },
-      test("condition in for-comprehension syntax works correctly for task") {
-        for {
-          n <- Task(3) if n > 0
-        } yield assert(n)(equalTo(3))
-      },
-      test("unsatisfied condition should fail with NoSuchElementException") {
-        val task =
-          for {
-            n <- Task(3) if n > 10
-          } yield n
-        assertM(task.exit)(fails(isSubtype[NoSuchElementException](anything)))
-      },
-      test("withFilter doesn't compile with IO that fails with type other than Throwable") {
-        val result = typeCheck {
-          """
-            import zio._
-            val io: IO[String, Int] = IO.succeed(1)
-            for {
-              n <- io if n > 0
-            } yield n
-              """
-        }
-
-        val expected =
-          "Pattern guards are only supported when the error type is a supertype of NoSuchElementException. However, your effect has String for the error type."
-        if (TestVersion.isScala2) assertM(result)(isLeft(equalTo(expected)))
-        else assertM(result)(isLeft(anything))
       }
     ),
     test("zip is compositional") {
