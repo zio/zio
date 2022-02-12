@@ -5570,7 +5570,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZIO[R, E, A]) extends AnyVal {
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: EnvironmentTag[R1], trace: ZTraceElement): ZIO[R0, E1, A] =
+    )(implicit
+      ev0: NeedsEnv[R],
+      ev: R0 with R1 <:< R,
+      tagged: EnvironmentTag[R1],
+      trace: ZTraceElement
+    ): ZIO[R0, E1, A] =
       self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
   }
 
