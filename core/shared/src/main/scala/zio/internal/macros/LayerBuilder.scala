@@ -171,11 +171,11 @@ final case class LayerBuilder[Type, Expr](
 
     val topLevelErrors = allErrors.collect { case top: LayerWiringError.MissingTopLevel =>
       top.layer
-    }.toSet
+    }.distinct
 
     val transitive = allErrors.collect { case LayerWiringError.MissingTransitive(layer, deps) =>
       layer -> deps
-    }.groupBy(_._1).map { case (key, value) => key -> value.flatMap(_._2).toSet }
+    }.groupBy(_._1).map { case (key, value) => key -> value.flatMap(_._2).distinct }
 
     val circularErrors = allErrors.collect { case LayerWiringError.Circular(layer, dep) =>
       layer -> dep

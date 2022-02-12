@@ -226,9 +226,9 @@ ${line.yellow}
 
   def main(args: Array[String]): Unit = {
     val missing = Map(
-      "UserService.live" -> Set("zio.Clock", "example.UserService"),
-      "Database.live"    -> Set("java.sql.Connection"),
-      "Logger.live"      -> Set("zio.Console")
+      "UserService.live" -> List("zio.Clock", "example.UserService"),
+      "Database.live"    -> List("java.sql.Connection"),
+      "Logger.live"      -> List("zio.Console")
     )
     println(missingLayersError(List("Clock", "Database"), missing))
     println(unusedLayersError(List("Clock.live", "UserService.live", "Console.test")))
