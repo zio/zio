@@ -313,7 +313,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             }.provideSome[Console](TestRandom.make(TestRandom.Data(10, 10)))
           }
         ),
-        suite(".sideEffect")(
+        suite(".unit")(
           test("run layers for their side effects and suppresses unused layer warnings") {
             def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, String] =
               ref.update(_ + 1).as("Howdy").toLayer
@@ -323,7 +323,7 @@ object AutoWireSpec extends ZIOBaseSpec {
               _ <- ZIO
                      .service[Int]
                      .provide(
-                       sideEffectingLayer(ref).sideEffect,
+                       sideEffectingLayer(ref).unit,
                        ZLayer.succeed(12)
                      )
               result <- ref.get

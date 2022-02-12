@@ -619,7 +619,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e)))
 
   /**
-   * Taps the effect, printing the result of calling `.toString` on the value
+   * Taps the effect, printing the result of calling `.toString` on the value.
    */
   final def debug(implicit trace: ZTraceElement): ZIO[R, E, A] =
     self.tapBoth(

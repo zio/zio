@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.ZLayer.SideEffect
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZManaged.ReleaseMap
@@ -270,6 +269,16 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     build.provideEnvironment(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
 
   /**
+   * Replaces the layer's output with `Unit`.
+   *
+   * When used with [[ZIO.provide]] and [[ZLayer.make]] macros (and their
+   * variants), this will suppress the unused layer warning that is normally
+   * emitted, and will actually include the layer for its side-effects.
+   */
+  def unit(implicit trace: ZTraceElement): ZLayer[RIn, E, Unit] =
+    self.map(_ => ZEnvironment(()))
+
+  /**
    * Updates one of the services output by this layer.
    */
   final def update[A >: ROut: Tag](
@@ -326,14 +335,6 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
       case ZLayer.ZipWithPar(self, that, f) =>
         ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWithPar(memoMap.getOrElseMemoize(that))(f))
     }
-
-  /**
-   * When used with [[ZIO.provide]] and [[ZLayer.make]] macros (and their
-   * variants), this will suppress the unused layer warning that is normally
-   * emitted, and will actually include the layer for its side-effects.
-   */
-  def sideEffect(implicit trace: ZTraceElement): ZLayer[RIn, E, SideEffect] =
-    self.map(_ => ZEnvironment(SideEffect))
 }
 
 object ZLayer extends ZLayerCompanionVersionSpecific {
@@ -383,9 +384,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     trace: ZTraceElement
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
-
-  type SideEffect = SideEffect.type
-  object SideEffect
 
   sealed trait Debug
 
