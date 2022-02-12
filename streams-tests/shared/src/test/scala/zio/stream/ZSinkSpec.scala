@@ -670,6 +670,32 @@ object ZSinkSpec extends ZIOBaseSpec {
             )
           })
         ),
+        suite("splitWhere")(
+          test("should split a stream on predicate and run each part into the sink") {
+            val in = ZStream(1, 2, 3, 4, 5, 6, 7, 8)
+            for {
+              res <- in.via(ZPipeline.fromSink(ZSink.collectAll[Int].splitWhere[Int](_ % 2 == 0))).runCollect
+            } yield {
+              assertTrue(res == Chunk(Chunk(1), Chunk(2, 3), Chunk(4, 5), Chunk(6, 7), Chunk(8)))
+            }
+          },
+          test("should split a stream on predicate and run each part into the sink, in several chunks") {
+            val in = ZStream.fromChunks(Chunk(1, 2, 3, 4), Chunk(5, 6, 7, 8))
+            for {
+              res <- in.via(ZPipeline.fromSink(ZSink.collectAll[Int].splitWhere[Int](_ % 2 == 0))).runCollect
+            } yield {
+              assertTrue(res == Chunk(Chunk(1), Chunk(2, 3), Chunk(4, 5), Chunk(6, 7), Chunk(8)))
+            }
+          },
+          test("not yield an empty sink if split on the first element") {
+            val in = ZStream(1, 2, 3, 4, 5, 6, 7, 8)
+            for {
+              res <- in.via(ZPipeline.fromSink(ZSink.collectAll[Int].splitWhere[Int](_ % 2 != 0))).runCollect
+            } yield {
+              assertTrue(res == Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6), Chunk(7, 8)))
+            }
+          }
+        ),
         test("untilOutputZIO with head sink") {
           val sink: ZSink[Any, Nothing, Int, Int, Option[Option[Int]]] =
             ZSink.head[Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
