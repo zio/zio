@@ -37,8 +37,7 @@ private[zio] final class FiberContext[E, A](
   var runtimeConfig: RuntimeConfig,
   val interruptStatus: StackBool,
   val fiberRefLocals: FiberRefLocals,
-  val _children: JavaSet[FiberContext[_, _]],
-  val location: ZTraceElement
+  val _children: JavaSet[FiberContext[_, _]]
 ) extends Fiber.Runtime.Internal[E, A]
     with FiberRunnable { self =>
   import FiberContext.{erase, eraseK, eraseR, Erased, ErasedCont, ErasedTracedCont}
@@ -109,6 +108,8 @@ private[zio] final class FiberContext[E, A](
   }
 
   final def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] = unsafeInterruptAs(fiberId)
+
+  final def location: ZTraceElement = fiberId.location
 
   final def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]] = ZIO.succeed(unsafePoll)
 
@@ -467,11 +468,11 @@ private[zio] final class FiberContext[E, A](
                     curZio = zio.zio
 
                   case ZIO.Tags.Logged =>
-                    val zio = curZio.asInstanceOf[ZIO.Logged[Any]]
+                    val zio = curZio.asInstanceOf[ZIO.Logged]
 
                     unsafeLog(
-                      zio.typeTag,
                       zio.message,
+                      zio.cause,
                       zio.overrideLogLevel,
                       zio.overrideRef1,
                       zio.overrideValue1,
@@ -720,7 +721,7 @@ private[zio] final class FiberContext[E, A](
 
     val parentScope = (forkScope orElse unsafeGetRef(forkScopeOverride)).getOrElse(scope)
 
-    val childId       = FiberId.unsafeMake()
+    val childId       = FiberId.unsafeMake(trace)
     val grandChildren = Platform.newWeakSet[FiberContext[_, _]]()
 
     val childContext = new FiberContext[E, A](
@@ -728,8 +729,7 @@ private[zio] final class FiberContext[E, A](
       runtimeConfig,
       StackBool(interruptStatus.peekOrElse(true)),
       new AtomicReference(childFiberRefLocals),
-      grandChildren,
-      trace
+      grandChildren
     )
 
     if (runtimeConfig.supervisor ne Supervisor.none) {
@@ -831,25 +831,17 @@ private[zio] final class FiberContext[E, A](
   @inline
   private def unsafeIsInterrupting(): Boolean = state.get().isInterrupting
 
-  private def unsafeLog(tag: LightTypeTag, message: () => Any)(implicit trace: ZTraceElement): Unit = {
+  private def unsafeLog(tag: LightTypeTag, message: () => String)(implicit trace: ZTraceElement): Unit = {
     val logLevel    = unsafeGetRef(FiberRef.currentLogLevel)
     val spans       = unsafeGetRef(FiberRef.currentLogSpan)
     val annotations = unsafeGetRef(FiberRef.currentLogAnnotations)
 
-    unsafeForEachLogger(tag) { logger =>
-      logger(trace, fiberId, logLevel, message, fiberRefLocals.get, spans, location, annotations)
-    }
-  }
-
-  private def unsafeForEachLogger(tag: LightTypeTag)(f: ZLogger[Any, Any] => Unit): Unit = {
-    val loggers = runtimeConfig.loggers.getAllDynamic(tag)
-
-    loggers.foreach(logger => f(logger.asInstanceOf[ZLogger[Any, Any]]))
+    runtimeConfig.logger(trace, fiberId, logLevel, message, Cause.empty, fiberRefLocals.get, spans, annotations)
   }
 
   private def unsafeLog(
-    tag: LightTypeTag,
-    message: () => Any,
+    message: () => String,
+    cause: Cause[Any],
     overrideLogLevel: Option[LogLevel],
     overrideRef1: FiberRef.Runtime[_] = null,
     overrideValue1: AnyRef = null,
@@ -872,9 +864,7 @@ private[zio] final class FiberContext[E, A](
         else map.updated(overrideRef1, overrideValue1)
       } else fiberRefLocals.get
 
-    unsafeForEachLogger(tag) { logger =>
-      logger(trace, fiberId, logLevel, message, contextMap, spans, location, annotations)
-    }
+    runtimeConfig.logger(trace, fiberId, logLevel, message, cause, contextMap, spans, annotations)
   }
 
   @inline
@@ -972,7 +962,7 @@ private[zio] final class FiberContext[E, A](
   private def unsafeReportUnhandled(v: Exit[E, A], trace: ZTraceElement): Unit = v match {
     case Exit.Failure(cause) =>
       try {
-        unsafeLog(ZLogger.causeTag, () => cause, ZIO.someDebug, trace = trace)
+        unsafeLog(() => s"Fiber ${fiberId} did not handle an error", cause, ZIO.someDebug, trace = trace)
       } catch {
         case t: Throwable =>
           if (runtimeConfig.fatal(t)) {
