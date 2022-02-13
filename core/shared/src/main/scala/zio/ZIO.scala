@@ -4540,7 +4540,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Logs the specified cause at the current log level.
    */
-  def log(cause: => Cause[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+  def logCause(cause: => Cause[Any])(implicit trace: ZTraceElement): UIO[Unit] =
     new Logged(() => "", cause, None, trace)
 
   /**
