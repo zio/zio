@@ -38,6 +38,7 @@ private [zio] object LayerMacroUtils {
       providedLayers0 = layers.toList,
       layerToDebug = layerToDebug,
       typeEquals = _ <:< _,
+      sideEffectType = TypeRepr.of[Unit],
       foldTree = buildFinalTree,
       method = provideMethod,
       exprToNode = getNode,
