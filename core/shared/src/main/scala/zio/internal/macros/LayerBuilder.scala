@@ -51,6 +51,7 @@ final case class LayerBuilder[Type, Expr](
   remainder: List[Type],
   providedLayers0: List[Expr],
   layerToDebug: PartialFunction[Expr, Debug],
+  sideEffectType: Type,
   typeEquals: (Type, Type) => Boolean,
   foldTree: LayerTree[Expr] => Expr,
   method: ProvideMethod,
@@ -71,7 +72,8 @@ final case class LayerBuilder[Type, Expr](
     (layers.distinct, maybeDebug)
   }
 
-  private val providedLayerNodes: List[Node[Type, Expr]] = providedLayers.map(exprToNode)
+  private val (sideEffectNodes, providedLayerNodes): (List[Node[Type, Expr]], List[Node[Type, Expr]]) =
+    providedLayers.map(exprToNode).partition(_.outputs.exists(typeEquals(_, sideEffectType)))
 
   def build: Expr = {
     assertNoAmbiguity()
@@ -82,10 +84,13 @@ final case class LayerBuilder[Type, Expr](
      * fail with one or more GraphErrors.
      */
     val layerTreeEither: Either[::[GraphError[Type, Expr]], LayerTree[Expr]] = {
-      val nodes: List[Node[Type, Expr]] = providedLayerNodes ++ remainderNodes
+      val nodes: List[Node[Type, Expr]] = providedLayerNodes ++ remainderNodes ++ sideEffectNodes
       val graph                         = Graph(nodes, typeEquals)
-      val result                        = graph.buildComplete(target)
-      result
+
+      for {
+        original    <- graph.buildComplete(target)
+        sideEffects <- graph.buildNodes(sideEffectNodes)
+      } yield sideEffects ++ original
     }
 
     layerTreeEither match {
@@ -130,7 +135,7 @@ final case class LayerBuilder[Type, Expr](
       tree.map(showExpr).toSet
 
     val unusedUserLayers =
-      providedLayers.map(showExpr).toSet -- usedLayers -- remainderNodes.map(n => showExpr(n.value))
+      providedLayerNodes.map(n => showExpr(n.value)).toSet -- usedLayers -- remainderNodes.map(n => showExpr(n.value))
 
     if (unusedUserLayers.nonEmpty) {
       val message = "\n" + TerminalRendering.unusedLayersError(unusedUserLayers.toList)
@@ -166,11 +171,11 @@ final case class LayerBuilder[Type, Expr](
 
     val topLevelErrors = allErrors.collect { case top: LayerWiringError.MissingTopLevel =>
       top.layer
-    }
+    }.distinct
 
     val transitive = allErrors.collect { case LayerWiringError.MissingTransitive(layer, deps) =>
       layer -> deps
-    }.groupBy(_._1).map { case (key, value) => key -> value.flatMap(_._2) }
+    }.groupBy(_._1).map { case (key, value) => key -> value.flatMap(_._2).distinct }
 
     val circularErrors = allErrors.collect { case LayerWiringError.Circular(layer, dep) =>
       layer -> dep

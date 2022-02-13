@@ -3,12 +3,24 @@ package zio.internal.macros
 import zio.internal.macros.LayerTree._
 
 final case class Graph[Key, A](nodes: List[Node[Key, A]], keyEquals: (Key, Key) => Boolean) {
+
   def buildComplete(outputs: List[Key]): Either[::[GraphError[Key, A]], LayerTree[A]] =
     forEach(outputs) { output =>
       getNodeWithOutput[GraphError[Key, A]](output, error = GraphError.MissingTopLevelDependency(output))
         .flatMap(node => buildNode(node, Set(node)))
     }
       .map(_.distinct.combineHorizontally)
+
+  def buildNodes(nodes: List[Node[Key, A]]): Either[::[GraphError[Key, A]], LayerTree[A]] =
+    forEach(nodes)(buildNode).map(_.combineHorizontally)
+
+  private def buildNode(node: Node[Key, A]): Either[::[GraphError[Key, A]], LayerTree[A]] =
+    forEach(node.inputs) { output =>
+      getNodeWithOutput[GraphError[Key, A]](output, error = GraphError.missingTransitiveDependency(node, output))
+        .flatMap(node => buildNode(node, Set(node)))
+    }
+      .map(_.distinct.combineHorizontally)
+      .map(_ >>> LayerTree.succeed(node.value))
 
   def map[B](f: A => B): Graph[Key, B] =
     Graph(nodes.map(_.map(f)), keyEquals)
