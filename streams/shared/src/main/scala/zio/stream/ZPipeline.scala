@@ -618,7 +618,6 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             val concatenated = carry concat string
 
             if (concatenated.nonEmpty) {
-
               // If we had a split CRLF, start reading from the last character of the leftover, which was the '\r'
               // Otherwise we just skip over the entire previous leftover, as it doesn't contain a newline.
               val continueFrom =
@@ -640,7 +639,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                           (index + 2, true, false)
                         } else if (index == concatenated.length - 1)
                           (sliceStart, false, true)
-                        else (index, false, false)
+                        else (sliceStart, false, false)
                       case _ => (sliceStart, false, midCRLF)
                     }
                 } match {
