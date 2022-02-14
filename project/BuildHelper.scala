@@ -245,7 +245,7 @@ object BuildHelper {
     autoAPIMappings := true,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
     Compile / fork := true,
-    Test / fork := false
+    Test / fork    := false
   )
 
   def macroExpansionSettings = Seq(
