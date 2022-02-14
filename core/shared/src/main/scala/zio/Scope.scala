@@ -18,10 +18,11 @@ package zio
 
 import scala.collection.immutable.LongMap
 
-trait Scope {
+trait Scope { self =>
   def addFinalizer(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
   def close(exit: Exit[Any, Any]): UIO[Unit]
-  def use[R, E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A]
+  final def use[R, E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+    zio.provideSomeEnvironment[R](_ ++ [Scope] ZEnvironment(self)).onExit(self.close(_))
 }
 
 object Scope {
@@ -45,9 +46,6 @@ object Scope {
 
         def close(exit: Exit[Any, Any]): UIO[Unit] =
           releaseMap.releaseAll(exit, executionStrategy).unit
-
-        def use[R, E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
-          zio.provideSomeEnvironment[R](_ ++ [Scope] ZEnvironment(self)).onExit(self.close(_))
       }
     }
 

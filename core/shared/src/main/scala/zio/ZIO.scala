@@ -2780,6 +2780,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def accessZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
     environmentWithZIO
 
+  def acquireRelease[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Unit])(implicit
+    trace: ZTraceElement
+  ): ZIO[R with Scope, E, A] =
+    acquireReleaseExit(acquire)((a, _) => release(a))
+
+  def acquireReleaseExit[R, E, A](acquire: ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Unit])(implicit
+    trace: ZTraceElement
+  ): ZIO[R with Scope, E, A] =
+    ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizer(exit => release(a, exit))))
+
+  def acquireReleaseInterruptible[R, E, A](acquire: ZIO[R, E, A])(release: ZIO[R, Nothing, Unit])(implicit
+    trace: ZTraceElement
+  ): ZIO[R with Scope, E, A] =
+    acquire.ensuring(ZIO.addFinalizer(_ => release))
+
+  def allocateFinalizeExitInterruptible[R, E, A](acquire: ZIO[R, E, A])(
+    release: Exit[Any, Any] => ZIO[R, Nothing, Unit]
+  )(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
+    acquire.ensuring(ZIO.addFinalizer(exit => release(exit)))
+
   /**
    * When this effect represents acquisition of a resource (for example, opening
    * a file, launching a thread, etc.), `acquireReleaseWith` can be used to
@@ -2860,6 +2880,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
           })
       })
     )
+
+  def addFinalizer[R](
+    finalizer: Exit[Any, Any] => URIO[R, Any]
+  )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Any] =
+    for {
+      environment <- ZIO.environment[R]
+      scope       <- ZIO.service[Scope]
+      _           <- scope.addFinalizer(exit => finalizer(exit).provideEnvironment(environment))
+    } yield ()
 
   /**
    * Makes an explicit check to see if the fiber has been interrupted, and if
@@ -4889,7 +4918,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   def parallelFinalizers[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
-    ZIO.uninterruptibleMask { restore => 
+    ZIO.uninterruptibleMask { restore =>
       for {
         outerScope <- ZIO.service[Scope]
         innerScope <- Scope.parallel
