@@ -18,8 +18,6 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.annotation.implicitNotFound
-
 /**
  * A simple, macro-less means of creating accessors from Services. Extend the
  * companion object with `Accessible[ServiceName]`, then simply call
@@ -31,14 +29,16 @@ import scala.annotation.implicitNotFound
  *   trait FooService {
  *     def magicNumber: UIO[Int]
  *     def castSpell(chant: String): UIO[Boolean]
+ *     def concat(a: String, b: String): String
  *   }
  *
  *   object FooService extends Accessible[FooService]
  *
- *   val example: ZIO[FooService, Nothing, Unit] =
+ *   val example: ZIO[Has[FooService], Nothing, Unit] =
  *     for {
  *       int  <- FooService(_.magicNumber)
  *       bool <- FooService(_.castSpell("Oogabooga!"))
+ *       str  <- FooService(_.concat("hello", " world"))
  *     } yield ()
  * }}}
  */
@@ -47,4 +47,9 @@ trait Accessible[R] {
     f: R => ZIO[R1, E, A]
   )(implicit tag: Tag[R], trace: ZTraceElement): ZIO[R1, E, A] =
     ZIO.serviceWithZIO[R](f)
+
+  def apply[A](
+    f: R => A
+  )(implicit tag: Tag[R], trace: ZTraceElement, ev: DummyImplicit): ZIO[R, Nothing, A] =
+    ZIO.serviceWith[R](f)
 }
