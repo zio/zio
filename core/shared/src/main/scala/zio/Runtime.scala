@@ -504,11 +504,11 @@ object Runtime {
   )(implicit trace: ZTraceElement): Runtime.Managed[R] = {
     val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
     val (environment, shutdown) = runtime.unsafeRun {
-      ZManaged.ReleaseMap.make.flatMap { releaseMap =>
-        ZManaged.currentReleaseMap.locally(releaseMap)(layer.build.zio).flatMap { case (_, acquire) =>
+      Scope.make.flatMap { scope =>
+        layer.build.provideService(scope).flatMap { acquire =>
           val finalizer = () =>
             runtime.unsafeRun {
-              releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
+              scope.close(Exit.unit).uninterruptible.unit
             }
 
           UIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))

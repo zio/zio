@@ -853,7 +853,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZManaged[R0, E1, A] =
-    ZManaged.suspend(layer.build.flatMap(r => self.provideEnvironment(r)))
+    ZManaged(
+      Scope.make.flatMap { scope =>
+        layer.build.provideSomeEnvironment[R0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
+      }
+    ).flatMap(self.provideEnvironment(_))
 
   /**
    * Transforms the environment being provided to this effect with the specified

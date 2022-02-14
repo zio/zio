@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.System
+import zio.{System, ZIO}
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test.TestSystem._
@@ -63,8 +63,10 @@ object SystemSpec extends ZIOBaseSpec {
       } yield assert(prop)(isNone)
     },
     test("fetch the system's line separator and check that it is identical to Data.lineSeparator") {
-      TestSystem.live(Data(lineSeparator = ",")).build.map(_.get[System]).use { testSystem =>
-        assertM(testSystem.lineSeparator)(equalTo(","))
+      ZIO.scoped[Any, Nothing, TestResult] {
+        TestSystem.live(Data(lineSeparator = ",")).build.map(_.get[System]).flatMap { testSystem =>
+          assertM(testSystem.lineSeparator)(equalTo(","))
+        }
       }
     },
     test("fetch the system's line separator and check that if it is set, return the set value") {

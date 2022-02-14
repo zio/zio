@@ -432,12 +432,22 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideLayerShared(layer))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
       case ManagedCase(managed) =>
+        val managed0 = ZManaged(
+          Scope.make.flatMap { scope =>
+            layer.build.provideSomeEnvironment[R0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
+          }
+        )
         Spec.managed(
-          layer.build.flatMap(r => managed.map(_.provideEnvironment(r)).provideEnvironment(r))
+          managed0.flatMap(r => managed.map(_.provideEnvironment(r)).provideEnvironment(r))
         )
       case MultipleCase(specs) =>
+        val managed = ZManaged(
+          Scope.make.flatMap { scope =>
+            layer.build.provideSomeEnvironment[R0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
+          }
+        )
         Spec.managed(
-          layer.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r))))
+          managed.map(r => Spec.multiple(specs.map(_.provideEnvironment(r))))
         )
       case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
     }
@@ -641,28 +651,46 @@ object Spec {
   final class ProvideSomeLayer[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: EnvironmentTag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
+    )(implicit
+      ev: R0 with R1 <:< R,
+      tagged: EnvironmentTag[R1],
+      trace: ZTraceElement
+    ): Spec[R0, E1, T] =
       self.asInstanceOf[Spec[R0 with R1, E, T]].provideLayer(ZLayer.environment[R0] ++ layer)
   }
 
   final class ProvideSomeLayerShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
-    )(implicit ev: R0 with R1 <:< R, tagged: EnvironmentTag[R1], trace: ZTraceElement): Spec[R0, E1, T] =
+    )(implicit
+      ev: R0 with R1 <:< R,
+      tagged: EnvironmentTag[R1],
+      trace: ZTraceElement
+    ): Spec[R0, E1, T] =
       self.caseValue match {
         case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeLayerShared(layer))
         case LabeledCase(label, spec) => Spec.labeled(label, spec.provideSomeLayerShared(layer))
         case ManagedCase(managed) =>
+          val managed0 = ZManaged(
+            Scope.make.flatMap { scope =>
+              layer.build.provideSomeEnvironment[R0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
+            }
+          )
           Spec.managed(
-            layer.build.flatMap { r =>
+            managed0.flatMap { r =>
               managed
                 .map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))
                 .provideSomeLayer[R0](ZLayer.succeedEnvironment(r))
             }
           )
         case MultipleCase(specs) =>
+          val managed0 = ZManaged(
+            Scope.make.flatMap { scope =>
+              layer.build.provideSomeEnvironment[R0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
+            }
+          )
           Spec.managed(
-            layer.build.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))))
+            managed0.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))))
           )
         case TestCase(test, annotations) =>
           Spec.test(test.provideSomeLayer(layer), annotations)

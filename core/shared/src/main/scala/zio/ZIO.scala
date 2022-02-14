@@ -1482,7 +1482,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZIO[R0, E1, A] =
-    ZIO.suspendSucceed(layer.build.use(r => self.provideEnvironment(r)))
+    ZIO.scoped[R0, E1, A] {
+      layer.build.flatMap(r => self.provideEnvironment(r))
+    }
 
   /**
    * Provides the `ZIO` effect with the single service it requires. If the
@@ -2725,6 +2727,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 }
 
 object ZIO extends ZIOCompanionPlatformSpecific {
+
+  // final class Scoped(private val dummy: Boolean = true) extends AnyVal {
+  //   def apply[E, A](
+  //     zio: ZIO[Scope, E, A]
+  //   )(implicit trace: ZTraceElement): ZIO[Any, E, A] =
+  //     Scope.make.flatMap { scope =>
+  //       scope.use[Any, E, A](zio)
+  //     }
+  //   def apply[R, E, A](
+  //     zio: ZIO[Scope with R, E, A]
+  //   )(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  //     Scope.make.flatMap { scope =>
+  //       scope.use[R, E, A](zio)
+  //     }
+  // }
 
   /**
    * The level of parallelism for parallel operators.
@@ -4871,6 +4888,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       else ZIO.shift(executor).acquireRelease(ZIO.unshift, zio)
     }
 
+  def parallelFinalizers[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
+    ZIO.uninterruptibleMask { restore => 
+      for {
+        outerScope <- ZIO.service[Scope]
+        innerScope <- Scope.parallel
+        _          <- outerScope.addFinalizer(innerScope.close)
+        a          <- restore(innerScope.use[R, E, A](zio))
+      } yield a
+    }
+
   /**
    * Retrieves the maximum number of fibers for parallel operators or `None` if
    * it is unbounded.
@@ -5083,6 +5110,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def scope(implicit trace: ZTraceElement): UIO[ZScope] =
     descriptorWith(descriptor => ZIO.succeedNow(descriptor.scope))
+
+  def scoped[R, E, A](zio: ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    Scope.make.flatMap(_.use[R, E, A](zio))
 
   /**
    * Passes the fiber's scope to the specified function, which creates an effect

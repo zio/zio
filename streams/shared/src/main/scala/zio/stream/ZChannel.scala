@@ -855,8 +855,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def provideLayer[OutErr1 >: OutErr, Env0](
     layer: => ZLayer[Env0, OutErr1, Env]
-  )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
-    ZChannel.managed(layer.build)(env => self.provideEnvironment(env))
+  )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] = {
+    val managed = ZManaged(
+      Scope.make.flatMap { scope =>
+        layer.build.provideSomeEnvironment[Env0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
+      }
+    )
+    ZChannel.managed(managed)(env => self.provideEnvironment(env))
+  }
 
   /**
    * Provides the channel with the single service it requires. If the channel

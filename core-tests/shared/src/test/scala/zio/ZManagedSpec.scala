@@ -1276,10 +1276,14 @@ object ZManagedSpec extends ZIOBaseSpec {
     ),
     suite("toLayerMany")(
       test("converts a managed effect to a layer") {
-        val managed = ZEnv.live.build
-        val layer   = managed.toLayerEnvironment
-        val zio1    = ZIO.environment[ZEnv]
-        val zio2    = zio1.provideLayer(layer)
+        val managed = ZManaged {
+          Scope.make.flatMap { scope =>
+            ZEnv.live.build.provideSomeEnvironment[ZEnv](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
+          }
+        }
+        val layer = managed.toLayerEnvironment
+        val zio1  = ZIO.environment[ZEnv]
+        val zio2  = zio1.provideLayer(layer)
         assertM(zio2)(anything)
       }
     ),

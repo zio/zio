@@ -96,9 +96,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Builds a layer into a managed value.
    */
-  final def build(implicit trace: ZTraceElement): ZManaged[RIn, E, ZEnvironment[ROut]] =
+  final def build(implicit trace: ZTraceElement): ZIO[RIn with Scope, E, ZEnvironment[ROut]] =
     for {
-      memoMap <- ZLayer.MemoMap.make.toManaged
+      memoMap <- ZLayer.MemoMap.make
       run     <- self.scope
       value   <- run(memoMap)
     } yield value
@@ -165,7 +165,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * your entire application is a layer, such as an HTTP server.
    */
   final def launch(implicit trace: ZTraceElement): ZIO[RIn, E, Nothing] =
-    build.useForever
+    ZIO.scoped[RIn, E, Nothing] {
+      build *> ZIO.never
+    }
 
   /**
    * Returns a new layer whose output is mapped by the specified function.
@@ -185,8 +187,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Returns a managed effect that, if evaluated, will return the lazily
    * computed result of this layer.
    */
-  final def memoize(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZLayer[RIn, E, ROut]] =
-    build.memoize.map(ZLayer.fromManagedEnvironment)
+  final def memoize(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZLayer[RIn, E, ROut]] =
+    build.memoize.map(ZLayer.Managed[RIn, E, ROut](_))
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -265,8 +267,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def toRuntime(
     runtimeConfig: RuntimeConfig
-  )(implicit ev: Any <:< RIn, trace: ZTraceElement): Managed[E, Runtime[ROut]] =
-    build.provideEnvironment(ZEnvironment.empty.upcast).map(Runtime(_, runtimeConfig))
+  )(implicit ev: Any <:< RIn, trace: ZTraceElement): ZIO[Scope, E, Runtime[ROut]] =
+    build.provideSomeEnvironment[Scope](ZEnvironment.empty.upcast(ev).union[Scope](_)).map(Runtime(_, runtimeConfig))
 
   /**
    * Updates one of the services output by this layer.
@@ -297,33 +299,33 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   private final def scope(implicit
     trace: ZTraceElement
-  ): Managed[Nothing, ZLayer.MemoMap => ZManaged[RIn, E, ZEnvironment[ROut]]] =
+  ): ZIO[Scope, Nothing, ZLayer.MemoMap => ZIO[RIn with Scope, E, ZEnvironment[ROut]]] =
     self match {
       case ZLayer.Fold(self, failure, success) =>
-        ZManaged.succeed { memoMap =>
+        ZIO.succeed { memoMap =>
           memoMap
             .getOrElseMemoize(self)
-            .foldCauseManaged(
+            .foldCauseZIO(
               e => memoMap.getOrElseMemoize(failure(e)),
               r => memoMap.getOrElseMemoize(success(r))
             )
         }
       case ZLayer.Fresh(self) =>
-        Managed.succeed(_ => self.build)
+        ZIO.succeed(_ => self.build)
       case ZLayer.Managed(self) =>
-        Managed.succeed(_ => self)
+        ZIO.succeed(_ => self)
       case ZLayer.Suspend(self) =>
-        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self()))
+        ZIO.succeed(memoMap => memoMap.getOrElseMemoize(self()))
       case ZLayer.To(self, that) =>
-        ZManaged.succeed(memoMap =>
+        ZIO.succeed(memoMap =>
           memoMap
             .getOrElseMemoize(self)
-            .flatMap(r => memoMap.getOrElseMemoize(that).provideEnvironment(r)(trace))
+            .flatMap(r => memoMap.getOrElseMemoize(that).provideSomeEnvironment[Scope](_ ++ r)(trace))
         )
       case ZLayer.ZipWith(self, that, f) =>
-        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))
+        ZIO.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWith(memoMap.getOrElseMemoize(that))(f))
       case ZLayer.ZipWithPar(self, that, f) =>
-        ZManaged.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWithPar(memoMap.getOrElseMemoize(that))(f))
+        ZIO.succeed(memoMap => memoMap.getOrElseMemoize(self).zipWithPar(memoMap.getOrElseMemoize(that))(f))
     }
 }
 
@@ -337,7 +339,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
   private final case class Fresh[RIn, E, ROut](self: ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
 
-  private final case class Managed[-RIn, +E, +ROut](self: ZManaged[RIn, E, ZEnvironment[ROut]])
+  private final case class Managed[-RIn, +E, +ROut](self: ZIO[RIn with Scope, E, ZEnvironment[ROut]])
       extends ZLayer[RIn, E, ROut]
 
   private final case class Suspend[-RIn, +E, +ROut](self: () => ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
@@ -495,8 +497,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     trace: ZTraceElement
   ): ZLayer[R, E, Collection[B]] = {
     val builder: mutable.Builder[B, Collection[B]] = bf.newBuilder(in)
-//    implicit val tag2: Tag[mutable.Builder[B, Collection[B]]] = ???
-//    val cool                                                  = 3
     in
       .foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeed(builder))((io, a) =>
         io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
@@ -5109,7 +5109,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromManagedEnvironment[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    Managed(m)
+    Managed[R, E, A](
+      m.zio.onExit {
+        case Exit.Failure(_)              => ZIO.unit
+        case Exit.Success((finalizer, _)) => Scope.addFinalizer(finalizer)
+      }.map(_._2)
+    )
 
   /**
    * Constructs a layer from a managed resource, which must return one or more
@@ -5243,7 +5248,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * returns it. Otherwise, obtains the layer, stores it in the memo map, and
      * adds a finalizer to the outer `Managed`.
      */
-    def getOrElseMemoize[E, A, B](layer: ZLayer[A, E, B]): ZManaged[A, E, ZEnvironment[B]]
+    def getOrElseMemoize[E, A, B](layer: ZLayer[A, E, B]): ZIO[A with Scope, E, ZEnvironment[B]]
   }
 
   private object MemoMap {
@@ -5253,81 +5258,71 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      */
     def make(implicit trace: ZTraceElement): UIO[MemoMap] =
       Ref.Synchronized
-        .make[Map[ZLayer[Nothing, Any, Any], (IO[Any, Any], ZManaged.Finalizer)]](Map.empty)
+        .make[Map[ZLayer[Nothing, Any, Any], (IO[Any, Any], Exit[Any, Any] => UIO[Any])]](Map.empty)
         .map { ref =>
           new MemoMap { self =>
             final def getOrElseMemoize[E, A, B](
               layer: ZLayer[A, E, B]
-            ): ZManaged[A, E, ZEnvironment[B]] =
-              ZManaged {
-                ref.modifyZIO { map =>
-                  map.get(layer) match {
-                    case Some((acquire, release)) =>
-                      val cached =
-                        ZManaged.currentReleaseMap.get.flatMap { releaseMap =>
-                          acquire
-                            .asInstanceOf[IO[E, ZEnvironment[B]]]
-                            .onExit {
-                              case Exit.Success(_) => releaseMap.add(release)
-                              case Exit.Failure(_) => UIO.unit
-                            }
-                            .map((release, _))
-                        }
+            ): ZIO[A with Scope, E, ZEnvironment[B]] =
+              ref.modifyZIO { map =>
+                map.get(layer) match {
+                  case Some((acquire, release)) =>
+                    val cached: ZIO[Scope, E, ZEnvironment[B]] = acquire
+                      .asInstanceOf[IO[E, ZEnvironment[B]]]
+                      .onExit {
+                        case Exit.Success(_) => Scope.addFinalizer(release)
+                        case Exit.Failure(_) => UIO.unit
+                      }
 
-                      UIO.succeed((cached, map))
+                    UIO.succeed((cached, map))
+                  case None =>
+                    for {
+                      observers    <- Ref.make(0)
+                      promise      <- Promise.make[E, ZEnvironment[B]]
+                      finalizerRef <- Ref.make[Exit[Any, Any] => UIO[Any]](_ => ZIO.unit)
 
-                    case None =>
-                      for {
-                        observers    <- Ref.make(0)
-                        promise      <- Promise.make[E, ZEnvironment[B]]
-                        finalizerRef <- Ref.make[ZManaged.Finalizer](ZManaged.Finalizer.noop)
+                      resource = ZIO.uninterruptibleMask { restore =>
+                                   for {
+                                     a          <- ZIO.environment[A]
+                                     outerScope <- ZIO.service[Scope]
+                                     innerScope <- Scope.make
+                                     tp <-
+                                       restore(
+                                         layer.scope
+                                           .flatMap(_.apply(self))
+                                           .provideSomeEnvironment[A](_ ++ [Scope] ZEnvironment(innerScope))
+                                       ).exit.flatMap {
+                                         case e @ Exit.Failure(cause) =>
+                                           promise.failCause(cause) *> innerScope.close(e) *> ZIO
+                                             .failCause(cause)
 
-                        resource = ZIO.uninterruptibleMask { restore =>
-                                     for {
-                                       a               <- ZIO.environment[A]
-                                       outerReleaseMap <- ZManaged.currentReleaseMap.get
-                                       innerReleaseMap <- ZManaged.ReleaseMap.make
-                                       tp <-
-                                         restore(
-                                           ZManaged.currentReleaseMap.locally(innerReleaseMap)(
-                                             layer.scope.flatMap(_.apply(self)).zio
-                                           )
-                                         ).exit.flatMap {
-                                           case e @ Exit.Failure(cause) =>
-                                             promise.failCause(cause) *> innerReleaseMap.releaseAll(
-                                               e,
-                                               ExecutionStrategy.Sequential
-                                             ) *> ZIO
-                                               .failCause(cause)
+                                         case Exit.Success(b) =>
+                                           for {
+                                             _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
+                                                    ZIO.whenZIO(observers.modify(n => (n == 1, n - 1)))(
+                                                      innerScope.close(e)
+                                                    )
+                                                  }
+                                             _ <- observers.update(_ + 1)
+                                             outerFinalizer <-
+                                               outerScope.addFinalizer(e => finalizerRef.get.flatMap(_.apply(e)))
+                                             _ <- promise.succeed(b)
+                                           } yield b
+                                       }
+                                   } yield tp
+                                 }
 
-                                           case Exit.Success((_, b)) =>
-                                             for {
-                                               _ <- finalizerRef.set { (e: Exit[Any, Any]) =>
-                                                      ZIO.whenZIO(observers.modify(n => (n == 1, n - 1)))(
-                                                        innerReleaseMap.releaseAll(e, ExecutionStrategy.Sequential)
-                                                      )
-                                                    }
-                                               _ <- observers.update(_ + 1)
-                                               outerFinalizer <-
-                                                 outerReleaseMap.add(e => finalizerRef.get.flatMap(_.apply(e)))
-                                               _ <- promise.succeed(b)
-                                             } yield (outerFinalizer, b)
-                                         }
-                                     } yield tp
-                                   }
+                      memoized = (
+                                   promise.await.onExit {
+                                     case Exit.Failure(_) => UIO.unit
+                                     case Exit.Success(_) => observers.update(_ + 1)
+                                   },
+                                   (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
+                                 )
+                    } yield (resource, if (layer.isFresh) map else map + (layer -> memoized))
 
-                        memoized = (
-                                     promise.await.onExit {
-                                       case Exit.Failure(_) => UIO.unit
-                                       case Exit.Success(_) => observers.update(_ + 1)
-                                     },
-                                     (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
-                                   )
-                      } yield (resource, if (layer.isFresh) map else map + (layer -> memoized))
-
-                  }
-                }.flatten
-              }
+                }
+              }.flatten
           }
         }
   }
@@ -5496,7 +5491,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      */
     final def apply[R, E1 >: E, A](
       zio: ZIO[ROut with R, E1, A]
-    )(implicit ev1: EnvironmentTag[R], ev2: EnvironmentTag[ROut], trace: ZTraceElement): ZIO[RIn with R, E1, A] =
+    )(implicit
+      ev1: EnvironmentTag[R],
+      ev2: EnvironmentTag[ROut],
+      ev3: EnvironmentTag[RIn],
+      trace: ZTraceElement
+    ): ZIO[RIn with R, E1, A] =
       ZIO.provideLayer[RIn, E1, ROut, R, A](self)(zio)
 
     /**

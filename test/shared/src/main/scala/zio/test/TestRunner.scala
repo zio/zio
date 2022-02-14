@@ -96,5 +96,9 @@ final case class TestRunner[R, E](
   private[test] def buildRuntime(implicit
     trace: ZTraceElement
   ): Managed[Nothing, Runtime[TestLogger with Clock]] =
-    bootstrap.toRuntime(runtimeConfig)
+    ZManaged(
+      Scope.make.flatMap { scope =>
+        bootstrap.toRuntime(runtimeConfig).provideEnvironment(ZEnvironment(scope)).map(r => (scope.close(_), r))
+      }
+    )
 }
