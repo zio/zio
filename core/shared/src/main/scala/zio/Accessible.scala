@@ -15,6 +15,7 @@ import scala.annotation.implicitNotFound
  *   trait FooService {
  *     def magicNumber: UIO[Int]
  *     def castSpell(chant: String): UIO[Boolean]
+ *     def concat(a: String, b: String): String
  *   }
  *
  *   object FooService extends Accessible[FooService]
@@ -23,12 +24,16 @@ import scala.annotation.implicitNotFound
  *     for {
  *       int  <- FooService(_.magicNumber)
  *       bool <- FooService(_.castSpell("Oogabooga!"))
+ *       str  <- FooService(_.concat("hello", " world"))
  *     } yield ()
  * }}}
  */
 trait Accessible[R] {
   def apply[R0, E, A](f: R => ZIO[R0, E, A])(implicit tag: Tag[R], isAny: IsAny[R0]): ZIO[Has[R], E, A] =
     ZIO.serviceWith[R](f.asInstanceOf[R => ZIO[Any, E, A]])
+
+  def apply[A](f: R => A)(implicit tag: Tag[R]): ZIO[Has[R], Nothing, A] =
+    ZIO.service[R].map(f)
 }
 
 object Accessible {
