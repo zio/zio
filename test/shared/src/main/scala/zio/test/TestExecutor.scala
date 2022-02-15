@@ -33,32 +33,38 @@ object TestExecutor {
     env: Layer[Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]] =
-      spec.annotated
-        .provideLayer(ZTestLogger.default >>> environment)
-        .foreachExec(defExec)(
-          e =>
-            e.failureOrCause.fold(
-              { case (failure, annotations) => ZIO.succeedNow((Left(failure), annotations)) },
-              cause => ZIO.succeedNow((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
-            ),
-          { case (success, annotations) =>
-            ZIO.succeedNow((Right(success), annotations))
-          }
-        )
-        .use(_.foldManaged[Any, Nothing, ExecutedSpec[E]](defExec) {
-          case Spec.ExecCase(_, spec) =>
-            ZManaged.succeedNow(spec)
-          case Spec.LabeledCase(label, spec) =>
-            ZManaged.succeedNow(ExecutedSpec.labeled(label, spec))
-          case Spec.ManagedCase(managed) =>
-            managed
-          case Spec.MultipleCase(specs) =>
-            ZManaged.succeedNow(ExecutedSpec.multiple(specs))
-          case Spec.TestCase(test, staticAnnotations) =>
-            test.map { case (result, dynamicAnnotations) =>
-              ExecutedSpec.test(result, staticAnnotations ++ dynamicAnnotations)
-            }.toManaged
-        }.useNow)
+      ZIO.scoped {
+        spec.annotated
+          .provideLayer(ZTestLogger.default >>> environment)
+          .foreachExec(defExec)(
+            e =>
+              e.failureOrCause.fold(
+                { case (failure, annotations) => ZIO.succeedNow((Left(failure), annotations)) },
+                cause => ZIO.succeedNow((Left(TestFailure.Runtime(cause)), TestAnnotationMap.empty))
+              ),
+            { case (success, annotations) =>
+              ZIO.succeedNow((Right(success), annotations))
+            }
+          )
+          .flatMap { spec =>
+            ZIO.scoped {
+              spec.foldManaged[Any, Nothing, ExecutedSpec[E]](defExec) {
+                case Spec.ExecCase(_, spec) =>
+                  ZIO.succeedNow(spec)
+                case Spec.LabeledCase(label, spec) =>
+                  ZIO.succeedNow(ExecutedSpec.labeled(label, spec))
+                case Spec.ManagedCase(managed) =>
+                  managed
+                case Spec.MultipleCase(specs) =>
+                  ZIO.succeedNow(ExecutedSpec.multiple(specs))
+                case Spec.TestCase(test, staticAnnotations) =>
+                  test.map { case (result, dynamicAnnotations) =>
+                    ExecutedSpec.test(result, staticAnnotations ++ dynamicAnnotations)
+                  }
+                }
+              }
+            }
+      }
     val environment = env
   }
 }

@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Semaphore, ZTraceElement}
+import zio.{Semaphore, ZIO, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZStream.BufferedPull
 
@@ -61,12 +61,14 @@ trait FunctionVariants {
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit trace: ZTraceElement): Gen[R, A => B] =
     Gen.fromZIO {
-      gen.sample.forever.collectSome.toPull.use { pull =>
-        for {
-          lock    <- Semaphore.make(1)
-          bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)
-          fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).unsome.map(_.get.value))(hash)
-        } yield fun
+      ZIO.scoped[R, Nothing, Fun[A, B]] {
+        gen.sample.forever.collectSome.toPull.flatMap { pull =>
+          for {
+            lock    <- Semaphore.make(1)
+            bufPull <- BufferedPull.make[R, Nothing, Sample[R, B]](pull)
+            fun     <- Fun.makeHash((_: A) => lock.withPermit(bufPull.pullElement).unsome.map(_.get.value))(hash)
+          } yield fun
+        }
       }
     }
 

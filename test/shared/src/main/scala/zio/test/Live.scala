@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{IO, ZEnv, ZIO, ZLayer, ZManaged, ZTraceElement}
+import zio.{IO, ZEnv, ZIO, ZLayer, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -38,7 +38,7 @@ object Live {
    */
   def default: ZLayer[ZEnv, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
-    ZManaged
+    ZIO
       .environmentWith[ZEnv] { zenv =>
         new Live {
           def provide[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): IO[E, A] =

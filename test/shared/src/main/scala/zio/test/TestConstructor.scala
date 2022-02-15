@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{ZIO, ZManaged, ZTraceElement}
+import zio.{Scope, ZIO, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
@@ -42,13 +42,13 @@ trait TestConstructorLowPriority1 extends TestConstructorLowPriority2 {
 trait TestConstructorLowPriority2 extends TestConstructorLowPriority3 {
 
   implicit def TestResultZManagedConstructor[R, E, A <: TestResult]
-    : TestConstructor.WithOut[R, ZManaged[R, E, A], ZSpec[R, E]] =
-    new TestConstructor[R, ZManaged[R, E, A]] {
+    : TestConstructor.WithOut[R, ZIO[Scope with R, E, A], ZSpec[R, E]] =
+    new TestConstructor[R, ZIO[Scope with R, E, A]] {
       type Out = ZSpec[R, E]
       def apply(label: String)(
-        assertion: => ZManaged[R, E, A]
+        assertion: => ZIO[Scope with R, E, A]
       )(implicit trace: ZTraceElement): ZSpec[R, E] =
-        test(label)(assertion.useNow)
+        test(label)(ZIO.scoped[R, E, A](assertion))
     }
 }
 
@@ -97,13 +97,13 @@ trait TestConstructorLowPriority5 extends TestConstructorLowPriority6 {
 trait TestConstructorLowPriority6 extends TestConstructorLowPriority7 {
 
   implicit def AssertZManagedConstructor[R, E, A <: Assert]
-    : TestConstructor.WithOut[R, ZManaged[R, E, A], ZSpec[R, E]] =
-    new TestConstructor[R, ZManaged[R, E, A]] {
+    : TestConstructor.WithOut[R, ZIO[Scope with R, E, A], ZSpec[R, E]] =
+    new TestConstructor[R, ZIO[Scope with R, E, A]] {
       type Out = ZSpec[R, E]
       def apply(label: String)(
-        assertion: => ZManaged[R, E, A]
+        assertion: => ZIO[Scope with R, E, A]
       )(implicit trace: ZTraceElement): ZSpec[R, E] =
-        test(label)(assertion.useNow)
+        test(label)(ZIO.scoped[R, E, A](assertion))
     }
 }
 

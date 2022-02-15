@@ -35,7 +35,7 @@ trait TimeoutVariants {
           spec.caseValue match {
             case Spec.ExecCase(exec, spec)     => Spec.exec(exec, loop(labels, spec))
             case Spec.LabeledCase(label, spec) => Spec.labeled(label, loop(label :: labels, spec))
-            case Spec.ManagedCase(managed)     => Spec.managed(managed.map(loop(labels, _)))
+            case Spec.ManagedCase(managed)     => Spec.managed(???)
             case Spec.MultipleCase(specs) =>
               Spec.multiple(specs.map(loop(labels, _)))
             case Spec.TestCase(test, annotations) =>

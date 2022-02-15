@@ -38,9 +38,9 @@ object ZTestLogger {
   val default: ZLayer[Any, Nothing, Any] =
     ZLayer {
       for {
-        runtimeConfig <- ZManaged.runtimeConfig
-        testLogger    <- ZTestLogger.make.toManaged
-        _             <- ZManaged.withRuntimeConfig(runtimeConfig.copy(logger = testLogger))
+        runtimeConfig <- ZIO.runtimeConfig
+        testLogger    <- ZTestLogger.make
+        _             <- ZIO.succeed(???)//ZManaged.withRuntimeConfig(runtimeConfig.copy(logger = testLogger))
       } yield ()
     }
 
