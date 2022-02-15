@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package zio
+package zio.managed
 
+import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io

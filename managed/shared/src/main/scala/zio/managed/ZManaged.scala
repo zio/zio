@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package zio
+package zio.managed
 
-import zio.ZManaged.ReleaseMap
+import zio._
+import zio.managed.ZManaged.ReleaseMap
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.collection.immutable.LongMap
@@ -1174,7 +1175,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Constructs a layer from this managed resource.
    */
   def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): ZLayer[R, E, A1] =
-    ZLayer.fromManaged[R, E, A1](self)
+    ???
 
   /**
    * Constructs a layer from this managed resource, which must return one or
@@ -1184,7 +1185,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ev: A <:< ZEnvironment[B],
     trace: ZTraceElement
   ): ZLayer[R, E, B] =
-    ZLayer.fromManagedEnvironment(self.map(ev))
+    ???
 
   /**
    * Constructs a layer from this managed resource, which must return one or
@@ -2685,7 +2686,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     trace: ZTraceElement
   ): ZManaged[Any, Nothing, Unit] =
     FiberRef.currentLogAnnotations.get.toManaged.flatMap { annotations =>
-      FiberRef.currentLogAnnotations.locallyManaged(annotations.updated(key, value))
+      FiberRef.currentLogAnnotations.locallyManaged(annotations.updated(key, value)).toManaged0
     }
 
   /**
@@ -2728,7 +2729,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Sets the log level for managed effects composed after this.
    */
   def logLevel(level: LogLevel)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    FiberRef.currentLogLevel.locallyManaged(level)
+    FiberRef.currentLogLevel.locallyManaged(level).toManaged0
 
   /**
    * Adjusts the label for the logging span for managed effects composed after
@@ -2739,7 +2740,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       val instant = java.lang.System.currentTimeMillis()
       val logSpan = LogSpan(label, instant)
 
-      FiberRef.currentLogSpan.locallyManaged(logSpan :: stack)
+      FiberRef.currentLogSpan.locallyManaged(logSpan :: stack).toManaged0
     }
 
   /**
@@ -3050,7 +3051,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, A => ZIO[R, E, B]] =
     for {
       fiberId <- ZIO.fiberId.toManaged
-      ref     <- Ref.makeManaged[Map[A, Promise[E, B]]](Map.empty)
+      ref     <- Ref.make[Map[A, Promise[E, B]]](Map.empty).toManaged
       scope   <- ZManaged.scope
     } yield a =>
       ref.modify { map =>
@@ -3561,7 +3562,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * it back to the original value as the `release` action.
    */
   def withParallism(n: => Int)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZIO.Parallelism.locallyManaged(Some(n))
+    ZIO.Parallelism.locallyManaged(Some(n)).toManaged0
 
   /**
    * Returns a managed effect that describes setting an unbounded maximum number
@@ -3569,7 +3570,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * back to the original value as the `release` action.
    */
   def withParallismUnbounded(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZIO.Parallelism.locallyManaged(None)
+    ZIO.Parallelism.locallyManaged(None).toManaged0
 
   /**
    * Returns a managed effect that describes setting the runtime configuration
@@ -3758,5 +3759,4 @@ object ZManaged extends ZManagedPlatformSpecific {
     def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
   }
-
 }

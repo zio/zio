@@ -1,4 +1,6 @@
-package zio
+package zio.managed
+
+import zio._
 
 import zio.internal.macros.LayerMacros
 
