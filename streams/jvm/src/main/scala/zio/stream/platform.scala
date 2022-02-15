@@ -60,10 +60,10 @@ trait ZStreamPlatformSpecificConstructors {
     register: ZStream.Emit[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    ZStream.unwrapManaged(for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
-      runtime <- ZManaged.runtime[R]
-      eitherStream <- ZManaged.succeed {
+    ZStream.unwrapManaged[R, E, A](for {
+      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      runtime <- ZIO.runtime[R]
+      eitherStream <- ZIO.succeed {
                         register { k =>
                           try {
                             runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
@@ -101,13 +101,13 @@ trait ZStreamPlatformSpecificConstructors {
    * end of the stream, by setting it to `None`.
    */
   def asyncManaged[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZManaged[R, E, Any],
+    register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[Scope with R, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    managed {
+    managed[R, E, ZIO[Any, Option[E], Chunk[A]]] {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged
+        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+        runtime <- ZIO.runtime[R]
         _ <- register { k =>
                try {
                  runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
@@ -116,7 +116,7 @@ trait ZStreamPlatformSpecificConstructors {
                  case FiberFailure(c) if c.isInterrupted =>
                }
              }
-        done <- ZRef.makeManaged(false)
+        done <- ZRef.make(false)
         pull = done.get.flatMap {
                  if (_)
                    Pull.end
@@ -137,8 +137,8 @@ trait ZStreamPlatformSpecificConstructors {
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     new ZStream(ZChannel.unwrapManaged(for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
-      runtime <- ZManaged.runtime[R]
+      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      runtime <- ZIO.runtime[R]
       _ <- register { k =>
              try {
                runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
@@ -146,7 +146,7 @@ trait ZStreamPlatformSpecificConstructors {
              } catch {
                case FiberFailure(c) if c.isInterrupted =>
              }
-           }.toManaged
+           }
     } yield {
       lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] = ZChannel.unwrap(
         output.take
@@ -454,7 +454,7 @@ trait ZStreamPlatformSpecificConstructors {
 
       conn <- ZStream.repeatZIO {
                 ZIO
-                  .async[Any, Throwable, UManaged[Connection]] { callback =>
+                  .async[Any, Throwable, ZIO[Scope, Nothing, Connection]] { callback =>
                     server.accept(
                       null,
                       new CompletionHandler[AsynchronousSocketChannel, Void]() {
@@ -680,7 +680,7 @@ trait ZSinkPlatformSpecificConstructors {
     trace: ZTraceElement
   ): ZSink[Any, Throwable, Byte, Byte, Long] = {
 
-    val managedChannel = ZManaged.acquireReleaseWith(
+    val managedChannel = ZIO.acquireRelease(
       ZIO
         .attemptBlockingInterrupt(
           FileChannel
@@ -734,7 +734,7 @@ trait ZSinkPlatformSpecificConstructors {
    * finished or an error occurred.
    */
   final def fromOutputStreamManaged(
-    os: => ZManaged[Any, IOException, OutputStream]
+    os: => ZIO[Scope, IOException, OutputStream]
   )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, Byte, Long] =
     ZSink.unwrapManaged {
       os.map { out =>

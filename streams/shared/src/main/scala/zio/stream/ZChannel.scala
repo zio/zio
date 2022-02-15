@@ -902,9 +902,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ev1: Any <:< InElem,
     ev2: OutElem <:< Nothing,
     trace: ZTraceElement
-  ): ZManaged[Env, OutErr, OutDone] =
-    ZManaged
-      .acquireReleaseExitWith(
+  ): ZIO[Env with Scope, OutErr, OutDone] =
+    ZIO
+      .acquireReleaseExit(
         UIO(
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
@@ -1436,7 +1436,7 @@ object ZChannel {
   ): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
-  def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZManaged[Env, OutErr, A])(
+  def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZIO[Scope with Env, OutErr, A])(
     use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, ReleaseMap, OutElem, OutDone](ReleaseMap.make)(
@@ -1536,15 +1536,15 @@ object ZChannel {
     managed {
       ZManaged.withChildren { getChildren =>
         for {
-          n             <- ZManaged.succeed(n)
-          bufferSize    <- ZManaged.succeed(bufferSize)
-          mergeStrategy <- ZManaged.succeed(mergeStrategy)
-          _             <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
-          queue         <- Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize).toManagedWith(_.shutdown)
-          cancelers     <- Queue.unbounded[Promise[Nothing, Unit]].toManagedWith(_.shutdown)
-          lastDone      <- Ref.makeManaged[Option[OutDone]](None)
-          errorSignal   <- Promise.makeManaged[Nothing, Unit]
-          permits       <- Semaphore.make(n.toLong).toManaged
+          n             <- ZIO.succeed(n)
+          bufferSize    <- ZIO.succeed(bufferSize)
+          mergeStrategy <- ZIO.succeed(mergeStrategy)
+          _             <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
+          queue         <- Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize).tap(queue => ZIO.addFinalizer(queue.shutdown))
+          cancelers     <- Queue.unbounded[Promise[Nothing, Unit]].tap(queue => ZIO.addFinalizer(queue.shutdown))
+          lastDone      <- Ref.make[Option[OutDone]](None)
+          errorSignal   <- Promise.make[Nothing, Unit]
+          permits       <- Semaphore.make(n.toLong)
           pull          <- channels.toPull
           evaluatePull = (pull: ZIO[Env, OutErr, Either[OutDone, OutElem]]) =>
                            pull.flatMap {
@@ -1712,7 +1712,7 @@ object ZChannel {
     ZChannel.fromZIO(channel).flatten
 
   def unwrapManaged[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
-    channel: => ZManaged[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
+    channel: => ZIO[Scope with Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.concatAllWith(managedOut(channel))((d, _) => d, (d, _) => d)
 

@@ -396,7 +396,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z2] = {
     val managed =
       for {
-        hub   <- ZHub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity).toManaged
+        hub   <- ZHub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
         c1    <- ZChannel.fromHubManaged(hub)
         c2    <- ZChannel.fromHubManaged(hub)
         reader = ZChannel.toHub[Nothing, Any, Chunk[In1]](hub)
@@ -1451,7 +1451,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink from a chunk processing function.
    */
   def fromPush[R, E, I, L, Z](
-    push: ZManaged[R, Nothing, Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]]
+    push: ZIO[Scope with R, Nothing, Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]]
   )(implicit trace: ZTraceElement): ZSink[R, E, I, L, Z] = {
 
     def pull(
@@ -1512,7 +1512,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     trace: ZTraceElement
   ): ZSink[R, E, I, Nothing, Unit] =
     ZSink.unwrapManaged(
-      ZManaged.acquireReleaseWith(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I](_))
+      ZIO.acquireRelease(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I](_))
     )
 
   /**
@@ -1570,7 +1570,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logAnnotate[R, E, In, L, Z](key: => String, value: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
-    ZSink.unwrapManaged(ZManaged.logAnnotate(key, value).as(sink))
+    ???
 
   /**
    * Retrieves the log annotations associated with the current scope.
@@ -1614,7 +1614,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logLevel[R, E, In, L, Z](level: LogLevel)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
-    ZSink.unwrapManaged(ZManaged.logLevel(level).as(sink))
+    ???
 
   /**
    * Adjusts the label for the logging span for streams composed after this.
@@ -1622,7 +1622,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logSpan[R, E, In, L, Z](label: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
-    ZSink.unwrapManaged(ZManaged.logSpan(label).as(sink))
+    ???
 
   /**
    * Logs the specified message at the trace log level.
@@ -1646,7 +1646,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   @deprecated("use unwrapManaged", "2.0.0")
-  def managed[R, E, In, A, L <: In, Z](resource: => ZManaged[R, E, A])(
+  def managed[R, E, In, A, L <: In, Z](resource: => ZIO[Scope with R, E, A])(
     fn: A => ZSink[R, E, In, L, Z]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, In, Z] =
     ZSink.unwrapManaged(resource.map(fn))
