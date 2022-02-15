@@ -4112,6 +4112,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ): ZIO[constructor.OutEnvironment, constructor.OutError, constructor.OutSuccess] =
     constructor.make(input)
 
+  def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZIO[R with Scope, E, A] =
+    ???
+
   /**
    * Lifts an `Either` into a `ZIO` value.
    */

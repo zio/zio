@@ -1649,7 +1649,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def managed[R, E, In, A, L <: In, Z](resource: => ZIO[Scope with R, E, A])(
     fn: A => ZSink[R, E, In, L, Z]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, In, Z] =
-    ZSink.unwrapManaged(resource.map(fn))
+    ZSink.unwrapManaged[R, E, In, In, Z](resource.map(fn))
 
   def never(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Nothing] =
     ZSink.fromZIO(ZIO.never)
@@ -1705,7 +1705,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink produced from a managed effect.
    */
   def unwrapManaged[R, E, In, L, Z](
-    managed: => ZManaged[R, E, ZSink[R, E, In, L, Z]]
+    managed: => ZIO[Scope with R, E, ZSink[R, E, In, L, Z]]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
     new ZSink(ZChannel.unwrapManaged[R, Nothing, Chunk[In], Any, E, Chunk[L], Z](managed.map(_.channel)))
 

@@ -228,7 +228,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             )
 
         ZChannel
-          .managed(timeout.forkManaged) { fiber =>
+          .managed[R1, Any, Any, Any, E1, Chunk[Either[C, B]], Option[B], Fiber.Runtime[Nothing, Unit]](timeout.forkManaged) { fiber =>
             (handoffConsumer pipeToOrFail sink.channel).doneCollect.flatMap { case (leftovers, b) =>
               ZChannel.fromZIO(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
                 ZChannel.unwrap {
@@ -254,7 +254,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           }
       }
 
-      ZStream.managed((self.channel >>> handoffProducer).runManaged.fork) *>
+      ZStream.managed[R, Nothing, Fiber.Runtime[Nothing, Any]]((self.channel >>> handoffProducer).runManaged.fork) *>
         new ZStream(scheduledAggregator(None))
     }
   }
@@ -348,7 +348,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def buffer(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueueOfElements(capacity)
     new ZStream(
-      ZChannel.managed(queue) { queue =>
+      ZChannel.managed[R, Any, Any, Any, E, Chunk[A], Unit, Dequeue[Exit[Option[E], A]]](queue) { queue =>
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
           ZChannel.fromZIO {
             queue.take
@@ -376,7 +376,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def bufferChunks(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueue(capacity)
     new ZStream(
-      ZChannel.managed(queue) { queue =>
+      ZChannel.managed[R, Any, Any, Any, E, Chunk[A], Unit, Dequeue[Take[E, A]]](queue) { queue =>
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
           ZChannel.fromZIO {
             queue.take
@@ -497,7 +497,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       process
     }
 
-    ZChannel.managed {
+    ZChannel.managed[R1, Any, Any, Any, E1, Chunk[A1], Unit, Queue[(Take[E1, A1], Promise[Nothing, Unit])]] {
       for {
         queue <- managed
         start <- Promise.make[Nothing, Unit]
@@ -517,7 +517,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def bufferUnbounded(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueueUnbounded
     new ZStream(
-      ZChannel.managed(queue) { queue =>
+      ZChannel.managed[R, Any, Any, Any, E, Chunk[A], Unit, Dequeue[Take[E, A]]](queue) { queue =>
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
           ZChannel.fromZIO {
             queue.take
@@ -873,7 +873,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         )
 
     new ZStream(
-      ZChannel.managed {
+      ZChannel.managed[R1, Any, Any, Any, E1, Chunk[A3], Any, (ZStream.Handoff[Exit[Option[E],A]], ZStream.Handoff[Exit[Option[E1],A2]], ZStream.Handoff[Unit], ZStream.Handoff[Unit])] {
         for {
           left   <- ZStream.Handoff.make[Exit[Option[E], A]]
           right  <- ZStream.Handoff.make[Exit[Option[E1], A2]]
@@ -916,7 +916,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         )
 
     new ZStream(
-      ZChannel.managed {
+      ZChannel.managed[R1, Any, Any, Any, E1, Chunk[A3], Any, (ZStream.Handoff[Take[E,A]], ZStream.Handoff[Take[E1,A2]], ZStream.Handoff[Unit], ZStream.Handoff[Unit])] {
         for {
           left   <- ZStream.Handoff.make[Take[E, A]]
           right  <- ZStream.Handoff.make[Take[E1, A2]]
@@ -1154,7 +1154,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
     ZStream.fromZIO(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
-        .managed(other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).fork) *>
+        .managed[R1, Nothing, Fiber.Runtime[Nothing, Any]](other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).fork) *>
         self.interruptWhen(bgDied)
     }
 
@@ -1963,7 +1963,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       }
 
     new ZStream(
-      ZChannel.unwrapManaged {
+      ZChannel.unwrapManaged[R1, Any, Any, Any, E1, Chunk[A], Unit] {
         io.forkManaged.map { fiber =>
           self.channel >>> writer(fiber)
         }
@@ -2035,7 +2035,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
     new ZStream(
-      ZChannel.managed {
+      ZChannel.managed[R1, Any, Any, Any, E1, Chunk[A1], Any, (ZStream.Handoff[Take[E1, A1]], ZStream.Handoff[Take[E1, A1]])] {
         for {
           left  <- ZStream.Handoff.make[Take[E1, A1]]
           right <- ZStream.Handoff.make[Take[E1, A1]]
@@ -5075,7 +5075,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromJavaIteratorManaged[R, A](iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
-    managed(iterator).flatMap(fromJavaIterator(_))
+    managed[R, Throwable, java.util.Iterator[A]](iterator).flatMap(fromJavaIterator(_))
 
   /**
    * Creates a stream from a Java iterator
@@ -5275,7 +5275,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a single-valued stream from a managed resource
    */
   def managed[R, E, A](managed: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    new ZStream(ZChannel.managedOut(managed.map(Chunk.single)))
+    new ZStream(ZChannel.managedOut[R, E, Chunk[A]](managed.map(Chunk.single)))
 
   /**
    * Merges a variable list of streams in a non-deterministic fashion. Up to `n`
@@ -5841,7 +5841,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     protected def buffer: Int
 
     def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Exit[Option[E], V]])] =
-      ZStream.unwrapManaged {
+      ZStream.unwrapManaged[R, E, (K, Dequeue[Exit[Option[E], V]])] {
         for {
           decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]]
           out <- Queue
