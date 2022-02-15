@@ -1276,15 +1276,6 @@ object URIO {
 
   /**
    * @see
-   *   [[zio.ZIO.reserve]]
-   */
-  def reserve[R, A, B](reservation: => URIO[R, Reservation[R, Nothing, A]])(use: A => URIO[R, B])(implicit
-    trace: ZTraceElement
-  ): URIO[R, B] =
-    ZIO.reserve(reservation)(use)
-
-  /**
-   * @see
    *   [[zio.ZIO.right]]
    */
   def right[R, B](b: => B)(implicit trace: ZTraceElement): RIO[R, Either[Nothing, B]] =

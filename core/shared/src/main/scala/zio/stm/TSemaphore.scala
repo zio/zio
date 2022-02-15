@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{UIO, ZIO, ZManaged, ZTraceElement}
+import zio.{Scope, UIO, ZIO, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -104,7 +104,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * Returns a managed effect that describes acquiring a permit as the `acquire`
    * action and releasing it as the `release` action.
    */
-  def withPermitManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+  def withPermitManaged(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
     withPermitsManaged(1L)
 
   /**
@@ -120,8 +120,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * Returns a managed effect that describes acquiring the specified number of
    * permits as the `acquire` action and releasing them as the `release` action.
    */
-  def withPermitsManaged(n: Long)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZManaged.acquireReleaseInterruptible(acquireN(n).commit)(release.commit)
+  def withPermitsManaged(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+    ZIO.acquireReleaseInterruptible(acquireN(n).commit)(release.commit)
 
   private def assertNonNegative(n: Long): Unit =
     require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")

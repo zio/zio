@@ -374,16 +374,6 @@ sealed abstract class Fiber[+E, +A] { self =>
     }.uninterruptible
 
   /**
-   * Converts this fiber into a [[zio.ZManaged]]. Fiber is interrupted on
-   * release.
-   *
-   * @return
-   *   `ZManaged[Any, Nothing, Fiber[E, A]]`
-   */
-  final def toManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Fiber[E, A]] =
-    ZManaged.acquireReleaseWith(UIO.succeedNow(self))(_.interrupt)
-
-  /**
    * Maps the output of this fiber to `()`.
    *
    * @return

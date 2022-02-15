@@ -37,10 +37,10 @@ trait ClassLoading extends JvmMetrics {
       _ <- Task(classLoadingMXBean.getUnloadedClassCount) @@ unloadedClassCount
     } yield ()
 
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, ClassLoading] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, ClassLoading] =
     for {
       classLoadingMXBean <-
-        Task(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean])).toManaged
+        Task(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean]))
       _ <- reportClassLoadingMetrics(classLoadingMXBean)
              .repeat(collectionSchedule)
              .interruptible

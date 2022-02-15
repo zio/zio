@@ -1333,15 +1333,6 @@ object Task extends TaskPlatformSpecific {
 
   /**
    * @see
-   *   See [[zio.ZIO.reserve]]
-   */
-  def reserve[A, B](reservation: => Task[Reservation[Any, Throwable, A]])(use: A => Task[B])(implicit
-    trace: ZTraceElement
-  ): Task[B] =
-    ZIO.reserve(reservation)(use)
-
-  /**
-   * @see
    *   [[zio.ZIO.right]]
    */
   def right[B](b: => B)(implicit trace: ZTraceElement): Task[Either[Nothing, B]] =

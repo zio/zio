@@ -18,7 +18,7 @@ package zio.stm
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TReentrantLock._
-import zio.{FiberId, Managed, UManaged, ZTraceElement}
+import zio.{FiberId, Scope, ZIO, ZTraceElement}
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
@@ -72,7 +72,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
    *
    * See [[writeLock]].
    */
-  def lock(implicit trace: ZTraceElement): UManaged[Int] = writeLock
+  def lock(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Int] = writeLock
 
   /**
    * Determines if any fiber has a read or write lock.
@@ -83,8 +83,8 @@ final class TReentrantLock private (data: TRef[LockState]) {
   /**
    * Obtains a read lock in a managed context.
    */
-  def readLock(implicit trace: ZTraceElement): UManaged[Int] =
-    Managed.acquireReleaseWith(acquireRead.commit)(_ => releaseRead.commit)
+  def readLock(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Int] =
+    ZIO.acquireRelease(acquireRead.commit)(_ => releaseRead.commit)
 
   /**
    * Retrieves the total number of acquired read locks.
@@ -133,8 +133,8 @@ final class TReentrantLock private (data: TRef[LockState]) {
   /**
    * Obtains a write lock in a managed context.
    */
-  def writeLock(implicit trace: ZTraceElement): UManaged[Int] =
-    Managed.acquireReleaseWith(acquireWrite.commit)(_ => releaseWrite.commit)
+  def writeLock(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Int] =
+    ZIO.acquireRelease(acquireWrite.commit)(_ => releaseWrite.commit)
 
   /**
    * Determines if a write lock is held by some fiber.

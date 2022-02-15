@@ -197,8 +197,8 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
    * be evaluated multiple times within the scope of the managed to take a
    * message from the hub each time.
    */
-  final def subscribeManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZTDequeue[RB, EB, B]] =
-    ZManaged.acquireReleaseWith(subscribe.commit)(_.shutdown.commit)
+  final def subscribeManaged(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZTDequeue[RB, EB, B]] =
+    ZIO.acquireRelease(subscribe.commit)(_.shutdown.commit)
 
   /**
    * Views the hub as a transactional queue that can only be written to.

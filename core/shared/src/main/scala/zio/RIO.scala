@@ -1447,15 +1447,6 @@ object RIO {
 
   /**
    * @see
-   *   See [[zio.ZIO.reserve]]
-   */
-  def reserve[R, A, B](reservation: => RIO[R, Reservation[R, Throwable, A]])(use: A => RIO[R, B])(implicit
-    trace: ZTraceElement
-  ): RIO[R, B] =
-    ZIO.reserve(reservation)(use)
-
-  /**
-   * @see
    *   [[zio.ZIO.right]]
    */
   def right[R, B](b: => B)(implicit trace: ZTraceElement): RIO[R, Either[Nothing, B]] =

@@ -27,7 +27,7 @@ trait VersionInfo extends JvmMetrics {
 
   override def collectMetrics(implicit
     trace: ZTraceElement
-  ): ZManaged[Clock with System, Throwable, VersionInfo] =
+  ): ZIO[Clock with System with Scope, Throwable, VersionInfo] =
     reportVersions().repeat(collectionSchedule).interruptible.forkManaged.as(this)
 }
 

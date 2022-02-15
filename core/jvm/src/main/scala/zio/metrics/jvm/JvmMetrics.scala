@@ -12,7 +12,7 @@ trait JvmMetrics { self =>
 
   protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit]
 
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock with System, Throwable, Feature]
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with System with Scope, Throwable, Feature]
 
   /**
    * A layer that when constructed forks a fiber that periodically updates the
@@ -21,6 +21,7 @@ trait JvmMetrics { self =>
   lazy val live: ZLayer[Clock with System, Throwable, Feature] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
     collectMetrics.toLayer(featureTag, trace)
+    ???
   }
 
   /** A ZIO application that periodically updates the JVM metrics */

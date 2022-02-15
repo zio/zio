@@ -89,10 +89,10 @@ trait MemoryPools extends JvmMetrics {
     } yield ()
 
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, MemoryPools] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, MemoryPools] =
     for {
-      memoryMXBean <- Task(ManagementFactory.getMemoryMXBean).toManaged
-      poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList).toManaged
+      memoryMXBean <- Task(ManagementFactory.getMemoryMXBean)
+      poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
       _ <- reportMemoryMetrics(memoryMXBean, poolMXBeans)
              .repeat(collectionSchedule)
              .interruptible

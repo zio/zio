@@ -1151,15 +1151,6 @@ object UIO {
 
   /**
    * @see
-   *   See [[zio.ZIO.reserve]]
-   */
-  def reserve[A, B](reservation: => UIO[Reservation[Any, Nothing, A]])(use: A => UIO[B])(implicit
-    trace: ZTraceElement
-  ): UIO[B] =
-    ZIO.reserve(reservation)(use)
-
-  /**
-   * @see
    *   [[zio.ZIO.right]]
    */
   def right[B](b: => B)(implicit trace: ZTraceElement): UIO[Either[Nothing, B]] =

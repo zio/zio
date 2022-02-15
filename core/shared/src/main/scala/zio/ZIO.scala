@@ -1019,8 +1019,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * execute the effect in the fiber, while ensuring its interruption when the
    * effect supplied to [[ZManaged#use]] completes.
    */
-  final def forkManaged(implicit trace: ZTraceElement): ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
-    self.toManaged.fork
+  final def forkManaged(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Fiber.Runtime[E, A]] =
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).fork.tap(fiber => ZIO.addFinalizer(_ => fiber.interrupt))
+    }
 
   /**
    * Forks an effect that will be executed on the specified `ExecutionContext`.
@@ -2381,28 +2383,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.fork.flatMap(_.toFutureWith(f))
 
   /**
-   * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be
-   * performed interruptibly.
-   */
-  final def toManaged(implicit trace: ZTraceElement): ZManaged[R, E, A] =
-    ZManaged.fromZIO(self)
-
-  /**
-   * Converts this ZIO to [[zio.Managed]]. This ZIO and the provided release
-   * action will be performed uninterruptibly.
-   */
-  final def toManagedWith[R1 <: R](release: A => URIO[R1, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
-    ZManaged.acquireReleaseWith(self)(release)
-
-  /**
-   * Converts this ZIO to [[zio.ZManaged]] with no release action. It will be
-   * performed interruptibly.
-   */
-  @deprecated("use toManaged", "2.0.0")
-  final def toManaged_(implicit trace: ZTraceElement): ZManaged[R, E, A] =
-    self.toManaged
-
-  /**
    * When this effect succeeds with a cause, then this method returns a new
    * effect that either fails with the cause that this effect succeeded with, or
    * succeeds with unit, depending on whether the cause is empty.
@@ -2780,23 +2760,23 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def accessZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
     environmentWithZIO
 
-  def acquireRelease[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Unit])(implicit
+  def acquireRelease[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
     acquireReleaseExit(acquire)((a, _) => release(a))
 
-  def acquireReleaseExit[R, E, A](acquire: ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Unit])(implicit
+  def acquireReleaseExit[R, E, A](acquire: ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
     ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizer(exit => release(a, exit))))
 
-  def acquireReleaseInterruptible[R, E, A](acquire: ZIO[R, E, A])(release: ZIO[R, Nothing, Unit])(implicit
+  def acquireReleaseInterruptible[R, E, A](acquire: ZIO[R, E, A])(release: ZIO[R, Nothing, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
     acquire.ensuring(ZIO.addFinalizer(_ => release))
 
   def allocateFinalizeExitInterruptible[R, E, A](acquire: ZIO[R, E, A])(
-    release: Exit[Any, Any] => ZIO[R, Nothing, Unit]
+    release: Exit[Any, Any] => ZIO[R, Nothing, Any]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
     acquire.ensuring(ZIO.addFinalizer(exit => release(exit)))
 
@@ -5097,20 +5077,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     (io: ZIO[R, E, Option[A]]) => io.flatMap(_.fold[ZIO[R, E, A]](fail[E](error))(succeedNow))
 
   /**
-   * Acquires a resource, uses the resource, and then releases the resource.
-   * However, unlike `acquireReleaseWith`, the separation of these phases allows
-   * the acquisition to be interruptible.
-   *
-   * Useful for concurrent data structures and other cases where the
-   * 'deallocator' can tell if the allocation succeeded or not just by
-   * inspecting internal / external state.
-   */
-  def reserve[R, E, A, B](reservation: => ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, B] =
-    ZManaged.fromReservationZIO(reservation).use(use)
-
-  /**
    * Returns an effect with the value on the right part.
    */
   def right[B](b: => B)(implicit trace: ZTraceElement): UIO[Either[Nothing, B]] =
@@ -5688,13 +5654,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     @deprecated("use acquireReleaseWithAuto", "2.0.0")
     def bracketAuto[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
       acquireReleaseWithAuto(use)
-
-    /**
-     * Converts this ZIO value to a ZManaged value. See
-     * [[ZManaged.fromAutoCloseable]].
-     */
-    def toManagedAuto(implicit trace: ZTraceElement): ZManaged[R, E, A] =
-      ZManaged.fromAutoCloseable(io)
   }
 
   implicit final class ZioRefineToOrDieOps[R, E <: Throwable, A](private val self: ZIO[R, E, A]) extends AnyVal {

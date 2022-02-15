@@ -95,38 +95,39 @@ trait Standard extends JvmMetrics {
     } yield ()
 
   private def collectMemoryMetricsLinux()(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    ZManaged.readFile("/proc/self/status").use { stream =>
-      stream
-        .readAll(8192)
-        .catchAll {
-          case None        => ZIO.succeed(Chunk.empty)
-          case Some(error) => ZIO.fail(error)
-        }
-        .flatMap { bytes =>
-          Task(new String(bytes.toArray, StandardCharsets.US_ASCII)).flatMap { raw =>
-            ZIO.foreachDiscard(raw.split('\n')) { line =>
-              if (line.startsWith("VmSize:")) {
-                Task(line.split("\\s+")(1).toDouble * 1024.0) @@ virtualMemorySize
-              } else if (line.startsWith("VmRSS:")) {
-                Task(line.split("\\s+")(1).toDouble * 1024.0) @@ residentMemorySize
-              } else {
-                ZIO.unit
-              }
-            }
-          }
-        }
-    }
+    ???
+  // ZManaged.readFile("/proc/self/status").use { stream =>
+  //   stream
+  //     .readAll(8192)
+  //     .catchAll {
+  //       case None        => ZIO.succeed(Chunk.empty)
+  //       case Some(error) => ZIO.fail(error)
+  //     }
+  //     .flatMap { bytes =>
+  //       Task(new String(bytes.toArray, StandardCharsets.US_ASCII)).flatMap { raw =>
+  //         ZIO.foreachDiscard(raw.split('\n')) { line =>
+  //           if (line.startsWith("VmSize:")) {
+  //             Task(line.split("\\s+")(1).toDouble * 1024.0) @@ virtualMemorySize
+  //           } else if (line.startsWith("VmRSS:")) {
+  //             Task(line.split("\\s+")(1).toDouble * 1024.0) @@ residentMemorySize
+  //           } else {
+  //             ZIO.unit
+  //           }
+  //         }
+  //       }
+  //     }
+  // }
 
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock with System, Throwable, Standard] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with System with Scope, Throwable, Standard] =
     for {
-      runtimeMXBean         <- Task(ManagementFactory.getRuntimeMXBean).toManaged
-      operatingSystemMXBean <- Task(ManagementFactory.getOperatingSystemMXBean).toManaged
+      runtimeMXBean         <- Task(ManagementFactory.getRuntimeMXBean)
+      operatingSystemMXBean <- Task(ManagementFactory.getOperatingSystemMXBean)
       getProcessCpuTime      = new MXReflection("getProcessCpuTime", operatingSystemMXBean)
       getOpenFileDescriptorCount =
         new MXReflection("getOpenFileDescriptorCount", operatingSystemMXBean)
       getMaxFileDescriptorCount =
         new MXReflection("getMaxFileDescriptorCount", operatingSystemMXBean)
-      isLinux <- Task(operatingSystemMXBean.getName.indexOf("Linux") == 0).toManaged
+      isLinux <- Task(operatingSystemMXBean.getName.indexOf("Linux") == 0)
       _ <-
         reportStandardMetrics(
           runtimeMXBean,
