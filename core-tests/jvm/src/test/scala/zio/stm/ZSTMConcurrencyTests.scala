@@ -168,7 +168,7 @@ object ZSTMConcurrencyTests {
 
     @Actor
     def actor1(): Unit = {
-      val zio = semaphore.withPermitManaged.useDiscard(ZIO.unit)
+      val zio = ZIO.scoped(semaphore.withPermitManaged)
       fiber = runtime.unsafeRun(zio.fork)
       runtime.unsafeRun(promise.succeed(()))
       runtime.unsafeRun(fiber.await)

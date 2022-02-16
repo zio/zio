@@ -14,13 +14,13 @@ object TReentrantLockSpec extends ZIOSpecDefault {
     test("1 read lock") {
       for {
         lock  <- TReentrantLock.make.commit
-        count <- lock.readLock.use(count => ZIO.succeed(count))
+        count <- ZIO.scoped(lock.readLock.flatMap(count => ZIO.succeed(count)))
       } yield assert(count)(equalTo(1))
     },
     test("2 read locks from same fiber") {
       for {
         lock  <- TReentrantLock.make.commit
-        count <- lock.readLock.use(_ => lock.readLock.use(count => ZIO.succeed(count)))
+        count <- ZIO.scoped(lock.readLock.flatMap(_ => ZIO.scoped(lock.readLock.flatMap(count => ZIO.succeed(count)))))
       } yield assert(count)(equalTo(2))
     },
     test("2 read locks from different fibers") {
@@ -29,9 +29,9 @@ object TReentrantLockSpec extends ZIOSpecDefault {
         rlatch  <- Promise.make[Nothing, Unit]
         mlatch  <- Promise.make[Nothing, Unit]
         wlatch  <- Promise.make[Nothing, Unit]
-        _       <- lock.readLock.use(count => mlatch.succeed(()) *> rlatch.await as count).fork
+        _       <- ZIO.scoped(lock.readLock.flatMap(count => mlatch.succeed(()) *> rlatch.await as count)).fork
         _       <- mlatch.await
-        reader2 <- lock.readLock.use(count => wlatch.succeed(()) as count).fork
+        reader2 <- ZIO.scoped(lock.readLock.flatMap(count => wlatch.succeed(()) as count)).fork
         _       <- wlatch.await
         count   <- reader2.join
       } yield assert(count)(equalTo(1))
@@ -42,9 +42,9 @@ object TReentrantLockSpec extends ZIOSpecDefault {
         rlatch <- Promise.make[Nothing, Unit]
         wlatch <- Promise.make[Nothing, Unit]
         mlatch <- Promise.make[Nothing, Unit]
-        _      <- lock.writeLock.use(count => rlatch.succeed(()) *> wlatch.await as count).fork
+        _      <- ZIO.scoped(lock.writeLock.flatMap(count => rlatch.succeed(()) *> wlatch.await as count)).fork
         _      <- rlatch.await
-        reader <- (mlatch.succeed(()) *> lock.readLock.use(ZIO.succeedNow(_))).fork
+        reader <- (mlatch.succeed(()) *> ZIO.scoped(lock.readLock)).fork
         _      <- mlatch.await
         locks  <- (lock.readLocks zipWith lock.writeLocks)(_ + _).commit
         option <- reader.poll.repeat(pollSchedule)
@@ -60,9 +60,9 @@ object TReentrantLockSpec extends ZIOSpecDefault {
         rlatch <- Promise.make[Nothing, Unit]
         wlatch <- Promise.make[Nothing, Unit]
         mlatch <- Promise.make[Nothing, Unit]
-        _      <- lock.writeLock.use(count => rlatch.succeed(()) *> wlatch.await as count).fork
+        _      <- ZIO.scoped(lock.writeLock.flatMap(count => rlatch.succeed(()) *> wlatch.await as count)).fork
         _      <- rlatch.await
-        reader <- (mlatch.succeed(()) *> lock.writeLock.use(ZIO.succeed(_))).fork
+        reader <- (mlatch.succeed(()) *> ZIO.scoped(lock.writeLock)).fork
         _      <- mlatch.await
         locks  <- (lock.readLocks zipWith lock.writeLocks)(_ + _).commit
         option <- reader.poll.repeat(pollSchedule)
@@ -76,8 +76,8 @@ object TReentrantLockSpec extends ZIOSpecDefault {
       for {
         lock <- TReentrantLock.make.commit
         ref  <- Ref.make(0)
-        rcount <- lock.writeLock
-                    .use(_ => lock.readLock.use(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))
+        rcount <- ZIO.scoped(lock.writeLock
+                    .flatMap(_ => ZIO.scoped(lock.readLock.flatMap(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))))
         wcount <- ref.get
       } yield assert(rcount)(equalTo(1)) && assert(wcount)(equalTo(1))
     },
@@ -85,8 +85,8 @@ object TReentrantLockSpec extends ZIOSpecDefault {
       for {
         lock <- TReentrantLock.make.commit
         ref  <- Ref.make(0)
-        rcount <- lock.readLock
-                    .use(_ => lock.writeLock.use(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))
+        rcount <- ZIO.scoped(lock.readLock
+                    .flatMap(_ => ZIO.scoped(lock.writeLock.flatMap(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))))
         wcount <- ref.get
       } yield assert(rcount)(equalTo(1)) && assert(wcount)(equalTo(1))
     },
@@ -96,9 +96,9 @@ object TReentrantLockSpec extends ZIOSpecDefault {
         rlatch <- Promise.make[Nothing, Unit]
         mlatch <- Promise.make[Nothing, Unit]
         wlatch <- Promise.make[Nothing, Unit]
-        _      <- lock.readLock.use(count => mlatch.succeed(()) *> rlatch.await as count).fork
+        _      <- ZIO.scoped(lock.readLock.flatMap(count => mlatch.succeed(()) *> rlatch.await as count)).fork
         _      <- mlatch.await
-        writer <- lock.readLock.use(_ => wlatch.succeed(()) *> lock.writeLock.use(count => ZIO.succeed(count))).fork
+        writer <- ZIO.scoped(lock.readLock.flatMap(_ => wlatch.succeed(()) *> ZIO.scoped(lock.writeLock.flatMap(count => ZIO.succeed(count))))).fork
         _      <- wlatch.await
         option <- writer.poll.repeat(pollSchedule)
         _      <- rlatch.succeed(())

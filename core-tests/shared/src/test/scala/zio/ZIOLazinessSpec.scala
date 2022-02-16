@@ -29,15 +29,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("some")(assertLazy(IO.some)),
       test("succeed")(assertLazy(IO.succeed))
     ),
-    suite("Managed")(
-      test("die")(assertLazy(Managed.die)),
-      test("dieMessage")(assertLazy(Managed.dieMessage)),
-      test("done")(assertLazy(Managed.done)),
-      test("fail")(assertLazy(Managed.fail)),
-      test("failCause")(assertLazy(Managed.failCause)),
-      test("fromEither")(assertLazy(Managed.fromEither)),
-      test("succeed")(assertLazy(Managed.succeed))
-    ),
     suite("RIO")(
       test("die")(assertLazy(RIO.die)),
       test("dieMessage")(assertLazy(RIO.dieMessage)),
@@ -102,16 +93,6 @@ object ZIOLazinessSpec extends ZIOBaseSpec {
       test("sleep")(assertLazy(URIO.sleep)),
       test("some")(assertLazy(URIO.some)),
       test("succeed")(assertLazy(URIO.succeed))
-    ),
-    suite("ZManaged")(
-      test("die")(assertLazy(ZManaged.die)),
-      test("dieMessage")(assertLazy(ZManaged.dieMessage)),
-      test("done")(assertLazy(ZManaged.done)),
-      test("fail")(assertLazy(ZManaged.fail)),
-      test("failCause")(assertLazy(ZManaged.failCause)),
-      test("fromEither")(assertLazy(ZManaged.fromEither)),
-      test("interruptAs")(assertLazy(ZManaged.interruptAs)),
-      test("succeed")(assertLazy(ZManaged.succeed))
     ),
     suite("ZIO")(
       test("die")(assertLazy(ZIO.die)),
