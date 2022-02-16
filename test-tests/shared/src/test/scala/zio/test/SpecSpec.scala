@@ -135,7 +135,7 @@ object SpecSpec extends ZIOBaseSpec {
           acquire   = ref.update("Acquiring" :: _)
           release   = ref.update("Releasing" :: _)
           update    = ZIO.service[Ref[Int]].flatMap(_.updateAndGet(_ + 1))
-          specLayer = ZManaged.acquireReleaseWith(acquire *> Ref.make(0))(_ => release).toLayer
+          specLayer = ZLayer.fromZIOScoped(ZIO.acquireRelease(acquire *> Ref.make(0))(_ => release))
           spec = suite("spec")(
                    suite("suite1")(
                      test("test1") {
@@ -173,7 +173,7 @@ object SpecSpec extends ZIOBaseSpec {
                 }
               )
             )
-          ).provideCustomLayerShared(ZManaged.acquireReleaseWith(Ref.make(0))(_.set(-1)).toLayer)
+          ).provideCustomLayerShared(ZLayer.fromZIOScoped(ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
         assertM(succeeded(spec))(isTrue)
       }
     ),

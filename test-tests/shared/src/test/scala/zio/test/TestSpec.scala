@@ -48,13 +48,13 @@ object TestSpec extends ZIOBaseSpec {
         _       <- promise.await
       } yield assertCompletes
     } @@ timeout(10.seconds),
-    test("managed effects can be tested") {
-      for {
-        ref   <- Ref.make(false).toManaged
-        _     <- ZManaged.acquireRelease(ref.set(true))(ref.set(false))
-        value <- ref.get.toManaged
-      } yield assert(value)(isTrue)
-    },
+    // test("managed effects can be tested") {
+    //   for {
+    //     ref   <- Ref.make(false)
+    //     _     <- ZIO.acquireRelease(ref.set(true))(_ => ref.set(false))
+    //     value <- ref.get
+    //   } yield assert(value)(isTrue)
+    // },
     test("transactional effects can be tested") {
       for {
         message <- STM.succeed("Hello from an STM transaction!")
