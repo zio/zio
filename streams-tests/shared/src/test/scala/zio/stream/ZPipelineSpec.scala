@@ -7,9 +7,23 @@ import zio.test._
 import scala.io.Source
 
 object ZPipelineSpec extends ZIOBaseSpec {
-
+  def utf8EncodePipeline = {
+    ZStream.fromChunks(Chunk.single("1"), Chunk.single("2"))
+      .via(ZPipeline.utf8Encode)
+      .run(ZSink.collectAll)
+      .map(_.toList)
+  }
   def spec =
     suite("ZPipelineSpec")(
+      suite("")(
+        test("test1") {
+          val expected: List[Byte] = List(49, 50)
+          for {
+            actual <- utf8EncodePipeline
+          } yield assert(actual)(equalTo(expected))
+
+        }
+      ),
       suite("splitLines")(
         test("preserves data")(
           check(weirdStringGenForSplitLines) { lines =>

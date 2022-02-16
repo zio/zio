@@ -1126,7 +1126,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 acc ++ Chunk.fromArray(bytes)
               }
 
-              ZChannel.write(bytes)
+              ZChannel.write(bytes).zipRight[Any, Nothing, Chunk[String], Any, Nothing, Chunk[Byte], Any](transform)
             },
           error = ZChannel.fail(_),
           done = _ => ZChannel.unit
