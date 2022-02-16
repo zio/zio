@@ -172,7 +172,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           test("happy path") {
             for {
               closed <- Ref.make[Boolean](false)
-              res     = ZManaged.acquireReleaseWith(ZIO.succeed(100))(_ => closed.set(true))
+              res     = ZIO.acquireRelease(ZIO.succeed(100))(_ => closed.set(true))
               sink =
                 ZSink.unwrapManaged(res.map(m => ZSink.count.mapZIO(cnt => closed.get.map(cl => (cnt + m, cl)))))
               resAndState <- ZStream(1, 2, 3).run(sink)
@@ -184,7 +184,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           test("sad path") {
             for {
               closed     <- Ref.make[Boolean](false)
-              res         = ZManaged.acquireReleaseWith(ZIO.succeed(100))(_ => closed.set(true))
+              res         = ZIO.acquireRelease(ZIO.succeed(100))(_ => closed.set(true))
               sink        = ZSink.unwrapManaged(res.map(_ => ZSink.succeed("ok")))
               r          <- ZStream.fail("fail").run(sink)
               finalState <- closed.get
@@ -601,10 +601,12 @@ object ZSinkSpec extends ZIOBaseSpec {
         test("should publish all elements") {
 
           for {
-            promise1       <- Promise.make[Nothing, Unit]
-            promise2       <- Promise.make[Nothing, Unit]
-            hub            <- ZHub.unbounded[Int]
-            f              <- hub.subscribe.use(s => promise1.succeed(()) *> promise2.await *> s.takeAll).fork
+            promise1 <- Promise.make[Nothing, Unit]
+            promise2 <- Promise.make[Nothing, Unit]
+            hub      <- ZHub.unbounded[Int]
+            f <- ZIO.scoped {
+                   hub.subscribe.flatMap(s => promise1.succeed(()) *> promise2.await *> s.takeAll)
+                 }.fork
             _              <- promise1.await
             _              <- ZStream(1, 2, 3).run(ZSink.fromHub(hub))
             _              <- promise2.succeed(())
@@ -836,16 +838,17 @@ object ZSinkSpec extends ZIOBaseSpec {
         suite("take")(
           test("take")(
             check(Gen.chunkOf(Gen.small(Gen.chunkOfN(_)(Gen.int))), Gen.int) { (chunks, n) =>
-              ZStream
-                .fromChunks(chunks: _*)
-                .peel(ZSink.take[Int](n))
-                .flatMap { case (chunk, stream) =>
-                  stream.runCollect.toManaged.map { leftover =>
-                    assert(chunk)(equalTo(chunks.flatten.take(n))) &&
-                    assert(leftover)(equalTo(chunks.flatten.drop(n)))
+              ZIO.scoped[Any, Nothing, TestResult] {
+                ZStream
+                  .fromChunks(chunks: _*)
+                  .peel(ZSink.take[Int](n))
+                  .flatMap { case (chunk, stream) =>
+                    stream.runCollect.map { leftover =>
+                      assert(chunk)(equalTo(chunks.flatten.take(n))) &&
+                      assert(leftover)(equalTo(chunks.flatten.drop(n)))
+                    }
                   }
-                }
-                .useNow
+              }
             }
           )
         ),

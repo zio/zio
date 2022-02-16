@@ -84,8 +84,10 @@ object ZChannelSpec extends ZIOBaseSpec {
               (ZChannel.fromZIO(event("Acquire1")).ensuring(event("Release11")).ensuring(event("Release12")) *>
                 ZChannel.fromZIO(event("Acquire2")).ensuring(event("Release2"))).ensuring(event("ReleaseOuter"))
 
-            channel.toPull.use { pull =>
-              pull.exit *> events.get
+            ZIO.scoped {
+              channel.toPull.flatMap { pull =>
+                pull.exit *> events.get
+              }
             }.flatMap { eventsInZManaged =>
               events.get.map { eventsAfterZManaged =>
                 assert(eventsInZManaged)(equalTo(Chunk("Acquire1", "Release11", "Release12", "Acquire2"))) &&
@@ -369,7 +371,7 @@ object ZChannelSpec extends ZIOBaseSpec {
       suite("ZChannel#managedOut")(
         test("failure") {
           for {
-            exit <- ZChannel.managedOut(ZManaged.fail("error")).runCollect.exit
+            exit <- ZChannel.managedOut(ZIO.fail("error")).runCollect.exit
           } yield assert(exit)(fails(equalTo("error")))
         }
       ),

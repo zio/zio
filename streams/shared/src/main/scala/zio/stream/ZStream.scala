@@ -2926,14 +2926,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZStream[R0, E1, A] =
     ???
-    // val managed = ZManaged(
-    //   Scope.make.flatMap { scope =>
-    //     layer.build.provideSomeEnvironment[R0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
-    //   }
-    // )
-    // new ZStream(ZChannel.managed(managed) { r =>
-    //   self.channel.provideEnvironment(r)
-    // })
+  // val managed = ZManaged(
+  //   Scope.make.flatMap { scope =>
+  //     layer.build.provideSomeEnvironment[R0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
+  //   }
+  // )
+  // new ZStream(ZChannel.managed(managed) { r =>
+  //   self.channel.provideEnvironment(r)
+  // })
 
   /**
    * Transforms the environment being provided to the stream with the specified
