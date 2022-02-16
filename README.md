@@ -112,6 +112,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Performance Immo](https://www.performance-immo.com/)
 * [Playtika](https://www.playtika.com)
 * [PPC Samurai](https://ppcsamurai.com/)
+* [Radix Labs](https://www.radix.bio/)
 * [Railroad19](https://www.railroad19.com)
 * [Randstad Groep Nederland](https://www.werkenbijrandstad.nl)
 * [PIM Solutions](https://pimsolutions.ru/)
