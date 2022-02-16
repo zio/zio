@@ -76,8 +76,12 @@ object TReentrantLockSpec extends ZIOSpecDefault {
       for {
         lock <- TReentrantLock.make.commit
         ref  <- Ref.make(0)
-        rcount <- ZIO.scoped(lock.writeLock
-                    .flatMap(_ => ZIO.scoped(lock.readLock.flatMap(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))))
+        rcount <- ZIO.scoped(
+                    lock.writeLock
+                      .flatMap(_ =>
+                        ZIO.scoped(lock.readLock.flatMap(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))
+                      )
+                  )
         wcount <- ref.get
       } yield assert(rcount)(equalTo(1)) && assert(wcount)(equalTo(1))
     },
@@ -85,8 +89,12 @@ object TReentrantLockSpec extends ZIOSpecDefault {
       for {
         lock <- TReentrantLock.make.commit
         ref  <- Ref.make(0)
-        rcount <- ZIO.scoped(lock.readLock
-                    .flatMap(_ => ZIO.scoped(lock.writeLock.flatMap(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))))
+        rcount <- ZIO.scoped(
+                    lock.readLock
+                      .flatMap(_ =>
+                        ZIO.scoped(lock.writeLock.flatMap(count => lock.writeLocks.commit.flatMap(ref.set(_)) as count))
+                      )
+                  )
         wcount <- ref.get
       } yield assert(rcount)(equalTo(1)) && assert(wcount)(equalTo(1))
     },
@@ -98,7 +106,13 @@ object TReentrantLockSpec extends ZIOSpecDefault {
         wlatch <- Promise.make[Nothing, Unit]
         _      <- ZIO.scoped(lock.readLock.flatMap(count => mlatch.succeed(()) *> rlatch.await as count)).fork
         _      <- mlatch.await
-        writer <- ZIO.scoped(lock.readLock.flatMap(_ => wlatch.succeed(()) *> ZIO.scoped(lock.writeLock.flatMap(count => ZIO.succeed(count))))).fork
+        writer <- ZIO
+                    .scoped(
+                      lock.readLock.flatMap(_ =>
+                        wlatch.succeed(()) *> ZIO.scoped(lock.writeLock.flatMap(count => ZIO.succeed(count)))
+                      )
+                    )
+                    .fork
         _      <- wlatch.await
         option <- writer.poll.repeat(pollSchedule)
         _      <- rlatch.succeed(())

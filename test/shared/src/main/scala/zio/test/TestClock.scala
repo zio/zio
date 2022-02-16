@@ -378,20 +378,20 @@ object TestClock extends Serializable {
     trace: ZTraceElement
   ): ZLayer[Annotations with Live, Nothing, TestClock] =
     ???
-    // ZLayer {
-    //   for {
-    //     live                  <- ZIO.service[Live]
-    //     annotations           <- ZIO.service[Annotations]
-    //     clockState            <- ZIO.succeedNow(Ref.unsafeMake(data))
-    //     warningState          <- Ref.Synchronized.make(WarningData.start)
-    //     suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
-    //     test <-
-    //       ZIO.acquireRelease(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) {
-    //         test =>
-    //           test.warningDone *> test.suspendedWarningDone
-    //       }
-    //   } yield test
-    // }
+  // ZLayer {
+  //   for {
+  //     live                  <- ZIO.service[Live]
+  //     annotations           <- ZIO.service[Annotations]
+  //     clockState            <- ZIO.succeedNow(Ref.unsafeMake(data))
+  //     warningState          <- Ref.Synchronized.make(WarningData.start)
+  //     suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
+  //     test <-
+  //       ZIO.acquireRelease(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) {
+  //         test =>
+  //           test.warningDone *> test.suspendedWarningDone
+  //       }
+  //   } yield test
+  // }
 
   val any: ZLayer[TestClock, Nothing, TestClock] =
     ZLayer.environment[TestClock](Tracer.newTrace)

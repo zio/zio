@@ -228,7 +228,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             )
 
         ZChannel
-          .managed[R1, Any, Any, Any, E1, Chunk[Either[C, B]], Option[B], Fiber.Runtime[Nothing, Unit]](timeout.forkManaged) { fiber =>
+          .managed[R1, Any, Any, Any, E1, Chunk[Either[C, B]], Option[B], Fiber.Runtime[Nothing, Unit]](
+            timeout.forkManaged
+          ) { fiber =>
             (handoffConsumer pipeToOrFail sink.channel).doneCollect.flatMap { case (leftovers, b) =>
               ZChannel.fromZIO(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
                 ZChannel.unwrap {
@@ -401,7 +403,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferChunksDropping(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
-    val queue = Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+    val queue =
+      Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
     new ZStream(bufferSignal[R, E, A](queue, self.channel))
   }
 
@@ -413,7 +416,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferChunksSliding(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
-    val queue = Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+    val queue =
+      Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
     new ZStream(bufferSignal[R, E, A](queue, self.channel))
   }
 
@@ -428,7 +432,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferDropping(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
-    val queue = Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+    val queue =
+      Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
     new ZStream(bufferSignal[R, E, A](queue, self.rechunk(1).channel))
   }
 
@@ -443,7 +448,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   Prefer capacities that are powers of 2 for better performance.
    */
   final def bufferSliding(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
-    val queue = Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+    val queue =
+      Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
     new ZStream(bufferSignal[R, E, A](queue, self.rechunk(1).channel))
   }
 
@@ -873,7 +879,21 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         )
 
     new ZStream(
-      ZChannel.managed[R1, Any, Any, Any, E1, Chunk[A3], Any, (ZStream.Handoff[Exit[Option[E],A]], ZStream.Handoff[Exit[Option[E1],A2]], ZStream.Handoff[Unit], ZStream.Handoff[Unit])] {
+      ZChannel.managed[
+        R1,
+        Any,
+        Any,
+        Any,
+        E1,
+        Chunk[A3],
+        Any,
+        (
+          ZStream.Handoff[Exit[Option[E], A]],
+          ZStream.Handoff[Exit[Option[E1], A2]],
+          ZStream.Handoff[Unit],
+          ZStream.Handoff[Unit]
+        )
+      ] {
         for {
           left   <- ZStream.Handoff.make[Exit[Option[E], A]]
           right  <- ZStream.Handoff.make[Exit[Option[E1], A2]]
@@ -916,7 +936,16 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         )
 
     new ZStream(
-      ZChannel.managed[R1, Any, Any, Any, E1, Chunk[A3], Any, (ZStream.Handoff[Take[E,A]], ZStream.Handoff[Take[E1,A2]], ZStream.Handoff[Unit], ZStream.Handoff[Unit])] {
+      ZChannel.managed[
+        R1,
+        Any,
+        Any,
+        Any,
+        E1,
+        Chunk[A3],
+        Any,
+        (ZStream.Handoff[Take[E, A]], ZStream.Handoff[Take[E1, A2]], ZStream.Handoff[Unit], ZStream.Handoff[Unit])
+      ] {
         for {
           left   <- ZStream.Handoff.make[Take[E, A]]
           right  <- ZStream.Handoff.make[Take[E1, A2]]
@@ -1154,7 +1183,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
     ZStream.fromZIO(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
-        .managed[R1, Nothing, Fiber.Runtime[Nothing, Any]](other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).fork) *>
+        .managed[R1, Nothing, Fiber.Runtime[Nothing, Any]](
+          other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).fork
+        ) *>
         self.interruptWhen(bgDied)
     }
 
@@ -2035,7 +2066,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
     new ZStream(
-      ZChannel.managed[R1, Any, Any, Any, E1, Chunk[A1], Any, (ZStream.Handoff[Take[E1, A1]], ZStream.Handoff[Take[E1, A1]])] {
+      ZChannel.managed[R1, Any, Any, Any, E1, Chunk[
+        A1
+      ], Any, (ZStream.Handoff[Take[E1, A1]], ZStream.Handoff[Take[E1, A1]])] {
         for {
           left  <- ZStream.Handoff.make[Take[E1, A1]]
           right <- ZStream.Handoff.make[Take[E1, A1]]
@@ -2891,7 +2924,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
-  )(implicit trace: ZTraceElement): ZStream[R0, E1, A] = {
+  )(implicit trace: ZTraceElement): ZStream[R0, E1, A] =
     ???
     // val managed = ZManaged(
     //   Scope.make.flatMap { scope =>
@@ -2901,7 +2934,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     // new ZStream(ZChannel.managed(managed) { r =>
     //   self.channel.provideEnvironment(r)
     // })
-  }
 
   /**
    * Transforms the environment being provided to the stream with the specified
@@ -3784,11 +3816,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def timeout(d: => Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] =
     ???
-    // ZStream.succeed(d).flatMap { d =>
-    //   ZStream.fromPull {
-    //     self.toPull.map(pull => pull.timeoutFail(None)(d))
-    //   }
-    // }
+  // ZStream.succeed(d).flatMap { d =>
+  //   ZStream.fromPull {
+  //     self.toPull.map(pull => pull.timeoutFail(None)(d))
+  //   }
+  // }
 
   /**
    * Fails the stream with given error if it does not produce a value after d
@@ -3827,11 +3859,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     cause: => Cause[E1]
   )(d: => Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E1, A] =
     ???
-    // ZStream.succeed((cause, d)).flatMap { case (cause, d) =>
-    //   ZStream.fromPull {
-    //     self.toPull.map(pull => pull.timeoutFailCause(cause.map(Some(_)))(d))
-    //   }
-    // }
+  // ZStream.succeed((cause, d)).flatMap { case (cause, d) =>
+  //   ZStream.fromPull {
+  //     self.toPull.map(pull => pull.timeoutFailCause(cause.map(Some(_)))(d))
+  //   }
+  // }
 
   /**
    * Halts the stream with given cause if it does not produce a value after d
@@ -3917,7 +3949,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * [[ZManaged]]. The returned reader will only be valid within the scope of
    * the ZManaged.
    */
-  def toReader(implicit ev0: E <:< Throwable, ev1: A <:< Char, trace: ZTraceElement): ZIO[R with Scope, E, java.io.Reader] =
+  def toReader(implicit
+    ev0: E <:< Throwable,
+    ev1: A <:< Char,
+    trace: ZTraceElement
+  ): ZIO[R with Scope, E, java.io.Reader] =
     for {
       runtime <- ZIO.runtime[R]
       pull    <- toPull.asInstanceOf[ZIO[R with Scope, Nothing, ZIO[R, Option[Throwable], Chunk[Char]]]]
@@ -3927,7 +3963,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Converts the stream to a managed queue of chunks. After the managed queue
    * is used, the queue will never again produce values and should be discarded.
    */
-  final def toQueue(capacity: => Int = 2)(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
+  final def toQueue(
+    capacity: => Int = 2
+  )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.bounded[Take[E, A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
       _     <- self.runIntoQueueManaged(queue).fork
@@ -4053,11 +4091,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ???
-    // ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
-    //   ZStream.managed(ZManaged.withRuntimeConfig(runtimeConfig)) *>
-    //     self <*
-    //     ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
-    // }
+  // ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
+  //   ZStream.managed(ZManaged.withRuntimeConfig(runtimeConfig)) *>
+  //     self <*
+  //     ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
+  // }
 
   /**
    * Zips this stream with another point-wise, but keeps only the outputs of
@@ -4877,7 +4915,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => ZIO[R, IOException, InputStream],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
-    ???//fromInputStreamManaged(is.tap(is => ZIO.addFinalizer(_ => ZIO.succeed(is.close()))), chunkSize)
+    ??? //fromInputStreamManaged(is.tap(is => ZIO.addFinalizer(_ => ZIO.succeed(is.close()))), chunkSize)
 
   /**
    * Creates a stream from a managed `java.io.InputStream` value.
@@ -5209,7 +5247,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def logAnnotate(key: => String, value: => String)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Nothing, Unit] =
-    ???//ZStream.managed(ZManaged.logAnnotate(key, value))
+    ??? //ZStream.managed(ZManaged.logAnnotate(key, value))
 
   /**
    * Retrieves the log annotations associated with the current scope.
@@ -5251,13 +5289,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Sets the log level for streams composed after this.
    */
   def logLevel(level: LogLevel)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
-    ???//ZStream.managed(ZManaged.logLevel(level))
+    ??? //ZStream.managed(ZManaged.logLevel(level))
 
   /**
    * Adjusts the label for the logging span for streams composed after this.
    */
   def logSpan(label: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
-    ???//ZStream.managed(ZManaged.logSpan(label))
+    ??? //ZStream.managed(ZManaged.logSpan(label))
 
   /**
    * Logs the specified message at the trace log level.
@@ -5689,7 +5727,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream produced from a [[ZManaged]]
    */
-  def unwrapManaged[R, E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+  def unwrapManaged[R, E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZStream[R, E, A] =
     managed[R, E, ZStream[R, E, A]](fa).flatten
 
   /**
@@ -6022,7 +6062,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       : WithOut[ZIO[Scope with R, E, IteratorLike[A]], ZStream[R, Throwable, A]] =
       new ZStreamConstructor[ZIO[Scope with R, E, IteratorLike[A]]] {
         type Out = ZStream[R, Throwable, A]
-        def make(input: => ZIO[Scope with R, E, IteratorLike[A]])(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
+        def make(input: => ZIO[Scope with R, E, IteratorLike[A]])(implicit
+          trace: ZTraceElement
+        ): ZStream[R, Throwable, A] =
           ZStream.fromIteratorManaged[R, A](input)
       }
 

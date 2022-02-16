@@ -41,7 +41,8 @@ object SerializableSpec extends ZIOBaseSpec {
     test("Hub is serializable") {
       for {
         hub                     <- Hub.bounded[Int](100)
-        queue                   <- hub.subscribe.reserve.flatMap(_.acquire)
+        scope                   <- Scope.make
+        queue                   <- hub.subscribe.provideService(scope)
         _                       <- hub.publish(10)
         tuple                   <- serializeAndBack((hub, queue))
         (returnHub, returnQueue) = tuple
@@ -191,12 +192,6 @@ object SerializableSpec extends ZIOBaseSpec {
         ref    <- serializeAndBack(init)
         result <- ref.get
       } yield assert(result)(equalTo(value))
-    },
-    test("ZManaged is serializable") {
-      for {
-        managed <- serializeAndBack(ZManaged.acquireReleaseWith(UIO.unit)(_ => UIO.unit))
-        result  <- managed.use(_ => UIO.unit)
-      } yield assert(result)(equalTo(()))
     },
     test("Chunk is serializable") {
       val chunk =

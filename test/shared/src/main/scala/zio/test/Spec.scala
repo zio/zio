@@ -116,7 +116,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Returns an effect that models execution of this spec.
    */
-  final def execute(defExec: ExecutionStrategy)(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Spec[Any, E, T]] =
+  final def execute(defExec: ExecutionStrategy)(implicit
+    trace: ZTraceElement
+  ): ZIO[R with Scope, Nothing, Spec[Any, E, T]] =
     ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
 
   /**
@@ -218,17 +220,17 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     defExec: ExecutionStrategy
   )(f: SpecCase[R, E, T, Z] => ZIO[R1 with Scope, E1, Z])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Z] =
     caseValue match {
-      case ExecCase(exec, spec)     => ???//spec.foldManaged(exec)(f).flatMap(z => f(ExecCase(exec, z)))
-      case LabeledCase(label, spec) => ???//spec.foldManaged(defExec)(f).flatMap(z => f(LabeledCase(label, z)))
+      case ExecCase(exec, spec)     => ??? //spec.foldManaged(exec)(f).flatMap(z => f(ExecCase(exec, z)))
+      case LabeledCase(label, spec) => ??? //spec.foldManaged(defExec)(f).flatMap(z => f(LabeledCase(label, z)))
       case ManagedCase(managed) =>
         ???
-        // managed.foldCauseZIO(
-        //   c => f(ManagedCase(ZIO.failCause(c))),
-        //   spec => spec.foldManaged(defExec)(f).flatMap(z => f(ManagedCase(ZIO.succeedNow(z))))
-        // )
+      // managed.foldCauseZIO(
+      //   c => f(ManagedCase(ZIO.failCause(c))),
+      //   spec => spec.foldManaged(defExec)(f).flatMap(z => f(ManagedCase(ZIO.succeedNow(z))))
+      // )
       case MultipleCase(specs) =>
         ???
-        //ZIO.foreachExec(specs)(defExec)(_.foldManaged(defExec)(f).release).flatMap(zs => f(MultipleCase(zs)))
+      //ZIO.foreachExec(specs)(defExec)(_.foldManaged(defExec)(f).release).flatMap(zs => f(MultipleCase(zs)))
       case t @ TestCase(_, _) => f(t)
     }
 
@@ -600,15 +602,15 @@ object Spec {
     final def map[B](f: A => B)(implicit trace: ZTraceElement): SpecCase[R, E, T, B] = self match {
       case ExecCase(label, spec)       => ExecCase(label, f(spec))
       case LabeledCase(label, spec)    => LabeledCase(label, f(spec))
-      case ManagedCase(managed)        => ???//ManagedCase(managed.map(f))
+      case ManagedCase(managed)        => ??? //ManagedCase(managed.map(f))
       case MultipleCase(specs)         => MultipleCase(specs.map(f))
       case TestCase(test, annotations) => TestCase(test, annotations)
     }
   }
-  final case class ExecCase[+Spec](exec: ExecutionStrategy, spec: Spec)      extends SpecCase[Any, Nothing, Nothing, Spec]
-  final case class LabeledCase[+Spec](label: String, spec: Spec)             extends SpecCase[Any, Nothing, Nothing, Spec]
+  final case class ExecCase[+Spec](exec: ExecutionStrategy, spec: Spec)            extends SpecCase[Any, Nothing, Nothing, Spec]
+  final case class LabeledCase[+Spec](label: String, spec: Spec)                   extends SpecCase[Any, Nothing, Nothing, Spec]
   final case class ManagedCase[-R, +E, +Spec](managed: ZIO[Scope with R, E, Spec]) extends SpecCase[R, E, Nothing, Spec]
-  final case class MultipleCase[+Spec](specs: Chunk[Spec])                   extends SpecCase[Any, Nothing, Nothing, Spec]
+  final case class MultipleCase[+Spec](specs: Chunk[Spec])                         extends SpecCase[Any, Nothing, Nothing, Spec]
   final case class TestCase[-R, +E, +T](test: ZIO[R, E, T], annotations: TestAnnotationMap)
       extends SpecCase[R, E, T, Nothing]
 

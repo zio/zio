@@ -25,22 +25,22 @@ object ZLayerSpec extends ZIOBaseSpec {
   trait Service1
 
   def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service1] =
-    ZLayer {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire1).as(new Service1 {}))(_ => ref.update(_ :+ release1))
+    ZLayer.fromZIOScoped {
+      ZIO.acquireRelease(ref.update(_ :+ acquire1).as(new Service1 {}))(_ => ref.update(_ :+ release1))
     }
 
   trait Service2
 
   def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service2] =
-    ZLayer {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire2).as(new Service2 {}))(_ => ref.update(_ :+ release2))
+    ZLayer.fromZIOScoped {
+      ZIO.acquireRelease(ref.update(_ :+ acquire2).as(new Service2 {}))(_ => ref.update(_ :+ release2))
     }
 
   trait Service3
 
   def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service3] =
-    ZLayer {
-      ZManaged.acquireReleaseWith(ref.update(_ :+ acquire3).as(new Service3 {}))(_ => ref.update(_ :+ release3))
+    ZLayer.fromZIOScoped {
+      ZIO.acquireRelease(ref.update(_ :+ acquire3).as(new Service3 {}))(_ => ref.update(_ :+ release3))
     }
 
   def makeRef: UIO[Ref[Vector[String]]] =
@@ -239,9 +239,9 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("layers can be acquired in parallel") {
         for {
           promise <- Promise.make[Nothing, Unit]
-          layer1   = ZLayer(ZManaged.never)
+          layer1   = ZLayer(ZIO.never)
           layer2 =
-            ZLayer(Managed.acquireReleaseWith(promise.succeed(()).map(ZEnvironment(_)))(_ => ZIO.unit))
+            ZLayer(ZIO.acquireRelease(promise.succeed(()).map(ZEnvironment(_)))(_ => ZIO.unit))
           env = (layer1 ++ layer2).build
           _  <- ZIO.scoped(env.unit).forkDaemon
           _  <- promise.await
@@ -338,13 +338,14 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("preserves identity of acquired resources") {
         for {
           testRef <- Ref.make(Vector[String]())
-          layer = ZLayer {
-                    for {
-                      ref <-
-                        Ref.make[Vector[String]](Vector()).toManagedWith(ref => ref.get.flatMap(testRef.set))
-                      _ <- ZManaged.unit
-                    } yield ref
-                  }
+          layer =
+            ZLayer {
+              for {
+                ref <-
+                  Ref.make[Vector[String]](Vector()).tap(ref => ZIO.addFinalizer(_ => ref.get.flatMap(testRef.set)))
+                _ <- ZIO.unit
+              } yield ref
+            }
           _      <- ZIO.scoped(layer.build.flatMap(_.get.update(_ :+ "test")))
           result <- testRef.get
         } yield assert(result)(equalTo(Vector("test")))
@@ -363,7 +364,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer1 = ZLayer.fail("foo")
         val layer2 = ZLayer.succeed("bar")
         val layer3 = ZLayer.succeed("baz")
-        val layer4 = ZManaged.acquireReleaseWith(sleep)(_ => sleep).toLayer
+        val layer4 = ZLayer.fromZIOScoped[Any, Nothing, Unit](ZIO.acquireRelease(sleep)(_ => sleep))
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
         assertM(ZIO.unit.provideCustomLayer(env).exit)(fails(equalTo("foo")))
       },
@@ -442,20 +443,6 @@ object ZLayerSpec extends ZIOBaseSpec {
         val needsString       = providesInt(needsIntAndString)
         needsString
           .provideLayer(ZLayer.succeed("hi"))
-          .map { result =>
-            assertTrue(
-              result.get[Int] == 10,
-              result.get[String] == "hi"
-            )
-          }
-      },
-      test("apply provides a managed effect with part of its required environment") {
-        val needsIntAndString = ZManaged.environment[Int & String]
-        val providesInt       = ZLayer.succeed(10)
-        val needsString       = providesInt(needsIntAndString)
-        needsString
-          .provideLayer(ZLayer.succeed("hi"))
-          .useNow
           .map { result =>
             assertTrue(
               result.get[Int] == 10,

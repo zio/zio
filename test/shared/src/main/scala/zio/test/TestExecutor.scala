@@ -61,9 +61,9 @@ object TestExecutor {
                   test.map { case (result, dynamicAnnotations) =>
                     ExecutedSpec.test(result, staticAnnotations ++ dynamicAnnotations)
                   }
-                }
               }
             }
+          }
       }
     val environment = env
   }

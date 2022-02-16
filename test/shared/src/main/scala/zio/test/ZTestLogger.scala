@@ -40,7 +40,7 @@ object ZTestLogger {
       for {
         runtimeConfig <- ZIO.runtimeConfig
         testLogger    <- ZTestLogger.make
-        _             <- ZIO.succeed(???)//ZManaged.withRuntimeConfig(runtimeConfig.copy(logger = testLogger))
+        _ <- ZIO.succeed(???) //ZManaged.withRuntimeConfig(runtimeConfig.copy(logger = testLogger))
       } yield ()
     }
 

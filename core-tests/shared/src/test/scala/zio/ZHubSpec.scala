@@ -15,8 +15,10 @@ object ZHubSpec extends ZIOBaseSpec {
             promise1 <- Promise.make[Nothing, Unit]
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.bounded[Int](n)
-            subscriber <- hub.subscribe.use { subscription =>
-                            promise1.succeed(()) *> promise2.await *> ZIO.foreach(as.take(n))(_ => subscription.take)
+            subscriber <- ZIO.scoped {
+                            hub.subscribe.flatMap { subscription =>
+                              promise1.succeed(()) *> promise2.await *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                            }
                           }.fork
             _      <- promise1.await
             _      <- ZIO.foreach(as.take(n))(hub.publish)
@@ -33,17 +35,19 @@ object ZHubSpec extends ZIOBaseSpec {
             promise3 <- Promise.make[Nothing, Unit]
             hub      <- Hub.bounded[Int](n)
             subscriber1 <-
-              hub.subscribe
-                .use(subscription =>
-                  promise1.succeed(()) *> promise3.await *> ZIO.foreach(as.take(n))(_ => subscription.take)
-                )
-                .fork
+              ZIO.scoped {
+                hub.subscribe
+                  .flatMap(subscription =>
+                    promise1.succeed(()) *> promise3.await *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                  )
+              }.fork
             subscriber2 <-
-              hub.subscribe
-                .use(subscription =>
-                  promise2.succeed(()) *> promise3.await *> ZIO.foreach(as.take(n))(_ => subscription.take)
-                )
-                .fork
+              ZIO.scoped {
+                hub.subscribe
+                  .flatMap(subscription =>
+                    promise2.succeed(()) *> promise3.await *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                  )
+              }.fork
             _       <- promise1.await
             _       <- promise2.await
             _       <- ZIO.foreach(as.take(n))(hub.publish)
@@ -62,8 +66,10 @@ object ZHubSpec extends ZIOBaseSpec {
             promise <- Promise.make[Nothing, Unit]
             hub     <- Hub.bounded[Int](n)
             subscriber <-
-              hub.subscribe.use { subscription =>
-                promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                }
               }.fork
             _      <- promise.await
             _      <- ZIO.foreach(as.take(n))(hub.publish).fork
@@ -78,12 +84,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.bounded[Int](n)
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await
@@ -101,12 +111,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.bounded[Int](n * 2)
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await
@@ -128,8 +142,10 @@ object ZHubSpec extends ZIOBaseSpec {
             promise <- Promise.make[Nothing, Unit]
             hub     <- Hub.bounded[Int](n)
             subscriber <-
-              hub.subscribe.use { subscription =>
-                promise.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+                }
               }.fork
             _      <- promise.await
             _      <- ZIO.foreach(as)(hub.publish).fork
@@ -144,12 +160,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.bounded[Int](n)
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await
@@ -167,12 +187,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.bounded[Int](n * 2)
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await
@@ -194,8 +218,10 @@ object ZHubSpec extends ZIOBaseSpec {
             promise <- Promise.make[Nothing, Unit]
             hub     <- Hub.dropping[Int](n)
             subscriber <-
-              hub.subscribe.use { subscription =>
-                promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                }
               }.fork
             _      <- promise.await
             _      <- ZIO.foreach(as)(hub.publish).fork
@@ -210,12 +236,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.dropping[Int](n)
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await
@@ -233,12 +263,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.dropping[Int](n * 2)
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await
@@ -260,8 +294,10 @@ object ZHubSpec extends ZIOBaseSpec {
             promise <- Promise.make[Nothing, Unit]
             hub     <- Hub.sliding[Int](n)
             subscriber <-
-              hub.subscribe.use { subscription =>
-                promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                }
               }.fork
             _         <- promise.await
             publisher <- ZIO.foreach(as.sorted)(hub.publish).fork
@@ -277,12 +313,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.sliding[Int](n)
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await
@@ -300,12 +340,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.sliding[Int](n * 2)
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await
@@ -327,8 +371,10 @@ object ZHubSpec extends ZIOBaseSpec {
             promise <- Promise.make[Nothing, Unit]
             hub     <- Hub.unbounded[Int]
             subscriber <-
-              hub.subscribe.use { subscription =>
-                promise.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+                }
               }.fork
             _      <- promise.await
             _      <- ZIO.foreach(as)(hub.publish).fork
@@ -343,12 +389,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.unbounded[Int]
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach(as)(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await
@@ -366,12 +416,16 @@ object ZHubSpec extends ZIOBaseSpec {
             promise2 <- Promise.make[Nothing, Unit]
             hub      <- Hub.unbounded[Int]
             subscriber1 <-
-              hub.subscribe.use { subscription =>
-                promise1.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise1.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take)
+                }
               }.fork
             subscriber2 <-
-              hub.subscribe.use { subscription =>
-                promise2.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take)
+              ZIO.scoped {
+                hub.subscribe.flatMap { subscription =>
+                  promise2.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take)
+                }
               }.fork
             _       <- promise1.await
             _       <- promise2.await

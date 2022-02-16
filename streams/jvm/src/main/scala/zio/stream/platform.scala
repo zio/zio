@@ -580,7 +580,9 @@ trait ZStreamPlatformSpecificConstructors {
       : WithOut[ZIO[Scope with R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
       new ZStreamConstructor[ZIO[Scope with R, E, StreamLike[A]]] {
         type Out = ZStream[R, Throwable, A]
-        def make(input: => ZIO[Scope with R, E, StreamLike[A]])(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
+        def make(input: => ZIO[Scope with R, E, StreamLike[A]])(implicit
+          trace: ZTraceElement
+        ): ZStream[R, Throwable, A] =
           ZStream.fromJavaStreamManaged[R, A](input)
       }
 

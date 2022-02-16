@@ -3275,6 +3275,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     fromZIOEnvironment(zio.map(ZEnvironment(_)))
 
   /**
+   * Constructs a layer from the specified effect.
+   */
+  def fromZIOScoped[R, E, A: Tag](zio: ZIO[Scope with R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZLayer[R, E, A] =
+    Managed[R, E, A](zio.map(ZEnvironment(_)))
+
+  /**
    * Constructs a layer from the specified effect, which must return one or more
    * services.
    */
