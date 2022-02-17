@@ -14,14 +14,14 @@ object ManagedSpec extends ZIOBaseSpec {
 
     val live: Layer[Nothing, Counter] =
       ZLayer.fromZIOScoped {
-      Ref
-        .make(1)
-        .tap(ref => ZIO.addFinalizer(_ => ref.set(-10)))
-        .map { ref =>
-          new Counter {
-            val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
+        Ref
+          .make(1)
+          .tap(ref => ZIO.addFinalizer(_ => ref.set(-10)))
+          .map { ref =>
+            new Counter {
+              val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
+            }
           }
-        } 
       }
 
     val incrementAndGet: URIO[Counter, Int] =

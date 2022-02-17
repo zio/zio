@@ -3289,7 +3289,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromZIOEnvironment[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    ???
+    ZLayer.Managed[R, E, A](zio)
 
   /**
    * Constructs a layer from the specified effect, which must return one or more

@@ -136,8 +136,8 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           }
 
           (dealiased.typeSymbol.fullName, typeArgTrees) match {
-            case ("zio.ZIO", r :: e :: a :: Nil)      => TypeInfo(Capability.Effect(r, e, a))
-            case ("zio.ZManaged", r :: e :: a :: Nil) => TypeInfo(Capability.Managed(r, e, a))
+            case ("zio.ZIO", r :: e :: a :: Nil)              => TypeInfo(Capability.Effect(r, e, a))
+            case ("zio.managed.ZManaged", r :: e :: a :: Nil) => TypeInfo(Capability.Managed(r, e, a))
             case ("zio.stream.ZSink", r :: e :: a :: l :: b :: Nil) =>
               TypeInfo(Capability.Sink(r, e, a, l, b))
             case ("zio.stream.ZStream", r :: e :: a :: Nil) => TypeInfo(Capability.Stream(r, e, a))
@@ -162,8 +162,8 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           if (r != any) tq"_root_.zio.ZIO[$serviceName[..$serviceTypeArgs] with $r, $e, $a]"
           else tq"_root_.zio.ZIO[$serviceName[..$serviceTypeArgs], $e, $a]"
         case Capability.Managed(r, e, a) =>
-          if (r != any) tq"_root_.zio.ZManaged[$serviceName[..$serviceTypeArgs] with $r, $e, $a]"
-          else tq"_root_.zio.ZManaged[$serviceName[..$serviceTypeArgs], $e, $a]"
+          if (r != any) tq"_root_.zio.managed.ZManaged[$serviceName[..$serviceTypeArgs] with $r, $e, $a]"
+          else tq"_root_.zio.managed.ZManaged[$serviceName[..$serviceTypeArgs], $e, $a]"
         case Capability.Stream(r, e, a) =>
           if (r != any) tq"_root_.zio.stream.ZStream[$serviceName[..$serviceTypeArgs] with $r, $e, $a]"
           else tq"_root_.zio.stream.ZStream[$serviceName[..$serviceTypeArgs], $e, $a]"
@@ -195,9 +195,9 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
         case (_: Capability.Effect, _) =>
           q"_root_.zio.ZIO.serviceWithZIO[$serviceName[..$serviceTypeArgs]](_.$name)"
         case (_: Capability.Managed, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
-          q"_root_.zio.ZManaged.serviceWithManaged[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs](...$argNames))"
+          q"_root_.zio.managed.ZManaged.serviceWithManaged[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs](...$argNames))"
         case (_: Capability.Managed, _) =>
-          q"_root_.zio.ZManaged.serviceWithManaged[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs])"
+          q"_root_.zio.managed.ZManaged.serviceWithManaged[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs])"
         case (_: Capability.Stream, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           q"_root_.zio.stream.ZStream.serviceWithStream[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs](...$argNames))"
         case (_: Capability.Stream, _) =>

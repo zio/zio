@@ -220,17 +220,17 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     defExec: ExecutionStrategy
   )(f: SpecCase[R, E, T, Z] => ZIO[R1 with Scope, E1, Z])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Z] =
     caseValue match {
-      case ExecCase(exec, spec)     => ??? //spec.foldManaged(exec)(f).flatMap(z => f(ExecCase(exec, z)))
-      case LabeledCase(label, spec) => ??? //spec.foldManaged(defExec)(f).flatMap(z => f(LabeledCase(label, z)))
+      case ExecCase(exec, spec)     => spec.foldManaged[R1, E1, Z](exec)(f).flatMap(z => f(ExecCase(exec, z)))
+      case LabeledCase(label, spec) => spec.foldManaged[R1, E1, Z](defExec)(f).flatMap(z => f(LabeledCase(label, z)))
       case ManagedCase(managed) =>
-        ???
-      // managed.foldCauseZIO(
-      //   c => f(ManagedCase(ZIO.failCause(c))),
-      //   spec => spec.foldManaged(defExec)(f).flatMap(z => f(ManagedCase(ZIO.succeedNow(z))))
-      // )
+        managed.foldCauseZIO(
+          c => f(ManagedCase(ZIO.failCause(c))),
+          spec => spec.foldManaged[R1, E1, Z](defExec)(f).flatMap(z => f(ManagedCase(ZIO.succeedNow(z))))
+        )
       case MultipleCase(specs) =>
-        ???
-      //ZIO.foreachExec(specs)(defExec)(_.foldManaged(defExec)(f).release).flatMap(zs => f(MultipleCase(zs)))
+        ZIO
+          .foreachExec(specs)(defExec)(spec => ZIO.scoped[R1, E1, Z](spec.foldManaged[R1, E1, Z](defExec)(f)))
+          .flatMap(zs => f(MultipleCase(zs)))
       case t @ TestCase(_, _) => f(t)
     }
 

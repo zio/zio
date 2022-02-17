@@ -857,12 +857,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     layer: => ZLayer[Env0, OutErr1, Env]
   )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
     ???
-    // val managed = ZManaged(
-    //   Scope.make.flatMap { scope =>
-    //     layer.build.provideSomeEnvironment[Env0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
-    //   }
-    // )
-    // ZChannel.managed(managed)(env => self.provideEnvironment(env))
+  // val managed = ZManaged(
+  //   Scope.make.flatMap { scope =>
+  //     layer.build.provideSomeEnvironment[Env0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
+  //   }
+  // )
+  // ZChannel.managed(managed)(env => self.provideEnvironment(env))
 
   /**
    * Provides the channel with the single service it requires. If the channel
@@ -904,7 +904,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     trace: ZTraceElement
   ): ZIO[Env with Scope, OutErr, OutDone] =
     ZIO
-      .acquireReleaseExit(
+      .acquireReleaseExit[Env, OutErr, ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](
         UIO(
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
@@ -914,7 +914,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         )
       ) { (exec, exit) =>
         val finalize = exec.close(exit)
-        if (finalize ne null) ??? //finalize
+        if (finalize ne null) finalize
         else ZIO.unit
       }
       .flatMap { exec =>

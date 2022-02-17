@@ -61,17 +61,17 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       spec: ZSpec[R, E],
       description: Description,
       path: Vector[String] = Vector.empty
-    ): ZManaged[R, Any, Unit] =
+    ): ZIO[R with Scope, Any, Unit] =
       spec.caseValue match {
         case Spec.ExecCase(_, spec)        => traverse(spec, description, path)
         case Spec.LabeledCase(label, spec) => traverse(spec, description, path :+ label)
         case Spec.ManagedCase(managed)     => managed.flatMap(traverse(_, description, path))
         case Spec.MultipleCase(specs) =>
           val suiteDesc = Description.createSuiteDescription(path.lastOption.getOrElse(""), path.mkString(":"))
-          ZManaged.succeed(description.addChild(suiteDesc)) *>
-            ZManaged.foreach(specs)(traverse(_, suiteDesc, path)).ignore
+          ZIO.succeed(description.addChild(suiteDesc)) *>
+            ZIO.foreach(specs)(traverse(_, suiteDesc, path)).ignore
         case Spec.TestCase(_, _) =>
-          ZManaged.succeed(description.addChild(testDescription(path.lastOption.getOrElse(""), path)))
+          ZIO.succeed(description.addChild(testDescription(path.lastOption.getOrElse(""), path)))
       }
 
     val emptyArgsLayer: ULayer[ZIOAppArgs] =
@@ -79,14 +79,18 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         ZIOAppArgs(Chunk.empty)
       )
 
+    val scoped =
+      ZIO.scoped[ZTestJUnitRunner.this.spec.Environment with zio.test.TestEnvironment with zio.ZIOAppArgs, Any, Unit](
+        traverse(filteredSpec, description)
+      )
+
     unsafeRun(
-      traverse(filteredSpec, description)
+      scoped
         .provide(
           ZEnv.live >>> TestEnvironment.live,
           emptyArgsLayer,
           spec.layer
         )
-        .useNow
     )
     description
   }
@@ -172,7 +176,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         case Spec.LabeledCase(label, spec) =>
           Spec.LabeledCase(label, Spec(loop(spec.caseValue, path :+ label)))
         case Spec.ManagedCase(managed) =>
-          Spec.ManagedCase(managed.map(spec => Spec(loop(spec.caseValue, path))))
+          ???
         case Spec.MultipleCase(specs) =>
           Spec.MultipleCase(specs.map(spec => Spec(loop(spec.caseValue, path))))
         case Spec.TestCase(test, annotations) =>
