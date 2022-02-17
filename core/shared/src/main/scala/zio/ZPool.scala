@@ -66,12 +66,12 @@ object ZPool {
    * shutdown because the `Managed` is used, the individual items allocated by
    * the pool will be released in some unspecified order.
    */
-  def make[R <: Scope, E, A](get: => ZIO[R, E, A], size: => Int)(implicit
+  def make[R, E, A](get: => ZIO[R with Scope, E, A], size: => Int)(implicit
     trace: ZTraceElement
-  ): ZIO[R, Nothing, ZPool[E, A]] =
+  ): ZIO[R with Scope, Nothing, ZPool[E, A]] =
     for {
       size <- ZIO.succeed(size)
-      pool <- makeWith(get, size to size)(Strategy.None)
+      pool <- makeWith[R, Any, E, A](get, size to size)(Strategy.None)
     } yield pool
 
   /**
@@ -92,16 +92,16 @@ object ZPool {
   def make[R <: Scope, E, A](get: => ZIO[R, E, A], range: => Range, timeToLive: => Duration)(implicit
     trace: ZTraceElement
   ): ZIO[R with Clock, Nothing, ZPool[E, A]] =
-    makeWith(get, range)(Strategy.TimeToLive(timeToLive))
+    makeWith[R, Clock, E, A](get, range)(Strategy.TimeToLive(timeToLive))
 
   /**
    * A more powerful variant of `make` that allows specifying a `Strategy` that
    * describes how a pool whose excess items are not being used will be shrunk
    * down to the minimum size.
    */
-  private def makeWith[R <: Scope, R1, E, A](get: => ZIO[R, E, A], range: => Range)(strategy: => Strategy[R1, E, A])(
+  private def makeWith[R, R1, E, A](get: => ZIO[R with Scope, E, A], range: => Range)(strategy: => Strategy[R1, E, A])(
     implicit trace: ZTraceElement
-  ): ZIO[R with R1, Nothing, ZPool[E, A]] =
+  ): ZIO[R with R1 with Scope, Nothing, ZPool[E, A]] =
     for {
       get      <- ZIO.succeed(get)
       range    <- ZIO.succeed(range)
@@ -112,10 +112,18 @@ object ZPool {
       items    <- Queue.bounded[Attempted[E, A]](range.end)
       inv      <- Ref.make(Set.empty[A])
       initial  <- strategy.initial
-      pool      = DefaultPool(get.provideEnvironment(env), range, down, state, items, inv, strategy.track(initial))
-      fiber    <- pool.initialize.forkDaemon
-      shrink   <- strategy.run(initial, pool.excess, pool.shrink).forkDaemon
-      _        <- ZIO.addFinalizer(_ => fiber.interrupt *> shrink.interrupt *> pool.shutdown)
+      pool = DefaultPool(
+               get.provideSomeEnvironment[Scope](env.union[Scope](_)),
+               range,
+               down,
+               state,
+               items,
+               inv,
+               strategy.track(initial)
+             )
+      fiber  <- pool.initialize.forkDaemon
+      shrink <- strategy.run(initial, pool.excess, pool.shrink).forkDaemon
+      _      <- ZIO.addFinalizer(_ => fiber.interrupt *> shrink.interrupt *> pool.shutdown)
     } yield pool
 
   private case class Attempted[+E, +A](result: Exit[E, A], finalizer: UIO[Any]) {
