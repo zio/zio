@@ -85,6 +85,282 @@ val f2 = Task.fail(new Exception("Uh oh!"))
 
 Note that unlike the other effect companion objects, the `UIO` companion object does not have `UIO.fail`, because `UIO` values cannot fail.
 
+### Defects
+
+By providing a `Throwable` value to the `ZIO.die` constructor, we can describe a dying effect:
+
+```scala
+object ZIO {
+  def die(t: => Throwable): ZIO[Any, Nothing, Nothing]
+}
+```
+
+Here is an example of such effect, which will die because of encountering _divide by zero_ defect:
+
+```scala mdoc:compile-only
+val dyingEffect: ZIO[Any, Nothing, Nothing] = 
+  ZIO.die(new ArithmeticException("divide by zero"))
+```
+
+The result is the creation of a ZIO effect whose error channel and success channel are both 'Nothing'. In other words, this effect cannot fail and does not produce anything. Instead, it is an effect describing a _defect_ or an _unexpected error_.
+
+Let's see what happens if we run this effect:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run = ZIO.die(new ArithmeticException("divide by zero"))
+}
+```
+
+If we run this effect, the ZIO runtime will print the stack trace that belongs to this defect. So, here is the output:
+
+```scala
+timestamp=2022-02-16T13:02:44.057191215Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.ArithmeticException: divide by zero
+	at MainApp$.$anonfun$run$1(MainApp.scala:4)
+	at zio.ZIO$.$anonfun$die$1(ZIO.scala:3384)
+	at zio.internal.FiberContext.runUntil(FiberContext.scala:255)
+	at zio.internal.FiberContext.run(FiberContext.scala:115)
+	at zio.internal.ZScheduler$$anon$1.run(ZScheduler.scala:151)
+	at <empty>.MainApp.run(MainApp.scala:4)"
+```
+
+The `ZIO.die` constructor is used to manually describe a dying effect because of a defect inside the code.
+
+For example, assume we want to write a `divide` function that takes two numbers and divides the first number by the second. We know that the `divide` function is not defined for zero dominators. Therefore, we should signal an error if division by zero occurs.
+
+We have two choices to implement this function using the ZIO effect:
+
+1. We can divide the first number by the second, and if the second number was zero, we can fail the effect using `ZIO.fail` with the `ArithmeticException` failure value:
+
+```scala mdoc:compile-only
+def divide(a: Int, b: Int): ZIO[Any, ArithmeticException, Int] =
+  if (b == 0)
+    ZIO.fail(new ArithmeticException("divide by zero"))
+  else
+    ZIO.succeed(a / b)
+```
+
+2. We can divide the first number by the second. In the case of zero for the second number, we use `ZIO.die` to kill the effect by sending a signal of `ArithmeticException` as the defect signal:
+
+```scala mdoc:compile-only
+def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] =
+  if (b == 0)
+    ZIO.die(new ArithmeticException("divide by zero")) // Unexpected error
+  else
+    ZIO.succeed(a / b)
+```
+
+So what is the difference between these two approaches? Let's compare the function signature:
+
+```scala
+def divide(a: Int, b: Int): ZIO[Any, ArithmeticException, Int]   // using ZIO.fail
+def divide(a: Int, b: Int): ZIO[Any, Nothing,             Int]   // using ZIO.die
+```
+
+1. The first approach, models the _divide by zero_ error by _failing_ the effect. We call these failures _expected errors_or _typed error_.
+2. While the second approach models the _divide by zero_ error by _dying_ the effect. We call these kinds of errors _unexpected errors_, _defects_ or _untyped errors_.
+
+We use the first method when we are handling errors as we expect them, and thus we know how to handle them. In contrast, the second method is used when we aren't expecting those errors in our domain, and we don't know how to handle them. Therefore, we use the _let it crash_ philosophy.
+
+In the second approach, we can see that the `divide` function indicates that it cannot fail. But, it doesn't mean that this function hasn't any defects. ZIO defects are not typed, so they cannot be seen in type parameters.
+
+Note that to create an effect that will die, we shouldn't throw an exception inside the `ZIO.die` constructor, although it works. Instead, the idiomatic way of creating a dying effect is to provide a `Throwable` value into the `ZIO.die` constructor:
+
+```scala mdoc:compile-only
+import zio._
+
+val defect1 = ZIO.die(new ArithmeticException("divide by zero"))       // recommended
+val defect2 = ZIO.die(throw new ArithmeticException("divide by zero")) // not recommended 
+```
+
+Also, if we import a code that may throw an exception, all the exceptions will be translated to the ZIO defect:
+
+```scala mdoc:compile-only
+import zio._
+
+val defect3 = ZIO.succeed(throw new Exception("boom!"))
+```
+
+Therefore, in the second approach of the `divide` function, we do not require to die the effect in case of the _dividing by zero_ because the JVM itself throws an `ArithmeticException` when the denominator is zero. When we import any code into the `ZIO` effect if any exception is thrown inside that code, will be translated to _ZIO defects_ by default. So the following program is the same as the previous example:
+
+```scala mdoc:compile-only
+def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] = 
+  ZIO.succeed(a / b)
+```
+
+Another important note is that if we `map`/`flatMap` a ZIO effect and then accidentally throw an exception inside the map operation, that exception will be translated to the ZIO defect:
+
+```scala mdoc:compile-only
+import zio._
+
+val defect4 = ZIO.succeed(???).map(_ => throw new Exception("Boom!"))
+val defect5 = ZIO.attempt(???).map(_ => throw new Exception("Boom!"))
+```
+
+### Fatal Errors
+
+The `VirtualMachineError` and all its subtypes are considered fatal errors by the ZIO runtime. So if during the running application, the JVM throws any of these errors like `StackOverflowError`, the ZIO runtime considers it as a catastrophic fatal error. So it will interrupt the whole application immediately without safe resource interruption. None of the `ZIO#catchAll` and `ZIO#catchAllDefects` will catch this fatal error. At most, if the `RuntimeConfig.reportFatal` is enabled, the application will log the stack trace before interrupting the whole application.
+
+Here is an example of manually creating a fatal error. Although we are ignoring all expected and unexpected errors, the fatal error interrupts the whole application.
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    ZIO
+      .attempt(
+        throw new StackOverflowError(
+          "The call stack pointer exceeds the stack bound."
+        )
+      )
+      .catchAll(_ => ZIO.unit)       // ignoring all expected errors
+      .catchAllDefect(_ => ZIO.unit) // ignoring all unexpected errors
+}
+```
+
+The output will be something like this:
+
+```scala
+java.lang.StackOverflowError: The call stack pointer exceeds the stack bound.
+	at MainApp$.$anonfun$run$1(MainApp.scala:8)
+	at zio.ZIO$.$anonfun$attempt$1(ZIO.scala:2946)
+	at zio.internal.FiberContext.runUntil(FiberContext.scala:247)
+	at zio.internal.FiberContext.run(FiberContext.scala:115)
+	at zio.internal.ZScheduler$$anon$1.run(ZScheduler.scala:151)
+**** WARNING ****
+Catastrophic error encountered. Application not safely interrupted. Resources may be leaked. Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context.
+```
+
+### Example
+
+Let's write an application that takes numerator and denominator from the user and then print the result back to the user:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      a <- readNumber("Enter the first number  (a): ")
+      b <- readNumber("Enter the second number (b): ")
+      r <- divide(a, b)
+      _ <- Console.printLine(s"a / b: $r").orDie
+    } yield ()
+    
+  def readNumber(msg: String): ZIO[Console, Nothing, Int] =
+    Console.print(msg).orDie *> Console.readLine.orDie.map(_.toInt)
+
+  def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] =
+    if (b == 0)
+      ZIO.die(new ArithmeticException("divide by zero")) // unexpected error
+    else
+      ZIO.succeed(a / b)
+}
+```
+
+Now let's try to enter the zero for the second number and see what happens:
+
+```scala
+Please enter the first number  (a): 5
+Please enter the second number (b): 0
+timestamp=2022-02-14T09:39:53.981143209Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.ArithmeticException: divide by zero
+at MainApp$.$anonfun$divide$1(MainApp.scala:16)
+at zio.ZIO$.$anonfun$die$1(ZIO.scala:3384)
+at zio.internal.FiberContext.runUntil(FiberContext.scala:255)
+at zio.internal.FiberContext.run(FiberContext.scala:115)
+at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1130)
+at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:630)
+at java.base/java.lang.Thread.run(Thread.java:831)
+at <empty>.MainApp.divide(MainApp.scala:16)"
+```
+
+As we see, because we entered the zero for the denominator, the `ArithmeticException` defect, makes the application crash.
+
+Defects are any _unexpected errors_ that we are not going to handle. They will propagate through our application stack until they crash the whole.
+
+Defects have many roots, most of them are from a programming error. Errors will happen when we haven't written the application with best practices. For example, one of these practices is that we should validate the inputs before providing them to the `divide` function. So if the user entered the zero as the denominator, we can retry and ask the user to return another number:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      a <- readNumber("Enter the first number  (a): ")
+      b <- readNumber("Enter the second number (b): ").repeatUntil(_ != 0)
+      r <- divide(a, b)
+      _ <- Console.printLine(s"a / b: $r").orDie
+    } yield ()
+    
+  def readNumber(msg: String): ZIO[Console, Nothing, Int] =
+    Console.print(msg).orDie *> Console.readLine.orDie.map(_.toInt)
+
+  def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] = ZIO.succeed(a / b)
+}
+```
+
+Another note about defects is that they are invisible, and they are not typed. We cannot expect what defects will happen by observing the typed error channel. In the above example, when we run the application and enter noninteger input, another defect, which is called `NumberFormatException` will crash the application:
+
+```scala
+Enter the first number: five
+timestamp=2022-02-14T13:28:03.223395129Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.NumberFormatException: For input string: "five"
+at java.base/java.lang.NumberFormatException.forInputString(NumberFormatException.java:67)
+at java.base/java.lang.Integer.parseInt(Integer.java:660)
+at java.base/java.lang.Integer.parseInt(Integer.java:778)
+at scala.collection.StringOps$.toInt$extension(StringOps.scala:910)
+at MainApp$.$anonfun$run$3(MainApp.scala:7)
+at MainApp$.$anonfun$run$3$adapted(MainApp.scala:7)
+  ...
+at <empty>.MainApp.run(MainApp.scala:7)"
+```
+
+The cause of this defect is also is a programming error, which means we haven't validated input when parsing it. So let's try to validate the input, and make sure that is it is a number. We know that if the entered input does not contain a parsable `Int` the `String#toInt` throws the `NumberFormatException` exception. As we want this exception to be typed, we import the `String#toInt` function using the `ZIO.attempt` constructor. Using this constructor the function signature would be as follows:
+
+```scala mdoc:compile-only
+import zio._ 
+
+def parseInput(input: String): ZIO[Any, Throwable, Int] =
+  ZIO.attempt(input.toInt)
+```
+
+To be more specific, we would like to narrow down the error channel to the `NumberFormatException`, so we can use the `refineToOrDie` operator:
+
+```scala mdoc:compile-only
+import zio._
+
+def parseInput(input: String): ZIO[Any, NumberFormatException, Int] =
+  ZIO.attempt(input.toInt).refineToOrDie[NumberFormatException]
+```
+
+Since it is an expected error, and we want to handle it, we typed the error channel as `NumberFormatException`:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      a <- readNumber("Enter the first number  (a): ")
+      b <- readNumber("Enter the second number (b): ").repeatUntil(_ != 0)
+      r <- divide(a, b)
+      _ <- Console.printLine(s"a / b: $r").orDie
+    } yield ()
+    
+  def parseInput(input: String): ZIO[Any, NumberFormatException, Int] =
+    ZIO.attempt(input.toInt).refineToOrDie[NumberFormatException]
+
+  def readNumber(msg: String): ZIO[Console, Nothing, Int] =
+    (Console.print(msg) *> Console.readLine.flatMap(parseInput))
+      .retryUntil(!_.isInstanceOf[NumberFormatException])
+      .orDie
+
+  def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] = ZIO.succeed(a / b)
+}
+```
+
 ### From Values
 ZIO contains several constructors which help us to convert various data types into `ZIO` effects.
 
@@ -451,7 +727,7 @@ try {
 
 When we are using typed errors we can have exhaustive checking support of the compiler. So, for example, when we are catching all errors if we forgot to handle one of the cases, the compiler warns us about that:
 
-```scala mdoc:warn
+```scala mdoc
 validate(17).catchAll {
   case NegativeAgeException(age) => ???
 }
@@ -644,6 +920,7 @@ Sealed traits allow us to introduce an error type as a common supertype and all 
 
 ```scala
 sealed trait UserServiceError extends Exception
+
 case class InvalidUserId(id: ID) extends UserServiceError
 case class ExpiredAuth(id: ID)   extends UserServiceError
 ```
