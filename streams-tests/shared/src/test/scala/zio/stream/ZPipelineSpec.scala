@@ -11,7 +11,8 @@ object ZPipelineSpec extends ZIOBaseSpec {
     suite("ZPipelineSpec")(
       suite("utf8Encode")(
         test("encode chunks") {
-          ZStream.fromChunks(Chunk.single("1"), Chunk.single("2"))
+          ZStream
+            .fromChunks(Chunk.single("1"), Chunk.single("2"))
             .via(ZPipeline.utf8Encode)
             .runCollect
             .map(res => assert(res)(equalTo(Chunk[Byte](49, 50))))
