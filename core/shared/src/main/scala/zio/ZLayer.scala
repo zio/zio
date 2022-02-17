@@ -620,7 +620,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromFunctionZIO[A, E, B: Tag](f: ZEnvironment[A] => IO[E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[A, E, B] =
-    ???
+    ZLayer(ZIO.environmentWithZIO(f))
 
   /**
    * Constructs a layer that purely depends on the specified service.
