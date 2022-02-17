@@ -18,7 +18,7 @@ package zio
 
 import scala.collection.immutable.LongMap
 
-trait Scope { self =>
+trait Scope extends Serializable { self =>
   def addFinalizer(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
   def close(exit: Exit[Any, Any]): UIO[Unit]
   final def use[R, E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
