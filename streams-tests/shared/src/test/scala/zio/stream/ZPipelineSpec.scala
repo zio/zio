@@ -10,14 +10,11 @@ object ZPipelineSpec extends ZIOBaseSpec {
   def spec =
     suite("ZPipelineSpec")(
       suite("utf8Encode")(
-        test("chunks stream encode") {
-          val expected: List[Byte] = List(49, 50)
-          for {
-            actual <- ZStream.fromChunks(Chunk.single("1"), Chunk.single("2"))
-              .via(ZPipeline.utf8Encode)
-              .run(ZSink.collectAll)
-              .map(_.toList)
-          } yield assert(actual)(equalTo(expected))
+        test("encode chunks") {
+          ZStream.fromChunks(Chunk.single("1"), Chunk.single("2"))
+            .via(ZPipeline.utf8Encode)
+            .runCollect
+            .map(res => assert(res)(equalTo(Chunk[Byte](49, 50))))
         }
       ),
       suite("splitLines")(
