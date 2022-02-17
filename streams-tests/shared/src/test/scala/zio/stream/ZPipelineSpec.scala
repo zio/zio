@@ -7,9 +7,17 @@ import zio.test._
 import scala.io.Source
 
 object ZPipelineSpec extends ZIOBaseSpec {
-
   def spec =
     suite("ZPipelineSpec")(
+      suite("utf8Encode")(
+        test("encode chunks") {
+          ZStream
+            .fromChunks(Chunk.single("1"), Chunk.single("2"))
+            .via(ZPipeline.utf8Encode)
+            .runCollect
+            .map(res => assert(res)(equalTo(Chunk[Byte](49, 50))))
+        }
+      ),
       suite("splitLines")(
         test("preserves data")(
           check(weirdStringGenForSplitLines) { lines =>
