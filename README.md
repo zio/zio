@@ -92,6 +92,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [greyflower.media GmbH](https://greyflower.media)
 * [Hunters.AI](https://hunters.ai)
 * [iHeartRadio](https://www.iheart.com/)
+* [IHS Markit](https://ihsmarkit.com/)
 * [Investsuite](https://investsuite.com/)
 * [Kaizen Solutions](https://kaizen-solutions.net/)
 * [Kamon APM](https://kamon.io/)
