@@ -29,12 +29,12 @@ object AccessibleSpec extends ZIOBaseSpec {
   object TestService extends Accessible[TestService] {
     val test =
       ZLayer.succeed(new TestService {
-        override def withArgsZIO(a: Int): ZIO[Any, Nothing, Int] = ZIO.succeed(a)
-        override def withArgs(a: Int): Int = a
-        override def withoutArgsZIO: ZIO[Any, Nothing, Int] = ZIO.succeed(0)
-        override def withoutArgs: Int = 0
+        override def withArgsZIO(a: Int): ZIO[Any, Nothing, Int]   = ZIO.succeed(a)
+        override def withArgs(a: Int): Int                         = a
+        override def withoutArgsZIO: ZIO[Any, Nothing, Int]        = ZIO.succeed(0)
+        override def withoutArgs: Int                              = 0
         override def polymorphicZIO[A](a: A): ZIO[Any, Nothing, A] = ZIO.succeed(a)
-        override def polymorphic[A](a: A): A = a
+        override def polymorphic[A](a: A): A                       = a
       })
   }
 }
