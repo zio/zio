@@ -9,19 +9,19 @@ object ReentrantLockSpec extends DefaultRunnableSpec {
     suite("ReentrantLockSpec")(
       testM("1 lock") {
         for {
-          lock  <- ReentrantLock.make(false)
+          lock  <- ReentrantLock.make()
           count <- lock.withLock.use(UIO.succeed(_))
         } yield assert(count)(equalTo(1))
       },
       testM("2 locks") {
         for {
-          lock  <- ReentrantLock.make(false)
+          lock  <- ReentrantLock.make()
           count <- lock.withLock.use(_ => lock.withLock.use(UIO.succeed(_)))
         } yield assert(count)(equalTo(2))
       },
       testM("2 locks from different fibers") {
         for {
-          lock    <- ReentrantLock.make(false)
+          lock    <- ReentrantLock.make()
           mlatch  <- Promise.make[Nothing, Unit]
           wlatch  <- Promise.make[Nothing, Unit]
           _       <- lock.withLock.use(count => mlatch.succeed(()) as count).fork
@@ -30,6 +30,26 @@ object ReentrantLockSpec extends DefaultRunnableSpec {
           _       <- wlatch.await
           count2  <- reader2.join
         } yield assert(count2)(equalTo(1))
+      },
+      testM("Cleans up interrupted waiters") {
+        for {
+          lock     <- ReentrantLock.make()
+          mlatch   <- Promise.make[Nothing, Unit]
+          latch1   <- CountdownLatch.make(2)
+          wlatch   <- Promise.make[Nothing, Unit]
+          wlatch2  <- Promise.make[Nothing, Unit]
+          ref      <- Ref.make(0)
+          _        <- lock.withLock.use(_ => mlatch.succeed(()) *> wlatch.await).fork
+          _        <- mlatch.await
+          f1       <- (latch1.countDown *> lock.withLock.use(_ => ref.update(_ + 10))).fork
+          _        <- (latch1.countDown *> lock.withLock.use(_ => ref.update(_ + 10) <* wlatch2.succeed(()))).fork
+          _        <- latch1.await
+          waiters1 <- lock.queueLength
+          _        <- f1.interrupt
+          _        <- wlatch.succeed(()) *> wlatch2.await
+          waiters2 <- lock.queueLength
+          cnt      <- ref.get
+        } yield assert(waiters1)(equalTo(2)) && assert(waiters2)(equalTo(0)) && assert(cnt)(equalTo(10))
       },
       testM("Fairness assigns lock to fibers in order") {
         val f1 = (x: Int) => x * 2
@@ -66,7 +86,7 @@ object ReentrantLockSpec extends DefaultRunnableSpec {
         val f = f1.andThen(f2).andThen(f3).andThen(f4)
 
         val program = for {
-          lock  <- ReentrantLock.make(false)
+          lock  <- ReentrantLock.make()
           ref   <- Ref.make(1)
           p0    <- Promise.make[Nothing, Unit]
           _     <- lock.withLock.use(_ => p0.await).fork
