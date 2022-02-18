@@ -125,39 +125,31 @@ final class ReentrantLock private (fairness: Boolean, state: Ref[ReentrantLock.S
   lazy val withLock: UManaged[Int] =
     ZManaged.makeInterruptible(lock *> holdCount)(_ => unlock)
 
-  private def relock(epoch: Long, holders: Map[Fiber.Id, (Long, Promise[Nothing, Unit])]): (UIO[Unit], State) = {
-    val nextHolder = if (fairness) holders.minByOption(_._2._1) else pickRandom(holders)
-    nextHolder match {
-      case Some((fiberId, (_, promise))) =>
-        promise.succeed(()).unit -> State(epoch + 1, Some(fiberId), 1, holders - fiberId)
-      case None =>
-        UIO.unit -> State(epoch + 1, None, 0, Map.empty)
+  private def relock(epoch: Long, holders: Map[Fiber.Id, (Long, Promise[Nothing, Unit])]): (UIO[Unit], State) =
+    if (holders.isEmpty)
+      UIO.unit -> State(epoch + 1, None, 0, Map.empty)
+    else {
+      val (fiberId, (_, promise)) = if (fairness) holders.minBy(_._2._1) else pickRandom(holders)
+      promise.succeed(()).unit -> State(epoch + 1, Some(fiberId), 1, holders - fiberId)
     }
-  }
 
   private def pickRandom(
     holders: Map[Fiber.Id, (Long, Promise[Nothing, Unit])]
-  ): Option[(Fiber.Id, (Long, Promise[Nothing, Unit]))] =
-    if (holders.isEmpty)
-      None
-    else {
-      val n  = Random.between(0L, holders.size.toLong)
-      val it = holders.iterator
-      var i  = 0
+  ): (Fiber.Id, (Long, Promise[Nothing, Unit])) = {
+    val n  = Random.nextInt(holders.size)
+    val it = holders.iterator
+    var i  = 0
 
-      var result: (Fiber.Id, (Long, Promise[Nothing, Unit])) = null
-      while (it.hasNext && i < n) {
-        it.next()
-        i += 1
-      }
-      if (i == n) result = it.next()
-
-      Option(result)
+    while (it.hasNext && i < n) {
+      it.next()
+      i += 1
     }
+
+    it.next()
+  }
 
   private def cleanupWaiter(fiberId: Fiber.Id): UIO[Any] =
     state.update { case State(ep, holder, cnt, waiters) =>
-      println(s"Removing $fiberId from $waiters")
       State(ep, holder, cnt, waiters - fiberId)
     }
 
