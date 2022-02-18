@@ -925,6 +925,96 @@ validate(17)  // ZIO[Any, AgeValidationException, Int]
   .unsandbox  // ZIO[Any, AgeValidationException, Int]
 ```
 
+## Absorbing Failures, Defects, and Interruptions
+
+We can absorb failures, defects and interruptions using `ZIO#absorb` operation. It attempts to convert defects into a failure, throwing away all information about the cause of the failure:
+
+## Absorbing vs. Dying
+They are roughly the opposite (failure vs defect):
+
+1. The `ZIO#orDie` takes failures from the error channel and converts them into defects.
+2. The `ZIO#absorb` takes defects and convert them into failures. 
+
+## Resurrecting/Absorbing vs. Dying
+
+Both `ZIO#resurrect` and `ZIO#absorb` are both symmetrical opposite of the `ZIO#orDie` operator. They convert defects to failures:
+
+```scala mdoc:compile-only
+import zio._
+
+val effect1 = ZIO.fail(new Exception("boom!"))
+  .orDie
+  .resurrect
+  .ignore
+
+val effect2 = ZIO.fail(new Exception("boom!"))
+  .orDie
+  .absorb
+  .ignore
+```
+
+## Absorbing vs. Resurrecting
+
+The `ZIO#absorb` can recover from both `Die` and `Interruption` causes:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val effect1 =
+    ZIO.dieMessage("Boom!") // ZIO[Any, Nothing, Nothing]
+      .absorb               // ZIO[Any, Throwable, Nothing]
+      .ignore
+  val effect2 =
+    ZIO.interrupt           // ZIO[Any, Nothing, Nothing]
+      .absorb               // ZIO[Any, Throwable, Nothing]
+      .ignore
+
+  def run =
+    (effect1 <*> effect2)
+      .debug("application exited successfully")
+}
+```
+
+The output would be as below:
+
+```scala
+application exited successfully: ()
+```
+
+Whereas, the `ZIO#resurrect` will only recover from `Die` causes:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val effect1 =
+    ZIO
+      .dieMessage("Boom!") // ZIO[Any, Nothing, Nothing]
+      .resurrect           // ZIO[Any, Throwable, Nothing]
+      .ignore
+  val effect2 =
+    ZIO.interrupt          // ZIO[Any, Nothing, Nothing]
+      .resurrect           // ZIO[Any, Throwable, Nothing]
+      .ignore
+
+  def run =
+    (effect1 <*> effect2)
+      .debug("couldn't recover from fiber interruption")
+}
+```
+
+Here is the output:
+
+```scala
+timestamp=2022-02-18T14:21:52.559872464Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.InterruptedException: Interrupted by thread "zio-fiber-"
+	at <empty>.MainApp.effect2(MainApp.scala:10)
+	at <empty>.MainApp.effect2(MainApp.scala:11)
+	at <empty>.MainApp.effect2(MainApp.scala:12)
+	at <empty>.MainApp.run(MainApp.scala:15)
+	at <empty>.MainApp.run(MainApp.scala:16)"
+```
+
 ## Model Domain Errors Using Algebraic Data Types
 
 It is best to use _algebraic data types (ADTs)_ when modeling errors within the same domain or subdomain.
