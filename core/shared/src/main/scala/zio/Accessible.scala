@@ -34,7 +34,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  *
  *   object FooService extends Accessible[FooService]
  *
- *   val example: ZIO[Has[FooService], Nothing, Unit] =
+ *   val example: ZIO[FooService, Nothing, Unit] =
  *     for {
  *       int  <- FooService(_.magicNumber)
  *       bool <- FooService(_.castSpell("Oogabooga!"))
