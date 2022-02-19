@@ -1,6 +1,7 @@
 package zio.concurrent
 
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
 import zio._
 
@@ -76,7 +77,7 @@ object ReentrantLockSpec extends DefaultRunnableSpec {
           _     <- ZIO.foreach_(fibers)(_.join)
           x     <- ref.get
         } yield assert(x)(equalTo(f(1)))
-      },
+      } @@ flaky,
       testM("Assigns lock to fibers randomly") {
         val f1 = (x: Int) => x * 2
         val f2 = (x: Int) => x - 10
