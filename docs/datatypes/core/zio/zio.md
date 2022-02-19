@@ -925,17 +925,7 @@ validate(17)  // ZIO[Any, AgeValidationException, Int]
   .unsandbox  // ZIO[Any, AgeValidationException, Int]
 ```
 
-## Absorbing Failures, Defects, and Interruptions
-
-We can absorb failures, defects and interruptions using `ZIO#absorb` operation. It attempts to convert defects into a failure, throwing away all information about the cause of the failure:
-
-## Absorbing vs. Dying
-They are roughly the opposite (failure vs defect):
-
-1. The `ZIO#orDie` takes failures from the error channel and converts them into defects.
-2. The `ZIO#absorb` takes defects and convert them into failures. 
-
-## Absorbing/Resurrecting vs. Dying
+## Converting Defects to Failures
 
 Both `ZIO#resurrect` and `ZIO#absorb` are symmetrical opposite of the `ZIO#orDie` operator. The `ZIO#orDie` takes failures from the error channel and converts them into defects, whereas the `ZIO#absorb` and `ZIO#resurrect` take defects and convert them into failures.
 
@@ -959,7 +949,7 @@ val effect2 =
 
 So what is the difference between `ZIO#absorb` and `ZIO#resurrect` operators?
 
-1. The `ZIO#absorb` can recover from both `Die` and `Interruption` causes:
+1. The `ZIO#absorb` can recover from both `Die` and `Interruption` causes. Using this operator we can absorb failures, defects and interruptions using `ZIO#absorb` operation. It attempts to convert defects into a failure, throwing away all information about the cause of the error:
 
 ```scala mdoc:compile-only
 import zio._
