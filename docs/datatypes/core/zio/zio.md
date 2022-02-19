@@ -1015,6 +1015,41 @@ timestamp=2022-02-18T14:21:52.559872464Z level=ERROR thread=#zio-fiber-0 message
 	at <empty>.MainApp.run(MainApp.scala:16)"
 ```
 
+## Refining and Unrefining the Type of the Error Channel
+
+ZIO has some operators useful for converting defects to failure. So we can take part in non-recoverable errors and convert them into the typed error channel and vice versa.
+
+1. The `ZIO#refineToOrDie[E1 <: E]` **narrows** the type of the error channel from `E` to the `E1`. It leaves the rest errors untyped, so everything that doesn't fit is turned into a `Throwable` that goes to the (invisible) defect channel. So it is going from some errors to fiber failures and thus making the error type **smaller**.
+
+In the following example, we are going to implement `parseInt` by importing `String#toInt` code from the standard scala library using `ZIO#attempt` and then refining the error channel from `Throwable` to the `NumberFormatException` error type:
+
+```scala mdoc:compile-only
+import zio._
+
+def parseInt(input: String): ZIO[Any, NumberFormatException, Int] =
+  ZIO.attempt(input.toInt)                 // ZIO[Any, Throwable, Int]
+    .refineToOrDie[NumberFormatException]  // ZIO[Any, NumberFormatException, Int]
+```
+
+In this example, if the `input.toInt` throws any other exceptions other than `NumberFormatException`, e.g. `IndexOutOfBoundsException`, will be translated to the ZIO defect.
+
+2. The `ZIO#unrefineTo[E1 >: E]` **broadens** the type of the error channel from `E` to the `E1` and embeds some defects into it. So it is going from some fiber failures back to errors and thus making the error type **larger**.
+
+In the following example, we are going to implement `parseInt` by importing `String#toInt` code from the standard scala library using `ZIO#succeed` and then unrefining the error channel from `Nothing` to the `NumberFormatException` error type:
+
+```scala mdoc:compile-only
+import zio._
+
+def parseInt(input: String): ZIO[Any, NumberFormatException, Int] =
+  ZIO.succeed(input.toInt)              // ZIO[Any, Nothing, Int]
+    .unrefineTo[NumberFormatException]  // ZIO[Any, NumberFormatException, Int]
+```
+
+Note that neither `ZIO#refine*` nor `ZIO#unrefine*` alters the error behavior, but it only changed the error model. That is to say, if an effect fails or die, then after `ZIO#refine*` or `ZIO#unrefine*`, it will still fail or die; and if an effect succeeds, then after `ZIO#refine*` or `ZIO#unrefine*`, it will still succeed; only the manner in which it signals the error will be altered by these two methods:
+
+1. The `ZIO#refine*` pinches off a piece of failure of type `E`, and converts it into a defect.
+2. The `ZIO#unrefine*` pinches off a piece of a defect, and converts it into a failure of type `E`.
+
 ## Model Domain Errors Using Algebraic Data Types
 
 It is best to use _algebraic data types (ADTs)_ when modeling errors within the same domain or subdomain.
