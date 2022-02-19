@@ -935,27 +935,31 @@ They are roughly the opposite (failure vs defect):
 1. The `ZIO#orDie` takes failures from the error channel and converts them into defects.
 2. The `ZIO#absorb` takes defects and convert them into failures. 
 
-## Resurrecting/Absorbing vs. Dying
+## Absorbing/Resurrecting vs. Dying
 
-Both `ZIO#resurrect` and `ZIO#absorb` are both symmetrical opposite of the `ZIO#orDie` operator. They convert defects to failures:
+Both `ZIO#resurrect` and `ZIO#absorb` are symmetrical opposite of the `ZIO#orDie` operator. The `ZIO#orDie` takes failures from the error channel and converts them into defects, whereas the `ZIO#absorb` and `ZIO#resurrect` take defects and convert them into failures.
+
+Below are examples of the `ZIO#absorb` and `ZIO#resurrect` operators:
 
 ```scala mdoc:compile-only
 import zio._
 
-val effect1 = ZIO.fail(new Exception("boom!"))
-  .orDie
-  .resurrect
-  .ignore
-
-val effect2 = ZIO.fail(new Exception("boom!"))
-  .orDie
-  .absorb
-  .ignore
+val effect1 =
+  ZIO.fail(new IllegalArgumentException("wrong argument"))  // ZIO[Any, IllegalArgumentException, Nothing]
+    .orDie                                                  // ZIO[Any, Nothing, Nothing]
+    .absorb                                                 // ZIO[Any, Throwable, Nothing]
+    .refineToOrDie[IllegalArgumentException]                // ZIO[Any, IllegalArgumentException, Nothing]
+    
+val effect2 =
+  ZIO.fail(new IllegalArgumentException("wrong argument"))  // ZIO[Any, IllegalArgumentException , Nothing]
+    .orDie                                                  // ZIO[Any, Nothing, Nothing]
+    .resurrect                                              // ZIO[Any, Throwable, Nothing]
+    .refineToOrDie[IllegalArgumentException]                // ZIO[Any, IllegalArgumentException, Nothing]
 ```
 
-## Absorbing vs. Resurrecting
+So what is the difference between `ZIO#absorb` and `ZIO#resurrect` operators?
 
-The `ZIO#absorb` can recover from both `Die` and `Interruption` causes:
+1. The `ZIO#absorb` can recover from both `Die` and `Interruption` causes:
 
 ```scala mdoc:compile-only
 import zio._
@@ -982,7 +986,7 @@ The output would be as below:
 application exited successfully: ()
 ```
 
-Whereas, the `ZIO#resurrect` will only recover from `Die` causes:
+2. Whereas, the `ZIO#resurrect` will only recover from `Die` causes:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1004,7 +1008,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Here is the output:
+And, here is the output:
 
 ```scala
 timestamp=2022-02-18T14:21:52.559872464Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.InterruptedException: Interrupted by thread "zio-fiber-"
