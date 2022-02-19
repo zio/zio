@@ -891,7 +891,15 @@ Also, this operation may throw unexpected errors like `OutOfMemoryError`, `Stack
 
 Therefore, it is quite common to import a code that may throw exceptions, whether that uses expected errors for error handling or can fail for a wide variety of unexpected errors like disk unavailable, service unavailable, and so on. Generally, importing these operations end up represented as a `Task` (`ZIO[Any, Throwable, A]`). So in order to make recoverable errors typed, we use the `ZIO#refineOrDie` method.
 
-## Sandboxing
+## Sandboxing Errors
+
+We know that a ZIO effect may fail due to a failure, a defect, a fiber interruption, or a combination of these causes. So a ZIO effect may contain more than one cause. Using the `ZIO#sandbox` operator, we can sandbox all errors of a ZIO application, whether the cause is a failure, defect, or a fiber interruption or combination of these. This operator exposes the full cause of a ZIO effect into the error channel:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def sandbox: ZIO[R, Cause[E], A] =
+}
+```
 
 To expose full cause of a failure we can use `ZIO#sandbox` operator:
 
