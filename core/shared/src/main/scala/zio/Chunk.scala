@@ -779,7 +779,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     else if (n >= length) this
     else
       self match {
-        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o, n)
+        case Chunk.Slice(c, o, _) => Chunk.Slice(c, o, n)
         case _                    => Chunk.Slice(self, 0, n)
       }
 
