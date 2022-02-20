@@ -63,6 +63,19 @@ We can also use methods in the companion objects of the `ZIO` type aliases:
 val s2: Task[Int] = Task.succeed(42)
 ```
 
+## Three Type of Errors in ZIO
+
+We should consider three types of errors when writing ZIO applications:
+1. **Failures** are expected errors. We use `ZIO.fail` to model a failure. As they are expected, we know how to handle them. So we should handle these errors and prevent them from propagating throughout the call stack.
+
+2. **Defects** are unexpected errors. We use `ZIO.die` to model a defect. As they are not expected, we need to propagate them through the application stack, until in the upper layers one of the following situations happens:
+    - In one of the upper layers, it makes sense to expect these errors. So we will convert them to failure, and then they can be handled.
+    - None of the upper layers won't catch these errors, so it will finally crash the whole application.
+
+3. **Fatal** are catastrophic unexpected errors. When they occur we should kill the application immediately without propagating the error furthermore. At most, we might need to log the error and print its call stack.
+
+In ZIO `VirtualMachineError` is the only exception that is considered as a fatal error. Note that, to change the default fatal error we can use the `Runtime#mapRuntimeConfig` and change the `RuntimeConfig#fatal` function. Using this map operation we can also change the `RuntimeConfig#reportFatal` to change the behavior of the `reportFatal`'s runtime hook function.
+
 ### Failure Values
 
 | Function | Input Type | Output Type      |
