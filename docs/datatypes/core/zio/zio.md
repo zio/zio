@@ -66,7 +66,36 @@ val s2: Task[Int] = Task.succeed(42)
 ## Three Type of Errors in ZIO
 
 We should consider three types of errors when writing ZIO applications:
+
 1. **Failures** are expected errors. We use `ZIO.fail` to model a failure. As they are expected, we know how to handle them. So we should handle these errors and prevent them from propagating throughout the call stack.
+
+```scala mdoc:silent
+import zio._
+
+sealed trait AgeValidationException extends Exception
+case class NegativeAgeException(age: Int) extends AgeValidationException
+case class IllegalAgeException(age: Int)  extends AgeValidationException
+
+def validate(age: Int): ZIO[Any, AgeValidationException, Int] =
+  if (age < 0)
+    ZIO.fail(NegativeAgeException(age))
+  else if (age < 18)
+    ZIO.fail(IllegalAgeException(age))
+  else ZIO.succeed(age)
+```
+
+We can handle errors using `catchAll`/`catchSome` methods:
+
+```scala mdoc:compile-only
+validate(17).catchAll {
+  case NegativeAgeException(age) => ???
+  case IllegalAgeException(age)  => ???
+}
+```
+
+```scala mdoc:invisible:reset
+
+```
 
 2. **Defects** are unexpected errors. We use `ZIO.die` to model a defect. As they are not expected, we need to propagate them through the application stack, until in the upper layers one of the following situations happens:
     - In one of the upper layers, it makes sense to expect these errors. So we will convert them to failure, and then they can be handled.
@@ -75,6 +104,29 @@ We should consider three types of errors when writing ZIO applications:
 3. **Fatal** are catastrophic unexpected errors. When they occur we should kill the application immediately without propagating the error furthermore. At most, we might need to log the error and print its call stack.
 
 In ZIO `VirtualMachineError` is the only exception that is considered as a fatal error. Note that, to change the default fatal error we can use the `Runtime#mapRuntimeConfig` and change the `RuntimeConfig#fatal` function. Using this map operation we can also change the `RuntimeConfig#reportFatal` to change the behavior of the `reportFatal`'s runtime hook function.
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    ZIO.succeed(
+      throw new StackOverflowError("exceeded the stack bound!")
+    )
+}
+```
+
+Here is the output:
+
+```scala
+java.lang.StackOverflowError: exceeded the stack bound!
+	at MainApp$.$anonfun$run$1(MainApp.scala:4)
+	at zio.internal.FiberContext.runUntil(FiberContext.scala:241)
+	at zio.internal.FiberContext.run(FiberContext.scala:115)
+	at zio.internal.ZScheduler$$anon$1.run(ZScheduler.scala:151)
+**** WARNING ****
+Catastrophic error encountered. Application not safely interrupted. Resources may be leaked. Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context.
+```
 
 ### Failure Values
 
@@ -85,6 +137,8 @@ In ZIO `VirtualMachineError` is the only exception that is considered as a fatal
 Using the `ZIO.fail` method, we can create an effect that models failure:
 
 ```scala mdoc:silent
+import zio._
+
 val f1 = ZIO.fail("Uh oh!")
 ```
 
@@ -253,6 +307,7 @@ Let's write an application that takes numerator and denominator from the user an
 
 ```scala mdoc:compile-only
 import zio._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -298,6 +353,7 @@ Defects have many roots, most of them are from a programming error. Errors will 
 
 ```scala mdoc:compile-only
 import zio._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -365,6 +421,7 @@ Now, let's refactor the example with recent changes:
 
 ```scala mdoc:compile-only
 import zio._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -503,6 +560,8 @@ import zio.Fiber
 ```
 
 ```scala mdoc:silent
+import zio._
+
 val func: String => String = s => s.toUpperCase
 for {
   promise <- ZIO.succeed(scala.concurrent.Promise[String]())
