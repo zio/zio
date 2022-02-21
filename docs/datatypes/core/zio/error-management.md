@@ -818,6 +818,16 @@ Note that neither `ZIO#refine*` nor `ZIO#unrefine*` alters the error behavior, b
 1. The `ZIO#refine*` pinches off a piece of failure of type `E`, and converts it into a defect.
 2. The `ZIO#unrefine*` pinches off a piece of a defect, and converts it into a failure of type `E`.
 
+### Converting Option on Values to Option on Errors and Vice Versa
+
+We can extract a value from a Some using `ZIO.some` and then we can unsome it again using `ZIO#unsome`:
+
+```scala
+ZIO.attempt(Option("something")) // ZIO[Any, Throwable, Option[String]]
+  .some                          // ZIO[Any, Option[Throwable], String]
+  .unsome                        // ZIO[Any, Throwable, Option[String]]
+```
+
 ## Best Practices
 
 ### Model Domain Errors Using Algebraic Data Types
