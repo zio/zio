@@ -20,6 +20,37 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
+ * A `MetricState` describes the state of a metric. The type parameter of a
+ * metric state corresponds to the type of the metric key (MetricKeyType). This
+ * phantom type parameter is used to tie keys to their expected states.
+ */
+sealed trait MetricState2[+Type]
+
+object MetricState2 {
+  final case class Counter(count: Double) extends MetricState2[MetricKeyType.Counter]
+
+  final case class Gauge(value: Double) extends MetricState2[MetricKeyType.Gauge]
+
+  final case class Histogram(
+    buckets: Chunk[(Double, Long)],
+    count: Long,
+    sum: Double
+  ) extends MetricState2[MetricKeyType.Histogram]
+
+  final case class Summary(
+    error: Double,
+    quantiles: Chunk[(Double, Option[Double])],
+    count: Long,
+    sum: Double
+  ) extends MetricState2[MetricKeyType.Summary]
+
+  final case class SetCount(
+    setTag: String,
+    occurrences: Chunk[(String, Long)]
+  ) extends MetricState2[MetricKeyType.SetCount]
+}
+
+/**
  * `MetricState` represents a snapshot of the current state of a metric as of a
  * poiint in time.
  */

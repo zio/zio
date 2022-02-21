@@ -40,24 +40,24 @@ object MetricClient {
   /**
    * Unsafely installs the specified metric listener.
    */
-  final def unsafeInstallListener(listener: MetricListener): Unit =
+  private[zio] final def unsafeInstallListener(listener: MetricListener): Unit =
     metricState.installListener(listener)
 
   /**
    * Unsafely removed the specified metric listener.
    */
-  final def unsafeRemoveListener(listener: MetricListener): Unit =
+  private[zio] final def unsafeRemoveListener(listener: MetricListener): Unit =
     metricState.removeListener(listener)
 
   /**
    * Unsafely captures a snapshot of all metrics recorded by the application.
    */
-  final def unsafeStates: Map[MetricKey, MetricState] =
+  private[zio] final def unsafeStates: Map[MetricKey, MetricState] =
     metricState.states
 
   /**
    * Unsafely looks up the state of a metric by its key.
    */
-  final def unsafeState(key: MetricKey): Option[MetricState] =
+  private[zio] final def unsafeState(key: MetricKey): Option[MetricState] =
     metricState.state(key)
 }

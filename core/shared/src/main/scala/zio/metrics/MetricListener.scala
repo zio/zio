@@ -22,7 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A `MetricListener` is capable of taking some action in response to a metric
  * being recorded, such as sending that metric to a third party service.
  */
-trait MetricListener { self =>
+private[zio] trait MetricListener { self =>
   def unsafeGaugeObserved(key: MetricKey.Gauge, value: Double, delta: Double): Unit
   def unsafeCounterObserved(key: MetricKey.Counter, absValue: Double, delta: Double): Unit
   def unsafeHistogramObserved(key: MetricKey.Histogram, value: Double): Unit

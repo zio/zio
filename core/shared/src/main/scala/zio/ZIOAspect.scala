@@ -54,6 +54,18 @@ trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
       )(implicit trace: ZTraceElement): ZIO[R, E, A] =
         that(self(zio))
     }
+
+  /**
+   * Returns a new aspect that flips the behavior it applies to error and
+   * success channels. If the old aspect affected success values in some way,
+   * then the new aspect will affect error values in the same way.
+   */
+  def flip: ZIOAspect[LowerR, UpperR, LowerA, UpperA, LowerE, UpperE] =
+    new ZIOAspect[LowerR, UpperR, LowerA, UpperA, LowerE, UpperE] {
+      def apply[R >: LowerR <: UpperR, E >: LowerA <: UpperA, A >: LowerE <: UpperE](zio: ZIO[R, E, A])(implicit
+        trace: ZTraceElement
+      ): ZIO[R, E, A] = self(zio.flip).flip
+    }
 }
 
 object ZIOAspect {
