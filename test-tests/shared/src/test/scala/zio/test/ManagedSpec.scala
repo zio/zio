@@ -16,7 +16,7 @@ object ManagedSpec extends ZIOBaseSpec {
       ZLayer.fromZIOScoped {
         Ref
           .make(1)
-          .tap(ref => ZIO.addFinalizer(_ => ref.set(-10)))
+          .tap(ref => ZIO.addFinalizer(_ => ZIO.debug("releasing") *> ref.set(-10)))
           .map { ref =>
             new Counter {
               val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)

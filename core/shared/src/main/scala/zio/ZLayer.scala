@@ -298,7 +298,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
   private final def scope(implicit
     trace: ZTraceElement
-  ): ZIO[Scope, Nothing, ZLayer.MemoMap => ZIO[RIn with Scope, E, ZEnvironment[ROut]]] =
+  ): ZIO[Any, Nothing, ZLayer.MemoMap => ZIO[RIn with Scope, E, ZEnvironment[ROut]]] =
     self match {
       case ZLayer.Fold(self, failure, success) =>
         ZIO.succeed { memoMap =>
