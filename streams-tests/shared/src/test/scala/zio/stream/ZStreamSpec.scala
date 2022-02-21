@@ -1085,7 +1085,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                      .runDrain
               result <- bgInterrupted.get
             } yield assert(result)(isTrue)
-          } @@ zioTag(interruption) @@ ignore,
+          } @@ zioTag(interruption),
           test("fails the foreground stream if the background fails with a typed error") {
             assertM(ZStream.never.drainFork(ZStream.fail("Boom")).runDrain.exit)(
               fails(equalTo("Boom"))
@@ -1410,10 +1410,10 @@ object ZStreamSpec extends ZIOBaseSpec {
               fins <- Ref.make(List[Int]())
               s = ZStream.finalizer(fins.update(1 :: _)) *>
                     ZStream.finalizer(fins.update(2 :: _))
-              _      <- Scope.make.flatMap(scope => s.toPull.provideService(scope))
+              _      <- ZIO.scoped[Any, Option[Nothing], Chunk[Any]](s.toPull.flatten)
               result <- fins.get
             } yield assert(result)(equalTo(List(1, 2)))
-          } @@ ignore,
+          },
           test("early release finalizer concatenation is preserved") {
             for {
               fins <- Ref.make(List[Int]())
@@ -3402,8 +3402,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
-          }
-        ) @@ ignore,
+          } @@ nonFlaky
+        ),
         suite("throttleEnforce")(
           test("free elements") {
             assertM(

@@ -1184,7 +1184,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     ZStream.fromZIO(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
         .managed[R1, Nothing, Fiber.Runtime[Nothing, Any]](
-          other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).fork
+          other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).forkManaged
         ) *>
         self.interruptWhen(bgDied)
     }
