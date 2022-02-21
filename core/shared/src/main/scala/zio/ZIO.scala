@@ -4115,7 +4115,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
-    ???
+    acquireRelease(fa)(a => UIO(a.close()))
 
   /**
    * Lifts an `Either` into a `ZIO` value.

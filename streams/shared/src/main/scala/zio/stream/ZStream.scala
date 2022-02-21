@@ -2703,7 +2703,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def onExecutor(executor: => Executor)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
-      ZStream.managed(???) *>
+      ZStream
+        .managed(ZIO.uninterruptible(ZIO.shift(executor) *> ZIO.addFinalizer(_ => ZIO.shift(descriptor.executor)))) *>
         self <*
         ZStream.fromZIO {
           if (descriptor.isLocked) ZIO.shift(descriptor.executor)
@@ -2925,15 +2926,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZStream[R0, E1, A] =
-    ???
-  // val managed = ZManaged(
-  //   Scope.make.flatMap { scope =>
-  //     layer.build.provideSomeEnvironment[R0](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
-  //   }
-  // )
-  // new ZStream(ZChannel.managed(managed) { r =>
-  //   self.channel.provideEnvironment(r)
-  // })
+    new ZStream(ZChannel.managed[R0, Any, Any, Any, E1, Chunk[A], Any, ZEnvironment[R]](layer.build) { r =>
+      self.channel.provideEnvironment(r)
+    })
 
   /**
    * Transforms the environment being provided to the stream with the specified
@@ -3815,12 +3810,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Ends the stream if it does not produce a value after d duration.
    */
   final def timeout(d: => Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E, A] =
-    ???
-  // ZStream.succeed(d).flatMap { d =>
-  //   ZStream.fromPull {
-  //     self.toPull.map(pull => pull.timeoutFail(None)(d))
-  //   }
-  // }
+    ZStream.succeed(d).flatMap { d =>
+      ZStream.fromPull[R with Clock, E, A] {
+        self.toPull.map(pull => pull.timeoutFail(None)(d))
+      }
+    }
 
   /**
    * Fails the stream with given error if it does not produce a value after d
@@ -3858,12 +3852,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def timeoutFailCause[E1 >: E](
     cause: => Cause[E1]
   )(d: => Duration)(implicit trace: ZTraceElement): ZStream[R with Clock, E1, A] =
-    ???
-  // ZStream.succeed((cause, d)).flatMap { case (cause, d) =>
-  //   ZStream.fromPull {
-  //     self.toPull.map(pull => pull.timeoutFailCause(cause.map(Some(_)))(d))
-  //   }
-  // }
+    ZStream.succeed((cause, d)).flatMap { case (cause, d) =>
+      ZStream.fromPull[R with Clock, E1, A] {
+        self.toPull.map(pull => pull.timeoutFailCause(cause.map(Some(_)))(d))
+      }
+    }
 
   /**
    * Halts the stream with given cause if it does not produce a value after d
@@ -4090,12 +4083,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * are composed after this one will be run on the previous executor.
    */
   def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    ???
-  // ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
-  //   ZStream.managed(ZManaged.withRuntimeConfig(runtimeConfig)) *>
-  //     self <*
-  //     ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
-  // }
+    ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
+      ZStream.managed(
+        ZIO.uninterruptible(
+          ZIO.setRuntimeConfig(runtimeConfig) *> ZIO.addFinalizer(_ => ZIO.setRuntimeConfig(currentRuntimeConfig))
+        )
+      ) *>
+        self <*
+        ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
+    }
 
   /**
    * Zips this stream with another point-wise, but keeps only the outputs of
@@ -4385,41 +4381,40 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
       pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else UIO.succeedNow(chunk))
 
-    // ZStream.fromPull {
-    //   for {
-    //     left  <- self.toPull.map(pullNonEmpty(_))
-    //     right <- that.toPull.map(pullNonEmpty(_))
-    //     pull <- (ZStream.fromZIOOption {
-    //               left.raceWith(right)(
-    //                 (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
-    //                 (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
-    //               )
-    //             }.flatMap { case (l, r, leftFirst) =>
-    //               ZStream.fromZIO(Ref.make(l(l.size - 1) -> r(r.size - 1))).flatMap { latest =>
-    //                 ZStream.fromChunk(
-    //                   if (leftFirst) r.map(f(l(l.size - 1), _))
-    //                   else l.map(f(_, r(r.size - 1)))
-    //                 ) ++
-    //                   ZStream
-    //                     .repeatZIOOption(left)
-    //                     .mergeEither(ZStream.repeatZIOOption(right))
-    //                     .mapZIO {
-    //                       case Left(leftChunk) =>
-    //                         latest.modify { case (_, rightLatest) =>
-    //                           (leftChunk.map(f(_, rightLatest)), (leftChunk(leftChunk.size - 1), rightLatest))
-    //                         }
-    //                       case Right(rightChunk) =>
-    //                         latest.modify { case (leftLatest, _) =>
-    //                           (rightChunk.map(f(leftLatest, _)), (leftLatest, rightChunk(rightChunk.size - 1)))
-    //                         }
-    //                     }
-    //                     .flatMap(ZStream.fromChunk(_))
-    //               }
-    //             }).toPull
+    ZStream.fromPull[R1, E1, A3] {
+      for {
+        left  <- self.toPull.map(pullNonEmpty(_))
+        right <- that.toPull.map(pullNonEmpty(_))
+        pull <- (ZStream.fromZIOOption {
+                  left.raceWith(right)(
+                    (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
+                    (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
+                  )
+                }.flatMap { case (l, r, leftFirst) =>
+                  ZStream.fromZIO(Ref.make(l(l.size - 1) -> r(r.size - 1))).flatMap { latest =>
+                    ZStream.fromChunk(
+                      if (leftFirst) r.map(f(l(l.size - 1), _))
+                      else l.map(f(_, r(r.size - 1)))
+                    ) ++
+                      ZStream
+                        .repeatZIOOption(left)
+                        .mergeEither(ZStream.repeatZIOOption(right))
+                        .mapZIO {
+                          case Left(leftChunk) =>
+                            latest.modify { case (_, rightLatest) =>
+                              (leftChunk.map(f(_, rightLatest)), (leftChunk(leftChunk.size - 1), rightLatest))
+                            }
+                          case Right(rightChunk) =>
+                            latest.modify { case (leftLatest, _) =>
+                              (rightChunk.map(f(leftLatest, _)), (leftLatest, rightChunk(rightChunk.size - 1)))
+                            }
+                        }
+                        .flatMap(ZStream.fromChunk(_))
+                  }
+                }).toPull
 
-    //   } yield pull
-    // }
-    ???
+      } yield pull
+    }
   }
 
   /**

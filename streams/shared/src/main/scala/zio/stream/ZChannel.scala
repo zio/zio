@@ -711,55 +711,58 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
-    ???
-  // ZChannel.managed {
-  //   ZManaged.withChildren { getChildren =>
-  //     for {
-  //       _           <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
-  //       queue       <- Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n).toManagedWith(_.shutdown)
-  //       errorSignal <- Promise.makeManaged[OutErr1, Nothing]
-  //       permits     <- Semaphore.make(n.toLong).toManaged
-  //       pull        <- self.toPull
-  //       _ <- pull
-  //              .foldCauseZIO(
-  //                cause => queue.offer(ZIO.failCause(cause)),
-  //                {
-  //                  case Left(outDone) =>
-  //                    permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.succeed(Left(outDone)))
-  //                  case Right(outElem) =>
-  //                    for {
-  //                      p     <- Promise.make[OutErr1, OutElem2]
-  //                      latch <- Promise.make[Nothing, Unit]
-  //                      _     <- queue.offer(p.await.map(Right(_)))
-  //                      _ <- permits.withPermit {
-  //                             latch.succeed(()) *>
-  //                               (errorSignal.await raceFirst f(outElem))
-  //                                 .tapErrorCause(errorSignal.failCause)
-  //                                 .intoPromise(p)
-  //                           }.fork
-  //                      _ <- latch.await
-  //                    } yield ()
-  //                }
-  //              )
-  //              .forever
-  //              .interruptible
-  //              .forkManaged
-  //     } yield queue
-  //   }
-  // } { queue =>
-  //   lazy val consumer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
-  //     ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
-  //       queue.take.flatten.foldCause(
-  //         ZChannel.failCause(_),
-  //         {
-  //           case Left(outDone)  => ZChannel.succeedNow(outDone)
-  //           case Right(outElem) => ZChannel.write(outElem) *> consumer
-  //         }
-  //       )
-  //     }
+    ZChannel.managed[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone, Queue[
+      ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]
+    ]] {
+      ZIO.withChildren { getChildren =>
+        for {
+          _ <- ZIO.addFinalizer(_ => getChildren.flatMap(Fiber.interruptAll(_)))
+          queue <- Queue
+                     .bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n)
+                     .tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+          errorSignal <- Promise.make[OutErr1, Nothing]
+          permits     <- Semaphore.make(n.toLong)
+          pull        <- self.toPull
+          _ <- pull
+                 .foldCauseZIO(
+                   cause => queue.offer(ZIO.failCause(cause)),
+                   {
+                     case Left(outDone) =>
+                       permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.succeed(Left(outDone)))
+                     case Right(outElem) =>
+                       for {
+                         p     <- Promise.make[OutErr1, OutElem2]
+                         latch <- Promise.make[Nothing, Unit]
+                         _     <- queue.offer(p.await.map(Right(_)))
+                         _ <- permits.withPermit {
+                                latch.succeed(()) *>
+                                  (errorSignal.await raceFirst f(outElem))
+                                    .tapErrorCause(errorSignal.failCause)
+                                    .intoPromise(p)
+                              }.fork
+                         _ <- latch.await
+                       } yield ()
+                   }
+                 )
+                 .forever
+                 .interruptible
+                 .forkManaged
+        } yield queue
+      }
+    } { queue =>
+      lazy val consumer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
+        ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
+          queue.take.flatten.foldCause(
+            ZChannel.failCause(_),
+            {
+              case Left(outDone)  => ZChannel.succeedNow(outDone)
+              case Right(outElem) => ZChannel.write(outElem) *> consumer
+            }
+          )
+        }
 
-  //   consumer
-  // }
+      consumer
+    }
 
   def mergeOut[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
     n: => Int
@@ -1525,99 +1528,105 @@ object ZChannel {
   )(
     f: (OutDone, OutDone) => OutDone
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    ???
-  // managed {
-  //   ZManaged.withChildren { getChildren =>
-  //     for {
-  //       n             <- ZIO.succeed(n)
-  //       bufferSize    <- ZIO.succeed(bufferSize)
-  //       mergeStrategy <- ZIO.succeed(mergeStrategy)
-  //       _             <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
-  //       queue         <- Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize).tap(queue => ZIO.addFinalizer(queue.shutdown))
-  //       cancelers     <- Queue.unbounded[Promise[Nothing, Unit]].tap(queue => ZIO.addFinalizer(queue.shutdown))
-  //       lastDone      <- Ref.make[Option[OutDone]](None)
-  //       errorSignal   <- Promise.make[Nothing, Unit]
-  //       permits       <- Semaphore.make(n.toLong)
-  //       pull          <- channels.toPull
-  //       evaluatePull = (pull: ZIO[Env, OutErr, Either[OutDone, OutElem]]) =>
-  //                        pull.flatMap {
-  //                          case Left(done) =>
-  //                            ZIO.succeed(Some(done))
-  //                          case Right(outElem) =>
-  //                            queue
-  //                              .offer(ZIO.succeedNow(Right(outElem)))
-  //                              .as(None)
-  //                        }
-  //                          .repeatUntil(_.isDefined)
-  //                          .flatMap {
-  //                            case Some(outDone) =>
-  //                              lastDone.update {
-  //                                case Some(lastDone) => Some(f(lastDone, outDone))
-  //                                case None           => Some(outDone)
-  //                              }
-  //                            case None => ZIO.unit
-  //                          }
-  //                          .catchAllCause(cause => queue.offer(ZIO.failCause(cause)) *> errorSignal.succeed(()).unit)
-  //       _ <- pull
-  //              .foldCauseZIO(
-  //                cause =>
-  //                  getChildren
-  //                    .flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.failCause(cause)).as(false),
-  //                {
-  //                  case Left(outDone) =>
-  //                    errorSignal.await.raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
-  //                      leftDone = (_, permitAcquisition) =>
-  //                        getChildren.flatMap(Fiber.interruptAll(_)) *> permitAcquisition.interrupt.as(false),
-  //                      rightDone = (_, failureAwait) =>
-  //                        failureAwait.interrupt *>
-  //                          lastDone.get.flatMap {
-  //                            case Some(lastDone) => queue.offer(ZIO.succeed(Left(f(lastDone, outDone))))
-  //                            case None           => queue.offer(ZIO.succeed(Left(outDone)))
-  //                          }.as(false)
-  //                    )
-  //                  case Right(channel) =>
-  //                    mergeStrategy match {
-  //                      case MergeStrategy.BackPressure =>
-  //                        for {
-  //                          latch   <- Promise.make[Nothing, Unit]
-  //                          raceIOs  = channel.toPull.use(evaluatePull(_).race(errorSignal.await))
-  //                          _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
-  //                          _       <- latch.await
-  //                          errored <- errorSignal.isDone
-  //                        } yield !errored
-  //                      case MergeStrategy.BufferSliding =>
-  //                        for {
-  //                          canceler <- Promise.make[Nothing, Unit]
-  //                          latch    <- Promise.make[Nothing, Unit]
-  //                          size     <- cancelers.size
-  //                          _        <- ZIO.when(size >= n)(cancelers.take.flatMap(_.succeed(())))
-  //                          _        <- cancelers.offer(canceler)
-  //                          raceIOs   = channel.toPull.use(evaluatePull(_).race(errorSignal.await).race(canceler.await))
-  //                          _        <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
-  //                          _        <- latch.await
-  //                          errored  <- errorSignal.isDone
-  //                        } yield !errored
-  //                    }
-  //                }
-  //              )
-  //              .repeatWhileEquals(true)
-  //              .forkManaged
-  //     } yield queue
-  //   }
-  // } { queue =>
-  //   lazy val consumer: ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone] =
-  //     unwrap[Env, Any, Any, Any, OutErr, OutElem, OutDone] {
-  //       queue.take.flatten.foldCause(
-  //         cause => failCause(cause),
-  //         {
-  //           case Left(outDone)  => succeedNow(outDone)
-  //           case Right(outElem) => write(outElem) *> consumer
-  //         }
-  //       )
-  //     }
+    managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Queue[ZIO[Env, OutErr, Either[OutDone, OutElem]]]] {
+      ZIO.withChildren { getChildren =>
+        for {
+          n             <- ZIO.succeed(n)
+          bufferSize    <- ZIO.succeed(bufferSize)
+          mergeStrategy <- ZIO.succeed(mergeStrategy)
+          _             <- ZIO.addFinalizer(_ => getChildren.flatMap(Fiber.interruptAll(_)))
+          queue <- Queue
+                     .bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize)
+                     .tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+          cancelers   <- Queue.unbounded[Promise[Nothing, Unit]].tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+          lastDone    <- Ref.make[Option[OutDone]](None)
+          errorSignal <- Promise.make[Nothing, Unit]
+          permits     <- Semaphore.make(n.toLong)
+          pull        <- channels.toPull
+          evaluatePull = (pull: ZIO[Env, OutErr, Either[OutDone, OutElem]]) =>
+                           pull.flatMap {
+                             case Left(done) =>
+                               ZIO.succeed(Some(done))
+                             case Right(outElem) =>
+                               queue
+                                 .offer(ZIO.succeedNow(Right(outElem)))
+                                 .as(None)
+                           }
+                             .repeatUntil(_.isDefined)
+                             .flatMap {
+                               case Some(outDone) =>
+                                 lastDone.update {
+                                   case Some(lastDone) => Some(f(lastDone, outDone))
+                                   case None           => Some(outDone)
+                                 }
+                               case None => ZIO.unit
+                             }
+                             .catchAllCause(cause => queue.offer(ZIO.failCause(cause)) *> errorSignal.succeed(()).unit)
+          _ <- pull
+                 .foldCauseZIO(
+                   cause =>
+                     getChildren
+                       .flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.failCause(cause)).as(false),
+                   {
+                     case Left(outDone) =>
+                       errorSignal.await.raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
+                         leftDone = (_, permitAcquisition) =>
+                           getChildren.flatMap(Fiber.interruptAll(_)) *> permitAcquisition.interrupt.as(false),
+                         rightDone = (_, failureAwait) =>
+                           failureAwait.interrupt *>
+                             lastDone.get.flatMap {
+                               case Some(lastDone) => queue.offer(ZIO.succeed(Left(f(lastDone, outDone))))
+                               case None           => queue.offer(ZIO.succeed(Left(outDone)))
+                             }.as(false)
+                       )
+                     case Right(channel) =>
+                       mergeStrategy match {
+                         case MergeStrategy.BackPressure =>
+                           for {
+                             latch <- Promise.make[Nothing, Unit]
+                             raceIOs = ZIO.scoped[Env, Nothing, Unit](
+                                         channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await))
+                                       )
+                             _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
+                             _       <- latch.await
+                             errored <- errorSignal.isDone
+                           } yield !errored
+                         case MergeStrategy.BufferSliding =>
+                           for {
+                             canceler <- Promise.make[Nothing, Unit]
+                             latch    <- Promise.make[Nothing, Unit]
+                             size     <- cancelers.size
+                             _        <- ZIO.when(size >= n)(cancelers.take.flatMap(_.succeed(())))
+                             _        <- cancelers.offer(canceler)
+                             raceIOs =
+                               ZIO.scoped[Env, Nothing, Unit](
+                                 channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await).race(canceler.await))
+                               )
+                             _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
+                             _       <- latch.await
+                             errored <- errorSignal.isDone
+                           } yield !errored
+                       }
+                   }
+                 )
+                 .repeatWhileEquals(true)
+                 .forkManaged
+        } yield queue
+      }
+    } { queue =>
+      lazy val consumer: ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone] =
+        unwrap[Env, Any, Any, Any, OutErr, OutElem, OutDone] {
+          queue.take.flatten.foldCause(
+            cause => failCause(cause),
+            {
+              case Left(outDone)  => succeedNow(outDone)
+              case Right(outElem) => write(outElem) *> consumer
+            }
+          )
+        }
 
-  //   consumer
-  // }
+      consumer
+    }
 
   def provideLayer[Env0, Env, Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone](layer: ZLayer[Env0, OutErr, Env])(
     channel: => ZChannel[Env with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]
