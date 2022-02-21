@@ -107,6 +107,6 @@ object ReentrantLockSpec extends DefaultRunnableSpec {
         for {
           results <- ZIO.collectAll(ZIO.replicate(100)(program))
         } yield assert(results.collect { case true => true }.size)(isLessThan(100))
-      }
+      } @@ flaky
     )
 }
