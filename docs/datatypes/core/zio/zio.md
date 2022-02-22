@@ -167,22 +167,6 @@ val r3: IO[NoSuchElementException, Int] =
   ZIO.getOrFailWith(new NoSuchElementException("None.get"))(optionalValue)
 ```
 
-4. **`ZIO#someOrElseZIO`**— Like the `ZIO#someOrElse` but the effectful version:
-
-```scala mdoc:compile-only
-import zio._
-
-trait Config
-
-val list: List[Config] = ???
-
-val getCurrentConfig: ZIO[Any, Nothing, Option[Config]] = ZIO.succeed(list.headOption)
-val getRemoteConfig : ZIO[Any, Throwable, Config]       = ZIO.attempt(new Config {})
-
-val config: ZIO[Any, Throwable, Config] =
-  getCurrentConfig.someOrElseZIO(getRemoteConfig)
-```
-
 #### Either
 
 | Function     | Input Type     | Output Type               |
@@ -291,18 +275,6 @@ ZIO can convert both synchronous and asynchronous side-effects into ZIO effects 
 
 These functions can be used to wrap procedural code, allowing us to seamlessly use all features of ZIO with legacy Scala and Java code, as well as third-party libraries.
 
-## Operations
-
-1. **`ZIO#someOrElse`**— Extract the optional value if it is not empty or return the given default:
-
-```scala mdoc:compile-only
-import zio._
-
-val getEnv: ZIO[Any, Nothing, Option[String]] = ???
-
-val result: ZIO[Any, Nothing, String] =
-  getEnv.someOrElse("development")
-```
 
 #### Synchronous
 
@@ -454,6 +426,46 @@ import java.io.IOException
 
 val suspendedEffect: RIO[Any, ZIO[Console, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
+```
+
+## Operations
+
+1. **`ZIO#someOrElse`**— Extract the optional value if it is not empty or return the given default:
+
+```scala mdoc:compile-only
+import zio._
+
+val getEnv: ZIO[Any, Nothing, Option[String]] = ???
+
+val result: ZIO[Any, Nothing, String] =
+  getEnv.someOrElse("development")
+```
+
+2. **`ZIO#someOrElseZIO`**— Like the `ZIO#someOrElse` but the effectful version:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Config
+
+val list: List[Config] = ???
+
+val getCurrentConfig: ZIO[Any, Nothing, Option[Config]] = ZIO.succeed(list.headOption)
+val getRemoteConfig : ZIO[Any, Throwable, Config]       = ZIO.attempt(new Config {})
+
+val config: ZIO[Any, Throwable, Config] =
+  getCurrentConfig.someOrElseZIO(getRemoteConfig)
+```
+
+3. **`ZIO#someOrFail`**— It converts the ZIO effect of an optional value of type `A` to an exceptional effect of type `A`:
+
+```scala mdoc:compile-only
+import zio._
+
+def head(list: List[Int]): ZIO[Any, NoSuchElementException, Int] =
+  ZIO
+    .succeed(list.headOption)
+    .someOrFail(new NoSuchElementException("empty list"))
 ```
 
 ## Transform `Option` and `Either` values
