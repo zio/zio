@@ -457,7 +457,7 @@ val config: ZIO[Any, Throwable, Config] =
   getCurrentConfig.someOrElseZIO(getRemoteConfig)
 ```
 
-3. **`ZIO#someOrFail`**— It converts the ZIO effect of an optional value of type `A` to an exceptional effect of type `A`:
+3. **`ZIO#someOrFail`**— It converts the ZIO effect of an optional value to an exceptional effect:
 
 ```scala mdoc:compile-only
 import zio._
@@ -467,6 +467,8 @@ def head(list: List[Int]): ZIO[Any, NoSuchElementException, Int] =
     .succeed(list.headOption)
     .someOrFail(new NoSuchElementException("empty list"))
 ```
+
+In the above example, we can also use the `ZIO#someOrFailException` which will directly convert the unexceptional effect to the exceptional effect with the error type of `NoSuchElementException`.
 
 ## Transform `Option` and `Either` values
 
