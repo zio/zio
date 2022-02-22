@@ -48,7 +48,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         assert(result)(isTrue) &&
         assert(after)(equalTo(0))
       }
-    } @@ ignore,
+    },
     test("after evaluates in case if test IO fails") {
       for {
         ref <- Ref.make(0)

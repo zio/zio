@@ -175,7 +175,7 @@ object SpecSpec extends ZIOBaseSpec {
             )
           ).provideCustomLayerShared(ZLayer.fromZIOScoped(ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
         assertM(succeeded(spec))(isTrue)
-      } @@ ignore
+      }
     ),
     suite("iterable constructor") {
       Chunk(

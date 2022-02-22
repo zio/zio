@@ -428,7 +428,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case ExecCase(exec, spec)     => ExecCase(exec, spec)
       case LabeledCase(label, spec) => LabeledCase(label, spec)
       case ManagedCase(managed) =>
-        ManagedCase[R0, E1, Spec[R0, E1, T]](managed.provideLayer(layer ++ ZLayer.environment[Scope]))
+        ManagedCase[R0, E1, Spec[R0, E1, T]](
+          layer.build.flatMap(r => managed.provideSomeEnvironment[Scope](r.union[Scope](_)))
+        )
       case MultipleCase(specs)         => MultipleCase(specs)
       case TestCase(test, annotations) => TestCase(test.provideLayer(layer), annotations)
     }
