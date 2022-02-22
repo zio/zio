@@ -45,11 +45,11 @@ Given:
 
 ```scala mdoc:silent
 import zio.concurrent.ConcurrentMap
-import zio.{Chunk, UIO}
+import zio.{Chunk, ZIO}
 
 for {
   emptyMap <- ConcurrentMap.empty[Int, String]
-  data     <- UIO(Chunk(1 -> "A", 2 -> "B", 3 -> "C"))
+  data     <- ZIO.succeed(Chunk(1 -> "A", 2 -> "B", 3 -> "C"))
   mapA     <- ConcurrentMap.fromIterable(data)
   map100   <- ConcurrentMap.make(1 -> 100)
   mapB     <- ConcurrentMap.make(("A", 1), ("B", 2), ("C", 3))
