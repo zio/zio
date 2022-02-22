@@ -30,7 +30,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * Removes all elements.
    */
   def clear: UIO[Unit] =
-    UIO(underlying.clear())
+    ZIO.succeed(underlying.clear())
 
   /**
    * Finds the first element of a set for which the partial function is defined
@@ -53,13 +53,13 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
    * Tests whether if the element is in the set.
    */
   def contains(x: A): UIO[Boolean] =
-    UIO(underlying.contains(x))
+    ZIO.succeed(underlying.contains(x))
 
   /**
    * Tests if the elements in the collection are a subset of the set.
    */
   def containsAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(xs.forall(x => underlying.contains(x)))
+    ZIO.succeed(xs.forall(x => underlying.contains(x)))
 
   /**
    * Tests whether a given predicate holds true for at least one element in the
