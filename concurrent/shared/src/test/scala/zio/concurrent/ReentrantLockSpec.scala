@@ -90,15 +90,14 @@ object ReentrantLockSpec extends DefaultRunnableSpec {
           lock  <- ReentrantLock.make()
           ref   <- Ref.make(1)
           p0    <- Promise.make[Nothing, Unit]
+          latch <- CountdownLatch.make(4)
           _     <- lock.withLock.use(_ => p0.await).fork
-          p1    <- Promise.make[Nothing, Unit]
-          f1    <- (p1.succeed(()) *> lock.withLock.use(_ => ref.update(f1))).fork
-          p2    <- Promise.make[Nothing, Unit]
-          f2    <- (p1.await *> p2.succeed(()) *> lock.withLock.use(_ => ref.update(f2))).fork
-          p3    <- Promise.make[Nothing, Unit]
-          f3    <- (p2.await *> p3.succeed(()) *> lock.withLock.use(_ => ref.update(f3))).fork
-          f4    <- (p3.await *> lock.withLock.use(_ => ref.update(f4))).fork
+          f1    <- (latch.countDown *> lock.withLock.use(_ => ref.update(f1))).fork
+          f2    <- (latch.countDown *> lock.withLock.use(_ => ref.update(f2))).fork
+          f3    <- (latch.countDown *> lock.withLock.use(_ => ref.update(f3))).fork
+          f4    <- (latch.countDown *> lock.withLock.use(_ => ref.update(f4))).fork
           fibers = List(f1, f2, f3, f4)
+          _     <- latch.await
           _     <- p0.succeed(())
           _     <- ZIO.foreach_(fibers)(_.join)
           x     <- ref.get
@@ -107,6 +106,6 @@ object ReentrantLockSpec extends DefaultRunnableSpec {
         for {
           results <- ZIO.collectAll(ZIO.replicate(100)(program))
         } yield assert(results.collect { case true => true }.size)(isLessThan(100))
-      } @@ flaky
+      }
     )
 }
