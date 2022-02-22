@@ -167,6 +167,22 @@ val r3: IO[NoSuchElementException, Int] =
   ZIO.getOrFailWith(new NoSuchElementException("None.get"))(optionalValue)
 ```
 
+4. **`ZIO#someOrElseZIO`**— Like the `ZIO#someOrElse` but the effectful version:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Config
+
+val list: List[Config] = ???
+
+val getCurrentConfig: ZIO[Any, Nothing, Option[Config]] = ZIO.succeed(list.headOption)
+val getRemoteConfig : ZIO[Any, Throwable, Config]       = ZIO.attempt(new Config {})
+
+val config: ZIO[Any, Throwable, Config] =
+  getCurrentConfig.someOrElseZIO(getRemoteConfig)
+```
+
 #### Either
 
 | Function     | Input Type     | Output Type               |
