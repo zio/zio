@@ -1,6 +1,6 @@
 package zio.chunks
 
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import org.openjdk.jmh.infra.Blackhole
 import zio._
 
@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@State(Scope.Benchmark)
+@State(JScope.Benchmark)
 class ChunkIndexedSeqComparison {
   @Param(Array("1000"))
   var size: Int = _

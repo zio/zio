@@ -1,13 +1,13 @@
 package zio.internal
 
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio.BenchmarkUtil._
 import zio.ZIO.succeedNow
 import zio._
 
 import java.util.concurrent.TimeUnit
 
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Fork(value = 1)
