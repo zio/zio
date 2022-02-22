@@ -84,10 +84,10 @@ trait MemoryAllocation extends JvmMetrics {
         for {
           runtime                 <- ZIO.runtime[Any]
           listener                 = new Listener(runtime)
-          garbageCollectorMXBeans <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala)
+          garbageCollectorMXBeans <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala)
           _ <- ZIO.foreachDiscard(garbageCollectorMXBeans) {
                  case emitter: NotificationEmitter =>
-                   Task(emitter.addNotificationListener(listener, null, null))
+                   ZIO.attempt(emitter.addNotificationListener(listener, null, null))
                  case _ => ZIO.unit
                }
         } yield (listener, garbageCollectorMXBeans)
@@ -95,7 +95,7 @@ trait MemoryAllocation extends JvmMetrics {
         ZIO
           .foreachDiscard(garbageCollectorMXBeans) {
             case emitter: NotificationEmitter =>
-              Task(emitter.removeNotificationListener(listener))
+              ZIO.attempt(emitter.removeNotificationListener(listener))
             case _ => ZIO.unit
           }
           .orDie

@@ -75,14 +75,14 @@ trait MemoryPools extends JvmMetrics {
     poolMXBeans: List[MemoryPoolMXBean]
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
-      heapUsage    <- Task(memoryMXBean.getHeapMemoryUsage)
-      nonHeapUsage <- Task(memoryMXBean.getNonHeapMemoryUsage)
+      heapUsage    <- ZIO.attempt(memoryMXBean.getHeapMemoryUsage)
+      nonHeapUsage <- ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage)
       _            <- reportMemoryUsage(heapUsage, Heap)
       _            <- reportMemoryUsage(nonHeapUsage, NonHeap)
       _ <- ZIO.foreachParDiscard(poolMXBeans) { pool =>
              for {
-               name  <- Task(pool.getName)
-               usage <- Task(pool.getUsage)
+               name  <- ZIO.attempt(pool.getName)
+               usage <- ZIO.attempt(pool.getUsage)
                _     <- reportPoolUsage(usage, name)
              } yield ()
            }
@@ -91,8 +91,8 @@ trait MemoryPools extends JvmMetrics {
   @silent("JavaConverters")
   def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, MemoryPools] =
     for {
-      memoryMXBean <- Task(ManagementFactory.getMemoryMXBean).toManaged
-      poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList).toManaged
+      memoryMXBean <- ZIO.attempt(ManagementFactory.getMemoryMXBean).toManaged
+      poolMXBeans  <- ZIO.attempt(ManagementFactory.getMemoryPoolMXBeans.asScala.toList).toManaged
       _ <- reportMemoryMetrics(memoryMXBean, poolMXBeans)
              .repeat(collectionSchedule)
              .interruptible

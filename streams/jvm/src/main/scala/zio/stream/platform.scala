@@ -405,7 +405,7 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromJavaStreamManaged[R, A](
     stream: => ZManaged[R, Throwable, java.util.stream.Stream[A]]
   )(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorManaged(stream.mapZIO(s => UIO(s.iterator())))
+    ZStream.fromJavaIteratorManaged(stream.mapZIO(s => ZIO.succeed(s.iterator())))
 
   /**
    * Creates a stream from a Java stream
@@ -430,7 +430,7 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromJavaStreamZIO[R, A](stream: => ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorZIO(stream.flatMap(s => UIO(s.iterator())))
+    ZStream.fromJavaIteratorZIO(stream.flatMap(s => ZIO.succeed(s.iterator())))
 
   /**
    * Create a stream of accepted connection from server socket Emit socket
@@ -494,7 +494,7 @@ trait ZStreamPlatformSpecificConstructors {
      * Read the entire `AsynchronousSocketChannel` by emitting a `Chunk[Byte]`
      */
     def read(implicit trace: ZTraceElement): ZStream[Any, Throwable, Byte] =
-      ZStream.fromZIO(UIO(ByteBuffer.allocate(ZStream.DefaultChunkSize))).flatMap { reusableBuffer =>
+      ZStream.fromZIO(ZIO.succeed(ByteBuffer.allocate(ZStream.DefaultChunkSize))).flatMap { reusableBuffer =>
         ZStream.unfoldChunkZIO(0) {
           case -1 => ZIO.succeed(Option.empty)
           case _ =>

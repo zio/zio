@@ -1843,7 +1843,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def acquireReleaseAttemptWith[A](acquire: => A)(release: A => Any)(implicit
     trace: ZTraceElement
   ): ZManaged[Any, Throwable, A] =
-    acquireReleaseWith(Task(acquire))(a => Task(release(a)).orDie)
+    acquireReleaseWith(ZIO.attempt(acquire))(a => ZIO.attempt(release(a)).orDie)
 
   /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that

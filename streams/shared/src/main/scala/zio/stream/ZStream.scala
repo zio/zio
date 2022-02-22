@@ -4905,10 +4905,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       else {
         object StreamEnd extends Throwable
 
-        ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any] <*> UIO(ChunkBuilder.make[A](maxChunkSize))).flatMap {
-          case (it, rt, builder) =>
+        ZStream
+          .fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO.succeed(ChunkBuilder.make[A](maxChunkSize)))
+          .flatMap { case (it, rt, builder) =>
             ZStream.repeatZIOChunkOption {
-              Task {
+              ZIO.attempt {
                 builder.clear()
                 var count = 0
 
@@ -4932,7 +4933,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                 case e         => Some(e)
               }
             }
-        }
+          }
       }
     }
 
@@ -4941,9 +4942,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   ): ZStream[Any, Throwable, A] = {
     object StreamEnd extends Throwable
 
-    ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
+    ZStream.fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
       ZStream.repeatZIOOption {
-        Task {
+        ZIO.attempt {
           val hasNext: Boolean =
             try it.hasNext
             catch {

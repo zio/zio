@@ -161,7 +161,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
               result = ChannelState.Effect(
                 drainer.fork.flatMap { fiber =>
-                  UIO(addFinalizer { exit =>
+                  ZIO.succeed(addFinalizer { exit =>
                     fiber.interrupt *>
                       ZIO.suspendSucceed {
                         val effect = restorePipe(exit, inputExecutor)
@@ -396,9 +396,9 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     ChannelState.Effect {
       ZIO.uninterruptibleMask { restore =>
         restore(provide(bracketOut.acquire())).foldCauseZIO(
-          cause => UIO { currentChannel = ZChannel.failCause(cause) },
+          cause => ZIO.succeed { currentChannel = ZChannel.failCause(cause) },
           out =>
-            UIO {
+            ZIO.succeed {
               addFinalizer(exit => provide(bracketOut.finalizer(out, exit)))
               currentChannel = ZChannel.write(out)
             }
