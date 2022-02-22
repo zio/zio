@@ -147,7 +147,7 @@ val result: IO[Throwable, Option[(User, Team)]] = (for {
 } yield (user, team)).unsome 
 ```
 
-2. **`ZIO#some`**/**`ZIO#none`**— These constructors can be used to directly create ZIO of optional values:
+2. **`ZIO.some`**/**`ZIO.none`**— These constructors can be used to directly create ZIO of optional values:
 
 ```scala mdoc:compile-only
 import zio._
@@ -155,6 +155,23 @@ import zio._
 val someInt: ZIO[Any, Nothing, Option[Int]]     = ZIO.some(3)
 val noneInt: ZIO[Any, Nothing, Option[Nothing]] = ZIO.none
 ``` 
+
+3. **`ZIO.getOrFail`**— We can lift an `Option` into a `ZIO` and if the option is not defined we can fail the ZIO with the proper error type:
+
+```scala mdoc:compile-only
+import zio._
+
+val optionalValue: Option[Int] = ???
+  
+val r1: ZIO[Any, Throwable, Int] =
+  ZIO.getOrFail(optionalValue)
+
+val r2: IO[Unit, Int] =
+  ZIO.getOrFailUnit(optionalValue)
+
+val r3: IO[NoSuchElementException, Int] =
+  ZIO.getOrFailWith(new NoSuchElementException("None.get"))(optionalValue)
+```
 
 #### Either
 
