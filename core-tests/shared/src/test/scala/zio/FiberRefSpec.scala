@@ -294,10 +294,10 @@ object FiberRefSpec extends ZIOBaseSpec {
         for {
           fiberRef <- FiberRef.make(initial)
           handle   <- fiberRef.unsafeAsThreadLocal
-          value1   <- UIO(handle.get())
+          value1   <- ZIO.succeed(handle.get())
           _        <- fiberRef.set(update1)
-          value2   <- UIO(handle.get())
-          _        <- UIO(handle.set(update2))
+          value2   <- ZIO.succeed(handle.get())
+          _        <- ZIO.succeed(handle.set(update2))
           value3   <- fiberRef.get
         } yield assert((value1, value2, value3))(equalTo((initial, update1, update2)))
       },
@@ -306,17 +306,18 @@ object FiberRefSpec extends ZIOBaseSpec {
           fiberRef  <- FiberRef.make(initial)
           initHandle = fiberRef.unsafeAsThreadLocal
           handle    <- ZIO.raceAll(initHandle, Iterable.fill(64)(initHandle))
-          value1    <- UIO(handle.get())
+          value1    <- ZIO.succeed(handle.get())
           doUpdate   = fiberRef.set(update)
           _         <- ZIO.raceAll(doUpdate, Iterable.fill(64)(doUpdate))
-          value2    <- UIO(handle.get())
+          value2    <- ZIO.succeed(handle.get())
         } yield assert(value1)(equalTo(initial)) && assert(value2)(equalTo(update))
       },
       test("unsafe handles work properly when accessed concurrently") {
         for {
           fiberRef <- FiberRef.make(0)
           setAndGet =
-            (value: Int) => setRefOrHandle(fiberRef, value) *> fiberRef.unsafeAsThreadLocal.flatMap(h => UIO(h.get()))
+            (value: Int) =>
+              setRefOrHandle(fiberRef, value) *> fiberRef.unsafeAsThreadLocal.flatMap(h => ZIO.succeed(h.get()))
           n       = 64
           fiber  <- ZIO.forkAll(1.to(n).map(setAndGet))
           values <- fiber.join
@@ -326,11 +327,11 @@ object FiberRefSpec extends ZIOBaseSpec {
         for {
           fiberRef <- FiberRef.make(initial)
           handle   <- fiberRef.unsafeAsThreadLocal
-          value1   <- UIO(handle.get())
+          value1   <- ZIO.succeed(handle.get())
           n         = 64
-          fiber    <- ZIO.forkAll(Iterable.fill(n)(fiberRef.set(update).race(UIO(handle.set(update)))))
+          fiber    <- ZIO.forkAll(Iterable.fill(n)(fiberRef.set(update).race(ZIO.succeed(handle.set(update)))))
           _        <- fiber.await
-          value2   <- UIO(handle.get())
+          value2   <- ZIO.succeed(handle.get())
         } yield assert(value1)(equalTo(initial)) && assert(value2)(equalTo(initial))
       },
       test("unsafe handles keep their values if there are async boundaries") {
@@ -342,7 +343,7 @@ object FiberRefSpec extends ZIOBaseSpec {
                      handle <- fiberRef.unsafeAsThreadLocal
                      _      <- setRefOrHandle(fiberRef, handle, i)
                      _      <- ZIO.yieldNow
-                     value  <- UIO(handle.get())
+                     value  <- ZIO.succeed(handle.get())
                    } yield assert(value)(equalTo(i))
 
           n        = 64
@@ -354,9 +355,9 @@ object FiberRefSpec extends ZIOBaseSpec {
           fiberRef <- FiberRef.make(initial)
           _        <- fiberRef.set(update)
           handle   <- fiberRef.unsafeAsThreadLocal
-          _        <- UIO(handle.remove())
+          _        <- ZIO.succeed(handle.remove())
           value1   <- fiberRef.get
-          value2   <- UIO(handle.get())
+          value2   <- ZIO.succeed(handle.get())
         } yield assert((value1, value2))(equalTo((initial, initial)))
       },
       test("it can be transformed polymorphically") {
@@ -385,9 +386,9 @@ object FiberRefSpecUtil {
 
   def setRefOrHandle(fiberRef: FiberRef.Runtime[Int], value: Int): UIO[Unit] =
     if (value % 2 == 0) fiberRef.set(value)
-    else fiberRef.unsafeAsThreadLocal.flatMap(h => UIO(h.set(value)))
+    else fiberRef.unsafeAsThreadLocal.flatMap(h => ZIO.succeed(h.set(value)))
 
   def setRefOrHandle(fiberRef: FiberRef[Int], handle: ThreadLocal[Int], value: Int): UIO[Unit] =
     if (value % 2 == 0) fiberRef.set(value)
-    else UIO(handle.set(value))
+    else ZIO.succeed(handle.set(value))
 }

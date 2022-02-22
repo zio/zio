@@ -54,20 +54,20 @@ trait MemoryPools extends JvmMetrics {
     trace: ZTraceElement
   ): ZIO[Any, Nothing, Unit] =
     for {
-      _ <- UIO(usage.getUsed) @@ memoryBytesUsed(area)
-      _ <- UIO(usage.getCommitted) @@ memoryBytesCommitted(area)
-      _ <- UIO(usage.getMax) @@ memoryBytesMax(area)
-      _ <- UIO(usage.getInit) @@ memoryBytesInit(area)
+      _ <- ZIO.succeed(usage.getUsed) @@ memoryBytesUsed(area)
+      _ <- ZIO.succeed(usage.getCommitted) @@ memoryBytesCommitted(area)
+      _ <- ZIO.succeed(usage.getMax) @@ memoryBytesMax(area)
+      _ <- ZIO.succeed(usage.getInit) @@ memoryBytesInit(area)
     } yield ()
 
   private def reportPoolUsage(usage: MemoryUsage, pool: String)(implicit
     trace: ZTraceElement
   ): ZIO[Any, Nothing, Unit] =
     for {
-      _ <- UIO(usage.getUsed) @@ poolBytesUsed(pool)
-      _ <- UIO(usage.getCommitted) @@ poolBytesCommitted(pool)
-      _ <- UIO(usage.getMax) @@ poolBytesMax(pool)
-      _ <- UIO(usage.getInit) @@ poolBytesInit(pool)
+      _ <- ZIO.succeed(usage.getUsed) @@ poolBytesUsed(pool)
+      _ <- ZIO.succeed(usage.getCommitted) @@ poolBytesCommitted(pool)
+      _ <- ZIO.succeed(usage.getMax) @@ poolBytesMax(pool)
+      _ <- ZIO.succeed(usage.getInit) @@ poolBytesInit(pool)
     } yield ()
 
   private def reportMemoryMetrics(

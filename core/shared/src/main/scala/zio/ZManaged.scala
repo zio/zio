@@ -2491,7 +2491,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZManaged[R, E, A] =
-    acquireReleaseWith(fa)(a => UIO(a.close()))
+    acquireReleaseWith(fa)(a => ZIO.succeed(a.close()))
 
   /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The

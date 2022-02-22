@@ -1,7 +1,7 @@
 package zio.concurrent
 
 import com.github.ghik.silencer.silent
-import zio.UIO
+import zio.{UIO, ZIO}
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.{Consumer, Predicate}
@@ -11,13 +11,13 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     extends AnyVal {
 
   def add(x: A): UIO[Boolean] =
-    UIO(underlying.add(x))
+    ZIO.succeed(underlying.add(x))
 
   def addAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(underlying.addAll(xs.asJavaCollection): @silent("JavaConverters"))
+    ZIO.succeed(underlying.addAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   def collectFirst[B](pf: PartialFunction[A, B]): UIO[Option[B]] =
-    UIO {
+    ZIO.succeed {
       var result = Option.empty[B]
       underlying.forEach {
         makeConsumer { (a: A) =>
@@ -30,7 +30,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     }
 
   def exists(p: A => Boolean): UIO[Boolean] =
-    UIO {
+    ZIO.succeed {
       var result = false
       underlying.forEach {
         makeConsumer { (a: A) =>
@@ -42,7 +42,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     }
 
   def fold[R, E, S](zero: S)(f: (S, A) => S): UIO[S] =
-    UIO {
+    ZIO.succeed {
       var result: S = zero
       underlying.forEach {
         makeConsumer { (a: A) =>
@@ -53,7 +53,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     }
 
   def forall(p: A => Boolean): UIO[Boolean] =
-    UIO {
+    ZIO.succeed {
       var result = true
       underlying.forEach {
         makeConsumer { (a: A) =>
@@ -65,7 +65,7 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     }
 
   def find[B](p: A => Boolean): UIO[Option[A]] =
-    UIO {
+    ZIO.succeed {
       var result = Option.empty[A]
       underlying.forEach {
         makeConsumer { (a: A) =>
@@ -77,41 +77,41 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     }
 
   def remove(x: A): UIO[Boolean] =
-    UIO(underlying.remove(x))
+    ZIO.succeed(underlying.remove(x))
 
   def removeAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(underlying.removeAll(xs.asJavaCollection): @silent("JavaConverters"))
+    ZIO.succeed(underlying.removeAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   def removeIf(p: A => Boolean): UIO[Boolean] =
-    UIO(underlying.removeIf(makePredicate(a => !p(a))))
+    ZIO.succeed(underlying.removeIf(makePredicate(a => !p(a))))
 
   def retainAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(underlying.retainAll(xs.asJavaCollection): @silent("JavaConverters"))
+    ZIO.succeed(underlying.retainAll(xs.asJavaCollection): @silent("JavaConverters"))
 
   def retainIf(p: A => Boolean): UIO[Boolean] =
-    UIO(underlying.removeIf(makePredicate(p)))
+    ZIO.succeed(underlying.removeIf(makePredicate(p)))
 
   def clear: UIO[Unit] =
-    UIO(underlying.clear())
+    ZIO.succeed(underlying.clear())
 
   def contains(x: A): UIO[Boolean] =
-    UIO(underlying.contains(x))
+    ZIO.succeed(underlying.contains(x))
 
   def containsAll(xs: Iterable[A]): UIO[Boolean] =
-    UIO(xs.forall(x => underlying.contains(x)))
+    ZIO.succeed(xs.forall(x => underlying.contains(x)))
 
   def size: UIO[Int] =
-    UIO(underlying.size())
+    ZIO.succeed(underlying.size())
 
   def isEmpty: UIO[Boolean] =
-    UIO(underlying.isEmpty)
+    ZIO.succeed(underlying.isEmpty)
 
   def toSet: UIO[Set[A]] =
-    UIO(underlying.asScala.toSet: @silent("JavaConverters"))
+    ZIO.succeed(underlying.asScala.toSet: @silent("JavaConverters"))
 
   @silent("JavaConverters")
   def transform(f: A => A): UIO[Unit] =
-    UIO {
+    ZIO.succeed {
       val set = underlying.asScala.toSet
       underlying.removeAll(set.asJavaCollection)
       underlying.addAll(set.map(f).asJavaCollection)
@@ -132,13 +132,13 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
 object ConcurrentSet {
 
   def empty[A]: UIO[ConcurrentSet[A]] =
-    UIO {
+    ZIO.succeed {
       val keySetView = ConcurrentHashMap.newKeySet[A]()
       new ConcurrentSet(keySetView)
     }
 
   def empty[A](initialCapacity: Int): UIO[ConcurrentSet[A]] =
-    UIO {
+    ZIO.succeed {
       val keySetView = ConcurrentHashMap.newKeySet[A](initialCapacity)
       new ConcurrentSet(keySetView)
     }
@@ -147,14 +147,14 @@ object ConcurrentSet {
    * Makes a new `ConcurrentSet` initialized with provided collection.
    */
   def fromIterable[A](as: Iterable[A]): UIO[ConcurrentSet[A]] =
-    UIO {
+    ZIO.succeed {
       val keySetView = ConcurrentHashMap.newKeySet[A]()
       as.foreach(x => keySetView.add(x))
       new ConcurrentSet(keySetView)
     }
 
   def make[A](as: A*): UIO[ConcurrentSet[A]] =
-    UIO {
+    ZIO.succeed {
       val keySetView = ConcurrentHashMap.newKeySet[A]()
       as.foreach(x => keySetView.add(x))
       new ConcurrentSet(keySetView)

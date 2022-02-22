@@ -623,8 +623,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def debug(implicit trace: ZTraceElement): ZIO[R, E, A] =
     self.tapBoth(
-      error => UIO(println(s"<FAIL> $error")),
-      value => UIO(println(value))
+      error => ZIO.succeed(println(s"<FAIL> $error")),
+      value => ZIO.succeed(println(value))
     )
 
   /**
@@ -633,8 +633,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def debug(prefix: => String)(implicit trace: ZTraceElement): ZIO[R, E, A] =
     self.tapBoth(
-      error => UIO(println(s"<FAIL> $prefix: $error")),
-      value => UIO(println(s"$prefix: $value"))
+      error => ZIO.succeed(println(s"<FAIL> $prefix: $error")),
+      value => ZIO.succeed(println(s"$prefix: $value"))
     )
 
   /**
@@ -5590,6 +5590,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def yieldNow(implicit trace: ZTraceElement): UIO[Unit] =
     new ZIO.Yield(trace)
 
+  @deprecated("use attempt or succeed", "2.0.0")
   def apply[A](a: => A)(implicit trace: ZTraceElement): Task[A] = attempt(a)
 
   private lazy val _IdentityFn: Any => Any = (a: Any) => a
@@ -5619,7 +5620,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       trace: ZTraceElement
     ): ZIO[R1, E1, B] =
       // TODO: Dotty doesn't infer this properly: io.bracket[R1, E1](a => UIO(a.close()))(use)
-      acquireReleaseWith(io)(a => UIO(a.close()))(use)
+      acquireReleaseWith(io)(a => ZIO.succeed(a.close()))(use)
 
     /**
      * Like `bracket`, safely wraps a use and release of a resource. This

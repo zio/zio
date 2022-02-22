@@ -273,12 +273,12 @@ trait ZStreamPlatformSpecificConstructors {
         ZIO.attemptBlocking(chan.close()).orDie
       )
       .flatMap { channel =>
-        ZStream.fromZIO(UIO(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
+        ZStream.fromZIO(ZIO.succeed(ByteBuffer.allocate(chunkSize))).flatMap { reusableBuffer =>
           ZStream.repeatZIOChunkOption(
             for {
               bytesRead <- ZIO.attemptBlockingInterrupt(channel.read(reusableBuffer)).asSomeError
               _         <- ZIO.fail(None).when(bytesRead == -1)
-              chunk <- UIO {
+              chunk <- ZIO.succeed {
                          reusableBuffer.flip()
                          Chunk.fromByteBuffer(reusableBuffer)
                        }
@@ -316,16 +316,16 @@ trait ZStreamPlatformSpecificConstructors {
     ZStream.succeed((reader, chunkSize)).flatMap { case (reader, chunkSize) =>
       ZStream.repeatZIOChunkOption {
         for {
-          bufArray  <- UIO(Array.ofDim[Char](chunkSize))
+          bufArray  <- ZIO.succeed(Array.ofDim[Char](chunkSize))
           bytesRead <- ZIO.attemptBlockingIO(reader.read(bufArray)).asSomeError
           chars <- if (bytesRead < 0)
                      ZIO.fail(None)
                    else if (bytesRead == 0)
-                     UIO(Chunk.empty)
+                     ZIO.succeed(Chunk.empty)
                    else if (bytesRead < chunkSize)
-                     UIO(Chunk.fromArray(bufArray).take(bytesRead))
+                     ZIO.succeed(Chunk.fromArray(bufArray).take(bytesRead))
                    else
-                     UIO(Chunk.fromArray(bufArray))
+                     ZIO.succeed(Chunk.fromArray(bufArray))
         } yield chars
       }
     }

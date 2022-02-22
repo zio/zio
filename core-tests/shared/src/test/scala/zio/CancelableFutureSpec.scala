@@ -44,7 +44,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         for {
           runtime <- ZIO.runtime[Any]
           f        = runtime.unsafeRunToFuture(UIO.never)
-          _       <- UIO(f.cancel())
+          _       <- ZIO.succeed(f.cancel())
           r       <- ZIO.fromFuture(_ => f).exit
         } yield assert(r.isSuccess)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
       } @@ nonFlaky @@ zioTag(interruption),
@@ -93,7 +93,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
       } @@ nonFlaky,
       test("is a scala.concurrent.Future") {
         for {
-          f <- ZIO(42).toFuture
+          f <- ZIO.succeed(42).toFuture
           v <- ZIO.fromFuture(_ => f)
         } yield {
           assert(v)(equalTo(42))

@@ -114,7 +114,7 @@ Ran 1 test in 478 ms: 1 succeeded, 0 ignored, 0 failed
 
 ```scala mdoc:invisible
 import zio._
-def deleteDir(dir: Option[String]): Task[Unit] = Task{
+def deleteDir(dir: Option[String]): Task[Unit] = ZIO.attempt{
   val _ = dir
 }
 ```
@@ -188,12 +188,12 @@ import zio.test.{test, _}
 
 suite("os")(
   test("unix test") {
-    ZIO("running on unix/linux os")
+    ZIO.attempt("running on unix/linux os")
       .debug
       .map(_ => assertTrue(true))
   } @@ TestAspect.unix,
   test("macos test") {
-    ZIO("running on macos")
+    ZIO.attempt("running on macos")
       .debug
       .map(_ => assertTrue(true))
   } @@ TestAspect.os(_.isMac)
@@ -233,9 +233,9 @@ import zio._
 import zio.test.{ test, _ }
 
 suite("Parallel")(
-  test("A")(Live.live(ZIO("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
-  test("B")(ZIO("Running Test B").debug.map(_ => assertTrue(true))),
-  test("C")(Live.live(ZIO("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
+  test("A")(Live.live(ZIO.attempt("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
+  test("B")(ZIO.attempt("Running Test B").debug.map(_ => assertTrue(true))),
+  test("C")(Live.live(ZIO.attempt("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
 ) @@ TestAspect.parallel
 ```
 
@@ -260,9 +260,9 @@ import zio._
 import zio.test.{ test, _ }
 
 suite("Sequential")(
-  test("A")(Live.live(ZIO("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
-  test("B")(ZIO("Running Test B").debug.map(_ => assertTrue(true))),
-  test("C")(Live.live(ZIO("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
+  test("A")(Live.live(ZIO.attempt("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
+  test("B")(ZIO.attempt("Running Test B").debug.map(_ => assertTrue(true))),
+  test("C")(Live.live(ZIO.attempt("Running Test C").delay(500.millis)).debug.map(_ => assertTrue(true)))
 ) @@ TestAspect.sequential
 ```
 
@@ -340,7 +340,7 @@ import zio.test.TestAspect._
 
 test("pseudo-random number generator with fixed initial seed") {
   check(Gen.int(0, 100)) { n =>
-    ZIO(n).debug.map(_ => assertTrue(true))
+    ZIO.attempt(n).debug.map(_ => assertTrue(true))
   }
 } @@
   samples(5) @@
@@ -376,7 +376,7 @@ import zio.test.TestAspect._
 
 test("pseudo-random number generator with random initial seed on each repetition") {
   check(Gen.int(0, 100)) { n =>
-    ZIO(n).debug.map(_ => assertTrue(true))
+    ZIO.attempt(n).debug.map(_ => assertTrue(true))
   }
 } @@
   nondeterministic @@
@@ -596,7 +596,7 @@ import zio.test.{ test, _ }
 
 test("generating small list of characters") {
   check(Gen.small(Gen.listOfN(_)(Gen.alphaNumericChar))) { n =>
-    ZIO(n).debug *> Sized.size.map(s => assertTrue(s == 50))
+    ZIO.attempt(n).debug *> Sized.size.map(s => assertTrue(s == 50))
   }
 } @@ TestAspect.sized(50) @@ TestAspect.samples(5)
 ```
@@ -701,7 +701,7 @@ import zio._
 import zio.test.{ test, _ }
 
 test("repeating a test") {
-  ZIO("Repeating a test to ensure its stability")
+  ZIO.attempt("Repeating a test to ensure its stability")
     .debug
     .map(_ => assertTrue(true))
 } @@ TestAspect.nonFlaky @@ TestAspect.repeats(5)

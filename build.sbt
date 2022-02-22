@@ -798,7 +798,8 @@ lazy val docs = project.module
       "info.senia"                    %% "zio-test-akka-http"            % "1.0.3",
       "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0"
     ),
-    resolvers += "Confluent" at "https://packages.confluent.io/maven"
+    resolvers += "Confluent" at "https://packages.confluent.io/maven",
+    fork := true
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))

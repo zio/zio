@@ -23,7 +23,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.unit @@ c
           _      <- ZIO.unit @@ c
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Counter("c1", labels1)).map(_.details)
         } yield assertTrue(r == Some(MetricType.Counter(2.0)))
       },
@@ -40,7 +40,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- c.increment
           _      <- c.increment
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Counter("c2", labels1)).map(_.details)
         } yield assertTrue(r == Some(MetricType.Counter(2.0)))
       },
@@ -57,7 +57,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(10.0) @@ c
           _      <- ZIO.succeed(5.0) @@ c
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Counter("c3", labels1)).map(_.details)
         } yield assertTrue(r == Some(MetricType.Counter(15.0)))
       },
@@ -74,7 +74,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- c.increment(10.0)
           _      <- c.increment(5.0)
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Counter("c4", labels1)).map(_.details)
         } yield assertTrue(r == Some(MetricType.Counter(15.0)))
       },
@@ -82,7 +82,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.unit @@ ZIOMetric.count("c5", labels1: _*)
           _      <- ZIO.unit @@ ZIOMetric.count("c5", labels1: _*)
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Counter("c5", labels1)).map(_.details)
           v      <- ZIOMetric.count("c5", labels1: _*).count
         } yield assertTrue(
@@ -94,7 +94,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(10.0) @@ ZIOMetric.countValue("c6", labels1: _*)
           _      <- ZIO.succeed(5.0) @@ ZIOMetric.countValue("c6", labels1: _*)
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Counter("c6", labels1)).map(_.details)
           v      <- ZIOMetric.count("c6", labels1: _*).count
         } yield assertTrue(
@@ -107,7 +107,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed("hello") @@ c
           _      <- ZIO.succeed("!") @@ c
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Counter(c.name, labels1)).map(_.details)
           v      <- c.count
         } yield assertTrue(
@@ -119,7 +119,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         val c = ZIOMetric.countErrors("c8")
         for {
           _      <- (ZIO.unit @@ c *> ZIO.fail("error") @@ c).ignore
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Counter(c.name, Chunk.empty)).map(_.details)
           v      <- c.count
         } yield assertTrue(
@@ -134,7 +134,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed("hello") @@ c
           _      <- ZIO.succeed("!") @@ c
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0      = states.get(MetricKey.Counter("c9", labels1)).map(_.details)
           r       = states.get(MetricKey.Counter("c9c", Chunk.empty)).map(_.details)
           v      <- c.count
@@ -156,7 +156,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("hello") @@ c
           _      <- ZIO.succeed("!") @@ c
           _      <- ZIO.succeed("!") @@ c
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r = states
                 .get(MetricKey.Counter("c10", Chunk(MetricLabel("static", "0"), MetricLabel("dyn", "!"))))
                 .map(_.details)
@@ -176,7 +176,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("!") @@ c2
           _      <- ZIO.succeed("hello") @@ c1
           _      <- ZIO.succeed("!") @@ c1
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r1 = states
                  .get(MetricKey.Counter("c11", Chunk(MetricLabel("static", "0"))))
                  .map(_.details)
@@ -203,7 +203,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(1.0) @@ g
           _      <- ZIO.succeed(3.0) @@ g
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Gauge("g1", labels1)).map(_.details)
         } yield assertTrue(r == Some(MetricType.Gauge(3.0)))
       },
@@ -220,7 +220,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- g.set(1.0)
           _      <- g.set(3.0)
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Gauge("g2", labels1)).map(_.details)
         } yield assertTrue(r == Some(MetricType.Gauge(3.0)))
       },
@@ -237,7 +237,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(10.0) @@ g
           _      <- ZIO.succeed(5.0) @@ g
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Gauge("g3", labels1)).map(_.details)
         } yield assertTrue(r == Some(MetricType.Gauge(15.0)))
       },
@@ -254,7 +254,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- g.adjust(10.0)
           _      <- g.adjust(5.0)
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Gauge("g4", labels1)).map(_.details)
         } yield assertTrue(r == Some(MetricType.Gauge(15.0)))
       },
@@ -262,7 +262,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(1.0) @@ ZIOMetric.setGauge("g5", labels1: _*)
           _      <- ZIO.succeed(3.0) @@ ZIOMetric.setGauge("g5", labels1: _*)
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Gauge("g5", labels1)).map(_.details)
           v      <- ZIOMetric.setGauge("g5", labels1: _*).value
         } yield assertTrue(
@@ -274,7 +274,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(10.0) @@ ZIOMetric.adjustGauge("g6", labels1: _*)
           _      <- ZIO.succeed(5.0) @@ ZIOMetric.adjustGauge("g6", labels1: _*)
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Gauge("g6", labels1)).map(_.details)
           v      <- ZIOMetric.adjustGauge("g6", labels1: _*).value
         } yield assertTrue(
@@ -287,7 +287,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(1) @@ g
           _      <- ZIO.succeed(3) @@ g
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Gauge("g7", labels1)).map(_.details)
           v      <- g.value
         } yield assertTrue(
@@ -300,7 +300,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(10) @@ g
           _      <- ZIO.succeed(5) @@ g
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Gauge("g8", labels1)).map(_.details)
           v      <- g.value
         } yield assertTrue(
@@ -315,7 +315,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed("hello") @@ g
           _      <- ZIO.succeed("!") @@ g
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0      = states.get(MetricKey.Gauge("g9", labels1)).map(_.details)
           r       = states.get(MetricKey.Gauge("g9c", Chunk.empty)).map(_.details)
           v      <- g.value
@@ -334,7 +334,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("hello") @@ g
           _      <- ZIO.succeed("!") @@ g
           _      <- ZIO.succeed("!") @@ g
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r = states
                 .get(MetricKey.Gauge("g10", Chunk(MetricLabel("static", "0"), MetricLabel("dyn", "!"))))
                 .map(_.details)
@@ -351,7 +351,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("!") @@ g2
           _      <- ZIO.succeed("hello") @@ g1
           _      <- ZIO.succeed("!") @@ g1
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r1 = states
                  .get(MetricKey.Gauge("g11", Chunk(MetricLabel("static", "0"))))
                  .map(_.details)
@@ -379,7 +379,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(1.0) @@ h
           _      <- ZIO.succeed(3.0) @@ h
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Histogram(h.name, h.boundaries, h.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.DoubleHistogram].count == 2L,
@@ -400,7 +400,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- h.observe(1.0)
           _      <- h.observe(3.0)
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Histogram(h.name, h.boundaries, h.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.DoubleHistogram].count == 2L,
@@ -419,7 +419,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- (Clock.sleep(3.seconds) @@ h).provide(Clock.live)
           end    <- ZIO.attempt(java.lang.System.nanoTime())
           elapsed = (end - start) / 1e9
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Histogram(h.name, h.boundaries, h.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.DoubleHistogram].count == 2L,
@@ -432,7 +432,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(1.0) @@ h
           _      <- ZIO.succeed(3.0) @@ h
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Histogram(h.name, h.boundaries, h.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.DoubleHistogram].count == 2L,
@@ -445,7 +445,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed("x") @@ h
           _      <- ZIO.succeed("xyz") @@ h
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Histogram(h.name, h.boundaries, h.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.DoubleHistogram].count == 2L,
@@ -458,7 +458,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(1.0) @@ h
           _      <- ZIO.succeed(3.0) @@ h
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0      = states.get(MetricKey.Histogram("h6", h.boundaries, labels1)).map(_.details)
           r       = states.get(MetricKey.Histogram("h6c", h.boundaries, Chunk.empty)).map(_.details)
         } yield assertTrue(
@@ -475,7 +475,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed("x") @@ h
           _      <- ZIO.succeed("xyz") @@ h
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0      = states.get(MetricKey.Histogram("h7", boundaries, labels1)).map(_.details)
           r1      = states.get(MetricKey.Histogram("h7", boundaries, labels1 :+ MetricLabel("dyn", "x"))).map(_.details)
           r2      = states.get(MetricKey.Histogram("h7", boundaries, labels1 :+ MetricLabel("dyn", "xyz"))).map(_.details)
@@ -492,7 +492,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed("x") @@ h2
           _      <- ZIO.succeed("xyz") @@ h1
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0      = states.get(MetricKey.Histogram("h8", boundaries, labels1)).map(_.details)
           r1      = states.get(MetricKey.Histogram("h8", boundaries, labels1 :+ MetricLabel("dyn", "x"))).map(_.details)
           r2      = states.get(MetricKey.Histogram("h8", boundaries, labels1 :+ MetricLabel("dyn", "xyz"))).map(_.details)
@@ -521,7 +521,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(1.0) @@ s
           _      <- ZIO.succeed(3.0) @@ s
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Summary(s.name, s.maxAge, s.maxSize, s.error, s.quantiles, s.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.Summary].count == 2L,
@@ -545,7 +545,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- s.observe(1.0)
           _      <- s.observe(3.0)
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Summary(s.name, s.maxAge, s.maxSize, s.error, s.quantiles, s.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.Summary].count == 2L,
@@ -564,7 +564,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed(1.0) @@ s
           _      <- ZIO.succeed(3.0) @@ s
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Summary(s.name, s.maxAge, s.maxSize, s.error, s.quantiles, s.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.Summary].count == 2L,
@@ -583,7 +583,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed("x") @@ s
           _      <- ZIO.succeed("xyz") @@ s
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.Summary(s.name, s.maxAge, s.maxSize, s.error, s.quantiles, s.tags)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.Summary].count == 2L,
@@ -602,7 +602,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed("x") @@ s
           _      <- ZIO.succeed("xyz") @@ s
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0      = states.get(MetricKey.Summary("s5", s.maxAge, s.maxSize, s.error, s.quantiles, labels1)).map(_.details)
           r1 =
             states.get(MetricKey.Summary("s5c", s.maxAge, s.maxSize, s.error, s.quantiles, Chunk.empty)).map(_.details)
@@ -625,7 +625,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.succeed("x") @@ s
           _      <- ZIO.succeed("xyz") @@ s
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0 = states
                  .get(MetricKey.Summary(s0.name, s0.maxAge, s0.maxSize, s0.error, s0.quantiles, labels1))
                  .map(_.details)
@@ -663,7 +663,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("x") @@ s
           _      <- ZIO.succeed("xyz") @@ s0
           _      <- ZIO.succeed("xyz") @@ s
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0 = states
                  .get(MetricKey.Summary(s0.name, s0.maxAge, s0.maxSize, s0.error, s0.quantiles, labels1))
                  .map(_.details)
@@ -704,7 +704,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("hello") @@ sc
           _      <- ZIO.succeed("hello") @@ sc
           _      <- ZIO.succeed("world") @@ sc
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.SetCount("sc1", "tag", labels1)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.SetCount].occurrences.toSet == Set("hello" -> 2L, "world" -> 1L)
@@ -725,7 +725,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- sc.observe("hello")
           _      <- sc.observe("hello")
           _      <- sc.observe("world")
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.SetCount("sc2", "tag", labels1)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.SetCount].occurrences.toSet == Set("hello" -> 2L, "world" -> 1L)
@@ -741,7 +741,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("hello") @@ sc
           _      <- ZIO.succeed("hello") @@ sc
           _      <- ZIO.succeed("world") @@ sc
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.SetCount("sc3", "tag", labels1)).map(_.details)
         } yield assertTrue(
           r.get.asInstanceOf[MetricType.SetCount].occurrences.toSet == Set("hello" -> 2L, "world" -> 1L)
@@ -757,7 +757,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed(1) @@ sc
           _      <- ZIO.succeed(1) @@ sc
           _      <- ZIO.succeed(100) @@ sc
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r       = states.get(MetricKey.SetCount("sc4", "tag", labels1)).map(_.details)
         } yield assertTrue(r.get.asInstanceOf[MetricType.SetCount].occurrences.toSet == Set("1" -> 2L, "100" -> 1L))
       },
@@ -771,7 +771,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("hello") @@ sc
           _      <- ZIO.succeed("hello") @@ sc
           _      <- ZIO.succeed("world") @@ sc
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0      = states.get(MetricKey.SetCount("sc5", "tag", labels1)).map(_.details)
           r1      = states.get(MetricKey.SetCount("sc5c", "tag2", Chunk.empty)).map(_.details)
         } yield assertTrue(
@@ -789,7 +789,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("hello") @@ sc
           _      <- ZIO.succeed("hello") @@ sc
           _      <- ZIO.succeed("world") @@ sc
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0      = states.get(MetricKey.SetCount("sc6", "tag", labels1)).map(_.details)
           r1      = states.get(MetricKey.SetCount("sc6", "tag", labels1 :+ MetricLabel("dyn", "hello"))).map(_.details)
           r2      = states.get(MetricKey.SetCount("sc6", "tag", labels1 :+ MetricLabel("dyn", "world"))).map(_.details)
@@ -810,7 +810,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _      <- ZIO.succeed("hello") @@ sc2
           _      <- ZIO.succeed("hello") @@ sc1
           _      <- ZIO.succeed("world") @@ sc2
-          states <- UIO(MetricClient.unsafeStates)
+          states <- ZIO.succeed(MetricClient.unsafeStates)
           r0      = states.get(MetricKey.SetCount("sc7", "tag", labels1)).map(_.details)
           r1      = states.get(MetricKey.SetCount("sc7", "tag", labels1 :+ MetricLabel("dyn", "hello"))).map(_.details)
           r2      = states.get(MetricKey.SetCount("sc7", "tag", labels1 :+ MetricLabel("dyn", "world"))).map(_.details)

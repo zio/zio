@@ -75,7 +75,7 @@ trait Runtime[+R] {
    * Runs the effect "purely" through an async boundary. Useful for testing.
    */
   final def run[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): IO[E, A] =
-    IO.async[E, A] { callback =>
+    IO.async[Any, E, A] { callback =>
       unsafeRunAsyncWith(zio)(exit => callback(ZIO.done(exit)))
     }
 

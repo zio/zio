@@ -222,7 +222,7 @@ Also, there is another constructor called **`ZStream.fromIterator`** that create
 ```scala mdoc:silent:nest
 import scala.io.Source
 val lines: ZStream[Any, Throwable, String] = 
-  ZStream.fromIteratorZIO(Task(Source.fromFile("file.txt").getLines()))
+  ZStream.fromIteratorZIO(ZIO.attempt(Source.fromFile("file.txt").getLines()))
 ```
 
 Using this method is not good for resourceful effects like above, so it's better to rewrite that using `ZStream.fromIteratorManaged` function.
@@ -233,7 +233,7 @@ Using this method is not good for resourceful effects like above, so it's better
 val lines: ZStream[Any, Throwable, String] = 
   ZStream.fromIteratorManaged(
     ZManaged.fromAutoCloseable(
-      Task(scala.io.Source.fromFile("file.txt"))
+      ZIO.attempt(scala.io.Source.fromFile("file.txt"))
     ).map(_.getLines())
   )
 ```
@@ -332,8 +332,8 @@ Here is another interesting example of using `repeatZIOOption`; In this example,
 ```scala mdoc:silent:nest
 def drainIterator[A](it: Iterator[A]): ZStream[Any, Throwable, A] =
   ZStream.repeatZIOOption {
-    ZIO(it.hasNext).mapError(Some(_)).flatMap { hasNext =>
-      if (hasNext) ZIO(it.next()).mapError(Some(_))
+    ZIO.attempt(it.hasNext).mapError(Some(_)).flatMap { hasNext =>
+      if (hasNext) ZIO.attempt(it.next()).mapError(Some(_))
       else ZIO.fail(None)
     }
   }

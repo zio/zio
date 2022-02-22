@@ -114,7 +114,7 @@ object JavaSpec extends ZIOBaseSpec {
       test("return a `CompletableFuture` that fails if `IO` fails") {
         val ex                       = new Exception("IOs also can fail")
         val failedIO: Task[Unit]     = IO.fail[Throwable](ex)
-        val failedFuture: Task[Unit] = failedIO.toCompletableFuture.flatMap(f => Task(f.get()))
+        val failedFuture: Task[Unit] = failedIO.toCompletableFuture.flatMap(f => ZIO.attempt(f.get()))
         assertM(failedFuture.exit)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )
@@ -128,7 +128,7 @@ object JavaSpec extends ZIOBaseSpec {
       test("convert error of type `E` to `Throwable`") {
         val failedIO: IO[String, Unit] = IO.fail[String]("IOs also can fail")
         val failedFuture: Task[Unit] =
-          failedIO.toCompletableFutureWith(new Exception(_)).flatMap(f => Task(f.get()))
+          failedIO.toCompletableFutureWith(new Exception(_)).flatMap(f => ZIO.attempt(f.get()))
         assertM(failedFuture.exit)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )

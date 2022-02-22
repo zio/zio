@@ -13,7 +13,7 @@ object FiberRefSpecJvm extends ZIOBaseSpec {
       for {
         fiberRef <- FiberRef.make(initial)
         handle   <- fiberRef.unsafeAsThreadLocal
-        resRef   <- UIO(new AtomicReference(("", "", "")))
+        resRef   <- ZIO.succeed(new AtomicReference(("", "", "")))
 
         unsafelyGetSetGet = new Runnable {
                               def run(): Unit = {
@@ -27,11 +27,11 @@ object FiberRefSpecJvm extends ZIOBaseSpec {
                             }
 
         _      <- fiberRef.set(update1)
-        thread <- UIO(new Thread(unsafelyGetSetGet))
-        _      <- UIO(thread.start()).ensuring(UIO(thread.join()))
+        thread <- ZIO.succeed(new Thread(unsafelyGetSetGet))
+        _      <- ZIO.succeed(thread.start()).ensuring(ZIO.succeed(thread.join()))
 
         value0                  <- fiberRef.get
-        values                  <- UIO(resRef.get())
+        values                  <- ZIO.succeed(resRef.get())
         (value1, value2, value3) = values
       } yield assert((value0, value1, value2, value3))(equalTo((update1, initial, update2, initial)))
     }

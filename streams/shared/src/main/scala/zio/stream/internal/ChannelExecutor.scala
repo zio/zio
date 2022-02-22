@@ -75,7 +75,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       val finalizer = inProgressFinalizer
 
       if (finalizer ne null)
-        finalizer.ensuring(UIO(clearInProgressFinalizer()))
+        finalizer.ensuring(ZIO.succeed(clearInProgressFinalizer()))
       else null
     }
 
@@ -87,7 +87,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       val selfFinalizers = popAllFinalizers(ex)
 
       if (selfFinalizers ne null)
-        selfFinalizers.ensuring(UIO(clearInProgressFinalizer()))
+        selfFinalizers.ensuring(ZIO.succeed(clearInProgressFinalizer()))
       else null
     }
 
@@ -251,7 +251,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           case ZChannel.ConcatAll(combineSubK, combineSubKAndInner, onPull, onEmit, value, k) =>
             val innerExecuteLastClose =
               (f: URIO[Env, Any]) =>
-                UIO {
+                ZIO.succeed {
                   val prevLastClose = if (closeLastSubstream eq null) ZIO.unit else closeLastSubstream
                   closeLastSubstream = prevLastClose *> f
                 }
@@ -285,7 +285,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             currentChannel = inner.asInstanceOf[Channel[Env]]
 
             addFinalizer { _ =>
-              URIO {
+              ZIO.succeed {
                 providedEnv = previousEnv
               }
             }
@@ -344,9 +344,9 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
           ChannelState.Effect(
             finalizerEffect
               .ensuring(
-                UIO(clearInProgressFinalizer())
+                ZIO.succeed(clearInProgressFinalizer())
               )
-              .uninterruptible *> UIO(doneSucceed(z))
+              .uninterruptible *> ZIO.succeed(doneSucceed(z))
           )
         }
     }
@@ -377,8 +377,8 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
           ChannelState.Effect(
             finalizerEffect
-              .ensuring(UIO(clearInProgressFinalizer()))
-              .uninterruptible *> UIO(doneHalt(cause))
+              .ensuring(ZIO.succeed(clearInProgressFinalizer()))
+              .uninterruptible *> ZIO.succeed(doneHalt(cause))
           )
         }
     }
@@ -465,7 +465,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   )(implicit trace: ZTraceElement): ChannelState[Env, Any] = {
     addFinalizer { _ =>
       ZIO.foreachDiscard(closeFns) { closeFn =>
-        UIO(closeFn(subexecDone)).flatMap { closeEffect =>
+        ZIO.succeed(closeFn(subexecDone)).flatMap { closeEffect =>
           if (closeEffect ne null) {
             closeEffect
           } else {
@@ -660,7 +660,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       case None =>
         val lastClose = closeLastSubstream
         if (lastClose != null) {
-          addFinalizer(_ => UIO(lastClose))
+          addFinalizer(_ => ZIO.succeed(lastClose))
         }
         finishSubexecutorWithCloseEffect(
           self.upstreamDone,

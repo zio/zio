@@ -243,7 +243,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
         val a = iterator.nextAt(index)
         index += 1
         dropping = dropping.flatMap { d =>
-          (if (d) p(a) else UIO(false)).map {
+          (if (d) p(a) else ZIO.succeed(false)).map {
             case true =>
               true
             case false =>
@@ -801,7 +801,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
         val a = iterator.nextAt(index)
         index += 1
         taking = taking.flatMap { b =>
-          (if (b) p(a) else UIO(false)).map {
+          (if (b) p(a) else ZIO.succeed(false)).map {
             case true =>
               builder += a
               true

@@ -97,13 +97,13 @@ abstract class BaseTestTask(
           Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
             run(eventHandler, zioSpec, loggers)
               .provideLayer(sbtTestLayer(loggers))
-              .onError(e => UIO(println(e.prettyPrint)))
+              .onError(e => ZIO.succeed(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>
           Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
             run(eventHandler, abstractRunnableSpec)
               .provideLayer(sbtTestLayer(loggers))
-              .onError(e => UIO(println(e.prettyPrint)))
+              .onError(e => ZIO.succeed(println(e.prettyPrint)))
           }
       }
       Array()

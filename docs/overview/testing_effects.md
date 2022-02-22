@@ -183,13 +183,13 @@ class TestService extends Database.Service {
   private var map: Map[UserID, UserProfile] = Map()
 
   def setTestData(map0: Map[UserID, UserProfile]): Task[Unit] = 
-    Task { map = map0 }
+    ZIO.attempt { map = map0 }
 
   def getTestData: Task[Map[UserID, UserProfile]] = 
-    Task(map)
+    ZIO.attempt(map)
 
   def lookup(id: UserID): Task[UserProfile] = 
-    Task(map(id))
+    ZIO.attempt(map(id))
 
   def update(id: UserID, profile: UserProfile): Task[Unit] = 
     Task.attempt { map = map + (id -> profile) }

@@ -27,7 +27,7 @@ import scala.concurrent.ExecutionException
 private[zio] object javaz {
 
   def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: ZTraceElement): Task[T] =
-    Task.suspendSucceedWith[T] { (p, _) =>
+    Task.suspendSucceedWith[Any, Throwable, T] { (p, _) =>
       Task.async { k =>
         val handler = new CompletionHandler[T, Any] {
           def completed(result: T, u: Any): Unit = k(Task.succeedNow(result))

@@ -35,7 +35,7 @@ val users: List[String] = List("a", "b")
 object api {
   val users = scala.collection.mutable.HashMap("a" -> 20, "b" -> 30)
 
-  def getAge(user: String): UIO[Int] = UIO(users(user))
+  def getAge(user: String): UIO[Int] = ZIO.succeed(users(user))
 }
 ```
 
