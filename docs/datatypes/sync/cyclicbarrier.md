@@ -1,5 +1,6 @@
 ---
-id: cyclicbarrier title: "CyclicBarrier"
+id: cyclicbarrier
+title: "CyclicBarrier"
 ---
 
 A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
@@ -120,8 +121,7 @@ Breaks on party interruption:
 ```scala mdoc:silent
 import zio.concurrent.CyclicBarrier
 import zio._
-import zio.duration._
-import zio.test.environment.TestClock
+import zio.test.TestClock
 
 for {
   barrier   <- CyclicBarrier.make(100)

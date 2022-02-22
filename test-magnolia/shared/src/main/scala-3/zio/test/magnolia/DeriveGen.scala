@@ -48,7 +48,7 @@ object DeriveGen {
     given DeriveGen[Short] = instance(Gen.short)
     given DeriveGen[String] = instance(Gen.string)
     given DeriveGen[Unit] = instance(Gen.unit)
-    given DeriveGen[UUID] = instance(Gen.UUID)
+    given DeriveGen[UUID] = instance(Gen.uuid)
     given DeriveGen[Instant] = instance(Gen.instant)
     given DeriveGen[LocalDateTime] = instance(Gen.localDateTime)
     given DeriveGen[LocalDate] = instance(Gen.localDate)
