@@ -106,7 +106,7 @@ ZIO contains several constructors which help us to convert various data types in
 | `getOrFailUnit` | `Option[A]`              | `IO[Unit, A]`            |
 | `getOrFailWith` | `e:=> E, v:=> Option[A]` | `IO[E, A]`               |
 
-1. **ZIO.fromOption**— An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
+1. **`ZIO.fromOption`**— An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 
 ```scala mdoc:silent
 import zio._
@@ -146,6 +146,15 @@ val result: IO[Throwable, Option[(User, Team)]] = (for {
   team <- getTeam(user.teamId).asSomeError 
 } yield (user, team)).unsome 
 ```
+
+2. **`ZIO#some`**/**`ZIO#none`**— These constructors can be used to directly create ZIO of optional values:
+
+```scala mdoc:compile-only
+import zio._
+
+val someInt: ZIO[Any, Nothing, Option[Int]]     = ZIO.some(3)
+val noneInt: ZIO[Any, Nothing, Option[Nothing]] = ZIO.none
+``` 
 
 #### Either
 
