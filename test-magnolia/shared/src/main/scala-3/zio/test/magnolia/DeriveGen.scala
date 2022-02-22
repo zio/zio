@@ -18,7 +18,7 @@ package zio.test.magnolia
 
 import zio.Chunk
 
-import java.time.{Instant, LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.UUID
 import scala.compiletime.{erasedValue, summonInline}
 import scala.deriving._
@@ -48,10 +48,11 @@ object DeriveGen {
     given DeriveGen[Short] = instance(Gen.short)
     given DeriveGen[String] = instance(Gen.string)
     given DeriveGen[Unit] = instance(Gen.unit)
-    given DeriveGen[UUID] = instance(Gen.uuid)
+    given DeriveGen[UUID] = instance(Gen.UUID)
     given DeriveGen[Instant] = instance(Gen.instant)
     given DeriveGen[LocalDateTime] = instance(Gen.localDateTime)
-    given DeriveGen[LocalDate] = instance(Gen.localDateTime.map(_.toLocalDate()))
+    given DeriveGen[LocalDate] = instance(Gen.localDate)
+    given DeriveGen[LocalTime] = instance(Gen.localTime)
     given DeriveGen[BigDecimal] = instance(Gen.bigDecimal(
         BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),
         BigDecimal(Double.MaxValue) * BigDecimal(Double.MaxValue)
