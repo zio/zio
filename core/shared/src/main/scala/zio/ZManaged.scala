@@ -3744,7 +3744,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
-    ZManaged(IO.succeedNow((Finalizer.noop, r)))
+    ZManaged(ZIO.succeedNow((Finalizer.noop, r)))
 
   implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZManaged[R, E, A]) extends AnyVal {
 
