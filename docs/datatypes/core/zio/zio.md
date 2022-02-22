@@ -97,15 +97,6 @@ ZIO contains several constructors which help us to convert various data types in
 
 #### Option
 
-| Function        | Input Type               | Output Type              |
-|-----------------|--------------------------|--------------------------|
-| `fromOption`    | `Option[A]`              | `IO[Option[Nothing], A]` |
-| `some`          | `A`                      | `UIO[Option[A]]`         |
-| `none`          |                          | `UIO[Option[Nothing]]`   |
-| `getOrFail`     | `Option[A]`              | `Task[A]`                |
-| `getOrFailUnit` | `Option[A]`              | `IO[Unit, A]`            |
-| `getOrFailWith` | `e:=> E, v:=> Option[A]` | `IO[E, A]`               |
-
 1. **`ZIO.fromOption`**— An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 
 ```scala mdoc:silent
@@ -162,13 +153,16 @@ val noneInt: ZIO[Any, Nothing, Option[Nothing]] = ZIO.none
 import zio._
 
 val optionalValue: Option[Int] = ???
-  
+
+// If the optionalValue is not defined it fails with Throwable error type: 
 val r1: ZIO[Any, Throwable, Int] =
   ZIO.getOrFail(optionalValue)
 
+// If the optionalValue is not defined it fails with Unit error type:
 val r2: IO[Unit, Int] =
   ZIO.getOrFailUnit(optionalValue)
 
+// If the optionalValue is not defined it fail with given error type:
 val r3: IO[NoSuchElementException, Int] =
   ZIO.getOrFailWith(new NoSuchElementException("None.get"))(optionalValue)
 ```
