@@ -388,7 +388,7 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromJavaStream[A](stream: => java.util.stream.Stream[A])(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, A] =
-    ZStream.fromJavaIterator(stream.iterator())
+    ZStream.fromJavaIteratorManaged(ZManaged.acquireReleaseAttemptWith(stream)(_.close()).map(_.iterator()))
 
   /**
    * Creates a stream from a Java stream
@@ -405,7 +405,7 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromJavaStreamManaged[R, A](
     stream: => ZManaged[R, Throwable, java.util.stream.Stream[A]]
   )(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorManaged(stream.mapZIO(s => ZIO.succeed(s.iterator())))
+    ZStream.managed(stream).flatMap(ZStream.fromJavaStream(_))
 
   /**
    * Creates a stream from a Java stream
@@ -430,7 +430,7 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromJavaStreamZIO[R, A](stream: => ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorZIO(stream.flatMap(s => ZIO.succeed(s.iterator())))
+    ZStream.fromZIO(stream).flatMap(ZStream.fromJavaStream(_))
 
   /**
    * Create a stream of accepted connection from server socket Emit socket
