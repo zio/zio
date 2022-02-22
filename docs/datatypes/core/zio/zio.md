@@ -275,6 +275,19 @@ ZIO can convert both synchronous and asynchronous side-effects into ZIO effects 
 
 These functions can be used to wrap procedural code, allowing us to seamlessly use all features of ZIO with legacy Scala and Java code, as well as third-party libraries.
 
+## Operations
+
+1. **`ZIO#someOrElse`**— Extract the optional value if it is not empty or return the given default:
+
+```scala mdoc:compile-only
+import zio._
+
+val getEnv: ZIO[Any, Nothing, Option[String]] = ???
+
+val result: ZIO[Any, Nothing, String] =
+  getEnv.someOrElse("development")
+```
+
 #### Synchronous
 
 | Function  | Input Type | Output Type | Note                                        |
