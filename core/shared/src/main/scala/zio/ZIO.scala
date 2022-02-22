@@ -5207,7 +5207,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Returns an effect that models success with the specified value.
    */
-  def succeed[A](a: => A)(implicit trace: ZTraceElement): UIO[A] =
+  def succeed[A](a: => A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, A] =
     new ZIO.Succeed(() => a, trace)
 
   /**

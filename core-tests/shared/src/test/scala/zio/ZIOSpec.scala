@@ -3935,7 +3935,7 @@ object ZIOSpec extends ZIOBaseSpec {
     )
   )
 
-  def functionIOGen: Gen[Random with Sized, String => Task[Int]] =
+  def functionIOGen: Gen[Random with Sized, String => ZIO[Any, Throwable, Int]] =
     Gen.function[Random with Sized, String, Task[Int]](Gen.successes(Gen.int))
 
   def listGen: Gen[Random with Sized, List[String]] =
