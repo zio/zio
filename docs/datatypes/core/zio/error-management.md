@@ -449,12 +449,15 @@ If we want to catch and recover from all types of errors and effectfully attempt
 
 ```scala mdoc:invisible
 import java.io.{ FileNotFoundException, IOException }
-def readFile(s: String): IO[IOException, Array[Byte]] = 
+
+def readFile(s: String): ZIO[Any, IOException, Array[Byte]] = 
   ZIO.attempt(???).refineToOrDie[IOException]
 ```
 
 ```scala mdoc:silent
-val z: IO[IOException, Array[Byte]] = 
+import zio._
+
+val z: ZIO[Any, IOException, Array[Byte]] = 
   readFile("primary.json").catchAll(_ => 
     readFile("backup.json"))
 ```
@@ -465,8 +468,10 @@ In the callback passed to `catchAll`, we may return an effect with a different e
 
 If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `catchSome` method:
 
-```scala mdoc:silent
-val data: IO[IOException, Array[Byte]] = 
+```scala mdoc:compile-only
+import zio._
+
+val data: ZIO[Any, IOException, Array[Byte]] = 
   readFile("primary.data").catchSome {
     case _ : FileNotFoundException => 
       readFile("backup.data")
@@ -572,6 +577,8 @@ Scala's `Option` and `Either` data types have `fold`, which let us handle both f
 The first fold method, `fold`, lets us non-effectfully handle both failure and success, by supplying a non-effectful handler for each case:
 
 ```scala mdoc:silent
+import zio._
+
 lazy val DefaultData: Array[Byte] = Array(0, 0)
 
 val primaryOrDefaultData: UIO[Array[Byte]] = 
@@ -582,7 +589,7 @@ val primaryOrDefaultData: UIO[Array[Byte]] =
 
 The second fold method, `foldZIO`, lets us effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
   readFile("primary.data").foldZIO(
     _    => readFile("secondary.data"),
@@ -629,14 +636,18 @@ There are a number of useful methods on the ZIO data type for retrying failed ef
 
 The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails, according to the specified policy:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
   readFile("primary.data").retry(Schedule.recurs(5))
 ```
 
 The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 readFile("primary.data").retryOrElse(
   Schedule.recurs(5), 
   (_, _:Long) => ZIO.succeed(DefaultData)
