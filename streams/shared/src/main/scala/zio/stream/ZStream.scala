@@ -256,7 +256,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           }
       }
 
-      ZStream.managed[R, Nothing, Fiber.Runtime[Nothing, Any]]((self.channel >>> handoffProducer).runManaged.fork) *>
+      ZStream
+        .managed[R, Nothing, Fiber.Runtime[Nothing, Any]]((self.channel >>> handoffProducer).runManaged.forkDaemon) *>
         new ZStream(scheduledAggregator(None))
     }
   }
