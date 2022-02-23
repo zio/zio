@@ -77,7 +77,7 @@ private[zio] object javaz {
               }
               cb(io)
             }
-            Left(UIO(cf.cancel(true)))
+            Left(UIO(cf.cancel(false)))
           }
         }
       }
@@ -93,7 +93,7 @@ private[zio] object javaz {
         if (future.isDone) {
           unwrapDone(p.fatal)(future)
         } else {
-          blocking(Task.effectSuspend(unwrapDone(p.fatal)(future))).onInterrupt(UIO(future.cancel(true)))
+          blocking(Task.effectSuspend(unwrapDone(p.fatal)(future))).onInterrupt(UIO(future.cancel(false)))
         }
       }
     }
