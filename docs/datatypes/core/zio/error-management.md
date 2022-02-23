@@ -498,7 +498,16 @@ val primaryOrBackupData: IO[IOException, Array[Byte]] =
   readFile("primary.data").orElse(readFile("backup.data"))
 ```
 
-1. **`ZIO#orElseFail`**— We can convert the failure type of effect, using this operator:
+1. **`ZIO#orElseSucceed`/`ZIO#orElseFail`**— These two operators convert the original failure with constant succeed or failure values:
+
+```scala
+trait ZIO[-R, +R, +E] {
+  def orElseFail[E1](e1: => E1): ZIO[R, E1, A]
+  def orElseSucceed[A1 >: A](a1: => A1): ZIO[R, Nothing, A1]
+}
+```
+
+The `ZIO#orElseFail` will always replace the original failure with the new one, so `E1` does not have to be a supertype of `E`. It is useful when we have `Unit` as an error, and we want to unify that with something else:
 
 ```scala mdoc:compile-only
 import zio._
@@ -513,6 +522,13 @@ def validate(age: Int): ZIO[Any, AgeValidationException, Int] = {
 
 val result: ZIO[Any, String, Int] =
   validate(3).orElseFail("invalid age")
+```
+
+The `ZIO#orElseSucceed` will always replace the original failure with a success value so the resulting effect cannot fail. It is useful when we have a constant value that will work in case the effect fails:
+
+```scala mdoc:compile-only
+val result: ZIO[Any, Nothing, Int] =
+  validate(3).orElseSucceed(0)
 ```
 
 2. **`ZIO#orElseOptional`**— When dealing with optional failure types, we might need to fall back to another effect when the failure value is `None`. This operator helps to do so:
@@ -700,10 +716,6 @@ val result: ZIO[Any, AgeValidationException, Int] =
     })
 ```
 
-```scala mdoc:invisible:reset
-
-```
-
 ## Error Channel Conversions
 
 ### Putting Error Into Success Channel and Submerging it Back Again
@@ -716,6 +728,8 @@ val result: ZIO[Any, AgeValidationException, Int] =
 The `ZIO#either` convert a `ZIO[R, E, A]` effect to another effect in which its failure (`E`) and success (`A`) channel have been lifted into an `Either[E, A]` data type as success channel of the `ZIO` data type:
 
 ```scala mdoc:compile-only
+import zio._
+
 val age: Int = ???
 
 val res: URIO[Any, Either[AgeValidationException, Int]] = validate(age).either 
