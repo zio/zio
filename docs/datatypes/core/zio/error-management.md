@@ -638,7 +638,7 @@ validate(17)  // ZIO[Any, AgeValidationException, Int]
   .unsandbox  // ZIO[Any, AgeValidationException, Int]
 ```
 
-There is another version of sandbox called `ZIO#sandboxWith`:
+There is another version of sandbox called `ZIO#sandboxWith`. This operator helps us to sandbox, then catch all causes, and then unsandbox back:
 
 ```scala
 trait ZIO[-R, +E, +A] {
@@ -646,9 +646,26 @@ trait ZIO[-R, +E, +A] {
 }
 ```
 
-Let's try the previous example using this operator:
+Let's try the previous example using this operator.
 
-```scala
+```scala mdoc:compile-only
+import zio._
+
+val result: ZIO[Any, AgeValidationException, Int] =
+  validate(17)
+    .sandboxWith[Any, AgeValidationException, Int](_.catchSome {
+      case Cause.Fail(error: AgeValidationException, _) =>
+        ZIO.debug("Caught AgeValidationException failure").as(0)
+      case Cause.Die(otherDefects, _) =>
+        ZIO.debug(s"Caught unknown defects: $otherDefects").as(0)
+      case Cause.Interrupt(fiberId, _) =>
+        ZIO.debug(s"Caught interruption of a fiber with id: $fiberId").as(0)
+      case otherCauses =>
+        ZIO.debug(s"Caught other causes: $otherCauses").as(0)
+    })
+```
+
+```scala mdoc:invisible:reset
 
 ```
 
