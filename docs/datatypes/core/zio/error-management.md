@@ -491,14 +491,22 @@ Unlike `catchAll`, `catchSome` cannot reduce or eliminate the error type, althou
 | `orElseOptional` | `ZIO[R1, Option[E1], A1]` | `ZIO[R1, Option[E1], A1]`   |
 | `orElseSucceed`  | `A1`                      | `URIO[R, A1]`              |
 
-We can try one effect, or, if it fails, try another effect, with the `orElse` combinator:
+1. **`ZIO#orElse`**— We can try one effect, or if it fails, try another effect with the `orElse` combinator:
 
-```scala mdoc:silent
-val primaryOrBackupData: IO[IOException, Array[Byte]] = 
+```scala
+trait ZIO[-R, +E, +A] {
+  def orElse[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1]): ZIO[R1, E2, A1]
+}
+```
+
+Let's try an example:
+
+```scala mdoc:compile-only
+val primaryOrBackupData: ZIO[Any, IOException, Array[Byte]] = 
   readFile("primary.data").orElse(readFile("backup.data"))
 ```
 
-1. **`ZIO#orElseSucceed`/`ZIO#orElseFail`**— These two operators convert the original failure with constant succeed or failure values:
+3. **`ZIO#orElseSucceed`/`ZIO#orElseFail`**— These two operators convert the original failure with constant succeed or failure values:
 
 ```scala
 trait ZIO[-R, +R, +E] {
