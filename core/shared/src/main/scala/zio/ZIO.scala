@@ -1484,8 +1484,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZIO[R0, E1, A] =
-    ZIO.scoped[R0, E1, A] {
-      layer.build.flatMap(r => self.provideEnvironment(r))
+    Scope.make.flatMap { scope =>
+      layer.build(scope).flatMap(r => self.provideEnvironment(r)).onExit(scope.close)
     }
 
   /**

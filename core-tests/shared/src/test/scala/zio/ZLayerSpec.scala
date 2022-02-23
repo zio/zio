@@ -467,6 +467,20 @@ object ZLayerSpec extends ZIOBaseSpec {
           tuple <- ZIO.scoped((fedB ++ fedC).build.map(v => (v.get[B], v.get[C])))
           (a, b) = tuple
         } yield assert(a.value)(equalTo(b.value))
+      },
+      test("extend scope") {
+        for {
+          ref  <- Ref.make[Vector[String]](Vector.empty)
+          layer = makeLayer1(ref).extendScope
+          acquire <- ZIO.scoped {
+                       for {
+                         _       <- ZIO.unit.provideLayer(layer)
+                         acquire <- ref.get
+                       } yield acquire
+                     }
+          release <- ref.get
+        } yield assertTrue(acquire == Vector("Acquiring Module 1")) &&
+          assertTrue(release == Vector("Acquiring Module 1", "Releasing Module 1"))
       }
     )
 }
