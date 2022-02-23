@@ -498,7 +498,24 @@ val primaryOrBackupData: IO[IOException, Array[Byte]] =
   readFile("primary.data").orElse(readFile("backup.data"))
 ```
 
-1. **`ZIO#orElseOptional`**— When dealing with optional failure types, we might need to fall back to another effect when the failure value is `None`. This operator helps to do so:
+1. **`ZIO#orElseFail`**— We can convert the failure type of effect, using this operator:
+
+```scala mdoc:compile-only
+import zio._
+
+def validate(age: Int): ZIO[Any, AgeValidationException, Int] = {
+  if (age < 0)
+    ZIO.fail(NegativeAgeException(age))
+  else if (age < 18)
+    ZIO.fail(IllegalAgeException(age))
+  else ZIO.succeed(age)
+}
+
+val result: ZIO[Any, String, Int] =
+  validate(3).orElseFail("invalid age")
+```
+
+2. **`ZIO#orElseOptional`**— When dealing with optional failure types, we might need to fall back to another effect when the failure value is `None`. This operator helps to do so:
 
 ```scala mdoc:compile-only
 import zio._
