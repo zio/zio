@@ -498,6 +498,24 @@ val primaryOrBackupData: IO[IOException, Array[Byte]] =
   readFile("primary.data").orElse(readFile("backup.data"))
 ```
 
+1. **`ZIO#orElseOptional`**— When dealing with optional failure types, we might need to fall back to another effect when the failure value is `None`. This operator helps to do so:
+
+```scala mdoc:compile-only
+import zio._
+
+def parseInt(input: String): ZIO[Any, Option[String], Int] =
+  input.toIntOption match {
+    case Some(value) => ZIO.succeed(value)
+    case None =>
+      if (input.isBlank)
+        ZIO.fail(None)
+      else
+        ZIO.fail(Some(s"invalid non-integer input: $input"))
+  }
+
+val result = parseInt("  ").orElseOptional(ZIO.succeed(0)).debug
+```
+
 ### 3. Folding
 
 | Function       | Input Type                                                                       | Output Type      |
