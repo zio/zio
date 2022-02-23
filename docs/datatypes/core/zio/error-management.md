@@ -488,14 +488,6 @@ Unlike `catchAll`, `catchSome` cannot reduce or eliminate the error type, althou
 
 ### 2. Fallback
 
-| Function         | Input Type                | Output Type                 |
-|------------------|---------------------------|-----------------------------|
-| `orElse`         | `ZIO[R1, E2, A1]`         | `ZIO[R1, E2, A1]`           |
-| `orElseEither`   | `ZIO[R1, E2, B]`          | `ZIO[R1, E2, Either[A, B]]` |
-| `orElseFail`     | `E1`                      | `ZIO[R, E1, A]`             |
-| `orElseOptional` | `ZIO[R1, Option[E1], A1]` | `ZIO[R1, Option[E1], A1]`   |
-| `orElseSucceed`  | `A1`                      | `URIO[R, A1]`              |
-
 1. **`ZIO#orElse`**— We can try one effect, or if it fails, try another effect with the `orElse` combinator:
 
 ```scala
@@ -509,6 +501,29 @@ Let's try an example:
 ```scala mdoc:compile-only
 val primaryOrBackupData: ZIO[Any, IOException, Array[Byte]] = 
   readFile("primary.data").orElse(readFile("backup.data"))
+```
+
+2. **`ZIO#orElseEither`**— This operator run the orginal effect, and if it run the specified effect and return the result as Either: 
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def orElseEither[R1 <: R, E2, B](that: => ZIO[R1, E2, B]): ZIO[R1, E2, Either[A, B]]
+}
+```
+
+This operator is useful when the fallback effect has a different result type than the original effect. So this will unify both in the `Either[A, B]` data type. Here is an example usage of this operator:
+
+```scala mdoc:compile-only
+import zio._
+
+trait LocalConfig
+trait RemoteConfig
+
+def readLocalConfig: ZIO[Any, Throwable, LocalConfig] = ???
+def readRemoteConfig: ZIO[Any, Throwable, RemoteConfig] = ???
+
+val result: ZIO[Any, Throwable, Either[LocalConfig, RemoteConfig]] =
+  readLocalConfig.orElseEither(readRemoteConfig)
 ```
 
 3. **`ZIO#orElseSucceed`/`ZIO#orElseFail`**— These two operators convert the original failure with constant succeed or failure values:
@@ -544,7 +559,17 @@ val result: ZIO[Any, Nothing, Int] =
   validate(3).orElseSucceed(0)
 ```
 
-2. **`ZIO#orElseOptional`**— When dealing with optional failure types, we might need to fall back to another effect when the failure value is `None`. This operator helps to do so:
+4. **`ZIO#orElseOptional`**— When dealing with optional failure types, we might need to fall back to another effect when the failure value is `None`. This operator helps to do so:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def orElseOptional[R1 <: R, E1, A1 >: A](
+      that: => ZIO[R1, Option[E1], A1]
+    )(implicit ev: E IsSubtypeOfError Option[E1]): ZIO[R1, Option[E1], A1] =
+}
+```
+
+In the following example, the `parseInt(" ")` fails with `None`, so then the fallback effect results in a zero:
 
 ```scala mdoc:compile-only
 import zio._
