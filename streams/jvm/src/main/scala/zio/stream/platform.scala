@@ -466,7 +466,7 @@ trait ZStreamPlatformSpecificConstructors {
                       }
                     )
                   }
-                  .flatMap(managedConn => registerConnection.use(managedConn))
+                  .flatMap(managedConn => managedConn.provideService(registerConnection))
               }
     } yield conn
 
