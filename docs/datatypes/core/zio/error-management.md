@@ -4,6 +4,9 @@ title: "Error Management"
 ---
 
 ## Introduction
+
+As well as providing first-class support for typed errors, ZIO has a variety of facilities for catching, propagating, and transforming errors in a typesafe manner. In this section, we will learn about different types of errors in ZIO and how we can manage them.
+
 ### Three Types of Errors in ZIO
 
 We should consider three types of errors when writing ZIO applications:
@@ -599,7 +602,7 @@ We know that a ZIO effect may fail due to a failure, a defect, a fiber interrupt
 
 ```scala
 trait ZIO[-R, +E, +A] {
-  def sandbox: ZIO[R, Cause[E], A] =
+  def sandbox: ZIO[R, Cause[E], A]
 }
 ```
 
@@ -633,6 +636,20 @@ import zio._
 validate(17)  // ZIO[Any, AgeValidationException, Int]
   .sandbox    // ZIO[Any, Cause[AgeValidationException], Int]
   .unsandbox  // ZIO[Any, AgeValidationException, Int]
+```
+
+There is another version of sandbox called `ZIO#sandboxWith`:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B])
+}
+```
+
+Let's try the previous example using this operator:
+
+```scala
+
 ```
 
 ## Error Channel Conversions
