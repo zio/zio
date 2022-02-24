@@ -4911,7 +4911,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => ZIO[R, IOException, InputStream],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
-    ??? //fromInputStreamManaged(is.tap(is => ZIO.addFinalizer(_ => ZIO.succeed(is.close()))), chunkSize)
+    fromInputStreamManaged[R](is.tap(is => ZIO.addFinalizer(_ => ZIO.succeed(is.close()))), chunkSize)
 
   /**
    * Creates a stream from a managed `java.io.InputStream` value.

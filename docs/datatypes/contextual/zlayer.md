@@ -114,8 +114,8 @@ import scala.io.BufferedSource
 
 val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
   // alternative: ZLayer.fromManaged
-  ZLayer {
-    ZManaged.fromAutoCloseable(
+  ZLayer.fromZIOScoped {
+    ZIO.fromAutoCloseable(
       ZIO.attempt(scala.io.Source.fromFile("file.txt"))
     )
   }
@@ -125,9 +125,7 @@ val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
 
 ```scala mdoc:compile-only
 val managedFile: ZLayer[Any, Throwable, BufferedSource] =
-  ZIO.attempt(scala.io.Source.fromFile("file.txt"))
-    .toManagedAuto   // alternative: toManagedWith(b => UIO(b.close())
-    .toLayer
+  ZLayer.fromZIOScoped(ZIO.fromAutoCloseable(ZIO.attempt(scala.io.Source.fromFile("file.txt"))))
 ```
 
 3. We can create a `ZLayer` directly from `acquire` and `release` actions of a managed resource:
@@ -156,7 +154,7 @@ trait User
 
 def dbConfig: Task[DBConfig] = Task.attempt(???)
 def initializeDb(config: DBConfig): Task[Unit] = Task.attempt(???)
-def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ZManaged.attempt(???)
+def makeTransactor(config: DBConfig): ZIO[Scope, Throwable, Transactor] = ZIO.attempt(???)
 
 trait UserRepository {
   def save(user: User): Task[Unit]
@@ -170,10 +168,10 @@ case class UserRepositoryLive(xa: Transactor) extends UserRepository {
 Assume we have written a managed `UserRepository`:
 
 ```scala mdoc:silent:nest
-def managed: ZManaged[Console, Throwable, UserRepository] = 
+def managed: ZIO[Console with Scope, Throwable, UserRepository] = 
   for {
-    cfg <- dbConfig.toManaged
-    _   <- initializeDb(cfg).toManaged
+    cfg <- dbConfig
+    _   <- initializeDb(cfg)
     xa  <- makeTransactor(cfg)
   } yield new UserRepositoryLive(xa)
 ```
@@ -181,7 +179,8 @@ def managed: ZManaged[Console, Throwable, UserRepository] =
 We can convert that to `ZLayer` with `ZLayer.fromManaged` or `ZManaged#toLayer`:
 
 ```scala mdoc:nest
-val usersLayer : ZLayer[Console, Throwable, UserRepository] = managed.toLayer
+val usersLayer : ZLayer[Console, Throwable, UserRepository] =
+  ZLayer.fromZIOScoped(managed)
 ```
 
 ```scala mdoc:invisible:reset
@@ -1163,11 +1162,13 @@ import zio._
 object MainApp extends ZIOAppDefault {
 
   val myApp: ZIO[Any, Nothing, Unit] =
-    a.memoize.use { aLayer =>
-      for {
-        _ <- ZIO.service[A].provide(aLayer)
-        _ <- ZIO.service[A].provide(aLayer)
-      } yield ()
+    ZIO.scoped {
+      a.memoize.flatMap { aLayer =>
+        for {
+          _ <- ZIO.service[A].provide(aLayer)
+          _ <- ZIO.service[A].provide(aLayer)
+        } yield ()
+      }
     }
     
   def run = myApp
@@ -1202,7 +1203,7 @@ val database: ZLayer[Any, Throwable, Database] =
     Database.connect.debug("connecting to the database")
   )(_.close)
 
-val managedDatabase: ZManaged[Any, Throwable, ZEnvironment[Database]] =
+val managedDatabase: ZIO[Scope, Throwable, ZEnvironment[Database]] =
   database.build
 ```
 

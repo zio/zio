@@ -32,7 +32,7 @@ import zio._
 
 ```scala mdoc:nest
 trait ZPool[+Error, Item] {
-  def get: Managed[Error, Item]
+  def get: ZIO[Scope, Error, Item]
   def invalidate(item: Item): UIO[Unit]
 }
 ```
@@ -49,7 +49,7 @@ The `make` constructor is a common way to create a `ZPool`:
 
 ```scala mdoc:silent
 object ZPool {
-  def make[E, A](get: Managed[E, A], size: Int): UManaged[ZPool[E, A]] = ???
+  def make[E, A](get: ZIO[Scope, E, A], size: Int): ZIO[Scope, Nothing, ZPool[E, A]] = ???
 }
 ```
 
@@ -81,7 +81,7 @@ import zio._
 
 case class Connection()
 
-val acquireDbConnection = ZManaged.succeed(Connection())
+val acquireDbConnection = ZIO.succeed(Connection())
 
 def useConnection(i: Connection) = {
   val _ = i
@@ -90,8 +90,12 @@ def useConnection(i: Connection) = {
 ```
 
 ```scala mdoc:silent
-ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).use { pool =>
-  pool.get.use { conn => useConnection(conn) }
+ZIO.scoped {
+  ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).flatMap { pool =>
+    ZIO.scoped {
+      pool.get.flatMap { conn => useConnection(conn) }
+    }
+  }
 }
 ```
 
@@ -103,7 +107,7 @@ After creating a pool, we can retrieve a resource from the pool using `ZPool#get
 
 ```scala mdoc:nest
 trait ZPool[+Error, Item] {
-  def get: Managed[Error, Item]
+  def get: ZIO[Scope, Error, Item]
 }
 ```
 
@@ -116,13 +120,13 @@ Here is how it works behind the scenes:
 In case of failure, we can retry a failed acquisition. It will repeat the acquisition attempt:
 
 ```scala mdoc:invisible
-val acquireDbConnection: ZManaged[Any, String, Connection] = 
-  ZManaged.fail("Boom!")
+val acquireDbConnection: ZIO[Any, String, Connection] = 
+  ZIO.fail("Boom!")
 ```
 
 ```scala mdoc:silent:nest
-ZPool.make(acquireDbConnection, 10).use { pool =>
-  pool.get.use( conn => useConnection(conn)).eventually
+ZPool.make(acquireDbConnection, 10).flatMap { pool =>
+  pool.get.flatMap( conn => useConnection(conn)).eventually
 }
 ```
 

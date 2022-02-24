@@ -112,7 +112,7 @@ val clockStream: ZStream[Clock, Nothing, Clock] = ZStream.service[Clock]
 ```scala mdoc:silent:nest
 val managedStream: ZStream[Any, Throwable, BufferedReader] =
   ZStream.managed(
-    ZManaged.fromAutoCloseable(
+    ZIO.fromAutoCloseable(
       ZIO.attemptBlocking(
         Files.newBufferedReader(java.nio.file.Paths.get("file.txt"))
       )
@@ -232,7 +232,7 @@ Using this method is not good for resourceful effects like above, so it's better
 ```scala mdoc:silent:nest
 val lines: ZStream[Any, Throwable, String] = 
   ZStream.fromIteratorManaged(
-    ZManaged.fromAutoCloseable(
+    ZIO.fromAutoCloseable(
       Task(scala.io.Source.fromFile("file.txt"))
     ).map(_.getLines())
   )
@@ -478,7 +478,7 @@ val wrappedWithZIO: UIO[ZStream[Any, Nothing, Int]] =
 val s1: ZStream[Any, Nothing, Int] = 
   ZStream.unwrap(wrappedWithZIO)
 
-val wrappedWithZManaged = ZManaged.succeed(ZStream(1, 2, 3))
+val wrappedWithZManaged = ZIO.succeed(ZStream(1, 2, 3))
 val s2: ZStream[Any, Nothing, Int] = 
   ZStream.unwrapManaged(wrappedWithZManaged)
 ```
@@ -515,8 +515,8 @@ val stream: ZStream[Any, IOException, Byte] =
 **ZStream.fromInputStreamManaged** — Creates a stream from a managed `java.io.InputStream` value:
 
 ```scala mdoc:silent:nest
-val managed: ZManaged[Any, IOException, FileInputStream] =
-  ZManaged.fromAutoCloseable(
+val managed: ZIO[Scope, IOException, FileInputStream] =
+  ZIO.fromAutoCloseable(
     ZIO.attempt(new FileInputStream("file.txt"))
   ).refineToOrDie[IOException]
 
@@ -573,7 +573,7 @@ If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` construct
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- ZHub.unbounded[Chunk[Int]]
-  managed = ZStream.fromChunkHubManaged(hub).tapZIO(_ => promise.succeed(()))
+  managed = ZStream.fromChunkHubManaged(hub).tap(_ => promise.succeed(()))
   stream  = ZStream.unwrapManaged(managed)
   fiber   <- stream.foreach(printLine(_)).fork
   _       <- promise.await
@@ -1066,7 +1066,7 @@ The faster stream may advance by up to `buffer` elements further than the slower
 In the example below, left stream consists of even numbers only:
 
 ```scala mdoc:silent:nest
-val partitionResult: ZManaged[Any, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any, Nothing, Int])] =
+val partitionResult: ZIO[Scope, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any, Nothing, Int])] =
   Stream
     .fromIterable(0 to 100)
     .partition(_ % 2 == 0, buffer = 50)
@@ -1087,7 +1087,7 @@ abstract class ZStream[-R, +E, +O] {
 Here is a simple example of using this function:
 
 ```scala mdoc:silent:nest
-val partitioned: ZManaged[Any, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any, Nothing, Int])] =
+val partitioned: ZIO[Scope, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any, Nothing, Int])] =
   ZStream
     .fromIterable(1 to 10)
     .partitionEither(x => ZIO.succeed(if (x < 5) Left(x) else Right(x)))
@@ -1352,7 +1352,7 @@ val managedApp = for {
   jobs  <- scheduledJobRunner.forkManaged
 } yield ZIO.raceAll(kafka.await, List(http.await, jobs.await))
 
-val mainApp = managedApp.use(identity).exitCode
+val mainApp = ZIO.scoped(managedApp).exitCode
 ```
 
 This solution is very nice and elegant, but we can do it in a more declarative fashion with ZIO streams:
@@ -1368,10 +1368,9 @@ val managedApp =
         ZStream.fromZIO(scheduledJobRunner)
       )
       .runDrain
-      .toManaged
   } yield ()
 
-val myApp = managedApp.useDiscard(ZIO.unit).exitCode
+val myApp = ZIO.scoped(managedApp).exitCode
 ```
 
 Using `ZStream.mergeAll` we can combine all these streaming components concurrently into one application.
@@ -1434,24 +1433,26 @@ In the following example, we are broadcasting stream of random numbers to the tw
 
 ```scala mdoc:silent:nest
 val stream: ZIO[Console with Random with Clock, IOException, Unit] =
-  ZStream
-    .fromIterable(1 to 20)
-    .mapZIO(_ => Random.nextInt)
-    .map(Math.abs)
-    .map(_ % 100)
-    .tap(e => printLine(s"Emit $e element before broadcasting"))
-    .broadcast(2, 5)
-    .use { streams =>
-        for {
-          out1 <- streams(0).runFold(0)((acc, e) => Math.max(acc, e))
-                    .flatMap(x => printLine(s"Maximum: $x"))
-                    .fork
-          out2 <- streams(1).schedule(Schedule.spaced(1.second))
-                    .foreach(x => printLine(s"Logging to the Console: $x"))
-                    .fork
-          _    <- out1.join.zipPar(out2.join)
-        } yield ()
-    }
+  ZIO.scoped {
+    ZStream
+      .fromIterable(1 to 20)
+      .mapZIO(_ => Random.nextInt)
+      .map(Math.abs)
+      .map(_ % 100)
+      .tap(e => printLine(s"Emit $e element before broadcasting"))
+      .broadcast(2, 5)
+      .flatMap { streams =>
+          for {
+            out1 <- streams(0).runFold(0)((acc, e) => Math.max(acc, e))
+                      .flatMap(x => printLine(s"Maximum: $x"))
+                      .fork
+            out2 <- streams(1).schedule(Schedule.spaced(1.second))
+                      .foreach(x => printLine(s"Logging to the Console: $x"))
+                      .fork
+            _    <- out1.join.zipPar(out2.join)
+          } yield ()
+      }
+  }
 ```
 ### Distribution
 
@@ -1470,19 +1471,19 @@ abstract class ZStream[-R, +E, +O] {
 In the example below, we are partitioning incoming elements into three streams using `ZStream#distributedWith` operator:
 
 ```scala mdoc:silent:nest
-val partitioned: ZManaged[Clock, Nothing, (UStream[Int], UStream[Int], UStream[Int])] =
+val partitioned: ZIO[Clock with Scope, Nothing, (UStream[Int], UStream[Int], UStream[Int])] =
   ZStream
     .iterate(1)(_ + 1)
     .fixed(1.seconds)
     .distributedWith(3, 10, x => ZIO.succeed(q => x % 3 == q))
     .flatMap { 
       case q1 :: q2 :: q3 :: Nil =>
-        ZManaged.succeed(
+        ZIO.succeed(
           ZStream.fromQueue(q1).flattenExitOption,
           ZStream.fromQueue(q2).flattenExitOption,
           ZStream.fromQueue(q3).flattenExitOption
         )
-      case _ => ZManaged.dieMessage("Impossible!")
+      case _ => ZIO.dieMessage("Impossible!")
     }
 ```
 

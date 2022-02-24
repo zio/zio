@@ -1782,9 +1782,6 @@ ZIO.from(Right(3))
 ZIO.fromFiber(Fiber.succeed("Ok!"))
 ZIO.from(Fiber.succeed("Ok!"))
 
-ZManaged.fromZIO(ZIO.fromEither(Right("Ok!"))) 
-ZManaged.from(ZIO(Right("Ok!")))
-
 ZStream.fromIterable(List(1,2,3)) 
 ZStream.from(List(1,1,3))
 
@@ -1838,12 +1835,14 @@ for {
   hub <- Hub.bounded[String](requestedCapacity = 2)
   s1 = hub.subscribe
   s2 = hub.subscribe
-  _ <- s1.zip(s2).use { case (left, right) =>
-    for {
-      _ <- hub.publish("Hello from a hub!")
-      _ <- left.take.flatMap(Console.printLine(_))
-      _ <- right.take.flatMap(Console.printLine(_))
-    } yield ()
+  _ <- ZIO.scoped {
+    s1.zip(s2).flatMap { case (left, right) =>
+      for {
+        _ <- hub.publish("Hello from a hub!")
+        _ <- left.take.flatMap(Console.printLine(_))
+        _ <- right.take.flatMap(Console.printLine(_))
+      } yield ()
+    }
   }
 } yield ()
 ```

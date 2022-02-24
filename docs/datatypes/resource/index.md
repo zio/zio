@@ -18,7 +18,7 @@ Assume we want to read a file and return the number of its lines:
 
 ```scala mdoc:invisible
 import java.io._
-import zio.{Task, UIO, ZIO, ZManaged}
+import zio.{Scope, Task, UIO, ZIO}
 ```
 
 ```scala mdoc:silent:nest
@@ -156,7 +156,7 @@ Using acquire releases is simple and straightforward, but in the case of multipl
 To create a managed resource, we need to provide `acquire` and `release` action of that resource to the `make` constructor:
 
 ```scala mdoc:silent
-val managed = ZManaged.acquireReleaseWith(acquire)(release)
+val managed = ZIO.acquireRelease(acquire)(release)
 ```
 
 We can use managed resources by calling `use` on that. A managed resource is meant to be used only inside of the `use` block. So that resource is not available outside of the `use` block. 
@@ -168,12 +168,14 @@ Let's try to rewrite a `transfer` example with `ZManaged`:
 ```scala mdoc:silent:nest
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
   val resource = for {
-    from <- ZManaged.acquireReleaseWith(is(from))(close)
-    to   <- ZManaged.acquireReleaseWith(os(to))(close)
+    from <- ZIO.acquireRelease(is(from))(close)
+    to   <- ZIO.acquireRelease(os(to))(close)
   } yield (from, to)
 
-  resource.use { case (in, out) =>
-    copy(in, out)
+  ZIO.scoped {
+    resource.flatMap { case (in, out) =>
+      copy(in, out)
+    }
   }
 }
 ```
@@ -182,21 +184,11 @@ Also, we can get rid of this ceremony and treat the `Managed` like a `ZIO` effec
 
 ```scala mdoc:silent:nest
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
-  val resource: ZManaged[Any, Throwable, Unit] = for {
-    from <- ZManaged.acquireReleaseWith(is(from))(close)
-    to   <- ZManaged.acquireReleaseWith(os(to))(close)
-    _    <- copy(from, to).toManaged
+  val resource: ZIO[Scope, Throwable, Unit] = for {
+    from <- ZIO.acquireRelease(is(from))(close)
+    to   <- ZIO.acquireRelease(os(to))(close)
+    _    <- copy(from, to)
   } yield ()
-  resource.useNow
+  ZIO.scoped(resource)
 }
 ```
-
-This is where the `ZManaged` provides us a composable and flexible way of allocating resources.  They can be composed with any `ZIO` effect by converting them using the `ZIO#toManaged` operator.
-
-[`ZManaged`](zmanaged.md) has several type aliases, each of which is useful for a specific workflow:
-
-- **[Managed](managed.md)**— `Managed[E, A]` is a type alias for `ZManaged[Any, E, A]`.
-- **[TaskManaged](task-managed.md)**— `TaskManaged[A]` is a type alias for `ZManaged[Any, Throwable, A]`.
-- **[RManaged](rmanaged.md)**— `RManaged[R, A]` is a type alias for `ZManaged[R, Throwable, A]`.
-- **[UManaged](umanaged.md)**— `UManaged[A]` is a type alias for `ZManaged[Any, Nothing, A]`.
-- **[URManaged](urmanaged.md)**— `URManaged[R, A]` is a type alias for `ZManaged[R, Nothing, A]`.

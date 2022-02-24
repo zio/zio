@@ -14,7 +14,7 @@ import zio._
 
 trait Hub[A] {
   def publish(a: A): UIO[Boolean]
-  def subscribe: ZManaged[Any, Nothing, Dequeue[A]]
+  def subscribe: ZIO[Scope, Nothing, Dequeue[A]]
 }
 ```
 
@@ -26,12 +26,14 @@ For example, we can use a hub to broadcast a message to multiple subscribers lik
 
 ```scala mdoc:silent
 Hub.bounded[String](2).flatMap { hub =>
-  hub.subscribe.zip(hub.subscribe).use { case (left, right) =>
-    for {
-      _ <- hub.publish("Hello from a hub!")
-      _ <- left.take.flatMap(Console.printLine(_))
-      _ <- right.take.flatMap(Console.printLine(_))
-    } yield ()
+  ZIO.scoped {
+    hub.subscribe.zip(hub.subscribe).flatMap { case (left, right) =>
+      for {
+        _ <- hub.publish("Hello from a hub!")
+        _ <- left.take.flatMap(Console.printLine(_))
+        _ <- right.take.flatMap(Console.printLine(_))
+      } yield ()
+    }
   }
 }
 ```
@@ -178,7 +180,7 @@ Like many of the other data structures in ZIO, a `Hub` is actually a type alias 
 ```scala mdoc:nest
 trait ZHub[-RA, -RB, +EA, +EB, -A, B] {
   def publish(a: A): ZIO[RA, EA, Boolean]
-  def subscribe: ZManaged[Any, Nothing, ZDequeue[RB, EB, B]]
+  def subscribe: ZIO[Scope, Nothing, ZDequeue[RB, EB, B]]
 }
 
 type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
@@ -330,7 +332,7 @@ There is also a `fromHubManaged` operator that returns the stream in the context
 object ZStream {
   def fromHubManaged[R, E, O](
     hub: ZHub[Nothing, R, Any, E, Nothing, O]
-  ): ZManaged[Any, Nothing, ZStream[R, E, O]] =
+  ): ZIO[Scope, Nothing, ZStream[R, E, O]] =
     ???
 }
 ```
@@ -348,7 +350,7 @@ import zio.stream._
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[String](2)
-  managed  = ZStream.fromHubManaged(hub).tapZIO(_ => promise.succeed(()))
+  managed  = ZStream.fromHubManaged(hub).tap(_ => promise.succeed(()))
   stream   = ZStream.unwrapManaged(managed)
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await
@@ -374,7 +376,7 @@ The simplest of these is the `toHub` operator, which constructs a new hub and pu
 trait ZStream[-R, +E, +O] {
   def toHub(
     capacity: Int
-  ): ZManaged[R, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, O]]]
+  ): ZIO[R with Scope, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, O]]]
 }
 ```
 
@@ -398,7 +400,7 @@ Here is the example above adapted to publish values from a stream to the hub:
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[Take[Nothing, String]](2)
-  managed  = ZStream.fromHubManaged(hub).tapZIO(_ => promise.succeed(()))
+  managed  = ZStream.fromHubManaged(hub).tap(_ => promise.succeed(()))
   stream   = ZStream.unwrapManaged(managed).flattenTake
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await
@@ -431,10 +433,10 @@ trait ZStream[-R, +E, +O] {
   def broadcast(
     n: Int,
     maximumLag: Int
-  ): ZManaged[R, Nothing, List[ZStream[Any, E, O]]]
+  ): ZIO[R with Scope, Nothing, List[ZStream[Any, E, O]]]
   def broadcastDynamic(
     maximumLag: Int
-  ): ZManaged[R, Nothing, ZManaged[Any, Nothing, ZStream[Any, E, O]]]
+  ): ZIO[R with Scope, Nothing, ZIO[Scope, Nothing, ZStream[Any, E, O]]]
 }
 ```
 

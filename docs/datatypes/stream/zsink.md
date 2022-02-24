@@ -360,13 +360,15 @@ val myApp: ZIO[Console with Clock, IOException, Unit] =
     hub <- ZHub.bounded[Int](1)
     sink <- ZIO.succeed(ZSink.fromHub(hub))
     producer <- ZStream.iterate(0)(_ + 1).fixed(1.seconds).run(sink).fork
-    consumers <- hub.subscribe.zip(hub.subscribe).use { case (left, right) =>
-      for {
-        _ <- promise.succeed(())
-        f1 <- left.take.flatMap(e => printLine(s"Left Queue: $e")).forever.fork
-        f2 <- right.take.flatMap(e => printLine(s"Right Queue: $e")).forever.fork
-        _ <- f1.zip(f2).join
-      } yield ()
+    consumers <- ZIO.scoped {
+      hub.subscribe.zip(hub.subscribe).flatMap { case (left, right) =>
+        for {
+          _ <- promise.succeed(())
+          f1 <- left.take.flatMap(e => printLine(s"Left Queue: $e")).forever.fork
+          f2 <- right.take.flatMap(e => printLine(s"Right Queue: $e")).forever.fork
+          _ <- f1.zip(f2).join
+        } yield ()
+      }
     }.fork
     _ <- promise.await
     _ <- producer.zip(consumers).join
