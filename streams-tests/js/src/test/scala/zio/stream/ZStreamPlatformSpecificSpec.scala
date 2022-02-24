@@ -116,8 +116,8 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           fiber <- ZStream
                      .asyncManaged[Any, Throwable, Int] { k =>
                        global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
-                       latch.succeed(()).toManaged *>
-                         Task.unit.toManaged
+                       latch.succeed(()) *>
+                         Task.unit
                      }
                      .take(chunk.size.toLong)
                      .run(ZSink.collectAll)
@@ -131,7 +131,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           result <- ZStream
                       .asyncManaged[Any, Nothing, Int] { k =>
                         k(IO.fail(None))
-                        UIO.unit.toManaged
+                        UIO.unit
                       }
                       .runCollect
         } yield assert(result)(equalTo(Chunk.empty))
@@ -147,7 +147,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                            (1 to 7).map(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
                          )
                          .flatMap(_ => cb(refDone.set(true) *> ZIO.fail(None)))
-                       UIO.unit.toManaged
+                       UIO.unit
                      },
                      5
                    )
