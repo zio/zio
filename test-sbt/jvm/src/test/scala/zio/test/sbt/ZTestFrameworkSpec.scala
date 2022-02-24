@@ -31,6 +31,7 @@ object ZTestFrameworkSpec {
     test("should return correct fingerprints")(testFingerprints()),
     test("should report events")(testReportEvents()),
     test("should report durations")(testReportDurations()),
+    test("should report errors")(testReportErrors()),
     test("should log messages")(testLogMessages()),
     test("should correctly display colorized output for multi-line strings")(testColored()),
     test("should test only selected test")(testTestSelection()),
@@ -44,16 +45,21 @@ object ZTestFrameworkSpec {
   }
 
   def testReportEvents(): Unit = {
-    val reported = ArrayBuffer[Event]()
+    val reported = ArrayBuffer.empty[Event]
     loadAndExecute(failingSpecFQN, reported.append(_))
 
-    val expected = Set(
+    val actual = reported.map {
+      case event: ZTestEvent => event.copy(maybeThrowable = None)
+      case event             => event
+    }
+
+    val expected = Seq(
       sbtEvent(failingSpecFQN, "failing test", Status.Failure),
       sbtEvent(failingSpecFQN, "passing test", Status.Success),
       sbtEvent(failingSpecFQN, "ignored test", Status.Ignored)
     )
 
-    assertEquals("reported events", reported.toSet, expected)
+    assertEquals("reported events", actual, expected)
   }
 
   private def sbtEvent(fqn: String, label: String, status: Status) =
@@ -64,6 +70,21 @@ object ZTestFrameworkSpec {
     loadAndExecute(timedSpecFQN, reported.append(_))
 
     assert(reported.forall(_.duration() > 0), s"reported events should have positive durations: $reported")
+  }
+
+  def testReportErrors(): Unit = {
+    val reported = ArrayBuffer.empty[Event]
+    loadAndExecute(errorReportingSpecFQN, reported.append(_))
+    assert(reported.forall(_.throwable.isDefined), s"reported events should have errors: $reported")
+
+    val actual = reported.map(_.throwable.get.getMessage.split('\n').take(4).mkString("|").withNoLineNumbers)
+    val expected = Seq(
+      s"- failing assertion|  true did not satisfy isFalse()|  $assertLocation",
+      s"- failing test|  Fiber failed.|  A checked error was not handled.|  Boom",
+      s"- dying test|  Fiber failed.|  An unchecked error was produced.|  java.lang.Exception: KO"
+    )
+
+    assertEquals("reported errors", actual, expected)
   }
 
   def testLogMessages(): Unit = {
@@ -209,6 +230,15 @@ object ZTestFrameworkSpec {
     override def spec: ZSpec[Environment, Failure] = test("timed passing test") {
       zio.test.assertCompletes
     } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
+  }
+
+  lazy val errorReportingSpecFQN = ErrorReportingSpec.getClass.getName
+  object ErrorReportingSpec extends DefaultRunnableSpec {
+    override def spec: ZSpec[Environment, Failure] = suite("error reporting")(
+      test("failing assertion")(zio.test.assert(true)(Assertion.isFalse)),
+      testM("failing test")(ZIO.fail("Boom")),
+      testM("dying test")(ZIO.die(new Exception("KO")))
+    )
   }
 
   lazy val multiLineSpecFQN = MultiLineSpec.getClass.getName
