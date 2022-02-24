@@ -1,7 +1,7 @@
 package zio
 
 import cats.effect.unsafe.implicits.global
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 
 import java.util.concurrent.TimeUnit
 
@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit
  * [info] UnsafeRunBenchmark.zioRight'        8  thrpt   10   15740140.258 ∩┐╜   672817.959  ops/s
  * }}}
  */
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class UnsafeRunBenchmark {

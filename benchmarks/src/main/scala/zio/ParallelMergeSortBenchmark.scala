@@ -9,7 +9,7 @@ import org.openjdk.jmh.annotations.{
   Mode,
   OutputTimeUnit,
   Param,
-  Scope,
+  Scope => JScope,
   Setup,
   State,
   Warmup
@@ -19,7 +19,7 @@ import java.lang.{System => JSystem}
 import java.util.concurrent.TimeUnit
 import scala.collection.Iterable
 
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Fork(1)

@@ -1,12 +1,12 @@
 package zio
 
 import cats.effect.unsafe.implicits.global
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable.Range
 
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ArrayFillBenchmark {

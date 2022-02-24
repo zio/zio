@@ -1,7 +1,7 @@
 package zio
 
 import cats.effect.unsafe.implicits.global
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 
 import java.util.concurrent.TimeUnit
 
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
  * [info] ForkJoinBenchmark.zioForkJoin  10000  thrpt    5  105.782 ∩┐╜ 1.599  ops/s
  * }}}
  */
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ForkJoinBenchmark {
