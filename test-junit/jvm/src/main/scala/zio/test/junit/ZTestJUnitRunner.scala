@@ -176,7 +176,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         case Spec.LabeledCase(label, spec) =>
           Spec.LabeledCase(label, Spec(loop(spec.caseValue, path :+ label)))
         case Spec.ManagedCase(managed) =>
-          ???
+          Spec.ManagedCase[R, TestFailure[E], Spec[R, TestFailure[E], TestSuccess]](managed.map(spec => Spec(loop(spec.caseValue, path))))
         case Spec.MultipleCase(specs) =>
           Spec.MultipleCase(specs.map(spec => Spec(loop(spec.caseValue, path))))
         case Spec.TestCase(test, annotations) =>

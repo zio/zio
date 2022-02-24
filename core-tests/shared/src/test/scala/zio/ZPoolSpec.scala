@@ -42,7 +42,7 @@ object ZPoolSpec extends ZIOBaseSpec {
             count  <- Ref.make(0)
             get     = ZIO.acquireRelease(count.updateAndGet(_ + 1).flatMap(ZIO.fail(_)))(_ => count.update(_ - 1))
             scope  <- Scope.make
-            pool   <- ZPool.make[Scope, Int, String](get, 10).provideService(scope)
+            pool   <- ZPool.make[Scope, Int, Any](get, 10).provideService(scope)
             _      <- count.get.repeatUntil(_ == 10)
             values <- ZIO.collectAll(List.fill(10)(pool.get.provideService(scope).flip))
           } yield assertTrue(values == List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))

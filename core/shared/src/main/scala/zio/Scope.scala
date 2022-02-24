@@ -22,7 +22,7 @@ trait Scope extends Serializable { self =>
   def addFinalizer(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
   def close(exit: Exit[Any, Any]): UIO[Unit]
   final def use[R, E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
-    zio.provideSomeEnvironment[R](_ ++ [Scope] ZEnvironment(self)).onExit(self.close(_))
+    zio.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(self))).onExit(self.close(_))
 }
 
 object Scope {
@@ -136,7 +136,7 @@ object Scope {
     /**
      * Creates a new ReleaseMap.
      */
-    private[zio] def unsafeMake() = {
+    private def unsafeMake() = {
       // The sorting order of the LongMap uses bit ordering (000, 001, ... 111 but with 64 bits). This
       // works out to be `0 ... Long.MaxValue, Long.MinValue, ... -1`. The order of the map is mainly
       // important for the finalization, in which we want to walk it in reverse order. So we insert

@@ -96,7 +96,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Builds a layer into a managed value.
    */
   final def build(implicit trace: ZTraceElement): ZIO[RIn with Scope, E, ZEnvironment[ROut]] =
-    ZIO.serviceWithZIO(build)
+    ZIO.serviceWithZIO[Scope](build)
 
   /**
    * Builds a layer into a ZIO value. Any resources associated with this layer
@@ -206,7 +206,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * computed result of this layer.
    */
   final def memoize(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZLayer[RIn, E, ROut]] =
-    ZIO.serviceWithZIO(build).memoize.map(ZLayer.Managed[RIn, E, ROut](_))
+    ZIO.serviceWithZIO[Scope](build).memoize.map(ZLayer.Managed[RIn, E, ROut](_))
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -287,7 +287,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     runtimeConfig: RuntimeConfig
   )(implicit ev: Any <:< RIn, trace: ZTraceElement): ZIO[Scope, E, Runtime[ROut]] =
     ZIO
-      .serviceWithZIO(build)
+      .serviceWithZIO[Scope](build)
       .provideSomeEnvironment[Scope](ZEnvironment.empty.upcast(ev).union[Scope](_))
       .map(Runtime(_, runtimeConfig))
 
