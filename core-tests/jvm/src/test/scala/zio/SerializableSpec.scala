@@ -51,7 +51,7 @@ object SerializableSpec extends ZIOBaseSpec {
         v2                      <- returnQueue.take
       } yield assert(v1)(equalTo(10)) &&
         assert(v2)(equalTo(20))
-    },
+    } @@ exceptScala3,
     test("Ref is serializable") {
       val current = "This is some value"
       for {
