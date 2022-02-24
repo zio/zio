@@ -589,14 +589,6 @@ val result = parseInt("  ").orElseOptional(ZIO.succeed(0)).debug
 
 ### 3. Folding
 
-| Function       | Input Type                                                                       | Output Type      |
-|----------------|----------------------------------------------------------------------------------|------------------|
-| `fold`         | `failure: E => B, success: A => B`                                               | `URIO[R, B]`     |
-| `foldCause`    | `failure: Cause[E] => B, success: A => B`                                        | `URIO[R, B]`     |
-| `foldZIO`      | `failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`                     | `ZIO[R1, E2, B]` |
-| `foldCauseZIO` | `failure: Cause[E] => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`              | `ZIO[R1, E2, B]` |
-| `foldTraceZIO` | `failure: ((E, Option[ZTrace])) => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]` | `ZIO[R1, E2, B]` |
-
 Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
 
 1. **`ZIO#fold`/`ZIO#foldZIO`**— The first fold method, `ZIO#fold`, lets us non-effectfully handle both failure and success, by supplying a non-effectful handler for each case. The second fold method, `ZIO#foldZIO`, lets us effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
