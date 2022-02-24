@@ -668,6 +668,23 @@ val urls: UIO[Content] =
   )
 ```
 
+It's important to note that both `ZIO#fold` and `ZIO#foldZIO` operators cannot catch fiber interruptions. So the following application will crash due to `InterruptedException`:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run = (ZIO.interrupt *> ZIO.fail("Uh oh!")).fold(_ => (), _ => ())
+}
+```
+
+And here is the output:
+
+```scala
+timestamp=2022-02-24T13:41:01.696273024Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.InterruptedException: Interrupted by thread "zio-fiber-"
+   at <empty>.MainApp.run(MainApp.scala:4)"
+```
+
 2. **`ZIO#foldCause`/`ZIO#foldCauseZIO`**— This cause version of the `fold` operator is useful to access the full cause of the underlying fiber. So in case of failure, based on the exact cause, we can determine what to do:
 
 ```scala
@@ -683,6 +700,8 @@ trait ZIO[-R, +E, +A] {
   ): ZIO[R1, E2, B]
 }
 ```
+
+Among the fold operators, these are the most powerful combinators. They can recover from any error, even fiber interruptions.
 
 In the following example, we are printing the proper message according to what cause occurred due to failure:
 
@@ -763,7 +782,7 @@ val result: ZIO[Any, Nothing, Int] =
   )
 ```
 
-Note that this operator cannot recover from fiber interruptions.
+Note that similar to `ZIO#fold` and `ZIO#foldZIO` this operator cannot recover from fiber interruptions.
 
 ### 4. Retrying
 
