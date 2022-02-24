@@ -623,9 +623,7 @@ import zio._
 lazy val DefaultData: Array[Byte] = Array(0, 0)
 
 val primaryOrDefaultData: UIO[Array[Byte]] = 
-  readFile("primary.data").fold(
-    _    => DefaultData,
-    data => data)
+  readFile("primary.data").fold(_ => DefaultData, data => data)
 ```
 
 We can ignore any failure and success values:
@@ -653,8 +651,8 @@ Now let's try the effectful version of the fold operation. In this example, in c
 ```scala mdoc:compile-only
 val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
   readFile("primary.data").foldZIO(
-    _    => readFile("secondary.data"),
-    data => ZIO.succeed(data)
+    failure = _    => readFile("secondary.data"),
+    success = data => ZIO.succeed(data)
   )
 ```
 
@@ -669,6 +667,7 @@ case class OkContent(s: String) extends Content
 def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
 def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
 ```
+
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldZIO(
@@ -702,13 +701,13 @@ val exceptionalEffect: ZIO[Any, Throwable, Unit] = ???
 
 val myApp: ZIO[Console, IOException, Unit] =
   exceptionalEffect.foldCauseZIO(
-    {
+    failure = {
       case Cause.Fail(value, _)        => Console.printLine(s"failure: $value")
       case Cause.Die(value, _)         => Console.printLine(s"cause: $value")
       case Cause.Interrupt(failure, _) => Console.printLine(s"${failure.threadName} interrupted!")
       case _                           => Console.printLine("failed due to other causes")
     },
-    succeed => Console.printLine(s"succeeded with $succeed value")
+    success = succeed => Console.printLine(s"succeeded with $succeed value")
   )
 ```
 
@@ -724,12 +723,12 @@ object MainApp extends ZIOAppDefault {
 
   val myApp: ZIO[Console, IOException, Unit] =
     exceptionalEffect.foldCauseZIO(
-      {
+      failure = {
         case Cause.Fail(value, _) => ZIO.debug(s"failure: $value")
         case Cause.Die(value, _) => ZIO.debug(s"cause: ${value.toString}")
         // case Cause.Interrupt(failure, _) => ZIO.debug(s"${failure.threadName} interrupted!")
       },
-      succeed => ZIO.debug(s"succeeded with $succeed value")
+      success = succeed => ZIO.debug(s"succeeded with $succeed value")
     )
 
   def run = myApp
@@ -748,6 +747,31 @@ timestamp=2022-02-24T11:05:40.241436257Z level=ERROR thread=#zio-fiber-0 message
 	at zio.internal.ZScheduler$$anon$1.run(ZScheduler.scala:151)
 	at zio.internal.FiberContext.runUntil(FiberContext.scala:538)"
 ```
+
+3. **`ZIO#foldTraceZIO`**— This version of fold, provide us the facility to access the trace info of the failure:
+
+```scala mdoc:compile-only
+import zio._
+
+val result: ZIO[Any, Nothing, Int] =
+  validate(5).foldTraceZIO(
+    failure = {
+      case (_: NegativeAgeException, trace) =>
+        ZIO.succeed(0).debug(
+          "The entered age is negative\n" +
+            s"trace info: ${trace.stackTrace.mkString("\n")}"
+        )
+      case (_: IllegalAgeException, trace) =>
+        ZIO.succeed(0).debug(
+          "The entered age in not legal\n" +
+            s"trace info: ${trace.stackTrace.mkString("\n")}"
+        )
+    },
+    success = s => ZIO.succeed(s)
+  )
+```
+
+Note that this operator cannot recover from fiber interruptions.
 
 ### 4. Retrying
 
