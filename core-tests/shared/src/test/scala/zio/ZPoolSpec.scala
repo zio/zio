@@ -85,7 +85,7 @@ object ZPoolSpec extends ZIOBaseSpec {
             count  <- Ref.make(0)
             get     = ZIO.acquireRelease(count.updateAndGet(_ + 1).flatMap(cond(_)))(_ => count.update(_ - 1))
             scope  <- Scope.make
-            pool   <- ZPool.make[Scope, Int, Int](get, 10).provideService(scope)
+            pool   <- ZPool.make(get, 10).provideService(scope)
             _      <- count.get.repeatUntil(_ == 10)
             result <- ZIO.scoped(pool.get).eventually
           } yield assertTrue(result == 11)

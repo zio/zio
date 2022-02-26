@@ -66,12 +66,12 @@ object ZPool {
    * shutdown because the `Managed` is used, the individual items allocated by
    * the pool will be released in some unspecified order.
    */
-  def make[R, E, A](get: => ZIO[R with Scope, E, A], size: => Int)(implicit
+  def make[R, E, A](get: => ZIO[R, E, A], size: => Int)(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, Nothing, ZPool[E, A]] =
     for {
       size <- ZIO.succeed(size)
-      pool <- makeWith[R, Any, E, A](get, size to size)(Strategy.None)
+      pool <- makeWith(get, size to size)(Strategy.None)
     } yield pool
 
   /**
@@ -89,9 +89,9 @@ object ZPool {
    * }
    * }}}
    */
-  def make[R <: Scope, E, A](get: => ZIO[R, E, A], range: => Range, timeToLive: => Duration)(implicit
+  def make[R, E, A](get: => ZIO[R, E, A], range: => Range, timeToLive: => Duration)(implicit
     trace: ZTraceElement
-  ): ZIO[R with Clock, Nothing, ZPool[E, A]] =
+  ): ZIO[R with Clock with Scope, Nothing, ZPool[E, A]] =
     makeWith[R, Clock, E, A](get, range)(Strategy.TimeToLive(timeToLive))
 
   /**
@@ -99,8 +99,8 @@ object ZPool {
    * describes how a pool whose excess items are not being used will be shrunk
    * down to the minimum size.
    */
-  private def makeWith[R, R1, E, A](get: => ZIO[R with Scope, E, A], range: => Range)(strategy: => Strategy[R1, E, A])(
-    implicit trace: ZTraceElement
+  private def makeWith[R, R1, E, A](get: => ZIO[R, E, A], range: => Range)(strategy: => Strategy[R1, E, A])(implicit
+    trace: ZTraceElement
   ): ZIO[R with R1 with Scope, Nothing, ZPool[E, A]] =
     for {
       get      <- ZIO.succeed(get)
