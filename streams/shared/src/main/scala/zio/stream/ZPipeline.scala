@@ -303,7 +303,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       )
 
     val channel: ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.unwrapManaged[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] {
+      ZChannel.unwrapManaged[Env][Nothing, Chunk[In], Any, Err, Chunk[Out], Any] {
         push.map(pull)
       }
 

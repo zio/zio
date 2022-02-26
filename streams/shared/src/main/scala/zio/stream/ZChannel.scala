@@ -670,7 +670,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           .embedInput(input)
       }
 
-    ZChannel.unwrapManaged[Env1, InErr1, InElem1, InDone1, OutErr3, OutElem1, OutDone3](m)
+    ZChannel.unwrapManaged[Env1](m)
   }
 
   def mergeMap[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
@@ -1713,12 +1713,8 @@ object ZChannel {
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.fromZIO(channel).flatten
 
-  def unwrapManaged[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
-    channel: => ZIO[Scope with Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    ZChannel.concatAllWith(
-      managedOut[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](channel)
-    )((d, _) => d, (d, _) => d)
+  def unwrapManaged[Env]: UnwrapManagedPartiallyApplied[Env] =
+    new UnwrapManagedPartiallyApplied[Env]
 
   def fromHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
@@ -1907,6 +1903,17 @@ object ZChannel {
       trace: ZTraceElement
     ): ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone] =
       ZChannel.service[Service].mapZIO(f)
+  }
+
+  final class UnwrapManagedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone](
+      channel: => ZIO[Scope with Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
+    )(implicit
+      trace: ZTraceElement
+    ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      ZChannel.concatAllWith(
+        managedOut[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](channel)
+      )((d, _) => d, (d, _) => d)
   }
 
   final class UpdateService[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone, Service](

@@ -1995,7 +1995,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       }
 
     new ZStream(
-      ZChannel.unwrapManaged[R1, Any, Any, Any, E1, Chunk[A], Unit] {
+      ZChannel.unwrapManaged[R1] {
         io.forkScoped.map { fiber =>
           self.channel >>> writer(fiber)
         }

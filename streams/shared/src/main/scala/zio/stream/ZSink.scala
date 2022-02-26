@@ -1486,7 +1486,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       )
 
     new ZSink(
-      ZChannel.unwrapManaged[R, Nothing, Chunk[I], Any, E, Chunk[L], Z] {
+      ZChannel.unwrapManaged[R][Nothing, Chunk[I], Any, E, Chunk[L], Z] {
         push.map(pull)
       }
     )
@@ -1707,7 +1707,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def unwrapManaged[R, E, In, L, Z](
     managed: => ZIO[Scope with R, E, ZSink[R, E, In, L, Z]]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
-    new ZSink(ZChannel.unwrapManaged[R, Nothing, Chunk[In], Any, E, Chunk[L], Z](managed.map(_.channel)))
+    new ZSink(ZChannel.unwrapManaged[R][Nothing, Chunk[In], Any, E, Chunk[L], Z](managed.map(_.channel)))
 
   final class EnvironmentWithSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, In, L, Z](
