@@ -32,6 +32,14 @@ object Scope {
   def addFinalizer(finalizer: Exit[Any, Any] => UIO[Any]): ZIO[Scope, Nothing, Unit] =
     ZIO.serviceWithZIO(_.addFinalizer(finalizer))
 
+  val global: Scope =
+    new Scope {
+      def addFinalizer(finalizer: Finalizer): UIO[Unit] =
+        ZIO.unit
+      def close(exit: Exit[Any, Any]): UIO[Unit] =
+        ZIO.unit
+    }
+
   def make: UIO[Scope] =
     makeWith(ExecutionStrategy.Sequential)
 
