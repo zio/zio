@@ -1568,7 +1568,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          ZStream
                            .acquireReleaseWith(UIO.unit)(_ => lastExecuted.set(true))
                            .flatMap(_ => ZStream.empty)
-                       else ZStream.managed(semaphore.withPermitManaged).flatMap(_ => ZStream.never)
+                       else ZStream.managed(semaphore.withPermitScoped).flatMap(_ => ZStream.never)
                      }
                      .runDrain
               result <- semaphore.withPermit(lastExecuted.get)
@@ -1584,7 +1584,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          ZStream
                            .acquireReleaseWith(UIO.unit)(_ => lastExecuted.update(_ + 1))
                            .flatMap(_ => ZStream.empty)
-                       else ZStream.managed(semaphore.withPermitManaged).flatMap(_ => ZStream.never)
+                       else ZStream.managed(semaphore.withPermitScoped).flatMap(_ => ZStream.never)
                      }
                      .runDrain
               result <- semaphore.withPermits(4)(lastExecuted.get)

@@ -104,8 +104,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * Returns a managed effect that describes acquiring a permit as the `acquire`
    * action and releasing it as the `release` action.
    */
-  def withPermitManaged(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
-    withPermitsManaged(1L)
+  def withPermitScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+    withPermitsScoped(1L)
 
   /**
    * Executes the specified effect, acquiring the specified number of permits
@@ -120,7 +120,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * Returns a managed effect that describes acquiring the specified number of
    * permits as the `acquire` action and releasing them as the `release` action.
    */
-  def withPermitsManaged(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+  def withPermitsScoped(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
     ZIO.acquireReleaseInterruptible(acquireN(n).commit)(release.commit)
 
   private def assertNonNegative(n: Long): Unit =
