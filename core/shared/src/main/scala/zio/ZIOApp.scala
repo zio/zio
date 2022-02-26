@@ -45,7 +45,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * the application will be non-zero. Otherwise, the exit code of the
    * application will be zero.
    */
-  def run: ZIO[Environment with ZEnv with ZIOAppArgs, Any, Any]
+  def run: ZIO[Environment with ZEnv with ZIOAppArgs with Scope, Any, Any]
 
   /**
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
@@ -86,14 +86,16 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
   final def invoke(args: Chunk[String])(implicit trace: ZTraceElement): ZIO[ZEnv, Any, Any] =
     ZIO.suspendSucceed {
       val newLayer =
-        ZLayer.environment[ZEnv] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
-          layer +!+ ZLayer.environment[ZEnv with ZIOAppArgs]
+        ZLayer.environment[ZEnv with Scope] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
+          layer +!+ ZLayer.environment[ZEnv with ZIOAppArgs with Scope]
 
-      for {
-        _          <- installSignalHandlers
-        newRuntime <- ZIO.runtime[ZEnv].map(_.mapRuntimeConfig(hook))
-        result     <- newRuntime.run(run.provideLayer(newLayer))
-      } yield result
+      ZIO.scoped {
+        for {
+          _          <- installSignalHandlers
+          newRuntime <- ZIO.runtime[ZEnv with Scope].map(_.mapRuntimeConfig(hook))
+          result     <- newRuntime.run(run.provideLayer(newLayer))
+        } yield result
+      }
     }
 
   def runtime: Runtime[ZEnv] = Runtime.default
@@ -125,7 +127,7 @@ object ZIOApp {
       app.hook
     final def layer: ZLayer[ZIOAppArgs, Any, Environment] =
       app.layer
-    override final def run: ZIO[Environment with ZEnv with ZIOAppArgs, Any, Any] =
+    override final def run: ZIO[Environment with ZEnv with ZIOAppArgs with Scope, Any, Any] =
       app.run
     implicit final def tag: EnvironmentTag[Environment] =
       app.tag
@@ -136,7 +138,7 @@ object ZIOApp {
    * program, as well as a hook into the ZIO runtime configuration.
    */
   def apply[R](
-    run0: ZIO[R with ZEnv with ZIOAppArgs, Any, Any],
+    run0: ZIO[R with ZEnv with ZIOAppArgs with Scope, Any, Any],
     layer0: ZLayer[ZIOAppArgs, Any, R],
     hook0: RuntimeConfigAspect
   )(implicit tagged: EnvironmentTag[R]): ZIOApp =
