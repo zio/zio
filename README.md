@@ -154,6 +154,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Vivid Money](https://vivid.money)
 * [Zalando](https://zalando.com/)
 * [Zooz](https://zooz.com/)
+* [Bpp](https://www.bpp.it/)
 
 # Sponsors
 
