@@ -44,7 +44,7 @@ trait ClassLoading extends JvmMetrics {
       _ <- reportClassLoadingMetrics(classLoadingMXBean)
              .repeat(collectionSchedule)
              .interruptible
-             .forkManaged
+             .forkScoped
     } yield this
 }
 

@@ -1347,9 +1347,9 @@ val scheduledJobRunner: ZIO[Any, Nothing, Nothing] = ZIO.never
 
 ```scala mdoc:silent:nest
 val managedApp = for {
-  kafka <- kafkaConsumer.runDrain.forkManaged
-  http  <- httpServer.forkManaged
-  jobs  <- scheduledJobRunner.forkManaged
+  kafka <- kafkaConsumer.runDrain.forkScoped
+  http  <- httpServer.forkScoped
+  jobs  <- scheduledJobRunner.forkScoped
 } yield ZIO.raceAll(kafka.await, List(http.await, jobs.await))
 
 val mainApp = ZIO.scoped(managedApp).exitCode

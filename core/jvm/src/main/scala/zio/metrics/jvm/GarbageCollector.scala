@@ -39,7 +39,7 @@ trait GarbageCollector extends JvmMetrics {
       _ <- reportGarbageCollectionMetrics(classLoadingMXBean)
              .repeat(collectionSchedule)
              .interruptible
-             .forkManaged
+             .forkScoped
     } yield this
 }
 

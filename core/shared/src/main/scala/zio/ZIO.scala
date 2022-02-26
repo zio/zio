@@ -1019,7 +1019,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * execute the effect in the fiber, while ensuring its interruption when the
    * effect supplied to [[ZManaged#use]] completes.
    */
-  final def forkManaged(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Fiber.Runtime[E, A]] =
+  final def forkScoped(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).fork.tap(fiber => ZIO.addFinalizer(_ => fiber.interrupt))
     }

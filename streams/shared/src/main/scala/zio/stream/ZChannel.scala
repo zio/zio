@@ -746,7 +746,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                  )
                  .forever
                  .interruptible
-                 .forkManaged
+                 .forkScoped
         } yield queue
       }
     } { queue =>
@@ -1610,7 +1610,7 @@ object ZChannel {
                    }
                  )
                  .repeatWhileEquals(true)
-                 .forkManaged
+                 .forkScoped
         } yield queue
       }
     } { queue =>

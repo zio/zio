@@ -83,7 +83,7 @@ trait Thread extends JvmMetrics {
     for {
       threadMXBean <- Task(ManagementFactory.getThreadMXBean)
       _ <-
-        reportThreadMetrics(threadMXBean).repeat(collectionSchedule).interruptible.forkManaged
+        reportThreadMetrics(threadMXBean).repeat(collectionSchedule).interruptible.forkScoped
     } yield this
 }
 

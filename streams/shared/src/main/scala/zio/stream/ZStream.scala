@@ -229,7 +229,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
         ZChannel
           .managed[R1, Any, Any, Any, E1, Chunk[Either[C, B]], Option[B], Fiber.Runtime[Nothing, Unit]](
-            timeout.forkManaged
+            timeout.forkScoped
           ) { fiber =>
             (handoffConsumer pipeToOrFail sink.channel).doneCollect.flatMap { case (leftovers, b) =>
               ZChannel.fromZIO(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
@@ -1185,7 +1185,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     ZStream.fromZIO(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
         .managed[R1, Nothing, Fiber.Runtime[Nothing, Any]](
-          other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).forkManaged
+          other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).forkScoped
         ) *>
         self.interruptWhen(bgDied)
     }
@@ -1996,7 +1996,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
     new ZStream(
       ZChannel.unwrapManaged[R1, Any, Any, Any, E1, Chunk[A], Unit] {
-        io.forkManaged.map { fiber =>
+        io.forkScoped.map { fiber =>
           self.channel >>> writer(fiber)
         }
       }

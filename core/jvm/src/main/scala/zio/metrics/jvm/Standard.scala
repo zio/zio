@@ -138,7 +138,7 @@ trait Standard extends JvmMetrics {
         )
           .repeat(collectionSchedule)
           .interruptible
-          .forkManaged
+          .forkScoped
     } yield this
 }
 

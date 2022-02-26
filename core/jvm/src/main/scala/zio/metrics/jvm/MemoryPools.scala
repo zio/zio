@@ -96,7 +96,7 @@ trait MemoryPools extends JvmMetrics {
       _ <- reportMemoryMetrics(memoryMXBean, poolMXBeans)
              .repeat(collectionSchedule)
              .interruptible
-             .forkManaged
+             .forkScoped
     } yield this
 }
 

@@ -46,7 +46,7 @@ trait BufferPools extends JvmMetrics {
       _ <- reportBufferPoolMetrics(bufferPoolMXBeans)
              .repeat(collectionSchedule)
              .interruptible
-             .forkManaged
+             .forkScoped
     } yield this
 }
 
