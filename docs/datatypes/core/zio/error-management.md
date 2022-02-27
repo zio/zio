@@ -786,15 +786,6 @@ Note that similar to `ZIO#fold` and `ZIO#foldZIO` this operator cannot recover f
 
 ### 4. Retrying
 
-| Function            | Input Type                                                           | Output Type                            |
-|---------------------|----------------------------------------------------------------------|----------------------------------------|
-| `retryUntil`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
-| `retryUntilEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
-| `retryUntilZIO`     | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
-| `retryWhile`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
-| `retryWhileEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
-| `retryWhileZIO`     | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
-
 When we are building applications we want to be resilient in the face of a transient failure. This is where we need to retry to overcome these failures.
 
 There are a number of useful methods on the ZIO data type for retrying failed effects:
@@ -892,17 +883,20 @@ trait ZIO[-R, +E, +A] {
 }
 ```
 
-```scala mdoc:compile-only
-import zio._
+Assume we have defined the following remote service call:
 
-sealed abstract class ServiceError(message: String) extends Exception(message)
-case class TemporarilyUnavailable(message: String)  extends ServiceError(message)
-case class DataCorrupted(message: String)           extends ServiceError(message)
-case class BandwidthLimitExceeded(message: String)  extends ServiceError(message)
+```scala mdoc:silent
+sealed trait  ServiceError extends Exception
+case object TemporarilyUnavailable extends ServiceError
+case object DataCorrupted          extends ServiceError
 
 def remoteService: ZIO[Any, ServiceError, Unit] = ???
+```
 
-val result = remoteService.retryUntil(_.isInstanceOf[DataCorrupted])
+In the following example, we repeat the failed remote service call until we reach the `DataCorrupted` error:
+
+```scala mdoc:compile-only
+remoteService.retryUntil(_ == DataCorrupted)
 ```
 
 To provide an effectful predicate we use the `ZIO#retryUntilZIO` operator.
@@ -910,16 +904,30 @@ To provide an effectful predicate we use the `ZIO#retryUntilZIO` operator.
 6. **`ZIO#retryUntilEqual`**— Like the previous operator, it tries until its error is equal to the specified error:
 
 ```scala mdoc:compile-only
-import zio._
+remoteService.retryUntilEquals(DataCorrupted)
+```
 
-sealed abstract class ServiceError extends Exception
-case object TemporarilyUnavailable extends ServiceError
-case object DataCorrupted          extends ServiceError
-case object BandwidthLimitExceeded extends ServiceError
+7. **`ZIO#retryWhile`/`ZIO#retryWhileZIO`**— Unlike the `ZIO#retryUntil` it will retry the effect while its error satisfies the specified predicate:
 
-def remoteService: ZIO[Any, ServiceError, Unit] = ???
+```scala
+trait ZIO[-R, +E, +A] {
+  def retryWhile(f: E => Boolean): ZIO[R, E, A]
+  def retryWhileZIO[R1 <: R](f: E => URIO[R1, Boolean]): ZIO[R1, E, A]
+}
+```
 
-val result = remoteService.retryUntilEquals(DataCorrupted)
+In the following example, we repeat the failed remote service call while we have the `TemporarilyUnavailable` error:
+
+```scala mdoc:compile-only
+remoteService.retryWhile(_ == TemporarilyUnavailable)
+```
+
+To provide an effectful predicate we use the `ZIO#retryWhileZIO` operator.
+
+8. **`ZIO#retryWhileEquals`**— Like the previous operator, it tries while its error is equal to the specified error:
+
+```scala mdoc:compile-only
+remoteService.retryWhileEquals(TemporarilyUnavailable)
 ```
 
 ### 5. Timing out
