@@ -820,7 +820,15 @@ val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] =
   readFile("primary.data").retry(Schedule.recurs(5))
 ```
 
-2. **`ZIO#retryOrElse`**— The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:
+2. **`ZIO#retryN`**— In case of failure, a ZIO effect can be retried as many times as specified:
+
+```scala mdoc:compile-only
+import zio._
+
+val file = readFile("primary.data").retryN(5)
+```
+
+3. **`ZIO#retryOrElse`**— The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:
 
 ```scala
 trait ZIO[-R, +E, +A] {
@@ -861,7 +869,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-3. **`ZIO#retryOrElseEither`** - This operator is almost the same as the **`ZIO#retryOrElse`** except it can return a different type for the fallback:
+3. **`ZIO#retryOrElseEither`**— This operator is almost the same as the **`ZIO#retryOrElse`** except it can return a different type for the fallback:
 
 ```scala mdoc:compile-only
 import zio._
@@ -872,7 +880,7 @@ trait RemoteConfig
 def readLocalConfig: ZIO[Any, Throwable, LocalConfig] = ???
 def readRemoteConfig: ZIO[Any, Throwable, RemoteConfig] = ???
 
-val result: ZIO[Any with Clock, Throwable, Either[RemoteConfig, LocalConfig]] =
+val result: ZIO[Clock, Throwable, Either[RemoteConfig, LocalConfig]] =
   readLocalConfig.retryOrElseEither(
     schedule = Schedule.fibonacci(1.seconds),
     orElse = (_, _: Duration) => readRemoteConfig
