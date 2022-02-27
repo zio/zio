@@ -788,10 +788,6 @@ Note that similar to `ZIO#fold` and `ZIO#foldZIO` this operator cannot recover f
 
 | Function            | Input Type                                                           | Output Type                            |
 |---------------------|----------------------------------------------------------------------|----------------------------------------|
-| `retry`             | `Schedule[R1, E, S]`                                                 | `ZIO[R1 with Clock, E, A]`             |
-| `retryN`            | `n: Int`                                                             | `ZIO[R, E, A]`                         |
-| `retryOrElse`       | `policy: Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1]`      | `ZIO[R1 with Clock, E1, A1]`           |
-| `retryOrElseEither` | `schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B]` | `ZIO[R1 with Clock, E1, Either[B, A]]` |
 | `retryUntil`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
 | `retryUntilEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
 | `retryUntilZIO`     | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
@@ -869,7 +865,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-3. **`ZIO#retryOrElseEither`**— This operator is almost the same as the **`ZIO#retryOrElse`** except it can return a different type for the fallback:
+4. **`ZIO#retryOrElseEither`**— This operator is almost the same as the **`ZIO#retryOrElse`** except it can return a different type for the fallback:
 
 ```scala mdoc:compile-only
 import zio._
@@ -886,6 +882,31 @@ val result: ZIO[Clock, Throwable, Either[RemoteConfig, LocalConfig]] =
     orElse = (_, _: Duration) => readRemoteConfig
   )
 ```
+
+5. **`ZIO#retryUntil`/`ZIO#retryUntilZIO`**— We can retry an effect until a condition on the error channel is satisfied:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def retryUntil(f: E => Boolean): ZIO[R, E, A]
+  def retryUntilZIO[R1 <: R](f: E => URIO[R1, Boolean]): ZIO[R1, E, A]
+}
+```
+
+```scala mdoc:compile-only
+import zio._
+
+sealed abstract class ServiceError(message: String) extends Exception(message)
+case class TemporarilyUnavailable(message: String)  extends ServiceError(message)
+case class DataCorrupted(message: String)           extends ServiceError(message)
+case class BandwidthLimitExceeded(message: String)  extends ServiceError(message)
+
+def remoteService: ZIO[Any, ServiceError, Unit] = ???
+
+val result = remoteService.retryUntil(_.isInstanceOf[DataCorrupted])
+```
+
+To provide an effectful predicate we use the `ZIO#retryUntilZIO` operator.
+
 
 ### 5. Timing out
 
