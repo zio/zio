@@ -907,6 +907,20 @@ val result = remoteService.retryUntil(_.isInstanceOf[DataCorrupted])
 
 To provide an effectful predicate we use the `ZIO#retryUntilZIO` operator.
 
+6. **`ZIO#retryUntilEqual`**— Like the previous operator, it tries until its error is equal to the specified error:
+
+```scala mdoc:compile-only
+import zio._
+
+sealed abstract class ServiceError extends Exception
+case object TemporarilyUnavailable extends ServiceError
+case object DataCorrupted          extends ServiceError
+case object BandwidthLimitExceeded extends ServiceError
+
+def remoteService: ZIO[Any, ServiceError, Unit] = ???
+
+val result = remoteService.retryUntilEquals(DataCorrupted)
+```
 
 ### 5. Timing out
 
