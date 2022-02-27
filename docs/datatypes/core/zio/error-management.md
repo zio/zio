@@ -835,7 +835,7 @@ The `orElse` is the recovery function that has two inputs:
 1. The last error message
 2. Schedule output
 
-So based on these two values, we can decide what to do as the fallback operation. Let's see an example:
+So based on these two values, we can decide what to do as the fallback operation. Let's try an example:
 
 ```scala mdoc:compile-only
 import zio._
@@ -861,7 +861,23 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-The final method, `ZIO#retryOrElseEither`, allows returning a different type for the fallback.
+3. **`ZIO#retryOrElseEither`** - This operator is almost the same as the **`ZIO#retryOrElse`** except it can return a different type for the fallback:
+
+```scala mdoc:compile-only
+import zio._
+
+trait LocalConfig
+trait RemoteConfig
+
+def readLocalConfig: ZIO[Any, Throwable, LocalConfig] = ???
+def readRemoteConfig: ZIO[Any, Throwable, RemoteConfig] = ???
+
+val result: ZIO[Any with Clock, Throwable, Either[RemoteConfig, LocalConfig]] =
+  readLocalConfig.retryOrElseEither(
+    schedule = Schedule.fibonacci(1.seconds),
+    orElse = (_, _: Duration) => readRemoteConfig
+  )
+```
 
 ### 5. Timing out
 
