@@ -801,9 +801,17 @@ Note that similar to `ZIO#fold` and `ZIO#foldZIO` this operator cannot recover f
 
 When we are building applications we want to be resilient in the face of a transient failure. This is where we need to retry to overcome these failures.
 
-There are a number of useful methods on the ZIO data type for retrying failed effects.
+There are a number of useful methods on the ZIO data type for retrying failed effects:
 
-The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails, according to the specified policy:
+1. **`ZIO#retry`**— The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails, according to the specified policy:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def retry[R1 <: R, S](policy: => Schedule[R1, E, S]): ZIO[R1 with Clock, E, A]
+}
+```
+
+In this example, we try to read from a file. If we fail to do that, it will try five more times:
 
 ```scala mdoc:compile-only
 import zio._
@@ -812,15 +820,45 @@ val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] =
   readFile("primary.data").retry(Schedule.recurs(5))
 ```
 
-The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:
+2. **`ZIO#retryOrElse`**— The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def retryOrElse[R1 <: R, A1 >: A, S, E1](
+    policy: => Schedule[R1, E, S],
+    orElse: (E, S) => ZIO[R1, E1, A1]
+  ): ZIO[R1 with Clock, E1, A1] =
+}
+```
+
+The `orElse` is the recovery function that has two inputs:
+1. The last error message
+2. Schedule output
+
+So based on these two values, we can decide what to do as the fallback operation. Let's see an example:
 
 ```scala mdoc:compile-only
 import zio._
 
-readFile("primary.data").retryOrElse(
-  Schedule.recurs(5), 
-  (_, _:Long) => ZIO.succeed(DefaultData)
-)
+object MainApp extends ZIOAppDefault {
+  def run =
+    Random
+      .nextIntBounded(11)
+      .flatMap { n =>
+        if (n < 9)
+          ZIO.fail(s"$n is less than 9!").debug("failed")
+        else
+          ZIO.succeed(n).debug("succeeded")
+      }
+      .retryOrElse(
+        policy = Schedule.recurs(5),
+        orElse = (lastError, scheduleOutput: Long) =>
+          ZIO.debug(s"after $scheduleOutput retries, we couldn't succeed!") *>
+            ZIO.debug(s"the last error message we received was: $lastError") *>
+            ZIO.succeed(-1)
+      )
+      .debug("the final result")
+}
 ```
 
 The final method, `ZIO#retryOrElseEither`, allows returning a different type for the fallback.
