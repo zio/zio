@@ -932,13 +932,88 @@ remoteService.retryWhileEquals(TemporarilyUnavailable)
 
 ### 5. Timing out
 
-ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed.
+ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed. If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
+
+Assume we have the following effect:
 
 ```scala mdoc:silent
-IO.succeed("Hello").timeout(10.seconds)
+import zio._
+
+val myApp =
+  for {
+    _ <- ZIO.debug("start doing something.")
+    _ <- ZIO.sleep(2.second)
+    _ <- ZIO.debug("my job is finished!")
+  } yield "result"
 ```
 
-If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
+We should note that when we use the `ZIO#timeout` operator on the `myApp`, it doesn't return until one of the following situations happens:
+1. The original effect returns before the timeout elapses so the output will be `Some` of the produced value by the original effect.
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    myApp
+      .timeout(3.second)
+      .debug("output")
+      .timed
+      .map(_._1.toSeconds)
+      .debug("execution time of the whole program in second")
+}
+
+// Output:
+// start doing something.
+// my job is finished!
+// output: Some(result)
+// execution time of the whole program in second: 2
+```
+
+2. The original effect interrupted after the timeout elapses:
+    - If the original effect is interruptible it will be immediately interrupted, and finally, the timeout operation produces `None` value.
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    myApp
+      .timeout(1.second)
+      .debug("output")
+      .timed
+      .map(_._1.toSeconds)
+      .debug("execution time of the whole program in second")
+}
+
+// Output:
+// start doing something.
+// output: None
+// execution time of the whole program in second: 1
+```
+
+    - If the original effect is uninterruptible it will be blocked until the original effect safely finished its work, and then the timeout operator produces the `None` value.
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    myApp
+      .uninterruptible
+      .timeout(1.second)
+      .debug("output")
+      .timed
+      .map(_._1.toSeconds)
+      .debug("execution time of the whole program in second")
+}
+
+// Output:
+// start doing something.
+// my job is finished!
+// output: None
+// execution time of the whole program in second: 2
+```
 
 ### 6. Sandboxing
 
