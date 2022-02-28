@@ -932,7 +932,7 @@ remoteService.retryWhileEquals(TemporarilyUnavailable)
 
 ### 5. Timing out
 
-ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed. If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
+1. **`ZIO#timeout`**— ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed. If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
 
 Assume we have the following effect:
 
@@ -1038,6 +1038,24 @@ object MainApp extends ZIOAppDefault {
 ```
 
 By using this technique, the original effect will be interrupted in the background.
+
+2. **`ZIO#timeoutTo`**— This operator is similar to the previous one, but it also allows us to manually create the final result type:
+
+```scala mdoc:silent
+import zio._
+
+val delayedNextInt: ZIO[Random with Clock, Nothing, Int] =
+  Random.nextIntBounded(10).delay(2.second)
+
+val r1: ZIO[Random with Clock, Nothing, Option[Int]] =
+  delayedNextInt.timeoutTo(None)(Some(_))(1.seconds)
+  
+val r2: ZIO[Random with Clock, Nothing, Either[String, Int]] =
+  delayedNextInt.timeoutTo(Left("timeout"))(Right(_))(1.seconds)
+  
+val r3: ZIO[Random with Clock, Nothing, Int] =
+  delayedNextInt.timeoutTo(-1)(identity)(1.seconds)
+```
 
 ### 6. Sandboxing
 
