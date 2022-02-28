@@ -1057,6 +1057,19 @@ val r3: ZIO[Random with Clock, Nothing, Int] =
   delayedNextInt.timeoutTo(-1)(identity)(1.seconds)
 ```
 
+3. **`ZIO#timeoutFail`/`ZIO#timeoutFailCause`**— In case of elapsing the timeout, we can produce a particular error message:
+
+```scala mdoc:compile-only
+import zio._
+import scala.concurrent.TimeoutException
+
+val r1: ZIO[Random with Clock, TimeoutException, Int] =
+  delayedNextInt.timeoutFail(new TimeoutException)(1.second)
+
+val r2: ZIO[Random with Clock, Nothing, Int] =
+  delayedNextInt.timeoutFailCause(Cause.die(new Error("timeout")))(1.second)
+```
+
 ### 6. Sandboxing
 
 We know that a ZIO effect may fail due to a failure, a defect, a fiber interruption, or a combination of these causes. So a ZIO effect may contain more than one cause. Using the `ZIO#sandbox` operator, we can sandbox all errors of a ZIO application, whether the cause is a failure, defect, or a fiber interruption or combination of these. This operator exposes the full cause of a ZIO effect into the error channel:
