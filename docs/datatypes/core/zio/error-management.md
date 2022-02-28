@@ -971,49 +971,50 @@ object MainApp extends ZIOAppDefault {
 ```
 
 2. The original effect interrupted after the timeout elapses:
-    - If the original effect is interruptible it will be immediately interrupted, and finally, the timeout operation produces `None` value.
 
-```scala mdoc:compile-only
-import zio._
+    - If the effect is interruptible it will be immediately interrupted, and finally, the timeout operation produces `None` value.
 
-object MainApp extends ZIOAppDefault {
-  def run =
-    myApp
-      .timeout(1.second)
-      .debug("output")
-      .timed
-      .map(_._1.toSeconds)
-      .debug("execution time of the whole program in second")
-}
-
-// Output:
-// start doing something.
-// output: None
-// execution time of the whole program in second: 1
-```
-
-    - If the original effect is uninterruptible it will be blocked until the original effect safely finished its work, and then the timeout operator produces the `None` value.
-
-```scala mdoc:compile-only
-import zio._
-
-object MainApp extends ZIOAppDefault {
-  def run =
-    myApp
-      .uninterruptible
-      .timeout(1.second)
-      .debug("output")
-      .timed
-      .map(_._1.toSeconds)
-      .debug("execution time of the whole program in second")
-}
-
-// Output:
-// start doing something.
-// my job is finished!
-// output: None
-// execution time of the whole program in second: 2
-```
+    ```scala mdoc:compile-only
+    import zio._
+    
+    object MainApp extends ZIOAppDefault {
+      def run =
+        myApp
+          .timeout(1.second)
+          .debug("output")
+          .timed
+          .map(_._1.toSeconds)
+          .debug("execution time of the whole program in second")
+    }
+    
+    // Output:
+    // start doing something.
+    // output: None
+    // execution time of the whole program in second: 1
+    ```
+   
+    - If the effect is uninterruptible it will be blocked until the original effect safely finished its work, and then the timeout operator produces the `None` value:
+    
+    ```scala mdoc:compile-only
+    import zio._
+    
+    object MainApp extends ZIOAppDefault {
+      def run =
+        myApp
+          .uninterruptible
+          .timeout(1.second)
+          .debug("output")
+          .timed
+          .map(_._1.toSeconds)
+          .debug("execution time of the whole program in second")
+    }
+    
+    // Output:
+    // start doing something.
+    // my job is finished!
+    // output: None
+    // execution time of the whole program in second: 2
+    ```
 
 ### 6. Sandboxing
 
