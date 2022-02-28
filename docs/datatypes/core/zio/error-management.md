@@ -1016,6 +1016,29 @@ object MainApp extends ZIOAppDefault {
     // execution time of the whole program in second: 2
     ```
 
+Instead of waiting for the original effect to be interrupted, we can use `effect.disconnect.timeout` which first disconnects the effect's interruption signal before performing the timeout. By using this technique, we can return early after the timeout has passed and before an underlying effect has been interrupted. 
+
+```scala mdoc:compile-only
+object MainApp extends ZIOAppDefault {
+  def run =
+    myApp
+      .uninterruptible
+      .disconnect
+      .timeout(1.second)
+      .debug("output")
+      .timed
+      .map(_._1.toSeconds)
+      .debug("execution time of the whole program in second")
+}
+
+// Output:
+// start doing something.
+// output: None
+// execution time of the whole program in second: 1
+```
+
+By using this technique, the original effect will be interrupted in the background.
+
 ### 6. Sandboxing
 
 We know that a ZIO effect may fail due to a failure, a defect, a fiber interruption, or a combination of these causes. So a ZIO effect may contain more than one cause. Using the `ZIO#sandbox` operator, we can sandbox all errors of a ZIO application, whether the cause is a failure, defect, or a fiber interruption or combination of these. This operator exposes the full cause of a ZIO effect into the error channel:
