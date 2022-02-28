@@ -1143,12 +1143,7 @@ val result: ZIO[Any, AgeValidationException, Int] =
 
 ### Putting Error Into Success Channel and Submerging it Back Again
 
-| Function      | Input Type                | Output Type             |
-|---------------|---------------------------|-------------------------|
-| `ZIO#either`  |                           | `URIO[R, Either[E, A]]` |
-| `ZIO.absolve` | `ZIO[R, E, Either[E, A]]` | `ZIO[R, E, A]`          |
-
-The `ZIO#either` convert a `ZIO[R, E, A]` effect to another effect in which its failure (`E`) and success (`A`) channel have been lifted into an `Either[E, A]` data type as success channel of the `ZIO` data type:
+1. **`ZIO#either`**— The `ZIO#either` convert a `ZIO[R, E, A]` effect to another effect in which its failure (`E`) and success (`A`) channel have been lifted into an `Either[E, A]` data type as success channel of the `ZIO` data type:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1178,7 +1173,7 @@ val myApp: ZIO[Console, IOException, Unit] =
   } yield ()
 ```
 
-The `ZIO#abolve` operator does the inverse. It submerges the error case of an `Either` into the `ZIO`:
+2. **`ZIO#absolve`/`ZIO.absolve`**— The `ZIO#abolve` operator and the `ZIO.absolve` constructor perform the inverse. They submerge the error case of an `Either` into the `ZIO`:
 
 ```scala mdoc:compile-only
 import zio._
