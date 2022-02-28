@@ -47,8 +47,8 @@ private[zio] trait FiberPlatformSpecific {
 
       def id: FiberId = FiberId.None
 
-      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
-        join.fold(Exit.fail, Exit.succeed)
+      final def interruptAs(id: Fiber.Id)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+        UIO(cs.toCompletableFuture.cancel(false)) *> join.fold(Exit.fail, Exit.succeed)
 
       final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = IO.unit
     }
@@ -84,8 +84,8 @@ private[zio] trait FiberPlatformSpecific {
 
       def id: FiberId = FiberId.None
 
-      def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
-        join.fold(Exit.fail, Exit.succeed)
+      def interruptAs(id: Fiber.Id)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+        UIO(ftr.cancel(false)) *> join.fold(Exit.fail, Exit.succeed)
 
       def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = UIO.unit
     }
