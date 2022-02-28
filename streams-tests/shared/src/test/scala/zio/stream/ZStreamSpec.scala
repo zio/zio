@@ -115,6 +115,13 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .runCollect
                 .map(_.toList.flatten)
             )(equalTo(data))
+          },
+          test("issue 6395") {
+            assertM(
+              ZStream(1, 2, 3)
+                .aggregateAsync(ZSink.collectAllN[Int](2))
+                .runCollect
+            )(equalTo(Chunk(Chunk(1, 2), Chunk(3))))
           }
         ),
         suite("transduce")(

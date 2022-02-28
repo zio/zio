@@ -79,7 +79,7 @@ private[zio] object javaz {
         if (cf.isDone) {
           unwrapDone(p.fatal)(cf)
         } else {
-          Task.effectAsyncInterrupt { cb =>
+          Task.asyncInterrupt { cb =>
             val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
               val io = Option(t).fold[Task[A]](Task.succeed(v)) { t =>
                 catchFromGet(p.fatal).lift(t).getOrElse(Task.die(t))
