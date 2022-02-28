@@ -101,6 +101,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [LambdaWorks](https://www.lambdaworks.io/)
 * [LeadIQ](https://leadiq.com)
 * [LiveIntent Inc.](https://liveintent.com)
+* [Lottoland](https://lottoland.com)
 * [MATECHS](https://matechs.com)
 * [Megogo](https://megogo.net)
 * [Mylivn](https://www.mylivn.com/)
