@@ -444,8 +444,7 @@ ZIO guarantees that no errors are lost. It has a _lossless error model_. This gu
 
 #### Catching Failures
 
-##### Catching All Failures
-If we want to catch and recover from all types of errors and effectfully attempt recovery, we can use the `catchAll` method:
+1. **`ZIO#catchAll`**— If we want to catch and recover from all types of errors and effectfully attempt recovery, we can use the `catchAll` method:
 
 ```scala mdoc:invisible
 import java.io.{ FileNotFoundException, IOException }
@@ -463,6 +462,44 @@ val z: ZIO[Any, IOException, Array[Byte]] =
 ```
 
 In the callback passed to `catchAll`, we may return an effect with a different error type (or perhaps `Nothing`), which will be reflected in the type of effect returned by `catchAll`.
+
+When using `ZIO#catchAll` the match cases should be exhaustive:
+
+```scala mdoc:compile-only
+val result: ZIO[Any, Nothing, Int] =
+  validate(20)
+  .catchAll {
+    case NegativeAgeException(age) =>
+      ZIO.debug(s"negative age: $age").as(-1)
+    case IllegalAgeException(age) =>
+      ZIO.debug(s"illegal age: $age").as(-1)
+  }
+```
+
+The `ZIO#catchAll` operator converts an exceptional effect into an unexceptional effect. Therefore, if we forget to catch all cases if the match fails, the original **failure** will be lost and replaced by a `MatchError` **defect**:
+
+```scala mdoc:compile-only
+object MainApp extends ZIOAppDefault {
+  val result: ZIO[Any, Nothing, Int] =
+    validate(15)
+      .catchAll {
+        case NegativeAgeException(age) =>
+          ZIO.debug(s"negative age: $age").as(-1)
+//        case IllegalAgeException(age) =>
+//          ZIO.debug(s"illegal age: $age").as(-1)
+      }
+
+  def run = result
+}
+
+// Output:
+// timestamp=2022-03-01T06:33:13.454651904Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" scala.MatchError: MainApp$IllegalAgeException (of class MainApp$IllegalAgeException)
+//	at MainApp$.$anonfun$result$1(MainApp.scala:6)
+//	at scala.util.Either.fold(Either.scala:190)
+//	at zio.ZIO.$anonfun$foldZIO$1(ZIO.scala:945)
+//  ...
+//	at zio.internal.FiberContext.runUntil(FiberContext.scala:538)"
+```
 
 ##### Catching Some Failures
 
