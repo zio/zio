@@ -501,9 +501,7 @@ object MainApp extends ZIOAppDefault {
 //	at zio.internal.FiberContext.runUntil(FiberContext.scala:538)"
 ```
 
-##### Catching Some Failures
-
-If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `catchSome` method:
+2. **`ZIO#catchSome`**— If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `catchSome` method:
 
 ```scala mdoc:compile-only
 import zio._
@@ -515,7 +513,7 @@ val data: ZIO[Any, IOException, Array[Byte]] =
   }
 ```
 
-Unlike `catchAll`, `catchSome` cannot reduce or eliminate the error type, although it can widen the error type to a broader class of errors.
+The `ZIO#catchSome` cannot eliminate the error type, although it can widen the error type to a broader class of errors. So unlike the `ZIO#catchAll` we are not required to provide every match case.
 
 #### Catching Defects
 
