@@ -1,50 +1,54 @@
 package zio.metrics.jvm
 
-import zio.ZIOMetric.Gauge
+import zio.metrics.ZIOMetric
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{ManagementFactory, ThreadMXBean}
 
 trait Thread extends JvmMetrics {
+  import ZIOMetric.Gauge
+
   override type Feature = Thread
   override val featureTag: Tag[Thread] = Tag[Thread]
 
   /** Current thread count of a JVM */
   private val threadsCurrent: Gauge[Int] =
-    ZIOMetric.setGaugeWith("jvm_threads_current")(_.toDouble)
+    ZIOMetric.gauge("jvm_threads_current").contramap(_.toDouble)
 
   /** Daemon thread count of a JVM */
   private val threadsDaemon: Gauge[Int] =
-    ZIOMetric.setGaugeWith("jvm_threads_daemon")(_.toDouble)
+    ZIOMetric.gauge("jvm_threads_daemon").contramap(_.toDouble)
 
   /** Peak thread count of a JVM */
   private val threadsPeak: Gauge[Int] =
-    ZIOMetric.setGaugeWith("jvm_threads_peak")(_.toDouble)
+    ZIOMetric.gauge("jvm_threads_peak").contramap(_.toDouble)
 
   /** Started thread count of a JVM */
   private val threadsStartedTotal: Gauge[Long] =
-    ZIOMetric.setGaugeWith("jvm_threads_started_total")(
-      _.toDouble
-    ) // NOTE: this is a counter in the prometheus hotspot library (but explicitly set to an actual value)
+    ZIOMetric
+      .gauge("jvm_threads_started_total")
+      .contramap(
+        _.toDouble
+      ) // NOTE: this is a counter in the prometheus hotspot library (but explicitly set to an actual value)
 
   /**
    * Cycles of JVM-threads that are in deadlock waiting to acquire object
    * monitors or ownable synchronizers
    */
   private val threadsDeadlocked: Gauge[Int] =
-    ZIOMetric.setGaugeWith("jvm_threads_deadlocked")(_.toDouble)
+    ZIOMetric.gauge("jvm_threads_deadlocked").contramap(_.toDouble)
 
   /**
    * Cycles of JVM-threads that are in deadlock waiting to acquire object
    * monitors
    */
   private val threadsDeadlockedMonitor: Gauge[Int] =
-    ZIOMetric.setGaugeWith("jvm_threads_deadlocked_monitor")(_.toDouble)
+    ZIOMetric.gauge("jvm_threads_deadlocked_monitor").contramap(_.toDouble)
 
   /** Current count of threads by state */
   private def threadsState(state: java.lang.Thread.State): Gauge[Long] =
-    ZIOMetric.setGaugeWith("jvm_threads_state", MetricLabel("state", state.name()))(_.toDouble)
+    ZIOMetric.gauge("jvm_threads_state").tagged(MetricLabel("state", state.name())).contramap(_.toDouble)
 
   private def getThreadStateCounts(
     threadMXBean: ThreadMXBean

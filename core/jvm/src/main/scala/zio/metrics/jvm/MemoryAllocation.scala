@@ -5,7 +5,8 @@ import com.github.ghik.silencer.silent
 import com.sun.management.GarbageCollectionNotificationInfo
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.ZIOMetric.Counter
+import zio.metrics.ZIOMetric
+import zio.metrics.ZIOMetric.Counter
 
 import java.lang.management.ManagementFactory
 import javax.management.openmbean.CompositeData
@@ -23,7 +24,7 @@ trait MemoryAllocation extends JvmMetrics {
    * not continuously.
    */
   private def countAllocations(pool: String): Counter[Long] =
-    ZIOMetric.countValueWith("jvm_memory_pool_allocated_bytes_total", MetricLabel("pool", pool))(_.toDouble)
+    ZIOMetric.counter("jvm_memory_pool_allocated_bytes_total").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
 
   private class Listener(runtime: Runtime[Any]) extends NotificationListener {
     private val lastMemoryUsage: mutable.Map[String, Long] = mutable.HashMap.empty

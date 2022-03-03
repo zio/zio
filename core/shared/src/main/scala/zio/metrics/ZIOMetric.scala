@@ -18,7 +18,7 @@ package zio.metrics
 
 import zio._
 import zio.metrics.MetricKey
-import zio.ZIOMetric.Histogram
+import zio.metrics.MetricKeyType.Histogram
 
 import zio.internal.metrics._
 
@@ -26,7 +26,7 @@ import zio.internal.metrics._
  * A `ZIOMetric[In, Out]` represents a concurrent metric, which accepts updates
  * of type `In`, which are aggregated to a stateful value of type `Out`.
  *
- * For example, a counter metric would have type `ZIOMetric2[Double, Double]`,
+ * For example, a counter metric would have type `ZIOMetric[Double, Double]`,
  * representing the fact that the metric can be updated with doubles (the amount
  * to increment or decrement the counter by), and the state of the counter is a
  * double.
@@ -42,7 +42,7 @@ import zio.internal.metrics._
  * The companion object contains constructors for these primitive metrics. All
  * metrics are derived from these primitive metrics.
  */
-trait ZIOMetric2[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] { self =>
+trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] { self =>
   type KeyIn
   type KeyOut
 
@@ -51,7 +51,7 @@ trait ZIOMetric2[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, A
    * identifies the metric, including its name, type, tags, and construction
    * parameters.
    */
-  val key: MetricKey2[Type, KeyIn, KeyOut]
+  val key: MetricKey[Type, KeyIn, KeyOut]
 
   /**
    * Retrieves the metric hook that powers the metric. There is no need to use
@@ -70,37 +70,37 @@ trait ZIOMetric2[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, A
    * of the specified new type, which must be transformable to the input type of
    * this metric.
    */
-  def contramap[In2](f: In2 => In): ZIOMetric2.Full[Type, KeyIn, KeyOut, In2, Out] =
-    ZIOMetric2(key, hook.contramap(f))
+  def contramap[In2](f: In2 => In): ZIOMetric.Full[Type, KeyIn, KeyOut, In2, Out] =
+    ZIOMetric(key, hook.contramap(f))
 
   /**
    * Returns a new metric that is powered by this one, but which outputs a new
    * state type, determined by transforming the state type of this metric by the
    * specified function.
    */
-  def map[Out2](f: Out => Out2): ZIOMetric2.Full[Type, KeyIn, KeyOut, In, Out2] =
-    ZIOMetric2(key, hook.map(f))
+  def map[Out2](f: Out => Out2): ZIOMetric.Full[Type, KeyIn, KeyOut, In, Out2] =
+    ZIOMetric(key, hook.map(f))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tag will be added to the tags of this metric.
    */
-  def tagged(key: String, value: String): ZIOMetric2.Full[Type, KeyIn, KeyOut, In, Out] =
+  def tagged(key: String, value: String): ZIOMetric.Full[Type, KeyIn, KeyOut, In, Out] =
     tagged(MetricLabel(key, value))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tags have been added to the tags of this metric.
    */
-  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): ZIOMetric2.Full[Type, KeyIn, KeyOut, In, Out] =
+  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): ZIOMetric.Full[Type, KeyIn, KeyOut, In, Out] =
     tagged(Chunk(extraTag) ++ Chunk.fromIterable(extraTags))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tags have been added to the tags of this metric.
    */
-  def tagged(extraTags: Chunk[MetricLabel]): ZIOMetric2.Full[Type, KeyIn, KeyOut, In, Out] =
-    ZIOMetric2(key.tagged(extraTags), hook)
+  def tagged(extraTags: Chunk[MetricLabel]): ZIOMetric.Full[Type, KeyIn, KeyOut, In, Out] =
+    ZIOMetric(key.tagged(extraTags), hook)
 
   /**
    * Returns a ZIO aspect that can update a metric derived from this one, but
@@ -135,15 +135,18 @@ trait ZIOMetric2[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, A
 
   private[zio] def unsafeValue(): Out = hook.get()
 }
-object ZIOMetric2 {
-  type Full[+Type <: MetricKeyType, KeyIn0, KeyOut0, -In, +Out] =
-    ZIOMetric2[Type, In, Out] { type KeyIn = KeyIn0; type KeyOut = KeyOut0 }
+object ZIOMetric {
+  type Root[+Type, In, Out] = Full[Type, In, Out, In, Out]
 
-  type Counter[-In]   = ZIOMetric2[MetricKeyType.Counter, In, MetricState2.Counter]
-  type Gauge[-In]     = ZIOMetric2[MetricKeyType.Gauge, In, MetricState2.Gauge]
-  type Histogram[-In] = ZIOMetric2[MetricKeyType.Histogram, In, MetricState2.Histogram]
-  type Summary[-In]   = ZIOMetric2[MetricKeyType.Summary, In, MetricState2.Summary]
-  type SetCount[-In]  = ZIOMetric2[MetricKeyType.SetCount, In, MetricState2.SetCount]
+  type Full[+Type, KeyIn0, KeyOut0, -In, +Out] =
+    ZIOMetric[Type, In, Out] { type KeyIn = KeyIn0; type KeyOut = KeyOut0 }
+
+  type Counter[-In] = ZIOMetric.Full[MetricKeyType.Counter, Double, MetricState.Counter, In, MetricState.Counter]
+  type Gauge[-In]   = ZIOMetric.Full[MetricKeyType.Gauge, Double, MetricState.Gauge, In, MetricState.Gauge]
+  type Histogram[-In] =
+    ZIOMetric.Full[MetricKeyType.Histogram, Double, MetricState.Histogram, In, MetricState.Histogram]
+  type Summary[-In]  = ZIOMetric.Full[MetricKeyType.Summary, Double, MetricState.Summary, In, MetricState.Summary]
+  type SetCount[-In] = ZIOMetric.Full[MetricKeyType.SetCount, String, MetricState.SetCount, In, MetricState.SetCount]
 
   implicit class CounterSyntax[In](counter: Counter[In]) {
     def increment(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(numeric.fromInt(1))
@@ -169,20 +172,20 @@ object ZIOMetric2 {
     def observe(value: In): UIO[Unit] = setCount.update(value)
   }
 
-  def fromMetricKey[Type <: MetricKeyType, In, Out](
-    key: MetricKey2[Type, In, Out]
-  ): ZIOMetric2.Full[Type, In, Out, In, Out] =
-    ZIOMetric2(key, ModifiedMetricHook(key.metricHook))
+  def fromMetricKey[Type, In, Out](
+    key: MetricKey[Type, In, Out]
+  ): ZIOMetric.Full[Type, In, Out, In, Out] =
+    ZIOMetric(key, ModifiedMetricHook(key.metricHook))
 
-  def apply[Type <: MetricKeyType, KeyIn0, KeyOut0, In, Out](
-    key0: MetricKey2[Type, KeyIn0, KeyOut0],
+  def apply[Type, KeyIn0, KeyOut0, In, Out](
+    key0: MetricKey[Type, KeyIn0, KeyOut0],
     hook0: ModifiedMetricHook[KeyIn0, KeyOut0, In, Out]
-  ): ZIOMetric2.Full[Type, KeyIn0, KeyOut0, In, Out] =
-    new ZIOMetric2[Type, In, Out] {
+  ): ZIOMetric.Full[Type, KeyIn0, KeyOut0, In, Out] =
+    new ZIOMetric[Type, In, Out] {
       type KeyIn  = KeyIn0
       type KeyOut = KeyOut0
 
-      val key: MetricKey2[Type, KeyIn, KeyOut]             = key0
+      val key: MetricKey[Type, KeyIn, KeyOut]              = key0
       def hook: ModifiedMetricHook[KeyIn, KeyOut, In, Out] = hook0
     }
 
@@ -190,31 +193,31 @@ object ZIOMetric2 {
    * A counter, which can be incremented.
    */
   def counter(name: String): Counter[Double] =
-    fromMetricKey(MetricKey2.counter(name))
+    fromMetricKey(MetricKey.counter(name))
 
   /**
    * A gauge, which can be set to a value.
    */
   def gauge(name: String): Gauge[Double] =
-    fromMetricKey(MetricKey2.gauge(name))
+    fromMetricKey(MetricKey.gauge(name))
 
   /**
    * A numeric histogram metric, which keeps track of the count of numbers that
    * fall in buckets of the specified boundaries.
    */
   def histogram(name: String, boundaries: Histogram.Boundaries): Histogram[Double] =
-    fromMetricKey(MetricKey2.histogram(name, boundaries))
+    fromMetricKey(MetricKey.histogram(name, boundaries))
 
   /**
    * A summary metric.
    */
   def summary(name: String, maxAge: Duration, maxSize: Int, error: Double, quantiles: Chunk[Double]): Summary[Double] =
-    fromMetricKey(MetricKey2(name, Chunk.empty, MetricKeyType.Summary(maxAge, maxSize, error, quantiles)))
+    fromMetricKey(MetricKey(name, Chunk.empty, MetricKeyType.Summary(maxAge, maxSize, error, quantiles)))
 
   /**
    * A string histogram metric, which keeps track of the counts of different
    * strings.
    */
   def setCount(name: String, setTag: String): SetCount[String] =
-    fromMetricKey(MetricKey2(name, Chunk.empty, MetricKeyType.SetCount(setTag)))
+    fromMetricKey(MetricKey(name, Chunk.empty, MetricKeyType.SetCount(setTag)))
 }

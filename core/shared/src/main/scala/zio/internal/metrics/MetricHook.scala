@@ -26,6 +26,9 @@ final case class MetricHook[-In, +Out](
   def map[Out2](f: Out => Out2): MetricHook[In, Out2] =
     MetricHook(update, () => f(get()))
 
+  def onUpdate[In1 <: In](f: In1 => Unit): MetricHook[In1, Out] =
+    MetricHook(in => { f(in); self.update(in) }, get)
+
   def zip[In2, Out2](that: MetricHook[In2, Out2]): MetricHook[(In, In2), (Out, Out2)] =
     MetricHook(
       t => {
@@ -34,4 +37,16 @@ final case class MetricHook[-In, +Out](
       },
       () => (self.get(), that.get())
     )
+}
+object MetricHook {
+  import zio.metrics.MetricState
+
+  type Root    = MetricHook[_, MetricState.Untyped]
+  type Untyped = MetricHook[_, _]
+
+  type Counter   = MetricHook[Double, MetricState.Counter]
+  type Gauge     = MetricHook[Double, MetricState.Gauge]
+  type Histogram = MetricHook[Double, MetricState.Histogram]
+  type Summary   = MetricHook[(Double, java.time.Instant), MetricState.Summary]
+  type SetCount  = MetricHook[String, MetricState.SetCount]
 }

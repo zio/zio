@@ -3,6 +3,7 @@ package zio.metrics.jvm
 import com.github.ghik.silencer.silent
 
 import zio._
+import zio.metrics.ZIOMetric
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{BufferPoolMXBean, ManagementFactory}
@@ -15,15 +16,15 @@ trait BufferPools extends JvmMetrics {
 
   /** Used bytes of a given JVM buffer pool. */
   private def bufferPoolUsedBytes(pool: String): ZIOMetric.Gauge[Long] =
-    ZIOMetric.setGaugeWith("jvm_buffer_pool_used_bytes", MetricLabel("pool", pool))(_.toDouble)
+    ZIOMetric.gauge("jvm_buffer_pool_used_bytes").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
 
   /** Bytes capacity of a given JVM buffer pool. */
   private def bufferPoolCapacityBytes(pool: String): ZIOMetric.Gauge[Long] =
-    ZIOMetric.setGaugeWith("jvm_buffer_pool_capacity_bytes", MetricLabel("pool", pool))(_.toDouble)
+    ZIOMetric.gauge("jvm_buffer_pool_capacity_bytes").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
 
   /** Used buffers of a given JVM buffer pool. */
   private def bufferPoolUsedBuffers(pool: String): ZIOMetric.Gauge[Long] =
-    ZIOMetric.setGaugeWith("jvm_buffer_pool_used_buffers", MetricLabel("pool", pool))(_.toDouble)
+    ZIOMetric.gauge("jvm_buffer_pool_used_buffers").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
 
   private def reportBufferPoolMetrics(
     bufferPoolMXBeans: List[BufferPoolMXBean]

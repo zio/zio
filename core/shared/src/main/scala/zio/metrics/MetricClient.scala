@@ -52,12 +52,12 @@ object MetricClient {
   /**
    * Unsafely captures a snapshot of all metrics recorded by the application.
    */
-  private[zio] final def unsafeStates: Map[MetricKey, MetricState] =
-    metricState.states
+  private[zio] final def unsafeStates: Set[MetricPair[_, _, _]] =
+    ???
 
   /**
    * Unsafely looks up the state of a metric by its key.
    */
-  private[zio] final def unsafeState(key: MetricKey): Option[MetricState] =
-    metricState.state(key)
+  private[zio] final def unsafeState[Out](key: MetricKey[Any, _, Out]): Option[Out] =
+    ???
 }

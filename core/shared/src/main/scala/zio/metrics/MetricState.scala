@@ -24,107 +24,30 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * metric state corresponds to the type of the metric key (MetricKeyType). This
  * phantom type parameter is used to tie keys to their expected states.
  */
-sealed trait MetricState2[+Type]
+sealed trait MetricState[+Type]
 
-object MetricState2 {
-  final case class Counter(count: Double) extends MetricState2[MetricKeyType.Counter]
+object MetricState {
+  type Untyped = MetricState[Any]
 
-  final case class Gauge(value: Double) extends MetricState2[MetricKeyType.Gauge]
+  final case class Counter(count: Double) extends MetricState[MetricKeyType.Counter]
+
+  final case class Gauge(value: Double) extends MetricState[MetricKeyType.Gauge]
 
   final case class Histogram(
     buckets: Chunk[(Double, Long)],
     count: Long,
     sum: Double
-  ) extends MetricState2[MetricKeyType.Histogram]
+  ) extends MetricState[MetricKeyType.Histogram]
 
   final case class Summary(
     error: Double,
     quantiles: Chunk[(Double, Option[Double])],
     count: Long,
     sum: Double
-  ) extends MetricState2[MetricKeyType.Summary]
+  ) extends MetricState[MetricKeyType.Summary]
 
   final case class SetCount(
     setTag: String,
     occurrences: Chunk[(String, Long)]
-  ) extends MetricState2[MetricKeyType.SetCount]
-}
-
-/**
- * `MetricState` represents a snapshot of the current state of a metric as of a
- * poiint in time.
- */
-final case class MetricState(
-  name: String,
-  help: String,
-  labels: Chunk[MetricLabel],
-  details: MetricType
-) {
-  override def toString(): String = {
-    val lbls = if (labels.isEmpty) "" else labels.map(l => s"${l.key}->${l.value}").mkString("{", ",", "}")
-    s"MetricState($name$lbls, $details)"
-  }
-}
-
-object MetricState {
-
-  /**
-   * Constructs a snapshot of the state of a counter.
-   */
-  def counter(key: MetricKey.Counter, help: String, value: Double): MetricState =
-    MetricState(key.name, help, key.tags, MetricType.Counter(value))
-
-  /**
-   * Constructs a snapshot of the state of a gauge.
-   */
-  def gauge(
-    key: MetricKey.Gauge,
-    help: String,
-    startAt: Double
-  ): MetricState =
-    MetricState(key.name, help, key.tags, MetricType.Gauge(startAt))
-
-  /**
-   * Constructs a snapshot of the state of a histogram.
-   */
-  def histogram(
-    key: MetricKey.Histogram,
-    help: String,
-    buckets: Chunk[(Double, Long)],
-    count: Long,
-    sum: Double
-  ): MetricState =
-    MetricState(
-      key.name,
-      help,
-      key.tags,
-      MetricType.DoubleHistogram(buckets, count, sum)
-    )
-
-  /**
-   * Constructs a snapshot of the state of a summary.
-   */
-  def summary(
-    key: MetricKey.Summary,
-    help: String,
-    quantiles: Chunk[(Double, Option[Double])],
-    count: Long,
-    sum: Double
-  ): MetricState =
-    MetricState(
-      key.name,
-      help,
-      key.tags,
-      MetricType.Summary(key.error, quantiles, count, sum)
-    )
-
-  /**
-   * Constructs a snapshot of the state of a set count..
-   */
-  def setCount(
-    key: MetricKey.SetCount,
-    help: String,
-    values: Chunk[(String, Long)]
-  ): MetricState =
-    MetricState(key.name, help, key.tags, MetricType.SetCount(key.setTag, values))
+  ) extends MetricState[MetricKeyType.SetCount]
 }

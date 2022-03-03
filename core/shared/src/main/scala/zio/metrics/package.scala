@@ -21,9 +21,9 @@ import zio.internal.metrics._
 package object metrics {
   private[zio] def unsafeGetMetricHook[Type <: MetricKeyType](key: Type): MetricHook[key.In, key.Out] = ???
 
-  def updateMetric[Type <: MetricKeyType, In, Out](key: MetricKey2[Type, In, Out], value: In): UIO[Unit] =
+  def updateMetric[Type <: MetricKeyType, In, Out](key: MetricKey[Type, In, Out], value: In): UIO[Unit] =
     ZIO.succeed(key.metricHook.update(value))
 
-  def getMetric[Type <: MetricKeyType, In, Out](key: MetricKey2[Type, In, Out]): UIO[Out] =
+  def getMetric[Type <: MetricKeyType, In, Out](key: MetricKey[Type, In, Out]): UIO[Out] =
     ZIO.succeed(key.metricHook.get())
 }

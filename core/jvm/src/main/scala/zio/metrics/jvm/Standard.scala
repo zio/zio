@@ -1,6 +1,6 @@
 package zio.metrics.jvm
 
-import zio.ZIOMetric.Gauge
+import zio.metrics.ZIOMetric
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -10,32 +10,34 @@ import java.nio.charset.StandardCharsets
 import scala.util.{Failure, Success, Try}
 
 trait Standard extends JvmMetrics {
+  import ZIOMetric.Gauge
+
   override type Feature = Standard
   override val featureTag = Tag[Standard]
 
   /** Total user and system CPU time spent in seconds. */
   private val cpuSecondsTotal: Gauge[Long] =
-    ZIOMetric.setGaugeWith("process_cpu_seconds_total")(_.toDouble / 1.0e09)
+    ZIOMetric.gauge("process_cpu_seconds_total").contramap(_.toDouble / 1.0e09)
 
   /** Start time of the process since unix epoch in seconds. */
   private val processStartTime: Gauge[Long] =
-    ZIOMetric.setGaugeWith("process_start_time_seconds")(_.toDouble / 1000.0)
+    ZIOMetric.gauge("process_start_time_seconds").contramap(_.toDouble / 1000.0)
 
   /** Number of open file descriptors. */
   private val openFdCount: Gauge[Long] =
-    ZIOMetric.setGaugeWith("process_open_fds")(_.toDouble)
+    ZIOMetric.gauge("process_open_fds").contramap(_.toDouble)
 
   /** Maximum number of open file descriptors. */
   private val maxFdCount: Gauge[Long] =
-    ZIOMetric.setGaugeWith("process_max_fds")(_.toDouble)
+    ZIOMetric.gauge("process_max_fds").contramap(_.toDouble)
 
   /** Virtual memory size in bytes. */
   private val virtualMemorySize: Gauge[Double] =
-    ZIOMetric.setGauge("process_virtual_memory_bytes")
+    ZIOMetric.gauge("process_virtual_memory_bytes")
 
   /** Resident memory size in bytes. */
   private val residentMemorySize: Gauge[Double] =
-    ZIOMetric.setGauge("process_resident_memory_bytes")
+    ZIOMetric.gauge("process_resident_memory_bytes")
 
   class MXReflection(getterName: String, obj: PlatformManagedObject) {
     private val cls: Class[_ <: PlatformManagedObject] = obj.getClass

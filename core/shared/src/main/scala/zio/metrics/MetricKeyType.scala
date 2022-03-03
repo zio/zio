@@ -17,30 +17,86 @@
 package zio.metrics
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 sealed trait MetricKeyType {
   type In
   type Out
+
+  def fold[Z](
+    isCounter: (In => Double, Out => MetricState.Counter) => Z,
+    isGauge: (In => Double, Out => MetricState.Gauge) => Z,
+    isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
+    isSummary: (In => Double, Out => MetricState.Summary) => Z,
+    isSetCount: (In => String, Out => MetricState.SetCount) => Z
+  ): Z
 }
 object MetricKeyType {
   type Counter = Counter.type
 
   case object Counter extends MetricKeyType {
     type In  = Double
-    type Out = MetricState2.Counter
+    type Out = MetricState.Counter
+
+    def fold[Z](
+      isCounter: (In => Double, Out => MetricState.Counter) => Z,
+      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
+      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
+      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSetCount: (In => String, Out => MetricState.SetCount) => Z
+    ): Z = isCounter(identity(_), identity(_))
   }
 
   type Gauge = Gauge.type
   case object Gauge extends MetricKeyType {
     type In  = Double
-    type Out = MetricState2.Gauge
+    type Out = MetricState.Gauge
+
+    def fold[Z](
+      isCounter: (In => Double, Out => MetricState.Counter) => Z,
+      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
+      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
+      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSetCount: (In => String, Out => MetricState.SetCount) => Z
+    ): Z = isGauge(identity(_), identity(_))
   }
 
   final case class Histogram(
-    boundaries: ZIOMetric.Histogram.Boundaries
+    boundaries: Histogram.Boundaries
   ) extends MetricKeyType {
     type In  = Double
-    type Out = MetricState2.Histogram
+    type Out = MetricState.Histogram
+
+    def fold[Z](
+      isCounter: (In => Double, Out => MetricState.Counter) => Z,
+      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
+      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
+      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSetCount: (In => String, Out => MetricState.SetCount) => Z
+    ): Z = isHistogram(identity(_), identity(_))
+  }
+
+  object Histogram {
+    final case class Boundaries(values: Chunk[Double])
+
+    object Boundaries {
+
+      def fromChunk(chunk: Chunk[Double]): Boundaries = Boundaries((chunk ++ Chunk(Double.MaxValue)).distinct)
+
+      /**
+       * A helper method to create histogram bucket boundaries for a histogram
+       * with linear increasing values
+       */
+      def linear(start: Double, width: Double, count: Int): Boundaries =
+        fromChunk(Chunk.fromArray(0.until(count).map(i => start + i * width).toArray))
+
+      /**
+       * A helper method to create histogram bucket boundaries for a histogram
+       * with exponentially increasing values
+       */
+      def exponential(start: Double, factor: Double, count: Int): Boundaries =
+        fromChunk(Chunk.fromArray(0.until(count).map(i => start * Math.pow(factor, i.toDouble)).toArray))
+    }
   }
 
   final case class Summary(
@@ -50,11 +106,27 @@ object MetricKeyType {
     quantiles: Chunk[Double]
   ) extends MetricKeyType {
     type In  = Double
-    type Out = MetricState2.Summary
+    type Out = MetricState.Summary
+
+    def fold[Z](
+      isCounter: (In => Double, Out => MetricState.Counter) => Z,
+      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
+      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
+      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSetCount: (In => String, Out => MetricState.SetCount) => Z
+    ): Z = isSummary(identity(_), identity(_))
   }
 
   final case class SetCount(setTag: String) extends MetricKeyType {
     type In  = String
-    type Out = MetricState2.SetCount
+    type Out = MetricState.SetCount
+
+    def fold[Z](
+      isCounter: (In => Double, Out => MetricState.Counter) => Z,
+      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
+      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
+      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSetCount: (In => String, Out => MetricState.SetCount) => Z
+    ): Z = isSetCount(identity(_), identity(_))
   }
 }
