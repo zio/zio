@@ -433,11 +433,9 @@ ZIO guarantees that no errors are lost. It has a _lossless error model_. This gu
 
 | Function              | Input Type                                              | Output Type       |
 |-----------------------|---------------------------------------------------------|-------------------|
-| `ZIO#catchAll`        | `E => ZIO[R1, E2, A1]`                                  | `ZIO[R1, E2, A1]` |
 | `ZIO#catchAllCause`   | `Cause[E] => ZIO[R1, E2, A1]`                           | `ZIO[R1, E2, A1]` |
 | `ZIO#catchAllDefect`  | `Throwable => ZIO[R1, E1, A1]`                          | `ZIO[R1, E1, A1]` |
 | `ZIO#catchAllTrace`   | `((E, Option[ZTrace])) => ZIO[R1, E2, A1]`              | `ZIO[R1, E2, A1]` |
-| `ZIO#catchSome`       | `PartialFunction[E, ZIO[R1, E1, A1]]`                   | `ZIO[R1, E1, A1]` |
 | `ZIO#catchSomeCause`  | `PartialFunction[Cause[E], ZIO[R1, E1, A1]]`            | `ZIO[R1, E1, A1]` |
 | `ZIO#catchSomeDefect` | `PartialFunction[Throwable, ZIO[R1, E1, A1]]`           | `ZIO[R1, E1, A1]` |
 | `ZIO#catchSomeTrace`  | `PartialFunction[(E, Option[ZTrace]), ZIO[R1, E1, A1]]` | `ZIO[R1, E1, A1]` |
@@ -555,9 +553,27 @@ The `ZIO#catchSome` cannot eliminate the error type, although it can widen the e
 
 #### Catching Defects
 
-1. **`ZIO#catchAllDefect`**— 
+Like catching failures, ZIO has two operators to catch _defects_: `ZIO#catchAllDefect` and `ZIO#catchSomeDefect`. Let's try the former one:
 
-2. **`ZIO#catchSomeDefect`**—
+```scala mdoc:compile-only
+import zio._
+
+ZIO.dieMessage("Boom!")
+  .catchAllDefect {
+    case e: RuntimeException if e.getMessage == "Boom!" =>
+      ZIO.debug("Boom! defect caught.")
+    case _: NumberFormatException =>
+      ZIO.debug("NumberFormatException defect caught.")
+    case _ =>
+      ZIO.debug("Unknown defect caught.")
+  } 
+```
+
+We should note that using these operators, we can only recover from a dying effect, and it cannot recover from a failure or fiber interruption.
+
+A defect is an error that cannot be anticipated in advance, and there is no way to respond to it. Our rule of thumb is to not recover defects since we don't know about them. We let them crash the application.
+
+Although, in some cases, we might need to reload a part of the application instead of killing the entire application. Assume we have written an application that can load plugins at runtime. During the runtime of the plugins, if a defect occurs, we don't want to crash the entire application; rather, we log all defects and then reload the plugin.
 
 ### 2. Fallback
 
