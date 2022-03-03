@@ -434,10 +434,8 @@ ZIO guarantees that no errors are lost. It has a _lossless error model_. This gu
 | Function              | Input Type                                              | Output Type       |
 |-----------------------|---------------------------------------------------------|-------------------|
 | `ZIO#catchAllCause`   | `Cause[E] => ZIO[R1, E2, A1]`                           | `ZIO[R1, E2, A1]` |
-| `ZIO#catchAllDefect`  | `Throwable => ZIO[R1, E1, A1]`                          | `ZIO[R1, E1, A1]` |
 | `ZIO#catchAllTrace`   | `((E, Option[ZTrace])) => ZIO[R1, E2, A1]`              | `ZIO[R1, E2, A1]` |
 | `ZIO#catchSomeCause`  | `PartialFunction[Cause[E], ZIO[R1, E1, A1]]`            | `ZIO[R1, E1, A1]` |
-| `ZIO#catchSomeDefect` | `PartialFunction[Throwable, ZIO[R1, E1, A1]]`           | `ZIO[R1, E1, A1]` |
 | `ZIO#catchSomeTrace`  | `PartialFunction[(E, Option[ZTrace]), ZIO[R1, E1, A1]]` | `ZIO[R1, E1, A1]` |
 
 #### Catching Failures
@@ -574,6 +572,39 @@ We should note that using these operators, we can only recover from a dying effe
 A defect is an error that cannot be anticipated in advance, and there is no way to respond to it. Our rule of thumb is to not recover defects since we don't know about them. We let them crash the application.
 
 Although, in some cases, we might need to reload a part of the application instead of killing the entire application. Assume we have written an application that can load plugins at runtime. During the runtime of the plugins, if a defect occurs, we don't want to crash the entire application; rather, we log all defects and then reload the plugin.
+
+#### Catching Causes
+
+So far, we have only studied how to catch _failures_ and _defects_. But what about _fiber interruptions_ or how about the specific combination of these errors?
+
+With the help of the `ZIO#catchAllCause` operator we can catch all errors of an effect and recover from them:
+
+```scala mdoc:compile-only
+import zio._
+
+val exceptionalEffect = ZIO.attempt(???)
+
+exceptionalEffect.catchAllCause {
+  case Cause.Empty =>
+    ZIO.debug("no error caught")
+  case Cause.Fail(value, _) =>
+    ZIO.debug(s"a failure caught: $value")
+  case Cause.Die(value, _) =>
+    ZIO.debug(s"a defect caught: $value")
+  case Cause.Interrupt(fiberId, _) =>
+    ZIO.debug(s"a fiber interruption caught with the fiber id: $fiberId")
+  case Cause.Stackless(cause: Cause.Die, _) =>
+    ZIO.debug(s"a stackless defect caught: ${cause.value}")
+  case Cause.Stackless(cause: Cause[_], _) =>
+    ZIO.debug(s"an unknown stackless defect caught: ${cause.squashWith(identity)}")
+  case Cause.Then(left, right) =>
+    ZIO.debug(s"two consequence causes caught")
+  case Cause.Both(left, right) =>
+    ZIO.debug(s"two parallel causes caught")
+}
+```
+
+Additionally, there is a partial version of this operator called `ZIO#catchSomeCause`, which can be used when we don't want to catch all causes, but some of them.
 
 ### 2. Fallback
 
