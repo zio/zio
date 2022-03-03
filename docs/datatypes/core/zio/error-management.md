@@ -444,7 +444,7 @@ ZIO guarantees that no errors are lost. It has a _lossless error model_. This gu
 
 #### Catching Failures
 
-1. **`ZIO#catchAll`**— If we want to catch and recover from all types of errors and effectfully attempt recovery, we can use the `catchAll` method:
+1. **`ZIO#catchAll`**— If we want to catch and recover from all _typed error_ and effectfully attempt recovery, we can use the `catchAll` method:
 
 ```scala mdoc:invisible
 import java.io.{ FileNotFoundException, IOException }
@@ -501,6 +501,44 @@ object MainApp extends ZIOAppDefault {
 //	at zio.internal.FiberContext.runUntil(FiberContext.scala:538)"
 ```
 
+Another important note about `ZIO#catchAll` is that this operator only can recover from _failures_. So it can't recover from defects or fiber interruptions.
+
+Let's try what happens if we `catchAll` on a dying effect:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val die: ZIO[Any, String, Nothing] = 
+    ZIO.dieMessage("Boom!") *> ZIO.fail("Oh uh!") 
+  
+  def run = die.catchAll(_ => ZIO.unit)
+}
+
+// Output:
+// timestamp=2022-03-03T11:04:41.209169849Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.RuntimeException: Boom!
+// 	at <empty>.MainApp.die(MainApp.scala:6)
+//	at <empty>.MainApp.run(MainApp.scala:8)"
+```
+
+Also, if we have a fiber interruption, we can't catch that using this operator:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val interruptedEffect: ZIO[Any, String, Nothing] =
+    ZIO.interrupt *> ZIO.fail("Oh uh!")
+
+  def run = interruptedEffect.catchAll(_ => ZIO.unit)
+}
+
+// Output:
+// timestamp=2022-03-03T11:10:15.573588420Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.InterruptedException: Interrupted by thread "zio-fiber-"
+//	at <empty>.MainApp.die(MainApp.scala:6)
+//	at <empty>.MainApp.run(MainApp.scala:8)"
+```
+
 2. **`ZIO#catchSome`**— If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `catchSome` method:
 
 ```scala mdoc:compile-only
@@ -517,9 +555,9 @@ The `ZIO#catchSome` cannot eliminate the error type, although it can widen the e
 
 #### Catching Defects
 
-##### Catching All Defects
+1. **`ZIO#catchAllDefect`**— 
 
-##### Catching Some Defects
+2. **`ZIO#catchSomeDefect`**—
 
 ### 2. Fallback
 
