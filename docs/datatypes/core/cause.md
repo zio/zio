@@ -70,7 +70,39 @@ ZIO.succeed(5).cause.debug
 // Empty
 ```
 
-2. `Fail[+E](value: E)`— contains the cause of expected failure of type `E`.
+2. `Cause.fail`— Creates a failure cause which indicates the cause of an expected error of type `E`:
+
+```scala mdoc:compile-only
+import zio._
+
+ZIO.failCause(Cause.fail("Oh uh!")).cause.debug
+// Fail(Oh uh!,ZTrace(Runtime(2,1646395282),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+```
+
+Let's uncover the cause of some ZIO effects especially when we combine them:
+
+```scala mdoc:compile-only
+import zio._
+
+ZIO.fail("Oh uh!").cause.debug
+// Fail(Oh uh!,ZTrace(Runtime(2,1646395627),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+
+(ZIO.fail("Oh uh!") *> ZIO.dieMessage("Boom!") *> ZIO.interrupt).cause.debug
+// Fail(Oh uh!,ZTrace(Runtime(2,1646396370),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+
+(ZIO.fail("Oh uh!") <*> ZIO.fail("Oh Error!")).cause.debug
+// Fail(Oh uh!,ZTrace(Runtime(2,1646396419),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+
+val myApp: ZIO[Any, String, Int] =
+  for {
+    i <- ZIO.succeed(5)
+    _ <- ZIO.fail("Oh uh!")
+    - <- ZIO.dieMessage("Boom!")
+    _ <- ZIO.interrupt
+  } yield i 
+myApp.cause.debug
+// Fail(Oh uh!,ZTrace(Runtime(2,1646397126),Chunk(<empty>.MainApp.myApp(MainApp.scala:7),<empty>.MainApp.run(MainApp.scala:13))))
+```
 
 3. `Die(value: Throwable)` contains the cause of a defect or in other words, an unexpected failure of type `Throwable`. If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`.
 
