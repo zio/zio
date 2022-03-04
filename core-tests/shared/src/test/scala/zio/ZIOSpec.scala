@@ -2671,6 +2671,28 @@ object ZIOSpec extends ZIOBaseSpec {
           b      <- effect.await
         } yield assert(b)(equalTo(42))
       } @@ zioTag(interruption),
+      testM("raceAllFirst interrupts losers on success") {
+        for {
+          s      <- Promise.make[Nothing, Unit]
+          effect <- Promise.make[Nothing, Int]
+          winner  = s.await *> IO.fromEither(Right(()))
+          losers  = List(ZIO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity))
+          race    = ZIO.raceFirst(winner, losers)
+          _      <- race
+          b      <- effect.await
+        } yield assert(b)(equalTo(42))
+      } @@ zioTag(interruption),
+      testM("raceAllFirst interrupts losers on failure") {
+        for {
+          s      <- Promise.make[Nothing, Unit]
+          effect <- Promise.make[Nothing, Int]
+          winner  = s.await *> IO.fromEither(Left(new Exception))
+          losers  = List(ZIO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity))
+          race    = ZIO.raceFirst(winner, losers)
+          _      <- race.either
+          b      <- effect.await
+        } yield assert(b)(equalTo(42))
+      } @@ zioTag(interruption),
       testM("mergeAll") {
         val io = IO.mergeAll(List("a", "aa", "aaa", "aaaa").map(IO.succeed[String](_)))(0)((b, a) => b + a.length)
 
