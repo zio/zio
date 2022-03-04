@@ -55,6 +55,17 @@ object ZIOAppSpec extends ZIOBaseSpec {
         c <- app1.invoke(Chunk.empty).exitCode
         v <- ZIO.succeed(counter.get())
       } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
+    },
+    test("execution of finalizers on interruption") {
+      val counter = new java.util.concurrent.atomic.AtomicInteger(0)
+
+      val app = ZIOAppDefault.fromZIO(ZIO.never.ensuring(ZIO.succeed(counter.incrementAndGet())))
+
+      for {
+        fiber <- app.invoke(Chunk.empty).fork
+        _     <- fiber.interrupt
+        _     <- fiber.await
+      } yield assertTrue(counter.get() == 1)
     }
   )
 }
