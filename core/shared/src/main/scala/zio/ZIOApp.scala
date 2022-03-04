@@ -90,13 +90,12 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
           layer +!+ ZLayer.environment[ZEnv with ZIOAppArgs]
 
       for {
-        _          <- installSignalHandlers
-        newRuntime <- ZIO.runtime[ZEnv].map(_.mapRuntimeConfig(hook))
-        result     <- newRuntime.run(run.provideLayer(newLayer))
+        _      <- installSignalHandlers
+        result <- run.provideLayer(newLayer)
       } yield result
     }
 
-  def runtime: Runtime[ZEnv] = Runtime.default
+  def runtime: Runtime[ZEnv] = Runtime.default.mapRuntimeConfig(hook)
 
   protected def installSignalHandlers(implicit trace: ZTraceElement): UIO[Any] =
     ZIO.attempt {

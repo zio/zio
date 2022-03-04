@@ -52,7 +52,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
       val app1 = ZIOAppDefault(ZIO.fail("Uh oh!"), RuntimeConfigAspect.addLogger(logger1))
 
       for {
-        c <- app1.invoke(Chunk.empty).exitCode
+        c <- ZIO.done(app1.runtime.unsafeRunSync(app1.invoke(Chunk.empty))).exitCode
         v <- ZIO.succeed(counter.get())
       } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
     },
@@ -63,8 +63,8 @@ object ZIOAppSpec extends ZIOBaseSpec {
 
       for {
         fiber <- app.invoke(Chunk.empty).fork
-        _     <- fiber.interrupt
-        _     <- fiber.await
+        _     <- Live.live(fiber.interrupt.delay(10.millis))
+        _     <- fiber.join.exitCode
       } yield assertTrue(counter.get() == 1)
     }
   )
