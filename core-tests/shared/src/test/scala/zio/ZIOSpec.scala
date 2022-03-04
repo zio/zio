@@ -2677,7 +2677,7 @@ object ZIOSpec extends ZIOBaseSpec {
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> IO.fromEither(Right(()))
           losers  = List(ZIO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity))
-          race    = winner raceAllFirst losers
+          race    = ZIO.raceFirst(winner, losers)
           _      <- race
           b      <- effect.await
         } yield assert(b)(equalTo(42))
@@ -2688,7 +2688,7 @@ object ZIOSpec extends ZIOBaseSpec {
           effect <- Promise.make[Nothing, Int]
           winner  = s.await *> IO.fromEither(Left(new Exception))
           losers  = List(ZIO.bracket(s.succeed(()))(_ => effect.succeed(42))(_ => ZIO.infinity))
-          race    = winner raceAllFirst losers
+          race    = ZIO.raceFirst(winner, losers)
           _      <- race.either
           b      <- effect.await
         } yield assert(b)(equalTo(42))

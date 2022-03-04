@@ -1467,21 +1467,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     (self.run race that.run).flatMap(ZIO.done(_)).refailWithTrace
 
   /**
-   * Returns an effect that races this effect with all the specified effects,
-   * yielding the first result to complete, whether by success or failure. If
-   * neither effect completes, then the composed effect will not complete.
-   *
-   * WARNING: The raced effect will safely interrupt the "losers", but will not
-   * resume until the losers has been cleanly terminated. If early return is
-   * desired, then instead of performing `l raceAllFirst rs`, perform
-   * `l.disconnect raceAllFirst rs.map(_.disconnect)`, which disconnects
-   * left and rights interrupt signal, allowing a fast return, with interruption
-   * performed in the background.
-   */
-  final def raceAllFirst[R1 <: R, E1 >: E, A1 >: A](ios: Iterable[ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] =
-    (self.run raceAll ios.map(_.run)).flatMap(ZIO.done(_)).refailWithTrace
-
-  /**
    * Returns an effect that races this effect with the specified effect,
    * yielding the first result to succeed. If neither effect succeeds, then the
    * composed effect will fail with some error.
@@ -3898,6 +3883,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ios: Iterable[ZIO[R1, E, A]]
   ): ZIO[R1, E, A] =
     zio.raceAll(ios)
+
+  /**
+   * Returns an effect that races this effect with all the specified effects,
+   * yielding the first result to complete, whether by success or failure. If
+   * neither effect completes, then the composed effect will not complete.
+   *
+   * WARNING: The raced effect will safely interrupt the "losers", but will not
+   * resume until the losers has been cleanly terminated. If early return is
+   * desired, then instead of performing `l raceAllFirst rs`, perform
+   * `l.disconnect raceAllFirst rs.map(_.disconnect)`, which disconnects left
+   * and rights interrupt signal, allowing a fast return, with interruption
+   * performed in the background.
+   */
+  def raceFirst[R, R1 <: R, E, A](zio: ZIO[R, E, A], ios: Iterable[ZIO[R1, E, A]]): ZIO[R1, E, A] =
+    (zio.run raceAll ios.map(_.run)).flatMap(ZIO.done(_)).refailWithTrace
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
