@@ -3890,9 +3890,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * neither effect completes, then the composed effect will not complete.
    *
    * WARNING: The raced effect will safely interrupt the "losers", but will not
-   * resume until the losers has been cleanly terminated. If early return is
-   * desired, then instead of performing `l raceAllFirst rs`, perform
-   * `l.disconnect raceAllFirst rs.map(_.disconnect)`, which disconnects left
+   * resume until the losers have been cleanly terminated. If early return is
+   * desired, then instead of performing `ZIO.raceFirst(l, rs)`, perform
+   * `ZIO.raceFirst(l.disconnect, rs.map(_.disconnect))`, which disconnects left
    * and rights interrupt signal, allowing a fast return, with interruption
    * performed in the background.
    */
