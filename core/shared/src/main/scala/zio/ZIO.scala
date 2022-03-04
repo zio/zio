@@ -1474,7 +1474,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * WARNING: The raced effect will safely interrupt the "losers", but will not
    * resume until the losers has been cleanly terminated. If early return is
    * desired, then instead of performing `l raceAllFirst rs`, perform
-   * `l.disconnect raceAllFirst rs.flatMap(_.disconnect)`, which disconnects
+   * `l.disconnect raceAllFirst rs.map(_.disconnect)`, which disconnects
    * left and rights interrupt signal, allowing a fast return, with interruption
    * performed in the background.
    */
