@@ -431,16 +431,17 @@ ZIO guarantees that no errors are lost. It has a _lossless error model_. This gu
 
 ### 1. Catching
 
-| Function              | Input Type                                              | Output Type       |
-|-----------------------|---------------------------------------------------------|-------------------|
-| `ZIO#catchAllCause`   | `Cause[E] => ZIO[R1, E2, A1]`                           | `ZIO[R1, E2, A1]` |
-| `ZIO#catchAllTrace`   | `((E, Option[ZTrace])) => ZIO[R1, E2, A1]`              | `ZIO[R1, E2, A1]` |
-| `ZIO#catchSomeCause`  | `PartialFunction[Cause[E], ZIO[R1, E1, A1]]`            | `ZIO[R1, E1, A1]` |
-| `ZIO#catchSomeTrace`  | `PartialFunction[(E, Option[ZTrace]), ZIO[R1, E1, A1]]` | `ZIO[R1, E1, A1]` |
-
 #### Catching Failures
 
-1. **`ZIO#catchAll`**— If we want to catch and recover from all _typed error_ and effectfully attempt recovery, we can use the `catchAll` method:
+If we want to catch and recover from all _typed error_ and effectfully attempt recovery, we can use the `ZIO#catchAll` operator:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def catchAll[R1 <: R, E2, A1 >: A](h: E => ZIO[R1, E2, A1]): ZIO[R1, E2, A1]
+}
+```
+
+We can recover from all errors while reading a file and then fallback to another operation:
 
 ```scala mdoc:invisible
 import java.io.{ FileNotFoundException, IOException }
@@ -457,9 +458,9 @@ val z: ZIO[Any, IOException, Array[Byte]] =
     readFile("backup.json"))
 ```
 
-In the callback passed to `catchAll`, we may return an effect with a different error type (or perhaps `Nothing`), which will be reflected in the type of effect returned by `catchAll`.
+In the callback passed to `ZIO#catchAll`, we may return an effect with a different error type (or perhaps `Nothing`), which will be reflected in the type of effect returned by `ZIO#catchAll`.
 
-When using `ZIO#catchAll` the match cases should be exhaustive:
+When using this operator, the match cases should be exhaustive:
 
 ```scala mdoc:compile-only
 val result: ZIO[Any, Nothing, Int] =
@@ -472,7 +473,7 @@ val result: ZIO[Any, Nothing, Int] =
   }
 ```
 
-The `ZIO#catchAll` operator converts an exceptional effect into an unexceptional effect. Therefore, if we forget to catch all cases if the match fails, the original **failure** will be lost and replaced by a `MatchError` **defect**:
+If we forget to catch all cases and the match fails, the original **failure** will be lost and replaced by a `MatchError` **defect**:
 
 ```scala mdoc:compile-only
 object MainApp extends ZIOAppDefault {
@@ -535,7 +536,17 @@ object MainApp extends ZIOAppDefault {
 //	at <empty>.MainApp.run(MainApp.scala:8)"
 ```
 
-2. **`ZIO#catchSome`**— If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `catchSome` method:
+If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `catchSome` method:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def catchSome[R1 <: R, E1 >: E, A1 >: A](
+    pf: PartialFunction[E, ZIO[R1, E1, A1]]
+  ): ZIO[R1, E1, A1]
+}
+```
+
+Now we can do the same:
 
 ```scala mdoc:compile-only
 import zio._
@@ -605,6 +616,41 @@ exceptionalEffect.catchAllCause {
 ```
 
 Additionally, there is a partial version of this operator called `ZIO#catchSomeCause`, which can be used when we don't want to catch all causes, but some of them.
+
+#### Catching Traces
+
+The two `ZIO#catchAllTrace` and `ZIO#catchSomeTrace` operators are useful to catch the typed error as well as stack traces of exceptional effects:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def catchAllTrace[R1 <: R, E2, A1 >: A](
+    h: ((E, ZTrace)) => ZIO[R1, E2, A1]
+  ): ZIO[R1, E2, A1]
+  
+  def catchSomeTrace[R1 <: R, E1 >: E, A1 >: A](
+    pf: PartialFunction[(E, ZTrace), ZIO[R1, E1, A1]]
+  ): ZIO[R1, E1, A1]
+}
+```
+
+In the below example, let's try to catch a failure on the line number 4:
+
+```scala mdoc:compile-only
+import zio._
+
+ZIO
+  .fail("Oh uh!")
+  .catchAllTrace {
+    case ("Oh uh!", trace)
+      if trace.toJava
+        .map(_.getLineNumber)
+        .headOption
+        .contains(4) =>
+      ZIO.debug("caught a failure on the line number 4")
+    case _ =>
+      ZIO.debug("caught other failures")
+  }
+```
 
 ### 2. Fallback
 
