@@ -329,7 +329,7 @@ import zio._
 
 val myApp: ZIO[Any, String, Int] =
   for {
-    f <- validateNonNegativeNumber(5).fork
+    f <- validateNonNegativeNumber("5").fork
     _ <- f.interrupt
     r <- f.join
   } yield r
