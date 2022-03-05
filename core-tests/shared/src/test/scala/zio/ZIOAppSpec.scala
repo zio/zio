@@ -49,23 +49,24 @@ object ZIOAppSpec extends ZIOBaseSpec {
         }
       }
 
-      val app1 = ZIOAppDefault(ZIO.fail("Uh oh!"), RuntimeConfigAspect.addLogger(logger1))
+      val app1 = ZIOAppDefault(ZIO.logInfo("") *> ZIO.fail("Uh oh!"), RuntimeConfigAspect.addLogger(logger1))
 
       for {
-        c <- ZIO.done(app1.runtime.unsafeRunSync(app1.invoke(Chunk.empty))).exitCode
+        c <- app1.invoke(Chunk.empty).exitCode
         v <- ZIO.succeed(counter.get())
       } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
     },
     test("execution of finalizers on interruption") {
-      val counter = new java.util.concurrent.atomic.AtomicInteger(0)
-
-      val app = ZIOAppDefault.fromZIO(ZIO.never.ensuring(ZIO.succeed(counter.incrementAndGet())))
-
+      val finalized = new java.util.concurrent.atomic.AtomicBoolean(false)
       for {
-        fiber <- app.invoke(Chunk.empty).fork
-        _     <- Live.live(fiber.interrupt.delay(10.millis))
-        _     <- fiber.join.exitCode
-      } yield assertTrue(counter.get() == 1)
+        running <- Promise.make[Nothing, Unit]
+        effect   = (running.succeed(()) *> ZIO.never).ensuring(ZIO.succeed(finalized.set(true)))
+        app      = ZIOAppDefault.fromZIO(effect)
+        fiber   <- app.invoke(Chunk.empty).fork
+        _       <- running.await
+        _       <- fiber.interrupt
+        _       <- fiber.join.exitCode
+      } yield assertTrue(finalized.get())
     }
   )
 }
