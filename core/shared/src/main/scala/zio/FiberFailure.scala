@@ -36,4 +36,7 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, t
     if (getSuppressed().length == 0) {
       cause.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
     }
+
+  override def toString =
+    cause.prettyPrint
 }
