@@ -77,13 +77,13 @@ Let's uncover the cause of some ZIO effects especially when we combine them:
 import zio._
 
 ZIO.fail("Oh uh!").cause.debug
-// Fail(Oh uh!,ZTrace(Runtime(2,1646395627),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+// Fail(Oh uh!,ZTrace(Runtime(2,1646395627),Chunk(<empty>.MainApp.run(MainApp.scala:3))))
 
 (ZIO.fail("Oh uh!") *> ZIO.dieMessage("Boom!") *> ZIO.interrupt).cause.debug
-// Fail(Oh uh!,ZTrace(Runtime(2,1646396370),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+// Fail(Oh uh!,ZTrace(Runtime(2,1646396370),Chunk(<empty>.MainApp.run(MainApp.scala:6))))
 
 (ZIO.fail("Oh uh!") <*> ZIO.fail("Oh Error!")).cause.debug
-// Fail(Oh uh!,ZTrace(Runtime(2,1646396419),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+// Fail(Oh uh!,ZTrace(Runtime(2,1646396419),Chunk(<empty>.MainApp.run(MainApp.scala:9))))
 
 val myApp: ZIO[Any, String, Int] =
   for {
@@ -93,7 +93,7 @@ val myApp: ZIO[Any, String, Int] =
     _ <- ZIO.interrupt
   } yield i 
 myApp.cause.debug
-// Fail(Oh uh!,ZTrace(Runtime(2,1646397126),Chunk(<empty>.MainApp.myApp(MainApp.scala:7),<empty>.MainApp.run(MainApp.scala:13))))
+// Fail(Oh uh!,ZTrace(Runtime(2,1646397126),Chunk(<empty>.MainApp.myApp(MainApp.scala:13),<empty>.MainApp.run(MainApp.scala:17))))
 ```
 
 ### Die
@@ -104,7 +104,7 @@ The `Die` cause indicates a defect or in other words, an unexpected failure of t
 import zio._
 
 ZIO.failCause(Cause.die(new Throwable("Boom!"))).cause.debug
-// Die(java.lang.Throwable: Boom!,ZTrace(Runtime(2,1646479908),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+// Die(java.lang.Throwable: Boom!,ZTrace(Runtime(2,1646479908),Chunk(<empty>.MainApp.run(MainApp.scala:3))))
 ```
 
 If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`. Let try to investigate some ZIO codes that will die:
@@ -113,10 +113,10 @@ If we have a bug in our code and something throws an unexpected exception, that 
 import zio._
 
 ZIO.succeed(5 / 0).cause.debug
-// Die(java.lang.ArithmeticException: / by zero,ZTrace(Runtime(2,1646480112),Chunk(zio.internal.FiberContext.runUntil(FiberContext.scala:538),<empty>.MainApp.run(MainApp.scala:4))))
+// Die(java.lang.ArithmeticException: / by zero,ZTrace(Runtime(2,1646480112),Chunk(zio.internal.FiberContext.runUntil(FiberContext.scala:538),<empty>.MainApp.run(MainApp.scala:3))))
 
 ZIO.dieMessage("Boom!").cause.debug
-// Stackless(Die(java.lang.RuntimeException: Boom!,ZTrace(Runtime(2,1646398246),Chunk(<empty>.MainApp.run(MainApp.scala:5)))),true)
+// Stackless(Die(java.lang.RuntimeException: Boom!,ZTrace(Runtime(2,1646398246),Chunk(<empty>.MainApp.run(MainApp.scala:7)))),true)
 ```
 
 It is worth noting that the latest example is wrapped by the `Stackless` cause in the previous example. We will discuss the `Stackeless` further, but for now, it is enough to know that the `Stackeless` include fewer stack traces for the `Die` cause.
@@ -129,7 +129,7 @@ The `Interrupt` cause indicates a fiber interruption which contains information 
 import zio._
 
 ZIO.interrupt.cause.debug
-// Interrupt(Runtime(2,1646471715),ZTrace(Runtime(2,1646471715),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+// Interrupt(Runtime(2,1646471715),ZTrace(Runtime(2,1646471715),Chunk(<empty>.MainApp.run(MainApp.scala:3))))
 
 ZIO.never.fork
   .flatMap(f => f.interrupt *> f.join)
@@ -148,14 +148,14 @@ For example, the `ZIO.dieMessage` uses the `Stackless`:
 import zio._
 
 ZIO.dieMessage("Boom!").cause.debug
-// Stackless(Die(java.lang.RuntimeException: Boom!,ZTrace(Runtime(2,1646477970),Chunk(<empty>.MainApp.run(MainApp.scala:23)))),true)
+// Stackless(Die(java.lang.RuntimeException: Boom!,ZTrace(Runtime(2,1646477970),Chunk(<empty>.MainApp.run(MainApp.scala:3)))),true)
 ```
 
 So when we run it the following stack traces will be printed:
 
 ```scala
 timestamp=2022-03-05T11:08:19.530710679Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.RuntimeException: Boom!
-at <empty>.MainApp.run(MainApp.scala:4)"
+at <empty>.MainApp.run(MainApp.scala:3)"
 ```
 
 While the `ZIO.die` doesn't use `Stackless` cause:
@@ -164,7 +164,7 @@ While the `ZIO.die` doesn't use `Stackless` cause:
 import zio._
 
 ZIO.die(new Throwable("Boom!")).cause.debug
-// Die(java.lang.Exception: Boom!,ZTrace(Runtime(2,1646479093),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
+// Die(java.lang.Exception: Boom!,ZTrace(Runtime(2,1646479093),Chunk(<empty>.MainApp.run(MainApp.scala:3))))
 ```
 
 So it prints the full stack trace:
