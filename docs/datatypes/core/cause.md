@@ -5,11 +5,13 @@ title: "Cause"
 
 The `ZIO[R, E, A]` effect is polymorphic in values of type `E` and we can work with any error type that we want, but there is a lot of information that is not inside an arbitrary `E` value. So as a result ZIO needs somewhere to store things like **unexpected error or defects**, **stack and execution traces**, **cause of fiber interruptions**, and so forth.
 
-ZIO is very aggressive about preserving the full information related to a failure. It captures all type of errors into the `Cause` data type. So its error model is **lossless**. It doesn't throw information related to the failure result. So we can figure out exactly what happened during the operation of our effects.
-
-ZIO uses the `Cause[E]` data type to store the full story of failure. ZIO uses a data structure from functional programming called a _semiring_ for the `Cause` data type. **It allows us to take a base type `E` that represents the error type and then capture the sequential and parallel composition of errors in a fully lossless fashion**.
+ZIO is very aggressive about preserving the full information related to a failure. It captures all type of errors into the `Cause` data type. ZIO uses the `Cause[E]` data type to store the full story of failure. So its error model is **lossless**. It doesn't throw information related to the failure result. So we can figure out exactly what happened during the operation of our effects.
 
 It is important to note that `Cause` is the underlying data type for the ZIO data type, and we don't usually deal with it directly. Even though it is not a data type that we deal with very often, anytime we want, we can access the `Cause` data structure, which gives us total access to all parallel and sequential errors in our codebase. 
+
+## Cause Internals
+
+ZIO uses a data structure from functional programming called a _semiring_ for the `Cause` data type. **It allows us to take a base type `E` that represents the error type and then capture the sequential and parallel composition of errors in a fully lossless fashion**.
 
 The following snippet shows how the `Cause` is designed as a semiring data structure:
 
