@@ -25,6 +25,8 @@ We can call `run` on our effect to determine the Success or Failure of our fiber
 import zio._
 import zio.Console._
 
+import java.io.IOException
+
 val result: ZIO[Console, IOException, Unit] = 
   for {
     successExit <- ZIO.succeed(1).exit
