@@ -212,9 +212,6 @@ module.exports = {
   },
   "howto-sidebar": {
     "Overview": ["howto/index"],
-    "How to": [
-      "howto/handle-errors",
-    ],
     "Interop": [
       "howto/interop/with-cats-effect",
       "howto/interop/with-future",
