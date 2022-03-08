@@ -202,7 +202,7 @@ val defect5 = ZIO.attempt(???).map(_ => throw new Exception("Boom!"))
 
 #### 3. Fatal Errors
 
-The `VirtualMachineError` and all its subtypes are considered fatal errors by the ZIO runtime. So if during the running application, the JVM throws any of these errors like `StackOverflowError`, the ZIO runtime considers it as a catastrophic fatal error. So it will interrupt the whole application immediately without safe resource interruption. None of the `ZIO#catchAll` and `ZIO#catchAllDefects` will catch this fatal error. At most, if the `RuntimeConfig.reportFatal` is enabled, the application will log the stack trace before interrupting the whole application.
+In ZIO, the `VirtualMachineError` and all its subtypes are the only errors considered fatal by the ZIO runtime. So if during the running application, the JVM throws any of these errors like `StackOverflowError`, the ZIO runtime considers it as a catastrophic fatal error. So it will interrupt the whole application immediately without safe resource interruption. None of the `ZIO#catchAll` and `ZIO#catchAllDefects` can catch this fatal error. At most, if the `RuntimeConfig.reportFatal` is enabled, the application will log the stack trace before interrupting the whole application.
 
 Here is an example of manually creating a fatal error. Although we are ignoring all expected and unexpected errors, the fatal error interrupts the whole application.
 
@@ -235,6 +235,7 @@ java.lang.StackOverflowError: The call stack pointer exceeds the stack bound.
 Catastrophic error encountered. Application not safely interrupted. Resources may be leaked. Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context.
 ```
 
+Note that, to change the default fatal error we can use the `Runtime#mapRuntimeConfig` and change the `RuntimeConfig#fatal` function. Using this map operation we can also change the `RuntimeConfig#reportFatal` to change the behavior of the `reportFatal`'s runtime hook function.
 
 ### Expected and Unexpected Errors
 
