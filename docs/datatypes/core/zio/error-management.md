@@ -13,69 +13,70 @@ We should consider three types of errors when writing ZIO applications:
 
 1. **Failures** are expected errors. We use `ZIO.fail` to model a failure. As they are expected, we know how to handle them. So we should handle these errors and prevent them from propagating throughout the call stack.
 
-```scala mdoc:silent
-import zio._
-
-sealed trait AgeValidationException extends Exception
-case class NegativeAgeException(age: Int) extends AgeValidationException
-case class IllegalAgeException(age: Int)  extends AgeValidationException
-
-def validate(age: Int): ZIO[Any, AgeValidationException, Int] =
-  if (age < 0)
-    ZIO.fail(NegativeAgeException(age))
-  else if (age < 18)
-    ZIO.fail(IllegalAgeException(age))
-  else ZIO.succeed(age)
-```
-
-We can handle errors using `catchAll`/`catchSome` methods:
-
-```scala mdoc:compile-only
-validate(17).catchAll {
-  case NegativeAgeException(age) => ???
-  case IllegalAgeException(age)  => ???
-}
-```
-
-```scala mdoc:invisible:reset
-
-```
-
 2. **Defects** are unexpected errors. We use `ZIO.die` to model a defect. As they are not expected, we need to propagate them through the application stack, until in the upper layers one of the following situations happens:
     - In one of the upper layers, it makes sense to expect these errors. So we will convert them to failure, and then they can be handled.
     - None of the upper layers won't catch these errors, so it will finally crash the whole application.
 
-3. **Fatal** are catastrophic unexpected errors. When they occur we should kill the application immediately without propagating the error furthermore. At most, we might need to log the error and print its call stack.
+3. **Fatals** are catastrophic unexpected errors. When they occur we should kill the application immediately without propagating the error furthermore. At most, we might need to log the error and print its call stack.
 
-In ZIO `VirtualMachineError` is the only exception that is considered as a fatal error. Note that, to change the default fatal error we can use the `Runtime#mapRuntimeConfig` and change the `RuntimeConfig#fatal` function. Using this map operation we can also change the `RuntimeConfig#reportFatal` to change the behavior of the `reportFatal`'s runtime hook function.
+#### 1. Failures
+
+When writing ZIO application, we can model the failure, using the `ZIO.fail` constructor:
+
+```scala
+trait ZIO {
+  def fail[E](error: => E): ZIO[Any, E, Nothing]
+}
+```
+
+Let's try to model some failures using this constructor:
+
+```scala mdoc:silent
+import zio._
+
+val f1: ZIO[Any, String, Nothing] = ZIO.fail("Oh uh!")
+val f2: ZIO[Any, String, Int]     = ZIO.succeed(5) *> ZIO.fail("Oh uh!")
+```
+
+Let's try to run a failing effect and see what happens:
 
 ```scala mdoc:compile-only
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  def run =
-    ZIO.succeed(
-      throw new StackOverflowError("exceeded the stack bound!")
-    )
+  def run = ZIO.succeed(5) *> ZIO.fail("Oh uh!")
 }
 ```
 
-Here is the output:
+This will crash the application and print the following stack trace:
 
 ```scala
-java.lang.StackOverflowError: exceeded the stack bound!
-	at MainApp$.$anonfun$run$1(MainApp.scala:4)
-	at zio.internal.FiberContext.runUntil(FiberContext.scala:241)
-	at zio.internal.FiberContext.run(FiberContext.scala:115)
-	at zio.internal.ZScheduler$$anon$1.run(ZScheduler.scala:151)
-**** WARNING ****
-Catastrophic error encountered. Application not safely interrupted. Resources may be leaked. Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context.
+timestamp=2022-03-08T17:55:50.002161369Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.String: Oh uh!
+	at <empty>.MainApp.run(MainApp.scala:4)"
 ```
 
+We can also model the failure using `Exception`:
 
-#### 1. Failures
+```  
+val f2: ZIO[Any, Exception, Nothing] = 
+  ZIO.fail(new Exception("Oh uh!"))
+```
 
+Or we can model our failures using user-defined failure types (domain errors):
 
+```
+case class NegativeNumberException(msg: String) extends Exception(msg)
+
+val validateNonNegaive(input: Int): ZIO[Any, NegativeNumberException, Int] =
+  if (input < 0)
+    ZIO.fail(NegativeNumberException(s"entered negative number: $input"))
+  else
+    ZIO.succeed(input)
+```
+
+In the above examples, we can see that the type of the `validateNonNegaive` function is `ZIO[Any, NegativeNumberException, Int]`. It means this is an exceptional effect, which may fail with the type of `NegativeNumberException`.
+
+The `ZIO.fail` constructor is somehow the moral equivalent of `throw` for pure codes. We will discuss this [further](#imperative-vs-functional-error-handling).
 
 #### 2. Defects
 

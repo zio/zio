@@ -67,10 +67,6 @@ val s2: Task[Int] = Task.succeed(42)
 
 ### Failure Values
 
-| Function | Input Type | Output Type      |
-|----------|------------|------------------|
-| `fail`   | `E`        | `IO[E, Nothing]` |
-
 Using the `ZIO.fail` method, we can create an effect that models failure:
 
 ```scala mdoc:compile-only
