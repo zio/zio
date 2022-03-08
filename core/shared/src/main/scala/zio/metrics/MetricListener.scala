@@ -19,8 +19,8 @@ package zio.metrics
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A `MetricListener` is capable of taking some action in response to a metric
- * being recorded, such as sending that metric to a third party service.
+ * A [[MetricListener]] is capable of taking some action in response to a metric
+ * being recorded, such as sending that metric to a third-party service.
  */
 private[zio] trait MetricListener { self =>
   def unsafeUpdate[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => Unit

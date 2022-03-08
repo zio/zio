@@ -35,23 +35,23 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * implementers of integrations with third party metrics services but not by end
  * users.
  */
-object MetricClient {
+private[zio] object MetricClient {
 
   /**
    * Unsafely installs the specified metric listener.
    */
-  private[zio] final def unsafeInstallListener(listener: MetricListener): Unit =
+  final def unsafeInstallListener(listener: MetricListener): Unit =
     metricState.installListener(listener)
 
   /**
-   * Unsafely removed the specified metric listener.
+   * Unsafely removes the specified metric listener.
    */
-  private[zio] final def unsafeRemoveListener(listener: MetricListener): Unit =
+  final def unsafeRemoveListener(listener: MetricListener): Unit =
     metricState.removeListener(listener)
 
   /**
    * Unsafely captures a snapshot of all metrics recorded by the application.
    */
-  private[zio] final def unsafeSnapshot(): Set[MetricPair.Untyped] =
+  final def unsafeSnapshot(): Set[MetricPair.Untyped] =
     metricState.unsafeSnapshot()
 }
