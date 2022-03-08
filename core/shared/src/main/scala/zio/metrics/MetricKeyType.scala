@@ -27,7 +27,7 @@ sealed trait MetricKeyType {
     isCounter: (In => Double, Out => MetricState.Counter) => Z,
     isGauge: (In => Double, Out => MetricState.Gauge) => Z,
     isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-    isSummary: (In => Double, Out => MetricState.Summary) => Z,
+    isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
     isSetCount: (In => String, Out => MetricState.SetCount) => Z
   ): Z
 }
@@ -42,7 +42,7 @@ object MetricKeyType {
       isCounter: (In => Double, Out => MetricState.Counter) => Z,
       isGauge: (In => Double, Out => MetricState.Gauge) => Z,
       isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
       isSetCount: (In => String, Out => MetricState.SetCount) => Z
     ): Z = isCounter(identity(_), identity(_))
   }
@@ -56,7 +56,7 @@ object MetricKeyType {
       isCounter: (In => Double, Out => MetricState.Counter) => Z,
       isGauge: (In => Double, Out => MetricState.Gauge) => Z,
       isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
       isSetCount: (In => String, Out => MetricState.SetCount) => Z
     ): Z = isGauge(identity(_), identity(_))
   }
@@ -71,7 +71,7 @@ object MetricKeyType {
       isCounter: (In => Double, Out => MetricState.Counter) => Z,
       isGauge: (In => Double, Out => MetricState.Gauge) => Z,
       isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
       isSetCount: (In => String, Out => MetricState.SetCount) => Z
     ): Z = isHistogram(identity(_), identity(_))
   }
@@ -105,14 +105,14 @@ object MetricKeyType {
     error: Double,
     quantiles: Chunk[Double]
   ) extends MetricKeyType {
-    type In  = Double
+    type In  = (Double, java.time.Instant)
     type Out = MetricState.Summary
 
     def fold[Z](
       isCounter: (In => Double, Out => MetricState.Counter) => Z,
       isGauge: (In => Double, Out => MetricState.Gauge) => Z,
       isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
       isSetCount: (In => String, Out => MetricState.SetCount) => Z
     ): Z = isSummary(identity(_), identity(_))
   }
@@ -125,7 +125,7 @@ object MetricKeyType {
       isCounter: (In => Double, Out => MetricState.Counter) => Z,
       isGauge: (In => Double, Out => MetricState.Gauge) => Z,
       isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => Double, Out => MetricState.Summary) => Z,
+      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
       isSetCount: (In => String, Out => MetricState.SetCount) => Z
     ): Z = isSetCount(identity(_), identity(_))
   }

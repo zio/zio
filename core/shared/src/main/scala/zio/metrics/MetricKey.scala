@@ -62,7 +62,7 @@ object MetricKey {
   type Counter   = MetricKey[MetricKeyType.Counter, Double, MetricState.Counter]
   type Gauge     = MetricKey[MetricKeyType.Gauge, Double, MetricState.Gauge]
   type Histogram = MetricKey[MetricKeyType.Histogram, Double, MetricState.Histogram]
-  type Summary   = MetricKey[MetricKeyType.Summary, Double, MetricState.Summary]
+  type Summary   = MetricKey[MetricKeyType.Summary, (Double, java.time.Instant), MetricState.Summary]
   type SetCount  = MetricKey[MetricKeyType.SetCount, String, MetricState.SetCount]
 
   import MetricKeyType.Histogram.Boundaries
@@ -71,8 +71,22 @@ object MetricKey {
     name: String,
     tags: Chunk[MetricLabel],
     keyType: Type { type In = In0; type Out = Out0 }
-  ): MetricKey[Type, In0, Out0] =
-    new MetricKey[Type, In0, Out0](name, tags, keyType, unsafeGetMetricHook(keyType)) {}
+  ): MetricKey[Type, In0, Out0] = {
+    import zio.internal.metrics._
+
+    lazy val metricKey = new MetricKey[Type, In0, Out0](name, tags, keyType, hook) {}
+
+    lazy val hook: MetricHook[In0, Out0] =
+      keyType match {
+        case MetricKeyType.Counter             => metricState.getCounter(metricKey.asInstanceOf[MetricKey.Counter])
+        case MetricKeyType.Gauge               => metricState.getGauge(metricKey.asInstanceOf[MetricKey.Gauge])
+        case MetricKeyType.Histogram(_)        => metricState.getHistogram(metricKey.asInstanceOf[MetricKey.Histogram])
+        case MetricKeyType.Summary(_, _, _, _) => metricState.getSummary(metricKey.asInstanceOf[MetricKey.Summary])
+        case MetricKeyType.SetCount(_)         => metricState.getSetCount(metricKey.asInstanceOf[MetricKey.SetCount])
+      }
+
+    metricKey
+  }
 
   /**
    * Creates a metric key for a counter, with the specified name & parameters.

@@ -19,7 +19,7 @@ package zio
 import zio.internal.metrics._
 
 package object metrics {
-  private[zio] def unsafeGetMetricHook[Type <: MetricKeyType](key: Type): MetricHook[key.In, key.Out] = ???
+  import zio.internal.metrics.metricState
 
   def updateMetric[Type <: MetricKeyType, In, Out](key: MetricKey[Type, In, Out], value: In): UIO[Unit] =
     ZIO.succeed(key.metricHook.update(value))

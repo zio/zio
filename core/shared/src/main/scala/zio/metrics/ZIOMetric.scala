@@ -145,7 +145,8 @@ object ZIOMetric {
   type Gauge[-In]   = ZIOMetric.Full[MetricKeyType.Gauge, Double, MetricState.Gauge, In, MetricState.Gauge]
   type Histogram[-In] =
     ZIOMetric.Full[MetricKeyType.Histogram, Double, MetricState.Histogram, In, MetricState.Histogram]
-  type Summary[-In]  = ZIOMetric.Full[MetricKeyType.Summary, Double, MetricState.Summary, In, MetricState.Summary]
+  type Summary[-In] =
+    ZIOMetric.Full[MetricKeyType.Summary, (Double, java.time.Instant), MetricState.Summary, In, MetricState.Summary]
   type SetCount[-In] = ZIOMetric.Full[MetricKeyType.SetCount, String, MetricState.SetCount, In, MetricState.SetCount]
 
   implicit class CounterSyntax[In](counter: Counter[In]) {
@@ -211,7 +212,13 @@ object ZIOMetric {
   /**
    * A summary metric.
    */
-  def summary(name: String, maxAge: Duration, maxSize: Int, error: Double, quantiles: Chunk[Double]): Summary[Double] =
+  def summary(
+    name: String,
+    maxAge: Duration,
+    maxSize: Int,
+    error: Double,
+    quantiles: Chunk[Double]
+  ): Summary[(Double, java.time.Instant)] =
     fromMetricKey(MetricKey(name, Chunk.empty, MetricKeyType.Summary(maxAge, maxSize, error, quantiles)))
 
   /**

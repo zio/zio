@@ -35,18 +35,17 @@ private[zio] class ConcurrentState {
   private val map: ConcurrentHashMap[MetricKey.Untyped, MetricHook.Root] =
     new ConcurrentHashMap[MetricKey.Untyped, MetricHook.Root]()
 
-  private[zio] def states: Map[MetricKey.Untyped, MetricState.Untyped] = {
+  private[zio] def unsafeSnapshot(): Set[MetricPair[_, _, _]] = {
     val iterator = map.entrySet().iterator()
-    val result   = scala.collection.mutable.Map[MetricKey.Untyped, MetricState.Untyped]()
+    val result   = scala.collection.mutable.Set[MetricPair[_, _, _]]()
     while (iterator.hasNext) {
       val value = iterator.next()
-      result.put(value.getKey(), value.getValue().get())
+      val key   = value.getKey()
+      val hook  = value.getValue()
+      result.add(MetricPair(key, hook.get()))
     }
-    result.toMap
+    result.toSet
   }
-
-  private[zio] def state[T](key: MetricKey[T, _, _]): Option[T] =
-    Option(map.get(key)).map(hook => hook.get().asInstanceOf[T])
 
   def getCounter(key: MetricKey.Counter): MetricHook.Counter = {
     var value = map.get(key)
@@ -90,7 +89,7 @@ private[zio] class ConcurrentState {
   ): MetricHook.Summary = {
     var value = map.get(key)
     if (value eq null) {
-      val summary = ConcurrentMetricHooks.summary(key).onUpdate { (update: Double) =>
+      val summary = ConcurrentMetricHooks.summary(key).onUpdate { (update: (Double, java.time.Instant)) =>
         listener.unsafeUpdate(key, update)
       }
       map.putIfAbsent(key, summary)
