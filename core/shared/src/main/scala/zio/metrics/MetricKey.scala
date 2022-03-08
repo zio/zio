@@ -26,67 +26,41 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * boundaries of a histogram. In this way, it is impossible to ever create
  * different metrics with conflicting keys.
  */
-sealed abstract case class MetricKey[+Type, In0, Out0] private (
+final case class MetricKey[+Type] private (
   name: String,
   tags: Chunk[MetricLabel],
-  keyType: Type,
-  metricHook: internal.metrics.MetricHook[In0, Out0]
+  keyType: Type
 ) { self =>
 
   /**
    * Returns a new `MetricKey` with the specified tag appended.
    */
-  def tagged(key: String, value: String): MetricKey[Type, In0, Out0] =
+  def tagged(key: String, value: String): MetricKey[Type] =
     tagged(Chunk(MetricLabel(key, value)))
 
   /**
    * Returns a new `MetricKey` with the specified tags appended.
    */
-  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): MetricKey[Type, In0, Out0] =
+  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): MetricKey[Type] =
     tagged(Chunk(extraTag) ++ Chunk.fromIterable(extraTags))
 
   /**
    * Returns a new `MetricKey` with the specified tags appended.
    */
-  def tagged(extraTags: Chunk[MetricLabel]): MetricKey[Type, In0, Out0] =
+  def tagged(extraTags: Chunk[MetricLabel]): MetricKey[Type] =
     if (tags.isEmpty) self
-    else new MetricKey[Type, In0, Out0](name, tags ++ extraTags, keyType, metricHook) {}
+    else copy(tags = tags ++ extraTags)
 }
 object MetricKey {
-  type Untyped = MetricKey[Any, _, _]
+  type Untyped = MetricKey[Any]
 
-  type Root0[In, Type <: MetricKeyType] = MetricKey[Type, In, _ <: MetricState[Type]]
-
-  type Root[In0] = Root0[In0, MetricKeyType { type In = In0 }]
-
-  type Counter   = MetricKey[MetricKeyType.Counter, Double, MetricState.Counter]
-  type Gauge     = MetricKey[MetricKeyType.Gauge, Double, MetricState.Gauge]
-  type Histogram = MetricKey[MetricKeyType.Histogram, Double, MetricState.Histogram]
-  type Summary   = MetricKey[MetricKeyType.Summary, (Double, java.time.Instant), MetricState.Summary]
-  type SetCount  = MetricKey[MetricKeyType.SetCount, String, MetricState.SetCount]
+  type Counter   = MetricKey[MetricKeyType.Counter]
+  type Gauge     = MetricKey[MetricKeyType.Gauge]
+  type Histogram = MetricKey[MetricKeyType.Histogram]
+  type Summary   = MetricKey[MetricKeyType.Summary]
+  type SetCount  = MetricKey[MetricKeyType.SetCount]
 
   import MetricKeyType.Histogram.Boundaries
-
-  def apply[Type <: MetricKeyType, In0, Out0](
-    name: String,
-    tags: Chunk[MetricLabel],
-    keyType: Type { type In = In0; type Out = Out0 }
-  ): MetricKey[Type, In0, Out0] = {
-    import zio.internal.metrics._
-
-    lazy val metricKey = new MetricKey[Type, In0, Out0](name, tags, keyType, hook) {}
-
-    lazy val hook: MetricHook[In0, Out0] =
-      keyType match {
-        case MetricKeyType.Counter             => metricState.getCounter(metricKey.asInstanceOf[MetricKey.Counter])
-        case MetricKeyType.Gauge               => metricState.getGauge(metricKey.asInstanceOf[MetricKey.Gauge])
-        case MetricKeyType.Histogram(_)        => metricState.getHistogram(metricKey.asInstanceOf[MetricKey.Histogram])
-        case MetricKeyType.Summary(_, _, _, _) => metricState.getSummary(metricKey.asInstanceOf[MetricKey.Summary])
-        case MetricKeyType.SetCount(_)         => metricState.getSetCount(metricKey.asInstanceOf[MetricKey.SetCount])
-      }
-
-    metricKey
-  }
 
   /**
    * Creates a metric key for a counter, with the specified name & parameters.

@@ -21,9 +21,9 @@ import zio.internal.metrics._
 package object metrics {
   import zio.internal.metrics.metricState
 
-  def updateMetric[Type <: MetricKeyType, In, Out](key: MetricKey[Type, In, Out], value: In): UIO[Unit] =
-    ZIO.succeed(key.metricHook.update(value))
+  def updateMetric[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => UIO[Unit] =
+    (in: key.keyType.In) => ZIO.succeed(metricState.get(key).update(in))
 
-  def getMetric[Type <: MetricKeyType, In, Out](key: MetricKey[Type, In, Out]): UIO[Out] =
-    ZIO.succeed(key.metricHook.get())
+  def getMetric[Type <: MetricKeyType](key: MetricKey[Type]): UIO[key.keyType.Out] =
+    ZIO.succeed(metricState.get(key).get())
 }

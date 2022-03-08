@@ -43,21 +43,19 @@ import zio.internal.metrics._
  * metrics are derived from these primitive metrics.
  */
 trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] { self =>
-  type KeyIn
-  type KeyOut
 
   /**
    * Retrieves the metric key associated with the metric, which uniquely
    * identifies the metric, including its name, type, tags, and construction
    * parameters.
    */
-  val key: MetricKey[Type, KeyIn, KeyOut]
+  val key: MetricKey[Type]
 
   /**
    * Retrieves the metric hook that powers the metric. There is no need to use
    * this in application-level code.
    */
-  private[zio] def hook: ModifiedMetricHook[KeyIn, KeyOut, In, Out]
+  private[zio] def hook: ModifiedMetricHook[_, _, In, Out]
 
   /**
    * Applies the metric computation to the result of the specified effect.
@@ -70,7 +68,7 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
    * of the specified new type, which must be transformable to the input type of
    * this metric.
    */
-  def contramap[In2](f: In2 => In): ZIOMetric.Full[Type, KeyIn, KeyOut, In2, Out] =
+  def contramap[In2](f: In2 => In): ZIOMetric[Type, In2, Out] =
     ZIOMetric(key, hook.contramap(f))
 
   /**
@@ -78,28 +76,31 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
    * state type, determined by transforming the state type of this metric by the
    * specified function.
    */
-  def map[Out2](f: Out => Out2): ZIOMetric.Full[Type, KeyIn, KeyOut, In, Out2] =
+  def map[Out2](f: Out => Out2): ZIOMetric[Type, In, Out2] =
     ZIOMetric(key, hook.map(f))
+
+  def mapType[Type2](f: Type => Type2): ZIOMetric[Type2, In, Out] =
+    ZIOMetric(key.copy(keyType = f(key.keyType)), hook)
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tag will be added to the tags of this metric.
    */
-  def tagged(key: String, value: String): ZIOMetric.Full[Type, KeyIn, KeyOut, In, Out] =
+  def tagged(key: String, value: String): ZIOMetric[Type, In, Out] =
     tagged(MetricLabel(key, value))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tags have been added to the tags of this metric.
    */
-  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): ZIOMetric.Full[Type, KeyIn, KeyOut, In, Out] =
+  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): ZIOMetric[Type, In, Out] =
     tagged(Chunk(extraTag) ++ Chunk.fromIterable(extraTags))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tags have been added to the tags of this metric.
    */
-  def tagged(extraTags: Chunk[MetricLabel]): ZIOMetric.Full[Type, KeyIn, KeyOut, In, Out] =
+  def tagged(extraTags: Chunk[MetricLabel]): ZIOMetric[Type, In, Out] =
     ZIOMetric(key.tagged(extraTags), hook)
 
   /**
@@ -109,11 +110,17 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
    * return a new metric, because it cannot: dynamically computing tags based on
    * success values results in the loss of structure that all metrics must have.
    */
-  def taggedWith[In1 <: In](f: In1 => Chunk[MetricLabel]): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In1] =
+  def taggedWith[In1 <: In](
+    f: In1 => Chunk[MetricLabel]
+  )(implicit ev: Type <:< MetricKeyType): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In1] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In1] {
+      val key0 = key.copy(keyType = ev(key.keyType))
+
       def apply[R, E, A1 <: In1](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.map { (a: A1) =>
-          key.tagged(f(a)).metricHook.update(self.hook.contramapper(a))
+          val key2 = key0.tagged(f(a))
+
+          metricState.get(key2).update(self.hook.contramapper(a).asInstanceOf[key2.keyType.In])
 
           a
         }
@@ -136,18 +143,11 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
   private[zio] def unsafeValue(): Out = hook.get()
 }
 object ZIOMetric {
-  type Root[+Type, In, Out] = Full[Type, In, Out, In, Out]
-
-  type Full[+Type, KeyIn0, KeyOut0, -In, +Out] =
-    ZIOMetric[Type, In, Out] { type KeyIn = KeyIn0; type KeyOut = KeyOut0 }
-
-  type Counter[-In] = ZIOMetric.Full[MetricKeyType.Counter, Double, MetricState.Counter, In, MetricState.Counter]
-  type Gauge[-In]   = ZIOMetric.Full[MetricKeyType.Gauge, Double, MetricState.Gauge, In, MetricState.Gauge]
-  type Histogram[-In] =
-    ZIOMetric.Full[MetricKeyType.Histogram, Double, MetricState.Histogram, In, MetricState.Histogram]
-  type Summary[-In] =
-    ZIOMetric.Full[MetricKeyType.Summary, (Double, java.time.Instant), MetricState.Summary, In, MetricState.Summary]
-  type SetCount[-In] = ZIOMetric.Full[MetricKeyType.SetCount, String, MetricState.SetCount, In, MetricState.SetCount]
+  type Counter[-In]   = ZIOMetric[MetricKeyType.Counter, In, MetricState.Counter]
+  type Gauge[-In]     = ZIOMetric[MetricKeyType.Gauge, In, MetricState.Gauge]
+  type Histogram[-In] = ZIOMetric[MetricKeyType.Histogram, In, MetricState.Histogram]
+  type Summary[-In]   = ZIOMetric[MetricKeyType.Summary, In, MetricState.Summary]
+  type SetCount[-In]  = ZIOMetric[MetricKeyType.SetCount, In, MetricState.SetCount]
 
   implicit class CounterSyntax[In](counter: Counter[In]) {
     def increment(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(numeric.fromInt(1))
@@ -173,21 +173,18 @@ object ZIOMetric {
     def observe(value: In): UIO[Unit] = setCount.update(value)
   }
 
-  def fromMetricKey[Type, In, Out](
-    key: MetricKey[Type, In, Out]
-  ): ZIOMetric.Full[Type, In, Out, In, Out] =
-    ZIOMetric(key, ModifiedMetricHook(key.metricHook))
+  def fromMetricKey[Type <: MetricKeyType](
+    key: MetricKey[Type]
+  ): ZIOMetric[Type, key.keyType.In, key.keyType.Out] =
+    ZIOMetric(key, ModifiedMetricHook(metricState.get(key)))
 
-  def apply[Type, KeyIn0, KeyOut0, In, Out](
-    key0: MetricKey[Type, KeyIn0, KeyOut0],
-    hook0: ModifiedMetricHook[KeyIn0, KeyOut0, In, Out]
-  ): ZIOMetric.Full[Type, KeyIn0, KeyOut0, In, Out] =
+  def apply[Type, In, Out](
+    key0: MetricKey[Type],
+    hook0: ModifiedMetricHook[_, _, In, Out]
+  ): ZIOMetric[Type, In, Out] =
     new ZIOMetric[Type, In, Out] {
-      type KeyIn  = KeyIn0
-      type KeyOut = KeyOut0
-
-      val key: MetricKey[Type, KeyIn, KeyOut]              = key0
-      def hook: ModifiedMetricHook[KeyIn, KeyOut, In, Out] = hook0
+      val key: MetricKey[Type]                    = key0
+      def hook: ModifiedMetricHook[_, _, In, Out] = hook0
     }
 
   /**

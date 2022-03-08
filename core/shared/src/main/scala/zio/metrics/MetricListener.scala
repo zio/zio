@@ -23,5 +23,5 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * being recorded, such as sending that metric to a third party service.
  */
 private[zio] trait MetricListener { self =>
-  def unsafeUpdate[In](key: MetricKey.Root[In], update: In): Unit
+  def unsafeUpdate[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => Unit
 }
