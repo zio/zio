@@ -76,11 +76,9 @@ trait Runtime[+R] {
    */
   final def run[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.fiberId.flatMap { fiberId =>
-      ZIO.blocking {
-        IO.asyncInterrupt[E, A] { callback =>
-          val canceler = unsafeRunAsyncCancelable(zio)(exit => callback(ZIO.done(exit)))
-          Left(ZIO.succeed(canceler(fiberId)))
-        }
+      IO.asyncInterrupt[E, A] { callback =>
+        val canceler = unsafeRunAsyncCancelable(zio)(exit => callback(ZIO.done(exit)))
+        Left(ZIO.succeedBlocking(canceler(fiberId)))
       }
     }
 
