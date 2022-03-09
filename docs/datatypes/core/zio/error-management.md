@@ -1374,7 +1374,7 @@ object MainApp extends ZIOAppDefault {
 
 ## Error Channel Conversions
 
-### Putting Error Into Success Channel and Submerging it Back Again
+### Putting Errors Into Success Channel and Submerging Them Back Again
 
 1. **`ZIO#either`**— The `ZIO#either` convert a `ZIO[R, E, A]` effect to another effect in which its failure (`E`) and success (`A`) channel have been lifted into an `Either[E, A]` data type as success channel of the `ZIO` data type:
 
