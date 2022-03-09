@@ -5215,7 +5215,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified value.
    */
   def succeedBlocking[A](a: => A)(implicit trace: ZTraceElement): UIO[A] =
-    blocking(ZIO.succeedNow(a))
+    blocking(ZIO.succeed(a))
 
   /**
    * The same as [[ZIO.succeed]], but also provides access to the underlying
