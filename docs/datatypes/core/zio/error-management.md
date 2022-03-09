@@ -508,6 +508,17 @@ Exception in thread "zio-fiber-14" java.lang.String: Uh!
 	at <empty>.MainApp.run(MainApp.scala:4)"
 ```
 
+ZIO has a combinator called `ZIO#parallelErrors` that exposes all parallel failure errors in the error channel:
+
+```scala mdoc:compile-only
+import zio._
+
+val result: ZIO[Any, ::[String], Nothing] = 
+  (ZIO.fail("Oh uh!") <&> ZIO.fail("Oh Error!")).parallelErrors
+```
+
+Note that this operator is only for failures, not defects or interruptions.
+
 Also, when we work with resource-safety operators like `ZIO#ensuring` we can have multiple sequential errors. Why? because regardless of the original effect has any errors or not, the finalizer is uninterruptible. So the finalizer will be run. Unless the finalizer should be an unexceptional effect (`URIO`), it may die because of a defect. Therefore, it creates multiple sequential errors:
 
 ```scala mdoc:compile-only
