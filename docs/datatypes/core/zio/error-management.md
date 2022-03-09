@@ -3,11 +3,9 @@ id: error-management
 title: "Error Management"
 ---
 
-## Introduction
-
 As well as providing first-class support for typed errors, ZIO has a variety of facilities for catching, propagating, and transforming errors in a typesafe manner. In this section, we will learn about different types of errors in ZIO and how we can manage them.
 
-### Three Types of Errors in ZIO
+## Three Types of Errors in ZIO
 
 We should consider three types of errors when writing ZIO applications:
 
@@ -19,7 +17,7 @@ We should consider three types of errors when writing ZIO applications:
 
 3. **Fatals** are catastrophic unexpected errors. When they occur we should kill the application immediately without propagating the error furthermore. At most, we might need to log the error and print its call stack.
 
-#### 1. Failures
+### 1. Failures
 
 When writing ZIO application, we can model the failure, using the `ZIO.fail` constructor:
 
@@ -78,7 +76,7 @@ In the above examples, we can see that the type of the `validateNonNegaive` func
 
 The `ZIO.fail` constructor is somehow the moral equivalent of `throw` for pure codes. We will discuss this [further](#imperative-vs-functional-error-handling).
 
-#### 2. Defects
+### 2. Defects
 
 By providing a `Throwable` value to the `ZIO.die` constructor, we can describe a dying effect:
 
@@ -200,7 +198,7 @@ val defect4 = ZIO.succeed(???).map(_ => throw new Exception("Boom!"))
 val defect5 = ZIO.attempt(???).map(_ => throw new Exception("Boom!"))
 ```
 
-#### 3. Fatal Errors
+### 3. Fatal Errors
 
 In ZIO, the `VirtualMachineError` and all its subtypes are the only errors considered fatal by the ZIO runtime. So if during the running application, the JVM throws any of these errors like `StackOverflowError`, the ZIO runtime considers it as a catastrophic fatal error. So it will interrupt the whole application immediately without safe resource interruption. None of the `ZIO#catchAll` and `ZIO#catchAllDefects` can catch this fatal error. At most, if the `RuntimeConfig.reportFatal` is enabled, the application will log the stack trace before interrupting the whole application.
 
@@ -237,7 +235,7 @@ Catastrophic error encountered. Application not safely interrupted. Resources ma
 
 Note that, to change the default fatal error we can use the `Runtime#mapRuntimeConfig` and change the `RuntimeConfig#fatal` function. Using this map operation we can also change the `RuntimeConfig#reportFatal` to change the behavior of the `reportFatal`'s runtime hook function.
 
-### Imperative vs. Functional Error Handling
+## Imperative vs. Functional Error Handling
 
 When practicing imperative programming in Scala, we have the `try`/`catch` language construct for handling errors. Using them, we can wrap regions that may throw exceptions, and handle them in the catch block.
 
@@ -366,7 +364,7 @@ ZIO.fail("e1")
 
 ZIO guarantees that no errors are lost. It has a _lossless error model_. This guarantee is provided via a hierarchy of supervisors and information made available via data types such as `Exit` and `Cause`. All errors will be reported. If there's a bug in the code, ZIO enables us to find about it.
 
-### Expected and Unexpected Errors
+## Expected and Unexpected Errors
 
 Inside an application, there are two distinct categories of errors:
 
@@ -411,7 +409,7 @@ So to summarize
 2. We do not type unexpected errors, but we type expected errors either explicitly or using general `Throwable` error type.
 3. Unexpected errors mostly is a sign of programming errors, but expected errors part of domain errors.
 
-### Exceptional and Unexceptional Effects
+## Exceptional and Unexceptional Effects
 
 Besides the `IO` type alias, ZIO has four different type aliases which can be categorized into two different categories:
 - **Exceptional Effect** — `Task` and `RIO` are two effects whose error parameter is fixed to `Throwable`, so we call them exceptional effects.
@@ -429,7 +427,7 @@ def acquireReleaseWith[R, E, A, B](
 ): ZIO[R, E, B]
 ```
 
-### Typed Errors Don't Guarantee the Absence of Defects and Interruptions
+## Typed Errors Don't Guarantee the Absence of Defects and Interruptions
 
 Having an effect of type `ZIO[R, E, A]`, means it can fail because of some failure of type `E`, but it doesn't mean it can't die or be interrupted. So the error channel is only for `failure` errors.
 
