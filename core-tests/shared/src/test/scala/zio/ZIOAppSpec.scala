@@ -57,16 +57,16 @@ object ZIOAppSpec extends ZIOBaseSpec {
       } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
     },
     test("execution of finalizers on interruption") {
-      val finalized = new java.util.concurrent.atomic.AtomicBoolean(false)
       for {
-        running <- Promise.make[Nothing, Unit]
-        effect   = (running.succeed(()) *> ZIO.never).ensuring(ZIO.succeed(finalized.set(true)))
-        app      = ZIOAppDefault.fromZIO(effect)
-        fiber   <- app.invoke(Chunk.empty).fork
-        _       <- running.await
-        _       <- fiber.interrupt
-        _       <- fiber.join.exitCode
-      } yield assertTrue(finalized.get())
+        running   <- Promise.make[Nothing, Unit]
+        ref       <- Ref.make(false)
+        effect     = (running.succeed(()) *> ZIO.never).ensuring(ref.set(true))
+        app        = ZIOAppDefault.fromZIO(effect)
+        fiber     <- app.invoke(Chunk.empty).fork
+        _         <- running.await
+        _         <- fiber.interrupt
+        finalized <- ref.get
+      } yield assertTrue(finalized)
     }
   )
 }
