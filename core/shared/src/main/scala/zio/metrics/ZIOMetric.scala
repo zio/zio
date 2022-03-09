@@ -44,18 +44,20 @@ import zio.internal.metrics._
  */
 trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] { self =>
 
+  val keyType: Type
+
   /**
    * Retrieves the metric key associated with the metric, which uniquely
    * identifies the metric, including its name, type, tags, and construction
    * parameters.
    */
-  val key: MetricKey[Type]
+  val baseKey: MetricKey[keyType.type]
 
   /**
    * Retrieves the transformation applied to the underlying primitive metric
    * type.
    */
-  def transformation: Transformation[key.keyType.In, key.keyType.Out, In, Out]
+  def transformation: Transformation[keyType.In, keyType.Out, In, Out]
 
   /**
    * Applies the metric computation to the result of the specified effect.
@@ -69,7 +71,7 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * this metric.
    */
   def contramap[In2](f: In2 => In): ZIOMetric[Type, In2, Out] =
-    ZIOMetric(key)(transformation.contramap(f))
+    ZIOMetric(baseKey)(transformation.contramap(f))
 
   /**
    * Returns a new metric that is powered by this one, but which outputs a new
@@ -77,7 +79,7 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * specified function.
    */
   def map[Out2](f: Out => Out2): ZIOMetric[Type, In, Out2] =
-    ZIOMetric(key)(transformation.map(f))
+    ZIOMetric(baseKey)(transformation.map(f))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
@@ -98,7 +100,7 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * the specified tags have been added to the tags of this metric.
    */
   def tagged(extraTags: Chunk[MetricLabel]): ZIOMetric[Type, In, Out] =
-    ZIOMetric(key.tagged(extraTags))(transformation)
+    ZIOMetric(baseKey.tagged(extraTags))(transformation)
 
   /**
    * Returns a ZIO aspect that can update a metric derived from this one, but
@@ -113,7 +115,7 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In1] {
       def apply[R, E, A1 <: In1](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.map { (a: A1) =>
-          val key2 = key.tagged(f(a))
+          val key2 = baseKey.tagged(f(a))
 
           metricState.get(key2).update(self.transformation.contramapper(a))
 
@@ -138,7 +140,7 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
   private[zio] def unsafeValue(): Out = hook.get()
 
   private[zio] def hook: MetricHook[In, Out] =
-    metricState.get(key).map(transformation.mapper).contramap(transformation.contramapper)
+    metricState.get(baseKey).map(transformation.mapper).contramap(transformation.contramapper)
 }
 object ZIOMetric {
   type Counter[-In]   = ZIOMetric[MetricKeyType.Counter, In, MetricState.Counter]
@@ -186,7 +188,9 @@ object ZIOMetric {
   class MakeZIOMetric[Type <: MetricKeyType { type In = In0; type Out = Out0 }, In0, Out0](key0: MetricKey[Type]) {
     def apply[In, Out](transformation0: Transformation[In0, Out0, In, Out]): ZIOMetric[Type, In, Out] =
       new ZIOMetric[Type, In, Out] {
-        val key: key0.type                                     = key0
+        val keyType = key0.keyType
+
+        val baseKey                                            = key0.asInstanceOf[MetricKey[keyType.type]]
         def transformation: Transformation[In0, Out0, In, Out] = transformation0
       }
   }
