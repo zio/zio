@@ -109,15 +109,13 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    */
   def taggedWith[In1 <: In](
     f: In1 => Chunk[MetricLabel]
-  )(implicit ev: Type <:< MetricKeyType): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In1] =
+  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In1] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In1] {
-      val key0 = key.copy(keyType = ev(key.keyType))
-
       def apply[R, E, A1 <: In1](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
         zio.map { (a: A1) =>
-          val key2 = key0.tagged(f(a))
+          val key2 = key.tagged(f(a))
 
-          metricState.get(key2).update(self.transformation.contramapper(a).asInstanceOf[key2.keyType.In])
+          metricState.get(key2).update(self.transformation.contramapper(a))
 
           a
         }
