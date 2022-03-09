@@ -15,7 +15,7 @@ ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic m
 
 ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to the ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
 
-1. First, we should ensure that all of our direct and transitive dependencies [have released their compatible versions with ZIO 2.x](https://docs.google.com/spreadsheets/d/1QIKgavognTRgh84xAqPTJriJ1VDGbaw8S1fmzMGgf98/). Note that we shouldn't update our dependencies to the 2.x compatible versions, before running scalafix.
+1. First, we should ensure that all of our direct and transitive dependencies [have released their compatible versions with ZIO 2.x](https://zio-ecosystem.herokuapp.com/). Note that we shouldn't update our dependencies to the 2.x compatible versions, before running scalafix.
 
 2. Next, we need to install the [Scalafix SBT Plugin](https://github.com/scalacenter/sbt-scalafix), by adding the following line into `project/plugins.sbt` file:
     ```scala
