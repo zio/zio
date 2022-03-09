@@ -53,5 +53,5 @@ private[zio] object MetricClient {
    * Unsafely captures a snapshot of all metrics recorded by the application.
    */
   final def unsafeSnapshot(): Set[MetricPair.Untyped] =
-    metricState.unsafeSnapshot()
+    metricState.snapshot()
 }

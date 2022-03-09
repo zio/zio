@@ -44,3 +44,26 @@ object ModifiedMetricHook {
   def apply[In, Out](hook: MetricHook[In, Out]): ModifiedMetricHook[In, Out, In, Out] =
     ModifiedMetricHook(hook, identity(_), identity(_))
 }
+
+final case class Transformation[In0, Out0, -In, +Out](
+  contramapper: In => In0,
+  mapper: Out0 => Out
+) { self =>
+  def contramap[In2](f: In2 => In): Transformation[In0, Out0, In2, Out] =
+    copy(contramapper = f.andThen(self.contramapper))
+
+  def map[Out2](f: Out => Out2): Transformation[In0, Out0, In, Out2] =
+    copy(mapper = self.mapper.andThen(f))
+
+  def zip[In1, Out1, In2, Out2](
+    that: Transformation[In1, Out1, In2, Out2]
+  ): Transformation[(In0, In1), (Out0, Out1), (In, In2), (Out, Out2)] =
+    Transformation(
+      (i: (In, In2)) => (self.contramapper(i._1), that.contramapper(i._2)),
+      (o: (Out0, Out1)) => (self.mapper(o._1), that.mapper(o._2))
+    )
+}
+object Transformation {
+  def identity[In, Out]: Transformation[In, Out, In, Out] =
+    Transformation[In, Out, In, Out](a => a, a => a)
+}

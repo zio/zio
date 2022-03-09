@@ -8,18 +8,6 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 private[zio] class ConcurrentState {
-  private val listeners = zio.internal.Platform.newConcurrentSet[MetricListener]()
-
-  final def installListener(listener: MetricListener): Unit = {
-    listeners.add(listener)
-    ()
-  }
-
-  final def removeListener(listener: MetricListener): Unit = {
-    listeners.remove(listener)
-    ()
-  }
-
   private val listener: MetricListener =
     new MetricListener {
       override def unsafeUpdate[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => Unit =
@@ -36,7 +24,19 @@ private[zio] class ConcurrentState {
   private val map: ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root] =
     new ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root]()
 
-  private[zio] def unsafeSnapshot(): Set[MetricPair.Untyped] = {
+  private val listeners = zio.internal.Platform.newConcurrentSet[MetricListener]()
+
+  final def installListener(listener: MetricListener): Unit = {
+    listeners.add(listener)
+    ()
+  }
+
+  final def removeListener(listener: MetricListener): Unit = {
+    listeners.remove(listener)
+    ()
+  }
+
+  def snapshot(): Set[MetricPair.Untyped] = {
     val iterator = map.entrySet().iterator()
     val result   = scala.collection.mutable.Set[MetricPair.Untyped]()
     while (iterator.hasNext) {
@@ -64,7 +64,7 @@ private[zio] class ConcurrentState {
     } else hook0.asInstanceOf[Result]
   }
 
-  def getCounter(key: MetricKey.Counter): MetricHook.Counter = {
+  private def getCounter(key: MetricKey.Counter): MetricHook.Counter = {
     var value = map.get(key)
     if (value eq null) {
       val updater = listener.unsafeUpdate(key)
@@ -75,7 +75,7 @@ private[zio] class ConcurrentState {
     value.asInstanceOf[MetricHook.Counter]
   }
 
-  def getGauge(key: MetricKey.Gauge): MetricHook.Gauge = {
+  private def getGauge(key: MetricKey.Gauge): MetricHook.Gauge = {
     var value = map.get(key)
     if (value eq null) {
       val updater = listener.unsafeUpdate(key)
@@ -86,7 +86,7 @@ private[zio] class ConcurrentState {
     value.asInstanceOf[MetricHook.Gauge]
   }
 
-  def getHistogram(key: MetricKey.Histogram): MetricHook.Histogram = {
+  private def getHistogram(key: MetricKey.Histogram): MetricHook.Histogram = {
     var value = map.get(key)
     if (value eq null) {
       val updater = listener.unsafeUpdate(key)
@@ -98,7 +98,7 @@ private[zio] class ConcurrentState {
     value.asInstanceOf[MetricHook.Histogram]
   }
 
-  def getSummary(
+  private def getSummary(
     key: MetricKey.Summary
   ): MetricHook.Summary = {
     var value = map.get(key)
@@ -111,7 +111,7 @@ private[zio] class ConcurrentState {
     value.asInstanceOf[MetricHook.Summary]
   }
 
-  def getSetCount(key: MetricKey.SetCount): MetricHook.SetCount = {
+  private def getSetCount(key: MetricKey.SetCount): MetricHook.SetCount = {
     var value = map.get(key)
     if (value eq null) {
       val updater  = listener.unsafeUpdate(key)

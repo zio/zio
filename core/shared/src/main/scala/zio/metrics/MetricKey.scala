@@ -32,24 +32,26 @@ final case class MetricKey[+Type] private (
   keyType: Type
 ) { self =>
 
+  type KeyType = keyType.type
+
   /**
    * Returns a new `MetricKey` with the specified tag appended.
    */
-  def tagged(key: String, value: String): MetricKey[Type] =
+  def tagged(key: String, value: String): MetricKey[KeyType] =
     tagged(Chunk(MetricLabel(key, value)))
 
   /**
    * Returns a new `MetricKey` with the specified tags appended.
    */
-  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): MetricKey[Type] =
+  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): MetricKey[KeyType] =
     tagged(Chunk(extraTag) ++ Chunk.fromIterable(extraTags))
 
   /**
    * Returns a new `MetricKey` with the specified tags appended.
    */
-  def tagged(extraTags: Chunk[MetricLabel]): MetricKey[Type] =
-    if (tags.isEmpty) self
-    else copy(tags = tags ++ extraTags)
+  def tagged(extraTags: Chunk[MetricLabel]): MetricKey[KeyType] =
+    if (tags.isEmpty) self.asInstanceOf[MetricKey[KeyType]]
+    else MetricKey[KeyType](name, tags = tags ++ extraTags, keyType: KeyType)
 }
 object MetricKey {
   type Untyped = MetricKey[Any]

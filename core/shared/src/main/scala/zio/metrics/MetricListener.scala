@@ -24,4 +24,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  */
 private[zio] trait MetricListener { self =>
   def unsafeUpdate[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => Unit
+
+  // TODO: Implement caching
+  final def unsafeUpdateCached[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => Unit =
+    unsafeUpdate(key)
 }
