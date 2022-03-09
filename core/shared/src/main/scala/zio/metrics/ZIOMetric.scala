@@ -51,13 +51,11 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    */
   val key: MetricKey[Type]
 
-  type KeyType = key.keyType.type
-
   /**
-   * Retrieves the metric hook that powers the metric. There is no need to use
-   * this in application-level code.
+   * Retrieves the transformation applied to the underlying primitive metric
+   * type.
    */
-  private[zio] def hook: ModifiedMetricHook[key.keyType.In, key.keyType.Out, In, Out]
+  def transformation: Transformation[key.keyType.In, key.keyType.Out, In, Out]
 
   /**
    * Applies the metric computation to the result of the specified effect.
@@ -71,7 +69,7 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * this metric.
    */
   def contramap[In2](f: In2 => In): ZIOMetric[Type, In2, Out] =
-    ZIOMetric(key)(hook.contramap(f))
+    ZIOMetric(key)(transformation.contramap(f))
 
   /**
    * Returns a new metric that is powered by this one, but which outputs a new
@@ -79,28 +77,28 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * specified function.
    */
   def map[Out2](f: Out => Out2): ZIOMetric[Type, In, Out2] =
-    ZIOMetric(key)(hook.map(f))
+    ZIOMetric(key)(transformation.map(f))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tag will be added to the tags of this metric.
    */
-  def tagged(key: String, value: String): ZIOMetric[KeyType, In, Out] =
+  def tagged(key: String, value: String): ZIOMetric[Type, In, Out] =
     tagged(MetricLabel(key, value))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tags have been added to the tags of this metric.
    */
-  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): ZIOMetric[KeyType, In, Out] =
+  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): ZIOMetric[Type, In, Out] =
     tagged(Chunk(extraTag) ++ Chunk.fromIterable(extraTags))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tags have been added to the tags of this metric.
    */
-  def tagged(extraTags: Chunk[MetricLabel]): ZIOMetric[KeyType, In, Out] =
-    ZIOMetric(key.tagged(extraTags))(hook)
+  def tagged(extraTags: Chunk[MetricLabel]): ZIOMetric[Type, In, Out] =
+    ZIOMetric(key.tagged(extraTags))(transformation)
 
   /**
    * Returns a ZIO aspect that can update a metric derived from this one, but
@@ -119,7 +117,7 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
         zio.map { (a: A1) =>
           val key2 = key0.tagged(f(a))
 
-          metricState.get(key2).update(self.hook.contramapper(a).asInstanceOf[key2.keyType.In])
+          metricState.get(key2).update(self.transformation.contramapper(a).asInstanceOf[key2.keyType.In])
 
           a
         }
@@ -140,6 +138,9 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
   private[zio] def unsafeUpdate(in: In): Unit = hook.update(in)
 
   private[zio] def unsafeValue(): Out = hook.get()
+
+  private[zio] def hook: MetricHook[In, Out] =
+    metricState.get(key).map(transformation.mapper).contramap(transformation.contramapper)
 }
 object ZIOMetric {
   type Counter[-In]   = ZIOMetric[MetricKeyType.Counter, In, MetricState.Counter]
@@ -175,7 +176,7 @@ object ZIOMetric {
   def fromMetricKey[Type <: MetricKeyType](
     key: MetricKey[Type]
   ): ZIOMetric[Type, key.keyType.In, key.keyType.Out] =
-    ZIOMetric(key)(ModifiedMetricHook(metricState.get(key)))
+    ZIOMetric(key)(Transformation.identity)
 
   def apply[Type <: MetricKeyType](
     key0: MetricKey[Type]
@@ -185,10 +186,10 @@ object ZIOMetric {
     )
 
   class MakeZIOMetric[Type <: MetricKeyType { type In = In0; type Out = Out0 }, In0, Out0](key0: MetricKey[Type]) {
-    def apply[In, Out](hook0: ModifiedMetricHook[In0, Out0, In, Out]): ZIOMetric[Type, In, Out] =
+    def apply[In, Out](transformation0: Transformation[In0, Out0, In, Out]): ZIOMetric[Type, In, Out] =
       new ZIOMetric[Type, In, Out] {
-        val key: key0.type                               = key0
-        def hook: ModifiedMetricHook[In0, Out0, In, Out] = hook0
+        val key: key0.type                                     = key0
+        def transformation: Transformation[In0, Out0, In, Out] = transformation0
       }
   }
 

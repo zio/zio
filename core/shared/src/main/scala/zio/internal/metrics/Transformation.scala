@@ -16,35 +16,9 @@
 
 package zio.internal.metrics
 
-final case class ModifiedMetricHook[In0, Out0, -In, +Out](
-  hook: MetricHook[In0, Out0],
-  contramapper: In => In0,
-  mapper: Out0 => Out
-) { self =>
-  def contramap[In2](f: In2 => In): ModifiedMetricHook[In0, Out0, In2, Out] =
-    copy(contramapper = f.andThen(self.contramapper))
-
-  val get: () => Out = () => mapper(hook.get())
-
-  def map[Out2](f: Out => Out2): ModifiedMetricHook[In0, Out0, In, Out2] =
-    copy(mapper = self.mapper.andThen(f))
-
-  val update: In => Unit = contramapper.andThen(hook.update)
-
-  def zip[In1, Out1, In2, Out2](
-    that: ModifiedMetricHook[In1, Out1, In2, Out2]
-  ): ModifiedMetricHook[(In0, In1), (Out0, Out1), (In, In2), (Out, Out2)] =
-    ModifiedMetricHook(
-      hook.zip(that.hook),
-      (i: (In, In2)) => (self.contramapper(i._1), that.contramapper(i._2)),
-      (o: (Out0, Out1)) => (self.mapper(o._1), that.mapper(o._2))
-    )
-}
-object ModifiedMetricHook {
-  def apply[In, Out](hook: MetricHook[In, Out]): ModifiedMetricHook[In, Out, In, Out] =
-    ModifiedMetricHook(hook, identity(_), identity(_))
-}
-
+/**
+ * A pair of functions that provide mapping and contramapping ability.
+ */
 final case class Transformation[In0, Out0, -In, +Out](
   contramapper: In => In0,
   mapper: Out0 => Out
