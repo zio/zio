@@ -100,6 +100,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Kensu](https://kensu.io)
 * [LambdaWorks](https://www.lambdaworks.io/)
 * [LeadIQ](https://leadiq.com)
+* [Lernkunst](http://www.lernkunst.com/)
 * [LiveIntent Inc.](https://liveintent.com)
 * [Lottoland](https://lottoland.com)
 * [MATECHS](https://matechs.com)
