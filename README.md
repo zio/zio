@@ -91,6 +91,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [GrandParade](https://grandparade.co.uk)
 * [greyflower.media GmbH](https://greyflower.media)
 * [Hunters.AI](https://hunters.ai)
+* [Hypefactors](https://hypefactors.com/)
 * [iHeartRadio](https://www.iheart.com/)
 * [IHS Markit](https://ihsmarkit.com/)
 * [Investsuite](https://investsuite.com/)
