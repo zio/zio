@@ -28,7 +28,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  */
 final case class MetricKey[+Type] private (
   name: String,
-  tags: Chunk[MetricLabel],
+  tags: Set[MetricLabel],
   keyType: Type
 ) { self =>
 
@@ -38,18 +38,18 @@ final case class MetricKey[+Type] private (
    * Returns a new `MetricKey` with the specified tag appended.
    */
   def tagged(key: String, value: String): MetricKey[KeyType] =
-    tagged(Chunk(MetricLabel(key, value)))
+    tagged(Set(MetricLabel(key, value)))
 
   /**
    * Returns a new `MetricKey` with the specified tags appended.
    */
   def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): MetricKey[KeyType] =
-    tagged(Chunk(extraTag) ++ Chunk.fromIterable(extraTags))
+    tagged(Set(extraTag) ++ extraTags.toSet)
 
   /**
    * Returns a new `MetricKey` with the specified tags appended.
    */
-  def tagged(extraTags: Chunk[MetricLabel]): MetricKey[KeyType] =
+  def tagged(extraTags: Set[MetricLabel]): MetricKey[KeyType] =
     if (tags.isEmpty) self.asInstanceOf[MetricKey[KeyType]]
     else MetricKey[KeyType](name, tags = tags ++ extraTags, keyType: KeyType)
 }
@@ -68,13 +68,13 @@ object MetricKey {
    * Creates a metric key for a counter, with the specified name & parameters.
    */
   def counter(name: String): Counter =
-    MetricKey(name, Chunk.empty, MetricKeyType.Counter)
+    MetricKey(name, Set.empty, MetricKeyType.Counter)
 
   /**
    * Creates a metric key for a gauge, with the specified name & parameters.
    */
   def gauge(name: String): Gauge =
-    MetricKey(name, Chunk.empty, MetricKeyType.Gauge)
+    MetricKey(name, Set.empty, MetricKeyType.Gauge)
 
   /**
    * Creates a metric key for a histogram, with the specified name & parameters.
@@ -83,7 +83,7 @@ object MetricKey {
     name: String,
     boundaries: Boundaries
   ): Histogram =
-    MetricKey(name, Chunk.empty, MetricKeyType.Histogram(boundaries))
+    MetricKey(name, Set.empty, MetricKeyType.Histogram(boundaries))
 
   /**
    * Creates a metric key for a summary, with the specified name & parameters.
@@ -95,11 +95,11 @@ object MetricKey {
     error: Double,
     quantiles: Chunk[Double]
   ): Summary =
-    MetricKey(name, Chunk.empty, MetricKeyType.Summary(maxAge, maxSize, error, quantiles))
+    MetricKey(name, Set.empty, MetricKeyType.Summary(maxAge, maxSize, error, quantiles))
 
   /**
    * Creates a metric key for a set count, with the specified name & parameters.
    */
   def setCount(name: String, setTag: String): SetCount =
-    MetricKey(name, Chunk.empty, MetricKeyType.SetCount(setTag))
+    MetricKey(name, Set.empty, MetricKeyType.SetCount(setTag))
 }
