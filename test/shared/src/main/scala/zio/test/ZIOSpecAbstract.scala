@@ -110,9 +110,9 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
-      runtime         <- ZIO.runtime[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
-      environment      = runtime.environment
-      runtimeConfig    = hook(runtime.runtimeConfig)
+      runtime      <- ZIO.runtime[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
+      environment   = runtime.environment
+      runtimeConfig = hook(runtime.runtimeConfig)
       runner =
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any](
