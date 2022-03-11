@@ -51,7 +51,7 @@ final case class MetricKey[+Type] private (
    */
   def tagged(extraTags: Set[MetricLabel]): MetricKey[KeyType] =
     if (tags.isEmpty) self.asInstanceOf[MetricKey[KeyType]]
-    else MetricKey[KeyType](name, tags = tags ++ extraTags, keyType: KeyType)
+    else MetricKey[KeyType](name, tags = tags ++ extraTags, keyType)
 }
 object MetricKey {
   type Untyped = MetricKey[Any]

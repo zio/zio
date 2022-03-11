@@ -116,12 +116,14 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
       val transformation = self.transformation
 
       def hook(extraTags: Set[MetricLabel]): MetricHook[keyType.In, keyType.Out] =
-        self.hook(extraTags0 ++ extraTags)
+        self.hook(if (extraTags.isEmpty) extraTags0 else (extraTags0 ++ extraTags))
     }
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
-   * dynamic tags are added based on the update values.
+   * dynamic tags are added based on the update values. Note that the metric
+   * returned by this method does not return any useful information, due to the
+   * dynamic nature of the added tags.
    */
   def taggedWith[In1 <: In](
     f: In1 => Set[MetricLabel]
@@ -131,7 +133,7 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
 
       val transformation = self.transformation
 
-      override def unsafeUpdate(in: In1, extraTags: Set[MetricLabel] = Set.empty): Unit =
+      override def unsafeUpdate(in: In1, extraTags: Set[MetricLabel]): Unit =
         self.unsafeUpdate(in, f(in) ++ extraTags)
 
       def hook(extraTags: Set[MetricLabel]): MetricHook[keyType.In, keyType.Out] =
@@ -144,21 +146,19 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * provided amount.
    */
   def update(in: In)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.succeed(unsafeUpdate(in))
+    ZIO.succeed(unsafeUpdate(in, Set.empty))
 
   /**
    * Updates the primitive metric that underlies this metric, and which is
    * determined by the `keyType` field.
    */
   def updatePrimitive(in: keyType.In)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.succeed(unsafeUpdatePrimitive(in))
+    ZIO.succeed(unsafeUpdatePrimitive(in, Set.empty))
 
   /**
    * Retrieves a snapshot of the value of the metric at this moment in time.
    */
   def value(implicit trace: ZTraceElement): UIO[Out] = ZIO.succeed(unsafeValue(Set.empty))
-
-  def value(extraTags: Set[MetricLabel])(implicit trace: ZTraceElement): UIO[Out] = ZIO.succeed(unsafeValue(extraTags))
 
   private[zio] def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit =
     hook(extraTags).update(transformation.contramapper(in))
