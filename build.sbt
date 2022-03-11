@@ -355,16 +355,6 @@ lazy val testJS = test.js
       "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M1"
     )
   )
-  .settings(
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3) {
-        List()
-      } else {
-        // Temporarily disable warning to use `MacrotaskExecutor` https://github.com/zio/zio/issues/6308
-        List("-P:scalajs:nowarnGlobalExecutionContext")
-      }
-    }
-  )
 lazy val testNative = test.native
   .settings(nativeSettings)
   .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.5")
@@ -382,7 +372,19 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(dottySettings)
+
+lazy val testTestsJS  = testTests.js
+  .settings(dottySettings)
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        // Temporarily disable warning to use `MacrotaskExecutor` https://github.com/zio/zio/issues/6308
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
