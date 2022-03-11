@@ -373,7 +373,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
 
-lazy val testTestsJS  = testTests.js
+lazy val testTestsJS = testTests.js
   .settings(dottySettings)
   .settings(
     scalacOptions ++= {
