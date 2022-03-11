@@ -55,6 +55,18 @@ object ZIOAppSpec extends ZIOBaseSpec {
         c <- app1.invoke(Chunk.empty).exitCode
         v <- ZIO.succeed(counter.get())
       } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
+    },
+    test("execution of finalizers on interruption") {
+      for {
+        running   <- Promise.make[Nothing, Unit]
+        ref       <- Ref.make(false)
+        effect     = (running.succeed(()) *> ZIO.never).ensuring(ref.set(true))
+        app        = ZIOAppDefault.fromZIO(effect)
+        fiber     <- app.invoke(Chunk.empty).fork
+        _         <- running.await
+        _         <- fiber.interrupt
+        finalized <- ref.get
+      } yield assertTrue(finalized)
     }
   )
 }
