@@ -755,6 +755,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.filterOrElse(p)(ZIO.dieMessage(message))
 
   /**
+   * Dies with `t` if the predicate fails.
+   */
+  final def filterOrDieWith(p: A => Boolean)(t: A => Throwable)(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    self.filterOrElseWith(p)(a => ZIO.die(t(a)))
+
+  /**
    * Supplies `zio` if the predicate fails.
    */
   final def filterOrElse[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(zio: => ZIO[R1, E1, A1])(implicit
