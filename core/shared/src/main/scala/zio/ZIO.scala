@@ -4038,7 +4038,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foreachParN_[R, E, A](n: => Int)(as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R, E, Unit] =
-    foreachParDiscard(as)(f)
+    foreachParDiscard(as)(f).withParallelism(n)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
