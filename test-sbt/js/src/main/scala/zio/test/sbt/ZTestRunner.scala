@@ -116,7 +116,7 @@ sealed class ZTestTask(
           layer +!+ argslayer +!+ filledTestlayer
 
         val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
-        Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
+        Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
           val logic =
             for {
               spec <- zioSpec
