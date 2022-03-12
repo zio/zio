@@ -151,7 +151,7 @@ object ZSTMConcurrencyTests {
   }
 
   /**
-   * Tests the implementation of `TSemaphore#withPermitManaged`. If a permit is
+   * Tests the implementation of `TSemaphore#withPermitScoped`. If a permit is
    * successfully acquired it should be released no matter what.
    */
   @JCStressTest
@@ -161,7 +161,7 @@ object ZSTMConcurrencyTests {
     )
   )
   @State
-  class ConcurrentWithPermitManaged {
+  class ConcurrentWithPermitScoped {
     val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
     val semaphore: Semaphore            = runtime.unsafeRun(Semaphore.make(1L))
     var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
