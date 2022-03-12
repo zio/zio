@@ -27,8 +27,8 @@ import zio.{FiberId, Scope, ZIO, ZTraceElement}
  * fiber that has a write lock may acquire other write locks or read locks.
  *
  * The two primary methods of this structure are `readLock`, which acquires a
- * read lock in a managed context, and `writeLock`, which acquires a write lock
- * in a managed context.
+ * read lock in a scoped context, and `writeLock`, which acquires a write lock
+ * in a scoped context.
  *
  * Although located in the STM package, there is no need for locks within STM
  * transactions. However, this lock can be quite useful in effectful code, to
@@ -81,7 +81,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
     (readLocked zipWith writeLocked)(_ || _)
 
   /**
-   * Obtains a read lock in a managed context.
+   * Obtains a read lock in a scoped context.
    */
   def readLock(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Int] =
     ZIO.acquireRelease(acquireRead.commit)(_ => releaseRead.commit)
@@ -131,7 +131,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
     }
 
   /**
-   * Obtains a write lock in a managed context.
+   * Obtains a write lock in a scoped context.
    */
   def writeLock(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Int] =
     ZIO.acquireRelease(acquireWrite.commit)(_ => releaseWrite.commit)
