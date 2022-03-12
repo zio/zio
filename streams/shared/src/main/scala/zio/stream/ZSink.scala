@@ -397,8 +397,8 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     val managed =
       for {
         hub   <- ZHub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
-        c1    <- ZChannel.fromHubManaged(hub)
-        c2    <- ZChannel.fromHubManaged(hub)
+        c1    <- ZChannel.fromHubScoped(hub)
+        c2    <- ZChannel.fromHubScoped(hub)
         reader = ZChannel.toHub[Nothing, Any, Chunk[In1]](hub)
         writer = (c1 >>> self.channel).mergeWith(c2 >>> that.channel)(
                    leftDone,

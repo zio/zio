@@ -1721,7 +1721,7 @@ object ZChannel {
   )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.scoped(hub.subscribe)(fromQueue(_))
 
-  def fromHubManaged[Err, Done, Elem](
+  def fromHubScoped[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
     hub.subscribe.map(fromQueue(_))
