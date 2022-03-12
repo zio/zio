@@ -19,7 +19,7 @@ object THubSpec extends ZIOBaseSpec {
               promise2 <- Promise.make[Nothing, Unit]
               hub      <- THub.bounded[Int](n).commit
               subscriber <- ZIO.scoped {
-                              hub.subscribeManaged.flatMap { subscription =>
+                              hub.subscribeScoped.flatMap { subscription =>
                                 promise1.succeed(()) *> promise2.await *> ZIO.foreach(as.take(n))(_ =>
                                   subscription.take.commit
                                 )
@@ -41,14 +41,14 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.bounded[Int](n).commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged
+                  hub.subscribeScoped
                     .flatMap(subscription =>
                       promise1.succeed(()) *> promise3.await *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                     )
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged
+                  hub.subscribeScoped
                     .flatMap(subscription =>
                       promise2.succeed(()) *> promise3.await *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                     )
@@ -72,7 +72,7 @@ object THubSpec extends ZIOBaseSpec {
               hub     <- THub.bounded[Int](n).commit
               subscriber <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -90,13 +90,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.bounded[Int](n).commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -117,13 +117,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.bounded[Int](n * 2).commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -148,7 +148,7 @@ object THubSpec extends ZIOBaseSpec {
               hub     <- THub.bounded[Int](n).commit
               subscriber <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise.succeed(()) *> ZIO.foreach(as)(_ => subscription.take.commit)
                   }
                 }.fork
@@ -166,13 +166,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.bounded[Int](n).commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach(as)(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach(as)(_ => subscription.take.commit)
                   }
                 }.fork
@@ -193,13 +193,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.bounded[Int](n * 2).commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -224,7 +224,7 @@ object THubSpec extends ZIOBaseSpec {
               hub     <- THub.dropping[Int](n).commit
               subscriber <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -242,13 +242,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.dropping[Int](n).commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -269,13 +269,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.dropping[Int](n * 2).commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -300,7 +300,7 @@ object THubSpec extends ZIOBaseSpec {
               hub     <- THub.sliding[Int](n).commit
               subscriber <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -319,13 +319,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.sliding[Int](n).commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach(as.take(n))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -346,13 +346,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.sliding[Int](n * 2).commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach((as ::: as).take(n * 2))(_ => subscription.take.commit)
                   }
                 }.fork
@@ -393,13 +393,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.unbounded[Int].commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach(as)(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach(as)(_ => subscription.take.commit)
                   }
                 }.fork
@@ -420,13 +420,13 @@ object THubSpec extends ZIOBaseSpec {
               hub      <- THub.unbounded[Int].commit
               subscriber1 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise1.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take.commit)
                   }
                 }.fork
               subscriber2 <-
                 ZIO.scoped {
-                  hub.subscribeManaged.flatMap { subscription =>
+                  hub.subscribeScoped.flatMap { subscription =>
                     promise2.succeed(()) *> ZIO.foreach((as ::: as))(_ => subscription.take.commit)
                   }
                 }.fork

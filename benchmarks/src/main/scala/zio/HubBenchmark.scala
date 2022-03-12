@@ -209,7 +209,7 @@ class HubBenchmarks {
           def publish(a: A): UIO[Any] =
             hub.publish(a).commit
           def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
-            hub.subscribeManaged.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
+            hub.subscribeScoped.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
         }
       }
 
@@ -219,7 +219,7 @@ class HubBenchmarks {
           def publish(a: A): UIO[Any] =
             hub.publish(a).commit
           def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
-            hub.subscribeManaged.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
+            hub.subscribeScoped.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
         }
       }
 
