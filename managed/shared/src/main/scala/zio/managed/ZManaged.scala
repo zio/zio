@@ -2686,7 +2686,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     trace: ZTraceElement
   ): ZManaged[Any, Nothing, Unit] =
     FiberRef.currentLogAnnotations.get.toManaged.flatMap { annotations =>
-      FiberRef.currentLogAnnotations.locallyManaged(annotations.updated(key, value)).toManaged0
+      FiberRef.currentLogAnnotations.locallyScoped(annotations.updated(key, value)).toManaged0
     }
 
   /**
@@ -2729,7 +2729,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Sets the log level for managed effects composed after this.
    */
   def logLevel(level: LogLevel)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    FiberRef.currentLogLevel.locallyManaged(level).toManaged0
+    FiberRef.currentLogLevel.locallyScoped(level).toManaged0
 
   /**
    * Adjusts the label for the logging span for managed effects composed after
@@ -2740,7 +2740,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       val instant = java.lang.System.currentTimeMillis()
       val logSpan = LogSpan(label, instant)
 
-      FiberRef.currentLogSpan.locallyManaged(logSpan :: stack).toManaged0
+      FiberRef.currentLogSpan.locallyScoped(logSpan :: stack).toManaged0
     }
 
   /**
@@ -3562,7 +3562,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * it back to the original value as the `release` action.
    */
   def withParallism(n: => Int)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZIO.Parallelism.locallyManaged(Some(n)).toManaged0
+    ZIO.Parallelism.locallyScoped(Some(n)).toManaged0
 
   /**
    * Returns a managed effect that describes setting an unbounded maximum number
@@ -3570,7 +3570,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * back to the original value as the `release` action.
    */
   def withParallismUnbounded(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZIO.Parallelism.locallyManaged(None).toManaged0
+    ZIO.Parallelism.locallyScoped(None).toManaged0
 
   /**
    * Returns a managed effect that describes setting the runtime configuration

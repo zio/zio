@@ -27,7 +27,7 @@ object Sized {
             ZStream
               .fromZIO(fiberRef.get)
               .flatMap { oldSize =>
-                ZStream.managed(fiberRef.locallyManaged(size)) *> gen.sample.mapZIO(a => fiberRef.set(oldSize).as(a))
+                ZStream.managed(fiberRef.locallyScoped(size)) *> gen.sample.mapZIO(a => fiberRef.set(oldSize).as(a))
               }
           }
       }

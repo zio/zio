@@ -103,7 +103,7 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
    * fiber to the specified value as its `acquire` action and restores it to its
    * original value as its `release` action.
    */
-  def locallyManaged(value: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit]
+  def locallyScoped(value: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit]
 
   /**
    * Sets the value associated with the current fiber.
@@ -308,7 +308,7 @@ object ZFiberRef {
     def locally[R, EC, C](value: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
       new ZIO.FiberRefLocally(value, self, use, trace)
 
-    def locallyManaged(value: A)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+    def locallyScoped(value: A)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
       ZIO.acquireRelease(get.flatMap(old => set(value).as(old)))(set).unit
 
     def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B] =
@@ -448,7 +448,7 @@ object ZFiberRef {
         )
       }
 
-    def locallyManaged(a: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit] =
+    def locallyScoped(a: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit] =
       ZIO.acquireRelease {
         value.get.flatMap { old =>
           setEither(a).fold(
@@ -522,7 +522,7 @@ object ZFiberRef {
         )
       }
 
-    def locallyManaged(a: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit] =
+    def locallyScoped(a: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit] =
       ZIO.acquireRelease {
         value.get.flatMap { old =>
           setEither(a)(old).fold(
