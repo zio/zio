@@ -1442,6 +1442,150 @@ object MainApp extends ZIOAppDefault {
 // fallback result on failure
 ```
 
+## Error Accumulation
+
+In this section, we will discuss operators that can transform a collection of inputs and then accumulate errors as well as successes.
+
+1. **`ZIO.partition`**— The partition operator takes an iterable and effectful function that transforms each value of the iterable and finally creates a tuple of both failures and successes in the success channel.
+
+```scala
+object ZIO {
+  def partition[R, E, A, B](in: => Iterable[A])(
+    f: A => ZIO[R, E, B]
+  ): ZIO[R, Nothing, (Iterable[E], Iterable[B])]
+}
+```
+
+Note that this operator is an unexceptional effect, which means the type of the error channel is `Nothing`. So using this operator, if we reach a failure case, the whole effect doesn't fail. This is similar to the `List#partition` in the standard library:
+
+Let's try an example of collecting even numbers from the range of 0 to 7:
+
+```scala mdoc:compile-only
+import zio._
+
+val res: ZIO[Any, Nothing, (Iterable[String], Iterable[Int])] =
+  ZIO.partition(List.range(0, 7)){ n =>
+    if (n % 2 == 0)
+      ZIO.succeed(n)
+    else
+      ZIO.fail(s"$n is not even")
+  }
+res.debug
+
+// Output:
+// (List(1 is not even, 3 is not even, 5 is not even),List(0, 2, 4, 6))
+```
+
+2. **`ZIO.validate`/`ZIO.validatePar`**— It is similar to the `ZIO.partition` but it is an exceptional operator which means it collects errors in the error channel and success in the success channel:
+
+```scala
+object ZIO {
+  def validate[R, E, A, B](in: Collection[A])(
+    f: A => ZIO[R, E, B]
+  ): ZIO[R, ::[E], Collection[B]]
+}
+```
+
+Another difference is that this operator is lossy, which means if there are errors all successes will be lost.
+
+In the lossy scenario, it will collect all errors in the error channel, which cause the failure:
+
+```scala mdoc:compile-only
+object MainApp extends ZIOAppDefault {
+  val res: ZIO[Any, ::[String], List[Int]] =
+    ZIO.validate(List.range(1, 7)){ n =>
+      if (n < 5)
+        ZIO.succeed(n)
+      else
+        ZIO.fail(s"$n is not less that 5")
+    }
+  def run = res.debug
+}
+
+// Output:
+// <FAIL> List(5 is not less that 5, 6 is not less that 5)
+// timestamp=2022-03-12T07:34:36.510227783Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" scala.collection.immutable.$colon$colon: List(5 is not less that 5, 6 is not less that 5)
+//	at <empty>.MainApp.res(MainApp.scala:5)
+//	at <empty>.MainApp.run(MainApp.scala:11)"
+```
+
+In the success scenario when we have no errors at all, all the successes will be collected in the success channel:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val res: ZIO[Any, ::[String], List[Int]] =
+    ZIO.validate(List.range(1, 4)){ n =>
+      if (n < 5)
+        ZIO.succeed(n)
+      else
+        ZIO.fail(s"$n is not less that 5")
+    }
+  def run = res.debug
+}
+
+// Ouput:
+// List(1, 2, 3)
+```
+
+Two more notes:
+
+1. The `ZIO.validate` operator is sequential, so we can use the `ZIO.validatePar` version to do the computation in parallel.
+2. The `ZIO.validateDiscard` and `ZIO.validateParDiscard` operators are mostly similar to their non-discard versions, except they discard the successes. So the type of the success channel will be `Unit`.
+
+3. **`ZIO.validateFirst`/`ZIO.validateFirstPar`**— Like the `ZIO.validate` in the success scenario it will collect all errors in the error channel except in the success scenario it will return only the first success:
+
+```scala
+object ZIO {
+  def validateFirst[R, E, A, B](in: Collection[A])(
+    f: A => ZIO[R, E, B]
+  ): ZIO[R, Collection[E], B]
+}
+```
+
+In the failure scenario, it will collect all errors in the failure channel, and it causes the failure:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val res: ZIO[Any, List[String], Int] =
+    ZIO.validateFirst(List.range(5, 10)) { n =>
+      if (n < 5)
+        ZIO.succeed(n)
+      else
+        ZIO.fail(s"$n is not less that 5")
+    }
+  def run = res.debug
+}
+// Output:
+// <FAIL> List(5 is not less that 5, 6 is not less that 5, 7 is not less that 5, 8 is not less that 5, 9 is not less that 5)
+// timestamp=2022-03-12T07:50:15.632883494Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" scala.collection.immutable.$colon$colon: List(5 is not less that 5, 6 is not less that 5, 7 is not less that 5, 8 is not less that 5, 9 is not less that 5)
+// 	at <empty>.MainApp.res(MainApp.scala:5)
+//	at <empty>.MainApp.run(MainApp.scala:11)"
+```
+
+In the success scenario it will return the first success value:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val res: ZIO[Any, List[String], Int] =
+    ZIO.validateFirst(List.range(1, 4)) { n =>
+      if (n < 5)
+        ZIO.succeed(n)
+      else
+        ZIO.fail(s"$n is not less that 5")
+    }
+  def run = res.debug
+}
+
+// Output:
+// 1
+```
+
 ## Error Channel Conversions
 
 ### Putting Errors Into Success Channel and Submerging Them Back Again
