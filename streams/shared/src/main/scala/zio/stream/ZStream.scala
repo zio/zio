@@ -5309,7 +5309,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a single-valued stream from a managed resource
    */
   def managed[R, E, A](managed: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    new ZStream(ZChannel.managedOut[R, E, Chunk[A]](managed.map(Chunk.single)))
+    new ZStream(ZChannel.scopedOut[R, E, Chunk[A]](managed.map(Chunk.single)))
 
   /**
    * Merges a variable list of streams in a non-deterministic fashion. Up to `n`

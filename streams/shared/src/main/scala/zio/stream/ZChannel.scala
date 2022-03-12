@@ -1447,7 +1447,7 @@ object ZChannel {
         .flatMap(use)
     }
 
-  def managedOut[R, E, A](
+  def scopedOut[R, E, A](
     m: => ZIO[Scope with R, E, A]
   )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
     acquireReleaseOutExitWith(
@@ -1908,7 +1908,7 @@ object ZChannel {
       trace: ZTraceElement
     ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       ZChannel.concatAllWith(
-        managedOut[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](channel)
+        scopedOut[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](channel)
       )((d, _) => d, (d, _) => d)
   }
 

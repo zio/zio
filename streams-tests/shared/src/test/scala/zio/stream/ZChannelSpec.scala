@@ -371,7 +371,7 @@ object ZChannelSpec extends ZIOBaseSpec {
       suite("ZChannel#managedOut")(
         test("failure") {
           for {
-            exit <- ZChannel.managedOut(ZIO.fail("error")).runCollect.exit
+            exit <- ZChannel.scopedOut(ZIO.fail("error")).runCollect.exit
           } yield assert(exit)(fails(equalTo("error")))
         }
       ),
