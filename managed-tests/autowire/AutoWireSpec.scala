@@ -88,7 +88,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           } @@ TestAspect.exceptScala3,
           test("reports circular dependencies") {
             import TestLayer._
-            val program: ZIO[OldLady with Scope, Nothing, Boolean] = ZIO.service[OldLady].flatMap(_.willDie.toManaged)
+            val program: URManaged[OldLady, Boolean] = ZManaged.service[OldLady].flatMap(_.willDie.toManaged)
             val _                                    = program
 
             val checked = typeCheck("program.provide(OldLady.live, Fly.manEatingFly)")
@@ -107,7 +107,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           test("automatically constructs a layer, leaving off ZEnv") {
             val stringLayer = Console.readLine.orDie.toLayer
             val program     = ZManaged.service[String].zipWith(Random.nextInt.toManaged)((str, int) => s"$str $int")
-            val provided = TestConsole.feedLines("Your Lucky Number is:") *>
+            val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged *>
               program.provideCustom(stringLayer)
 
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
@@ -137,6 +137,24 @@ object AutoWireSpec extends ZIOBaseSpec {
                   assertTrue(i == 1094383425)
                 }
             }.provideSome[Console](TestRandom.make(TestRandom.Data(10, 10)))
+          }
+        ),
+        suite(".unit")(
+          test("run layers for their side effects and suppresses unused layer warnings") {
+            def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, String] =
+              ref.update(_ + 1).as("Howdy").toLayer
+
+            for {
+              ref <- Ref.make(0)
+              _ <- ZIO
+                     .service[Int]
+                     .provide(
+                       sideEffectingLayer(ref).unit,
+                       ZLayer.succeed(12)
+                     )
+              result <- ref.get
+            } yield assertTrue(result == 1)
+
           }
         )
       )

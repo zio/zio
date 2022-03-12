@@ -137,7 +137,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def aggregateAsync[R1 <: R, E1 >: E, A1 >: A, B](
     sink: => ZSink[R1, E1, A1, A1, B]
   )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
-    aggregateAsyncWithin(sink, Schedule.forever)
+    aggregateAsyncWithin(sink, Schedule.recurs(0))
 
   /**
    * Like `aggregateAsyncWithinEither`, but only returns the `Right` results.

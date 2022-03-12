@@ -20,7 +20,7 @@ import magnolia._
 import zio.{Chunk, Random}
 import zio.test.{Gen, Sized}
 
-import java.time.{Instant, LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.UUID
 
 /**
@@ -78,7 +78,8 @@ object DeriveGen {
   implicit val genUUID: DeriveGen[UUID]                   = instance(Gen.uuid)
   implicit val genInstant: DeriveGen[Instant]             = instance(Gen.instant)
   implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.localDateTime)
-  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.localDateTime.map(_.toLocalDate()))
+  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.localDate)
+  implicit val genLocalTime: DeriveGen[LocalTime]         = instance(Gen.localTime)
   implicit val genBigDecimal: DeriveGen[BigDecimal] = instance(
     Gen.bigDecimal(
       BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),

@@ -79,13 +79,14 @@ private[zio] object javaz {
         if (cf.isDone) {
           unwrapDone(p.fatal)(cf)
         } else {
-          Task.async { cb =>
-            cs.handle[Unit] { (v: A, t: Throwable) =>
+          Task.asyncInterrupt { cb =>
+            val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
               val io = Option(t).fold[Task[A]](Task.succeed(v)) { t =>
                 catchFromGet(p.fatal).lift(t).getOrElse(Task.die(t))
               }
               cb(io)
             }
+            Left(UIO(cf.cancel(false)))
           }
         }
       }
@@ -101,7 +102,7 @@ private[zio] object javaz {
         if (future.isDone) {
           unwrapDone(p.fatal)(future)
         } else {
-          ZIO.blocking(Task.suspend(unwrapDone(p.fatal)(future)))
+          ZIO.blocking(Task.suspend(unwrapDone(p.fatal)(future))).onInterrupt(UIO(future.cancel(false)))
         }
       }
     }

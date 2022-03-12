@@ -29,6 +29,7 @@ private[zio] trait LayerMacroUtils {
       remainder = remainderTypes,
       providedLayers0 = layers.toList,
       layerToDebug = debugMap,
+      sideEffectType = c.weakTypeOf[Unit].dealias,
       typeEquals = _ <:< _,
       foldTree = buildFinalTree,
       method = provideMethod,

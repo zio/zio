@@ -292,6 +292,16 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
       .map(Runtime(_, runtimeConfig))
 
   /**
+   * Replaces the layer's output with `Unit`.
+   *
+   * When used with [[ZIO.provide]] and [[ZLayer.make]] macros (and their
+   * variants), this will suppress the unused layer warning that is normally
+   * emitted, and will actually include the layer for its side-effects.
+   */
+  def unit(implicit trace: ZTraceElement): ZLayer[RIn, E, Unit] =
+    self.map(_ => ZEnvironment(()))
+
+  /**
    * Updates one of the services output by this layer.
    */
   final def update[A >: ROut: Tag](

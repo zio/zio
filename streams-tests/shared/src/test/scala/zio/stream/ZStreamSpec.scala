@@ -115,6 +115,13 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .runCollect
                 .map(_.toList.flatten)
             )(equalTo(data))
+          },
+          test("issue 6395") {
+            assertM(
+              ZStream(1, 2, 3)
+                .aggregateAsync(ZSink.collectAllN[Int](2))
+                .runCollect
+            )(equalTo(Chunk(Chunk(1, 2), Chunk(3))))
           }
         ),
         suite("transduce")(
@@ -1750,6 +1757,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
+        test("runFoldWhile") {
+          val stream = ZStream(1, 1, 1, 1, 1)
+          for {
+            sum <- stream.runFoldWhile(0)(_ < 3)(_ + _)
+          } yield assertTrue(sum == 3)
+        },
         suite("foreach")(
           suite("foreach")(
             test("with small data set") {
@@ -3402,7 +3415,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
-          } @@ nonFlaky
+          } @@ flaky
         ),
         suite("throttleEnforce")(
           test("free elements") {

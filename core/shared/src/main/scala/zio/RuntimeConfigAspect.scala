@@ -29,9 +29,6 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
   def addLogger(logger: ZLogger[String, Any]): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(logger = self.logger +> logger))
 
-  def addReportFatal(f: Throwable => Nothing): RuntimeConfigAspect =
-    RuntimeConfigAspect(self => self.copy(reportFatal = t => { self.reportFatal(t); f(t) }))
-
   def addSupervisor(supervisor: Supervisor[Any]): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(supervisor = self.supervisor ++ supervisor))
 
@@ -49,6 +46,9 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
 
   def setExecutor(executor: Executor): RuntimeConfigAspect =
     RuntimeConfigAspect(_.copy(executor = executor))
+
+  def setReportFatal(reportFatal: Throwable => Nothing): RuntimeConfigAspect =
+    RuntimeConfigAspect(self => self.copy(reportFatal = reportFatal))
 
   val superviseOperations: RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(flags = self.flags + RuntimeConfigFlag.SuperviseOperations))

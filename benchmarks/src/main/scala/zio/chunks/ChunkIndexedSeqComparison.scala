@@ -69,7 +69,10 @@ class ChunkIndexedSeqComparison {
   def distinct(): Chunk[Int] = chunk.distinct
 
   @Benchmark
-  def dropRight(): Chunk[Int] = chunk.dropRight(1)
+  def drop(): Chunk[Int] = chunk.drop(size / 2)
+
+  @Benchmark
+  def dropRight(): Chunk[Int] = chunk.dropRight(size / 2)
 
   @Benchmark
   def endsWith(): Boolean = chunk.endsWith(Seq(size - 1, size))
@@ -238,7 +241,10 @@ class ChunkIndexedSeqComparison {
   def tails(): Iterator[Chunk[Int]] = chunk.tails
 
   @Benchmark
-  def takeRight(): Chunk[Int] = chunk.takeRight(size)
+  def take(): Chunk[Int] = chunk.take(size / 2)
+
+  @Benchmark
+  def takeRight(): Chunk[Int] = chunk.takeRight(size / 2)
 
   @Benchmark
   def toIndexedSeq(bh: Blackhole): Unit = bh.consume(chunk.toIndexedSeq)

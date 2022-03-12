@@ -619,7 +619,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e)))
 
   /**
-   * Taps the effect, printing the result of calling `.toString` on the value
+   * Taps the effect, printing the result of calling `.toString` on the value.
    */
   final def debug(implicit trace: ZTraceElement): ZIO[R, E, A] =
     self.tapBoth(
@@ -753,6 +753,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def filterOrDieMessage(p: A => Boolean)(message: => String)(implicit trace: ZTraceElement): ZIO[R, E, A] =
     self.filterOrElse(p)(ZIO.dieMessage(message))
+
+  /**
+   * Dies with `t` if the predicate fails.
+   */
+  final def filterOrDieWith(p: A => Boolean)(t: A => Throwable)(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    self.filterOrElseWith(p)(a => ZIO.die(t(a)))
 
   /**
    * Supplies `zio` if the predicate fails.
@@ -4058,7 +4064,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foreachParN_[R, E, A](n: => Int)(as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R, E, Unit] =
-    foreachParDiscard(as)(f)
+    foreachParDiscard(as)(f).withParallelism(n)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -5245,7 +5251,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified value.
    */
   def succeedBlocking[A](a: => A)(implicit trace: ZTraceElement): UIO[A] =
-    blocking(ZIO.succeedNow(a))
+    blocking(ZIO.succeed(a))
 
   /**
    * The same as [[ZIO.succeed]], but also provides access to the underlying

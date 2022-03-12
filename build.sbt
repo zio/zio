@@ -88,8 +88,8 @@ lazy val root = project
   )
   .aggregate(
     benchmarks,
-    concurrentJVM,
     concurrentJS,
+    concurrentJVM,
     concurrentNative,
     coreJS,
     coreJVM,
@@ -587,7 +587,7 @@ lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(core)
   .settings(stdSettings("zio-concurrent"))
   .settings(crossProjectSettings)
-  .settings(buildInfoSettings("zio.stream"))
+  .settings(buildInfoSettings("zio.concurrent"))
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(testRunner % Test)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
@@ -831,5 +831,5 @@ lazy val docs = project.module
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
+  .dependsOn(coreJVM, streamsJVM, concurrentJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
