@@ -257,7 +257,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       }
 
       ZStream
-        .managed[R, Nothing, Fiber.Runtime[Nothing, Any]]((self.channel >>> handoffProducer).runManaged.forkDaemon) *>
+        .managed[R, Nothing, Fiber.Runtime[Nothing, Any]]((self.channel >>> handoffProducer).runScoped.forkDaemon) *>
         new ZStream(scheduledAggregator(None))
     }
   }
@@ -510,7 +510,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         start <- Promise.make[Nothing, Unit]
         _     <- start.succeed(())
         ref   <- Ref.make(start)
-        _     <- (channel >>> producer(queue, ref)).runManaged.fork
+        _     <- (channel >>> producer(queue, ref)).runScoped.fork
       } yield queue
     } { queue =>
       consumer(queue)
@@ -900,8 +900,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           right  <- ZStream.Handoff.make[Exit[Option[E1], A2]]
           latchL <- ZStream.Handoff.make[Unit]
           latchR <- ZStream.Handoff.make[Unit]
-          _      <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runManaged.fork
-          _      <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runManaged.fork
+          _      <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runScoped.fork
+          _      <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runScoped.fork
         } yield (left, right, latchL, latchR)
       } { case (left, right, latchL, latchR) =>
         val pullLeft: IO[Option[E], A]    = latchL.offer(()) *> left.take.flatMap(ZIO.done(_))
@@ -952,8 +952,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           right  <- ZStream.Handoff.make[Take[E1, A2]]
           latchL <- ZStream.Handoff.make[Unit]
           latchR <- ZStream.Handoff.make[Unit]
-          _      <- (self.channel >>> producer(left, latchL)).runManaged.fork
-          _      <- (that.channel >>> producer(right, latchR)).runManaged.fork
+          _      <- (self.channel >>> producer(left, latchL)).runScoped.fork
+          _      <- (that.channel >>> producer(right, latchR)).runScoped.fork
         } yield (left, right, latchL, latchR)
       } { case (left, right, latchL, latchR) =>
         val pullLeft  = latchL.offer(()) *> left.take.flatMap(_.done)
@@ -2073,8 +2073,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         for {
           left  <- ZStream.Handoff.make[Take[E1, A1]]
           right <- ZStream.Handoff.make[Take[E1, A1]]
-          _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runManaged.fork
-          _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runManaged.fork
+          _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runScoped.fork
+          _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runScoped.fork
         } yield (left, right)
       } { case (left, right) =>
         def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Boolean, Any, E1, Chunk[A1], Unit] =
@@ -2318,7 +2318,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     (self.channel >>> writer)
       .mapOutZIO(queue.offer)
       .drain
-      .runManaged
+      .runScoped
       .unit
   }
 
@@ -2343,7 +2343,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     (self.channel >>> writer)
       .mapOutZIO(queue.offer)
       .drain
-      .runManaged
+      .runScoped
       .unit
   }
 
@@ -3165,7 +3165,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def runManaged[R1 <: R, E1 >: E, B](sink: => ZSink[R1, E1, A, Any, B])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, B] =
-    (channel pipeToOrFail sink.channel).drain.runManaged
+    (channel pipeToOrFail sink.channel).drain.runScoped
 
   /**
    * Runs the stream and collects all of its elements to a chunk.
@@ -3801,7 +3801,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             }
           )
 
-        ZStream.managed[R with Clock, Nothing, Fiber.Runtime[E, Any]]((self.channel >>> producer).runManaged.fork) *>
+        ZStream.managed[R with Clock, Nothing, Fiber.Runtime[E, Any]]((self.channel >>> producer).runScoped.fork) *>
           new ZStream(consumer(NotStarted))
       }
     )

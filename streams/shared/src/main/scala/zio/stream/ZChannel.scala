@@ -901,7 +901,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     loop
   }
 
-  def runManaged(implicit
+  def runScoped(implicit
     ev1: Any <:< InElem,
     ev2: OutElem <:< Nothing,
     trace: ZTraceElement
@@ -943,7 +943,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       }
 
   def run(implicit ev1: Any <:< InElem, ev2: OutElem <:< Nothing, trace: ZTraceElement): ZIO[Env, OutErr, OutDone] =
-    ZIO.scoped[Env, OutErr, OutDone](runManaged)
+    ZIO.scoped[Env, OutErr, OutDone](runScoped)
 
   def runCollect(implicit ev1: Any <:< InElem, trace: ZTraceElement): ZIO[Env, OutErr, (Chunk[OutElem], OutDone)] =
     doneCollect.run
