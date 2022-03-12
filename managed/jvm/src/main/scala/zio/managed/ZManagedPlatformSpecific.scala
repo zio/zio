@@ -24,7 +24,7 @@ import java.io.IOException
 import java.net.{URI, URL}
 import java.nio.file.Path
 
-private[zio] trait ZManagedPlatformSpecific {
+private[managed] trait ZManagedPlatformSpecific {
 
   /**
    * Returns a managed effect that describes shifting to the blocking executor

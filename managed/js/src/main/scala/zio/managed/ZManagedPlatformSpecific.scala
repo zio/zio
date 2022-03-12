@@ -18,4 +18,4 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-private[zio] trait ZManagedPlatformSpecific
+private[managed] trait ZManagedPlatformSpecific
