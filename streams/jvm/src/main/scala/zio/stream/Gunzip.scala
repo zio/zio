@@ -10,7 +10,7 @@ object Gunzip {
   )(implicit
     trace: ZTraceElement
   ): ZChannel[Any, CompressionException, Chunk[Byte], Done, CompressionException, Chunk[Byte], Done] =
-    ZChannel.managed(
+    ZChannel.scoped(
       ZIO.acquireRelease(
         Gunzipper.make(bufferSize)
       )(gunzipper => ZIO.succeed(gunzipper.close()))

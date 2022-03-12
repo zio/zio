@@ -13,7 +13,7 @@ object Inflate {
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false
   )(implicit trace: ZTraceElement): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-    ZChannel.managed {
+    ZChannel.scoped {
       ZIO
         .acquireRelease(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
           ZIO.succeed(inflater.end())

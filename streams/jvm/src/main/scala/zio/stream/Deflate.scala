@@ -16,7 +16,7 @@ object Deflate {
     strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
     flushMode: FlushMode = FlushMode.NoFlush
   )(implicit trace: ZTraceElement): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-    ZChannel.managed {
+    ZChannel.scoped {
       ZIO
         .acquireRelease(ZIO.succeed {
           val deflater = new Deflater(level.jValue, noWrap)

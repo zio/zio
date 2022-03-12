@@ -711,7 +711,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
-    ZChannel.managed[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone, Queue[
+    ZChannel.scoped[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone, Queue[
       ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]
     ]] {
       ZIO.withChildren { getChildren =>
@@ -1439,7 +1439,7 @@ object ZChannel {
   ): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
-  def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZIO[Scope with Env, OutErr, A])(
+  def scoped[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZIO[Scope with Env, OutErr, A])(
     use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Scope, OutElem, OutDone](Scope.make)((scope, exit) =>
@@ -1528,7 +1528,7 @@ object ZChannel {
   )(
     f: (OutDone, OutDone) => OutDone
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Queue[ZIO[Env, OutErr, Either[OutDone, OutElem]]]] {
+    scoped[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Queue[ZIO[Env, OutErr, Either[OutDone, OutElem]]]] {
       ZIO.withChildren { getChildren =>
         for {
           n             <- ZIO.succeed(n)
@@ -1719,7 +1719,7 @@ object ZChannel {
   def fromHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
-    ZChannel.managed(hub.subscribe)(fromQueue(_))
+    ZChannel.scoped(hub.subscribe)(fromQueue(_))
 
   def fromHubManaged[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
