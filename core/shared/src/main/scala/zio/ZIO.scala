@@ -2551,8 +2551,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Sequentially zips the this result with the specified result. Combines both
    * `Cause[E1]` when both effects fail.
    */
-  final def validate[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, (A, B)] =
-    validateWith(that)((_, _))
+  final def validate[R1 <: R, E1 >: E, B](
+    that: => ZIO[R1, E1, B]
+  )(implicit zippable: Zippable[A, B], trace: ZTraceElement): ZIO[R1, E1, zippable.Out] =
+    validateWith(that)(zippable.zip(_, _))
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
