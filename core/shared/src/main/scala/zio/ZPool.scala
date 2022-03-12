@@ -26,7 +26,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 trait ZPool[+Error, Item] {
 
   /**
-   * Retrieves an item from the pool in a `Managed` effect. Note that if
+   * Retrieves an item from the pool in a scoped effect. Note that if
    * acquisition fails, then the returned effect will fail for that same reason.
    * Retrying a failed acquisition attempt will repeat the acquisition attempt.
    */
@@ -62,8 +62,8 @@ object ZPool {
 
   /**
    * Makes a new pool of the specified fixed size. The pool is returned in a
-   * `Managed`, which governs the lifetime of the pool. When the pool is
-   * shutdown because the `Managed` is used, the individual items allocated by
+   * `Scope`, which governs the lifetime of the pool. When the pool is
+   * shutdown because the `Scope` is closed, the individual items allocated by
    * the pool will be released in some unspecified order.
    */
   def make[R, E, A](get: => ZIO[R, E, A], size: => Int)(implicit
@@ -77,14 +77,18 @@ object ZPool {
   /**
    * Makes a new pool with the specified minimum and maximum sizes and time to
    * live before a pool whose excess items are not being used will be shrunk
-   * down to the minimum size. The pool is returned in a `Managed`, which
+   * down to the minimum size. The pool is returned in a `Scope`, which
    * governs the lifetime of the pool. When the pool is shutdown because the
-   * `Managed` is used, the individual items allocated by the pool will be
+   * `Scope` is used, the individual items allocated by the pool will be
    * released in some unspecified order.
    * {{{
-   * ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).use { pool =>
-   *   pool.get.use {
-   *     connection => useConnection(connection)
+   * ZIO.scoped {
+   *   ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).flatMap { pool =>
+   *     ZIO.scoped {
+   *       pool.get.flatMap {
+   *         connection => useConnection(connection)
+   *       }
+   *     }
    *   }
    * }
    * }}}
