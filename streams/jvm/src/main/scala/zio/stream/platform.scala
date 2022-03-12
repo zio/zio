@@ -136,7 +136,7 @@ trait ZStreamPlatformSpecificConstructors {
     register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    new ZStream(ZChannel.unwrapManaged[R](for {
+    new ZStream(ZChannel.unwrapScoped[R](for {
       output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
       runtime <- ZIO.runtime[R]
       _ <- register { k =>

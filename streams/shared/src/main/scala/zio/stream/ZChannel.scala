@@ -670,7 +670,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           .embedInput(input)
       }
 
-    ZChannel.unwrapManaged[Env1](m)
+    ZChannel.unwrapScoped[Env1](m)
   }
 
   def mergeMap[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
@@ -1713,8 +1713,8 @@ object ZChannel {
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.fromZIO(channel).flatten
 
-  def unwrapManaged[Env]: UnwrapManagedPartiallyApplied[Env] =
-    new UnwrapManagedPartiallyApplied[Env]
+  def unwrapScoped[Env]: UnwrapScopedPartiallyApplied[Env] =
+    new UnwrapScopedPartiallyApplied[Env]
 
   def fromHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
@@ -1905,7 +1905,7 @@ object ZChannel {
       ZChannel.service[Service].mapZIO(f)
   }
 
-  final class UnwrapManagedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+  final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
     def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone](
       channel: => ZIO[Scope with Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
     )(implicit
