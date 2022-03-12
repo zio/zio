@@ -70,8 +70,8 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
 
   /**
    * Subscribes to receive messages from the hub. The resulting subscription can
-   * be evaluated multiple times within the scope of the managed to take a
-   * message from the hub each time.
+   * be evaluated multiple times within the scope to take a message from the hub
+   * each time.
    */
   def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZDequeue[RB, EB, B]]
 
