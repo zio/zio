@@ -99,7 +99,7 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
   def locally[R, EC >: EA, C](value: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C]
 
   /**
-   * Returns a managed effect that sets the value associated with the curent
+   * Returns a scoped effect that sets the value associated with the curent
    * fiber to the specified value as its `acquire` action and restores it to its
    * original value as its `release` action.
    */
