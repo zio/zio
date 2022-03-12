@@ -93,7 +93,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     self.>+>[E1, RIn2, ROut1, ROut2](that)
 
   /**
-   * Builds a layer into a managed value.
+   * Builds a layer into a scoped value.
    */
   final def build(implicit trace: ZTraceElement): ZIO[RIn with Scope, E, ZEnvironment[ROut]] =
     ZIO.serviceWithZIO[Scope](build)
@@ -202,11 +202,11 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     catchAll(e => ZLayer.fail(f(e)))
 
   /**
-   * Returns a managed effect that, if evaluated, will return the lazily
-   * computed result of this layer.
+   * Returns a scoped effect that, if evaluated, will return the lazily computed
+   * result of this layer.
    */
   final def memoize(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZLayer[RIn, E, ROut]] =
-    ZIO.serviceWithZIO[Scope](build).memoize.map(ZLayer.Managed[RIn, E, ROut](_))
+    ZIO.serviceWithZIO[Scope](build).memoize.map(ZLayer.Scoped[RIn, E, ROut](_))
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -280,8 +280,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     self >>> that
 
   /**
-   * Converts a layer that requires no services into a managed runtime, which
-   * can be used to execute effects.
+   * Converts a layer that requires no services into a scoped runtime, which can
+   * be used to execute effects.
    */
   final def toRuntime(
     runtimeConfig: RuntimeConfig
@@ -351,7 +351,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
         }
       case ZLayer.Fresh(self) =>
         ZIO.succeed(_ => self.build(scope))
-      case ZLayer.Managed(self) =>
+      case ZLayer.Scoped(self) =>
         ZIO.succeed(_ => self.provideSomeEnvironment[RIn](_.union[Scope](ZEnvironment(scope))))
       case ZLayer.Suspend(self) =>
         ZIO.succeed(memoMap => memoMap.getOrElseMemoize(scope)(self()))
@@ -382,7 +382,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
   private final case class Fresh[RIn, E, ROut](self: ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
 
-  private final case class Managed[-RIn, +E, +ROut](self: ZIO[RIn with Scope, E, ZEnvironment[ROut]])
+  private final case class Scoped[-RIn, +E, +ROut](self: ZIO[RIn with Scope, E, ZEnvironment[ROut]])
       extends ZLayer[RIn, E, ROut]
 
   private final case class Suspend[-RIn, +E, +ROut](self: () => ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
@@ -3324,7 +3324,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromZIOScoped[R, E, A: Tag](zio: ZIO[Scope with R, E, A])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    Managed[R, E, A](zio.map(ZEnvironment(_)))
+    Scoped[R, E, A](zio.map(ZEnvironment(_)))
 
   /**
    * Constructs a layer from the specified effect, which must return one or more
@@ -3333,7 +3333,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromZIOEnvironment[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    ZLayer.Managed[R, E, A](zio)
+    ZLayer.Scoped[R, E, A](zio)
 
   /**
    * Constructs a layer from the specified effect, which must return one or more
@@ -3438,7 +3438,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     /**
      * Checks the memo map to see if a layer exists. If it is, immediately
      * returns it. Otherwise, obtains the layer, stores it in the memo map, and
-     * adds a finalizer to the outer `Managed`.
+     * adds a finalizer to the `Scope`.
      */
     def getOrElseMemoize[E, A, B](scope: Scope)(layer: ZLayer[A, E, B]): ZIO[A, E, ZEnvironment[B]]
   }
