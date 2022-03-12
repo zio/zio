@@ -35,8 +35,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * until permits become available without blocking any underlying operating
  * system threads. If you want to acquire more than one permit at a time you can
  * use `withPermits`, which allows specifying a number of permits to acquire.
- * You can also use `withPermitManaged` or `withPermitsManaged` to acquire and
- * release permits within the context of a managed effect for composing with
+ * You can also use `withPermitScoped` or `withPermitsScoped` to acquire and
+ * release permits within the context of a scoped effect for composing with
  * other resources.
  *
  * For more advanced concurrency problems you can use the `acquire` and
@@ -101,7 +101,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     withPermits(1L)(zio)
 
   /**
-   * Returns a managed effect that describes acquiring a permit as the `acquire`
+   * Returns a scoped effect that describes acquiring a permit as the `acquire`
    * action and releasing it as the `release` action.
    */
   def withPermitScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
@@ -117,7 +117,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     ZIO.uninterruptibleMask(restore => restore(acquireN(n).commit) *> restore(zio).ensuring(releaseN(n).commit))
 
   /**
-   * Returns a managed effect that describes acquiring the specified number of
+   * Returns a scoped effect that describes acquiring the specified number of
    * permits as the `acquire` action and releasing them as the `release` action.
    */
   def withPermitsScoped(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
