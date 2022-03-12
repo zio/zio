@@ -62,9 +62,9 @@ object ZPool {
 
   /**
    * Makes a new pool of the specified fixed size. The pool is returned in a
-   * `Scope`, which governs the lifetime of the pool. When the pool is
-   * shutdown because the `Scope` is closed, the individual items allocated by
-   * the pool will be released in some unspecified order.
+   * `Scope`, which governs the lifetime of the pool. When the pool is shutdown
+   * because the `Scope` is closed, the individual items allocated by the pool
+   * will be released in some unspecified order.
    */
   def make[R, E, A](get: => ZIO[R, E, A], size: => Int)(implicit
     trace: ZTraceElement
@@ -77,10 +77,10 @@ object ZPool {
   /**
    * Makes a new pool with the specified minimum and maximum sizes and time to
    * live before a pool whose excess items are not being used will be shrunk
-   * down to the minimum size. The pool is returned in a `Scope`, which
-   * governs the lifetime of the pool. When the pool is shutdown because the
-   * `Scope` is used, the individual items allocated by the pool will be
-   * released in some unspecified order.
+   * down to the minimum size. The pool is returned in a `Scope`, which governs
+   * the lifetime of the pool. When the pool is shutdown because the `Scope` is
+   * used, the individual items allocated by the pool will be released in some
+   * unspecified order.
    * {{{
    * ZIO.scoped {
    *   ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).flatMap { pool =>

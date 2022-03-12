@@ -95,28 +95,29 @@ trait Standard extends JvmMetrics {
     } yield ()
 
   private def collectMemoryMetricsLinux()(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    ???
-  // ZManaged.readFile("/proc/self/status").use { stream =>
-  //   stream
-  //     .readAll(8192)
-  //     .catchAll {
-  //       case None        => ZIO.succeed(Chunk.empty)
-  //       case Some(error) => ZIO.fail(error)
-  //     }
-  //     .flatMap { bytes =>
-  //       Task(new String(bytes.toArray, StandardCharsets.US_ASCII)).flatMap { raw =>
-  //         ZIO.foreachDiscard(raw.split('\n')) { line =>
-  //           if (line.startsWith("VmSize:")) {
-  //             Task(line.split("\\s+")(1).toDouble * 1024.0) @@ virtualMemorySize
-  //           } else if (line.startsWith("VmRSS:")) {
-  //             Task(line.split("\\s+")(1).toDouble * 1024.0) @@ residentMemorySize
-  //           } else {
-  //             ZIO.unit
-  //           }
-  //         }
-  //       }
-  //     }
-  // }
+    ZIO.scoped {
+      ZIO.readFile("/proc/self/status").flatMap { stream =>
+        stream
+          .readAll(8192)
+          .catchAll {
+            case None        => ZIO.succeed(Chunk.empty)
+            case Some(error) => ZIO.fail(error)
+          }
+          .flatMap { bytes =>
+            Task(new String(bytes.toArray, StandardCharsets.US_ASCII)).flatMap { raw =>
+              ZIO.foreachDiscard(raw.split('\n')) { line =>
+                if (line.startsWith("VmSize:")) {
+                  Task(line.split("\\s+")(1).toDouble * 1024.0) @@ virtualMemorySize
+                } else if (line.startsWith("VmRSS:")) {
+                  Task(line.split("\\s+")(1).toDouble * 1024.0) @@ residentMemorySize
+                } else {
+                  ZIO.unit
+                }
+              }
+            }
+          }
+      }
+    }
 
   def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with System with Scope, Throwable, Standard] =
     for {
