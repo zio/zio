@@ -37,7 +37,7 @@ Runtime Systems have a lot of responsibilities:
 
 5. **Capture execution and stack traces** — They have to keep track of where we are in the progress of our own user-land code so the nice detailed execution traces can be captured. 
 
-6. **Ensure finalizers are run appropriately** — They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed that clean-up logic is executed. This is the feature that powers ZManaged and all the other resource-safe constructs in ZIO.
+6. **Ensure finalizers are run appropriately** — They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed that clean-up logic is executed. This is the feature that powers Scope and all the other resource-safe constructs in ZIO.
 
 7. **Handle asynchronous callback** — They have to handle this messy job of dealing with asynchronous callbacks. So we don't have to deal with async code. When we are doing ZIO, everything is just async out of the box. 
 
