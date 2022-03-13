@@ -350,7 +350,7 @@ import zio.stream._
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[String](2)
-  managed  = ZStream.fromHubManaged(hub).tap(_ => promise.succeed(()))
+  managed  = ZStream.fromHubScoped(hub).tap(_ => promise.succeed(()))
   stream   = ZStream.unwrapScoped(managed)
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await
@@ -400,7 +400,7 @@ Here is the example above adapted to publish values from a stream to the hub:
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[Take[Nothing, String]](2)
-  managed  = ZStream.fromHubManaged(hub).tap(_ => promise.succeed(()))
+  managed  = ZStream.fromHubScoped(hub).tap(_ => promise.succeed(()))
   stream   = ZStream.unwrapScoped(managed).flattenTake
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await
