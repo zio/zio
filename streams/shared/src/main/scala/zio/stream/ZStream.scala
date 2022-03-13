@@ -4425,7 +4425,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromPull[R, E, A](zio: ZIO[Scope with R, Nothing, ZIO[R, Option[E], Chunk[A]]])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
-    ZStream.unwrapScoped[R, E, A](zio.map(pull => repeatZIOChunkOption(pull)))
+    ZStream.unwrapScoped[R](zio.map(pull => repeatZIOChunkOption(pull)))
 
   /**
    * The default chunk size used by the various combinators and constructors of
@@ -5699,10 +5699,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream produced from a scoped [[ZIO]]
    */
-  def unwrapScoped[R, E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
-    trace: ZTraceElement
-  ): ZStream[R, E, A] =
-    scoped[R](fa).flatten
+  def unwrapScoped[R]: UnwrapScopedPartiallyApplied[R] =
+    new UnwrapScopedPartiallyApplied[R]
 
   /**
    * Returns the specified stream if the given condition is satisfied, otherwise
@@ -5844,6 +5842,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.service[Service].flatMap(f)
   }
 
+  final class UnwrapScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
+      trace: ZTraceElement
+    ): ZStream[R, E, A] =
+      scoped[R](fa).flatten
+  }
+
   /**
    * Representation of a grouped stream. This allows to filter which groups will
    * be processed. Once this is applied all groups will be processed in parallel
@@ -5858,7 +5863,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     protected def buffer: Int
 
     def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Exit[Option[E], V]])] =
-      ZStream.unwrapScoped[R, E, (K, Dequeue[Exit[Option[E], V]])] {
+      ZStream.unwrapScoped[R] {
         for {
           decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]]
           out <- Queue
