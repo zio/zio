@@ -65,7 +65,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       spec.caseValue match {
         case Spec.ExecCase(_, spec)        => traverse(spec, description, path)
         case Spec.LabeledCase(label, spec) => traverse(spec, description, path :+ label)
-        case Spec.ScopedCase(scoped)      => scoped.flatMap(traverse(_, description, path))
+        case Spec.ScopedCase(scoped)       => scoped.flatMap(traverse(_, description, path))
         case Spec.MultipleCase(specs) =>
           val suiteDesc = Description.createSuiteDescription(path.lastOption.getOrElse(""), path.mkString(":"))
           ZIO.succeed(description.addChild(suiteDesc)) *>

@@ -171,16 +171,16 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * Constructs an aspect that evaluates every test inside the context of the
-   * managed function.
+   * scoped function.
    */
   def aroundTest[R0, E0](
-    managed: ZIO[Scope with R0, TestFailure[E0], TestSuccess => ZIO[R0, TestFailure[E0], TestSuccess]]
+    scoped: ZIO[Scope with R0, TestFailure[E0], TestSuccess => ZIO[R0, TestFailure[E0], TestSuccess]]
   ): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
       ): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.scoped[R, TestFailure[E], TestSuccess](managed.flatMap(f => test.flatMap(f)))
+        ZIO.scoped[R, TestFailure[E], TestSuccess](scoped.flatMap(f => test.flatMap(f)))
     }
 
   /**
