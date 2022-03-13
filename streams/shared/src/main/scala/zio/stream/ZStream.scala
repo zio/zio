@@ -5022,7 +5022,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a managed iterator
    */
-  def fromIteratorManaged[R, A](
+  def fromIteratorScoped[R, A](
     iterator: => ZIO[Scope with R, Throwable, Iterator[A]],
     maxChunkSize: => Int = DefaultChunkSize
   )(implicit
@@ -6061,7 +6061,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         def make(input: => ZIO[Scope with R, E, IteratorLike[A]])(implicit
           trace: ZTraceElement
         ): ZStream[R, Throwable, A] =
-          ZStream.fromIteratorManaged[R, A](input)
+          ZStream.fromIteratorScoped[R, A](input)
       }
 
     /**

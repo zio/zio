@@ -231,7 +231,7 @@ Using this method is not good for resourceful effects like above, so it's better
 
 ```scala mdoc:silent:nest
 val lines: ZStream[Any, Throwable, String] = 
-  ZStream.fromIteratorManaged(
+  ZStream.fromIteratorScoped(
     ZIO.fromAutoCloseable(
       Task(scala.io.Source.fromFile("file.txt"))
     ).map(_.getLines())

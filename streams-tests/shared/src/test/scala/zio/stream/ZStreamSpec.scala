@@ -4736,7 +4736,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ref <- Ref.make(false)
               pulls <- ZIO.scoped {
                          ZStream
-                           .fromIteratorManaged(
+                           .fromIteratorScoped(
                              ZIO.acquireRelease(UIO.succeedNow(List(1, 2).iterator))(_ => ref.set(true)),
                              maxChunkSize = 1
                            )
