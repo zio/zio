@@ -45,7 +45,7 @@ We designed ZIO Test around the idea of _making tests first-class objects_. This
 
 This approach allows for greater flexibility compared to some other testing frameworks, where tests and additional logic around tests had to be put into callbacks so that framework could make use of them.
 
-As a result, this approach is also better suited to other `ZIO` concepts like `ZManaged`, which can only be used within a scoped block of code. This also created a mismatch between `BeforeAll`, `AfterAll` callback-like methods when there were resources that should be opened and closed during test suite execution.
+As a result, this approach is also better suited to other `ZIO` concepts like `Scope`, which can only be used within a scoped block of code. This also created a mismatch between `BeforeAll`, `AfterAll` callback-like methods when there were resources that should be opened and closed during test suite execution.
 
 Another thing worth pointing out is that tests being values are also effects. Implications of this design are far-reaching:
 
