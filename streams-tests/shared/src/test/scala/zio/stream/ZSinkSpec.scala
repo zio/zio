@@ -168,7 +168,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             assertM(lastOpt)(equalTo(chunks.flatMap(_.toSeq).lastOption))
           }
         ),
-        suite("unwrapManaged")(
+        suite("unwrapScoped")(
           test("happy path") {
             for {
               closed <- Ref.make[Boolean](false)
