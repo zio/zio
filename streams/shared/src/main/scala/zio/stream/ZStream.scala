@@ -1372,13 +1372,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   @deprecated("user runFoldManaged", "2.0.0")
   final def foldManaged[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R with Scope, E, S] =
-    runFoldManaged(s)(f)
+    runFoldScoped(s)(f)
 
   /**
    * Executes a pure fold over the stream of values. Returns a Managed value
    * that represents the scope of the stream.
    */
-  final def runFoldManaged[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R with Scope, E, S] =
+  final def runFoldScoped[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R with Scope, E, S] =
     runFoldWhileManaged(s)(_ => true)((s, a) => f(s, a))
 
   /**
