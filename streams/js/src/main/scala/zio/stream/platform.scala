@@ -87,11 +87,11 @@ trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback itself returns an a managed
+   * times. The registration of the callback itself returns an a scoped
    * resource. The optionality of the error type `E` can be used to signal the
    * end of the stream, by setting it to `None`.
    */
-  def asyncManaged[R, E, A](
+  def asyncScoped[R, E, A](
     register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R with Scope, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =

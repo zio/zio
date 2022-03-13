@@ -109,12 +109,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         } yield assert(isDone)(isFalse)
       }
     ),
-    suite("asyncManaged")(
-      test("asyncManaged")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
+    suite("asyncScoped")(
+      test("asyncScoped")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
         for {
           latch <- Promise.make[Nothing, Unit]
           fiber <- ZStream
-                     .asyncManaged[Any, Throwable, Int] { k =>
+                     .asyncScoped[Any, Throwable, Int] { k =>
                        global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
                        latch.succeed(()) *>
                          Task.unit
@@ -126,21 +126,21 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           s <- fiber.join
         } yield assert(s)(equalTo(chunk))
       }),
-      test("asyncManaged signal end stream") {
+      test("asyncScoped signal end stream") {
         for {
           result <- ZStream
-                      .asyncManaged[Any, Nothing, Int] { k =>
+                      .asyncScoped[Any, Nothing, Int] { k =>
                         k(IO.fail(None))
                         UIO.unit
                       }
                       .runCollect
         } yield assert(result)(equalTo(Chunk.empty))
       },
-      test("asyncManaged back pressure") {
+      test("asyncScoped back pressure") {
         for {
           refCnt  <- Ref.make(0)
           refDone <- Ref.make[Boolean](false)
-          stream = ZStream.asyncManaged[Any, Throwable, Int](
+          stream = ZStream.asyncScoped[Any, Throwable, Int](
                      cb => {
                        Future
                          .sequence(

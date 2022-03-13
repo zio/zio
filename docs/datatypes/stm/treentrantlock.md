@@ -129,7 +129,7 @@ the write lock.
 
 Using `acquireRead`, `acquireWrite`, `releaseRead` and `releaseWrite` should be avoided for simple use cases relying on
 methods like `readLock` and `writeLock` instead. `readLock` and `writeLock` automatically acquire and release the lock
-thanks to the `Managed` construct. The program described below is a safer version of the program above and ensures we 
+thanks to the `Scope` construct. The program described below is a safer version of the program above and ensures we 
 don't hold onto any resources once we are done using the reentrant lock.
 
 ```scala mdoc:silent

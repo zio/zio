@@ -119,12 +119,12 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           } yield assert(isDone)(isFalse)
         }
       ),
-      suite("asyncManaged")(
-        test("asyncManaged")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
+      suite("asyncScoped")(
+        test("asyncScoped")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
           for {
             latch <- Promise.make[Nothing, Unit]
             fiber <- ZStream
-                       .asyncManaged[Any, Throwable, Int] { k =>
+                       .asyncScoped[Any, Throwable, Int] { k =>
                          global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
                          latch.succeed(()) *>
                            Task.unit
@@ -136,21 +136,21 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             s <- fiber.join
           } yield assert(s)(equalTo(chunk))
         }),
-        test("asyncManaged signal end stream") {
+        test("asyncScoped signal end stream") {
           for {
             result <- ZStream
-                        .asyncManaged[Any, Nothing, Int] { k =>
+                        .asyncScoped[Any, Nothing, Int] { k =>
                           global.execute(() => k(IO.fail(None)))
                           UIO.unit
                         }
                         .runCollect
           } yield assert(result)(equalTo(Chunk.empty))
         },
-        test("asyncManaged back pressure") {
+        test("asyncScoped back pressure") {
           for {
             refCnt  <- Ref.make(0)
             refDone <- Ref.make[Boolean](false)
-            stream = ZStream.asyncManaged[Any, Throwable, Int](
+            stream = ZStream.asyncScoped[Any, Throwable, Int](
                        cb => {
                          global.execute { () =>
                            // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
@@ -384,13 +384,13 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           lazy val _                                    = expected
           assertCompletes
         },
-        // test("JavaStreamManaged") {
+        // test("JavaStreamScoped") {
         //   trait R
         //   trait E extends Throwable
         //   trait A
         //   trait JavaStreamLike[A] extends java.util.stream.Stream[A]
-        //   lazy val javaStreamManaged: ZIO[R with Scope, E, JavaStreamLike[A]] = ???
-        //   lazy val actual                                               = ZStream.from(javaStreamManaged)
+        //   lazy val javaStreamScoped: ZIO[R with Scope, E, JavaStreamLike[A]] = ???
+        //   lazy val actual                                               = ZStream.from(javaStreamScoped)
         //   lazy val expected: ZStream[R, Throwable, A]                   = actual
         //   lazy val _                                                    = expected
         //   assertCompletes

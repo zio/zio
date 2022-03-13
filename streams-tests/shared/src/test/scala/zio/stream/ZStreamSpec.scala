@@ -147,7 +147,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .runCollect
             )(equalTo(Chunk(1 + 2 + 3)))
           },
-          test("propagate managed error") {
+          test("propagate scope error") {
             val fail = "I'm such a failure!"
             val t    = ZSink.fail(fail)
             assertM(ZStream(1, 2, 3).transduce(t).runCollect.either)(isLeft(equalTo(fail)))
@@ -2340,7 +2340,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(thread1)(equalTo(thread2))
           }
         ),
-        suite("managed")(
+        suite("scoped")(
           test("preserves failure of effect") {
             assertM(
               ZStream.scoped(ZIO.fail("error")).runCollect.either
@@ -2891,7 +2891,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.empty.runLast)(equalTo(None))
           )
         ),
-        suite("runManaged")(
+        suite("runScoped")(
           test("properly closes the resources")(
             for {
               closed <- Ref.make[Boolean](false)
@@ -4556,12 +4556,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             lazy val _                                    = expected
             assertCompletes
           },
-          // test("IteratorManaged") {
+          // test("IteratorScoped") {
           //   trait R
           //   trait A
           //   trait IteratorLike[Element] extends Iterator[Element]
-          //   lazy val iteratorManaged: ZIO[R with Scope, Throwable, IteratorLike[A]] = ???
-          //   lazy val actual                                                   = ZStream.from(iteratorManaged)
+          //   lazy val iteratorScoped: ZIO[R with Scope, Throwable, IteratorLike[A]] = ???
+          //   lazy val actual                                                   = ZStream.from(iteratorScoped)
           //   lazy val expected: ZStream[R, Throwable, A]                       = actual
           //   lazy val _                                                        = expected
           //   assertCompletes
@@ -4585,12 +4585,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             lazy val _                                    = expected
             assertCompletes
           },
-          // test("JavaIteratorManaged") {
+          // test("JavaIteratorScoped") {
           //   trait R
           //   trait A
           //   trait IteratorLike[Element] extends java.util.Iterator[Element]
-          //   lazy val javaIteratorManaged: ZIO[R with Scope, Throwable, IteratorLike[A]] = ???
-          //   lazy val actual                                                       = ZStream.from(javaIteratorManaged)
+          //   lazy val javaIteratorSCoped: ZIO[R with Scope, Throwable, IteratorLike[A]] = ???
+          //   lazy val actual                                                       = ZStream.from(javaIteratorScoped)
           //   lazy val expected: ZStream[R, Throwable, A]                           = actual
           //   lazy val _                                                            = expected
           //   assertCompletes
@@ -4730,7 +4730,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.blocking(ZStream.fromIterator(chunk.iterator)).runCollect)(equalTo(chunk))
           }
         },
-        suite("fromIteratorManaged")(
+        suite("fromIteratorScoped")(
           test("is safe to pull again after success") {
             for {
               ref <- Ref.make(false)
@@ -5004,7 +5004,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runCollect
           )(equalTo(Chunk.fromIterable(0 to 9)))
         },
-        test("unwrapManaged") {
+        test("unwrapScoped") {
           def stream(promise: Promise[Nothing, Unit]) =
             ZStream.unwrapScoped {
               ZIO.acquireRelease(Console.print("acquire outer"))(_ => Console.print("release outer").orDie) *>

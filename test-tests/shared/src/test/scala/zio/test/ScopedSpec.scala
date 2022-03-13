@@ -4,7 +4,7 @@ import zio._
 import zio.test.Assertion.equalTo
 import zio.test.TestAspect.sequential
 
-object ManagedSpec extends ZIOBaseSpec {
+object ScopedSpec extends ZIOBaseSpec {
 
   trait Counter {
     def incrementAndGet: UIO[Int]
@@ -28,8 +28,8 @@ object ManagedSpec extends ZIOBaseSpec {
       ZIO.serviceWithZIO(_.incrementAndGet)
   }
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("ManagedSpec")(
-    suite("managed shared")(
+  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("ScopedSpec")(
+    suite("scoped shared")(
       suite("first suite")(
         test("first test") {
           assertM(Counter.incrementAndGet)(equalTo(2))
@@ -47,7 +47,7 @@ object ManagedSpec extends ZIOBaseSpec {
         }
       )
     ).provideLayerShared(Counter.live) @@ sequential,
-    suite("managed per test")(
+    suite("scoped per test")(
       suite("first suite")(
         test("first test") {
           assertM(Counter.incrementAndGet)(equalTo(2))

@@ -48,7 +48,7 @@ object TestSpec extends ZIOBaseSpec {
         _       <- promise.await
       } yield assertCompletes
     } @@ timeout(10.seconds),
-    // test("managed effects can be tested") {
+    // test("scoped effects can be tested") {
     //   for {
     //     ref   <- Ref.make(false)
     //     _     <- ZIO.acquireRelease(ref.set(true))(_ => ref.set(false))
