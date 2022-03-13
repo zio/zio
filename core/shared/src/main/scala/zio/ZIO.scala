@@ -4591,16 +4591,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new LogAnnotate(() => key, () => value)
 
   /**
-   * Annotates each log in this scope with the specified log annotation.
-   */
-  def logAnnotateScoped(key: => String, value: => String)(implicit
-    trace: ZTraceElement
-  ): ZIO[Scope, Nothing, Unit] =
-    FiberRef.currentLogAnnotations.get.flatMap { annotations =>
-      FiberRef.currentLogAnnotations.locallyScoped(annotations.updated(key, value))
-    }
-
-  /**
    * Retrieves the log annotations associated with the current scope.
    */
   def logAnnotations(implicit trace: ZTraceElement): UIO[Map[String, String]] =
@@ -4690,32 +4680,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     level
 
   /**
-   * Sets the log level for this scope.
-   */
-  def logLevelScoped(level: LogLevel)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
-    FiberRef.currentLogLevel.locallyScoped(level)
-
-  /**
    * Adjusts the label for the current logging span.
    * {{{
    * ZIO.logSpan("parsing") { parseRequest(req) }
    * }}}
    */
   def logSpan(label: => String): LogSpan = new LogSpan(() => label)
-
-  /**
-   * Adjusts the label for the logging span for this scope.
-   */
-  def logSpanScoped(label: => String)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] = {
-    import zio.{LogSpan => ZioLogSpan}
-
-    FiberRef.currentLogSpan.get.flatMap { stack =>
-      val instant = java.lang.System.currentTimeMillis()
-      val logSpan = ZioLogSpan(label, instant)
-
-      FiberRef.currentLogSpan.locallyScoped(logSpan :: stack)
-    }
-  }
 
   /**
    * Logs the specified message at the trace log level.
