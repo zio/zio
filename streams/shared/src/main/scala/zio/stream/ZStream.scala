@@ -257,7 +257,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       }
 
       ZStream
-        .managed[R, Nothing, Fiber.Runtime[Nothing, Any]]((self.channel >>> handoffProducer).runScoped.forkDaemon) *>
+        .scoped[R, Nothing, Fiber.Runtime[Nothing, Any]]((self.channel >>> handoffProducer).runScoped.forkDaemon) *>
         new ZStream(scheduledAggregator(None))
     }
   }
@@ -307,7 +307,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, ZStream[Any, E, A]] =
     self
       .broadcastedQueuesDynamic(maximumLag)
-      .map(ZStream.managed(_).flatMap(ZStream.fromQueue(_)).flattenTake)
+      .map(ZStream.scoped(_).flatMap(ZStream.fromQueue(_)).flattenTake)
 
   /**
    * Converts the stream to a managed list of queues. Every value will be
@@ -1184,7 +1184,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
     ZStream.fromZIO(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
-        .managed[R1, Nothing, Fiber.Runtime[Nothing, Any]](
+        .scoped[R1, Nothing, Fiber.Runtime[Nothing, Any]](
           other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).forkScoped
         ) *>
         self.interruptWhen(bgDied)
@@ -2705,7 +2705,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def onExecutor(executor: => Executor)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
       ZStream
-        .managed(ZIO.uninterruptible(ZIO.shift(executor) *> ZIO.addFinalizer(_ => ZIO.shift(descriptor.executor)))) *>
+        .scoped(ZIO.uninterruptible(ZIO.shift(executor) *> ZIO.addFinalizer(_ => ZIO.shift(descriptor.executor)))) *>
         self <*
         ZStream.fromZIO {
           if (descriptor.isLocked) ZIO.shift(descriptor.executor)
@@ -3801,7 +3801,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             }
           )
 
-        ZStream.managed[R with Clock, Nothing, Fiber.Runtime[E, Any]]((self.channel >>> producer).runScoped.fork) *>
+        ZStream.scoped[R with Clock, Nothing, Fiber.Runtime[E, Any]]((self.channel >>> producer).runScoped.fork) *>
           new ZStream(consumer(NotStarted))
       }
     )
@@ -4085,7 +4085,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
-      ZStream.managed(
+      ZStream.scoped(
         ZIO.uninterruptible(
           ZIO.setRuntimeConfig(runtimeConfig) *> ZIO.addFinalizer(_ => ZIO.setRuntimeConfig(currentRuntimeConfig))
         )
@@ -4509,7 +4509,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def acquireReleaseWith[R, E, A](acquire: => ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
-    managed[R, E, A](ZIO.acquireRelease(acquire)(release))
+    scoped[R, E, A](ZIO.acquireRelease(acquire)(release))
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -4518,7 +4518,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def acquireReleaseExitWith[R, E, A](
     acquire: => ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => URIO[R, Any])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    managed[R, E, A](ZIO.acquireReleaseExit(acquire)(release))
+    scoped[R, E, A](ZIO.acquireReleaseExit(acquire)(release))
 
   /**
    * Creates a pure stream from a variable list of values
@@ -4744,7 +4744,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromChunkHub[R, E, O](hub: => ZHub[Nothing, R, Any, E, Nothing, Chunk[O]])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, O] =
-    managed(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
+    scoped(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
 
   /**
    * Creates a stream from a subscription to a hub in the context of a managed
@@ -4831,7 +4831,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     hub: => ZHub[Nothing, R, Any, E, Nothing, A],
     maxChunkSize: => Int = DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    managed(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
+    scoped(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
 
   /**
    * Creates a stream from a subscription to a hub in the context of a managed
@@ -4920,7 +4920,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => ZIO[Scope with R, IOException, InputStream],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
-    ZStream.managed[R, IOException, InputStream](is).flatMap(fromInputStream(_, chunkSize))
+    ZStream.scoped[R, IOException, InputStream](is).flatMap(fromInputStream(_, chunkSize))
 
   /**
    * Creates a stream from an iterable collection of values
@@ -5028,7 +5028,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   )(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
-    managed[R, Throwable, Iterator[A]](iterator).flatMap(fromIterator(_, maxChunkSize))
+    scoped[R, Throwable, Iterator[A]](iterator).flatMap(fromIterator(_, maxChunkSize))
 
   /**
    * Creates a stream from an iterator
@@ -5109,7 +5109,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromJavaIteratorManaged[R, A](iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
-    managed[R, Throwable, java.util.Iterator[A]](iterator).flatMap(fromJavaIterator(_))
+    scoped[R, Throwable, java.util.Iterator[A]](iterator).flatMap(fromJavaIterator(_))
 
   /**
    * Creates a stream from a Java iterator
@@ -5308,7 +5308,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a single-valued stream from a managed resource
    */
-  def managed[R, E, A](managed: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+  def scoped[R, E, A](managed: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
     new ZStream(ZChannel.scopedOut[R, E, Chunk[A]](managed.map(Chunk.single)))
 
   /**
@@ -5726,7 +5726,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def unwrapScoped[R, E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
-    managed[R, E, ZStream[R, E, A]](fa).flatten
+    scoped[R, E, ZStream[R, E, A]](fa).flatten
 
   /**
    * Returns the specified stream if the given condition is satisfied, otherwise

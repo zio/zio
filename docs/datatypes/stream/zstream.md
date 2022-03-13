@@ -111,7 +111,7 @@ val clockStream: ZStream[Clock, Nothing, Clock] = ZStream.service[Clock]
 
 ```scala mdoc:silent:nest
 val managedStream: ZStream[Any, Throwable, BufferedReader] =
-  ZStream.managed(
+  ZStream.scoped(
     ZIO.fromAutoCloseable(
       ZIO.attemptBlocking(
         Files.newBufferedReader(java.nio.file.Paths.get("file.txt"))

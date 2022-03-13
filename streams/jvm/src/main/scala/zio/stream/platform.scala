@@ -104,7 +104,7 @@ trait ZStreamPlatformSpecificConstructors {
     register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[Scope with R, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    managed[R, E, ZIO[Any, Option[E], Chunk[A]]] {
+    scoped[R, E, ZIO[Any, Option[E], Chunk[A]]] {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
         runtime <- ZIO.runtime[R]
@@ -294,7 +294,7 @@ trait ZStreamPlatformSpecificConstructors {
     path: => String,
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[Any, IOException, Byte] =
-    ZStream.managed {
+    ZStream.scoped {
       ZIO.fromAutoCloseable {
         ZIO.succeed(path).flatMap { path =>
           ZIO.attemptBlockingIO(getClass.getClassLoader.getResourceAsStream(path.replace('\\', '/'))).flatMap { x =>
@@ -347,7 +347,7 @@ trait ZStreamPlatformSpecificConstructors {
     reader: => ZIO[Scope with R, IOException, Reader],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
-    ZStream.managed[R, IOException, Reader](reader).flatMap(fromReader(_, chunkSize))
+    ZStream.scoped[R, IOException, Reader](reader).flatMap(fromReader(_, chunkSize))
 
   /**
    * Creates a stream from an effect producing `java.io.Reader`.
@@ -376,7 +376,7 @@ trait ZStreamPlatformSpecificConstructors {
 
     for {
       out    <- fromZIO(ZIO.attempt(new PipedOutputStream()))
-      in     <- managed(ZIO.fromAutoCloseable(ZIO.attempt(new PipedInputStream(out))))
+      in     <- scoped(ZIO.fromAutoCloseable(ZIO.attempt(new PipedInputStream(out))))
       done   <- fromZIO(Promise.make[None.type, Nothing])
       result <- from(in, out, done)
     } yield result
@@ -407,7 +407,7 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromJavaStreamManaged[R, A](
     stream: => ZIO[Scope with R, Throwable, java.util.stream.Stream[A]]
   )(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
-    ZStream.managed[R, Throwable, java.util.stream.Stream[A]](stream).flatMap(ZStream.fromJavaStream(_))
+    ZStream.scoped[R, Throwable, java.util.stream.Stream[A]](stream).flatMap(ZStream.fromJavaStream(_))
 
   /**
    * Creates a stream from a Java stream
@@ -444,7 +444,7 @@ trait ZStreamPlatformSpecificConstructors {
     host: => Option[String] = None
   )(implicit trace: ZTraceElement): ZStream[Any, Throwable, Connection] =
     for {
-      server <- ZStream.managed(ZIO.fromAutoCloseable(ZIO.attemptBlocking {
+      server <- ZStream.scoped(ZIO.fromAutoCloseable(ZIO.attemptBlocking {
                   AsynchronousServerSocketChannel
                     .open()
                     .bind(
@@ -452,7 +452,7 @@ trait ZStreamPlatformSpecificConstructors {
                     )
                 }))
 
-      registerConnection <- ZStream.managed(ZIO.acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit)))
+      registerConnection <- ZStream.scoped(ZIO.acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit)))
 
       conn <- ZStream.repeatZIO {
                 ZIO
