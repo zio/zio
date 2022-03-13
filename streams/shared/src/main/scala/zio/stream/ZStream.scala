@@ -4773,7 +4773,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * The hub will be shut down once the stream is closed.
    */
-  def fromChunkHubManagedWithShutdown[R, E, O](
+  def fromChunkHubScopedWithShutdown[R, E, O](
     hub: => ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZStream[R, E, O]] =
     fromChunkHubScoped(hub).map(_.ensuring(hub.shutdown))
