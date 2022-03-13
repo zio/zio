@@ -4911,12 +4911,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => ZIO[R, IOException, InputStream],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
-    fromInputStreamManaged[R](is.tap(is => ZIO.addFinalizer(_ => ZIO.succeed(is.close()))), chunkSize)
+    fromInputStreamScoped[R](is.tap(is => ZIO.addFinalizer(_ => ZIO.succeed(is.close()))), chunkSize)
 
   /**
    * Creates a stream from a managed `java.io.InputStream` value.
    */
-  def fromInputStreamManaged[R](
+  def fromInputStreamScoped[R](
     is: => ZIO[Scope with R, IOException, InputStream],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =

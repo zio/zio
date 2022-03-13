@@ -521,7 +521,7 @@ val managed: ZIO[Scope, IOException, FileInputStream] =
   ).refineToOrDie[IOException]
 
 val stream: ZStream[Any, IOException, Byte] = 
-  ZStream.fromInputStreamManaged(managed)
+  ZStream.fromInputStreamScoped(managed)
 ```
 
 **ZStream.fromResource** — Create a stream from resource file:
