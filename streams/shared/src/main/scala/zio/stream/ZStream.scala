@@ -1151,7 +1151,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                          } yield ()
                        }
           _ <- self
-                 .runForeachManaged(offer)
+                 .runForeachScoped(offer)
                  .foldCauseZIO(
                    cause => finalize(Exit.failCause(cause.map(Some(_)))),
                    _ => finalize(Exit.fail(None))
@@ -1185,7 +1185,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     ZStream.fromZIO(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
         .scoped[R1, Nothing, Fiber.Runtime[Nothing, Any]](
-          other.runForeachManaged(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).forkScoped
+          other.runForeachScoped(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).forkScoped
         ) *>
         self.interruptWhen(bgDied)
     }
@@ -1689,13 +1689,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
-    runForeachManaged[R1, E1](f)
+    runForeachScoped[R1, E1](f)
 
   /**
    * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization
    * order can be controlled.
    */
-  final def runForeachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit
+  final def runForeachScoped[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
     runScoped(ZSink.foreach(f))
