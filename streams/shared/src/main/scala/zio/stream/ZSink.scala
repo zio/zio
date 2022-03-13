@@ -1660,7 +1660,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def managed[R, E, In, A, L <: In, Z](resource: => ZIO[Scope with R, E, A])(
     fn: A => ZSink[R, E, In, L, Z]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, In, Z] =
-    ZSink.unwrapScoped[R, E, In, In, Z](resource.map(fn))
+    ZSink.unwrapScoped[R](resource.map(fn))
 
   def never(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Nothing] =
     ZSink.fromZIO(ZIO.never)
@@ -1715,15 +1715,20 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Creates a sink produced from a scoped effect.
    */
-  def unwrapScoped[R, E, In, L, Z](
-    scoped: => ZIO[Scope with R, E, ZSink[R, E, In, L, Z]]
-  )(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
-    new ZSink(ZChannel.unwrapScoped[R][Nothing, Chunk[In], Any, E, Chunk[L], Z](scoped.map(_.channel)))
+  def unwrapScoped[R]: UnwrapScopedPartiallyApplied[R] =
+    new UnwrapScopedPartiallyApplied[R]
 
   final class EnvironmentWithSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, In, L, Z](
       f: ZEnvironment[R] => ZSink[R1, E, In, L, Z]
     )(implicit trace: ZTraceElement): ZSink[R with R1, E, In, L, Z] =
       new ZSink(ZChannel.unwrap[R1, Nothing, Chunk[In], Any, E, Chunk[L], Z](ZIO.environmentWith[R](f(_).channel)))
+  }
+
+  final class UnwrapScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, In, L, Z](scoped: => ZIO[Scope with R, E, ZSink[R, E, In, L, Z]])(implicit
+      trace: ZTraceElement
+    ): ZSink[R, E, In, L, Z] =
+      new ZSink(ZChannel.unwrapScoped[R][Nothing, Chunk[In], Any, E, Chunk[L], Z](scoped.map(_.channel)))
   }
 }
