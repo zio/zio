@@ -104,7 +104,7 @@ trait ZStreamPlatformSpecificConstructors {
     register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[Scope with R, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    scoped[R, E, ZIO[Any, Option[E], Chunk[A]]] {
+    scoped[R] {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
         runtime <- ZIO.runtime[R]
@@ -347,7 +347,7 @@ trait ZStreamPlatformSpecificConstructors {
     reader: => ZIO[Scope with R, IOException, Reader],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
-    ZStream.scoped[R, IOException, Reader](reader).flatMap(fromReader(_, chunkSize))
+    ZStream.scoped[R](reader).flatMap(fromReader(_, chunkSize))
 
   /**
    * Creates a stream from an effect producing `java.io.Reader`.
@@ -407,7 +407,7 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromJavaStreamScoped[R, A](
     stream: => ZIO[Scope with R, Throwable, java.util.stream.Stream[A]]
   )(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
-    ZStream.scoped[R, Throwable, java.util.stream.Stream[A]](stream).flatMap(ZStream.fromJavaStream(_))
+    ZStream.scoped[R](stream).flatMap(ZStream.fromJavaStream(_))
 
   /**
    * Creates a stream from a Java stream

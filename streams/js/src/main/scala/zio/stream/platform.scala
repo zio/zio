@@ -95,7 +95,7 @@ trait ZStreamPlatformSpecificConstructors {
     register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R with Scope, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    scoped[R, E, ZIO[Any, Option[E], Chunk[A]]] {
+    scoped[R] {
       for {
         output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
         runtime <- ZIO.runtime[R]

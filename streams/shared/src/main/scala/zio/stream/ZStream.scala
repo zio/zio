@@ -254,8 +254,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           }
       }
 
-      ZStream
-        .scoped[R, Nothing, Fiber.Runtime[Nothing, Any]]((self.channel >>> handoffProducer).runScoped.forkDaemon) *>
+      ZStream.scoped[R]((self.channel >>> handoffProducer).runScoped.forkDaemon) *>
         new ZStream(scheduledAggregator(None))
     }
   }
@@ -1159,7 +1158,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
     ZStream.fromZIO(Promise.make[E1, Nothing]).flatMap { bgDied =>
       ZStream
-        .scoped[R1, Nothing, Fiber.Runtime[Nothing, Any]](
+        .scoped[R1](
           other.runForeachScoped(_ => ZIO.unit).catchAllCause(bgDied.failCause(_)).forkScoped
         ) *>
         self.interruptWhen(bgDied)
@@ -3771,7 +3770,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             }
           )
 
-        ZStream.scoped[R with Clock, Nothing, Fiber.Runtime[E, Any]]((self.channel >>> producer).runScoped.fork) *>
+        ZStream.scoped[R with Clock]((self.channel >>> producer).runScoped.fork) *>
           new ZStream(consumer(NotStarted))
       }
     )
@@ -4475,7 +4474,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def acquireReleaseWith[R, E, A](acquire: => ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
-    scoped[R, E, A](ZIO.acquireRelease(acquire)(release))
+    scoped[R](ZIO.acquireRelease(acquire)(release))
 
   /**
    * Creates a stream from a single value that will get cleaned up after the
@@ -4484,7 +4483,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def acquireReleaseExitWith[R, E, A](
     acquire: => ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => URIO[R, Any])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    scoped[R, E, A](ZIO.acquireReleaseExit(acquire)(release))
+    scoped[R](ZIO.acquireReleaseExit(acquire)(release))
 
   /**
    * Creates a pure stream from a variable list of values
@@ -4886,7 +4885,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => ZIO[Scope with R, IOException, InputStream],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
-    ZStream.scoped[R, IOException, InputStream](is).flatMap(fromInputStream(_, chunkSize))
+    ZStream.scoped[R](is).flatMap(fromInputStream(_, chunkSize))
 
   /**
    * Creates a stream from an iterable collection of values
@@ -4994,7 +4993,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   )(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
-    scoped[R, Throwable, Iterator[A]](iterator).flatMap(fromIterator(_, maxChunkSize))
+    scoped[R](iterator).flatMap(fromIterator(_, maxChunkSize))
 
   /**
    * Creates a stream from an iterator
@@ -5075,7 +5074,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromJavaIteratorScoped[R, A](iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
-    scoped[R, Throwable, java.util.Iterator[A]](iterator).flatMap(fromJavaIterator(_))
+    scoped[R](iterator).flatMap(fromJavaIterator(_))
 
   /**
    * Creates a stream from a Java iterator
@@ -5285,8 +5284,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a single-valued stream from a scoped resource
    */
-  def scoped[R, E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    new ZStream(ZChannel.scopedOut[R](zio.map(Chunk.single)))
+  def scoped[R]: ScopedPartiallyApplied[R] =
+    new ScopedPartiallyApplied[R]
 
   /**
    * Merges a variable list of streams in a non-deterministic fashion. Up to `n`
@@ -5703,7 +5702,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def unwrapScoped[R, E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
-    scoped[R, E, ZStream[R, E, A]](fa).flatten
+    scoped[R](fa).flatten
 
   /**
    * Returns the specified stream if the given condition is satisfied, otherwise
@@ -5804,6 +5803,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       trace: ZTraceElement
     ): ZStream[R with R1, E, A] =
       ZStream.environment[R].flatMap(f)
+  }
+
+  final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+      new ZStream(ZChannel.scopedOut[R](zio.map(Chunk.single)))
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
