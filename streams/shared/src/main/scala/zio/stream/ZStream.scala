@@ -310,7 +310,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       .map(ZStream.scoped(_).flatMap(ZStream.fromQueue(_)).flattenTake)
 
   /**
-   * Converts the stream to a managed list of queues. Every value will be
+   * Converts the stream to a scoped list of queues. Every value will be
    * replicated to every queue with the slowest queue being allowed to buffer
    * `maximumLag` chunks before the driver is back pressured.
    *
@@ -327,7 +327,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     } yield queues
 
   /**
-   * Converts the stream to a managed dynamic amount of queues. Every chunk will
+   * Converts the stream to a scoped dynamic amount of queues. Every chunk will
    * be replicated to every queue with the slowest queue being allowed to buffer
    * `maximumLag` chunks before the driver is back pressured.
    *
@@ -455,7 +455,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   private def bufferSignal[R1 <: R, E1 >: E, A1 >: A](
-    managed: => ZIO[Scope, Nothing, Queue[(Take[E1, A1], Promise[Nothing, Unit])]],
+    scoped: => ZIO[Scope, Nothing, Queue[(Take[E1, A1], Promise[Nothing, Unit])]],
     channel: => ZChannel[R1, Any, Any, Any, E1, Chunk[A1], Any]
   )(implicit trace: ZTraceElement): ZChannel[R1, Any, Any, Any, E1, Chunk[A1], Unit] = {
     def producer(
@@ -506,7 +506,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
     ZChannel.scoped[R1, Any, Any, Any, E1, Chunk[A1], Unit, Queue[(Take[E1, A1], Promise[Nothing, Unit])]] {
       for {
-        queue <- managed
+        queue <- scoped
         start <- Promise.make[Nothing, Unit]
         _     <- start.succeed(())
         ref   <- Ref.make(start)
@@ -1367,58 +1367,58 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     runFoldZIO[R1, E1, S](s)(f)
 
   /**
-   * Executes a pure fold over the stream of values. Returns a Managed value
-   * that represents the scope of the stream.
+   * Executes a pure fold over the stream of values. Returns a scoped value that
+   * represents the scope of the stream.
    */
-  @deprecated("user runFoldManaged", "2.0.0")
+  @deprecated("user runFoldScoped", "2.0.0")
   final def foldManaged[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R with Scope, E, S] =
     runFoldScoped(s)(f)
 
   /**
-   * Executes a pure fold over the stream of values. Returns a Managed value
-   * that represents the scope of the stream.
+   * Executes a pure fold over the stream of values. Returns a scoped value that
+   * represents the scope of the stream.
    */
   final def runFoldScoped[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R with Scope, E, S] =
     runFoldWhileScoped(s)(_ => true)((s, a) => f(s, a))
 
   /**
-   * Executes an effectful fold over the stream of values. Returns a Managed
+   * Executes an effectful fold over the stream of values. Returns a scoped
    * value that represents the scope of the stream.
    */
-  @deprecated("use runFoldManagedZIO", "2.0.0")
+  @deprecated("use runFoldScopedZIO", "2.0.0")
   final def foldManagedM[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, S] =
-    runFoldManagedZIO[R1, E1, S](s)(f)
+    runFoldScopedZIO[R1, E1, S](s)(f)
 
   /**
-   * Executes an effectful fold over the stream of values. Returns a Managed
+   * Executes an effectful fold over the stream of values. Returns a scoped
    * value that represents the scope of the stream.
    */
-  @deprecated("use runFoldManagedZIO", "2.0.0")
+  @deprecated("use runFoldScopedZIO", "2.0.0")
   final def runFoldManagedM[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, S] =
-    runFoldManagedZIO[R1, E1, S](s)(f)
+    runFoldScopedZIO[R1, E1, S](s)(f)
 
   /**
-   * Executes an effectful fold over the stream of values. Returns a Managed
+   * Executes an effectful fold over the stream of values. Returns a scoped
    * value that represents the scope of the stream.
    */
-  @deprecated("use runFoldManagedZIO", "2.0.0")
+  @deprecated("use runFoldScopedZIO", "2.0.0")
   final def foldManagedZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, S] =
-    runFoldManagedZIO[R1, E1, S](s)(f)
+    runFoldScopedZIO[R1, E1, S](s)(f)
 
   /**
-   * Executes an effectful fold over the stream of values. Returns a Managed
+   * Executes an effectful fold over the stream of values. Returns a scoped
    * value that represents the scope of the stream.
    */
-  final def runFoldManagedZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
+  final def runFoldScopedZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, S] =
-    runFoldWhileManagedZIO[R1, E1, S](s)(_ => true)(f)
+    runFoldWhileScopedZIO[R1, E1, S](s)(_ => true)(f)
 
   /**
    * Reduces the elements in the stream to a value of type `S`. Stops the fold
@@ -1478,80 +1478,77 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     runFoldWhileZIO[R1, E1, S](s)(cont)(f)
 
   /**
-   * Executes an effectful fold over the stream of values. Returns a Managed
+   * Executes an effectful fold over the stream of values. Returns a scoped
    * value that represents the scope of the stream. Stops the fold early when
    * the condition is not fulfilled. Example:
    * {{{
    *   Stream(1)
    *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // ZIO[Scope, Nothing, Int]
    *     .use(ZIO.succeed)                       // UIO[Int] == 5
    * }}}
    *
    * @param cont
    *   function which defines the early termination condition
    */
-  @deprecated("use runFoldWhileManagedZIO", "2.0.0")
+  @deprecated("use runFoldWhileScopedZIO", "2.0.0")
   final def foldWhileManagedM[R1 <: R, E1 >: E, S](
     s: => S
   )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, S] =
-    runFoldWhileManagedZIO[R1, E1, S](s)(cont)(f)
+    runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f)
 
   /**
-   * Executes an effectful fold over the stream of values. Returns a Managed
+   * Executes an effectful fold over the stream of values. Returns a scoped
    * value that represents the scope of the stream. Stops the fold early when
    * the condition is not fulfilled. Example:
    * {{{
    *   Stream(1)
    *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
-   *     .use(ZIO.succeed)                       // UIO[Int] == 5
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // URIO[Scope, Int] == 5
    * }}}
    *
    * @param cont
    *   function which defines the early termination condition
    */
-  @deprecated("use runFoldWhileManagedZIO", "2.0.0")
+  @deprecated("use runFoldWhileScopedZIO", "2.0.0")
   final def runFoldWhileManagedM[R1 <: R, E1 >: E, S](
     s: => S
   )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, S] =
-    runFoldWhileManagedZIO[R1, E1, S](s)(cont)(f)
+    runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f)
 
   /**
-   * Executes an effectful fold over the stream of values. Returns a Managed
+   * Executes an effectful fold over the stream of values. Returns a scoped
    * value that represents the scope of the stream. Stops the fold early when
    * the condition is not fulfilled. Example:
    * {{{
    *   Stream(1)
    *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
-   *     .use(ZIO.succeed)                       // UIO[Int] == 5
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // URIO[Scope, Int] == 5
    * }}}
    *
    * @param cont
    *   function which defines the early termination condition
    */
-  @deprecated("use runFoldWhileManagedZIO", "2.0.0")
+  @deprecated("use runFoldWhileScopedZIO", "2.0.0")
   final def foldWhileManagedZIO[R1 <: R, E1 >: E, S](
     s: => S
   )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, S] =
-    runFoldWhileManagedZIO[R1, E1, S](s)(cont)(f)
+    runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f)
 
   /**
-   * Executes an effectful fold over the stream of values. Returns a Managed
+   * Executes an effectful fold over the stream of values. Returns a scoped
    * value that represents the scope of the stream. Stops the fold early when
    * the condition is not fulfilled. Example:
    * {{{
    *   Stream(1)
    *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
-   *     .use(ZIO.succeed)                       // UIO[Int] == 5
+   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // URIO[Scope, Int] == 5
    * }}}
    *
    * @param cont
    *   function which defines the early termination condition
    */
-  final def runFoldWhileManagedZIO[R1 <: R, E1 >: E, S](
+  final def runFoldWhileScopedZIO[R1 <: R, E1 >: E, S](
     s: => S
   )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, S] =
     runScoped(ZSink.foldZIO(s)(cont)(f))
@@ -1589,23 +1586,23 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runFoldWhileZIO[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(
     f: (S, A) => ZIO[R1, E1, S]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, S] =
-    ZIO.scoped[R1, E1, S](runFoldWhileManagedZIO[R1, E1, S](s)(cont)(f))
+    ZIO.scoped[R1, E1, S](runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f))
 
   /**
-   * Executes a pure fold over the stream of values. Returns a Managed value
-   * that represents the scope of the stream. Stops the fold early when the
-   * condition is not fulfilled.
+   * Executes a pure fold over the stream of values. Returns a scoped value that
+   * represents the scope of the stream. Stops the fold early when the condition
+   * is not fulfilled.
    */
-  @deprecated("use runFoldWhileManaged", "2.0.0")
+  @deprecated("use runFoldWhileScoped", "2.0.0")
   final def foldWhileManaged[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, S] =
     runFoldWhileScoped(s)(cont)(f)
 
   /**
-   * Executes a pure fold over the stream of values. Returns a Managed value
-   * that represents the scope of the stream. Stops the fold early when the
-   * condition is not fulfilled.
+   * Executes a pure fold over the stream of values. Returns a scoped value that
+   * represents the scope of the stream. Stops the fold early when the condition
+   * is not fulfilled.
    */
   final def runFoldWhileScoped[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit
     trace: ZTraceElement
@@ -1627,7 +1624,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runFoldZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, S] =
-    ZIO.scoped[R1, E1, S](runFoldWhileManagedZIO[R1, E1, S](s)(_ => true)(f))
+    ZIO.scoped[R1, E1, S](runFoldWhileScopedZIO[R1, E1, S](s)(_ => true)(f))
 
   /**
    * Consumes all elements of the stream, passing them to the specified
@@ -1663,17 +1660,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     run(ZSink.foreachChunk(f))
 
   /**
-   * Like [[ZStream#runForeachChunk]], but returns a `ZManaged` so the
+   * Like [[ZStream#runForeachChunk]], but returns a scoped `ZIO` so the
    * finalization order can be controlled.
    */
-  @deprecated("use runForeachChunkManaged", "2.0.0")
+  @deprecated("use runForeachChunkScoped", "2.0.0")
   final def foreachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
     runForeachChunkScoped[R1, E1](f)
 
   /**
-   * Like [[ZStream#runForeachChunk]], but returns a `ZManaged` so the
+   * Like [[ZStream#runForeachChunk]], but returns a scoped `ZIO` so the
    * finalization order can be controlled.
    */
   final def runForeachChunkScoped[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
@@ -1682,17 +1679,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     runScoped(ZSink.foreachChunk(f))
 
   /**
-   * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization
+   * Like [[ZStream#foreach]], but returns a scoped `ZIO` so the finalization
    * order can be controlled.
    */
-  @deprecated("run runForeachManaged", "2.0.0")
+  @deprecated("run runForeachScoped", "2.0.0")
   final def foreachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
     runForeachScoped[R1, E1](f)
 
   /**
-   * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization
+   * Like [[ZStream#foreach]], but returns a scoped `ZIO` so the finalization
    * order can be controlled.
    */
   final def runForeachScoped[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit
@@ -1720,17 +1717,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     run(ZSink.foreachWhile(f))
 
   /**
-   * Like [[ZStream#runForeachWhile]], but returns a `ZManaged` so the
+   * Like [[ZStream#runForeachWhile]], but returns a scoped `ZIO` so the
    * finalization order can be controlled.
    */
-  @deprecated("use runForeachWhileManaged", "2.0.0")
+  @deprecated("use runForeachWhileScoped", "2.0.0")
   final def foreachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
     runForeachWhileScoped[R1, E1](f)
 
   /**
-   * Like [[ZStream#runForeachWhile]], but returns a `ZManaged` so the
+   * Like [[ZStream#runForeachWhile]], but returns a scoped `ZIO` so the
    * finalization order can be controlled.
    */
   final def runForeachWhileScoped[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
@@ -2205,10 +2202,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     runIntoQueue(queue)
 
   /**
-   * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
+   * Like [[ZStream#runInto]], but provides the result as a scoped [[ZIO]] to
    * allow for scope composition.
    */
-  @deprecated("use runIntoQueueElementsManaged", "2.0.0")
+  @deprecated("use runIntoQueueElementsScoped", "2.0.0")
   final def runIntoElementsManaged[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
@@ -2234,17 +2231,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     runIntoQueue(hub.toQueue)
 
   /**
-   * Like [[ZStream#intoHub]], but provides the result as a [[ZManaged]] to
+   * Like [[ZStream#intoHub]], but provides the result as a scoped [[ZIO]] to
    * allow for scope composition.
    */
-  @deprecated("use runIntoHubManaged", "2.0.0")
+  @deprecated("use runIntoHubScoped", "2.0.0")
   final def intoHubManaged[R1 <: R, E1 >: E](
     hub: => ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
     runIntoHubScoped(hub)
 
   /**
-   * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
+   * Like [[ZStream#runIntoHub]], but provides the result as a scoped [[ZIO]] to
    * allow for scope composition.
    */
   final def runIntoHubScoped[R1 <: R, E1 >: E](
@@ -2253,20 +2250,20 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     runIntoQueueScoped(hub.toQueue)
 
   /**
-   * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow
+   * Like [[ZStream#into]], but provides the result as a scoped [[ZIO]] to allow
    * for scope composition.
    */
-  @deprecated("use runIntoQueueManaged", "2.0.0")
+  @deprecated("use runIntoQueueScoped", "2.0.0")
   final def intoManaged[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
     runIntoQueueScoped(queue)
 
   /**
-   * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
+   * Like [[ZStream#runInto]], but provides the result as a scoped [[ZIO]] to
    * allow for scope composition.
    */
-  @deprecated("use runIntoQueueManaged", "2.0.0")
+  @deprecated("use runIntoQueueScoped", "2.0.0")
   final def runIntoManaged[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
@@ -2292,18 +2289,18 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     ZIO.scoped[R1, E1, Unit](runIntoQueueScoped(queue))
 
   /**
-   * Like [[ZStream#ntoQueue]], but provides the result as a [[ZManaged]] to
+   * Like [[ZStream#ntoQueue]], but provides the result as a scoped [[ZIO]] to
    * allow for scope composition.
    */
-  @deprecated("use runIntoQueueManaged", "2.0.0")
+  @deprecated("use runIntoQueueScoped", "2.0.0")
   final def intoQueueManaged[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
     runIntoQueueScoped(queue)
 
   /**
-   * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]] to
-   * allow for scope composition.
+   * Like [[ZStream#runIntoQueue]], but provides the result as a scoped [[ZIO]
+   * to allow for scope composition.
    */
   final def runIntoQueueScoped[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
@@ -2323,8 +2320,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   /**
-   * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]] to
-   * allow for scope composition.
+   * Like [[ZStream#runIntoQueue]], but provides the result as a scoped [[ZIO]]
+   * to allow for scope composition.
    */
   final def runIntoQueueElementsScoped[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
@@ -2801,8 +2798,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Peels off enough material from the stream to construct a `Z` using the
    * provided [[ZSink]] and then returns both the `Z` and the rest of the
-   * [[ZStream]] in a managed resource. Like all [[ZManaged]] values, the
-   * provided stream is valid only within the scope of [[ZManaged]].
+   * [[ZStream]] in a scope. Like all scoped values, the provided stream is
+   * valid only within the scope.
    */
   def peel[R1 <: R, E1 >: E, A1 >: A, Z](
     sink: => ZSink[R1, E1, A1, A1, Z]
@@ -3880,8 +3877,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   /**
-   * Converts the stream to a managed hub of chunks. After the managed hub is
-   * used, the hub will never again produce values and should be discarded.
+   * Converts the stream to a scoped hub of chunks. After the scope is closed,
+   * the hub will never again produce values and should be discarded.
    */
   def toHub(
     capacity: => Int
@@ -3893,8 +3890,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
   /**
    * Converts this stream of bytes into a `java.io.InputStream` wrapped in a
-   * [[ZManaged]]. The returned input stream will only be valid within the scope
-   * of the ZManaged.
+   * scoped [[ZIO]]. The returned input stream will only be valid within the
+   * scope.
    */
   def toInputStream(implicit
     ev0: E <:< Throwable,
@@ -3907,9 +3904,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     } yield ZInputStream.fromPull(runtime, pull)
 
   /**
-   * Converts this stream into a `scala.collection.Iterator` wrapped in a
-   * [[ZManaged]]. The returned iterator will only be valid within the scope of
-   * the ZManaged.
+   * Converts this stream into a `scala.collection.Iterator` wrapped in a scoped
+   * [[ZIO]]. The returned iterator will only be valid within the scope.
    */
   def toIterator(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Iterator[Either[E, A]]] =
     for {
@@ -3939,9 +3935,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     }
 
   /**
-   * Converts this stream of chars into a `java.io.Reader` wrapped in a
-   * [[ZManaged]]. The returned reader will only be valid within the scope of
-   * the ZManaged.
+   * Converts this stream of chars into a `java.io.Reader` wrapped in a scoped
+   * [[ZIO]]. The returned reader will only be valid within the scope.
    */
   def toReader(implicit
     ev0: E <:< Throwable,
@@ -3954,8 +3949,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     } yield ZReader.fromPull(runtime, pull)
 
   /**
-   * Converts the stream to a managed queue of chunks. After the managed queue
-   * is used, the queue will never again produce values and should be discarded.
+   * Converts the stream to a scoped queue of chunks. After the scope is closed,
+   * the queue will never again produce values and should be discarded.
    */
   final def toQueue(
     capacity: => Int = 2
@@ -3966,9 +3961,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     } yield queue
 
   /**
-   * Converts the stream to a dropping managed queue of chunks. After the
-   * managed queue is used, the queue will never again produce values and should
-   * be discarded.
+   * Converts the stream to a dropping scoped queue of chunks. After the scope
+   * is closed, the queue will never again produce values and should be
+   * discarded.
    */
   final def toQueueDropping(
     capacity: => Int = 2
@@ -3979,8 +3974,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     } yield queue
 
   /**
-   * Converts the stream to a managed queue of elements. After the managed queue
-   * is used, the queue will never again produce values and should be discarded.
+   * Converts the stream to a scoped queue of elements. After the scope is
+   * closed, the queue will never again produce values and should be discarded.
    */
   final def toQueueOfElements(
     capacity: => Int = 2
@@ -3991,9 +3986,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     } yield queue
 
   /**
-   * Converts the stream to a sliding managed queue of chunks. After the managed
-   * queue is used, the queue will never again produce values and should be
-   * discarded.
+   * Converts the stream to a sliding scoped queue of chunks. After the scope is
+   * closed, the queue will never again produce values and should be discarded.
    */
   final def toQueueSliding(
     capacity: => Int = 2
@@ -4004,9 +3998,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     } yield queue
 
   /**
-   * Converts the stream into an unbounded managed queue. After the managed
-   * queue is used, the queue will never again produce values and should be
-   * discarded.
+   * Converts the stream into an unbounded scoped queue. After the scope is
+   * closed, the queue will never again produce values and should be discarded.
    */
   final def toQueueUnbounded(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
@@ -4747,8 +4740,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     scoped(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
 
   /**
-   * Creates a stream from a subscription to a hub in the context of a managed
-   * effect. The managed effect describes subscribing to receive messages from
+   * Creates a stream from a subscription to a hub in the context of a scoped
+   * effect. The scoped effect describes subscribing to receive messages from
    * the hub while the stream describes taking messages from the hub.
    */
   def fromChunkHubScoped[R, E, O](
@@ -4767,8 +4760,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromChunkHub(hub).ensuring(hub.shutdown)
 
   /**
-   * Creates a stream from a subscription to a hub in the context of a managed
-   * effect. The managed effect describes subscribing to receive messages from
+   * Creates a stream from a subscription to a hub in the context of a scoped
+   * effect. The scoped effect describes subscribing to receive messages from
    * the hub while the stream describes taking messages from the hub.
    *
    * The hub will be shut down once the stream is closed.
@@ -4834,8 +4827,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     scoped(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
 
   /**
-   * Creates a stream from a subscription to a hub in the context of a managed
-   * effect. The managed effect describes subscribing to receive messages from
+   * Creates a stream from a subscription to a hub in the context of a scoped
+   * effect. The scoped effect describes subscribing to receive messages from
    * the hub while the stream describes taking messages from the hub.
    */
   def fromHubScoped[R, E, A](
@@ -4856,8 +4849,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromHub(hub, maxChunkSize).ensuring(hub.shutdown)
 
   /**
-   * Creates a stream from a subscription to a hub in the context of a managed
-   * effect. The managed effect describes subscribing to receive messages from
+   * Creates a stream from a subscription to a hub in the context of a scoped
+   * effect. The scoped effect describes subscribing to receive messages from
    * the hub while the stream describes taking messages from the hub.
    *
    * The hub will be shut down once the stream is closed.
@@ -4914,7 +4907,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromInputStreamScoped[R](is.tap(is => ZIO.addFinalizer(_ => ZIO.succeed(is.close()))), chunkSize)
 
   /**
-   * Creates a stream from a managed `java.io.InputStream` value.
+   * Creates a stream from a scoped `java.io.InputStream` value.
    */
   def fromInputStreamScoped[R](
     is: => ZIO[Scope with R, IOException, InputStream],
@@ -5020,7 +5013,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromIteratorZIO(iterator)
 
   /**
-   * Creates a stream from a managed iterator
+   * Creates a stream from a scoped iterator
    */
   def fromIteratorScoped[R, A](
     iterator: => ZIO[Scope with R, Throwable, Iterator[A]],
@@ -5104,7 +5097,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromJavaIteratorZIO(iterator)
 
   /**
-   * Creates a stream from a managed iterator
+   * Creates a stream from a scoped iterator
    */
   def fromJavaIteratorScoped[R, A](iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]])(implicit
     trace: ZTraceElement
@@ -5306,10 +5299,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.fromZIO(ZIO.logWarning(message))
 
   /**
-   * Creates a single-valued stream from a managed resource
+   * Creates a single-valued stream from a scoped resource
    */
-  def scoped[R, E, A](managed: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    new ZStream(ZChannel.scopedOut[R, E, Chunk[A]](managed.map(Chunk.single)))
+  def scoped[R, E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    new ZStream(ZChannel.scopedOut[R, E, Chunk[A]](zio.map(Chunk.single)))
 
   /**
    * Merges a variable list of streams in a non-deterministic fashion. Up to `n`
@@ -5721,12 +5714,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromZIO(fa).flatten
 
   /**
-   * Creates a stream produced from a [[ZManaged]]
+   * Creates a stream produced from a scoped [[ZIO]]
    */
-  def unwrapScoped[R, E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
+  def unwrapScoped[R, E, A](zio: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
-    scoped[R, E, ZStream[R, E, A]](fa).flatten
+    scoped[R, E, ZStream[R, E, A]](zio).flatten
 
   /**
    * Returns the specified stream if the given condition is satisfied, otherwise
@@ -6051,10 +6044,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[R, Throwable, A]` from a `ZManaged[R, Throwable,
-     * Iterator[A]]`.
+     * Constructs a `ZStream[R, Throwable, A]` from a `ZIO[R with Scope,
+     * Throwable, Iterator[A]]`.
      */
-    implicit def IteratorManagedConstructor[R, E <: Throwable, A, IteratorLike[Element] <: Iterator[Element]]
+    implicit def IteratorScopedConstructor[R, E <: Throwable, A, IteratorLike[Element] <: Iterator[Element]]
       : WithOut[ZIO[Scope with R, E, IteratorLike[A]], ZStream[R, Throwable, A]] =
       new ZStreamConstructor[ZIO[Scope with R, E, IteratorLike[A]]] {
         type Out = ZStream[R, Throwable, A]
@@ -6088,10 +6081,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[R, Throwable, A]` from a `ZManaged[R, Throwable,
-     * java.util.Iterator[A]]`.
+     * Constructs a `ZStream[R, Throwable, A]` from a `ZIO[R with Scope,
+     * Throwable, java.util.Iterator[A]]`.
      */
-    implicit def JavaIteratorManagedConstructor[R, E <: Throwable, A, JaveIteratorLike[Element] <: java.util.Iterator[
+    implicit def JavaIteratorScopedConstructor[R, E <: Throwable, A, JaveIteratorLike[Element] <: java.util.Iterator[
       Element
     ]]: WithOut[ZIO[Scope with R, E, JaveIteratorLike[A]], ZStream[R, Throwable, A]] =
       new ZStreamConstructor[ZIO[Scope with R, E, JaveIteratorLike[A]]] {
