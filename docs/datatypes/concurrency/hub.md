@@ -20,7 +20,7 @@ trait Hub[A] {
 
 The `publish` operator returns a `ZIO` effect that publishes a message of type `A` to the hub and succeeds with a value describing whether the message was successfully published to the hub.
 
-The `subscribe` operator returns a `ZManaged` effect where the `acquire` action of the `ZManaged` subscribes to the hub and the `release` action unsubscribes from the hub. Within the context of the `ZManaged` we have access to a `Dequeue`, which is a `Queue` that can only be dequeued from, that allows us to take messages published to the hub.
+The `subscribe` operator returns a scoped `ZIO` effect that subscribes to the hub and unsubscribes from the hub when the scope is closed. Within the scope we have access to a `Dequeue`, which is a `Queue` that can only be dequeued from, that allows us to take messages published to the hub.
 
 For example, we can use a hub to broadcast a message to multiple subscribers like this:
 
@@ -40,7 +40,7 @@ Hub.bounded[String](2).flatMap { hub =>
 
 A subscriber will only receive messages that are published to the hub while it is subscribed. So if we want to make sure that a particular message is received by a subscriber we must take care that the subscription has completed before publishing the message to the hub.
 
-We can do this by publishing a message to the hub within the scope of the subscription as in the example above or by using other coordination mechanisms such as completing a `Promise`  when the `acquire` action of the `ZManaged` has completed.
+We can do this by publishing a message to the hub within the scope of the subscription as in the example above or by using other coordination mechanisms such as completing a `Promise`  when scope has been opened.
 
 Of course, in many cases such as subscribing to receive real time data we may not care about this because we are happy to just pick up with the most recent messages after we have subscribed. But for testing and simple applications this can be an important point to keep in mind.
 
@@ -326,18 +326,18 @@ object ZStream {
 
 This will return a stream that subscribes to receive values from a hub and then emits every value published to the hub while the subscription is active. When the stream ends the subscriber will automatically be unsubscribed from the hub.
 
-There is also a `fromHubManaged` operator that returns the stream in the context of a managed effect.
+There is also a `fromHubScoped` operator that returns the stream in the context of a scoped effect.
 
 ```scala mdoc:nest
 object ZStream {
-  def fromHubManaged[R, E, O](
+  def fromHubScoped[R, E, O](
     hub: ZHub[Nothing, R, Any, E, Nothing, O]
   ): ZIO[Scope, Nothing, ZStream[R, E, O]] =
     ???
 }
 ```
 
-The managed effect here describes subscribing to receive messages from the hub while the stream describes taking messages from the hub. This can be useful when we need to ensure that a consumer has subscribed before a producer begins publishing values.
+The scoped effect here describes subscribing to receive messages from the hub while the stream describes taking messages from the hub. This can be useful when we need to ensure that a consumer has subscribed before a producer begins publishing values.
 
 Here is an example of using it:
 
@@ -350,8 +350,8 @@ import zio.stream._
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[String](2)
-  managed  = ZStream.fromHubScoped(hub).tap(_ => promise.succeed(()))
-  stream   = ZStream.unwrapScoped(managed)
+  scoped  = ZStream.fromHubScoped(hub).tap(_ => promise.succeed(()))
+  stream   = ZStream.unwrapScoped(scoped)
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await
   _       <- hub.publish("Hello")
@@ -360,7 +360,7 @@ for {
 } yield ()
 ```
 
-Notice that in this case we used a `Promise` to ensure that the subscription had completed before publishing to the hub. The `ZManaged` in the return type of `fromHubManaged` made it easy for us to signal when the subscription had occurred by using `tapM` and completing the `Promise`.
+Notice that in this case we used a `Promise` to ensure that the subscription had completed before publishing to the hub. The scoped `ZIO` in the return type of `fromHubScoped` made it easy for us to signal when the subscription had occurred by using `tap` and completing the `Promise`.
 
 Of course in many real applications we don't need this kind of sequencing and just want to subscribe to receive new messages. In this case we can use the `fromHub` operator to return a `ZStream` that will automatically handle subscribing and unsubscribing for us.
 
@@ -392,7 +392,7 @@ trait ZStream[-R, +E, +O] {
 }
 ```
 
-There is an `intoHubManaged` variant of this if you want to send values to the hub in the context of a `ZManaged` instead of a `ZIO` effect.
+There is an `intoHubScoped` variant of this if you want to send values to the hub in the context of a `Scope`.
 
 Here is the example above adapted to publish values from a stream to the hub:
 
@@ -400,8 +400,8 @@ Here is the example above adapted to publish values from a stream to the hub:
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[Take[Nothing, String]](2)
-  managed  = ZStream.fromHubScoped(hub).tap(_ => promise.succeed(()))
-  stream   = ZStream.unwrapScoped(managed).flattenTake
+  scoped  = ZStream.fromHubScoped(hub).tap(_ => promise.succeed(()))
+  stream   = ZStream.unwrapScoped(scoped).flattenTake
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await
   _       <- ZStream("Hello", "World").runIntoHub(hub)
@@ -440,7 +440,7 @@ trait ZStream[-R, +E, +O] {
 }
 ```
 
-The `broadcast` operator generates the specified number of new streams and broadcasts each value from the original stream to each of the new streams. The `broadcastDynamic` operator returns a new `ZManaged` value that you can use to dynamically subscribe and unsubscribe to receive values broadcast from the original stream.
+The `broadcast` operator generates the specified number of new streams and broadcasts each value from the original stream to each of the new streams. The `broadcastDynamic` operator returns a new `ZIO` value that you can use to dynamically subscribe and unsubscribe to receive values broadcast from the original stream.
 
 You don't have to do anything with `ZHub` to take advantage of these operators other than enjoy their optimized implementation in terms of `ZHub`.
 
