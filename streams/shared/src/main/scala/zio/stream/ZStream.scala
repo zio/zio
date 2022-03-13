@@ -1727,13 +1727,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def foreachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
-    runForeachWhileManaged[R1, E1](f)
+    runForeachWhileScoped[R1, E1](f)
 
   /**
    * Like [[ZStream#runForeachWhile]], but returns a `ZManaged` so the
    * finalization order can be controlled.
    */
-  final def runForeachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
+  final def runForeachWhileScoped[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
     runScoped(ZSink.foreachWhile(f))
