@@ -156,7 +156,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case LabeledCase(label, spec) =>
         spec.filterAnnotations(key)(f).map(spec => Spec.labeled(label, spec))
       case ScopedCase(scoped) =>
-        Some(Spec.scoped[R, E, T](scoped.map(_.filterAnnotations(key)(f).getOrElse(Spec.empty))))
+        Some(Spec.scoped[R](scoped.map(_.filterAnnotations(key)(f).getOrElse(Spec.empty))))
       case MultipleCase(specs) =>
         val filtered = specs.flatMap(_.filterAnnotations(key)(f))
         if (filtered.isEmpty) None else Some(Spec.multiple(filtered))
@@ -180,7 +180,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
         if (f(label)) Some(Spec.labeled(label, spec))
         else spec.filterLabels(f).map(spec => Spec.labeled(label, spec))
       case ScopedCase(scoped) =>
-        Some(Spec.scoped[R, E, T](scoped.map(_.filterLabels(f).getOrElse(Spec.empty))))
+        Some(Spec.scoped[R](scoped.map(_.filterLabels(f).getOrElse(Spec.empty))))
       case MultipleCase(specs) =>
         val filtered = specs.flatMap(_.filterLabels(f))
         if (filtered.isEmpty) None else Some(Spec.multiple(filtered))
@@ -445,11 +445,11 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideLayerShared(layer))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
       case ScopedCase(scoped) =>
-        Spec.scoped[R0, E1, T](
+        Spec.scoped[R0](
           layer.build.flatMap(r => scoped.map(_.provideEnvironment(r)).provideSomeEnvironment[Scope](r.union[Scope]))
         )
       case MultipleCase(specs) =>
-        Spec.scoped[R0, E1, T](
+        Spec.scoped[R0](
           layer.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r))))
         )
       case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
@@ -597,7 +597,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case LabeledCase(label, spec) =>
         Spec.labeled(label, spec.whenZIO(b))
       case ScopedCase(scoped) =>
-        Spec.scoped[R1 with Annotations, E1, TestSuccess](
+        Spec.scoped[R1 with Annotations](
           b.flatMap { b =>
             if (b) scoped.map(_.mapTest(ev))
             else ZIO.succeedNow(Spec.empty)
@@ -639,8 +639,8 @@ object Spec {
   final def labeled[R, E, T](label: String, spec: Spec[R, E, T]): Spec[R, E, T] =
     Spec(LabeledCase(label, spec))
 
-  final def scoped[R, E, T](scoped: ZIO[Scope with R, E, Spec[R, E, T]]): Spec[R, E, T] =
-    Spec(ScopedCase[R, E, Spec[R, E, T]](scoped))
+  final def scoped[R]: ScopedPartiallyApplied[R] =
+    new ScopedPartiallyApplied[R]
 
   final def multiple[R, E, T](specs: Chunk[Spec[R, E, T]]): Spec[R, E, T] =
     Spec(MultipleCase(specs))
@@ -674,7 +674,7 @@ object Spec {
         case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeLayerShared(layer))
         case LabeledCase(label, spec) => Spec.labeled(label, spec.provideSomeLayerShared(layer))
         case ScopedCase(scoped) =>
-          Spec.scoped[R0, E1, T](
+          Spec.scoped[R0](
             layer.build.flatMap { r =>
               scoped
                 .map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))
@@ -682,12 +682,17 @@ object Spec {
             }
           )
         case MultipleCase(specs) =>
-          Spec.scoped[R0, E1, T](
+          Spec.scoped[R0](
             layer.build.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))))
           )
         case TestCase(test, annotations) =>
           Spec.test(test.provideSomeLayer(layer), annotations)
       }
+  }
+
+  final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, T](scoped: ZIO[Scope with R, E, Spec[R, E, T]]): Spec[R, E, T] =
+      Spec(ScopedCase[R, E, Spec[R, E, T]](scoped))
   }
 
   final class UpdateService[-R, +E, +T, M](private val self: Spec[R, E, T]) extends AnyVal {
