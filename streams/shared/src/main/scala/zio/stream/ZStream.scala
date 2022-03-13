@@ -1670,13 +1670,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def foreachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
-    runForeachChunkManaged[R1, E1](f)
+    runForeachChunkScoped[R1, E1](f)
 
   /**
    * Like [[ZStream#runForeachChunk]], but returns a `ZManaged` so the
    * finalization order can be controlled.
    */
-  final def runForeachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
+  final def runForeachChunkScoped[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
     runScoped(ZSink.foreachChunk(f))
