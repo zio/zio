@@ -2685,8 +2685,10 @@ object ZManaged extends ZManagedPlatformSpecific {
   def logAnnotate(key: => String, value: => String)(implicit
     trace: ZTraceElement
   ): ZManaged[Any, Nothing, Unit] =
-    FiberRef.currentLogAnnotations.get.toManaged.flatMap { annotations =>
-      FiberRef.currentLogAnnotations.locallyScoped(annotations.updated(key, value)).toManaged0
+    ZManaged.scoped {
+      FiberRef.currentLogAnnotations.get.flatMap { annotations =>
+        FiberRef.currentLogAnnotations.locallyScoped(annotations.updated(key, value))
+      }
     }
 
   /**
@@ -2729,18 +2731,20 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Sets the log level for managed effects composed after this.
    */
   def logLevel(level: LogLevel)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    FiberRef.currentLogLevel.locallyScoped(level).toManaged0
+    ZManaged.scoped(FiberRef.currentLogLevel.locallyScoped(level))
 
   /**
    * Adjusts the label for the logging span for managed effects composed after
    * this.
    */
   def logSpan(label: => String)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    FiberRef.currentLogSpan.get.toManaged.flatMap { stack =>
-      val instant = java.lang.System.currentTimeMillis()
-      val logSpan = LogSpan(label, instant)
+    ZManaged.scoped {
+      FiberRef.currentLogSpan.get.flatMap { stack =>
+        val instant = java.lang.System.currentTimeMillis()
+        val logSpan = LogSpan(label, instant)
 
-      FiberRef.currentLogSpan.locallyScoped(logSpan :: stack).toManaged0
+        FiberRef.currentLogSpan.locallyScoped(logSpan :: stack)
+      }
     }
 
   /**
@@ -3294,6 +3298,11 @@ object ZManaged extends ZManagedPlatformSpecific {
       }
     }
 
+  def scoped[R, E, A](scoped: ZIO[zio.Scope with R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
+    ZManaged.acquireReleaseExitWith(zio.Scope.make)((scope, exit) => scope.close(exit)).mapZIO { scope =>
+      scoped.provideSomeEnvironment[R](_.union[zio.Scope](ZEnvironment(scope)))
+    }
+
   /**
    * Accesses the specified service in the environment of the effect.
    */
@@ -3562,7 +3571,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * it back to the original value as the `release` action.
    */
   def withParallism(n: => Int)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZIO.Parallelism.locallyScoped(Some(n)).toManaged0
+    ZManaged.scoped(ZIO.Parallelism.locallyScoped(Some(n)))
 
   /**
    * Returns a managed effect that describes setting an unbounded maximum number
@@ -3570,7 +3579,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * back to the original value as the `release` action.
    */
   def withParallismUnbounded(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZIO.Parallelism.locallyScoped(None).toManaged0
+    ZManaged.scoped(ZIO.Parallelism.locallyScoped(None))
 
   /**
    * Returns a managed effect that describes setting the runtime configuration

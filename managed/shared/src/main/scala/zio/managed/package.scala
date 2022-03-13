@@ -24,11 +24,6 @@ package object managed {
   type UManaged[+A]      = ZManaged[Any, Nothing, A]   //Manage an `A`, cannot fail              , no requirements
   type URManaged[-R, +A] = ZManaged[R, Nothing, A]     //Manage an `A`, cannot fail              , requires an `R`
 
-  implicit final class ZIOSyntax0[R, E, A](private val self: ZIO[Scope with R, E, A]) {
-    def toManaged0: ZManaged[R, E, A] =
-      ???
-  }
-
   implicit final class ZManagedZIOSyntax[R, E, A](private val self: ZIO[R, E, A]) {
 
     /**
