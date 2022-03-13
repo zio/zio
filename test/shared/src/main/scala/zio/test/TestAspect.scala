@@ -157,7 +157,7 @@ object TestAspect extends TimeoutVariants {
   )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
       def some[R <: R0, E >: E0](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
-        Spec.managed[R, TestFailure[E], TestSuccess](
+        Spec.scoped[R, TestFailure[E], TestSuccess](
           ZIO.acquireRelease(before)(after).mapError(TestFailure.fail).as(spec)
         )
     }

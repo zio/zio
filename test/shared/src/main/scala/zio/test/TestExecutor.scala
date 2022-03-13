@@ -48,13 +48,13 @@ object TestExecutor {
           )
           .flatMap { spec =>
             ZIO.scoped {
-              spec.foldManaged[Any, Nothing, ExecutedSpec[E]](defExec) {
+              spec.foldScoped[Any, Nothing, ExecutedSpec[E]](defExec) {
                 case Spec.ExecCase(_, spec) =>
                   ZIO.succeedNow(spec)
                 case Spec.LabeledCase(label, spec) =>
                   ZIO.succeedNow(ExecutedSpec.labeled(label, spec))
-                case Spec.ManagedCase(managed) =>
-                  managed
+                case Spec.ScopedCase(scoped) =>
+                  scoped
                 case Spec.MultipleCase(specs) =>
                   ZIO.succeedNow(ExecutedSpec.multiple(specs))
                 case Spec.TestCase(test, staticAnnotations) =>

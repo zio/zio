@@ -65,7 +65,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       spec.caseValue match {
         case Spec.ExecCase(_, spec)        => traverse(spec, description, path)
         case Spec.LabeledCase(label, spec) => traverse(spec, description, path :+ label)
-        case Spec.ManagedCase(managed)     => managed.flatMap(traverse(_, description, path))
+        case Spec.ScopedCase(managed)      => managed.flatMap(traverse(_, description, path))
         case Spec.MultipleCase(specs) =>
           val suiteDesc = Description.createSuiteDescription(path.lastOption.getOrElse(""), path.mkString(":"))
           ZIO.succeed(description.addChild(suiteDesc)) *>
@@ -175,8 +175,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           Spec.ExecCase(exec, Spec(loop(spec.caseValue, path)))
         case Spec.LabeledCase(label, spec) =>
           Spec.LabeledCase(label, Spec(loop(spec.caseValue, path :+ label)))
-        case Spec.ManagedCase(managed) =>
-          Spec.ManagedCase[R, TestFailure[E], Spec[R, TestFailure[E], TestSuccess]](
+        case Spec.ScopedCase(managed) =>
+          Spec.ScopedCase[R, TestFailure[E], Spec[R, TestFailure[E], TestSuccess]](
             managed.map(spec => Spec(loop(spec.caseValue, path)))
           )
         case Spec.MultipleCase(specs) =>
