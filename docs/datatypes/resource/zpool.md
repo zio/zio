@@ -24,7 +24,7 @@ To address these issues, we can create a pool of pre-initialized resources:
 
 ## Introduction
 
-`ZPool` is an asynchronous and concurrent generalized pool of reusable managed resources, that is used to create and manage a pool of objects.
+`ZPool` is an asynchronous and concurrent generalized pool of reusable resources, that is used to create and manage a pool of objects.
 
 ```scala mdoc:invisible
 import zio._
@@ -38,7 +38,7 @@ trait ZPool[+Error, Item] {
 ```
 
 The two fundamental operators on a `ZPool` is `get` and `invalidate`:
-- The `get` operator retrieves an item from the pool in a `Managed` effect.
+- The `get` operator retrieves an item from the pool in a scoped effect.
 - The `invalidate` operator invalidates the specified item. This will cause the pool to eventually reallocate the item.
 
 ## Constructing ZPools
@@ -56,9 +56,9 @@ object ZPool {
 ```scala mdoc:reset:invisible
 ```
 
-It takes a managed resource of type `A`, and the `size` of the pool. The return type will be a managed `ZPool`.
+It takes a scoped resource of type `A`, and the `size` of the pool. The return type will be a scoped `ZPool`.
 - A fixed pool size will be used to pre-allocate pool entries, so all the entries of the pool will be acquired eagerly. As a client of the `ZPool` it is recommended to analyze requirements to find out the best suitable size for the resource pool. If we set up a pool with too many eagerly-acquired resources, that may reduce the performance due to the resource contention.
-- As the return type of the constructor is `UManaged[ZPool[E, A]]`, it will manage automatically the life cycle of the pool. So, as a client of `ZPool`, we do not require to shutdown the pool manually.
+- As the return type of the constructor is `ZIO[Scope, Nothing, ZPool[E, A]]`, it will manage automatically the life cycle of the pool. So, as a client of `ZPool`, we do not require to shutdown the pool manually.
 
 There is another constructor called `ZPool.fromInterable` that is suitable when no cleanup or release actions are required.
 
@@ -67,9 +67,9 @@ There is another constructor called `ZPool.fromInterable` that is suitable when 
 The previous constructor creates a `ZPool` with a fixed size, so all of its entries are pre-allocated. There is another constructor that creates a pool with pre-allocated minimum entries (eagerly-acquired resources), plus it can increase its entries _on-demand_ (lazily-acquired resources) until reaches the specified maximum size:
 
 ```scala
-def make[E, A](get: Managed[E, A],
+def make[E, A](get: ZIO[Scope, E, A],
         range: Range, // minimum and maximum size of the pool
-        timeToLive: Duration): URManaged[Clock, ZPool[E, A]]
+        timeToLive: Duration): ZIO[Clock with Scope, Nothing, ZPool[E, A]]
 ```
 
 Having a lot of resources that are over our average requirement can waste space and degrade the performance. Therefore, this variant of `ZPool` has an _eviction policy_. By taking the `timeToLive` argument, it will evict excess items that have not been acquired for more than the `timeToLive` time, until it reaches the minimum size.
