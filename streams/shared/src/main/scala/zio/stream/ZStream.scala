@@ -323,7 +323,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     for {
       hub    <- Hub.bounded[Take[E, A]](maximumLag)
       queues <- ZIO.collectAll(Chunk.fill(n)(hub.subscribe))
-      _      <- self.runIntoHubManaged(hub).fork
+      _      <- self.runIntoHubScoped(hub).fork
     } yield queues
 
   /**
@@ -2241,13 +2241,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def intoHubManaged[R1 <: R, E1 >: E](
     hub: => ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
-    runIntoHubManaged(hub)
+    runIntoHubScoped(hub)
 
   /**
    * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
    * allow for scope composition.
    */
-  final def runIntoHubManaged[R1 <: R, E1 >: E](
+  final def runIntoHubScoped[R1 <: R, E1 >: E](
     hub: => ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
     runIntoQueueManaged(hub.toQueue)
@@ -3888,7 +3888,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, A]]] =
     for {
       hub <- Hub.bounded[Take[E, A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
-      _   <- self.runIntoHubManaged(hub).fork
+      _   <- self.runIntoHubScoped(hub).fork
     } yield hub
 
   /**
