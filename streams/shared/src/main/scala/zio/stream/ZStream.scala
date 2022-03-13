@@ -2250,7 +2250,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoHubScoped[R1 <: R, E1 >: E](
     hub: => ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
-    runIntoQueueManaged(hub.toQueue)
+    runIntoQueueScoped(hub.toQueue)
 
   /**
    * Like [[ZStream#into]], but provides the result as a [[ZManaged]] to allow
@@ -2260,7 +2260,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def intoManaged[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
-    runIntoQueueManaged(queue)
+    runIntoQueueScoped(queue)
 
   /**
    * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
@@ -2270,7 +2270,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoManaged[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
-    runIntoQueueManaged(queue)
+    runIntoQueueScoped(queue)
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending
@@ -2289,7 +2289,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoQueue[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
-    ZIO.scoped[R1, E1, Unit](runIntoQueueManaged(queue))
+    ZIO.scoped[R1, E1, Unit](runIntoQueueScoped(queue))
 
   /**
    * Like [[ZStream#ntoQueue]], but provides the result as a [[ZManaged]] to
@@ -2299,13 +2299,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def intoQueueManaged[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
-    runIntoQueueManaged(queue)
+    runIntoQueueScoped(queue)
 
   /**
    * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]] to
    * allow for scope composition.
    */
-  final def runIntoQueueManaged[R1 <: R, E1 >: E](
+  final def runIntoQueueScoped[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] = {
     lazy val writer: ZChannel[R, E, Chunk[A], Any, E, Take[E1, A], Any] = ZChannel
@@ -3962,7 +3962,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.bounded[Take[E, A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
-      _     <- self.runIntoQueueManaged(queue).fork
+      _     <- self.runIntoQueueScoped(queue).fork
     } yield queue
 
   /**
@@ -3975,7 +3975,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.dropping[Take[E, A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
-      _     <- self.runIntoQueueManaged(queue).fork
+      _     <- self.runIntoQueueScoped(queue).fork
     } yield queue
 
   /**
@@ -4000,7 +4000,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.sliding[Take[E, A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
-      _     <- self.runIntoQueueManaged(queue).fork
+      _     <- self.runIntoQueueScoped(queue).fork
     } yield queue
 
   /**
@@ -4011,7 +4011,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueUnbounded(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- Queue.unbounded[Take[E, A]].tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
-      _     <- self.runIntoQueueManaged(queue).fork
+      _     <- self.runIntoQueueScoped(queue).fork
     } yield queue
 
   /**
