@@ -2212,7 +2212,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoElementsManaged[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] =
-    runIntoQueueElementsManaged(queue)
+    runIntoQueueElementsScoped(queue)
 
   /**
    * Publishes elements of this stream to a hub. Stream failure and ending will
@@ -2326,7 +2326,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]] to
    * allow for scope composition.
    */
-  final def runIntoQueueElementsManaged[R1 <: R, E1 >: E](
+  final def runIntoQueueElementsScoped[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Unit] = {
     lazy val writer: ZChannel[R1, E1, Chunk[A], Any, Nothing, Exit[Option[E1], A], Any] =
@@ -3987,7 +3987,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Exit[Option[E], A]]] =
     for {
       queue <- Queue.bounded[Exit[Option[E], A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
-      _     <- self.runIntoQueueElementsManaged(queue).fork
+      _     <- self.runIntoQueueElementsScoped(queue).fork
     } yield queue
 
   /**
