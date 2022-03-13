@@ -1434,22 +1434,8 @@ object ZChannel {
   def scoped[Env]: ScopedPartiallyApplied[Env] =
     new ScopedPartiallyApplied[Env]
 
-  def scopedOut[R, E, A](
-    m: => ZIO[Scope with R, E, A]
-  )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
-    acquireReleaseOutExitWith(
-      Scope.make.flatMap { scope =>
-        ZIO.uninterruptibleMask { restore =>
-          restore(m.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(scope))))
-            .foldCauseZIO(
-              cause => scope.close(Exit.failCause(cause)) *> ZIO.failCause(cause),
-              { case out => ZIO.succeedNow((out, scope)) }
-            )
-        }
-      }
-    ) { case ((_, scope), exit) =>
-      scope.close(exit)
-    }.mapOut(_._1)
+  def scopedOut[R]: ScopedOutPartiallyApplied[R] =
+    new ScopedOutPartiallyApplied[R]
 
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[
@@ -1866,6 +1852,25 @@ object ZChannel {
       }
   }
 
+  final class ScopedOutPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](
+      m: => ZIO[Scope with R, E, A]
+    )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
+      acquireReleaseOutExitWith(
+        Scope.make.flatMap { scope =>
+          ZIO.uninterruptibleMask { restore =>
+            restore(m.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(scope))))
+              .foldCauseZIO(
+                cause => scope.close(Exit.failCause(cause)) *> ZIO.failCause(cause),
+                { case out => ZIO.succeedNow((out, scope)) }
+              )
+          }
+        }
+      ) { case ((_, scope), exit) =>
+        scope.close(exit)
+      }.mapOut(_._1)
+  }
+
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
@@ -1908,9 +1913,7 @@ object ZChannel {
     )(implicit
       trace: ZTraceElement
     ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-      ZChannel.concatAllWith(
-        scopedOut[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](channel)
-      )((d, _) => d, (d, _) => d)
+      ZChannel.concatAllWith(scopedOut[Env](channel))((d, _) => d, (d, _) => d)
   }
 
   final class UpdateService[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone, Service](
