@@ -1346,7 +1346,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * the stream to a value of type `S`.
    */
   final def runFold[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
-    ZIO.scoped[R, E, S](runFoldWhileManaged(s)(_ => true)((s, a) => f(s, a)))
+    ZIO.scoped[R, E, S](runFoldWhileScoped(s)(_ => true)((s, a) => f(s, a)))
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1379,7 +1379,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * that represents the scope of the stream.
    */
   final def runFoldScoped[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R with Scope, E, S] =
-    runFoldWhileManaged(s)(_ => true)((s, a) => f(s, a))
+    runFoldWhileScoped(s)(_ => true)((s, a) => f(s, a))
 
   /**
    * Executes an effectful fold over the stream of values. Returns a Managed
@@ -1439,7 +1439,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * }}}
    */
   final def runFoldWhile[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
-    ZIO.scoped[R, E, S](runFoldWhileManaged(s)(cont)((s, a) => f(s, a)))
+    ZIO.scoped[R, E, S](runFoldWhileScoped(s)(cont)((s, a) => f(s, a)))
 
   /**
    * Executes an effectful fold over the stream of values. Stops the fold early
@@ -1600,14 +1600,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def foldWhileManaged[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, S] =
-    runFoldWhileManaged(s)(cont)(f)
+    runFoldWhileScoped(s)(cont)(f)
 
   /**
    * Executes a pure fold over the stream of values. Returns a Managed value
    * that represents the scope of the stream. Stops the fold early when the
    * condition is not fulfilled.
    */
-  final def runFoldWhileManaged[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit
+  final def runFoldWhileScoped[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, S] =
     runScoped(ZSink.fold(s)(cont)(f))
