@@ -5236,7 +5236,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def logAnnotate(key: => String, value: => String)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Nothing, Unit] =
-    ??? //ZStream.managed(ZManaged.logAnnotate(key, value))
+    ZStream.scoped(ZIO.logAnnotateScoped(key, value))
 
   /**
    * Retrieves the log annotations associated with the current scope.
@@ -5278,13 +5278,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Sets the log level for streams composed after this.
    */
   def logLevel(level: LogLevel)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
-    ??? //ZStream.managed(ZManaged.logLevel(level))
+    ZStream.scoped(ZIO.logLevelScoped(level))
 
   /**
    * Adjusts the label for the logging span for streams composed after this.
    */
   def logSpan(label: => String)(implicit trace: ZTraceElement): ZStream[Any, Nothing, Unit] =
-    ??? //ZStream.managed(ZManaged.logSpan(label))
+    ZStream.scoped(ZIO.logSpanScoped(label))
 
   /**
    * Logs the specified message at the trace log level.
