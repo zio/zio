@@ -14,29 +14,28 @@
  * limitations under the License.
  */
 
- package zio
+package zio
 
- package object managed extends LowPriority {
+package object managed extends LowPriority {
 
-   type Managed[+E, +A]   = ZManaged[Any, E, A]         //Manage an `A`, may fail with `E`        , no requirements
-   type TaskManaged[+A]   = ZManaged[Any, Throwable, A] //Manage an `A`, may fail with `Throwable`, no requirements
-   type RManaged[-R, +A]  = ZManaged[R, Throwable, A]   //Manage an `A`, may fail with `Throwable`, requires an `R`
-   type UManaged[+A]      = ZManaged[Any, Nothing, A]   //Manage an `A`, cannot fail              , no requirements
-   type URManaged[-R, +A] = ZManaged[R, Nothing, A]     //Manage an `A`, cannot fail              , requires an `R`
+  type Managed[+E, +A]   = ZManaged[Any, E, A]         //Manage an `A`, may fail with `E`        , no requirements
+  type TaskManaged[+A]   = ZManaged[Any, Throwable, A] //Manage an `A`, may fail with `Throwable`, no requirements
+  type RManaged[-R, +A]  = ZManaged[R, Throwable, A]   //Manage an `A`, may fail with `Throwable`, requires an `R`
+  type UManaged[+A]      = ZManaged[Any, Nothing, A]   //Manage an `A`, cannot fail              , no requirements
+  type URManaged[-R, +A] = ZManaged[R, Nothing, A]     //Manage an `A`, cannot fail              , requires an `R`
 
   implicit final class ZIOSyntax0[R, E, A](private val self: ZIO[Scope with R, E, A]) {
     def toManaged0: ZManaged[R, E, A] =
       ???
   }
 
-      implicit final class ZIOSyntax[R, E, A](private val self: ZIO[R, E, A]) {
+  implicit final class ZIOSyntax[R, E, A](private val self: ZIO[R, E, A]) {
     def toManaged: ZManaged[R, E, A] =
       ???
   }
- }
+}
 
- trait LowPriority {
-   import zio.managed.ZManaged
+trait LowPriority {
+  import zio.managed.ZManaged
 
-
- }
+}
