@@ -3014,7 +3014,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               for {
                 finalized <- Ref.make(0)
-                stream = ZStream.unwrapManaged(
+                stream = ZStream.unwrapScoped(
                            ZIO
                              .addFinalizer(_ => finalized.getAndUpdate(_ + 1))
                              .as(ZStream.fromZIO(finalized.get) ++ ZStream.fail(None))
@@ -5006,7 +5006,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         },
         test("unwrapManaged") {
           def stream(promise: Promise[Nothing, Unit]) =
-            ZStream.unwrapManaged {
+            ZStream.unwrapScoped {
               ZIO.acquireRelease(Console.print("acquire outer"))(_ => Console.print("release outer").orDie) *>
                 ZIO.suspendSucceed(promise.succeed(()) *> ZIO.never) *>
                 ZIO.succeed(ZStream(1, 2, 3))

@@ -351,7 +351,7 @@ for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[String](2)
   managed  = ZStream.fromHubManaged(hub).tap(_ => promise.succeed(()))
-  stream   = ZStream.unwrapManaged(managed)
+  stream   = ZStream.unwrapScoped(managed)
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await
   _       <- hub.publish("Hello")
@@ -401,7 +401,7 @@ for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[Take[Nothing, String]](2)
   managed  = ZStream.fromHubManaged(hub).tap(_ => promise.succeed(()))
-  stream   = ZStream.unwrapManaged(managed).flattenTake
+  stream   = ZStream.unwrapScoped(managed).flattenTake
   fiber   <- stream.take(2).runCollect.fork
   _       <- promise.await
   _       <- ZStream("Hello", "World").runIntoHub(hub)

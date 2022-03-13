@@ -51,7 +51,7 @@ trait ZStreamPlatformSpecificConstructors {
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    ZStream.unwrapManaged[R, E, A](for {
+    ZStream.unwrapScoped[R, E, A](for {
       output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
       runtime <- ZIO.runtime[R]
       eitherStream <- ZIO.succeed {

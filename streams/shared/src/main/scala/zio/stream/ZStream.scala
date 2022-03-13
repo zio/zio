@@ -4460,7 +4460,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromPull[R, E, A](zio: ZIO[Scope with R, Nothing, ZIO[R, Option[E], Chunk[A]]])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
-    ZStream.unwrapManaged[R, E, A](zio.map(pull => repeatZIOChunkOption(pull)))
+    ZStream.unwrapScoped[R, E, A](zio.map(pull => repeatZIOChunkOption(pull)))
 
   /**
    * The default chunk size used by the various combinators and constructors of
@@ -5723,7 +5723,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream produced from a [[ZManaged]]
    */
-  def unwrapManaged[R, E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
+  def unwrapScoped[R, E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
     managed[R, E, ZStream[R, E, A]](fa).flatten
@@ -5877,7 +5877,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     protected def buffer: Int
 
     def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Exit[Option[E], V]])] =
-      ZStream.unwrapManaged[R, E, (K, Dequeue[Exit[Option[E], V]])] {
+      ZStream.unwrapScoped[R, E, (K, Dequeue[Exit[Option[E], V]])] {
         for {
           decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]]
           out <- Queue

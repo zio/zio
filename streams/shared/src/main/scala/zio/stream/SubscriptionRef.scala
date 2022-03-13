@@ -38,7 +38,7 @@ object SubscriptionRef {
     for {
       ref <- Ref.Synchronized.make(a)
       hub <- Hub.unbounded[A]
-      changes = ZStream.unwrapManaged {
+      changes = ZStream.unwrapScoped {
                   ZIO.service[Scope].flatMap { scope =>
                     ref.modifyZIO { a =>
                       ZIO.succeedNow(a).zipWith(hub.subscribe.provideService(scope)) { case (a, queue) =>

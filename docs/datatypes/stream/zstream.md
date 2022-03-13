@@ -480,7 +480,7 @@ val s1: ZStream[Any, Nothing, Int] =
 
 val wrappedWithZManaged = ZIO.succeed(ZStream(1, 2, 3))
 val s2: ZStream[Any, Nothing, Int] = 
-  ZStream.unwrapManaged(wrappedWithZManaged)
+  ZStream.unwrapScoped(wrappedWithZManaged)
 ```
 
 ### From Java IO
@@ -574,7 +574,7 @@ for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- ZHub.unbounded[Chunk[Int]]
   managed = ZStream.fromChunkHubManaged(hub).tap(_ => promise.succeed(()))
-  stream  = ZStream.unwrapManaged(managed)
+  stream  = ZStream.unwrapScoped(managed)
   fiber   <- stream.foreach(printLine(_)).fork
   _       <- promise.await
   _       <- hub.publish(Chunk(1, 2, 3))
