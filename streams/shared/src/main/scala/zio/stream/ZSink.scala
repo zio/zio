@@ -394,7 +394,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     leftDone: Exit[E, Z] => ZChannel.MergeDecision[R1, E1, Z1, E1, Z2],
     rightDone: Exit[E1, Z1] => ZChannel.MergeDecision[R1, E, Z, E1, Z2]
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z2] = {
-    val managed =
+    val scoped =
       for {
         hub   <- ZHub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
         c1    <- ZChannel.fromHubScoped(hub)
@@ -409,7 +409,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
                     done => ZChannel.MergeDecision.done(ZIO.done(done))
                   )
       } yield new ZSink[R1, E1, In1, L1, Z2](channel)
-    ZSink.unwrapManaged(managed)
+    ZSink.unwrapScoped(scoped)
   }
 
   /**
@@ -1511,7 +1511,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def fromQueueWithShutdown[R, E, I](queue: => ZQueue[R, Nothing, E, Any, I, Any])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, I, Nothing, Unit] =
-    ZSink.unwrapManaged(
+    ZSink.unwrapScoped(
       ZIO.acquireRelease(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I](_))
     )
 
@@ -1570,7 +1570,11 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logAnnotate[R, E, In, L, Z](key: => String, value: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
-    ???
+    ZSink.unwrapScoped {
+      FiberRef.currentLogAnnotations.get.flatMap { annotations =>
+        FiberRef.currentLogAnnotations.locallyScoped(annotations.updated(key, value)).as(sink)
+      }
+    }
 
   /**
    * Retrieves the log annotations associated with the current scope.
@@ -1614,7 +1618,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logLevel[R, E, In, L, Z](level: LogLevel)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
-    ???
+    ZSink.unwrapScoped(FiberRef.currentLogLevel.locallyScoped(level).as(sink))
 
   /**
    * Adjusts the label for the logging span for streams composed after this.
@@ -1622,7 +1626,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logSpan[R, E, In, L, Z](label: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
-    ???
+    ZSink.unwrapScoped {
+      FiberRef.currentLogSpan.get.flatMap { stack =>
+        val instant = java.lang.System.currentTimeMillis()
+        val logSpan = LogSpan(label, instant)
+
+        FiberRef.currentLogSpan.locallyScoped(logSpan :: stack).as(sink)
+      }
+    }
 
   /**
    * Logs the specified message at the trace log level.
@@ -1645,11 +1656,11 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       )
     }
 
-  @deprecated("use unwrapManaged", "2.0.0")
+  @deprecated("use unwrapScoped", "2.0.0")
   def managed[R, E, In, A, L <: In, Z](resource: => ZIO[Scope with R, E, A])(
     fn: A => ZSink[R, E, In, L, Z]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, In, Z] =
-    ZSink.unwrapManaged[R, E, In, In, Z](resource.map(fn))
+    ZSink.unwrapScoped[R, E, In, In, Z](resource.map(fn))
 
   def never(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Nothing] =
     ZSink.fromZIO(ZIO.never)
@@ -1702,12 +1713,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new ZSink(ZChannel.unwrap[R, Nothing, Chunk[In], Any, E, Chunk[L], Z](zio.map(_.channel)))
 
   /**
-   * Creates a sink produced from a managed effect.
+   * Creates a sink produced from a scoped effect.
    */
-  def unwrapManaged[R, E, In, L, Z](
-    managed: => ZIO[Scope with R, E, ZSink[R, E, In, L, Z]]
+  def unwrapScoped[R, E, In, L, Z](
+    scoped: => ZIO[Scope with R, E, ZSink[R, E, In, L, Z]]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
-    new ZSink(ZChannel.unwrapScoped[R][Nothing, Chunk[In], Any, E, Chunk[L], Z](managed.map(_.channel)))
+    new ZSink(ZChannel.unwrapScoped[R][Nothing, Chunk[In], Any, E, Chunk[L], Z](scoped.map(_.channel)))
 
   final class EnvironmentWithSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, In, L, Z](

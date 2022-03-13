@@ -5727,10 +5727,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream produced from a scoped [[ZIO]]
    */
-  def unwrapScoped[R, E, A](zio: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
+  def unwrapScoped[R, E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, E, A] =
-    scoped[R, E, ZStream[R, E, A]](zio).flatten
+    scoped[R, E, ZStream[R, E, A]](fa).flatten
 
   /**
    * Returns the specified stream if the given condition is satisfied, otherwise

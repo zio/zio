@@ -701,7 +701,7 @@ trait ZSinkPlatformSpecificConstructors {
         )
     )(chan => ZIO.attemptBlocking(chan.close()).orDie)
 
-    ZSink.unwrapManaged {
+    ZSink.unwrapScoped {
       managedChannel.map { chan =>
         ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
           ZIO.attemptBlockingInterrupt {
@@ -740,7 +740,7 @@ trait ZSinkPlatformSpecificConstructors {
   final def fromOutputStreamManaged(
     os: => ZIO[Scope, IOException, OutputStream]
   )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, Byte, Long] =
-    ZSink.unwrapManaged {
+    ZSink.unwrapScoped {
       os.map { out =>
         ZSink.foldLeftChunksZIO(0L) { (bytesWritten, byteChunk: Chunk[Byte]) =>
           ZIO.attemptBlockingInterrupt {
