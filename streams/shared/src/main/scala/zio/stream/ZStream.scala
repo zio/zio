@@ -1554,7 +1554,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runFoldWhileManagedZIO[R1 <: R, E1 >: E, S](
     s: => S
   )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, S] =
-    runManaged(ZSink.foldZIO(s)(cont)(f))
+    runScoped(ZSink.foldZIO(s)(cont)(f))
 
   /**
    * Executes an effectful fold over the stream of values. Stops the fold early
@@ -1610,7 +1610,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runFoldWhileManaged[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, S] =
-    runManaged(ZSink.fold(s)(cont)(f))
+    runScoped(ZSink.fold(s)(cont)(f))
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1679,7 +1679,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runForeachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
-    runManaged(ZSink.foreachChunk(f))
+    runScoped(ZSink.foreachChunk(f))
 
   /**
    * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization
@@ -1698,7 +1698,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runForeachManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
-    runManaged(ZSink.foreach(f))
+    runScoped(ZSink.foreach(f))
 
   /**
    * Consumes elements of the stream, passing them to the specified callback,
@@ -1736,7 +1736,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runForeachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
-    runManaged(ZSink.foreachWhile(f))
+    runScoped(ZSink.foreachWhile(f))
 
   /**
    * Repeats this stream forever.
@@ -2845,7 +2845,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
       for {
-        _ <- self.runManaged(consumer).fork
+        _ <- self.runScoped(consumer).fork
         z <- p.await
       } yield (z, new ZStream(producer))
     }).flatten
@@ -3162,7 +3162,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def run[R1 <: R, E1 >: E, Z](sink: => ZSink[R1, E1, A, Any, Z])(implicit trace: ZTraceElement): ZIO[R1, E1, Z] =
     (channel pipeToOrFail sink.channel).runDrain
 
-  def runManaged[R1 <: R, E1 >: E, B](sink: => ZSink[R1, E1, A, Any, B])(implicit
+  def runScoped[R1 <: R, E1 >: E, B](sink: => ZSink[R1, E1, A, Any, B])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, B] =
     (channel pipeToOrFail sink.channel).drain.runScoped

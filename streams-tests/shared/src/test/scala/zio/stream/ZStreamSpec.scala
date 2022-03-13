@@ -2899,7 +2899,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               stream  = ZStream.scoped(res).flatMap(a => ZStream(a, a, a))
               collectAndCheck <- ZIO.scoped {
                                    stream
-                                     .runManaged(ZSink.collectAll)
+                                     .runScoped(ZSink.collectAll)
                                      .flatMap(r => closed.get.map((r, _)))
                                  }
               (result, state) = collectAndCheck
