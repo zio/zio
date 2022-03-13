@@ -711,9 +711,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
-    ZChannel.scoped[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone, Queue[
-      ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]
-    ]] {
+    ZChannel.scoped[Env1] {
       ZIO.withChildren { getChildren =>
         for {
           _ <- ZIO.addFinalizer(_ => getChildren.flatMap(Fiber.interruptAll(_)))
@@ -859,9 +857,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def provideLayer[OutErr1 >: OutErr, Env0](
     layer: => ZLayer[Env0, OutErr1, Env]
   )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
-    ZChannel.scoped[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone, ZEnvironment[Env]](layer.build)(env =>
-      self.provideEnvironment(env)
-    )
+    ZChannel.scoped[Env0](layer.build)(env => self.provideEnvironment(env))
 
   /**
    * Provides the channel with the single service it requires. If the channel
@@ -1435,17 +1431,8 @@ object ZChannel {
   ): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
-  def scoped[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZIO[Scope with Env, OutErr, A])(
-    use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Scope, OutElem, OutDone](Scope.make)((scope, exit) =>
-      scope.close(exit)
-    ) { scope =>
-      fromZIO[Env, OutErr, A](
-        m.provideSomeEnvironment[Env](_.union[Scope](ZEnvironment(scope)))
-      )
-        .flatMap(use)
-    }
+  def scoped[Env]: ScopedPartiallyApplied[Env] =
+    new ScopedPartiallyApplied[Env]
 
   def scopedOut[R, E, A](
     m: => ZIO[Scope with R, E, A]
@@ -1524,7 +1511,7 @@ object ZChannel {
   )(
     f: (OutDone, OutDone) => OutDone
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    scoped[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Queue[ZIO[Env, OutErr, Either[OutDone, OutElem]]]] {
+    scoped[Env] {
       ZIO.withChildren { getChildren =>
         for {
           n             <- ZIO.succeed(n)
@@ -1863,6 +1850,20 @@ object ZChannel {
       self
         .asInstanceOf[ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
         .provideLayer(ZLayer.environment[Env0] ++ layer)
+  }
+
+  final class ScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZIO[Scope with Env, OutErr, A])(
+      use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+    )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Scope, OutElem, OutDone](Scope.make)((scope, exit) =>
+        scope.close(exit)
+      ) { scope =>
+        fromZIO[Env, OutErr, A](
+          m.provideSomeEnvironment[Env](_.union[Scope](ZEnvironment(scope)))
+        )
+          .flatMap(use)
+      }
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {

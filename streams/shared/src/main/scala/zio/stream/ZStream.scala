@@ -228,9 +228,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             )
 
         ZChannel
-          .scoped[R1, Any, Any, Any, E1, Chunk[Either[C, B]], Option[B], Fiber.Runtime[Nothing, Unit]](
-            timeout.forkScoped
-          ) { fiber =>
+          .scoped[R1](timeout.forkScoped) { fiber =>
             (handoffConsumer pipeToOrFail sink.channel).doneCollect.flatMap { case (leftovers, b) =>
               ZChannel.fromZIO(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
                 ZChannel.unwrap {
@@ -351,7 +349,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def buffer(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueueOfElements(capacity)
     new ZStream(
-      ZChannel.scoped[R, Any, Any, Any, E, Chunk[A], Unit, Dequeue[Exit[Option[E], A]]](queue) { queue =>
+      ZChannel.scoped[R](queue) { queue =>
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
           ZChannel.fromZIO {
             queue.take
@@ -379,7 +377,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def bufferChunks(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueue(capacity)
     new ZStream(
-      ZChannel.scoped[R, Any, Any, Any, E, Chunk[A], Unit, Dequeue[Take[E, A]]](queue) { queue =>
+      ZChannel.scoped[R](queue) { queue =>
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
           ZChannel.fromZIO {
             queue.take
@@ -504,7 +502,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       process
     }
 
-    ZChannel.scoped[R1, Any, Any, Any, E1, Chunk[A1], Unit, Queue[(Take[E1, A1], Promise[Nothing, Unit])]] {
+    ZChannel.scoped[R1] {
       for {
         queue <- scoped
         start <- Promise.make[Nothing, Unit]
@@ -524,7 +522,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def bufferUnbounded(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueueUnbounded
     new ZStream(
-      ZChannel.scoped[R, Any, Any, Any, E, Chunk[A], Unit, Dequeue[Take[E, A]]](queue) { queue =>
+      ZChannel.scoped[R](queue) { queue =>
         lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
           ZChannel.fromZIO {
             queue.take
@@ -880,21 +878,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         )
 
     new ZStream(
-      ZChannel.scoped[
-        R1,
-        Any,
-        Any,
-        Any,
-        E1,
-        Chunk[A3],
-        Any,
-        (
-          ZStream.Handoff[Exit[Option[E], A]],
-          ZStream.Handoff[Exit[Option[E1], A2]],
-          ZStream.Handoff[Unit],
-          ZStream.Handoff[Unit]
-        )
-      ] {
+      ZChannel.scoped[R1] {
         for {
           left   <- ZStream.Handoff.make[Exit[Option[E], A]]
           right  <- ZStream.Handoff.make[Exit[Option[E1], A2]]
@@ -937,16 +921,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         )
 
     new ZStream(
-      ZChannel.scoped[
-        R1,
-        Any,
-        Any,
-        Any,
-        E1,
-        Chunk[A3],
-        Any,
-        (ZStream.Handoff[Take[E, A]], ZStream.Handoff[Take[E1, A2]], ZStream.Handoff[Unit], ZStream.Handoff[Unit])
-      ] {
+      ZChannel.scoped[R1] {
         for {
           left   <- ZStream.Handoff.make[Take[E, A]]
           right  <- ZStream.Handoff.make[Take[E1, A2]]
@@ -2064,9 +2039,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
     new ZStream(
-      ZChannel.scoped[R1, Any, Any, Any, E1, Chunk[
-        A1
-      ], Any, (ZStream.Handoff[Take[E1, A1]], ZStream.Handoff[Take[E1, A1]])] {
+      ZChannel.scoped[R1] {
         for {
           left  <- ZStream.Handoff.make[Take[E1, A1]]
           right <- ZStream.Handoff.make[Take[E1, A1]]
@@ -2924,7 +2897,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZStream[R0, E1, A] =
-    new ZStream(ZChannel.scoped[R0, Any, Any, Any, E1, Chunk[A], Any, ZEnvironment[R]](layer.build) { r =>
+    new ZStream(ZChannel.scoped[R0](layer.build) { r =>
       self.channel.provideEnvironment(r)
     })
 
