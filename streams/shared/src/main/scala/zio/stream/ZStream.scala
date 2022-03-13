@@ -4751,7 +4751,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * effect. The managed effect describes subscribing to receive messages from
    * the hub while the stream describes taking messages from the hub.
    */
-  def fromChunkHubManaged[R, E, O](
+  def fromChunkHubScoped[R, E, O](
     hub: => ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZStream[R, E, O]] =
     hub.subscribe.map(queue => fromChunkQueue(queue))
@@ -4776,7 +4776,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromChunkHubManagedWithShutdown[R, E, O](
     hub: => ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZStream[R, E, O]] =
-    fromChunkHubManaged(hub).map(_.ensuring(hub.shutdown))
+    fromChunkHubScoped(hub).map(_.ensuring(hub.shutdown))
 
   /**
    * Creates a stream from a queue of values

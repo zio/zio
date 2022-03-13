@@ -573,7 +573,7 @@ If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` construct
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- ZHub.unbounded[Chunk[Int]]
-  managed = ZStream.fromChunkHubManaged(hub).tap(_ => promise.succeed(()))
+  managed = ZStream.fromChunkHubScoped(hub).tap(_ => promise.succeed(()))
   stream  = ZStream.unwrapScoped(managed)
   fiber   <- stream.foreach(printLine(_)).fork
   _       <- promise.await
