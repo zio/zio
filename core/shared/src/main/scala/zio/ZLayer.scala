@@ -183,7 +183,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * your entire application is a layer, such as an HTTP server.
    */
   final def launch(implicit trace: ZTraceElement): ZIO[RIn, E, Nothing] =
-    ZIO.scoped[RIn, E, Nothing] {
+    ZIO.scoped[RIn] {
       ZIO.serviceWithZIO[Scope](build) *> ZIO.never
     }
 

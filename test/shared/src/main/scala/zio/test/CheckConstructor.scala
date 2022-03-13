@@ -49,7 +49,7 @@ trait CheckConstructorLowPriority2 extends CheckConstructorLowPriority3 {
       def apply(input: => ZIO[Scope with R1, E, A])(implicit
         trace: ZTraceElement
       ): ZIO[OutEnvironment, OutError, TestResult] =
-        ZIO.scoped[R1, E, A](input)
+        ZIO.scoped[R1](input)
     }
 }
 
@@ -97,7 +97,7 @@ trait CheckConstructorLowPriority6 extends CheckConstructorLowPriority7 {
       def apply(input: => ZIO[Scope with R1, E, A])(implicit
         trace: ZTraceElement
       ): ZIO[OutEnvironment, OutError, TestResult] =
-        ZIO.scoped[R1, E, A](input)
+        ZIO.scoped[R1](input)
     }
 }
 

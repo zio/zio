@@ -5115,8 +5115,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def scope(implicit trace: ZTraceElement): UIO[ZScope] =
     descriptorWith(descriptor => ZIO.succeedNow(descriptor.scope))
 
-  def scoped[R, E, A](zio: ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    Scope.make.flatMap(_.use[R, E, A](zio))
+  def scoped[R]: ScopedPartiallyApplied[R] =
+    new ScopedPartiallyApplied[R]
 
   /**
    * Passes the fiber's scope to the specified function, which creates an effect
@@ -5810,6 +5810,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit trace: ZTraceElement): ZIO[R with R1, E, A] =
       ZIO.environment.flatMap(f)
+  }
+
+  final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](zio: ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      Scope.make.flatMap(_.use[R, E, A](zio))
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {

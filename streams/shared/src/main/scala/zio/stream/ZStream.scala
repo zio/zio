@@ -1320,7 +1320,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * the stream to a value of type `S`.
    */
   final def runFold[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
-    ZIO.scoped[R, E, S](runFoldWhileScoped(s)(_ => true)((s, a) => f(s, a)))
+    ZIO.scoped[R](runFoldWhileScoped(s)(_ => true)((s, a) => f(s, a)))
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1413,7 +1413,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * }}}
    */
   final def runFoldWhile[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
-    ZIO.scoped[R, E, S](runFoldWhileScoped(s)(cont)((s, a) => f(s, a)))
+    ZIO.scoped[R](runFoldWhileScoped(s)(cont)((s, a) => f(s, a)))
 
   /**
    * Executes an effectful fold over the stream of values. Stops the fold early
@@ -1560,7 +1560,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runFoldWhileZIO[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(
     f: (S, A) => ZIO[R1, E1, S]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, S] =
-    ZIO.scoped[R1, E1, S](runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f))
+    ZIO.scoped[R1](runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f))
 
   /**
    * Executes a pure fold over the stream of values. Returns a scoped value that
@@ -1598,7 +1598,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runFoldZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, S] =
-    ZIO.scoped[R1, E1, S](runFoldWhileScopedZIO[R1, E1, S](s)(_ => true)(f))
+    ZIO.scoped[R1](runFoldWhileScopedZIO[R1, E1, S](s)(_ => true)(f))
 
   /**
    * Consumes all elements of the stream, passing them to the specified
@@ -2258,7 +2258,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoQueue[R1 <: R, E1 >: E](
     queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
-    ZIO.scoped[R1, E1, Unit](runIntoQueueScoped(queue))
+    ZIO.scoped[R1](runIntoQueueScoped(queue))
 
   /**
    * Like [[ZStream#ntoQueue]], but provides the result as a scoped [[ZIO]] to

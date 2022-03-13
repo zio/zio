@@ -180,7 +180,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
       ): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.scoped[R, TestFailure[E], TestSuccess](scoped.flatMap(f => test.flatMap(f)))
+        ZIO.scoped[R](scoped.flatMap(f => test.flatMap(f)))
     }
 
   /**

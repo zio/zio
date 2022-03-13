@@ -935,7 +935,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       }
 
   def run(implicit ev1: Any <:< InElem, ev2: OutElem <:< Nothing, trace: ZTraceElement): ZIO[Env, OutErr, OutDone] =
-    ZIO.scoped[Env, OutErr, OutDone](runScoped)
+    ZIO.scoped[Env](runScoped)
 
   def runCollect(implicit ev1: Any <:< InElem, trace: ZTraceElement): ZIO[Env, OutErr, (Chunk[OutElem], OutDone)] =
     doneCollect.run
@@ -1553,7 +1553,7 @@ object ZChannel {
                          case MergeStrategy.BackPressure =>
                            for {
                              latch <- Promise.make[Nothing, Unit]
-                             raceIOs = ZIO.scoped[Env, Nothing, Unit](
+                             raceIOs = ZIO.scoped[Env](
                                          channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await))
                                        )
                              _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
@@ -1568,7 +1568,7 @@ object ZChannel {
                              _        <- ZIO.when(size >= n)(cancelers.take.flatMap(_.succeed(())))
                              _        <- cancelers.offer(canceler)
                              raceIOs =
-                               ZIO.scoped[Env, Nothing, Unit](
+                               ZIO.scoped[Env](
                                  channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await).race(canceler.await))
                                )
                              _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork

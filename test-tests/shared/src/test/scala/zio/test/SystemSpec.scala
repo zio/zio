@@ -63,7 +63,7 @@ object SystemSpec extends ZIOBaseSpec {
       } yield assert(prop)(isNone)
     },
     test("fetch the system's line separator and check that it is identical to Data.lineSeparator") {
-      ZIO.scoped[Any, Nothing, TestResult] {
+      ZIO.scoped[Any] {
         TestSystem.live(Data(lineSeparator = ",")).build.map(_.get[System]).flatMap { testSystem =>
           assertM(testSystem.lineSeparator)(equalTo(","))
         }

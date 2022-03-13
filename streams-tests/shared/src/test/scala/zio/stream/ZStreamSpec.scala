@@ -1417,7 +1417,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               fins <- Ref.make(List[Int]())
               s = ZStream.finalizer(fins.update(1 :: _)) *>
                     ZStream.finalizer(fins.update(2 :: _))
-              _      <- ZIO.scoped[Any, Option[Nothing], Chunk[Any]](s.toPull.flatten)
+              _      <- ZIO.scoped[Any](s.toPull.flatten)
               result <- fins.get
             } yield assert(result)(equalTo(List(1, 2)))
           },

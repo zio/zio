@@ -236,7 +236,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
         )
       case MultipleCase(specs) =>
         ZIO
-          .foreachExec(specs)(defExec)(spec => ZIO.scoped[R1, E1, Z](spec.foldScoped[R1, E1, Z](defExec)(f)))
+          .foreachExec(specs)(defExec)(spec => ZIO.scoped[R1](spec.foldScoped[R1, E1, Z](defExec)(f)))
           .flatMap(zs => f(MultipleCase(zs)))
       case t @ TestCase(_, _) => f(t)
     }

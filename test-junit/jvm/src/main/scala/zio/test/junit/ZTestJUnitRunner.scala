@@ -80,7 +80,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       )
 
     val scoped =
-      ZIO.scoped[ZTestJUnitRunner.this.spec.Environment with zio.test.TestEnvironment with zio.ZIOAppArgs, Any, Unit](
+      ZIO.scoped[ZTestJUnitRunner.this.spec.Environment with zio.test.TestEnvironment with zio.ZIOAppArgs](
         traverse(filteredSpec, description)
       )
 

@@ -48,7 +48,7 @@ trait TestConstructorLowPriority2 extends TestConstructorLowPriority3 {
       def apply(label: String)(
         assertion: => ZIO[Scope with R, E, A]
       )(implicit trace: ZTraceElement): ZSpec[R, E] =
-        test(label)(ZIO.scoped[R, E, A](assertion))
+        test(label)(ZIO.scoped[R](assertion))
     }
 }
 
@@ -103,7 +103,7 @@ trait TestConstructorLowPriority6 extends TestConstructorLowPriority7 {
       def apply(label: String)(
         assertion: => ZIO[Scope with R, E, A]
       )(implicit trace: ZTraceElement): ZSpec[R, E] =
-        test(label)(ZIO.scoped[R, E, A](assertion))
+        test(label)(ZIO.scoped[R](assertion))
     }
 }
 
