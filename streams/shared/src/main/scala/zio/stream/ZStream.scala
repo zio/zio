@@ -5106,7 +5106,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a managed iterator
    */
-  def fromJavaIteratorManaged[R, A](iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]])(implicit
+  def fromJavaIteratorScoped[R, A](iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]])(implicit
     trace: ZTraceElement
   ): ZStream[R, Throwable, A] =
     scoped[R, Throwable, java.util.Iterator[A]](iterator).flatMap(fromJavaIterator(_))
@@ -6099,7 +6099,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         def make(input: => ZIO[Scope with R, E, JaveIteratorLike[A]])(implicit
           trace: ZTraceElement
         ): ZStream[R, Throwable, A] =
-          ZStream.fromJavaIteratorManaged[R, A](input)
+          ZStream.fromJavaIteratorScoped[R, A](input)
       }
 
     /**

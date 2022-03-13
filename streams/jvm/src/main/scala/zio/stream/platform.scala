@@ -388,7 +388,7 @@ trait ZStreamPlatformSpecificConstructors {
   final def fromJavaStream[A](stream: => java.util.stream.Stream[A])(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, A] =
-    ZStream.fromJavaIteratorManaged(
+    ZStream.fromJavaIteratorScoped(
       ZIO.acquireRelease(ZIO.attempt(stream))(stream => ZIO.succeed(stream.close())).map(_.iterator())
     )
 
