@@ -1575,7 +1575,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          ZStream
                            .acquireReleaseWith(UIO.unit)(_ => lastExecuted.set(true))
                            .flatMap(_ => ZStream.empty)
-                       else ZStream.managed(semaphore.withPermitScoped).flatMap(_ => ZStream.never)
+                       else ZStream.scoped(semaphore.withPermitScoped).flatMap(_ => ZStream.never)
                      }
                      .runDrain
               result <- semaphore.withPermit(lastExecuted.get)
@@ -1591,7 +1591,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          ZStream
                            .acquireReleaseWith(UIO.unit)(_ => lastExecuted.update(_ + 1))
                            .flatMap(_ => ZStream.empty)
-                       else ZStream.managed(semaphore.withPermitScoped).flatMap(_ => ZStream.never)
+                       else ZStream.scoped(semaphore.withPermitScoped).flatMap(_ => ZStream.never)
                      }
                      .runDrain
               result <- semaphore.withPermits(4)(lastExecuted.get)
@@ -2343,16 +2343,16 @@ object ZStreamSpec extends ZIOBaseSpec {
         suite("managed")(
           test("preserves failure of effect") {
             assertM(
-              ZStream.managed(ZIO.fail("error")).runCollect.either
+              ZStream.scoped(ZIO.fail("error")).runCollect.either
             )(isLeft(equalTo("error")))
           },
           test("preserves interruptibility of effect") {
             for {
               interruptible <- ZStream
-                                 .managed(ZIO.suspendSucceed(ZIO.checkInterruptible(UIO.succeed(_))))
+                                 .scoped(ZIO.suspendSucceed(ZIO.checkInterruptible(UIO.succeed(_))))
                                  .runHead
               uninterruptible <- ZStream
-                                   .managed(ZIO.uninterruptible(ZIO.checkInterruptible(UIO.succeed(_))))
+                                   .scoped(ZIO.uninterruptible(ZIO.checkInterruptible(UIO.succeed(_))))
                                    .runHead
             } yield assert(interruptible)(isSome(equalTo(InterruptStatus.Interruptible))) &&
               assert(uninterruptible)(isSome(equalTo(InterruptStatus.Uninterruptible)))
@@ -2896,7 +2896,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               closed <- Ref.make[Boolean](false)
               res     = ZIO.acquireRelease(ZIO.succeed(1))(_ => closed.set(true))
-              stream  = ZStream.managed(res).flatMap(a => ZStream(a, a, a))
+              stream  = ZStream.scoped(res).flatMap(a => ZStream(a, a, a))
               collectAndCheck <- ZIO.scoped {
                                    stream
                                      .runManaged(ZSink.collectAll)

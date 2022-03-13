@@ -300,7 +300,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
             readMessages <- ZStream
                               .fromSocketServer(8896)
-                              .zip(ZStream.managed(socketClient(8896)))
+                              .zip(ZStream.scoped(socketClient(8896)))
                               .flatMap { case (serverChannel, clientChannel) =>
                                 ZStream
                                   .fromIterable(messages)
@@ -324,7 +324,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
             writtenMessages <- ZStream
                                  .fromSocketServer(8897)
-                                 .zip(ZStream.managed(socketClient(8897)))
+                                 .zip(ZStream.scoped(socketClient(8897)))
                                  .flatMap { case (serverChannel, clientChannel) =>
                                    ZStream
                                      .fromIterable(messages)
