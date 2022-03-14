@@ -17,6 +17,7 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.stm._
 import zio.stream._
 
 import java.io.{IOException, InputStream}
@@ -28,6 +29,37 @@ package object managed extends ZManagedCompatPlatformSpecific {
   type RManaged[-R, +A]  = ZManaged[R, Throwable, A]   //Manage an `A`, may fail with `Throwable`, requires an `R`
   type UManaged[+A]      = ZManaged[Any, Nothing, A]   //Manage an `A`, cannot fail              , no requirements
   type URManaged[-R, +A] = ZManaged[R, Nothing, A]     //Manage an `A`, cannot fail              , requires an `R`
+
+  val Managed: ZManaged.type = ZManaged
+
+  implicit final class ZManagedTSemaphoreSyntax(private val self: TSemaphore) extends AnyVal {
+
+    /**
+     * Returns a managed effect that describes acquiring a permit as the
+     * `acquire` action and releasing it as the `release` action.
+     */
+    def withPermitManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+      ZManaged.scoped(self.withPermitScoped)
+
+    /**
+     * Returns a managed effect that describes acquiring the specified number of
+     * permits as the `acquire` action and releasing them as the `release`
+     * action.
+     */
+    def withPermitsManaged(n: Long)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+      ZManaged.scoped(self.withPermitsScoped(n))
+  }
+
+  implicit final class ZManagedZFiberRefSyntax[+EA, +EB, -A, +B](private val self: ZFiberRef[EA, EB, A, B]) {
+
+    /**
+     * Returns a managed effect that sets the value associated with the curent
+     * fiber to the specified value as its `acquire` action and restores it to
+     * its original value as its `release` action.
+     */
+    def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit] =
+      ZManaged.scoped(self.locallyScoped(value))
+  }
 
   implicit final class ZManagedZIOSyntax[R, E, A](private val self: ZIO[R, E, A]) {
 
