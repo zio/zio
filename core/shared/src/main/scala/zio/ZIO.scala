@@ -2712,21 +2712,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
 object ZIO extends ZIOCompanionPlatformSpecific {
 
-  // final class Scoped(private val dummy: Boolean = true) extends AnyVal {
-  //   def apply[E, A](
-  //     zio: ZIO[Scope, E, A]
-  //   )(implicit trace: ZTraceElement): ZIO[Any, E, A] =
-  //     Scope.make.flatMap { scope =>
-  //       scope.use[Any, E, A](zio)
-  //     }
-  //   def apply[R, E, A](
-  //     zio: ZIO[Scope with R, E, A]
-  //   )(implicit trace: ZTraceElement): ZIO[R, E, A] =
-  //     Scope.make.flatMap { scope =>
-  //       scope.use[R, E, A](zio)
-  //     }
-  // }
-
   /**
    * The level of parallelism for parallel operators.
    */
