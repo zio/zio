@@ -123,11 +123,13 @@
   "howto-sidebar": {
     "Overview": ["howto/index"],
     "How to": [
+      "getting_started",
       "howto/use-test-assertions",
       "howto/test-effects",
       "howto/mock-services",
       "howto/handle-errors",
       "howto/access-system-information",
+      "howto/hot-reload",
       "howto/use-zio-macros"
     ],
     "Interop": [
