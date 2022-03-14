@@ -989,6 +989,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   )(implicit trace: ZTraceElement): ZManaged[R1, E2, B] =
     ZManaged.unsandbox(f(self.sandbox))
 
+  def scoped(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
+    ZIO.acquireReleaseExit(self.zio) { case ((finalizer, _), exit) => finalizer(exit) }.map(_._2)
+
   /**
    * Converts an option on values into an option on errors.
    */
