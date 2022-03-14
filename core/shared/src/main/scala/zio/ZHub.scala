@@ -390,11 +390,13 @@ object ZHub {
           else ZIO.succeedNow(hub.size())
         }
       def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Dequeue[A]] =
-        for {
-          dequeue <- makeSubscription(hub, subscribers, strategy)
-          _ <-
-            ZIO.acquireReleaseExit(scope.addFinalizer(_ => dequeue.shutdown))((_, exit) => dequeue.shutdown)
-        } yield dequeue
+        ZIO.acquireRelease {
+          makeSubscription(hub, subscribers, strategy).tap { dequeue =>
+            scope.addFinalizer(_ => dequeue.shutdown)
+          }
+        } { dequeue =>
+          dequeue.shutdown
+        }
     }
 
   /**
