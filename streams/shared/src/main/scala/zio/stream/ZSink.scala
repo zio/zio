@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.nio.charset.{Charset, StandardCharsets}
 import java.util.concurrent.atomic.AtomicReference
 
-class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], Any, E, Chunk[L], Z]) extends AnyVal {
+class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z]) extends AnyVal {
   self =>
 
   /**
@@ -104,30 +104,25 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     new ZSink(
       ZChannel
         .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
-        .flatMap[R, Nothing, Chunk[In], Any, E, Chunk[L], S] { case (leftoversRef, upstreamDoneRef) =>
-          lazy val upstreamMarker: ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-            ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
-              (in: Chunk[In]) =>
-                ZChannel.write(in).zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](upstreamMarker),
-              ZChannel.fail(_: Nothing),
+        .flatMap { case (leftoversRef, upstreamDoneRef) =>
+          lazy val upstreamMarker: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+            ZChannel.readWith(
+              (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
+              ZChannel.fail(_: ZNothing),
               (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
             )
 
-          def loop(currentResult: S): ZChannel[R, Nothing, Chunk[In], Any, E, Chunk[L], S] =
+          def loop(currentResult: S): ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], S] =
             channel.doneCollect
               .foldChannel(
                 ZChannel.fail(_),
                 { case (leftovers, doneValue) =>
                   if (p(doneValue)) {
-                    ZChannel
-                      .fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]]))
-                      .flatMap[R, Nothing, Chunk[In], Any, E, Chunk[L], S] { _ =>
-                        ZChannel.fromZIO(upstreamDoneRef.get).flatMap[R, Nothing, Chunk[In], Any, E, Chunk[L], S] {
-                          upstreamDone =>
-                            val accumulatedResult = f(currentResult, doneValue)
-                            if (upstreamDone) ZChannel.write(leftovers.flatten).as(accumulatedResult)
-                            else loop(accumulatedResult)
-                        }
+                    ZChannel.fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]])) *>
+                      ZChannel.fromZIO(upstreamDoneRef.get).flatMap { upstreamDone =>
+                        val accumulatedResult = f(currentResult, doneValue)
+                        if (upstreamDone) ZChannel.write(leftovers.flatten).as(accumulatedResult)
+                        else loop(accumulatedResult)
                       }
                   } else ZChannel.write(leftovers.flatten).as(currentResult)
                 }
@@ -149,9 +144,9 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
   def contramapChunks[In1](
     f: Chunk[In1] => Chunk[In]
   )(implicit trace: ZTraceElement): ZSink[R, E, In1, L, Z] = {
-    lazy val loop: ZChannel[R, Nothing, Chunk[In1], Any, Nothing, Chunk[In], Any] =
-      ZChannel.readWith[R, Nothing, Chunk[In1], Any, Nothing, Chunk[In], Any](
-        chunk => ZChannel.write(f(chunk)).zipRight[R, Nothing, Chunk[In1], Any, Nothing, Chunk[In], Any](loop),
+    lazy val loop: ZChannel[R, ZNothing, Chunk[In1], Any, Nothing, Chunk[In], Any] =
+      ZChannel.readWith(
+        chunk => ZChannel.write(f(chunk)) *> loop,
         ZChannel.fail(_),
         ZChannel.succeed(_)
       )
@@ -175,13 +170,9 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
   def contramapChunksZIO[R1 <: R, E1 >: E, In1](
     f: Chunk[In1] => ZIO[R1, E1, Chunk[In]]
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L, Z] = {
-    lazy val loop: ZChannel[R1, Nothing, Chunk[In1], Any, E1, Chunk[In], Any] =
-      ZChannel.readWith[R1, Nothing, Chunk[In1], Any, E1, Chunk[In], Any](
-        chunk =>
-          ZChannel
-            .fromZIO(f(chunk))
-            .flatMap(ZChannel.write)
-            .zipRight[R1, Nothing, Chunk[In1], Any, E1, Chunk[In], Any](loop),
+    lazy val loop: ZChannel[R1, ZNothing, Chunk[In1], Any, E1, Chunk[In], Any] =
+      ZChannel.readWith(
+        chunk => ZChannel.fromZIO(f(chunk)).flatMap(ZChannel.write) *> loop,
         ZChannel.fail(_),
         ZChannel.succeed(_)
       )
@@ -301,10 +292,10 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     success: Z => ZSink[R1, E2, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E2, In1, L1, Z1] =
     new ZSink(
-      channel.doneCollect.foldChannel[R1, Nothing, Chunk[In1], Any, E2, Chunk[L1], Z1](
+      channel.doneCollect.foldChannel(
         failure(_).channel,
         { case (leftovers, z) =>
-          ZChannel.suspend[R1, Nothing, Chunk[In1], Any, E2, Chunk[L1], Z1] {
+          ZChannel.suspend {
             val leftoversRef = new AtomicReference(leftovers.filter(_.nonEmpty))
             val refReader = ZChannel.succeed(leftoversRef.getAndSet(Chunk.empty)).flatMap { chunk =>
               // This cast is safe because of the L1 >: L <: In1 bound. It follows that
@@ -313,20 +304,12 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
               ZChannel.writeChunk(widenedChunk)
             }
 
-            val passthrough = ZChannel.identity[Nothing, Chunk[In1], Any]
-            val continuationSink =
-              (refReader.zipRight[Any, Nothing, Chunk[In1], Any, Nothing, Chunk[In1], Any](passthrough)) >>> success(
-                z
-              ).channel
+            val passthrough      = ZChannel.identity[ZNothing, Chunk[In1], Any]
+            val continuationSink = (refReader *> passthrough) >>> success(z).channel
 
-            continuationSink.doneCollect.flatMap[R1, Nothing, Chunk[In1], Any, E2, Chunk[L1], Z1] {
-              case (newLeftovers, z1) =>
-                ZChannel
-                  .succeed(leftoversRef.get)
-                  .flatMap(ZChannel.writeChunk(_))
-                  .flatMap[R1, Nothing, Chunk[In1], Any, E2, Chunk[L1], Z1] { _ =>
-                    ZChannel.writeChunk(newLeftovers).as(z1)
-                  }
+            continuationSink.doneCollect.flatMap { case (newLeftovers, z1) =>
+              ZChannel.succeed(leftoversRef.get).flatMap(ZChannel.writeChunk(_)) *>
+                ZChannel.writeChunk(newLeftovers).as(z1)
             }
           }
         }
@@ -429,10 +412,10 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     summary: => ZIO[R1, E1, B]
   )(f: (B, B) => C)(implicit trace: ZTraceElement) =
     new ZSink[R1, E1, In, L, (Z, C)](
-      ZChannel.unwrap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], (Z, C)] {
+      ZChannel.unwrap {
         ZIO.succeed(summary).map { summary =>
-          ZChannel.fromZIO(summary).flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], (Z, C)] { start =>
-            self.channel.flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], (Z, C)] { done =>
+          ZChannel.fromZIO(summary).flatMap { start =>
+            self.channel.flatMap { done =>
               ZChannel.fromZIO(summary).map { end =>
                 (done, f(start, end))
               }
@@ -560,14 +543,14 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     def splitter(
       written: Boolean,
       leftovers: Ref[Chunk[In1]]
-    ): ZChannel[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Any] =
-      ZChannel.readWithCause[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Any](
+    ): ZChannel[R, ZNothing, Chunk[In1], Any, E, Chunk[In1], Any] =
+      ZChannel.readWithCause(
         in =>
           if (in.isEmpty) splitter(written, leftovers)
           else if (written) {
             val index = in.indexWhere(f)
             if (index == -1)
-              ZChannel.write(in).zipRight[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Any](splitter(true, leftovers))
+              ZChannel.write(in) *> splitter(true, leftovers)
             else {
               val (left, right) = in.splitAt(index)
               ZChannel.write(left) *> ZChannel.fromZIO(leftovers.set(right))
@@ -575,7 +558,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
           } else {
             val index = in.indexWhere(f, 1)
             if (index == -1)
-              ZChannel.write(in).zipRight[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Any](splitter(true, leftovers))
+              ZChannel.write(in) *> splitter(true, leftovers)
             else {
               val (left, right) = in.splitAt(index max 1)
               ZChannel.write(left) *> ZChannel.fromZIO(leftovers.set(right))
@@ -586,18 +569,15 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
       )
 
     new ZSink(
-      ZChannel.fromZIO(Ref.make[Chunk[In1]](Chunk.empty)).flatMap[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Z] {
-        ref =>
-          splitter(false, ref)
-            .pipeToOrFail(self.channel)
-            .doneCollect
-            .flatMap[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Z] { case (leftovers, z) =>
-              ZChannel.fromZIO(ref.get).flatMap[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Z] { leftover =>
-                ZChannel
-                  .write(leftover ++ leftovers.flatten.map(ev))
-                  .zipRight[R, Nothing, Chunk[In1], Any, E, Chunk[In1], Z](ZChannel.succeed(z))
-              }
+      ZChannel.fromZIO(Ref.make[Chunk[In1]](Chunk.empty)).flatMap { ref =>
+        splitter(false, ref)
+          .pipeToOrFail(self.channel)
+          .doneCollect
+          .flatMap { case (leftovers, z) =>
+            ZChannel.fromZIO(ref.get).flatMap { leftover =>
+              ZChannel.write(leftover ++ leftovers.flatten.map(ev)) *> ZChannel.succeed(z)
             }
+          }
       }
     )
   }
@@ -611,33 +591,28 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, Nothing, Chunk[In], An
     new ZSink(
       ZChannel
         .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
-        .flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] { case (leftoversRef, upstreamDoneRef) =>
-          lazy val upstreamMarker: ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-            ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
-              (in: Chunk[In]) =>
-                ZChannel.write(in).zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](upstreamMarker),
-              ZChannel.fail(_: Nothing),
+        .flatMap { case (leftoversRef, upstreamDoneRef) =>
+          lazy val upstreamMarker: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+            ZChannel.readWith(
+              (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
+              ZChannel.fail(_: ZNothing),
               (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
             )
 
-          lazy val loop: ZChannel[R1, Nothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] =
+          lazy val loop: ZChannel[R1, ZNothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] =
             channel.doneCollect
-              .foldChannel[R1, Nothing, Chunk[In], Any, E1, Chunk[L], Option[Z]](
+              .foldChannel(
                 ZChannel.fail(_),
                 { case (leftovers, doneValue) =>
-                  ZChannel.fromZIO(f(doneValue)).flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] {
-                    satisfied =>
+                  ZChannel.fromZIO(f(doneValue)).flatMap { satisfied =>
+                    ZChannel.fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]])) *>
                       ZChannel
-                        .fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]]))
-                        .flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] { _ =>
-                          ZChannel
-                            .fromZIO(upstreamDoneRef.get)
-                            .flatMap[R1, Nothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] { upstreamDone =>
-                              if (satisfied) ZChannel.write(leftovers.flatten).as(Some(doneValue))
-                              else if (upstreamDone)
-                                ZChannel.write(leftovers.flatten).as(None)
-                              else loop
-                            }
+                        .fromZIO(upstreamDoneRef.get)
+                        .flatMap { upstreamDone =>
+                          if (satisfied) ZChannel.write(leftovers.flatten).as(Some(doneValue))
+                          else if (upstreamDone)
+                            ZChannel.write(leftovers.flatten).as(None)
+                          else loop
                         }
                   }
                 }
@@ -666,8 +641,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new EnvironmentWithSinkPartiallyApplied[R]
 
   def collectAll[In](implicit trace: ZTraceElement): ZSink[Any, Nothing, In, Nothing, Chunk[In]] = {
-    def loop(acc: Chunk[In]): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Nothing, Chunk[In]] =
-      ZChannel.readWithCause[Any, Nothing, Chunk[In], Any, Nothing, Nothing, Chunk[In]](
+    def loop(acc: Chunk[In]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Nothing, Chunk[In]] =
+      ZChannel.readWithCause(
         chunk => loop(acc ++ chunk),
         ZChannel.failCause(_),
         _ => ZChannel.succeed(acc)
@@ -792,31 +767,26 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that ignores its inputs.
    */
   def drain(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Unit] = {
-    lazy val loop: ZChannel[Any, Nothing, Chunk[Any], Any, Nothing, Chunk[Nothing], Unit] =
+    lazy val loop: ZChannel[Any, ZNothing, Chunk[Any], Any, Nothing, Chunk[Nothing], Unit] =
       ZChannel
-        .readWith[Any, Nothing, Chunk[Any], Any, Nothing, Chunk[Nothing], Unit](
+        .readWith(
           (_: Chunk[Any]) => loop,
-          (error: Nothing) => ZChannel.fail(error),
+          (error: ZNothing) => ZChannel.fail(error),
           (_: Any) => ZChannel.unit
         )
     new ZSink(loop)
   }
 
   def dropWhile[In](p: In => Boolean)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Any] = {
-    lazy val loop: ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-      ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
+    lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+      ZChannel.readWith(
         (in: Chunk[In]) => {
           val leftover = in.dropWhile(p)
           val more     = leftover.isEmpty
           if (more) loop
-          else
-            ZChannel
-              .write(leftover)
-              .zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
-                ZChannel.identity[Nothing, Chunk[In], Any]
-              )
+          else ZChannel.write(leftover) *> ZChannel.identity[ZNothing, Chunk[In], Any]
         },
-        (e: Nothing) => ZChannel.fail(e),
+        (e: ZNothing) => ZChannel.fail(e),
         (_: Any) => ZChannel.unit
       )
     new ZSink(loop)
@@ -900,17 +870,17 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         fold(z, chunk, 0, chunk.length)
       }
 
-      def reader(s: S): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], S] =
+      def reader(s: S): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], S] =
         if (!contFn(s)) ZChannel.succeedNow(s)
         else
-          ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], S](
+          ZChannel.readWith(
             (in: Chunk[In]) => {
               val (nextS, leftovers) = foldChunkSplit(s, in)(contFn)(f)
 
               if (leftovers.nonEmpty) ZChannel.write(leftovers).as(nextS)
               else reader(nextS)
             },
-            (err: Nothing) => ZChannel.fail(err),
+            (err: ZNothing) => ZChannel.fail(err),
             (x: Any) => ZChannel.succeedNow(s)
           )
 
@@ -929,16 +899,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     contFn: S => Boolean
   )(f: (S, Chunk[In]) => S)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, Nothing, S] =
     ZSink.suspend {
-      def reader(s: S): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Nothing, S] =
+      def reader(s: S): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Nothing, S] =
         if (!contFn(s)) ZChannel.succeedNow(s)
         else
-          ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Nothing, S](
+          ZChannel.readWith(
             (in: Chunk[In]) => {
               val nextS = f(s, in)
 
               reader(nextS)
             },
-            (err: Nothing) => ZChannel.fail(err),
+            (err: ZNothing) => ZChannel.fail(err),
             (_: Any) => ZChannel.succeedNow(s)
           )
 
@@ -1144,8 +1114,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         cost: Long,
         dirty: Boolean,
         max: Long
-      ): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], S] =
-        ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], S](
+      ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], S] =
+        ZChannel.readWith(
           (in: Chunk[In]) => {
             def fold(in: Chunk[In], s: S, dirty: Boolean, cost: Long, idx: Int): (S, Long, Boolean, Chunk[In]) =
               if (idx == in.length) (s, cost, dirty, Chunk.empty)
@@ -1179,7 +1149,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             else if (cost > max) ZChannel.succeedNow(nextS)
             else go(nextS, nextCost, nextDirty, max)
           },
-          (err: Nothing) => ZChannel.fail(err),
+          (err: ZNothing) => ZChannel.fail(err),
           (_: Any) => ZChannel.succeedNow(s)
         )
 
@@ -1362,7 +1332,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   )(implicit trace: ZTraceElement): ZSink[R, Err, In, Nothing, Unit] = {
 
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Nothing, Unit] =
-      ZChannel.readWithCause[R, Err, Chunk[In], Any, Err, Nothing, Unit](
+      ZChannel.readWithCause(
         in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(f(_))) *> process,
         halt => ZChannel.failCause(halt),
         _ => ZChannel.unit
@@ -1410,7 +1380,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           .catchAll(e => ZChannel.write(chunk.drop(idx)) *> ZChannel.fail(e))
 
     lazy val process: ZChannel[R, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
-      ZChannel.readWithCause[R, Err, Chunk[In], Any, Err, Chunk[In], Unit](
+      ZChannel.readWithCause(
         in => go(in, 0, in.length, process),
         halt => ZChannel.failCause(halt),
         _ => ZChannel.unit
@@ -1456,17 +1426,17 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
     def pull(
       push: Option[Chunk[I]] => ZIO[R, (Either[E, Z], Chunk[L]), Unit]
-    ): ZChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z] =
-      ZChannel.readWith[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+    ): ZChannel[R, ZNothing, Chunk[I], Any, E, Chunk[L], Z] =
+      ZChannel.readWith(
         in =>
           ZChannel
             .fromZIO(push(Some(in)))
-            .foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+            .foldChannel(
               {
                 case (Left(e), leftovers) =>
-                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
+                  ZChannel.write(leftovers) *> ZChannel.fail(e)
                 case (Right(z), leftovers) =>
-                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
+                  ZChannel.write(leftovers) *> ZChannel.succeedNow(z)
               },
               _ => pull(push)
             ),
@@ -1474,22 +1444,18 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         _ =>
           ZChannel
             .fromZIO(push(None))
-            .foldChannel[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](
+            .foldChannel(
               {
                 case (Left(e), leftovers) =>
-                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.fail(e))
+                  ZChannel.write(leftovers) *> ZChannel.fail(e)
                 case (Right(z), leftovers) =>
-                  ZChannel.write(leftovers).zipRight[R, Nothing, Chunk[I], Any, E, Chunk[L], Z](ZChannel.succeedNow(z))
+                  ZChannel.write(leftovers) *> ZChannel.succeedNow(z)
               },
               _ => ZChannel.fromZIO(ZIO.dieMessage("empty sink"))
             )
       )
 
-    new ZSink(
-      ZChannel.unwrapManaged[R, Nothing, Chunk[I], Any, E, Chunk[L], Z] {
-        push.map(pull)
-      }
-    )
+    new ZSink(ZChannel.unwrapManaged(push.map(pull)))
   }
 
   /**
@@ -1667,7 +1633,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def suspend[Env, E, In, Leftover, Done](
     sink: => ZSink[Env, E, In, Leftover, Done]
   )(implicit trace: ZTraceElement): ZSink[Env, E, In, Leftover, Done] =
-    new ZSink(ZChannel.suspend[Env, Nothing, Chunk[In], Any, E, Chunk[Leftover], Done](sink.channel))
+    new ZSink(ZChannel.suspend(sink.channel))
 
   /**
    * A sink that sums incoming numeric values.
@@ -1699,7 +1665,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def unwrap[R, E, In, L, Z](
     zio: => ZIO[R, E, ZSink[R, E, In, L, Z]]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
-    new ZSink(ZChannel.unwrap[R, Nothing, Chunk[In], Any, E, Chunk[L], Z](zio.map(_.channel)))
+    new ZSink(ZChannel.unwrap(zio.map(_.channel)))
 
   /**
    * Creates a sink produced from a managed effect.
@@ -1707,12 +1673,12 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def unwrapManaged[R, E, In, L, Z](
     managed: => ZManaged[R, E, ZSink[R, E, In, L, Z]]
   )(implicit trace: ZTraceElement): ZSink[R, E, In, L, Z] =
-    new ZSink(ZChannel.unwrapManaged[R, Nothing, Chunk[In], Any, E, Chunk[L], Z](managed.map(_.channel)))
+    new ZSink(ZChannel.unwrapManaged(managed.map(_.channel)))
 
   final class EnvironmentWithSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, In, L, Z](
       f: ZEnvironment[R] => ZSink[R1, E, In, L, Z]
     )(implicit trace: ZTraceElement): ZSink[R with R1, E, In, L, Z] =
-      new ZSink(ZChannel.unwrap[R1, Nothing, Chunk[In], Any, E, Chunk[L], Z](ZIO.environmentWith[R](f(_).channel)))
+      new ZSink(ZChannel.unwrap(ZIO.environmentWith[R](f(_).channel)))
   }
 }
