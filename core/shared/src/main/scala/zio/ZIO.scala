@@ -3641,11 +3641,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       loop
     }
 
-  def extendScope[R, E, A](f: ZIO.ScopeExtender => ZIO[R, E, A])(implicit
-    trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
-    ZIO.serviceWithZIO[Scope](scope => f(ScopeExtender(scope)))
-
   /**
    * Returns an effect that models failure with the specified error. The moral
    * equivalent of `throw` for pure code.
@@ -4902,7 +4897,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         outerScope <- ZIO.service[Scope]
         innerScope <- Scope.parallel
         _          <- outerScope.addFinalizer(innerScope.close)
-        a          <- restore(innerScope.use[R, E, A](zio))
+        a          <- restore(innerScope.use[R](zio))
       } yield a
     }
 
@@ -5732,16 +5727,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       if (flag eq zio.InterruptStatus.Interruptible) restoreInterruptible else restoreUninterruptible
   }
 
-  final class ScopeExtender private (private val scope: Scope) {
-    def apply[R, E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
-      scope.use[R, E, A](zio)
-  }
-
-  object ScopeExtender {
-    def apply(scope: Scope): ScopeExtender =
-      new ScopeExtender(scope)
-  }
-
   final class IfZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZIO[R1, E1, A], onFalse: => ZIO[R1, E1, A])(implicit
       trace: ZTraceElement
@@ -5814,7 +5799,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](zio: ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      Scope.make.flatMap(_.use[R, E, A](zio))
+      Scope.make.flatMap(_.use[R](zio))
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {

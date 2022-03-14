@@ -1839,27 +1839,26 @@ object ZChannel {
   }
 
   final class ScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
-    def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZIO[Scope with Env, OutErr, A])(
+    def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone, A](zio: => ZIO[Scope with Env, OutErr, A])(
       use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
     )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-      acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Scope, OutElem, OutDone](Scope.make)((scope, exit) =>
+      acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Scope, OutElem, OutDone] {
+        Scope.make
+      } { (scope, exit) =>
         scope.close(exit)
-      ) { scope =>
-        fromZIO[Env, OutErr, A](
-          m.provideSomeEnvironment[Env](_.union[Scope](ZEnvironment(scope)))
-        )
-          .flatMap(use)
+      } { scope =>
+        ZChannel.fromZIO(scope.extend[Env](zio)).flatMap(use)
       }
   }
 
   final class ScopedOutPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](
-      m: => ZIO[Scope with R, E, A]
+      zio: => ZIO[Scope with R, E, A]
     )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
       acquireReleaseOutExitWith(
         Scope.make.flatMap { scope =>
           ZIO.uninterruptibleMask { restore =>
-            restore(m.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(scope))))
+            restore(scope.extend[R](zio))
               .foldCauseZIO(
                 cause => scope.close(Exit.failCause(cause)) *> ZIO.failCause(cause),
                 { case out => ZIO.succeedNow((out, scope)) }

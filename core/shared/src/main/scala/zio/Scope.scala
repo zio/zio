@@ -21,8 +21,10 @@ import scala.collection.immutable.LongMap
 trait Scope extends Serializable { self =>
   def addFinalizer(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
   def close(exit: Exit[Any, Any]): UIO[Unit]
-  final def use[R, E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
-    zio.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(self))).onExit(self.close(_))
+  final def extend[R]: Scope.ExtendPartiallyApplied[R] =
+    new Scope.ExtendPartiallyApplied[R](self)
+  final def use[R]: Scope.UsePartiallyApplied[R] =
+    new Scope.UsePartiallyApplied[R](self)
 }
 
 object Scope {
@@ -56,6 +58,16 @@ object Scope {
           releaseMap.releaseAll(exit, executionStrategy).unit
       }
     }
+
+  final class ExtendPartiallyApplied[R](private val scope: Scope) extends AnyVal {
+    final def apply[E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+      zio.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(scope)))
+  }
+
+  final class UsePartiallyApplied[R](private val scope: Scope) extends AnyVal {
+    final def apply[E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+      scope.extend[R](zio).onExit(scope.close(_))
+  }
 
   private sealed abstract class State
   private final case class Exited(nextKey: Long, exit: Exit[Any, Any], update: Finalizer => Finalizer) extends State
