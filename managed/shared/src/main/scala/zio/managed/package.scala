@@ -16,8 +16,10 @@
 
 package zio
 
-// import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream._
+
+import java.io.{IOException, InputStream}
 
 package object managed {
 
@@ -262,11 +264,27 @@ package object managed {
       ZManaged.scoped[R1](self.runIntoQueueScoped(queue))
 
     /**
+     * Executes a pure fold over the stream of values. Returns a managed value
+     * that represents the scope of the stream.
+     */
+    final def runFoldManaged[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZManaged[R, E, S] =
+      ZManaged.scoped[R](self.runFoldScoped(s)(f))
+
+    /**
      * Executes an effectful fold over the stream of values. Returns a managed
      * value that represents the scope of the stream.
      */
     @deprecated("use runFoldManagedZIO", "2.0.0")
     final def runFoldManagedM[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
+      trace: ZTraceElement
+    ): ZManaged[R1, E1, S] =
+      ZManaged.scoped[R1](self.runFoldScopedZIO[R1, E1, S](s)(f))
+
+    /**
+     * Executes an effectful fold over the stream of values. Returns a managed
+     * value that represents the scope of the stream.
+     */
+    final def runFoldManagedZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
       trace: ZTraceElement
     ): ZManaged[R1, E1, S] =
       ZManaged.scoped[R1](self.runFoldScopedZIO[R1, E1, S](s)(f))
@@ -292,6 +310,61 @@ package object managed {
       ZManaged.scoped[R1](self.runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f))
 
     /**
+     * Executes an effectful fold over the stream of values. Returns a managed
+     * value that represents the scope of the stream. Stops the fold early when
+     * the condition is not fulfilled. Example:
+     * {{{
+     *   Stream(1)
+     *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
+     *     .use(ZIO.succeed)                       // UIO[Int] == 5
+     * }}}
+     *
+     * @param cont
+     *   function which defines the early termination condition
+     */
+    final def runFoldWhileManagedZIO[R1 <: R, E1 >: E, S](
+      s: => S
+    )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZManaged[R1, E1, S] =
+      ZManaged.scoped[R1](self.runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f))
+
+    /**
+     * Executes a pure fold over the stream of values. Returns a managed value
+     * that represents the scope of the stream. Stops the fold early when the
+     * condition is not fulfilled.
+     */
+    final def runFoldWhileManaged[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit
+      trace: ZTraceElement
+    ): ZManaged[R, E, S] =
+      ZManaged.scoped[R](self.runFoldWhileScoped(s)(cont)(f))
+
+    /**
+     * Like [[ZStream#runForeachChunk]], but returns a scoped `ZIO` so the
+     * finalization order can be controlled.
+     */
+    final def runForeachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
+      trace: ZTraceElement
+    ): ZManaged[R1, E1, Unit] =
+      ZManaged.scoped[R1](self.runForeachChunkScoped(f))
+
+    /**
+     * Like [[ZStream#foreach]], but returns a `ZManaged` so the finalization
+     * order can be controlled.
+     */
+    final def runForeachScoped[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit
+      trace: ZTraceElement
+    ): ZManaged[R1, E1, Unit] =
+      ZManaged.scoped[R1](self.runForeachScoped(f))
+
+    /**
+     * Like [[ZStream#runForeachWhile]], but returns a scoped `ZIO` so the
+     * finalization order can be controlled.
+     */
+    final def runForeachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
+      trace: ZTraceElement
+    ): ZManaged[R1, E1, Unit] =
+      ZManaged.scoped[R1](self.runForeachWhileScoped(f))
+
+    /**
      * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
      * allow for scope composition.
      */
@@ -302,6 +375,15 @@ package object managed {
       ZManaged.scoped[R1](self.runIntoQueueElementsScoped(queue))
 
     /**
+     * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
+     * allow for scope composition.
+     */
+    final def runIntoHubManaged[R1 <: R, E1 >: E](
+      hub: => ZHub[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+    )(implicit trace: ZTraceElement): ZManaged[R1, E1, Unit] =
+      ZManaged.scoped[R1](self.runIntoHubScoped(hub))
+
+    /**
      * Like [[ZStream#runInto]], but provides the result as a [[ZManaged]] to
      * allow for scope composition.
      */
@@ -310,6 +392,114 @@ package object managed {
       queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
     )(implicit trace: ZTraceElement): ZManaged[R1, E1, Unit] =
       ZManaged.scoped[R1](self.runIntoQueueScoped(queue))
+
+    /**
+     * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]]
+     * to allow for scope composition.
+     */
+    final def runIntoQueueManaged[R1 <: R, E1 >: E](
+      queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
+    )(implicit trace: ZTraceElement): ZManaged[R1, E1, Unit] =
+      ZManaged.scoped[R1](self.runIntoQueueScoped(queue))
+
+    /**
+     * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]]
+     * to allow for scope composition.
+     */
+    final def runIntoQueueElementsManaged[R1 <: R, E1 >: E](
+      queue: => ZQueue[R1, Nothing, Nothing, Any, Exit[Option[E1], A], Any]
+    )(implicit trace: ZTraceElement): ZManaged[R1, E1, Unit] =
+      ZManaged.scoped[R1](self.runIntoQueueElementsScoped(queue))
+
+    def runManaged[R1 <: R, E1 >: E, B](sink: => ZSink[R1, E1, A, Any, B])(implicit
+      trace: ZTraceElement
+    ): ZManaged[R1, E1, B] =
+      ZManaged.scoped[R1](self.runScoped(sink))
+  }
+
+  implicit final class ZManagedZStreamCompanionSyntax(private val self: ZStream.type) extends AnyVal {
+
+    /**
+     * Creates a stream from a subscription to a hub in the context of a managed
+     * effect. The managed effect describes subscribing to receive messages from
+     * the hub while the stream describes taking messages from the hub.
+     */
+    def fromChunkHubManaged[R, E, O](
+      hub: => ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
+    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[R, E, O]] =
+      ZManaged.scoped(ZStream.fromChunkHubScoped(hub))
+
+    /**
+     * Creates a stream from a subscription to a hub in the context of a managed
+     * effect. The managed effect describes subscribing to receive messages from
+     * the hub while the stream describes taking messages from the hub.
+     *
+     * The hub will be shut down once the stream is closed.
+     */
+    def fromChunkHubManagedWithShutdown[R, E, O](
+      hub: => ZHub[Nothing, R, Any, E, Nothing, Chunk[O]]
+    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[R, E, O]] =
+      ZManaged.scoped(ZStream.fromChunkHubScopedWithShutdown(hub))
+
+    /**
+     * Creates a stream from a subscription to a hub in the context of a managed
+     * effect. The managed effect describes subscribing to receive messages from
+     * the hub while the stream describes taking messages from the hub.
+     */
+    def fromHubManaged[R, E, A](
+      hub: => ZHub[Nothing, R, Any, E, Nothing, A],
+      maxChunkSize: => Int = ZStream.DefaultChunkSize
+    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[R, E, A]] =
+      ZManaged.scoped(ZStream.fromHubScoped(hub, maxChunkSize))
+
+    /**
+     * Creates a stream from a subscription to a hub in the context of a managed
+     * effect. The managed effect describes subscribing to receive messages from
+     * the hub while the stream describes taking messages from the hub.
+     *
+     * The hub will be shut down once the stream is closed.
+     */
+    def fromHubManagedWithShutdown[R, E, A](
+      hub: => ZHub[Nothing, R, Any, E, Nothing, A],
+      maxChunkSize: => Int = ZStream.DefaultChunkSize
+    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[R, E, A]] =
+      ZManaged.scoped(ZStream.fromHubScopedWithShutdown(hub, maxChunkSize))
+
+    /**
+     * Creates a stream from a managed `java.io.InputStream` value.
+     */
+    def fromInputStreamManaged[R](
+      is: => ZManaged[R, IOException, InputStream],
+      chunkSize: => Int = ZStream.DefaultChunkSize
+    )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
+      ZStream.fromInputStreamScoped[R](is.scoped, chunkSize)
+
+    /**
+     * Creates a stream from a managed iterator
+     */
+    def fromIteratorManaged[R, A](
+      iterator: => ZManaged[R, Throwable, Iterator[A]],
+      maxChunkSize: => Int = ZStream.DefaultChunkSize
+    )(implicit
+      trace: ZTraceElement
+    ): ZStream[R, Throwable, A] =
+      ZStream.fromIteratorScoped[R, A](iterator.scoped, maxChunkSize)
+
+    /**
+     * Creates a stream from a managed iterator
+     */
+    def fromJavaIteratorManaged[R, A](iterator: => ZManaged[R, Throwable, java.util.Iterator[A]])(implicit
+      trace: ZTraceElement
+    ): ZStream[R, Throwable, A] =
+      ZStream.fromJavaIteratorScoped[R, A](iterator.scoped)
+
+    def managed[R, E, A](managed: => ZManaged[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+      ZStream.scoped[R](managed.scoped)
+
+    def unwrapScoped[R, E, A](fa: => ZManaged[R, E, ZStream[R, E, A]])(implicit
+      trace: ZTraceElement
+    ): ZStream[R, E, A] =
+      ZStream.unwrapScoped[R](fa.scoped)
   }
 
   implicit final class ZManagedZSinkCompanionSyntax(private val self: ZSink.type) extends AnyVal {
