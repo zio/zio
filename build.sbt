@@ -372,7 +372,19 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(dottySettings)
+
+lazy val testTestsJS = testTests.js
+  .settings(dottySettings)
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        // Temporarily disable warning to use `MacrotaskExecutor` https://github.com/zio/zio/issues/6308
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
