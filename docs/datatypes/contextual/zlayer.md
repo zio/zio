@@ -113,8 +113,7 @@ import zio._
 import scala.io.BufferedSource
 
 val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
-  // alternative: ZLayer.fromManaged
-  ZLayer.fromZIOScoped {
+  ZLayer.scoped {
     ZIO.fromAutoCloseable(
       ZIO.attempt(scala.io.Source.fromFile("file.txt"))
     )
@@ -125,7 +124,7 @@ val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
 
 ```scala mdoc:compile-only
 val managedFile: ZLayer[Any, Throwable, BufferedSource] =
-  ZLayer.fromZIOScoped(ZIO.fromAutoCloseable(ZIO.attempt(scala.io.Source.fromFile("file.txt"))))
+  ZLayer.scoped(ZIO.fromAutoCloseable(ZIO.attempt(scala.io.Source.fromFile("file.txt"))))
 ```
 
 3. We can create a `ZLayer` directly from `acquire` and `release` actions of a managed resource:
@@ -180,7 +179,7 @@ We can convert that to `ZLayer` with `ZLayer.fromManaged` or `ZManaged#toLayer`:
 
 ```scala mdoc:nest
 val usersLayer : ZLayer[Console, Throwable, UserRepository] =
-  ZLayer.fromZIOScoped(managed)
+  ZLayer.scoped(managed)
 ```
 
 ```scala mdoc:invisible:reset
