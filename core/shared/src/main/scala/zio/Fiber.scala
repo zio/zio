@@ -334,6 +334,13 @@ sealed abstract class Fiber[+E, +A] { self =>
   def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]]
 
   /**
+    * Converts this fiber into a scoped [[zio.ZIO]]. The fiber is interrupted
+    * when the scope is closed.
+    */
+   final def scoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Fiber[E, A]] =
+     ZIO.acquireRelease(ZIO.succeedNow(self))(_.interrupt)
+
+  /**
    * Converts this fiber into a [[scala.concurrent.Future]].
    *
    * @param ev
